@@ -32,8 +32,12 @@ def read_config(filename='config.ini'):
 # read the configuration
 filename = r'./backend/config.ini'
 config = read_config(filename)
-
-jwt_config = config['jwt']
+try:
+    jwt_config = config['jwt']
+except KeyError:
+    filename = r'config.ini'
+    config = read_config(filename)
+    jwt_config = config['jwt']
 jwt_secret = jwt_config.get('jwt_secret', 'your_jwt_secret')
 
 # Initialize JWT Validator
