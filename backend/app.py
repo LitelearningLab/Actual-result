@@ -419,7 +419,8 @@ def logout():
     return jsonify(logout_status), status_code
 
 app = Flask(__name__)
-CORS(app, resources={r"/edu/api/*": {"origins": ["http://localhost:4200","http://192.168.1.5:4200" ]}}, supports_credentials=True)
+# CORS(app, resources={r"/edu/api/*": {"origins": ["http://localhost:4200","http://192.168.1.5:4200" ]}}, supports_credentials=True)
+CORS(app, resources={r"/edu/api/*": {"origins": "*" }}, supports_credentials=True)
 
 app.register_blueprint(edu_blueprint)
 if __name__ == '__main__':
