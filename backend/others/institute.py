@@ -1,11 +1,11 @@
 from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City
 from db.db import SQLiteDB
 from datetime import datetime
-from sqlalchemy import text
+# from sqlalchemy import text
 
 def get_pagination(request):
     return (request.args.get('pageNumber', 1, type=int),
-            request.args.get('pageSize', 10, type=int))
+            request.args.get('pageSize', 25, type=int))
 
 def insert_institute(data):
     name = data.get("name", None)
@@ -21,7 +21,7 @@ def insert_institute(data):
 
     subscription_start_str = data.get("subscription_start", None)
     subscription_end_str = data.get("subscription_end", None)
-    created_by = data.get("current_user", 'system').get('user_id','system')
+    created_by = data.get("current_user", 'system')
 
     subscription_start = None
     subscription_end = None
