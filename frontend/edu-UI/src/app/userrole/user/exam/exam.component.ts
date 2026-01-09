@@ -83,7 +83,7 @@ export class UserExamComponent{
     is_correct?: boolean | number,
     marks_awarded?: number,
     feedback?: string
-  }>, score?: number, started_date?: string, submitted_date?: string, status?: string, percentage?: number, time_taken?: string, result?: string }> = [];
+  }>, score?: number, started_date?: string, submitted_date?: string, status?: string, percentage?: number, total_questions?: number, time_taken?: string, result?: string }> = [];
   reviewSelectedAttempt = 0;
 
   /**
@@ -133,6 +133,7 @@ export class UserExamComponent{
                   submitted_date: a.submitted_date || a.submitted_at || null,
                   status: a.status || null,
                   percentage: a.percentage || null,
+                  total_questions: a.total_questions || null,
                   time_taken: a.time_taken || null,
                   result: a.result || null
                 };

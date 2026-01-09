@@ -265,12 +265,12 @@
                      <div class="meta-row primary-row">
                         <div class="meta-item score-item">
                            <strong>Score</strong>
-                           <span class="value">{{ a.score || 0 }}</span>
+                           <span class="value">{{ a.score || 0 }} / {{ a.total_questions || 0 }}</span>
                         </div>
                         <!-- percentage -->
                         <div class="meta-item passmark-item" *ngIf="a.percentage">
                            <strong>Percentage</strong>
-                           <span class="value">{{ a.percentage || 0 }} %</span>
+                           <span class="value">{{ (a.percentage || 0) | number:'1.2-2' }} %</span>
                         </div>
                         <div class="meta-item status-item">
                            <strong>Status</strong>
@@ -329,11 +329,11 @@
                               <!-- Fill type: show user's answer and correct answer -->
                               <div class="fill-answer" *ngIf="it.question_type === 'fill'">
                                  <div class="fill-row">
-                                    <div class="fill-label">Your answer:</div>
+                                    <div class="fill-label">Your Answer:</div>
                                     <div class="fill-value" [ngClass]="{ 'fill-correct': it.is_correct, 'fill-incorrect': !it.is_correct }">{{ (it.selected_option || []).join(', ') || '-' }}</div>
                                  </div>
                                  <div class="fill-row">
-                                    <div class="fill-label">Expected:</div>
+                                    <div class="fill-label">Correct Answer:</div>
                                     <div class="fill-value expected">{{ it.correct_option || '-' }}</div>
                                  </div>
                                  <div class="feedback" *ngIf="it.feedback">{{ it.feedback }}</div>

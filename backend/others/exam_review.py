@@ -20,6 +20,10 @@ def review_user_exam(request):
             Exam_Attempt.user_id == user_id,
             Exam_Attempt.schedule_id == schedule_id
         ).all()
+        # get total questions in the exam
+        exam_schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == schedule_id ).first()
+        exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
+        total_questions = session.query(Question).filter(Question.exam_id == exam.exam_id).count() if exam else 0
 
         attempt_reviews = []
         for attempt in attempts:
@@ -32,7 +36,8 @@ def review_user_exam(request):
             review_data["time_taken"] = str(time_delta) if time_delta else None
             review_data["status"] = attempt.status
             review_data["score"] = attempt.score
-            review_data["percentage"] = attempt.percentage
+            review_data["total_questions"] = total_questions
+            review_data["percentage"] = round(attempt.percentage, 2) if attempt.percentage is not None else None
             review_data["result"] = attempt.feedback if hasattr(attempt, 'feedback') else ""
             review_data["review"] = []
             

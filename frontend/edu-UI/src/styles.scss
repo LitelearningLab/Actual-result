@@ -133,6 +133,9 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+.mat-mdc-slide-toggle .mdc-switch__icon {
+  display: none !important;
+}
 
 @import "~ag-grid-community/styles/ag-grid.css";
 @import "~ag-grid-community/styles/ag-theme-alpine.css";
