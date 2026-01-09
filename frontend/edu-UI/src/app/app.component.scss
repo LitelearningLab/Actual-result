@@ -58,7 +58,8 @@ html, body { width:100%; margin:0; padding:0; height:100%; background-color:var(
 
 
 /* Top bar inside app-main (10% of app-main) */
-  .app-topbar { flex: 0 0 var(--topbar-height); min-height: var(--topbar-height); width:100%; background:var(--theme-2); display:grid; align-items:center; box-shadow:0 0.125rem 0.625rem rgba(20,30,60,0.06); padding:0.625rem 2.5rem 0 }
+  .app-topbar { flex: 0 0 var(--topbar-height); min-height: var(--topbar-height); width:100%; background:var(--theme-2-bg-1); display:grid; align-items:center; box-shadow:0 0.125rem 0.625rem rgba(20,30,60,0.06); padding:0.625rem 2.5rem 0;
+  border-bottom: 1px solid var(--theme-2-border); }
 
 
 /* Content: scrolls internally only */

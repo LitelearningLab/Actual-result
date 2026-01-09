@@ -4,20 +4,20 @@
 :root {
 
     // Top-nav 
-    --theme-2: #f2f2f2;             // Theme
-    --theme-2-text-1: #0b3946;      // Text primary
+    --theme-2: #f8fafc;             // Theme
+    --theme-2-text-1: #010f13;      // Text primary
     --theme-2-text-2: #243843;      // Text secondary
     --theme-2-bg-1: #ffffff;        // Background primary
-    --theme-2-avatar: #9cc6b8;        //
-    --theme-2-border: rgba(15, 35, 55, 0.28);
+    --theme-2-avatar: #c8cccaa9;        //
+    --theme-2-border: rgba(15, 35, 55, 0.089);
     --theme-2-hanover-bg: rgba(15, 35, 55, 0.06);
 
     // Side-nav
-    --theme-1: #4a555f;
+    --theme-1: #10182c;
     --theme-1-text-1: #ffffff;
     --theme-1-text-2: #dfe3e6;
     --theme-1-icon-1: #ffffff;
-    --theme-1-border: rgba(255, 255, 255, 0.28);
+    --theme-1-border: rgba(15, 35, 55, 0.089);
     --theme-1-hanover-bg: rgba(255, 255, 255, 0.06);
     
     // Sidebar collapsed
@@ -32,7 +32,7 @@
   /* -------------------------------------
    * TABLES
    * -----------------------------------*/
-  --table-header-bg: #4a555f;       /* Updated to match theme palette */
+  --table-header-bg: #10182c;       /* Updated to match theme palette */
   --table-header-text: #ffffff;
   --table-header-icon: #e8f2ff;
 
@@ -40,7 +40,7 @@
   --table-row-hover-bg: #eef1f4;   /* Soft hover */
   --table-row-hover-text: #1d2c33;
   --table-row-text: #222b32;
-  --table-border: rgba(15, 35, 55, 0.15);
+  --table-border: rgba(15, 35, 55, 0.089);
 
   /* -------------------------------------
    * BACKGROUNDS
@@ -53,12 +53,12 @@
   /* -------------------------------------
    * BUTTONS
    * -----------------------------------*/
-  --button-1: #1f7bff;    /* Primary blue */
+  --button-1: #1b284b;    /* Primary blue */
   --button-2: #2f3a4c;    /* Slate/navy button */
   --button-3: #0b3946;    /* Deep teal action */
 
   /* Hover states */
-  --button-1-hover: #1668d6;
+  --button-1-hover: #1b284bc5;
   --button-2-hover: #26303e;
   --button-3-hover: #082c34;
 
@@ -71,9 +71,9 @@
   /* -------------------------------------
    * BORDERS
    * -----------------------------------*/
-  --border-1: rgba(15, 35, 55, 0.28);
-  --border-2: rgba(15, 35, 55, 0.12);
-  --border-3: rgba(243, 242, 241, 0.45);
+  --border-1: rgba(15, 35, 55, 0.089);
+  --border-2: rgba(15, 35, 55, 0.059);
+  --border-3: rgba(15, 35, 55, 0.019);
 
 
   /* -------------------------------------
@@ -111,12 +111,12 @@
 html, body {
   overflow: hidden;
   margin: 0;
-  font-family: Roboto, serif !important;
+  font-family:  "DM Sans", sans-serif; //Roboto, serif !important;
 }
 
 /* Force Cambria everywhere but avoid overriding icon fonts (mat-icon) */
 *:not(.mat-icon):not(.material-icons):not(.mat-mdc-icon) , *:not(.mat-icon):not(.material-icons):not(.mat-mdc-icon)::before, *:not(.mat-icon):not(.material-icons):not(.mat-mdc-icon)::after {
-  font-family: Roboto, serif !important;
+  font-family: "DM Sans", sans-serif; //Roboto, serif !important;
 }
 
 /* Ensure Material icon elements render their icon font */
@@ -149,7 +149,7 @@ html, body {
 // ========================= Toolbar styles ================================================================
 
 .toolbar{ padding:0.5rem; display:flex; justify-content:space-between; align-items:center; gap: 0.75rem /* 12px ÷ 16 */;  } 
-.toolbar .search{ width:22.5rem; background-color: var(--theme-2-bg-1); }
+.toolbar .search{ width:22.5rem; background-color: var(--theme-2-bg-1); border: 1px solid var(--border-1)!important;}
 .toolbar .search {flex: 1 1 26.25rem; /* 420px ÷ 16 */
   min-width: 13.75rem; /* 220px ÷ 16 */
   max-width: 28.125rem; /* 450px ÷ 16 */
@@ -161,7 +161,7 @@ html, body {
 /* Richer toolbar & buttons */
 .toolbar .controls{ display:flex; align-items:center; gap:0.75rem; }
 .toolbar .action-row{ display:flex; gap:0.5rem; align-items:center; }
-.toolbar .controls button { background: var(--button-1) !important; color: var(--button-text-1) !important; }
+.toolbar .controls button { background: var(--button-1) !important; color: var(--button-text-1) !important;    border-radius: .75rem; height: 2.75rem; border: 2px solid var(--border-1); }
 .toolbar .controls button:hover { background: var(--button-1-hover) !important; color: var(--button-text-2) !important; }
 
 //  ======================== Filters panel styles ================================================================
