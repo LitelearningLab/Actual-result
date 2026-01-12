@@ -24,6 +24,7 @@ class Institute(Base):
      email = Column(String)
      contact_no = Column(String)
      active_status = Column(Integer, default=1)
+     is_deleted = Column(Boolean, default=0)
 
      primary_contact_person = Column(String)
      primary_contact_email = Column(String)

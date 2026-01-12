@@ -159,12 +159,63 @@
                               </div>
                          </div>
 
+                                   <!-- User Review Panel (root-level) -->
+                                   <div *ngIf="showUserReviewPanel" class="wrong-summary-backdrop" (click)="closeUserReview()">
+                                        <div class="wrong-summary-panel user-review-panel" (click)="$event.stopPropagation()">
+                                             <div class="card">
+                                                  <div class="panel-header">
+                                                       <div>
+                                                            <h4>User Exam Review</h4>
+                                                            <div class="panel-sub">Per-attempt question review</div>
+                                                       </div>
+                                                       <button mat-icon-button aria-label="Close" type="button" (click)="closeUserReview()"><mat-icon>close</mat-icon></button>
+                                                  </div>
+                                                  <div class="panel-body">
+                                                       <div *ngIf="userReviewLoading" class="muted">Loading review...</div>
+                                                       <div *ngIf="!userReviewLoading">
+                                                            <div *ngIf="userReviewAttempts && userReviewAttempts.length; else noUserReview">
+                                                                 <div *ngFor="let att of userReviewAttempts">
+                                                                      <div class="attempt-header">
+                                                                           <h5>Attempt {{ att.attempt_number || att.attempt || 1 }} — Score: {{ att.score || att.marks || (att.percentage ? (att.percentage + '%') : '-') }} — {{ att.result || att.status || '' }}</h5>
+                                                                           <div class="muted">Started: {{ att.started_date || att.started_at || '' }} • Submitted: {{ att.submitted_date || att.submitted_at || '' }} • Time: {{ att.time_taken || '' }}</div>
+                                                                      </div>
+                                                                      <div class="questions-list">
+                                                                           <div *ngFor="let q of att.review || att.questions || []" class="question-review-card">
+                                                                                <div class="q-text"><strong>{{ q.question_text || q.text || q.title || 'Question' }}</strong></div>
+                                                                                <div class="q-type muted">Type: {{ q.question_type || q.type || '' }}</div>
+                                                                                <div class="q-options">
+                                                                                     <div *ngFor="let opt of q.options; let oi = index" [class.correct]="opt.is_correct" [class.selected]="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1">
+                                                                                          <span class="opt-mark">{{ (opt.is_correct ? '✓' : '') }}</span>
+                                                                                          <span class="opt-text">{{ opt.option_text || opt }}</span>
+                                                                                     </div>
+                                                                                </div>
+                                                                                <div class="q-selected muted">Selected: {{ (q.selected_option || []).join(', ') || '-' }}</div>
+                                                                                <div class="q-feedback" *ngIf="q.feedback"><strong>Feedback:</strong> {{ q.feedback }}</div>
+                                                                                <div class="q-marks muted">Marks awarded: {{ q.marks_awarded != null ? q.marks_awarded : (q.marks || '-') }}</div>
+                                                                           </div>
+                                                                      </div>
+                                                                 </div>
+                                                            </div>
+                                                            <ng-template #noUserReview>
+                                                                 <div class="muted">No review data available for this user.</div>
+                                                            </ng-template>
+                                                       </div>
+                                                  </div>
+                                                  <div class="summary-actions">
+                                                       <button mat-stroked-button color="primary" (click)="closeUserReview()">Close</button>
+                                                  </div>
+                                             </div>
+                                        </div>
+                                   </div>
+
                          <div class="table-wrap" *ngIf="!loadingUserReport">
                               <table mat-table [dataSource]="userReportData"
                                    class="mat-elevation-z1 compact premium-table" matSort>
                                    <ng-container matColumnDef="student_name">
                                         <th mat-header-cell *matHeaderCellDef>Student</th>
-                                        <td mat-cell *matCellDef="let row">{{row.student_name}}</td>
+                                        <td mat-cell *matCellDef="let row">
+                                            <a href="javascript:void(0)" (click)="openUserReview(row)">{{ row.student_name || row.name || 'Student' }}</a>
+                                        </td>
                                    </ng-container>
                                    <ng-container matColumnDef="questions_attempted">
                                         <th mat-header-cell *matHeaderCellDef>Attempted</th>
@@ -369,6 +420,8 @@
                                                                      <button mat-stroked-button color="primary" (click)="closeResourcePanel()">Close</button>
                                                                 </div>
                                                            </div>
+                                                           <!-- User Review Panel (moved) -->
+                                                           <!-- (moved out of resource panel by script) -->
                                                       </div>
                                                  </div>
                               <!-- <div class="analytics-actions" style="padding:8px 0 12px 0">

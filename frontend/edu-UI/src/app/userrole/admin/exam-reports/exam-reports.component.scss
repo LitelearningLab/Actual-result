@@ -60,3 +60,39 @@
 .res-desc{ font-size:0.9rem }
 .res-actions a{ background: var(--button-1); color: var(--button-text-1); padding:6px 10px; border-radius:6px; text-decoration:none }
 .res-actions a:hover{ opacity:0.95 }
+
+/* User Review Panel Styles (matches provided screenshot) */
+.user-review-panel { width: min(1100px, 96%); max-height: 90vh; overflow: auto; }
+.user-review-panel .card { padding: 18px; border-radius: 12px; background: linear-gradient(180deg,#ffffff 0%, #fbfbfd 100%); box-shadow: 0 16px 36px rgba(10,20,40,0.12); border: 1px solid rgba(0,0,0,0.06); }
+.user-review-panel .panel-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px }
+.user-review-panel .panel-header h4 { margin:0; font-size:1.1rem; font-weight:700 }
+.user-review-panel .panel-sub { color: rgba(0,0,0,0.55); font-size:0.95rem }
+
+.attempt-header { display:flex; flex-direction:column; gap:6px; padding:10px 0; border-bottom: 1px solid rgba(0,0,0,0.04); margin-bottom:12px }
+.attempt-header h5 { margin:0; font-size:1rem; display:flex; align-items:center; gap:12px }
+.attempt-header .score-badge { background: #e9f7ef; color: #0a8043; padding:6px 10px; border-radius:12px; font-weight:700; font-size:0.95rem; margin-left:auto }
+.attempt-meta { display:flex; gap:12px; color: rgba(0,0,0,0.55); font-size:0.9rem }
+
+.questions-list { display:flex; flex-direction:column; gap:14px; margin-top:10px }
+.question-review-card { border: 1px solid rgba(0,0,0,0.06); border-radius:10px; padding:14px; background: #fff; }
+.question-review-card .q-text { font-weight:700; margin-bottom:8px }
+.question-review-card .q-type { font-size:0.85rem; color: rgba(0,0,0,0.6); margin-bottom:8px }
+
+.q-options { display:flex; flex-wrap:wrap; gap:10px; }
+.q-options > div { flex: 1 1 45%; display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:8px; background: #f7f8fb; border: 1px solid rgba(0,0,0,0.03); }
+.q-options > div .opt-mark { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background: rgba(0,0,0,0.06); font-weight:700 }
+.q-options > div.selected { background: #e8f6ff; border-color: rgba(2,121,255,0.18); }
+.q-options > div.correct { background: #ecf9f0; border-color: rgba(10,160,80,0.12); }
+.q-options > div.missed { background: #fff7ed; border-color: rgba(245,166,35,0.12); }
+.q-options > div .opt-text { font-weight:600 }
+
+.q-selected, .q-marks { margin-top:8px; font-size:0.95rem }
+.q-feedback { margin-top:8px; background: rgba(240,248,255,0.6); padding:8px 10px; border-radius:8px; color: rgba(0,0,0,0.75) }
+
+/* small badges for marks */
+.question-review-card .mark-badge { float:right; background: #fff3f3; color: #b02a37; padding:6px 8px; border-radius:8px; font-weight:700 }
+
+@media (max-width: 880px) {
+  .q-options > div { flex: 1 1 100%; }
+  .user-review-panel { width: 96%; }
+}

@@ -23,18 +23,18 @@ html, body { width:100%; margin:0; padding:0; height:100%; background-color:var(
 }
 
 /* Side nav: left column, same height as app-main */
-.app-sidenav {
-  position: relative;
-  flex: 0 0 auto;
-  width: auto;
-  height: 100%;
-  background-color: var(--theme-1);
-  overflow: inherit;
-  background: transparent;
-  // border-top-left-radius: 30px;
-  // border-bottom-left-radius: 30px;
-  min-width: 0; /* allow shrinking of the column */
-}
+// .app-sidenav {
+//   position: relative;
+//   flex: 0 0 auto;
+//   width: auto;
+//   height: 100%;
+//   background-color: var(--theme-1);
+//   overflow: inherit;
+//   background: transparent;
+//   // border-top-left-radius: 30px;
+//   // border-bottom-left-radius: 30px;
+//   min-width: 0; /* allow shrinking of the column */
+// }
 
 
 

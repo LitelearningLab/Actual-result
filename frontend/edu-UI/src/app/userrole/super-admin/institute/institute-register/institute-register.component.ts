@@ -600,6 +600,63 @@ export class InstituteRegisterComponent {
     }
   }
 
+  // Helpers to resolve location ids/objects to display names for the Review step
+  resolveCountryName(value: any): string {
+    if (!value) return '-';
+    // If it's an object with a name property
+    if (typeof value === 'object') {
+      return (value.name || value.label || value.country_name || value.country || '').toString() || '-';
+    }
+    // if it's a string id or name, try to find in countries
+    const str = value.toString();
+    const found = this.countries.find(c => (c.id && c.id.toString() === str) || (c.name && c.name.toString() === str));
+    return found ? (found.name || str) : (str || '-');
+  }
+
+  resolveStateName(value: any, cid?: string): string {
+    if (!value) return '-';
+    if (typeof value === 'object') {
+      return (value.name || value.label || value.state_name || value.state || '').toString() || '-';
+    }
+    const str = value.toString();
+    // prefer per-campus state options when available
+    if (cid && this.campusStateOptions[cid] && this.campusStateOptions[cid].length) {
+      const found = this.campusStateOptions[cid].find(s => (s.id && s.id.toString() === str) || (s.name && s.name.toString() === str));
+      if (found) return found.name || str;
+    }
+    // fallback to global stateOptions
+    const found = this.stateOptions.find(s => (s.id && s.id.toString() === str) || (s.name && s.name.toString() === str));
+    return found ? (found.name || str) : (str || '-');
+  }
+
+  resolveCityName(value: any, cid?: string): string {
+    if (!value) return '-';
+    if (typeof value === 'object') {
+      return (value.name || value.label || value.city_name || value.city || '').toString() || '-';
+    }
+    const str = value.toString();
+    // prefer per-campus city options when available
+    if (cid && this.campusCityOptions[cid] && this.campusCityOptions[cid].length) {
+      const found = this.campusCityOptions[cid].find(c => (c.id && c.id.toString() === str) || (c.name && c.name.toString() === str));
+      if (found) return found.name || str;
+    }
+    // fallback to global cityOptions
+    const found = this.cityOptions.find(c => (c.id && c.id.toString() === str) || (c.name && c.name.toString() === str));
+    return found ? (found.name || str) : (str || '-');
+  }
+
+  getCampusCountryName(c: AbstractControl | any): string {
+    try { return this.resolveCountryName(c?.get('country')?.value); } catch (e) { return '-'; }
+  }
+
+  getCampusStateName(c: AbstractControl | any): string {
+    try { const cid = c?.get('_cid')?.value; return this.resolveStateName(c?.get('state')?.value, cid); } catch (e) { return '-'; }
+  }
+
+  getCampusCityName(c: AbstractControl | any): string {
+    try { const cid = c?.get('_cid')?.value; return this.resolveCityName(c?.get('city')?.value, cid); } catch (e) { return '-'; }
+  }
+
   // focus/blur helpers to safely read/write input.value (avoids template EventTarget typing issues)
   onDepartmentFocus(evt: Event) {
     const input = evt?.target as HTMLInputElement | null;

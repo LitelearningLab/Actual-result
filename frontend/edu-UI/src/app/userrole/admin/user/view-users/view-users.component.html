@@ -146,7 +146,7 @@
               <button *hasAccess="'Users'; hasAccessAction: 'view'" mat-icon-button color="primary" (click)="viewDetails(u)"
                 title="View details"><mat-icon svgIcon="view"></mat-icon></button>
               <button *hasAccess="'Users'; hasAccessAction: 'edit'" mat-icon-button color="accent" (click)="startEditUser(u)"
-                title="Edit"><mat-icon svgIcon="edit"></mat-icon></button>
+                title="Edit" class="edit-btn"><mat-icon svgIcon="edit"></mat-icon></button>
               <button *hasAccess="'Users'; hasAccessAction: 'delete'" mat-icon-button color="warn" (click)="deleteUser(u)"
                 title="Delete" class="delete-btn" ><mat-icon svgIcon="delete"></mat-icon></button>
             </div>

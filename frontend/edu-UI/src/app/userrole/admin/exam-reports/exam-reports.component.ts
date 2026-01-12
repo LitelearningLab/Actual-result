@@ -7,6 +7,7 @@ import { API_BASE } from 'src/app/shared/api.config';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { TemplatePortal } from '@angular/cdk/portal';
 
 @Component({
@@ -31,6 +32,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   // user report state
   userReportData: any[] = [];
   userReportTotal = 0;
+  // user review panel state
+  showUserReviewPanel = false;
+  userReviewAttempts: any[] = [];
+  userReviewLoading = false;
   pageSize = 25;
   currentPage = 1;
   searchQuery = '';
@@ -66,7 +71,80 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   private _subs: Subscription | null = null;
   resetFilters: any = {};
 
-  constructor(private http: HttpClient, private loading: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService) {}
+  constructor(private http: HttpClient, private loading: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private _snack: MatSnackBar) {}
+
+  // Open user review by calling backend API /review-user-exam
+  openUserReview(row: any){
+    if(!row) return;
+    const userId = row.user_id || row.student_id || row.id || row.userId || null;
+    const scheduleId = String(this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || '');
+    if(!userId || !scheduleId) return;
+    const params: any = { user_id: String(userId), scheduler_id: scheduleId };
+    // if browser is offline, show a retry snackbar instead of firing the request
+    if(typeof navigator !== 'undefined' && !navigator.onLine){
+      const snack = this._snack.open('You appear to be offline. Retry?', 'Retry', { duration: 10000 });
+      snack.onAction().subscribe(() => this.fetchUserReview(params));
+      return;
+    }
+    this.fetchUserReview(params);
+  }
+
+  private fetchUserReview(params: any){
+    this.userReviewLoading = true;
+    this.http.get<any>(`${API_BASE}/review-user-exam`, { params }).subscribe({
+      next: (res)=>{
+        try{
+          const body = res || {};
+          // backend returns { data: [ attemptObj, ... ] }
+          let attempts: any[] = [];
+          if(Array.isArray(body.data)) {
+            attempts = body.data;
+          } else if(Array.isArray(body)) {
+            attempts = body as any[];
+          } else if(Array.isArray(body?.data?.data)) {
+            attempts = body.data.data;
+          } else if(Array.isArray(body?.attempts)) {
+            attempts = body.attempts;
+          }
+
+          // normalize each attempt: ensure review/questions array exists
+          this.userReviewAttempts = (attempts || []).map(a => {
+            const reviewList = a.review || a.questions || a.attempt_review || [];
+            return { ...a, review: Array.isArray(reviewList) ? reviewList : [] };
+          });
+          console.debug('[ExamReports] review-user-exam attempts count:', this.userReviewAttempts.length, this.userReviewAttempts);
+        }catch(e){
+          console.warn('Failed to parse review-user-exam response', e);
+          this.userReviewAttempts = [];
+        }
+        this.userReviewLoading = false;
+        if(!this.userReviewAttempts || !this.userReviewAttempts.length){
+          this._snack.open('No review data available for this user.', 'Close', { duration: 4000 });
+          this.showUserReviewPanel = false;
+        } else {
+          this.showUserReviewPanel = true;
+        }
+      },
+      error: (err)=>{
+        console.error('[ExamReports] review-user-exam failed', err);
+        this.userReviewLoading = false;
+        this.userReviewAttempts = [];
+        if(err && err.status === 0){
+          const snack = this._snack.open('Network or server unreachable — check backend and network.', 'Retry', { duration: 8000 });
+          snack.onAction().subscribe(() => {
+            // retry once
+            this.fetchUserReview(params);
+          });
+        } else {
+          const msg = (err && err.error && err.error.statusMessage) ? err.error.statusMessage : (err && err.message) ? err.message : 'Failed to load review data.';
+          this._snack.open(msg, 'Close', { duration: 5000 });
+        }
+        this.showUserReviewPanel = false;
+      }
+    });
+  }
+
+  closeUserReview(){ this.showUserReviewPanel = false; this.userReviewAttempts = []; }
 
   onApply(payload: any) {
     this.appliedFilters = payload;

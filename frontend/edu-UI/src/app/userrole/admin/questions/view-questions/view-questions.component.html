@@ -222,7 +222,7 @@
                     <td mat-cell *matCellDef="let q">
                         <div class="actions-inline">
                         <!-- <button *hasAccess="'Questions'; hasAccessAction: 'view'" mat-icon-button title="View details"><mat-icon>visibility</mat-icon></button> -->
-                        <button *hasAccess="'Questions'; hasAccessAction: 'edit'" mat-icon-button color="accent"  (click)="editQuestion(q)" title="Edit"><mat-icon svgIcon="edit"></mat-icon></button>
+                        <button *hasAccess="'Questions'; hasAccessAction: 'edit'" mat-icon-button color="accent"  (click)="editQuestion(q)" title="Edit" class="edit-btn"><mat-icon svgIcon="edit"></mat-icon></button>
                         <button *hasAccess="'Questions'; hasAccessAction: 'delete'" mat-icon-button color="warn" (click)="deleteQuestion(q)" title="Delete" class="delete-btn"><mat-icon svgIcon="delete"></mat-icon></button>
                         </div>
                     </td>

@@ -308,6 +308,20 @@ def manage_institute(action, uuid, updated_by):
 
     return {"statusMessage": f"Institute {'activated' if active_status else 'deactivated'} successfully", "status": True}, 200
 
+# delete institute function can be added here in future
+def delete_institute(uuid, deleted_by):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return None
+    # update institute table 
+    institute = session.query(Institute).filter_by(institute_id=uuid).first()
+    if not institute:
+        return {"statusMessage": "Institute not found", "status": False}, 404
+
+    institute.is_deleted = 1
+    session.commit()
+    return {"statusMessage": "Insititue record deleted", "ststus": True}, 200
 
 def get_institute_details(request):
     
@@ -319,6 +333,7 @@ def get_institute_details(request):
     page_number, page_size = get_pagination(request)
     filters = []
     args = getattr(request, "args", {})
+    filters.append(Institute.is_deleted == 0)
     if args.get("name"):
         filters.append(Institute.name.ilike(f"%{args.get('name')}%"))
     if args.get("industry"):
