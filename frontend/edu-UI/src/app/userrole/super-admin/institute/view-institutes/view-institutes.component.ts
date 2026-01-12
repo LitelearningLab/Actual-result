@@ -23,6 +23,7 @@ import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule } from '@angular/cdk/portal';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 export interface Institute {
   id: number;
@@ -52,7 +53,7 @@ export interface Institute {
 @Component({
   selector: 'app-view-institutes',
   standalone: true,
-  imports: [CommonModule, MatTableModule, MatIconModule, MatButtonModule, MatSlideToggleModule, MatTabsModule, MatInputModule, MatFormFieldModule, MatSelectModule, FormsModule, ReactiveFormsModule, RouterModule, MatPaginatorModule, MatSortModule, OverlayModule, PortalModule],
+  imports: [CommonModule, MatTableModule, MatIconModule, SharedModule, MatButtonModule, MatSlideToggleModule, MatTabsModule, MatInputModule, MatFormFieldModule, MatSelectModule, FormsModule, ReactiveFormsModule, RouterModule, MatPaginatorModule, MatSortModule, OverlayModule, PortalModule],
   templateUrl: './view-institutes.component.html',
   styleUrls: ['./view-institutes.component.scss']
 })
@@ -95,6 +96,7 @@ export class ViewInstitutesComponent {
   constructor(private http: HttpClient, private router: Router, private loader: LoaderService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private confirmService: ConfirmService) {
     this.loadInstitutes();
     this.loadCountries();
+
   }
 
   ngOnInit(): void {

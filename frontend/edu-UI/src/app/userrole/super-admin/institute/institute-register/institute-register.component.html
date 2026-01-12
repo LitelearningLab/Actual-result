@@ -9,7 +9,7 @@
       </div>
       <div class="form-actions">
         <button mat-flat-button color="accent" type="button" routerLink="/view-institutes">
-          <mat-icon>arrow_back</mat-icon>
+          <mat-icon svgIcon="arrow_back"></mat-icon>
           <span>View Institute</span>
         </button>
       </div>
@@ -70,7 +70,7 @@
               </div>
             </div>
             <div class="form-actions">
-              <button type="button" mat-button matStepperNext class="next-btn"><span>Next</span><mat-icon>arrow_forward</mat-icon></button>
+              <button type="button" mat-button matStepperNext class="next-btn"><span>Next</span><mat-icon svgIcon="arrow_forward"></mat-icon></button>
             </div>
           </mat-step>
 
@@ -202,8 +202,8 @@
             </div>
 
             <div class="form-actions">
-              <button type="button" mat-button matStepperPrevious ><mat-icon>arrow_back</mat-icon><span>Back</span></button>
-              <button type="button" mat-button matStepperNext class="next-btn"><span>Next</span><mat-icon>arrow_forward</mat-icon></button>
+              <button type="button" mat-button matStepperPrevious ><mat-icon svgIcon="arrow_back"></mat-icon><span >Back</span></button>
+              <button type="button" mat-button matStepperNext class="next-btn"><span>Next</span><mat-icon svgIcon="arrow_forward"></mat-icon></button>
             </div>
           </mat-step>
 
@@ -394,8 +394,8 @@
               </div>
             </div>
             <div class="form-actions">
-              <button type="button" mat-button matStepperPrevious ><mat-icon>arrow_back</mat-icon><span>Back</span></button>
-              <button type="button" mat-button matStepperNext class="next-btn"><span>Next</span><mat-icon>arrow_forward</mat-icon></button>
+              <button type="button" mat-button matStepperPrevious ><mat-icon svgIcon="arrow_back"></mat-icon><span>Back</span></button>
+              <button type="button" mat-button matStepperNext class="next-btn"><span>Next</span><mat-icon svgIcon="arrow_forward"></mat-icon></button>
             </div>
           </mat-step>
 
@@ -484,9 +484,9 @@
               </div>
             </div>
             <div class="form-actions">
-              <button type="button" mat-button matStepperPrevious><mat-icon>arrow_back</mat-icon><span>Back</span></button>
+              <button type="button" mat-button matStepperPrevious><mat-icon svgIcon="arrow_back"></mat-icon><span>Back</span></button>
               <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">
-                <mat-icon>check</mat-icon>
+                <mat-icon svgIcon="save"></mat-icon>
                 <span *ngIf="!isEditing">Register</span>
                 <span *ngIf="isEditing">Save changes</span>
               </button>

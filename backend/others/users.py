@@ -25,12 +25,21 @@ def insert_user(data):
     city_id = data.get("city_id", None)
     joining_date = data.get("joining_date", None)
     joining_date = datetime.strptime(joining_date, "%Y-%m-%d").date()
-    created_by = data.get("created_by", "Admin")
+    created_by = data.get("current_user", "Admin")
 
     db = SQLiteDB()
     session = db.connect()
     if not session:
         return None
+    
+    # check if user_name or email already exists
+    existing_user = session.query(User).filter( User.email == email ).first()
+    if existing_user:
+        json_data = {
+            "statusMessage": "Username or Email already exists",
+            "status": False
+        }
+        return json_data, 400
 
     new_user = User(
         full_name = full_name,

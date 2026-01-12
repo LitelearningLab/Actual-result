@@ -9,10 +9,10 @@
 
     <div class="navbar-right" *ngIf="isLogin">
       <button mat-icon-button aria-label="Notifications">
-        <mat-icon class="notification">notifications</mat-icon>
+        <mat-icon fontSet="material-icons-outlined">notifications</mat-icon>
       </button>
       <button mat-icon-button aria-label="Settings">
-        <mat-icon class="settings-icon">settings</mat-icon>
+        <mat-icon fontSet="material-icons-outlined">settings</mat-icon>
       </button>
 
       <!-- Inline avatar + name (no dropdown) -->
@@ -21,11 +21,12 @@
         <div class="user-inline-meta">
           <div class="user-name">{{ displayName }}</div>
           <div class="user-institute">{{ instituteShortName }}</div>
+          <!-- <div class="user-role">{{ userRole }}</div> -->
         </div>
       </div>
 
       <button mat-icon-button aria-label="logout" class="logout-inline" (click)="confirmLogout()">
-        <mat-icon class="logout-icon">exit_to_app</mat-icon>
+        <mat-icon class="logout-icon">logout</mat-icon>
       </button>
     </div>
   </div>

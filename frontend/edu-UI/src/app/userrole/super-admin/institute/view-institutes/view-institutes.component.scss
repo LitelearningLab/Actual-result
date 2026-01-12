@@ -22,13 +22,10 @@
 	border:4px solid rgba(84, 167, 212, 0.06); border-radius:8px;
 	margin-left:48px; /* 2 * 16px (TAP) */ margin-right:32px;
 }
-.detail-grid .label{ color: var(--text-1); gap: 15px; font-weight:500; min-height:36px; display:flex; align-items:center; padding-left: 20PX;}
-.detail-grid .value{ color: var(--text-2); min-height:36px; display:flex; align-items:center; }
-
+.detail-grid .label{ color: var(--theme-3-text-1); gap: 15px; font-weight:500; min-height:36px; display:flex; align-items:center; padding-left: 20PX;}
+.detail-grid .value{ color: var(--theme-3-text-2); min-height:36px; display:flex; align-items:center; }
 
 .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
-.modal-actions button {background: var(--button-1) !important; color: var(--button-text-1) !important;}
-.modal-actions button:hover {background: var(--button-1-hover) !important; color: var(--button-text-2) !important;}
 
 // ============= Capus list styles =============
 .campus-list{ display:flex; flex-direction:column; gap:8px; margin-left:48px; margin-right:32px; }

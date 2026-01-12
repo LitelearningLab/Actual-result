@@ -23,7 +23,7 @@ def review_user_exam(request):
         # get total questions in the exam
         exam_schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == schedule_id ).first()
         exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
-        total_questions = session.query(Question).filter(Question.exam_id == exam.exam_id).count() if exam else 0
+        total_questions = exam.total_questions if exam else 0
 
         attempt_reviews = []
         for attempt in attempts:
@@ -176,9 +176,9 @@ def validate_answers(attempt_id):
             ).with_entities(func.sum(Question.marks)).scalar() or 0
             passing_score = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first().pass_mark
             if total_possible_marks > 0 and (total_score / total_possible_marks * 100) >= passing_score:
-                attempt.feedback = 'passed'
+                attempt.feedback = 'Pass'
             else:
-                attempt.feedback = 'failed'
+                attempt.feedback = 'Faile'
             attempt.percentage = (total_score / total_possible_marks * 100) if total_possible_marks > 0 else 0
             attempt.status = 'evaluated'
             session.add(attempt)

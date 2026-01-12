@@ -109,7 +109,7 @@
 .pages-table .simple-table{ width:100%; border-collapse:collapse; min-width:560px; table-layout: fixed; }
 .pages-table.card{ border-radius:8px; background: var(--bg-1); }
 .simple-table th, .simple-table td{ padding:10px 12px; border-bottom:1px solid var(--border-2); text-align:left; vertical-align:middle }
-.simple-table thead th{ font-weight:700; background:var(--bg-3); color:var(--text-2); font-size:13px; text-align:center; }
+.simple-table thead th{ font-weight:700; background:var(--bg-3); color:var(--theme-3-text-2); font-size:13px; text-align:center; }
 .simple-table td.center{ text-align:center }
 .simple-table tr:hover td{ background: rgba(31,123,255,0.03) }
 .simple-table td mat-checkbox{ margin:0; transform:scale(0.98) }
@@ -119,7 +119,7 @@
 .simple-table th:first-child, .simple-table td:first-child { width: 50%; }
 .simple-table th.center, .simple-table td.center { width: 10%; }
 
-.page-name{ font-weight:550; color:var(--text-1); background-color: var(--bg-3); }
+.page-name{ font-weight:550; color:var(--theme-3-text-1); background-color: var(--bg-3); }
 .simple-table thead th{ padding:12px 12px }
 
 @media (max-width:720px){
@@ -178,7 +178,7 @@
 .mat-horizontal-stepper{ padding:6px 0; }
 .mat-horizontal-stepper .mat-stepper-header{ margin-bottom:12px; }
 .mat-horizontal-stepper .mat-stepper-horizontal-line { background: var(--border-2); }
-.mat-horizontal-stepper .mat-stepper-icon { background: var(--bg-3); color: var(--text-1); }
+.mat-horizontal-stepper .mat-stepper-icon { background: var(--bg-3); color: var(--theme-3-text-1); }
 
 /* Bulk upload step adjustments */
 .bulk-upload.mat-elevation-z4 { padding: 16px; }
@@ -195,19 +195,19 @@
 .review-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; align-items:start }
 .review-column h4{ margin:0 0 8px 0; font-size:14px; font-weight:700 }
 .review-column .summary-row{ display:flex; justify-content:space-between; padding:6px 0 }
-.review-column .label{ color:var(--text-2); font-weight:600 }
-.review-column .value{ color:var(--text-1); font-weight:700 }
+.review-column .label{ color:var(--theme-3-text-2); font-weight:600 }
+.review-column .value{ color:var(--theme-3-text-1); font-weight:700 }
 
 .review-privileges{ margin-top:12px }
 .priv-summary{ display:flex; flex-direction:column; gap:8px }
-.priv-stats{ display:flex; gap:12px; font-weight:700; color:var(--text-2) }
+.priv-stats{ display:flex; gap:12px; font-weight:700; color:var(--theme-3-text-2) }
 .priv-list{ max-height:200px; overflow:auto; border:1px solid var(--border-2); border-radius:6px; padding:8px }
 .priv-row{ display:flex; justify-content:space-between; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.03) }
 .priv-row:last-child{ border-bottom:none }
 .priv-actions small{ display:inline-block; margin-left:6px; padding:2px 6px; border-radius:4px; background:var(--bg-3); font-weight:700 }
 
 /* Icons instead of letters: use Material icons in template, ensure spacing */
-.priv-actions mat-icon{ font-size:16px; margin-left:6px; color:var(--text-2) }
+.priv-actions mat-icon{ font-size:16px; margin-left:6px; color:var(--theme-3-text-2) }
 
 @media (max-width:920px){ .review-grid{ grid-template-columns: repeat(2, 1fr) } }
 @media (max-width:520px){ .review-grid{ grid-template-columns: 1fr } .priv-stats{ flex-direction:column } }
@@ -216,7 +216,7 @@
 .review-summary { background: linear-gradient(180deg, rgba(255,255,255,0.9), var(--bg-1)); border:1px solid var(--border-2); padding:16px; }
 .review-grid{ gap:20px }
 .review-column{ background: linear-gradient(180deg, #fff, #fbfdff); border-radius:8px; padding:12px; box-shadow: 0 6px 18px rgba(8,35,50,0.04); border:1px solid rgba(15,35,55,0.04) }
-.review-column h4{ margin-bottom:10px; color:var(--text-2) }
+.review-column h4{ margin-bottom:10px; color:var(--theme-3-text-2) }
 .review-column .summary-row{ padding:8px 0; border-bottom:1px dashed rgba(0,0,0,0.04) }
 .review-column .summary-row:last-child{ border-bottom:none }
 .review-column .label{ width:45%; color:#6b7784 }

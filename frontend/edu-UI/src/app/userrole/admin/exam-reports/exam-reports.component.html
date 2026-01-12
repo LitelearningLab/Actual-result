@@ -31,11 +31,11 @@
           <div class="controls">
 
                <div class="action-row">
-                    <button mat-stroked-button color="primary" type="button" (click)="loadAnalytics()">
-                         <mat-icon>refresh</mat-icon>Refresh</button>
-                    <button #filtersBtn mat-flat-button type="button" class="filter-btn custom-filter-btn"
+                    <button mat-stroked-button color="primary" type="button" (click)="loadAnalytics()" class="button-one">
+                         <mat-icon svgIcon="refresh"></mat-icon>Refresh</button>
+                    <button #filtersBtn mat-flat-button type="button" class="button-one"
                          (click)="openFiltersOverlay(); $event.stopPropagation()">
-                         <mat-icon>filter_alt</mat-icon>
+                         <mat-icon svgIcon="filter"></mat-icon>
                          <span>Filters</span>
                     </button>
                </div>
@@ -102,18 +102,18 @@
 
                               <mat-form-field appearance="outline" class="filter-item">
                                    <mat-icon matPrefix>calendar_today</mat-icon>
-                                   <mat-label>Joined after</mat-label>
+                                   <mat-label>Exam schedule after</mat-label>
                                    <input matInput [matDatepicker]="joinAfter" [(ngModel)]="userFilters.joined_after"
-                                        placeholder="Joined after" />
+                                        placeholder="Exam schedule after" />
                                    <mat-datepicker-toggle matSuffix [for]="joinAfter"></mat-datepicker-toggle>
                                    <mat-datepicker #joinAfter></mat-datepicker>
                               </mat-form-field>
 
                               <mat-form-field appearance="outline" class="filter-item">
                                    <mat-icon matPrefix>calendar_today</mat-icon>
-                                   <mat-label>Joined before</mat-label>
+                                   <mat-label>Exam schedule before</mat-label>
                                    <input matInput [matDatepicker]="joinBefore" [(ngModel)]="userFilters.joined_before"
-                                        placeholder="Joined before" />
+                                        placeholder="Exam schedule before" />
                                    <mat-datepicker-toggle matSuffix [for]="joinBefore"></mat-datepicker-toggle>
                                    <mat-datepicker #joinBefore></mat-datepicker>
                               </mat-form-field>
@@ -122,12 +122,12 @@
                               <div class="filter-actions">
                                    <button mat-stroked-button type="button"
                                         (click)="loadScheduledExam(); closeFiltersOverlay();">
-                                        <mat-icon>search</mat-icon>
+                                        <mat-icon svgIcon="apply"></mat-icon>
                                         Apply
                                    </button>
                                    <button mat-button type="button"
                                         (click)="resetFilters = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '' }; loadScheduledExam(); closeFiltersOverlay();">
-                                        <mat-icon>refresh</mat-icon>
+                                        <mat-icon svgIcon="reset_settings"></mat-icon>
                                         Reset
                                    </button>
 

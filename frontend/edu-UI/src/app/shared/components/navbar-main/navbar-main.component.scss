@@ -40,8 +40,8 @@
   .app-title {
     display: grid;
     gap: 4px;
-    .title { font-weight: 500; font-size: 25px; color: var(--theme-2-text-1) }
-    .subtitle { font-size: 14px; opacity: 0.9; color: var(--theme-2-text-2) }
+    .title { font-weight: 500;    font-size: 1.5rem;    line-height: 2rem;color: var(--theme-2-text-1) }
+    .subtitle { font-size: .875rem;    line-height: 1.25rem; opacity: 0.9; color: var(--theme-2-text-2) }
   }
 
   .navbar-right {
@@ -49,8 +49,13 @@
     gap: .75rem;
     align-items: center;
   }
+  
+  .navbar-right mat-icon{font-family: 'Material Icons Outlined' !important;
+  color: var(--theme-2-icon-1);
+  }
+
   .user-inline { border-left-width: 1px; border-left-style: solid; border-left-color: var(--theme-2-border); display:flex; align-items:center; gap:10px; padding:6px 10px; }
-  .avatar-inline { width:45px; height:45px; border-radius:50%; background: var(--theme-2-avatar) ; display:flex; align-items:center; justify-content:center; font-weight:700; color:#0f172a; border: 2px solid var(--theme-2-border); }
+  .avatar-inline { width:45px; height:45px; border-radius:50%; background: var(--theme-2-avatar) ; display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--theme-2-text-1); border: 2px solid var(--theme-2-border); }
   .user-inline-meta { display:flex; flex-direction:column }
   .user-inline .user-name { font-weight:550; font-size:14px ;color: var(--theme-2-text-1)}
   .user-inline .user-institute { font-size:12px; color: var(--theme-2-text-2) }

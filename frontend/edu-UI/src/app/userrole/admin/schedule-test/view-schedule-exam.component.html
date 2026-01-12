@@ -18,16 +18,16 @@
         <div class="controls">
             <div class="action-row">
                 <button #filtersBtn mat-flat-button type="button"
-                    (click)="openFiltersOverlay(); $event.stopPropagation()" class="filter-btn custom-filter-btn">
-                    <mat-icon>filter_alt</mat-icon>
+                    (click)="openFiltersOverlay(); $event.stopPropagation()" class="button-one">
+                    <mat-icon svgIcon="filter"></mat-icon>
                     <span>Filters</span>
                 </button>
-                <button mat-flat-button color="primary" (click)="refresh()" class="refresh-btn">
-                    <mat-icon>refresh</mat-icon>
+                <button mat-flat-button color="primary" (click)="refresh()" class="button-one">
+                    <mat-icon svgIcon="refresh"></mat-icon>
                     <span>Refresh</span>
                 </button>
                 <button *hasAccess="'Schedule Exam'; hasAccessAction: 'add'" mat-flat-button type="button" routerLink="/schedule-exam">
-                    <mat-icon>event</mat-icon>
+                    <mat-icon svgIcon="add"></mat-icon>
                     <span>Schedule exam</span>
                 </button>
 
@@ -98,10 +98,10 @@
                 </div>
 
                 <div class="filter-actions">
-                    <button mat-flat-button color="primary" type="button" (click)="onApply()"><mat-icon>check</mat-icon>
+                    <button mat-flat-button color="primary" type="button" (click)="onApply()"><mat-icon svgIcon="apply"></mat-icon>
                         Apply</button>
                     <button mat-flat-button color="primary" type="button"
-                        (click)="onReset()"><mat-icon>refresh</mat-icon>
+                        (click)="onReset()"><mat-icon svgIcon="reset_settings"></mat-icon>
                         Reset</button>
                 </div>
             </div>
@@ -149,9 +149,9 @@
                     <th mat-header-cell *matHeaderCellDef>Actions</th>
                     <td mat-cell *matCellDef="let s">
                                 <div class="actions-inline">
-                            <button *hasAccess="'Schedule Exam'; hasAccessAction: 'view'" mat-icon-button color="primary" (click)="viewSchedule(s)" title="View"><mat-icon>visibility</mat-icon></button>
-                            <button *hasAccess="'Schedule Exam'; hasAccessAction: 'edit'" mat-icon-button color="accent" (click)="editSchedule(s)" title="Edit"><mat-icon>edit</mat-icon></button>
-                            <button *hasAccess="'Schedule Exam'; hasAccessAction: 'delete'" mat-icon-button color="warn" (click)="deleteSchedule(s)" title="Delete"><mat-icon>delete</mat-icon></button>
+                            <button *hasAccess="'Schedule Exam'; hasAccessAction: 'view'" mat-icon-button color="primary" (click)="viewSchedule(s)" title="View"><mat-icon svgIcon="view"></mat-icon></button>
+                            <button *hasAccess="'Schedule Exam'; hasAccessAction: 'edit'" mat-icon-button color="accent" (click)="editSchedule(s)" title="Edit"><mat-icon svgIcon="edit"></mat-icon></button>
+                            <button *hasAccess="'Schedule Exam'; hasAccessAction: 'delete'" mat-icon-button color="warn" (click)="deleteSchedule(s)" title="Delete" class="delete-btn" ><mat-icon svgIcon="delete"></mat-icon></button>
                         </div>
                     </td>
                 </ng-container>

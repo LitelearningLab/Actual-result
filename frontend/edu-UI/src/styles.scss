@@ -4,24 +4,34 @@
 :root {
 
     // Top-nav 
-    --theme-2: #f8fafc;             // Theme
+    --theme-2: #f0f2f5;             // Theme
     --theme-2-text-1: #010f13;      // Text primary
     --theme-2-text-2: #243843;      // Text secondary
+    --theme-2-icon-1: #6b7784;      // Icon primary
     --theme-2-bg-1: #ffffff;        // Background primary
-    --theme-2-avatar: #c8cccaa9;        //
+    --theme-2-avatar: #e0e2e17a;        //
     --theme-2-border: rgba(15, 35, 55, 0.089);
     --theme-2-hanover-bg: rgba(15, 35, 55, 0.06);
 
     // Side-nav
-    --theme-1: #10182c;
+    --theme-1: #374151;
     --theme-1-text-1: #ffffff;
-    --theme-1-text-2: #dfe3e6;
+    --theme-1-text-2: #c8cbce;
     --theme-1-icon-1: #ffffff;
-    --theme-1-border: rgba(15, 35, 55, 0.089);
+    --theme-1-border: rgba(232, 234, 236, 0.089);
+    --theme-1-active-bg: #eceaea11;
     --theme-1-hanover-bg: rgba(255, 255, 255, 0.06);
     
-    // Sidebar collapsed
-    --theme-3: #c5c7d1;
+    // main content area
+    --theme-3: #f9fafb;
+    --theme-3-text-1: #0f2337;
+    --theme-3-text-2: #394856;
+    --theme-3-text-3: #5a6973;
+    --theme-3-icon-1: #6b7784;
+    --theme-3-border: rgba(15, 35, 55, 0.089);
+    --theme-3-bg-1: #ffffff;
+    --theme-3-hanover-bg: rgba(15, 35, 55, 0.06);
+
     
     /* Global layout variables (sidebar width is global so % values work across components) */
     --sidenav-width: 18.75rem; /* 300px ÷ 16 */
@@ -32,15 +42,16 @@
   /* -------------------------------------
    * TABLES
    * -----------------------------------*/
-  --table-header-bg: #10182c;       /* Updated to match theme palette */
-  --table-header-text: #ffffff;
-  --table-header-icon: #e8f2ff;
+  --table-header-bg: #1e293b;       /* Updated to match theme palette */
+  --table-header-text: #faf9f9d2;
+  --table-header-icon: #dcdddf;
 
   --table-row-bg: #ffffff;
+  --table-row-icon: #6b7784;
+  --table-row-text: #222b32;
   --table-row-hover-bg: #eef1f4;   /* Soft hover */
   --table-row-hover-text: #1d2c33;
-  --table-row-text: #222b32;
-  --table-border: rgba(15, 35, 55, 0.089);
+  --table-border: rgba(15, 35, 55, 0.288);
 
   /* -------------------------------------
    * BACKGROUNDS
@@ -54,18 +65,21 @@
    * BUTTONS
    * -----------------------------------*/
   --button-1: #1b284b;    /* Primary blue */
-  --button-2: #2f3a4c;    /* Slate/navy button */
+  --button-2: #fdfdfd;    /* Slate/navy button */
   --button-3: #0b3946;    /* Deep teal action */
 
   /* Hover states */
   --button-1-hover: #1b284bc5;
-  --button-2-hover: #26303e;
+  --button-2-hover: #dcdee023;
   --button-3-hover: #082c34;
 
   /* Button text */
   --button-text-1: #ffffff;
-  --button-text-2: #ffffff;
+  --button-text-2: #5c5b5b;
   --button-text-3: #ffffff;
+  // Button borders
+  --button-border-1: #1b284b;
+  --button-border-2: #01070ed8;
 
 
   /* -------------------------------------
@@ -84,39 +98,33 @@
   --label-3: #586772;
 
 
-  /* -------------------------------------
-   * ICONS
-   * -----------------------------------*/
-  --icon-1: #6b7784;   /* Neutral slate */
-  --icon-2: #1f7bff;   /* Accent blue */
-  --icon-3: #0b3946;   /* Strong deep teal */
+  // /* -------------------------------------
+  //  * ICONS
+  //  * -----------------------------------*/
+  // --icon-1: #6b7784;   /* Neutral slate */
+  // --icon-2: #1f7bff;   /* Accent blue */
+  // --icon-3: #0b3946;   /* Strong deep teal */
 
 
-  /* -------------------------------------
-   * TEXT COLORS
-   * -----------------------------------*/
-  --text-1: #000000;   /* Primary dark text */
-  --text-2: #161616b4;   /* Secondary slate */
-  --text-3: #5a6973;   /* Tertiary muted text */
+  // /* -------------------------------------
+  //  * TEXT COLORS
+  //  * -----------------------------------*/
+  // --text-1: #000000;    /* Primary dark text    */
+  // --text-2: #161616b4;  /* Secondary slate      */
+  // --text-3: #5a6973;    /* Tertiary muted text  */
 
-
-  /* -------------------------------------
-   * UTILITY
-   * -----------------------------------*/
-  --shadow-1: 0 12px 36px rgba(16, 32, 48, 0.06);
-  --muted-1: #6e7077;
 }
 
 // 
 html, body {
   overflow: hidden;
   margin: 0;
-  font-family:  "DM Sans", sans-serif; //Roboto, serif !important;
+  font-family:  Roboto, serif !important; // "DM Sans", sans-serif; //
 }
 
 /* Force Cambria everywhere but avoid overriding icon fonts (mat-icon) */
 *:not(.mat-icon):not(.material-icons):not(.mat-mdc-icon) , *:not(.mat-icon):not(.material-icons):not(.mat-mdc-icon)::before, *:not(.mat-icon):not(.material-icons):not(.mat-mdc-icon)::after {
-  font-family: "DM Sans", sans-serif; //Roboto, serif !important;
+  font-family: Roboto, serif !important;
 }
 
 /* Ensure Material icon elements render their icon font */
@@ -152,34 +160,26 @@ html, body {
 // ========================= Toolbar styles ================================================================
 
 .toolbar{ padding:0.5rem; display:flex; justify-content:space-between; align-items:center; gap: 0.75rem /* 12px ÷ 16 */;  } 
-.toolbar .search{ width:22.5rem; background-color: var(--theme-2-bg-1); border: 1px solid var(--border-1)!important;}
-.toolbar .search {flex: 1 1 26.25rem; /* 420px ÷ 16 */
-  min-width: 13.75rem; /* 220px ÷ 16 */
-  max-width: 28.125rem; /* 450px ÷ 16 */
- }
-.toolbar .search .search-field { width: 100%; }
-.toolbar .search .mat-form-field-wrapper { padding: 0 0.5rem; }
+// .toolbar .search{ width:22.5rem; background-color: var(--theme-2-bg-1); border: 1px solid var(--border-1)!important;}
+.toolbar .search {flex: 1 1 26.25rem;   min-width: 13.75rem;   max-width: 28.125rem; border: 1px solid var(--border-1)!important; 
+    border-radius: 1rem; background-color: var(--theme-2-bg-1); }
+.toolbar .search .search-field { width: 100%; --mdc-outlined-text-field-outline-color: rgba(255, 255, 255, 0.2); border-radius: 1rem;}
+// .toolbar .search .mat-form-field-wrapper { padding: 0 0.5rem; }
 .toolbar .search mat-icon[matPrefix] { color: var(--icon-2); margin-right:0.5rem; }
 
 /* Richer toolbar & buttons */
 .toolbar .controls{ display:flex; align-items:center; gap:0.75rem; }
 .toolbar .action-row{ display:flex; gap:0.5rem; align-items:center; }
-.toolbar .controls button { background: var(--button-1) !important; color: var(--button-text-1) !important;    border-radius: .75rem; height: 2.75rem; border: 2px solid var(--border-1); }
-.toolbar .controls button:hover { background: var(--button-1-hover) !important; color: var(--button-text-2) !important; }
+.toolbar .controls button { background: var(--button-2)!important; color: var(--button-text-2) !important; border-radius: .75rem; height: 2.75rem; border: 2px solid var(--border-1); }
+.toolbar .controls button:hover { background: var(--button-2-hover) !important; color: var(--button-text-2) !important; border: 2px solid var(--button-border-2); }
+
+.toolbar .controls button:not(.button-one){ background: var(--button-1) !important; color: var(--button-text-1) !important;    border-radius: .75rem; height: 2.75rem; border: 2px solid var(--border-1); }
+.toolbar .controls button:not(.button-one):hover { background: var(--button-1-hover) !important; color: var(--button-text-1) !important; }
+
 
 //  ======================== Filters panel styles ================================================================
-/* Filters panel styles Old*/
-// .filters-panel{ margin:12px 0; padding:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; border:2px solid rgba(4, 40, 46, 0.12); border-radius:8px; background:var(--bg-1); box-shadow:0 4px 12px rgba(1, 39, 46, 0.08) }
-// .filter-block{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; width:100% }
-// .filter-row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; width:100% }
-// .filter-item{ min-width:300px; max-width:340px; }
-// .filter-actions{ display:flex; gap:8px; align-items:center; margin-left:auto }
-
-/* Popover (CDK Overlay) styles */
-.filters-panel{ min-width:20rem;max-width:26.25rem;padding: 0.5rem 0.625rem;border-radius:0.5rem;
+.filters-panel{ min-width:20rem;max-width:26.25rem;padding: 0.5rem 0.625rem;border-radius:0.9rem;
 	box-shadow:0 14px 28px rgba(2,10,30,0.16);background: var(--theme-2);font-size:.9rem}
-
-/* Stack fields vertically for a clean single-column modern look */
 .filters-panel .filter-block{	display:flex;	flex-direction:column; gap: 0.75rem; margin-bottom:0.5rem; }
 .filters-panel .filter-item{ width:100%; max-width:100%; max-height:  4.0625rem; background-color: var(--bg-1) ;}
 .filters-panel mat-icon{ font-size:1rem }
@@ -187,41 +187,59 @@ html, body {
 .filter-actions button{ padding: 0.25rem 0.5rem; height:1.875rem; font-size:0.82rem }
 
 .filter-actions button {background: var(--button-1) !important; color: var(--button-text-1) !important;}
-.filter-actions button:hover {background: var(--button-1-hover) !important; color: var(--button-text-2) !important;}
+.filter-actions button:hover {background: var(--button-1-hover) !important; color: var(--button-text-1) !important;}
 
-.filters-panel .mat-mdc-form-field-subscript-wrapper {
-  display: none !important; }
+.filters-panel .mat-mdc-form-field-subscript-wrapper { display: none !important; }
+
+// ========================= List styles ================================================================
+.list-card {padding: 0.5rem; --mdc-outlined-text-field-outline-color: rgba(255, 255, 255, 0.2);}
+.list-wrapper{ background-color: var(--bg-1);   box-shadow:0 0.875rem 2.625rem rgba(1, 39, 46, 0.08);border-radius: 0.5rem; max-height:75vh; overflow:auto; }
+.list-wrapper .actions-inline{ display:flex; gap:0.95rem; align-items:center; }
+
+.list-wrapper .actions-inline button{ width:1.9rem; height:1.9rem; color: var(--table-row-icon);padding: 0px!important; border-radius: 30%;}
+.list-wrapper .actions-inline button:hover{ background-color: var(--table-border);  }
+.list-wrapper .actions-inline button svg{ width: .85rem;  height: .85rem;  }
+.actions-inline button:hover {  color: var(--primary);}
+.actions-inline .delete-btn:hover {  color: #ef4444;}
 
 // ========================= Premium table styles ================================================================
-.list-card {padding: 0.5rem; }
-.list-wrapper{ background-color: var(--bg-1); border:0.125rem solid rgba(4, 40, 46, 0.12); border-radius: 0.5rem; max-height:75vh; overflow:auto; }
-.list-wrapper .actions-inline{ display:flex; gap:0.375rem; align-items:center }
-.list-wrapper .actions-inline button{ width:2rem; height:2rem }
-.list-wrapper .actions-inline button mat-icon{ font-size: 1.25rem;  }
 /* Premium table global theme — dark header, sticky/frozen, zebra rows, hover */
-.premium-table {width: 100%;border-collapse: separate; border:  0.1rem solid var(--border-1)!important;} /* 16px ÷ 16 */
+.premium-table {width: 100%;border-collapse: separate; border-bottom: 0.125rem solid var(--table-border)!important; } 
 .mat-sort-header-arrow {color: var(--table-header-icon) !important;}
 
-/* Premium table header styling */
 .premium-table thead th.mat-header-cell,
 .premium-table thead th.mat-mdc-header-cell {
     background: linear-gradient(180deg, var(--table-header-bg), var(--table-header-bg)) !important;
-    color: var(--table-header-text) !important;
-    font-weight: 500 !important;position: sticky !important;
-    top: 0 !important;z-index: 60 !important;
-    border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+    color: var(--table-header-text) !important; font-weight: 500 !important;position: sticky !important;
+    top: 0 !important;z-index: 60 !important;border-bottom: 1px solid rgba(255,255,255,0.06) !important;
 }
 .premium-table tbody tr:hover{ transform:translateY(-0.125rem); box-shadow:0 0.75rem 1.875rem rgba(6,18,30,0.06);background-color: var(--table-row-hover-bg);color:var(--table-row-hover-text);}
-.custom-paginator {border: 1px solid var(--border-1);}
+.custom-paginator {display: flex; border: 1px solid var(--border-1);}
 
-// ======================  View Tab Styles =========
-/* Modal styles */
-.modal-backdrop{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,12,20,0.45); z-index:10050 }
+/*==================== Container inside paginator ================================= */
+.custom-paginator .mat-mdc-paginator-container {display: flex;
+  justify-content: space-between; align-items: center;width: 100%;}
+.custom-paginator .mat-mdc-paginator-page-size {margin-left: 0;}
+.custom-paginator .mat-mdc-paginator-page-size-select{background-color: var(--theme-2) ;}
+.custom-paginator .mat-mdc-paginator-range-actions {margin-left: auto; display: flex;
+  align-items: center; gap: 0.5rem;}
+
+// ======================== Stepper styles ================================================================
+.mat-horizontal-stepper-header {  padding: 6px 8px !important; } 
+.mat-horizontal-stepper-header-container { padding: 6px 8px; border-bottom: 1px solid var(--border-1) !important ;}
+.mat-horizontal-content-container {overflow: hidden; padding: 8px 0 8px 0 !important; }
+.mat-horizontal-content-container .form-actions{  padding:.75rem; border-top: 1px solid var(--border-1) !important; gap: 1rem ;}
+
+// ======================  View Tab Styles ========================================================
 .modal{ min-width:60%; max-width:96%; min-height: 45%; max-height: 80%;
-	background: var(--theme-2) ; border-radius: 0.75rem; padding: 0.875rem; box-shadow: 0 1.375rem 3.625rem rgba(2,10,30,0.42); z-index:10060 }
-.modal-header{ display:flex; justify-content:space-between; align-items:center; gap: 0.625rem; font-weight: bold; }
+	background: var(--theme-2) ; border-radius: 0.75rem;  z-index:10060 }
+.modal-backdrop{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,12,20,0.45); z-index:10050 }
+.modal-header{ display:flex; justify-content:space-between; align-items:center; gap: 0.625rem; font-weight: bold; padding: 0.875rem; }
 .modal-header h1{color:var(--button-1); font-size:1.25rem; margin:0; font-weight: 500; }
-.modal-body{  display:flex; flex-direction:column; gap: 0.625rem; min-height: 18.75rem; max-height:60vh; overflow:auto; }
+.modal-body{  display:flex; flex-direction:column; gap: 0.625rem; min-height: 18.75rem; max-height:60vh; overflow:auto; padding: 0.875rem; }
+.modal-actions{ display:flex; justify-content:flex-end; gap:0.5rem; padding: 0.875rem; }
+.modal-actions button {background: var(--button-1) !important; color: var(--button-text-1) !important;}
+.modal-actions button:hover {background: var(--button-1-hover) !important; color: var(--button-text-1) !important;}
 
 /* Icon badge for labels */
 .detail-card .detail-grid { grid-template-columns: 10rem  1fr; gap: 0.375rem 2.5rem; }
@@ -231,13 +249,10 @@ html, body {
   margin-left: 3rem; /* 2 * 16px (TAP) */ margin-right: 2rem; /* 32px ÷ 16 */
 }
 .detail-grid .label{ color: var(--text-1); gap: 0.5rem; font-weight:500; min-height:2.25rem; display:flex; align-items:center; padding-left: 1.25rem;}
-.detail-grid .value{ color: var(--text-2); min-height:2.25rem; display:flex; align-items:center; }
+.detail-grid .value{ color: var(--theme-3-text-2); min-height:2.25rem; display:flex; align-items:center; }
 
-.modal-actions{ display:flex; justify-content:flex-end; gap:0.5rem; margin-top:0.75rem; }
-.modal-actions button {background: var(--button-1) !important; color: var(--button-text-1) !important;}
-.modal-actions button:hover {background: var(--button-1-hover) !important; color: var(--button-text-2) !important;}
-
-
+.form-actions button {background: var(--button-1) !important; color: var(--button-text-1) !important;}
+.form-actions button:hover {background: var(--button-1-hover) !important; color: var(--button-text-1) !important;}
 
 // ====================== Stepper button styles ================================================================
 button[matStepperNext].next-btn {
@@ -247,6 +262,15 @@ button[matStepperNext].next-btn {
 button[matStepperNext].next-btn span { order: 1 !important; }
 button[matStepperNext].next-btn mat-icon { order: 2 !important;}
 
+// ===================== Form field styles ================================================================
+// .mat-mdc-form-field-appearance-outline .mat-mdc-form-field-outline
+ .card{
+  --mdc-outlined-text-field-outline-width: 1px;
+  --mdc-outlined-text-field-focus-outline-width: 1px;
+  --mdc-outlined-text-field-container-shape: 8px;
+  --mdc-outlined-text-field-outline-color: rgba(0, 0, 0, 0.12);
+  --mdc-outlined-text-field-focus-outline-color: var(--button-1);
+}
 
 // ===================== 
 /* Global mat-slide-toggle color override */

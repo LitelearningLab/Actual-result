@@ -76,6 +76,15 @@
                                                 name="passMark" placeholder="e.g. 40" />
                                         </mat-form-field>
                                     </div>
+                                    <div class="col">
+                                        <mat-form-field appearance="outline" class="full">
+                                            <mat-icon matPrefix>repeat</mat-icon>
+                                            <mat-label>Number of attempts</mat-label>
+                                            <input matInput id="numberOfAttempts" type="number"
+                                                [(ngModel)]="numberOfAttempts" name="numberOfAttempts"
+                                                placeholder="e.g. 1" min="1" />
+                                        </mat-form-field>
+                                    </div>
                                 </div>
                             </section>
                         </div>

@@ -38,10 +38,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   title = '';
   description = '';
   institute = '';
-  durationMinutes: number | null = null;
-  passMark: number | null = null;
+  durationMinutes: number | null = 10;
+  passMark: number | null = 50;
   startDateTime = '';
-
+  numberOfAttempts: number | null = 1; 
   institutes: Array<{ id: string; name: string }> = [];
   // categories UI model
   categories: Array<{ category_id: string; name: string }> = [];
@@ -197,6 +197,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.institute = (e.institute && (e.institute.institute_id || e.institute.institute_id)) || e.institute_id || '';
       this.durationMinutes = e.duration_mins || e.duration || null;
       this.passMark = e.pass_mark ?? e.passMark ?? null;
+      this.numberOfAttempts = e.number_of_attempts ?? e.numberOfAttempts ?? null;
       this.startDateTime = e.start_time || e.start || '';
 
       // normalize categories if present in the payload
@@ -463,6 +464,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       institute_id: this.institute || null,
       duration_minutes: Number(this.durationMinutes),
       pass_mark: this.passMark !== null ? Number(this.passMark) : null,
+      number_of_attempts: this.numberOfAttempts !== null ? Number(this.numberOfAttempts) : null,
       start_time: this.startDateTime || null,
       categories: Array.isArray(this.model.categories) ? this.model.categories : [],
       total_questions: this.totalQuestions

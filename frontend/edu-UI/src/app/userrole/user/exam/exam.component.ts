@@ -73,7 +73,7 @@ export class UserExamComponent{
   // Review modal state
   reviewOpen = false;
   reviewLoading = false;
-  reviewAttempts: Array<{ attempt_number: number, items: Array<{
+  reviewAttempts: Array<{ title?: string, attempt_number: number, items: Array<{
     question_text?: string,
     question?: string,
     correct_option?: string,
@@ -86,6 +86,16 @@ export class UserExamComponent{
   }>, score?: number, started_date?: string, submitted_date?: string, status?: string, percentage?: number, total_questions?: number, time_taken?: string, result?: string }> = [];
   reviewSelectedAttempt = 0;
 
+  // Safe getter to return the currently selected attempt's title or empty string
+  get selectedReviewTitle(): string {
+    try {
+      if (!this.reviewAttempts || !this.reviewAttempts.length) return '';
+      const idx = Number(this.reviewSelectedAttempt) || 0;
+      if (idx < 0 || idx >= this.reviewAttempts.length) return '';
+      return this.reviewAttempts[idx]?.title || '';
+    } catch (e) { return ''; }
+  }
+
   /**
    * Fetch review details for a user's exam and open modal.
    * Expects API: GET /review-user-exam?user_id=...&scheduler_id=...
@@ -93,6 +103,7 @@ export class UserExamComponent{
    */
   viewReview(row: UserExamRow){
     try{
+      this.loader.show();
       const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       const userId = userRaw ? (JSON.parse(userRaw)?.user_id || JSON.parse(userRaw)?.id || '') : '';
       const schedulerId = row.schedule_id || row.test_id || '';
@@ -114,6 +125,7 @@ export class UserExamComponent{
                   const itemIsCorrect = (typeof it.is_correct !== 'undefined') ? Boolean(it.is_correct) : ((typeof it.isCorrect !== 'undefined') ? Boolean(it.isCorrect) : null);
                   const inferredCorrect = (it.correct_option || it.correct_answer || it.answer) || (normalizedOptions && normalizedOptions.length ? normalizedOptions[0].option_text : '');
                   return {
+                    title: row.title || '',
                     question_text: it.question_text || it.question || it.q || '',
                     question: it.question_text || it.question || it.q || '',
                     correct_option: inferredCorrect,
@@ -126,6 +138,7 @@ export class UserExamComponent{
                   } as any;
                 });
                 return {
+                  title: row.title || '',
                   attempt_number: a.attempt_number || a.attempt_no || a.attempt || (idx+1),
                   items: mappedItems,
                   score: a.score || a.marks || 0,
@@ -140,7 +153,8 @@ export class UserExamComponent{
               });
         }catch(e){ this.reviewAttempts = []; }
         this.reviewLoading = false;
-      }, error: (err) => { console.warn('Failed to load review', err); this.reviewLoading = false; this.reviewAttempts = []; } });
+        this.loader.hide();
+      }, error: (err) => { console.warn('Failed to load review', err); this.reviewLoading = false; this.reviewAttempts = []; this.loader.hide();  } });
     }catch(e){ try { notify('Failed to request review', 'error'); } catch(e){} }
   }
 

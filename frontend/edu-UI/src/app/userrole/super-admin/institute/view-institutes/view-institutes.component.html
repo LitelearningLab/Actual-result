@@ -19,20 +19,22 @@
 
       <div class="controls">
          <div class="action-row">
+
             <button #filtersBtn mat-flat-button type="button" (click)="openFiltersOverlay(); $event.stopPropagation()"
-               class="filter-btn custom-filter-btn">
-               <mat-icon>filter_alt</mat-icon>
+               class="button-one">
+               <mat-icon svgIcon="filter" ></mat-icon>
                <span>Filters</span>
             </button>
 
-            <button mat-flat-button (click)="loadInstitutes()" class="refresh-btn custom-refresh-btn">
-               <mat-icon>refresh</mat-icon>
+            <button mat-flat-button (click)="loadInstitutes()" class="refresh-btn custom-refresh-btn"
+               class="button-one">
+               <mat-icon svgIcon="refresh"></mat-icon>
                <span>Refresh</span>
             </button>
 
             <button mat-flat-button type="button" routerLink="/institute-register"
                class="register-btn custom-register-btn">
-               <mat-icon>add</mat-icon>
+               <mat-icon svgIcon="add"></mat-icon>
                <span>Register Institute</span>
             </button>
          </div>
@@ -93,8 +95,8 @@
 
             </div>
             <div class="filter-actions">
-               <button mat-flat-button (click)="applyFilters()">Apply</button>
-               <button mat-flat-button (click)="resetFilters()">Reset</button>
+               <button mat-flat-button (click)="applyFilters()"><mat-icon svgIcon="apply"></mat-icon> Apply</button>
+               <button mat-flat-button (click)="resetFilters()"><mat-icon svgIcon="reset_settings"></mat-icon> Reset</button>
             </div>
          </div>
       </ng-template>
@@ -163,12 +165,12 @@
                <th mat-header-cell *matHeaderCellDef>Actions</th>
                <td mat-cell *matCellDef="let u">
                   <div class="actions-inline">
-                     <button mat-icon-button (click)="viewDetails(u)"
-                        title="View details"><mat-icon>visibility</mat-icon></button>
-                     <button mat-icon-button color="accent" (click)="startEdit(u)"
-                        title="Edit"><mat-icon>edit</mat-icon></button>
-                     <button mat-icon-button color="warn" (click)="confirmDelete(u)"
-                        title="Delete"><mat-icon>delete</mat-icon></button>
+                     <button mat-icon-button aria-label="Show / Hide" (click)="viewDetails(u)"
+                        title="View details"><mat-icon svgIcon="view" ></mat-icon></button>
+                     <button mat-icon-button aria-label="Edit" (click)="startEdit(u)"
+                        title="Edit"><mat-icon svgIcon="edit" ></mat-icon></button>
+                     <button mat-icon-button class="delete-btn" (click)="confirmDelete(u)"
+                        title="Delete"><mat-icon svgIcon="delete" ></mat-icon></button>
                   </div>
                </td>
             </ng-container>

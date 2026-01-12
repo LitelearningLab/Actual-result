@@ -16,15 +16,15 @@
          </div>
       <!-- </div> -->
       <div class="controls">
-         <button mat-flat-button (click)="loadExams()" class="refresh-btn custom-refresh-btn">
-            <mat-icon>refresh</mat-icon>
+         <button mat-flat-button (click)="loadExams()" class="button-one">
+            <mat-icon svgIcon="refresh"></mat-icon>
             <span>Refresh</span>
          </button>
 
          <div class="action-row">
             <!-- (click)="openFiltersOverlay(); $event.stopPropagation()" -->
-            <button #filtersBtn mat-flat-button type="button" class="filter-btn custom-filter-btn">
-               <mat-icon>filter_alt</mat-icon>
+            <button #filtersBtn mat-flat-button type="button" class="button-one">
+               <mat-icon svgIcon="filter"></mat-icon>
                <span>Filters</span>
             </button>
          </div>
@@ -253,6 +253,8 @@
       <div class="review-panel">
          <div class="review-header">
             <h3>Exam Review</h3>
+            <!-- title -->
+            <div class="exam-title">{{ selectedReviewTitle }}</div>
             <button mat-icon-button (click)="closeReview()"><mat-icon>close</mat-icon></button>
          </div>
 

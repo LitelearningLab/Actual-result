@@ -6,11 +6,12 @@ import { AuthService } from '../../../home/service/auth.service';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { DirectivesModule } from 'src/app/shared/directives/directives.module';
+import { IconModule } from '../../icons/icon.module';
 
 @Component({
   selector: 'app-side-nav',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatIconModule, MatButtonModule, DirectivesModule],
+  imports: [CommonModule, RouterModule, MatIconModule, DirectivesModule, IconModule, MatButtonModule],
   templateUrl: './side-nav.component.html',
   styleUrls: ['./side-nav.component.scss']
 })
@@ -103,24 +104,24 @@ export class SideNavComponent implements OnInit, OnDestroy {
     const role = (this.userRole || '').toLowerCase();
     if (role === 'super_admin' || role === 'super-admin') {
       this.menus.push({ label: 'Super Admin Dashboard', path: '/super-admin-dashboard', icon: 'dashboard' });
-      this.menus.push({ label: 'Institutes', path: '/view-institutes', icon: 'apartment' });
+      this.menus.push({ label: 'Institutes', path: '/view-institutes', icon: 'institute' });
     }
 
     if (role === 'admin' || role === 'super_admin' || role === 'super-admin') {
       // admin and super-admin may see admin tools
-      this.menus.push({ label: 'Admin Dashboard', path: '/admin-dashboard', icon: 'dashboard' });
-      this.menus.push({ label: 'Users', path: '/view-users', icon: 'people' });
+      this.menus.push({ label: 'Admin Dashboard', path: '/admin-dashboard', icon: 'admin' });
+      this.menus.push({ label: 'Users', path: '/view-users', icon: 'users' });
       this.menus.push({ label: 'Categories', path: '/category', icon: 'category' });
-      this.menus.push({ label: 'Questions', path: '/view-questions', icon: 'help_center' });
-      this.menus.push({ label: 'Exams', path: '/exams', icon: 'assignment' });
-      this.menus.push({ label: 'Schedule Exam', path: '/view-schedule-exam', icon: 'event' });
-      this.menus.push({ label: 'Exam Reports', path: '/admin/exam-reports', icon: 'bar_chart' });
+      this.menus.push({ label: 'Questions', path: '/view-questions', icon: 'quiz' });
+      this.menus.push({ label: 'Exams', path: '/exams', icon: 'exam' });
+      this.menus.push({ label: 'Schedule Exam', path: '/view-schedule-exam', icon: 'calendar' });
+      this.menus.push({ label: 'Exam Reports', path: '/admin/exam-reports', icon: 'report' });
     }
 
     if (role === 'user' || role === 'candidate' || role === 'super_admin' || role === 'super-admin') {
       // typical user menus
-      this.menus.push({ label: 'User Dashboard', path: '/user-dashboard', icon: 'dashboard' });
-      this.menus.push({ label: 'Exam', path: '/user/exam', icon: 'play_circle' });
+      this.menus.push({ label: 'User Dashboard', path: '/user-dashboard', icon: 'user' });
+      this.menus.push({ label: 'Exam', path: '/user/exam', icon: 'assignment' });
     }
   }
 

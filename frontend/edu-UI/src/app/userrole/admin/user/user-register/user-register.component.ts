@@ -667,7 +667,12 @@ export class AdminUserRegisterComponent implements OnInit {
       if (!this.isSuperAdmin && this.loggedInstitute) payload.institute_id = payload.institute_id || this.loggedInstitute;
       this.http.post<any>(url, payload).subscribe({
         next: (res) => { this.submitting = false; this.notify.success(res?.statusMessage || 'User registered'); this.router.navigate(['/view-users']); },
-        error: (err) => { this.submitting = false; console.error('Register failed', err); this.notify.error('Failed to register user. See console for details.'); }
+        error: (err) => {
+          this.submitting = false;
+          console.error('Register failed', err);
+          const serverMsg = err?.error?.statusMessage || err?.error?.message || err?.statusMessage || err?.message || (typeof err === 'string' ? err : null);
+          this.notify.error(serverMsg ? `Failed to register user. ${serverMsg}` : 'Failed to register user.');
+        }
       });
     }
   }

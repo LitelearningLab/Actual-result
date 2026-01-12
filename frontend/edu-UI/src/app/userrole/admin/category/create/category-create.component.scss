@@ -31,11 +31,11 @@
 
 /* Structured review table: labels left, values right */
 .review-summary { padding: 12px; }
-.review-summary h3 { margin:0 0 8px 0; font-size:1.05rem; color:var(--text-2); font-weight:700 }
+.review-summary h3 { margin:0 0 8px 0; font-size:1.05rem; color:var(--theme-3-text-2); font-weight:700 }
 .review-table { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
 .review-row { display: grid; grid-template-columns: 1fr 1fr; align-items: start; padding: 6px 0; }
 .review-row .label { justify-self: start; font-weight:700; color:var(--text-1); }
-.review-row .value { justify-self: end; color:var(--text-3); text-align: right; max-width: 60%; word-wrap:break-word }
+.review-row .value { justify-self: end; color:var(--theme-3-text-3); text-align: right; max-width: 60%; word-wrap:break-word }
 
 /* For list fields, show inline chips that wrap and keep to the right column */
 .review-list { display: inline-flex; gap:8px; flex-wrap:wrap; justify-content: flex-end; }

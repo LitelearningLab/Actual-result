@@ -5,7 +5,7 @@
 }
 
 .exam-actions button {background: var(--button-1) !important; color: var(--button-text-1) !important;}
-.exam-actions button:hover {background: var(--button-1-hover) !important; color: var(--button-text-2) !important;}
+.exam-actions button:hover {background: var(--button-1-hover) !important; color: var(--button-text-1) !important;}
 
 /* hide cards on desktop, show on mobile */
 .exam-cards { display: none; }

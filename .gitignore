@@ -31,3 +31,6 @@ yarn-error.log*
 *.pyc
 __pycache__/
 /backend/venv
+backend/db/edu.db
+*.db
+frontend/edu-UI/src/app/shared/api.config.ts
