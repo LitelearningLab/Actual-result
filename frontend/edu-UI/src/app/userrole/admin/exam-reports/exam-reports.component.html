@@ -165,8 +165,8 @@
                                              <div class="card">
                                                   <div class="panel-header">
                                                        <div>
-                                                            <h4>User Exam Review</h4>
-                                                            <div class="panel-sub">Per-attempt question review</div>
+                                                            <h4>Answer Sheet - {{ selectedUserName || 'User' }}</h4>
+                                                            <div class="muted">Score: {{ selectedUserScore || '-' }} / {{ totalQuestions || '-' }} | Result: {{ selectedUserResult || '-' }}</div>
                                                        </div>
                                                        <button mat-icon-button aria-label="Close" type="button" (click)="closeUserReview()"><mat-icon>close</mat-icon></button>
                                                   </div>
@@ -175,21 +175,55 @@
                                                        <div *ngIf="!userReviewLoading">
                                                             <div *ngIf="userReviewAttempts && userReviewAttempts.length; else noUserReview">
                                                                  <div *ngFor="let att of userReviewAttempts">
-                                                                      <div class="attempt-header">
+                                                                      <!-- <div class="attempt-header">
                                                                            <h5>Attempt {{ att.attempt_number || att.attempt || 1 }} — Score: {{ att.score || att.marks || (att.percentage ? (att.percentage + '%') : '-') }} — {{ att.result || att.status || '' }}</h5>
                                                                            <div class="muted">Started: {{ att.started_date || att.started_at || '' }} • Submitted: {{ att.submitted_date || att.submitted_at || '' }} • Time: {{ att.time_taken || '' }}</div>
-                                                                      </div>
+                                                                      </div> -->
                                                                       <div class="questions-list">
-                                                                           <div *ngFor="let q of att.review || att.questions || []" class="question-review-card">
-                                                                                <div class="q-text"><strong>{{ q.question_text || q.text || q.title || 'Question' }}</strong></div>
-                                                                                <div class="q-type muted">Type: {{ q.question_type || q.type || '' }}</div>
-                                                                                <div class="q-options">
-                                                                                     <div *ngFor="let opt of q.options; let oi = index" [class.correct]="opt.is_correct" [class.selected]="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1">
-                                                                                          <span class="opt-mark">{{ (opt.is_correct ? '✓' : '') }}</span>
-                                                                                          <span class="opt-text">{{ opt.option_text || opt }}</span>
+                                                                           <div *ngFor="let q of att.review || att.questions || []; let qi = index" class="question-review-card">
+                                                                                <div class="q-head-row">
+                                                                                     <div class="q-left">
+                                                                                          <div class="q-index">{{ (q.sno || q.qno) ? (q.sno || q.qno) : (qi + 1) }}</div>
+                                                                                          <div class="q-body">
+                                                                                          <div class="q-badge">{{ (q.question_type || q.type || '').toUpperCase() }}</div>
+                                                                                          <div class="q-text"><strong>{{ q.question_text || q.text || q.title || 'Question' }}</strong></div>
+                                                                                          </div>    
+                                                                                     </div>
+                                                                                     <div class="q-right">
+                                                                                          <div class="q-marks small-muted" [ngClass]="{ 'mark-positive': (q.marks_awarded || 0) >= (q.marks || 0) && (q.marks || 0) > 0, 'mark-negative': (q.marks_awarded || 0) < (q.marks || 0) }">{{ q.marks_awarded != null ? (q.marks_awarded + ' / ' + (q.marks || '-')) : (q.marks ? ('0 / ' + q.marks) : '') }}</div>
                                                                                      </div>
                                                                                 </div>
-                                                                                <div class="q-selected muted">Selected: {{ (q.selected_option || []).join(', ') || '-' }}</div>
+
+                                                                                <!-- Fill / short answer style -->
+                                                                                <div *ngIf="(q.question_type || q.type) === 'fill' || (q.options && q.options.length === 1)" class="q-fill">
+                                                                                     <div class="fill-row">
+                                                                                          <div class="fill-option" [class.selected]="(q.selected_option || []).length" [class.correct]="q.is_correct">{{ (q.selected_option || []).join(', ') || '-' }}</div>
+                                                                                          <div class="fill-correct" *ngIf="q.options && q.options[0]">Correct: {{ q.options[0].option_text || q.options[0] }}</div>
+                                                                                     </div>
+                                                                                     <!-- <div class="q-feedback" *ngIf="q.feedback"><strong>Feedback:</strong> {{ q.feedback }}</div>
+                                                                                     <div class="q-marks muted">Marks awarded: {{ q.marks_awarded != null ? q.marks_awarded : (q.marks || '-') }}</div> -->
+                                                                                </div>
+
+                                                                                <!-- Multiple choice / multi select -->
+                                                                                <div *ngIf="(q.question_type || q.type) !== 'fill'" class="q-options two-col">
+                                                                                     <div *ngFor="let opt of (q.options || []); let oi = index" class="q-option"
+                                                                                          [class.correct]="opt.is_correct == 1 || opt.is_correct === true"
+                                                                                          [class.selected]="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1"
+                                                                                          [class.missed]="opt.is_correct && (q.selected_option || []).indexOf(opt.option_text || opt) === -1">
+                                                                                          <div class="opt-left">
+                                                                                                   <span class="opt-mark">{{ getOptionLetter(oi) }}</span>
+                                                                                          </div>
+                                                                                          <div class="opt-body">
+                                                                                               <div class="opt-text">{{ opt.option_text || opt }}</div>
+                                                                                          </div>
+                                                                                          <div class="opt-badge">
+                                                                                               <span *ngIf="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1 && !(opt.is_correct == 1 || opt.is_correct === true)" class="badge your-answer">Your Answer</span>
+                                                                                               <span *ngIf="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1 && (opt.is_correct == 1 || opt.is_correct === true)" class="badge correct">Correct</span>
+                                                                                               <span *ngIf="opt.is_correct && (q.selected_option || []).indexOf(opt.option_text || opt) === -1" class="badge missed">Missed</span>
+                                                                                          </div>
+                                                                                     </div>
+                                                                                </div>
+
                                                                                 <div class="q-feedback" *ngIf="q.feedback"><strong>Feedback:</strong> {{ q.feedback }}</div>
                                                                                 <div class="q-marks muted">Marks awarded: {{ q.marks_awarded != null ? q.marks_awarded : (q.marks || '-') }}</div>
                                                                            </div>

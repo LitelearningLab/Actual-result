@@ -74,17 +74,30 @@
 .attempt-meta { display:flex; gap:12px; color: rgba(0,0,0,0.55); font-size:0.9rem }
 
 .questions-list { display:flex; flex-direction:column; gap:14px; margin-top:10px }
-.question-review-card { border: 1px solid rgba(0,0,0,0.06); border-radius:10px; padding:14px; background: #fff; }
-.question-review-card .q-text { font-weight:700; margin-bottom:8px }
-.question-review-card .q-type { font-size:0.85rem; color: rgba(0,0,0,0.6); margin-bottom:8px }
+.question-review-card { border: 1px solid rgba(15, 1, 1, 0.856); border-radius:10px; padding:14px; background: var(--theme-3); }
+.question-review-card .q-text { font-weight:700 }
+
+.q-head-row { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:8px }
+.q-left { display:flex; gap:12px; align-items:flex-start }
+.q-index { width:32px; height:32px; background: #f2f7ff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; color: #0b66d0 }
+.q-right { display:flex; gap:10px; align-items:center }
+.q-badge { background:#fff; border:1px solid rgba(12, 0, 0, 0.973); padding:6px 8px; border-radius:8px;  ;width: fit-content;}
+.q-marks.small-muted { color: rgba(0,0,0,0.6); font-size:0.95rem }
 
 .q-options { display:flex; flex-wrap:wrap; gap:10px; }
-.q-options > div { flex: 1 1 45%; display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:8px; background: #f7f8fb; border: 1px solid rgba(0,0,0,0.03); }
-.q-options > div .opt-mark { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background: rgba(0,0,0,0.06); font-weight:700 }
-.q-options > div.selected { background: #e8f6ff; border-color: rgba(2,121,255,0.18); }
-.q-options > div.correct { background: #ecf9f0; border-color: rgba(10,160,80,0.12); }
-.q-options > div.missed { background: #fff7ed; border-color: rgba(245,166,35,0.12); }
-.q-options > div .opt-text { font-weight:600 }
+.q-option { display:flex; align-items:flex-start; gap:12px; padding:12px; border-radius:8px; border:1px solid rgba(0,0,0,0.12); background:#f8fbff; }
+.opt-left { width:44px; display:flex; align-items:center; justify-content:center }
+.opt-left .opt-mark { width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,0.04); display:inline-flex; align-items:center; justify-content:center; font-weight:700 }
+.opt-body { flex:1 }
+.opt-text { font-weight:600 }
+.opt-badge { display:flex; align-items:center; gap:6px }
+.badge { padding:6px 8px; border-radius:8px; font-size:0.82rem; font-weight:700 }
+.badge.your-answer { background:#e6f0ff; color:#0b66d0 }
+.badge.correct { background:#e8f9ef; color:#0b8a45 }
+.badge.missed { background:#fff6e6; color:#b36a00 }
+.q-option.selected { background: #eef8ff; border-color: rgba(2,112,255,0.12); }
+.q-option.correct { background: #f2fff4; border-color: rgba(10,160,80,0.08); }
+.q-option.missed { background: #fff8f0; border-color: rgba(245,166,35,0.08); }
 
 .q-selected, .q-marks { margin-top:8px; font-size:0.95rem }
 .q-feedback { margin-top:8px; background: rgba(240,248,255,0.6); padding:8px 10px; border-radius:8px; color: rgba(0,0,0,0.75) }
@@ -93,6 +106,24 @@
 .question-review-card .mark-badge { float:right; background: #fff3f3; color: #b02a37; padding:6px 8px; border-radius:8px; font-weight:700 }
 
 @media (max-width: 880px) {
-  .q-options > div { flex: 1 1 100%; }
+  .q-options.two-col { grid-template-columns: 1fr; }
   .user-review-panel { width: 96%; }
 }
+
+.q-options.two-col { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+
+/* Marks badge states */
+.q-marks.mark-positive { background:#e8f9ef; color:#0b8a45; padding:6px 10px; border-radius:10px; font-weight:700 }
+.q-marks.mark-negative { background:#fff2f4; color:#b02a37; padding:6px 10px; border-radius:10px; font-weight:700 }
+
+/* Tighter gaps and full-width option bodies */
+.q-option { padding:14px; }
+.opt-body { padding-right:12px }
+.opt-badge { margin-left:auto; display:flex; align-items:center }
+
+/* Fill question layout */
+.q-fill .fill-row { display:flex; gap:12px; align-items:center }
+.q-fill .fill-option { padding:10px 14px; border-radius:8px; background:#fff7ed; border:1px solid rgba(245,166,35,0.08); font-weight:700 }
+.q-fill .fill-option.selected { background:#e8f6ff; border-color: rgba(2,112,255,0.12) }
+.q-fill .fill-option.correct { background:#f2fff4; border-color: rgba(10,160,80,0.08) }
+.q-fill .fill-correct { color: rgba(0,0,0,0.6); font-size:0.9rem }

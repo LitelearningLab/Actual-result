@@ -135,8 +135,11 @@
 
         <ng-container matColumnDef="active">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Active</th>
-          <td mat-cell *matCellDef="let u"><mat-slide-toggle [checked]="u.active"
-              (change)="toggleActive(u)"></mat-slide-toggle></td>
+          <td mat-cell *matCellDef="let u">
+            <!-- <mat-slide-toggle [checked]="u.active"(change)="toggleActive(u)"></mat-slide-toggle></td> -->
+            <button type="button" role="switch" [attr.aria-checked]="u.active ? 'true' : 'false'" [attr.data-state]="u.active ? 'checked' : 'unchecked'" (click)="toggleActive(u)" class="custom-toggle peer inline-flex">
+              <span class="toggle-thumb" [attr.data-state]="u.active ? 'checked' : 'unchecked'"></span>
+            </button>
         </ng-container>
 
         <ng-container matColumnDef="actions">

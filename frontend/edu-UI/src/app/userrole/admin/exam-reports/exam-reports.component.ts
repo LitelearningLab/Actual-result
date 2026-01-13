@@ -36,6 +36,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   showUserReviewPanel = false;
   userReviewAttempts: any[] = [];
   userReviewLoading = false;
+  // template-bound selected user summary values (used in review panel header)
+  selectedUserName: string | null = null;
+  selectedUserScore: string | number | null = null;
+  selectedUserResult: string | null = null;
+  totalQuestions: number | null = null;
   pageSize = 25;
   currentPage = 1;
   searchQuery = '';
@@ -45,6 +50,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   instituteCtrl = new FormControl<any>('');
   filteredInstitutes$: Observable<any[]> = of([]);
   filteredExams$: Observable<any[]> = of([]);
+  allExams: any[] = [];
   selectedExam: any = null;
   activeMainTabIndex = 0;
   userFilterOpen = false;
@@ -76,6 +82,16 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   // Open user review by calling backend API /review-user-exam
   openUserReview(row: any){
     if(!row) return;
+    // set header fields used in template
+    try{
+      this.selectedUserName = row.student_name || row.name || row.user_name || row.full_name || null;
+      this.selectedUserScore = row.marks_obtained ?? row.score ?? row.marks ?? null;
+      this.selectedUserResult = row.result ?? row.status ?? null;
+      // total questions can come from the row or be calculated from review later
+      this.totalQuestions = (row.total_questions ?? row.total) || null;
+    }catch(e){
+      this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null;
+    }
     const userId = row.user_id || row.student_id || row.id || row.userId || null;
     const scheduleId = String(this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || '');
     if(!userId || !scheduleId) return;
@@ -144,7 +160,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     });
   }
 
-  closeUserReview(){ this.showUserReviewPanel = false; this.userReviewAttempts = []; }
+  closeUserReview(){ 
+    this.showUserReviewPanel = false; 
+    this.userReviewAttempts = []; 
+    this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null;
+  }
 
   onApply(payload: any) {
     this.appliedFilters = payload;
@@ -216,22 +236,35 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     // call API (use API_BASE) and populate filteredExams$
     const url = `${API_BASE}/get-exam-schedule-details`;
     this.loading.show();
-    this.filteredExams$ = new Observable<any[]>(observer => {
-      this.http.get<any>(url, { params: { institute_id: this.selectedInstituteId || '', country_id: this.userFilters.country_id || '', city_id: this.userFilters.city_id || '', campus_id: this.userFilters.campus_id || '' } }).subscribe({
-        next: (res) => {
-          const items = Array.isArray(res) ? res : (res?.data || res?.schedules || []);
-          observer.next(items);
-          observer.complete();
-          try { this.loading.hide(); } catch(e){}
-        },
-        error: (err) => { observer.next([]); observer.complete(); console.warn('Failed to load schedules', err); try { this.loading.hide(); } catch(e){} }
-      });
+    this.http.get<any>(url, { params: { institute_id: this.selectedInstituteId || '', country_id: this.userFilters.country_id || '', city_id: this.userFilters.city_id || '', campus_id: this.userFilters.campus_id || '' } }).subscribe({
+      next: (res) => {
+        try{ const items = Array.isArray(res) ? res : (res?.data || res?.schedules || []);
+          this.allExams = items || [];
+          // set up filtered observable to react to user typing
+          try{
+            this.filteredExams$ = this.examCtrl.valueChanges.pipe(
+              startWith(''),
+              map((val:any) => {
+                const q = (typeof val === 'string' ? val : (val?.title || val?.name || '')).toLowerCase();
+                return (this.allExams || []).filter((it:any) => (it.title || it.name || '').toLowerCase().includes(q));
+              })
+            );
+          }catch(e){ this.filteredExams$ = of(this.allExams || []); }
+        }catch(e){ this.filteredExams$ = of([]); console.warn('Failed to load schedules', e); }
+        try { this.loading.hide(); } catch(e){}
+      },
+      error: (err) => { this.filteredExams$ = of([]); console.warn('Failed to load schedules', err); try { this.loading.hide(); } catch(e){} }
     });
   }
 
   ngOnInit(): void {
     try { this.pageMeta.setMeta('Exam Reports', 'Reports for scheduled exams'); } catch (e) {}
      this.loadInstitutes();
+  }
+
+  // Helper to convert option index to letter (0 -> A, 1 -> B, ...)
+  getOptionLetter(i: number): string {
+    try { return String.fromCharCode(65 + (Number(i) || 0)); } catch (e) { return ''+i; }
   }
 
   openFiltersOverlay(){

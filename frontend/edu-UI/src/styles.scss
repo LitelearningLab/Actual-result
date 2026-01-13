@@ -52,6 +52,7 @@
   --table-row-hover-bg: #eef1f4;   /* Soft hover */
   --table-row-hover-text: #1d2c33;
   --table-border: rgba(15, 35, 55, 0.288);
+  --toggle-color: #1f7bff;
 
   /* -------------------------------------
    * BACKGROUNDS
@@ -175,7 +176,7 @@ html, body {
 
 .toolbar .controls button:not(.button-one){ background: var(--button-1) !important; color: var(--button-text-1) !important;    border-radius: .75rem; height: 2.75rem; border: 2px solid var(--border-1); }
 .toolbar .controls button:not(.button-one):hover { background: var(--button-1-hover) !important; color: var(--button-text-1) !important; }
-
+// .toolbar .card .mat-icon, .material-icons, .mat-mdc-icon { color: var(--theme-3-icon-1); }
 
 //  ======================== Filters panel styles ================================================================
 .filters-panel{ min-width:20rem;max-width:26.25rem;padding: 0.5rem 0.625rem;border-radius:0.9rem;
@@ -198,7 +199,7 @@ html, body {
 
 .list-wrapper .actions-inline button{ width:1.9rem; height:1.9rem; color: var(--button-1);padding: 0px!important; border-radius: 30%;}
 .list-wrapper .actions-inline button.delete-btn { color: #ef4444 }
-.list-wrapper .actions-inline button.edit-btn { color: #ef44d8 }
+// .list-wrapper .actions-inline button.edit-btn { color: #ef44d8 }
 .list-wrapper .actions-inline button:hover{ background-color: var(--table-border);  }
 .list-wrapper .actions-inline button svg{ width: .95rem;  height: .95rem;  }
 .actions-inline button:hover {  color: var(--primary);}
@@ -206,7 +207,8 @@ html, body {
 
 // ========================= Premium table styles ================================================================
 /* Premium table global theme — dark header, sticky/frozen, zebra rows, hover */
-.premium-table {width: 100%;border-collapse: separate; border-bottom: 0.125rem solid var(--table-border)!important; } 
+.premium-table {width: 100%;border-collapse: separate; border-bottom: 0.125rem solid var(--table-border)!important;
+} 
 .mat-sort-header-arrow {color: var(--table-header-icon) !important;}
 
 .premium-table thead th.mat-header-cell,
@@ -215,9 +217,26 @@ html, body {
     color: var(--table-header-text) !important; font-weight: 560 !important;position: sticky !important;    font-size: medium;
     top: 0 !important;z-index: 60 !important;border-bottom: 1px solid rgba(255,255,255,0.06) !important;
 }
-.premium-table tbody tr{ background-color: var(--table-row-bg); color: var(--table-row-text); }
+.premium-table tbody tr{ background-color: var(--table-row-bg); color: var(--table-row-text); 
+  border-bottom-color: rgba(0, 0, 0, 0.021);
+  border-bottom-width: var(1, .125rem);
+  border-bottom-style: solid;
+  line-height: 4;
+}
 .premium-table tbody tr:hover{ transform:translateY(-0.125rem); box-shadow:0 0.75rem 1.875rem rgba(6,18,30,0.06);background-color: var(--table-row-hover-bg);color:var(--table-row-hover-text);}
 .custom-paginator {display: flex; border: 1px solid var(--border-1);}
+
+// /* Custom toggle styles (mirrors requested design) */
+.custom-toggle { display:inline-flex; align-items:center; justify-content:center; height:1.5rem; width:2.75rem; padding:0; border-radius:9999px; border:2px solid var(--theme-3-border); cursor:pointer; transition:background-color .2s ease, border-color .2s ease; background: var(--input-bg, #e6eefb); }
+.custom-toggle:focus { outline: none; box-shadow: 0 0 0 4px rgba(2,112,255,0.12); }
+.custom-toggle .toggle-thumb { display:block; width:20px; height:20px; border-radius:9999px; background: var(--background, #fff); transform: translateX(0); transition: transform .18s ease, background .18s ease; box-shadow: 0 4px 10px rgba(2,12,34,0.08); }
+.custom-toggle[data-state="checked"] { background: var(--primary-color, var(--toggle-color) ); }
+.custom-toggle[data-state="checked"] .toggle-thumb { transform: translateX(0.65rem); }
+.custom-toggle[data-state="unchecked"] { background: var(--input-bg, #f1f3f5); }
+.custom-toggle[data-state="unchecked"] .toggle-thumb { transform: translateX(0); }
+
+/* Provide state class helpers for option visuals if needed */
+.custom-toggle.disabled, .custom-toggle[disabled] { opacity:0.6; cursor:not-allowed }
 
 /*==================== Container inside paginator ================================= */
 .custom-paginator .mat-mdc-paginator-container {display: flex;
