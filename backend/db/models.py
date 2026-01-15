@@ -365,6 +365,20 @@ class Exam_Attempt(Base):
     percentage = Column(Float)
     feedback = Column(Text)
 
+class ExamReviewComments(Base):
+    __tablename__ = 'ExamReviewComments'
+    comment_id = Column(String, primary_key=True, default=generate_uuid)
+    attempt_id = Column(String, ForeignKey('Exam_Attempts.attempt_id'), nullable=False)
+    question_id = Column(String, ForeignKey('Questions.question_id'), nullable=False)
+    reviewer_id = Column(String)
+    comment_text = Column(Text, nullable=False)
+    category = Column(String)
+    action = Column(String)
+    is_deleted = Column(Integer, default=0)
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_date = Column(DateTime)
+    updated_by = Column(String, ForeignKey('Users.user_id'))
+
 class Categories(Base):
     __tablename__ = 'Categories'
     category_id = Column(String, primary_key=True, default=generate_uuid)

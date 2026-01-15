@@ -217,11 +217,11 @@ html, body {
     color: var(--table-header-text) !important; font-weight: 560 !important;position: sticky !important;    font-size: medium;
     top: 0 !important;z-index: 60 !important;border-bottom: 1px solid rgba(255,255,255,0.06) !important;
 }
-.premium-table tbody tr{ background-color: var(--table-row-bg); color: var(--table-row-text); 
-  border-bottom-color: rgba(0, 0, 0, 0.021);
-  border-bottom-width: var(1, .125rem);
-  border-bottom-style: solid;
-  line-height: 4;
+.premium-table tbody tr{ background-color: var(--table-row-bg) !important; color: var(--table-row-text) !important; 
+  border-bottom-color: rgba(0, 0, 0, 0.021) !important;
+  // border-bottom-width: var( , .125rem) !important;
+  border-bottom-style: solid !important;
+  line-height: 3 !important;
 }
 .premium-table tbody tr:hover{ transform:translateY(-0.125rem); box-shadow:0 0.75rem 1.875rem rgba(6,18,30,0.06);background-color: var(--table-row-hover-bg);color:var(--table-row-hover-text);}
 .custom-paginator {display: flex; border: 1px solid var(--border-1);}

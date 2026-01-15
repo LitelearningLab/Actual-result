@@ -1,14 +1,16 @@
-// Verified css
+
+
 .page{padding: 8px; color: var(--text-1);}
 
+.question-card{background: var(--bg-1) ;padding:8px; border-radius: 0.5rem;box-shadow:0 1.75rem 2.5rem rgba(16,32,48,0.06)}
+.form-row{display:flex;flex-direction:column;margin-top:1rem}
 
-.question-card{background: var(--bg-1) ;padding:8px; border-radius: 8px;box-shadow:0 12px 30px rgba(16,32,48,0.06)}
-.form-row{display:flex;flex-direction:column;margin-top:12px}
+.questions-list{ margin-top:1.75rem; }
 
-.options-list{display:flex;flex-direction:column;gap:10px}
-.option-row{display:flex;gap:8px;align-items:center}
+.options-list{display:flex;flex-direction:column;gap: .5rem;margin-top:0.5rem}
+.option-row{display:flex;gap:.5rem;align-items:center}
 .option-input{flex:1}
-.btn{padding:8px 12px;border-radius:10px;border:0;background:#f5f7fb;cursor:pointer;font-weight:700}
+.btn{padding:.5rem .75rem;border-radius:10px;border:0;background:#f5f7fb;cursor:pointer;font-weight:700}
 .btn.small{padding:6px 10px;font-size:13px}
 .btn-primary{background:linear-gradient(90deg,#0b7285,#1f7bff);color:#fff;box-shadow:0 10px 28px rgba(13,60,80,0.08)}
 .btn-primary .btn-ic{margin-right:8px}
@@ -21,7 +23,7 @@
 
 
 // /* Two column row for better alignment */
-.row.two-cols{ display:flex; gap:16px; align-items:flex-start }
+.row.two-cols{ display:flex; gap:1rem; align-items:flex-start; padding: .5rem 0; }
 .form-col{ flex:1; display:flex; flex-direction:column }
 .template-down {
   display: flex;
@@ -30,7 +32,7 @@
 }
 
 // /* Questions list block styling */
-// .questions-list{ margin-top:12px; }
+.questions-list{ margin-top:1.75rem; }
 // .question-block{ padding:12px; border-radius:10px;background-color: var(--bg-2); border:1px solid var(--border-2); margin-bottom:12px }
 // .block-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
 // .block-header h3{ margin:0; font-size:1rem }
@@ -64,9 +66,9 @@
 // .option-row .option-field{ margin-right:6px }
 
 /* action buttons spacing */
-.action-row{ display:flex; align-items:center; gap:12px; padding: 8px; }
-.action-row.batch-actions{ display:flex; gap:12px; justify-content:flex-end; margin-top:12px }
-.action-row.batch-actions button{ min-width:120px }
+.action-row{ display:flex; align-items:center; gap:12px; padding: 0.5rem 0; }
+.action-row.batch-actions{ display:flex; gap:12px; justify-content:flex-end; margin-top:0.75rem }
+.action-row.batch-actions button{ min-width:7.5rem; }
 .action-row button {background: var(--button-1); color: var(--button-text-1);}
 .action-row button:hover {background: var(--button-1-hover); color: var(--button-text-2);}
 
@@ -161,7 +163,7 @@
 	font-size: 13px;
 	padding: 6px 8px;
 }
-.question-card .entrycheck {display: flex;}
+.question-card .entrycheck {display: flex; gap: 0.5rem;}
 
 .question-card .entry-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .question-card .entry-checkbox .checkbox-icon { font-size: 18px; vertical-align: middle; }

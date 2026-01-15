@@ -67,8 +67,8 @@
             <input type="text" [(ngModel)]="answers[q.id || i]" placeholder="Enter short answer" />
           </div>
 
-          <!-- Paragraph / long answer -->
-          <div *ngIf="q.type === 'paragraph' || q.type === 'Paragraph'" class="q-input">
+          <!-- Descriptive -->
+          <div *ngIf="q.type === 'descriptive' || q.type === 'Paragraph'" class="q-input">
             <textarea rows="6" [(ngModel)]="answers[q.id || i]" placeholder="Write your answer here"></textarea>
           </div>
         </div>

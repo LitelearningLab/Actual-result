@@ -1,6 +1,7 @@
 from sqlalchemy import func
 from db.db import SQLiteDB
-from db.models import Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping
+from db.models import Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments
+from others.llm import descriptive_evaluation, openai_client
 
 def review_user_exam(request):
 
@@ -90,7 +91,7 @@ def validate_answers(attempt_id):
     session = db.connect()
 
     # connect llm model
-    llama = '' #LlamaAPI()
+    openai_client_instance = openai_client()
 
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
@@ -129,6 +130,37 @@ def validate_answers(attempt_id):
                 ans.is_validated = 1
                 ans.feedback = feedback_part
                 session.add(ans)
+        elif question.question_type == 'descriptive':
+            # For descriptive questions, use LLM to evaluate
+            for ans in question_answers:
+                student_answer = ans.written_answer
+                expected_answer = correct_options[0].option_text if correct_options else ""
+                question_mark = question.marks
+                evaluation = descriptive_evaluation(openai_client_instance, question_mark, expected_answer, student_answer)
+                score = evaluation.get("score", 0)
+                max_marks = question.marks
+                marks_awarded = (score / question_mark) * max_marks if question_mark > 0 else 0
+                ans.is_correct = 1 if marks_awarded == max_marks else 0
+                ans.marks_awarded = marks_awarded
+                ans.is_validated = 1
+                feedback_part = evaluation.get("feedback", "")
+                ans.feedback = feedback_part
+                session.add(ans)
+
+                # update ExamReviewComments table category wise comments
+                for key in ["missing", "incomplete", "incorrect",'feedback']:
+                    if evaluation.get(key) and evaluation.get(key) != "None":
+                        comment = f"{key.capitalize()} points: {evaluation.get(key)}"
+                        # Here you would insert into ExamReviewComments table
+                        # For example:
+                        review_comment = ExamReviewComments(
+                            attempt_id=attempt_id,
+                            question_id=question_id,
+                            comment=comment,
+                            category=key,
+                            reviewer_id='system'  # or some system user id
+                        )
+                        session.add(review_comment)
         else:
 
             # get the correct options for the question

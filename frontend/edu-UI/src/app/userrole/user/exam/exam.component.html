@@ -280,7 +280,7 @@
                         </div>
                         <div class="meta-item result-item" *ngIf="a.result">
                            <strong>Result</strong>
-                           <span class="value result-badge" [ngClass]="{'result-pass': (a.result | lowercase) === 'passed', 'result-fail': (a.result | lowercase) === 'failed'}">{{ a.result | titlecase }}</span>
+                           <span class="value result-badge" [ngClass]="{'result-pass': (a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass', 'result-fail': (a.result | lowercase) === 'failed'}">{{ a.result | titlecase }}</span>
                         </div>
                      <!-- </div>
                      <div class="meta-row secondary-row"> -->
@@ -314,8 +314,8 @@
                               <div class="q-text">{{ it.question_text || it.question }}</div>
 
                               <!-- Options list for choose-type questions -->
-                              <div class="not-answered" *ngIf="it.question_type !== 'fill' && normalizeSelectedOptions(it).length === 0">Not answered</div>
-                              <ul class="options-list" *ngIf="it.question_type !== 'fill' && it.options && it.options.length">
+                              <div class="not-answered" *ngIf="it.question_type !== 'fill' && it.question_type !== 'descriptive' && normalizeSelectedOptions(it).length === 0">Not answered</div>
+                                 <ul class="options-list" *ngIf="it.question_type !== 'fill' && it.question_type !== 'descriptive' && it.options && it.options.length">
                                  <li *ngFor="let opt of it.options" [ngClass]="optionStatus(it,opt)">
                                     <span class="opt-text">{{ opt.option_text || '-' }}</span>
                                     <span class="opt-indicator" *ngIf="isOptionSelected(it,opt)">
@@ -326,7 +326,9 @@
                                        <mat-icon aria-hidden="true">done</mat-icon>
                                     </span>
                                  </li>
+                                 <div class="feedback" *ngIf="it.feedback && it.question_type === 'descriptive'">{{ it.feedback }}</div>
                               </ul>
+                              
 
                               <!-- Fill type: show user's answer and correct answer -->
                               <div class="fill-answer" *ngIf="it.question_type === 'fill'">
@@ -334,9 +336,24 @@
                                     <div class="fill-label">Your Answer:</div>
                                     <div class="fill-value" [ngClass]="{ 'fill-correct': it.is_correct, 'fill-incorrect': !it.is_correct }">{{ (it.selected_option || []).join(', ') || '-' }}</div>
                                  </div>
-                                 <div class="fill-row">
+                                 <div class="fill-row" *ngIf="it.marks_awarded == 0">
                                     <div class="fill-label">Correct Answer:</div>
                                     <div class="fill-value expected">{{ it.correct_option || '-' }}</div>
+                                 </div>
+                                 <div class="feedback" *ngIf="it.feedback">{{ it.feedback }}</div>
+                              </div>
+                              <!-- descriptive -->
+                              <div class="descriptive-answer" *ngIf="it.question_type === 'descriptive'">
+                                 <div class="descriptive-row">
+                                    <div class="descriptive-label">Your Answer:</div>
+                                    <!-- <div class="descriptive-value">{{ normalizeSelectedOptions(it).join(', ') || '-' }}</div> -->
+                                    <div *ngFor="let opt of it.options" [ngClass]="optionStatus(it,opt)">
+                                       <span class="descriptive-value">{{ opt.option_text || '-' }}</span>
+                                    </div>
+                                 </div>
+                                 <div class="descriptive-row" *ngIf="it.marks_awarded == 0">
+                                    <div class="descriptive-label">Expected Answer:</div>
+                                    <div class="descriptive-value expected">{{ it.correct_option || '-' }}</div>
                                  </div>
                                  <div class="feedback" *ngIf="it.feedback">{{ it.feedback }}</div>
                               </div>

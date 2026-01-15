@@ -196,10 +196,10 @@
                      </mat-form-field>
                   </div>
 
-                  <div *ngIf="q.type==='paragraph'" class="form-row">
+                  <div *ngIf="q.type==='descriptive'" class="form-row">
                      <mat-form-field appearance="outline" class="full">
                         <mat-icon matPrefix>description</mat-icon>
-                        <mat-label>Model answer (paragraph)</mat-label>
+                        <mat-label>Model answer (descriptive)</mat-label>
                         <textarea matInput id="q-answer-par-{{qi}}" [(ngModel)]="q.answerText" rows="4"
                            title="Model answer" placeholder="Model answer (max 1000 chars)"></textarea>
                      </mat-form-field>
