@@ -394,7 +394,7 @@ def get_user_exam_details(request):
             # check scrore and feedback for last attempt
             attempts = sorted(attempts, key=lambda x: x.attempt_number)
             attempts = attempts[-1] if attempts else None
-            feedback = attempts.feedback if attempts else None
+            feedback = attempts.feedback if attempts else ''
 
             # if current time between start and end time, exam is active
             current_time = datetime.utcnow()

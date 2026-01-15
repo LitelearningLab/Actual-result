@@ -345,6 +345,10 @@ class Answer(Base):
      marks_awarded = Column(Integer, default=0)
      is_validated = Column(Integer, default=0)
      feedback = Column(Text)
+     ai_marks = Column(Integer)
+     ai_confidence = Column(Integer)
+     manual_review_required = Column(Integer, default=0)
+     manual_marks = Column(Integer)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
 
      user = relationship("User", back_populates="answers")

@@ -36,11 +36,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   showUserReviewPanel = false;
   userReviewAttempts: any[] = [];
   userReviewLoading = false;
-  // template-bound selected user summary values (used in review panel header)
   selectedUserName: string | null = null;
   selectedUserScore: string | number | null = null;
   selectedUserResult: string | null = null;
   totalQuestions: number | null = null;
+  totalMarks: number | null = null;
   pageSize = 25;
   currentPage = 1;
   searchQuery = '';
@@ -87,8 +87,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.selectedUserName = row.student_name || row.name || row.user_name || row.full_name || null;
       this.selectedUserScore = row.marks_obtained ?? row.score ?? row.marks ?? null;
       this.selectedUserResult = row.result ?? row.status ?? null;
-      // total questions can come from the row or be calculated from review later
-      this.totalQuestions = (row.total_questions ?? row.total) || null;
+      this.totalQuestions = row.total_questions || row.total || null;
+      this.totalMarks = row.total_marks || row.totalMarks || null;
     }catch(e){
       this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null;
     }
