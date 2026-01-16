@@ -93,16 +93,19 @@ export class IconModule {
        'save',
        this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/save.svg')
      );
-     // users icon
      this.iconRegistry.addSvgIcon(
        'users',
        this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/users.svg')
      );
-     // user icon
      this.iconRegistry.addSvgIcon(
        'user',
        this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/user.svg')
      );
+    //  brand icons
+     this.iconRegistry.addSvgIcon(
+       'brain',
+        this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/brain.svg')
+      );
     } catch (e) {
       // ignore if registry/sanitizer not available in certain test environments
     }

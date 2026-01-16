@@ -9,6 +9,7 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TemplatePortal } from '@angular/cdk/portal';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 @Component({
   selector: 'app-exam-reports',

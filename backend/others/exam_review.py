@@ -1,6 +1,6 @@
 from sqlalchemy import func
 from db.db import SQLiteDB
-from db.models import Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments
+from db.models import User, Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments
 from others.llm import descriptive_evaluation, openai_client
 
 def review_user_exam(request):
@@ -71,13 +71,14 @@ def review_user_exam(request):
                     ).all()
                     review_comment_dict['comments'] = []
                     for comment in review_comments:
+                        created_by = session.query(User).filter(User.user_id == comment.created_by).first()
                         review_comment_dict_item = {}
                         review_comment_dict_item['comment_id'] = comment.comment_id
                         review_comment_dict_item['category'] = comment.category
                         review_comment_dict_item['comment_text'] = comment.comment_text
                         review_comment_dict_item['action'] = comment.action
                         review_comment_dict_item['is_deleted'] = comment.is_deleted
-                        review_comment_dict_item['reviewer_id'] = comment.reviewer_id
+                        review_comment_dict_item['created_by'] =  created_by.full_name if created_by else comment.created_by
                         review_comment_dict_item['created_date'] = comment.created_date
                         review_comment_dict_item['updated_date'] = comment.updated_date
                         review_comment_dict_item['updated_by'] = comment.updated_by
@@ -196,7 +197,7 @@ def validate_answers(attempt_id):
                                 question_id=question_id,
                                 comment_text=commt,
                                 category=key,
-                                reviewer_id='system'  # or some system user id
+                                reviewer_id='cac37fab-4de6-4792-969b-96e57e3c910a'  # or some system user id
                             )
                         session.add(review_comment)
         else:

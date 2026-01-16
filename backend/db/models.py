@@ -180,6 +180,7 @@ class User(Base):
      contact_no = Column(String)
      joining_date = Column(DateTime)
      active_status = Column(Integer, default=1)
+     is_deleted = Column(Boolean, default=0)
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
      updated_by = Column(String)
@@ -379,9 +380,25 @@ class ExamReviewComments(Base):
     category = Column(String)
     action = Column(String)
     is_deleted = Column(Integer, default=0)
+    created_by = Column(String, ForeignKey('Users.user_id'), default='cac37fab-4de6-4792-969b-96e57e3c910a')
     created_date = Column(DateTime, default=datetime.datetime.utcnow)
     updated_date = Column(DateTime)
     updated_by = Column(String, ForeignKey('Users.user_id'))
+
+class ExamReviewCommentsHistory(Base):
+     __tablename__ = 'ExamReviewCommentsHistory'
+     history_id = Column(String, primary_key=True, default=generate_uuid)
+     comment_id = Column(String, ForeignKey('ExamReviewComments.comment_id'), nullable=False)
+     attempt_id = Column(String, ForeignKey('Exam_Attempts.attempt_id'), nullable=False)
+     question_id = Column(String, ForeignKey('Questions.question_id'), nullable=False)
+     comment_text = Column(Text, nullable=False)
+     category = Column(String)
+     action = Column(String)
+     is_deleted = Column(Integer, default=0)
+     created_by = Column(String, ForeignKey('Users.user_id'))
+     created_date = Column(DateTime, default=datetime.datetime.utcnow)
+     updated_by = Column(String, ForeignKey('Users.user_id'))
+     updated_date = Column(DateTime)
 
 class Categories(Base):
     __tablename__ = 'Categories'

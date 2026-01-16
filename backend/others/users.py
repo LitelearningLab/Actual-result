@@ -313,6 +313,7 @@ def get_user_details(request):
     page_number, page_size = get_pagination(request)
     filter = []
     args = getattr(request, "args", {})
+    filter.append(User.is_deleted == 0)
     if args.get("institute_id"):
         filter.append(User.institute_id == args.get("institute_id"))
     if args.get("department"):
@@ -448,6 +449,7 @@ def get_user_list(request):
 
     filter = []
     args = getattr(request, "args", {})
+    filter.append(User.is_deleted == 0)
     if args.get("institute_id"):
         filter.append(User.institute_id == args.get("institute_id"))
     if args.get("department_id"):
@@ -512,7 +514,7 @@ def get_user_limit(request):
 
     max_user_limit = session.query(Institute).filter_by(institute_id=institute_id).first().max_users
 
-    already_assigned = session.query(User).filter_by(institute_id=institute_id, active_status=1).count()
+    already_assigned = session.query(User).filter_by(institute_id=institute_id, active_status=1,is_deleted=0).count()
     available_licenses = max_user_limit - already_assigned
 
     json_data = {

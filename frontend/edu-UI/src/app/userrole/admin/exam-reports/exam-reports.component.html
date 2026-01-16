@@ -185,8 +185,14 @@
                                                                                      <div class="q-left">
                                                                                           <div class="q-index">{{ (q.sno || q.qno) ? (q.sno || q.qno) : (qi + 1) }}</div>
                                                                                           <div class="q-body">
-                                                                                          <div class="q-badge">{{ (q.question_type || q.type || '').toUpperCase() }}</div>
-                                                                                          <div class="q-text"><strong>{{ q.question_text || q.text || q.title || 'Question' }}</strong></div>
+                                                                                               <div class="q-meta">
+                                                                                               <div class="q-badge">{{ (q.question_type || q.type || '').toUpperCase() }}</div>
+                                                                                               <div class="q-info" *ngIf="q.question_type  != 'descriptive'" >{{ q.marks_awarded + '/' + q.question_marks + ' marks ' + (q.marks_awarded/(q.question_marks || 1) * 100) + '%' }} </div>
+                                                                                               <div class="q-info" *ngIf="q.question_type  === 'descriptive'" >  {{ q.marks_awarded + '/' + q.question_marks + ' marks ' + (q.marks_awarded/(q.question_marks || 1) * 100) + '%'  }}
+                                                                                                    <mat-icon svgIcon="brain"></mat-icon>  {{'AI Confidence: ' + (q.ai_confidence != null ? (q.ai_confidence + '%') : 'N/A')}}
+                                                                                               </div>
+                                                                                               </div>
+                                                                                               <div class="q-text"><strong>{{ q.question_text || q.text || q.title || 'Question' }}</strong></div>
                                                                                           </div>    
                                                                                      </div>
                                                                                      <div class="q-right">
@@ -205,7 +211,7 @@
                                                                                 <div *ngIf="(q.question_type || q.type) === 'descriptive'" class="q-descriptive">
                                                                                      <div class="desc-header">
                                                                                           <div class="desc-question">
-                                                                                               <div class="question-label">descriptive Question</div>
+                                                                                               <div class="question-label">Descriptive Question</div>
                                                                                                <div class="question-value">{{ q.question_text || '-' }}</div>
                                                                                           </div>
                                                                                           <div class="desc-score">
@@ -213,7 +219,6 @@
                                                                                                <div class="score-value">{{ q.marks_awarded != null ? (q.marks_awarded + ' / ' + (q.question_marks || q.marks || '-')) : '-' }}</div>
                                                                                           </div>
                                                                                      </div>
-                                                                                     <div class="desc-row">
                                                                                           <div class="desc-model">
                                                                                                <div class="model-label">Model Answer</div>
                                                                                                <div class="model-text">{{ q.correct_option || (q.options && q.options[0] && q.options[0].option_text) || q.correct_answer || '-' }}</div>
@@ -223,7 +228,6 @@
                                                                                                <div class="answer-text">{{ (q.selected_option || []).join(' ') || '-' }}</div>
                                                                                           </div>
 
-                                                                                     </div>
 
                                                                                      <div class="q-feedback" *ngIf="q.feedback">
                                                                                           <strong>High-level Feedback</strong>
@@ -241,9 +245,9 @@
                                                                                                               <div class="ri-body">
                                                                                                                    <div class="review-text" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon missed">✖</span></div>{{ rc.comment_text || rc.comment || '' }}</div>
                                                                                                                    <div class="review-meta small-muted">
-                                                                                                                        <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
-                                                                                                                        <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
-                                                                                                                        <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'Instructor' }} on {{ rc.created_date || rc.commented_at || rc.commented_date || '' }}</span>
+                                                                                                                        <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.created_by || rc.reviewer_id || 'System' }}</span>
+                                                                                                                        <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.created_by }}</span>
+                                                                                                                        <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'System' }} on {{rc.updated_date || rc.created_date || '' }}</span>
                                                                                                                    </div>
                                                                                                                    <div class="review-actions"><a class="edit-link" href="javascript:void(0)">Edit</a> <a class="delete-link" href="javascript:void(0)">Delete</a></div>
                                                                                                               </div>
