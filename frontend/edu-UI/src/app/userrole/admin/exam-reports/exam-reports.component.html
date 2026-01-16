@@ -462,7 +462,7 @@
                                                            <td mat-cell *matCellDef="let q">
                                                                 <!-- {{q.mistakes}} -->
                                                                 <!-- show link when mistakes > 1 -->
-                                                                <a *ngIf="(q.mistakes || 0) > 1" href="javascript:void(0)" class="wrong-summary-link"
+                                                                <a *ngIf="(q.mistakes || 0) > 0" href="javascript:void(0)" class="wrong-summary-link"
                                                                      (click)="openWrongAnswerSummary(q); $event.stopPropagation()">{{q.mistakes}}</a>
                                                            </td>
                                                   </ng-container>

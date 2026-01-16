@@ -41,7 +41,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   selectedUserScore: string | number | null = null;
   selectedUserResult: string | null = null;
   totalQuestions: number | null = null;
-  totalMarks: number | null = null;
+  totalMarks: string | number | null = null;
   pageSize = 25;
   currentPage = 1;
   searchQuery = '';
@@ -91,7 +91,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.totalQuestions = row.total_questions || row.total || null;
       this.totalMarks = row.total_marks || row.totalMarks || null;
     }catch(e){
-      this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null;
+      this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null; this.totalMarks = null;
     }
     const userId = row.user_id || row.student_id || row.id || row.userId || null;
     const scheduleId = String(this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || '');
@@ -130,6 +130,19 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             return { ...a, review: Array.isArray(reviewList) ? reviewList : [] };
           });
           console.debug('[ExamReports] review-user-exam attempts count:', this.userReviewAttempts.length, this.userReviewAttempts);
+          // If total marks not set from the row, try to take it from the first attempt returned
+          if((this.totalMarks === null || this.totalMarks === undefined) && this.userReviewAttempts && this.userReviewAttempts.length){
+            const first = this.userReviewAttempts[0] || {};
+            this.totalMarks = first.total_marks ?? first.totalMarks ?? first.total ?? null;
+            // also set selectedUserScore fallback if not available from the row
+            if((this.selectedUserScore === null || this.selectedUserScore === undefined) && (first.score || first.marks || first.marks_obtained || first.percentage !== undefined)){
+              this.selectedUserScore = first.score ?? first.marks ?? first.marks_obtained ?? null;
+            }
+            // ensure totalQuestions if missing
+            if((this.totalQuestions === null || this.totalQuestions === undefined) && (first.total_questions || first.totalQuestions || first.totalQuestionsCount)){
+              this.totalQuestions = first.total_questions ?? first.totalQuestions ?? null;
+            }
+          }
         }catch(e){
           console.warn('Failed to parse review-user-exam response', e);
           this.userReviewAttempts = [];
@@ -164,7 +177,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   closeUserReview(){ 
     this.showUserReviewPanel = false; 
     this.userReviewAttempts = []; 
-    this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null;
+    this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null; this.totalMarks = null;
   }
 
   onApply(payload: any) {

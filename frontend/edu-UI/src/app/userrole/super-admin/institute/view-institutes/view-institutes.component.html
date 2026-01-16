@@ -104,6 +104,17 @@
       <div class="list-wrapper">
 
          <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 compact premium-table" matSort>
+            <colgroup>
+               <col style="width:320px"> <!-- name -->
+               <col style="width:200px"> <!-- short -->
+               <col style="width:130px"> <!-- industry -->
+               <col style="width:130px"> <!-- sector -->
+               <col style="width:220px"> <!-- primary contact -->
+               <col style="width:150px"> <!-- sub start -->
+               <col style="width:150px"> <!-- sub end -->
+               <col style="width:90px"> <!-- active -->
+               <col> <!-- actions flexible -->
+            </colgroup>
 
             <!-- Name -->
             <ng-container matColumnDef="name">
@@ -343,7 +354,7 @@
 
          <div class="modal-actions">
             <button mat-button (click)="closeModal()">Close</button>
-            <button mat-flat-button *ngIf="editing" (click)="saveEdit()">Save</button>
+            <button mat-flat-button (click)="startEdit(selectedInstitute)">Edit</button>
          </div>
       </div>
    </div>

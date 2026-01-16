@@ -214,10 +214,18 @@
                         <mat-tab label="Assigned Users">
                             <div class="tab-panel">
                                 <div class="assigned-users" *ngIf="selectedSchedule.assigned_users && selectedSchedule.assigned_users.length; else none">
-                                    <div class="assigned-grid">
-                                        <div class="assigned-card" *ngFor="let u of selectedSchedule.assigned_users">
-                                            <div class="assigned-name">{{ getAssignedName(u) }}</div>
-                                            <div class="assigned-email muted">{{ getAssignedEmail(u) }}</div>
+                                    <div class="assigned-list">
+                                        <div class="assigned-list-header">
+                                            <div class="col name">Name</div>
+                                            <div class="col email">Email</div>
+                                            <div class="col role">Role</div>
+                                        </div>
+                                        <div class="assigned-list-body">
+                                            <div class="assigned-row" *ngFor="let u of selectedSchedule.assigned_users">
+                                                <div class="col name">{{ getAssignedName(u) }}</div>
+                                                <div class="col email">{{ getAssignedEmail(u) }}</div>
+                                                <div class="col role">{{ u.role || u.user_role || 'User' }}</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

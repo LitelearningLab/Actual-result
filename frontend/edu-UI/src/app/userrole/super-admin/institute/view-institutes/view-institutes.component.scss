@@ -8,8 +8,6 @@
 .modal-backdrop{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,12,20,0.45); z-index:10050 }
 .modal{ min-width:60%; max-width:96%; min-height: 45%; max-height: 80%;
 	background: var(--theme-2) ; border-radius:12px; padding:14px; box-shadow:0 22px 58px rgba(2,10,30,0.42); z-index:10060 }
-.modal-header{ display:flex; justify-content:space-between; align-items:center; gap:10px; font-weight: bold; }
-.modal-header h1{color:var(--button-1); font-size:1.25rem; margin:0; font-weight: 600; }
 .modal-body{  display:flex; flex-direction:column; gap:10px; min-height: 300px; max-height:60vh; overflow:auto; }
 
 // ==
@@ -25,7 +23,7 @@
 .detail-grid .label{ color: var(--theme-3-text-1); gap: 15px; font-weight:500; min-height:36px; display:flex; align-items:center; padding-left: 20PX;}
 .detail-grid .value{ color: var(--theme-3-text-2); min-height:36px; display:flex; align-items:center; }
 
-.modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+
 
 // ============= Capus list styles =============
 .campus-list{ display:flex; flex-direction:column; gap:8px; margin-left:48px; margin-right:32px; }
