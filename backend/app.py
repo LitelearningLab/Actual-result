@@ -5,7 +5,7 @@ from auth.auth import JWTValidator
 from configparser import ConfigParser
 
 from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, delete_institute, manage_institute, update_institute
-from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details
+from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details, delete_user
 from others.exams import add_exam, get_exam_details, get_exam_list, launch_exam_details, submit_exam_answers,get_user_exam_details
 from others.examschedule import add_exam_schedule, get_exam_schedule_details
 from others.examschedule import update_exam_schedule
@@ -125,7 +125,6 @@ def delete_page(page, uuid):
     if page == 'institute':
         response_data, status_code = delete_institute(uuid, deleted_by)
     elif page == 'user':
-        from others.users import delete_user
         response_data, status_code = delete_user(uuid, deleted_by)
     elif page == 'category' or page == 'categories':
         from others.category import delete_category

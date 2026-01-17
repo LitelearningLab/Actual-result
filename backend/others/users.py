@@ -238,7 +238,35 @@ def user_bulk_upload(request):
         "status": True,
     }
     return json_data, 200
-
+def delete_user(user_id, deleted_by):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return None
+    user = session.query(User).filter_by(user_id=user_id).first()
+    if not user:
+        json_data = {
+            "statusMessage": "User not found",
+            "status": False
+        }
+        return json_data, 404
+    user.is_deleted = 1
+    user.updated_by = deleted_by
+    user.updated_date = datetime.utcnow()
+    try:
+        session.commit()
+        json_data = {
+            "statusMessage": "User deleted successfully",
+            "status": True
+        }
+        return json_data, 200
+    except Exception as e:
+        session.rollback()
+        json_data = {
+            "statusMessage": f"Failed to delete user: {str(e)}",
+            "status": False
+        }
+        return json_data, 500
 def update_user_details(user_id, request):
     db = SQLiteDB()
     session = db.connect()
