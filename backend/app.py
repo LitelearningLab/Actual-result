@@ -429,7 +429,7 @@ def refresh_token_route():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/logout', methods=['POST'])
-@jwt_required
+# @jwt_required
 def logout():
     data = request.json
     jwt_validator = JWTValidator(jwt_secret)

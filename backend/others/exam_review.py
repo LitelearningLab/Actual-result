@@ -184,6 +184,8 @@ def validate_answers(attempt_id):
                 ans.is_validated = 1
                 feedback_part = evaluation.get("feedback", "")
                 ans.feedback = feedback_part
+                ai_confidence = evaluation.get("ai_confidence", 0)
+                ans.ai_confidence = ai_confidence
                 session.add(ans)
 
                 # update ExamReviewComments table category wise comments

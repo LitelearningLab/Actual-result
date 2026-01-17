@@ -131,6 +131,8 @@
   .wrong-summary-panel .card{ padding: 12px }
   .wrong-summary-panel .summary-table thead th{ font-size:0.85rem }
 }
+// student-name
+.student-name { color: var(--button-1); cursor: pointer;  font-weight: 600; }
 
 .resource-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px }
 .resource-list li{ padding:10px; background: rgba(0,0,0,0.02); border-radius:8px; display:flex; justify-content:space-between; align-items:center }
@@ -241,7 +243,7 @@ padding: .7rem; background-color: var(--blue-bg); border-radius: .7rem; border: 
 .review-columns .col.incomplete { background-color: var(--yellow-bg); border-color: var(--byellow-border); }
 
 /* New review column header and item layout */
-.col-header { display:flex; align-items:center; gap:8px; margin-bottom:8px }
+.col-header { display:flex; align-items:center; gap:8px; margin-bottom:8px;     align-items: baseline; }
 .col-header h4 { margin:0; font-size:1rem; letter-spacing:0.3px }
 .dot { width:12px; height:12px; border-radius:50%; display:inline-block }
 .dot.red { background: var(--red-text) }
@@ -251,13 +253,17 @@ padding: .7rem; background-color: var(--blue-bg); border-radius: .7rem; border: 
 .ri-left { width:36px; display:flex; align-items:flex-start; justify-content:flex-start }
 .ri-icon { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; font-size:14px }
 .ri-icon.missed { color: var(--red-text);  }
-.ri-icon.incorrect { background: var(--orange-bg); color: var(--orange-text); border:1px solid var(--borange-border) }
-.ri-icon.incomplete { background: var(--yellow-bg); color: var(--yellow-text); border:1px solid var(--byellow-border) }
+.ri-icon.incorrect { color: var(--orange-text);  }
+.ri-icon.incomplete {  color: var(--yellow-text); }
 .ri-body { flex:1 }
 .review-text.deleted { color: rgba(0,0,0,0.35); text-decoration: line-through }
 .deleted-by { color: #c0392b; font-style:italic; display:block; margin-top:6px }
-.review-actions .edit-link { color:#0b66d0 }
-.review-actions .delete-link { color:#d33 }
+/* Review actions: right-aligned, spaced, with compact button look */
+.review-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:8px }
+.review-actions .edit-link, .review-actions .delete-link { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px; font-weight:600; text-decoration:none }
+.review-actions .edit-link { color:#0b66d0; background: rgba(11,102,208,0.06); border: 1px solid rgba(11,102,208,0.08) }
+.review-actions .delete-link { color:#d33; background: rgba(211,51,51,0.06); border: 1px solid rgba(211,51,51,0.08) }
+.review-actions .edit-link:hover, .review-actions .delete-link:hover { opacity:0.95 }
 
 @media (max-width:880px){
   .review-columns { grid-template-columns: 1fr }

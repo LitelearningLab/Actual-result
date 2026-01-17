@@ -2,7 +2,7 @@
      <div class="toolbar">
           <div class="selections">
                <mat-form-field appearance="outline">
-                    <mat-icon matPrefix>school</mat-icon>
+                    <mat-icon matPrefix svgIcon="institute"></mat-icon>
                     <mat-label>Institute</mat-label>
                     <input matInput [formControl]="instituteCtrl" [matAutocomplete]="instAuto"
                          placeholder="Pick an institute" />
@@ -14,7 +14,7 @@
                </mat-form-field>
 
                <mat-form-field appearance="outline">
-                    <mat-icon matPrefix>assignment</mat-icon>
+                    <mat-icon matPrefix svgIcon="exam"></mat-icon>
                     <mat-label>Scheduled Exams</mat-label>
                     <input type="text" matInput [formControl]="examCtrl" [matAutocomplete]="auto"
                          placeholder="Pick a exam" />
@@ -245,9 +245,9 @@
                                                                                                               <div class="ri-body">
                                                                                                                    <div class="review-text" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon missed">✖</span></div>{{ rc.comment_text || rc.comment || '' }}</div>
                                                                                                                    <div class="review-meta small-muted">
-                                                                                                                        <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.created_by || rc.reviewer_id || 'System' }}</span>
-                                                                                                                        <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.created_by }}</span>
-                                                                                                                        <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'System' }} on {{rc.updated_date || rc.created_date || '' }}</span>
+                                                                                                                         <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.created_by || rc.reviewer_id || 'System' }}</span>
+                                                                                                                         <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.created_by }}</span>
+                                                                                                                         <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'System' }} {{ formatDate(rc.updated_date || rc.created_date) }}</span>
                                                                                                                    </div>
                                                                                                                    <div class="review-actions"><a class="edit-link" href="javascript:void(0)">Edit</a> <a class="delete-link" href="javascript:void(0)">Delete</a></div>
                                                                                                               </div>
@@ -258,13 +258,13 @@
                                                                                                     <div class="col-header"><span class="dot orange"></span><h4>Points Incorrect</h4></div>
                                                                                                     <div *ngFor="let rc of (q.review_comment.comments || [])">
                                                                                                          <div class="review-item" *ngIf="rc.category === 'incorrct' || rc.category === 'incorrect' || rc.category === 'incor'">
-                                                                                                              <div class="ri-left"><span class="ri-icon incorrect">⚠</span></div>
+                                                                                                              
                                                                                                               <div class="ri-body">
-                                                                                                                   <div class="review-text" [class.deleted]="rc.is_deleted == 1">{{ rc.comment_text || rc.comment || '' }}</div>
+                                                                                                                   <div class="review-text" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon incorrect">⚠</span></div>{{ rc.comment_text || rc.comment || '' }}</div>     
                                                                                                                    <div class="review-meta small-muted">
-                                                                                                                        <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
-                                                                                                                        <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
-                                                                                                                        <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'Instructor' }} on {{ rc.created_date || rc.commented_at || rc.commented_date || '' }}</span>
+                                                                                                                         <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
+                                                                                                                         <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
+                                                                                                                         <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'Instructor' }} {{ formatDate(rc.created_date || rc.commented_at || rc.commented_date) }}</span>
                                                                                                                    </div>
                                                                                                                    <div class="review-actions"><a class="edit-link" href="javascript:void(0)">Edit</a> <a class="delete-link" href="javascript:void(0)">Delete</a></div>
                                                                                                               </div>
@@ -275,13 +275,12 @@
                                                                                                     <div class="col-header"><span class="dot yellow"></span><h4>Points Incomplete</h4></div>
                                                                                                     <div *ngFor="let rc of (q.review_comment.comments || [])">
                                                                                                          <div class="review-item" *ngIf="rc.category === 'incomplete'">
-                                                                                                              <div class="ri-left"><span class="ri-icon incomplete">⏱</span></div>
                                                                                                               <div class="ri-body">
-                                                                                                                   <div class="review-text" [class.deleted]="rc.is_deleted == 1">{{ rc.comment_text || rc.comment || '' }}</div>
+                                                                                                                   <div class="review-text" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon incomplete">⏱</span></div>{{ rc.comment_text || rc.comment || '' }}</div>
                                                                                                                    <div class="review-meta small-muted">
-                                                                                                                        <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
-                                                                                                                        <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
-                                                                                                                        <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'Instructor' }} on {{ rc.created_date || rc.commented_at || rc.commented_date || '' }}</span>
+                                                                                                                         <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
+                                                                                                                         <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
+                                                                                                                         <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'Instructor' }} {{ formatDate(rc.created_date || rc.commented_at || rc.commented_date) }}</span>
                                                                                                                    </div>
                                                                                                                    <div class="review-actions"><a class="edit-link" href="javascript:void(0)">Edit</a> <a class="delete-link" href="javascript:void(0)">Delete</a></div>
                                                                                                               </div>
@@ -335,7 +334,7 @@
                                    <ng-container matColumnDef="student_name">
                                         <th mat-header-cell *matHeaderCellDef>Student</th>
                                         <td mat-cell *matCellDef="let row">
-                                            <a href="javascript:void(0)" (click)="openUserReview(row)">{{ row.student_name || row.name || 'Student' }}</a>
+                                            <div href="javascript:void(0)" (click)="openUserReview(row)"  class="student-name">{{ row.student_name || row.name || 'Student' }}</div>
                                         </td>
                                    </ng-container>
                                    <ng-container matColumnDef="questions_attempted">

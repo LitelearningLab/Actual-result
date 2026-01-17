@@ -50,6 +50,7 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         4. Keep `feedback` short (1-2 sentences) and constructive.
         5. If you cannot evaluate or parse the candidate answer, return score 0 and put diagnostic text in `feedback`.
         6. Do not ask questions or include explanations outside the JSON object.
+        7. Include an integer field `ai_confidence` in the JSON output (0-100) representing the model's confidence in this evaluation. If you cannot determine a confidence, return 0.
         7. If you must truncate, prefer truncating explanation, not the JSON keys.'''
     
     user_message = f'''
@@ -67,7 +68,8 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         "missing": "<pipe-separated list of completely missing points or 'None'>",
         "incomplete": "<pipe-separated list of mentioned but incomplete points or 'None'>",
         "incorrect": "<pipe-separated list of factually incorrect statements or 'None'>",
-        "feedback": "<brief constructive feedback>"
+        "feedback": "<brief constructive feedback>",
+        "ai_confidence": <integer between 0-100>
         }}
         
         Note: Use the pipe character '|' as the separator between list items (no spaces around the pipe) to avoid ambiguity with commas. If there are no items for a field, return "None".
@@ -88,6 +90,23 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
             result_text = result_text.strip()
         
         result = json.loads(result_text)
+        # Ensure ai_confidence exists and is an int between 0 and 100
+        ai_conf = result.get('ai_confidence')
+        if isinstance(ai_conf, int) and 0 <= ai_conf <= 100:
+            result['ai_confidence'] = ai_conf
+        else:
+            # Fallback: derive confidence from numeric score if possible
+            try:
+                max_marks = int(question_mark) if str(question_mark).isdigit() else None
+                score = result.get('score')
+                if max_marks and isinstance(score, (int, float)):
+                    # Map score in [0, max_marks] -> confidence in [0,100]
+                    conf = int(round(100.0 * float(score) / float(max_marks)))
+                    result['ai_confidence'] = max(0, min(100, conf))
+                else:
+                    result['ai_confidence'] = 0
+            except Exception:
+                result['ai_confidence'] = 0
         result['status'] = True
     except Exception as e:
         print(f"Error in evaluate_topic_answer: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
@@ -98,7 +117,8 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
             "missing": "Error in evaluation",
             "incomplete": "Error in evaluation",
             "incorrect": "Error in evaluation",
-            "feedback": "Unable to parse evaluation results"
+            "feedback": "Unable to parse evaluation results",
+            "ai_confidence": 0
         }
     
     return result

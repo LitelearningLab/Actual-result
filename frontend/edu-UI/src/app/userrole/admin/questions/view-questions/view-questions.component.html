@@ -159,6 +159,15 @@
                 <div class="spacer"></div>
             </div>
             <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 compact premium-table" matSort>
+                <colgroup>
+                    <col style="width: 40px;" /> <!-- Selection Column -->
+                    <col style="width: 460px "  /> <!-- Question Text Column -->
+                    <col style="width: 150px;" /> <!-- Category Column -->
+                    <col style="width: 100px;" /> <!-- Type Column -->
+                    <col style="width: 80px;" /> <!-- Marks Column -->
+                    <col /> <!-- Options Column -->
+                    <col style="width: 120px;" /> <!-- Actions Column -->
+                </colgroup>
                 <!-- Selection Column -->
                 <ng-container matColumnDef="select">
                     <th mat-header-cell *matHeaderCellDef>

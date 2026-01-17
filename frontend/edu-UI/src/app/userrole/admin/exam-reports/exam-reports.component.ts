@@ -204,7 +204,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
   closeUserFilter() { this.userFilterOpen = false; }
-  onCountryChange() { /* placeholder */ }
 
   private loadInstitutes(){
     const url = `${API_BASE}/institutes/list`;
@@ -229,7 +228,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         else if(this.institutes.length) this.selectedInstituteId = this.institutes[0].id;
         // set instituteCtrl display value
         const selected = this.institutes.find(i=>i.id === this.selectedInstituteId);
-        if(selected){ try{ this.instituteCtrl.setValue(selected as any); }catch(e){} }
+        if(selected){ try{ this.instituteCtrl.setValue(selected as any); this.onInstituteChange(this.selectedInstituteId); }catch(e){} }
       },
       error: (err)=> console.warn('Failed to load institutes', err)
     });
@@ -238,13 +237,89 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   onInstituteSelected(inst: any){
     if(!inst) return;
     this.selectedInstituteId = inst.id;
+    // populate dependent filter lists then load exams
+    try{ this.loadDepartmentList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadTeamsList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadCampusList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadCountries(); }catch(e){}
     this.loadScheduledExam();
   }
 
   displayInstitute(i: any){ return i ? i.name : ''; }
   onInstituteChange(id: string|null){
     this.selectedInstituteId = id;
+    try{ this.loadDepartmentList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadTeamsList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadCampusList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadCountries(); }catch(e){}
     this.loadScheduledExam();
+  }
+
+  loadCountries() {
+    // reuse location-hierarchy endpoint used elsewhere
+    const url = `${API_BASE}/location-hierarchy`;
+    this.http.get<any>(url).subscribe({ next: (res) => { try { const countries = res?.data?.countries || res?.countries || res?.data || []; this.countries = countries.map((c: any) => ({ code: c.country_code || c.code || c.id, name: c.country_name || c.name || c.country })); } catch (e) { this.countries = []; } }, error: () => { this.countries = []; } });
+  }
+
+  onCountryChange() {
+    this.cities = [];
+    if (!this.userFilters.country_id) return;
+    const url = `${API_BASE}/location-hierarchy`;
+    this.http.get<any>(url, { params: { country: this.userFilters.country_id } }).subscribe({
+      next: (res) => {
+        try {
+          let allCities: any[] = [];
+          const countries = res?.data?.countries || res?.countries || [];
+          if (Array.isArray(countries)) {
+            countries.forEach((c: any) => { if (Array.isArray(c.cities)) allCities = allCities.concat(c.cities); if (Array.isArray(c.states)) c.states.forEach((s: any) => { if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities); }); });
+          }
+          if (allCities.length === 0 && (res?.data?.cities || res?.cities)) allCities = res?.data?.cities || res?.cities || [];
+          this.cities = (allCities || []).map((c: any) => ({ code: c.city_code || c.code || c.id, name: c.city_name || c.name || c.city }));
+        } catch (e) { this.cities = []; }
+      }, error: () => { this.cities = []; }
+    });
+  }
+
+  // load department list for a specific institute
+  loadDepartmentList(instituteId: string | null) {
+    this.departmentList = [];
+    if (!instituteId) return;
+    const url = `${API_BASE}/get-department-list?institute_id=${encodeURIComponent(instituteId)}`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        console.debug('[ExamReports] get-department-list response for', instituteId, res);
+        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.departmentList = arr.map((d: any) => (d.name || d.department_name || d.department || d).toString()).filter((s: any) => !!s);
+      }, error: (err) => { console.warn('Failed to load department list', err); this.departmentList = []; }
+    });
+  }
+
+  // load teams list for a specific institute
+  loadTeamsList(instituteId: string | null) {
+    this.teamList = [];
+    if (!instituteId) return;
+    const url = `${API_BASE}/get-teams-list?institute_id=${encodeURIComponent(instituteId)}`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        console.debug('[ExamReports] get-teams-list response for', instituteId, res);
+        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.teamList = arr.map((t: any) => (t.name || t.team_name || t.team || t).toString()).filter((s: any) => !!s);
+      }, error: (err) => { console.warn('Failed to load teams list', err); this.teamList = []; }
+    });
+  }
+
+  // load campus list for a specific institute
+  loadCampusList(instituteId: string | null) {
+    this.campusList = [];
+    if (!instituteId) return;
+    const url = `${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instituteId)}`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        console.debug('[ExamReports] get-campus-list response for', instituteId, res);
+        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.campusList = arr.map((c: any) => (c.name || c.campus_name || c.campus || c).toString()).filter((s: any) => !!s);
+      }, error: (err) => { console.warn('Failed to load campus list', err); this.campusList = []; }
+    });
   }
   loadScheduledExam() {
     // call API (use API_BASE) and populate filteredExams$
@@ -273,7 +348,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     try { this.pageMeta.setMeta('Exam Reports', 'Reports for scheduled exams'); } catch (e) {}
-     this.loadInstitutes();
+      this.loadInstitutes();
+      // load countries for filter dropdowns
+      try{ this.loadCountries(); }catch(e){}
   }
 
   // Helper to convert option index to letter (0 -> A, 1 -> B, ...)
@@ -512,4 +589,20 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   closeResourcePanel(){ this.showResourcePanel = false; this.selectedResources = []; this.selectedResourceContext = null; }
+
+  // Format a date like 'On DD-MMM-YYYY HH:MM'
+  formatDate(dateLike: any): string {
+    if(!dateLike) return '';
+    try{
+      const d = new Date(dateLike);
+      if(isNaN(d.getTime())) return '';
+      const dd = String(d.getDate()).padStart(2,'0');
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const m = months[d.getMonth()] || '';
+      const yyyy = d.getFullYear();
+      const hh = String(d.getHours()).padStart(2,'0');
+      const min = String(d.getMinutes()).padStart(2,'0');
+      return `On ${dd}-${m}-${yyyy} ${hh}:${min}`;
+    }catch(e){ return ''; }
+  }
 }
