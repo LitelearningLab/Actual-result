@@ -2,6 +2,8 @@ from db.models import Question, Option, QuestionMapping, Categories, CategoriesD
 from db.db import SQLiteDB
 import sys
 import pandas as pd
+import json
+from others.llm import descriptive_evaluation, openai_client
 
 def add_question(request):
 
@@ -313,3 +315,81 @@ def update_question(question_id, request):
     except Exception as e:
         session.rollback()
         return {"statusMessage": str(e), "status": False}, 500
+    
+def create_question_using_llm(request):
+
+    # Accept JSON body or form-data; prefer form values when present
+    data_json = request.get_json(silent=True) or {}
+    form = request.form or {}
+    # upload file if present
+    question_file = request.files.get("file")
+
+    def gv(key, default=None):
+        # return form value if provided, else json value, else default
+        if key in form and form.get(key) is not None:
+            return form.get(key)
+        return data_json.get(key, default)
+
+    type = gv("type", "fill")
+    number_of_options = int(gv("number_of_options", 4) or 4)
+    number_of_questions = int(gv("number_of_questions", 1) or 1)
+    complexity = gv("complexity", "medium")
+    source_text = gv("source_text", "")
+    additional_instructions = gv("additional_instructions", "")
+    question_mark = int(gv("question_mark", 1) or 1)
+
+    openai_client_instance = openai_client()
+
+# You are an expert question setter and evaluator. Your task is to create a question  and answer
+    system_message = '''You are an expert question setter and evaluator. Your task is to create a question and answer based on the provided source text and parameters.'''
+    user_message = f'''    Using the following parameters, 
+    - create {number_of_questions} question(s) along with their correct answers.
+    - Question Type: {type} (choose from 'fill', 'choose', 'multi')
+    - Number of Options (if applicable): {number_of_options}
+    - Number of Questions: {number_of_questions}
+    - Complexity Level: {complexity} (easy, medium, hard)
+    - Source Text: {source_text}
+    - Additional Instructions: {additional_instructions}
+    - Question Mark: {question_mark}
+    Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
+    [
+        {{
+            "question_text": "<The text of the question>",
+            "options": ["<Option 1>", "<Option 2>", "..."] (only for 'choose' and 'multi' types),
+            "correct_answer": "<The correct answer text or indices of correct options>"
+        }}
+    ]
+    If only a single question is requested, returning a single JSON object is also acceptable. Ensure the output is valid JSON with no surrounding markdown or text.
+    '''
+    try:
+        response = openai_client_instance.chat_completion(system_message, user_message)
+        response_json = response.json()
+        if response.status_code != 200:
+            result = {"status": False, "error": response_json.get("error", "Unknown error")}
+            return result
+        result_text = response_json['choices'][0]['message']['content'].strip()
+        # Remove markdown code blocks if present
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+            result_text = result_text.strip()
+        parsed = json.loads(result_text)
+        # normalize parsed output to a consistent dict
+        if isinstance(parsed, list):
+            result = { 'status': True, 'data': parsed, 'type': type, 'mark': question_mark }
+        elif isinstance(parsed, dict):
+            parsed['status'] = True
+            parsed['type'] = parsed.get('type', type)
+            parsed['mark'] = parsed.get('mark', question_mark)
+            result = parsed
+        else:
+            result = { 'status': False, 'error': 'Unexpected AI response format' }
+    
+    except Exception as e:
+        print(f"Error in create_question_using_llm: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
+        result = {
+            "status": False,
+            "error": str(e)
+        }
+    return result

@@ -10,7 +10,7 @@ from others.exams import add_exam, get_exam_details, get_exam_list, launch_exam_
 from others.examschedule import add_exam_schedule, get_exam_schedule_details
 from others.examschedule import update_exam_schedule
 from others.category import add_categories, get_categories_list, get_category_details
-from others.questions import add_question, get_questions_details, bulk_upload_questions
+from others.questions import add_question, get_questions_details, bulk_upload_questions, create_question_using_llm
 from others.exam_review import review_user_exam, validate_answers
 from others.exam_reports import get_user_wise_report, get_exam_analytics
 from others.exam_reports import get_question_wrong_answers
@@ -190,6 +190,12 @@ def bulk_upload_users():
 @jwt_required
 def bulk_upload_questions_route():
     response_data, status_code = bulk_upload_questions(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/create-question-using-ai', methods=['POST'])
+@jwt_required
+def create_question_using_ai_route():
+    response_data, status_code = create_question_using_llm(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-users', methods=['GET'])

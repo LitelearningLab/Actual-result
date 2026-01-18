@@ -164,9 +164,15 @@
                                         <div class="wrong-summary-panel user-review-panel" (click)="$event.stopPropagation()">
                                              <div class="card">
                                                   <div class="panel-header">
+                                                       <div class="header-icon">
+                                                            <mat-icon>assignment</mat-icon>
+                                                       </div>
                                                        <div class="header-info">
                                                             <h4>Answer Sheet - {{ selectedUserName || 'User' }}</h4>
-                                                            <h3>Score: {{ selectedUserScore || '-' }} / {{ totalMarks || '-' }} | Result: {{ selectedUserResult || '-' }}</h3>
+                                                            <h3>
+                                                               <span class="score">Score: {{ selectedUserScore || '-' }} / {{ totalMarks || '-' }}</span>
+                                                               <span class="result" [ngClass]="{ 'pass': (selectedUserResult || '').toLowerCase() === 'pass', 'fail': (selectedUserResult || '').toLowerCase() === 'fail' }">&nbsp;|&nbsp;Result: {{ selectedUserResult || '-' }}</span>
+                                                            </h3>
                                                        </div>
                                                        <button mat-icon-button aria-label="Close" type="button" (click)="closeUserReview()"><mat-icon>close</mat-icon></button>
                                                   </div>
@@ -209,7 +215,7 @@
                                                                                 </div>
                                                                                 <!-- descriptive -->
                                                                                 <div *ngIf="(q.question_type || q.type) === 'descriptive'" class="q-descriptive">
-                                                                                     <div class="desc-header">
+                                                                                     <!-- <div class="desc-header">
                                                                                           <div class="desc-question">
                                                                                                <div class="question-label">Descriptive Question</div>
                                                                                                <div class="question-value">{{ q.question_text || '-' }}</div>
@@ -218,15 +224,7 @@
                                                                                                <div class="score-label">Your Score</div>
                                                                                                <div class="score-value">{{ q.marks_awarded != null ? (q.marks_awarded + ' / ' + (q.question_marks || q.marks || '-')) : '-' }}</div>
                                                                                           </div>
-                                                                                     </div>
-                                                                                          <div class="desc-model">
-                                                                                               <div class="model-label">Model Answer</div>
-                                                                                               <div class="model-text">{{ q.correct_option || (q.options && q.options[0] && q.options[0].option_text) || q.correct_answer || '-' }}</div>
-                                                                                          </div>
-                                                                                          <div class="desc-student">
-                                                                                               <div class="student-label">Student's Answer</div>
-                                                                                               <div class="answer-text">{{ (q.selected_option || []).join(' ') || '-' }}</div>
-                                                                                          </div>
+                                                                                     </div> -->
 
 
                                                                                      <div class="q-feedback" *ngIf="q.feedback">
@@ -288,6 +286,15 @@
                                                                                                     </div>
                                                                                                </div>
                                                                                           </div>
+                                                                                     </div>
+                                                                                     <div class="desc-student">
+                                                                                          <div class="student-label">Student's Answer</div>
+                                                                                          <div class="answer-text">{{ (q.selected_option || []).join(' ') || '-' }}</div>
+                                                                                     </div>
+                                                                                     
+                                                                                     <div class="desc-model">
+                                                                                          <div class="model-label">Model Answer</div>
+                                                                                          <div class="model-text">{{ q.correct_option || (q.options && q.options[0] && q.options[0].option_text) || q.correct_answer || '-' }}</div>
                                                                                      </div>
 
                                                                                 </div>

@@ -101,10 +101,29 @@ export class IconModule {
        'user',
        this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/user.svg')
      );
-    //  brand icons
      this.iconRegistry.addSvgIcon(
        'brain',
         this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/brain.svg')
+      );
+      // upload icon
+      this.iconRegistry.addSvgIcon(
+        'upload',
+        this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/upload.svg')
+      );
+      // cloud_upload icon
+      this.iconRegistry.addSvgIcon(
+        'cloud_upload',
+        this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/cloud_upload.svg')
+      );
+      // download icon
+      this.iconRegistry.addSvgIcon(
+        'download',
+        this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/download.svg')
+      );
+      // attach_file icon
+      this.iconRegistry.addSvgIcon(
+        'attach_file',
+        this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/attach_file.svg')
       );
     } catch (e) {
       // ignore if registry/sanitizer not available in certain test environments

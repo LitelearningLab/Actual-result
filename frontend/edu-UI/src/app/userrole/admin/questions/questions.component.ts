@@ -11,6 +11,7 @@ import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { Observable } from 'rxjs';
 import { startWith, map } from 'rxjs/operators';
@@ -21,7 +22,7 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 @Component({
   selector: 'app-admin-questions',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatRadioModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatExpansionModule, HttpClientModule, RouterModule, MatIconModule, MatButtonModule, MatSelectModule, MatAutocompleteModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatRadioModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatExpansionModule, HttpClientModule, RouterModule, MatIconModule, MatButtonModule, MatSelectModule, MatAutocompleteModule, MatButtonToggleModule],
   templateUrl: './questions.component.html',
   styleUrls: ['./questions.component.scss']
 })
@@ -50,9 +51,45 @@ export class AdminQuestionsComponent {
   // UI mode: 'manual' (default) or 'bulk'
   mode: 'manual' | 'bulk' = 'manual';
 
+  // explicit manual mode boolean (binds to checkbox)
+  manualMode: boolean = true;
+  // active mode for toggle group (manual|bulk|ai)
+  activeMode: string = 'manual';
+
+  // AI mode controls (template bindings added)
+  aiMode: boolean = false;
+  aiQuestionType: string = '';
+  aiQuestionNumber: number = 5;
+  aiQuestionComplexity: string = '';
+  complexityLevels = [
+    { value: 'easy', label: 'Easy' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'hard', label: 'Hard' }
+  ];
+  selectedSourceFile: File | null = null;
+  sourceText: string = '';
+  aiPrompt: string = '';
+  // live preview / generated content
+  generatedQuestions: Array<any> = [];
+  showPreview: boolean = true;
+
   // convenience boolean binding for a compact checkbox UI in the template
   get bulkMode(): boolean { return this.mode === 'bulk'; }
   set bulkMode(v: boolean) { this.mode = v ? 'bulk' : 'manual'; }
+
+  onManualModeToggle(){
+    // when manualMode checkbox changes, ensure bulkMode is false and mode sync
+    try{ this.mode = this.manualMode ? 'manual' : 'bulk'; }catch(e){}
+  }
+
+  onModeChange(val: string){
+    try{
+      this.activeMode = val;
+      this.mode = (val === 'bulk') ? 'bulk' : 'manual';
+      this.aiMode = (val === 'ai');
+      this.manualMode = (val === 'manual');
+    }catch(e){}
+  }
 
   // bulk upload state
   selectedBulkFile: File | null = null;
@@ -186,6 +223,8 @@ export class AdminQuestionsComponent {
   }
 
   @ViewChild('hiddenFileInput') hiddenFileInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('hiddenSourceFileInput') hiddenSourceFileInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('sourceTextArea') sourceTextArea?: ElementRef<HTMLTextAreaElement>;
 
   downloadTemplate() {
     // Create a simple CSV template that Excel can open.
@@ -209,6 +248,78 @@ export class AdminQuestionsComponent {
   
   triggerFileSelect(){
     try{ this.hiddenFileInput?.nativeElement.click(); }catch(e){ console.warn('triggerFileSelect failed', e); }
+  }
+
+  triggerSourceFileSelect(){
+    try{ this.hiddenSourceFileInput?.nativeElement.click(); }catch(e){ console.warn('triggerSourceFileSelect failed', e); }
+  }
+
+  focusSourceTextArea(){
+    try{
+      // small timeout to ensure DOM focus if called from keyboard activation
+      setTimeout(()=>{ this.sourceTextArea?.nativeElement.focus(); }, 30);
+    }catch(e){ console.warn('focusSourceTextArea failed', e); }
+  }
+
+  onSourceFileSelected(ev: Event){
+    const input = ev.target as HTMLInputElement;
+    if (input && input.files && input.files.length){
+      this.selectedSourceFile = input.files[0];
+    } else {
+      this.selectedSourceFile = null;
+    }
+  }
+
+  applyGeneratedToEditor(){
+    if (!this.generatedQuestions || !this.generatedQuestions.length) return;
+    // Simple behaviour: insert first generated question into editor sourceText for editing
+    try{ this.sourceText = (this.generatedQuestions[0].text || '') + "\n\n" + this.sourceText; }catch(e){}
+  }
+
+  insertGeneratedToQuestions(){
+    if (!this.generatedQuestions || !this.generatedQuestions.length) return;
+    // Insert generated items into questions array and switch to manual mode for editing
+    try{
+      this.questions = (this.generatedQuestions.map((g:any) => ({ type: g.type || 'descriptive', text: g.text || '', marks: g.marks || 1, options: g.options || [''], correct: null, answerText: '', _expanded: true }))).concat(this.questions || []);
+      this.mode = 'manual';
+    }catch(e){}
+  }
+
+  // Generate simple placeholder questions from AI inputs (stub implementation)
+  generateAIQuestions(){
+    if (!this.aiQuestionType || !this.aiQuestionNumber || this.aiQuestionNumber < 1){
+      try { notify('Select a question type and set number of questions', 'error'); } catch(e){}
+      return;
+    }
+
+    // Build FormData to support file upload and parameters
+    const fd = new FormData();
+    if (this.selectedSourceFile) fd.append('file', this.selectedSourceFile as Blob, (this.selectedSourceFile as File).name);
+    fd.append('type', this.aiQuestionType || 'fill');
+    fd.append('number_of_questions', String(this.aiQuestionNumber || 1));
+    fd.append('complexity', this.aiQuestionComplexity || 'medium');
+    fd.append('source_text', this.sourceText || '');
+    fd.append('additional_instructions', this.aiPrompt || '');
+    fd.append('question_mark', String(5));
+
+    const url = `${API_BASE}/create-question-using-ai`;
+    this.http.post<any>(url, fd).subscribe({
+      next: (res) => {
+        try{
+          if (res && res.status === true) {
+            // backend returns a single question object or an array — normalize
+            const arr = Array.isArray(res) ? res : (res.data ? res.data : (res.question ? [res.question] : []));
+            // if response includes question_text/options etc, map to our internal shape
+            this.generatedQuestions = (Array.isArray(arr) ? arr : [arr]).map((r:any) => ({ type: r.type || r.question_type || 'descriptive', text: r.question_text || r.question || r.text || '', marks: r.mark || r.marks || 1, options: r.options || [], correct: r.correct_answer || null, answerText: r.explanation || r.answer || '' }));
+            this.showPreview = true;
+            notify('AI generated questions received', 'success');
+          } else {
+            notify(res?.statusMessage || res?.message || 'Failed to generate questions', 'error');
+          }
+        }catch(e){ console.error('Failed to process AI response', e); notify('Failed to generate questions', 'error'); }
+      },
+      error: (err) => { console.error('AI generation failed', err); try { notify(err?.error?.statusMessage || err?.error?.message || 'AI generation failed', 'error'); } catch(e){} }
+    });
   }
 
   addQuestion() {
@@ -238,6 +349,11 @@ export class AdminQuestionsComponent {
     } else {
       this.selectedBulkFile = null;
     }
+  }
+
+  clearSelectedBulkFile(){
+    this.selectedBulkFile = null;
+    try{ if (this.hiddenFileInput && this.hiddenFileInput.nativeElement) { this.hiddenFileInput.nativeElement.value = ''; } }catch(e){}
   }
   // improved drag handling to allow visual feedback
   onDragOver(ev: DragEvent, markActive = true){ ev.preventDefault(); ev.stopPropagation(); if (markActive) this.dragActive = true; }
@@ -294,6 +410,14 @@ export class AdminQuestionsComponent {
   }
 
   displayCategory(cat: any){ return cat && cat.name ? cat.name : ''; }
+
+  getQuestionTypeLabel(value: string | undefined | null){
+    try{
+      if (!value) return '—';
+      const found = (this.questionTypes || []).find(t => t.value === value);
+      return (found && found.label) ? found.label : (value || '—');
+    }catch(e){ return value || '—'; }
+  }
 
   loadExams(instituteId: string){
     if(!instituteId){ this.exams = []; return; }

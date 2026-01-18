@@ -93,10 +93,15 @@
 // }
 
 // /* Dense label and input sizing */
-// :host ::ng-deep .filters-panel .mat-form-field-label {
-// 	font-size: 0.72rem !important;
-// 	transform: translateY(-8px) !important;
-// }
+
+:host ::ng-deep .filters-panel .mat-form-field-label {
+    font-size: var(--font-size-base) !important;
+}
+
+:host ::ng-deep .detail-card .mat-tab-group .mat-tab-label {
+    font-size: var(--font-size-sm);
+    padding: 6px 8px;
+}
 
 // :host ::ng-deep .filters-panel .mat-input-element {
 // 	padding: 2px 6px !important;
