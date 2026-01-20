@@ -34,7 +34,7 @@
          </div>
 
          <!-- Global fields: Institute & Exam (single selection for the batch) -->
-         <div class="row two-cols" *ngIf="!isEditing">
+         <div class="row-header" *ngIf="!isEditing">
             <div class="form-col">
                <mat-form-field appearance="outline" class="full">
                   <mat-icon matPrefix>school</mat-icon>
@@ -121,10 +121,10 @@
          <div class="ai-questions-block" *ngIf="aiMode && !bulkMode">
             <div class="ai-header">
                <div class="ai-title">
-                  <mat-icon>smart_toy</mat-icon>
+                  <mat-icon svgIcon="star"></mat-icon>
                   <div>
                      <div class="title">AI Question Generation</div>
-                     <div class="subtitle">Generate editable questions from source material or templates</div>
+                     <div class="subtitle">Generate editable questions from source material or Plaintext</div>
                   </div>
                </div>
                <div class="ai-summary">
@@ -171,6 +171,12 @@
                   <input matInput type="text" [(ngModel)]="aiIndustry"
                      placeholder="Enter industry (e.g. Education, IT, Healthcare)" />
                </mat-form-field>
+               <!-- Target Users -->
+                <mat-form-field appearance="outline" class="ai-field">
+                  <mat-label>Target Users</mat-label>
+                  <input matInput type="text" [(ngModel)]="aiTargetUsers"
+                     placeholder="e.g. Students, Employees, Customers" />
+               </mat-form-field>
 
                <mat-form-field appearance="outline" class="ai-field">
                   <mat-label>User Role</mat-label>
@@ -208,7 +214,7 @@
                <!-- </div> -->
 
                <div class="editor-panel" style="grid-column: 1 / -1;">
-                  <mat-form-field appearance="outline" class="full">
+                  <mat-form-field appearance="outline" class="full" *ngIf="plaintextEditor">
                      <mat-label>Source Text</mat-label>
                      <textarea #sourceTextArea matInput [(ngModel)]="sourceText" rows="8"
                         placeholder="Enter or paste source material"></textarea>
@@ -221,10 +227,10 @@
 
                   <div class="editor-actions">
                      <div class="editor-actions-left">
-                        <button mat-stroked-button (click)="sourceText=''; aiPrompt=''">Clear</button>
+                        <button class="generate-cta" mat-stroked-button (click)="sourceText=''; aiPrompt=''; plaintextEditor = false">Clear</button>
                      </div>
                      <div class="editor-actions-right">
-                        <button mat-button (click)="showPreview = !showPreview">Toggle Preview</button>
+                        <!-- <button mat-button (click)="showPreview = !showPreview">Toggle Preview</button> -->
                         <button class="generate-cta" mat-flat-button color="primary" (click)="generateAIQuestions()" [disabled]="!aiQuestionType || aiQuestionNumber<1">Generate</button>
                      </div>
                   </div>
@@ -235,18 +241,18 @@
 
 
 
-            <div class="ai-footer">
+            <!-- <div class="ai-footer">
                <div class="footer-actions">
                   <button mat-stroked-button color="primary" (click)="applyGeneratedToEditor()"
                      [disabled]="!generatedQuestions || !generatedQuestions.length">Apply to Editor</button>
                   <button mat-flat-button color="accent" (click)="insertGeneratedToQuestions()"
                      [disabled]="!generatedQuestions || !generatedQuestions.length">Insert into Questions</button>
                </div>
-            </div>
+            </div> -->
          </div>
 
          <!-- Questions block: repeatable; each block has min 2 fields per row -->
-         <div class="questions-list" *ngIf="mode === 'manual'">
+         <div class="questions-list" *ngIf="mode === 'manual' && !aiMode && !bulkMode">
             <mat-accordion class="questions-accordion" multi>
                <mat-expansion-panel class="question-panel"
                   *ngFor="let q of questions; let qi = index; trackBy: trackByIndex" [expanded]="q._expanded"
@@ -318,11 +324,11 @@
                                        class="option-input" placeholder="Option {{i+1}}" />
                                  </mat-form-field>
                                  <button type="button" class="btn small" (click)="removeOption(qi, i)"
-                                    [disabled]="q.options.length<=2">Remove</button>
+                                    [disabled]="q.options.length<=2"><mat-icon>delete</mat-icon></button>
                               </div>
                            </mat-radio-group>
 
-                           <div *ngIf="q.type==='multi'">
+                           <div *ngIf="q.type==='multi'" class="checkbox-group">
                               <div class="option-row"
                                  *ngFor="let opt of q.options; let i = index; trackBy: trackByIndex">
                                  <mat-checkbox [checked]="isOptionCorrect(qi,i)"
@@ -334,7 +340,7 @@
                                        placeholder="Option {{i+1}}" />
                                  </mat-form-field>
                                  <button type="button" class="btn small" (click)="removeOption(qi, i)"
-                                    [disabled]="q.options.length<=2">Remove</button>
+                                    [disabled]="q.options.length<=2"><mat-icon color="warn">delete</mat-icon></button>
                               </div>
                            </div>
 
@@ -369,7 +375,7 @@
       <div class="actions">
          <div class="actions-row batch-actions">
             <button type="button" mat-stroked-button (click)="addQuestion()"
-               *ngIf="mode === 'manual' && !isEditing"><mat-icon>add</mat-icon> Add Question</button>
+               *ngIf="mode === 'manual' && !isEditing && !aiMode && !bulkMode"><mat-icon>add</mat-icon> Add Question</button>
          </div>
          <div class="action-row batch-actions">
             <button type="button" mat-stroked-button color="warn" (click)="resetAll()"><mat-icon>refresh</mat-icon>

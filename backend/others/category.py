@@ -1,4 +1,4 @@
-from db.models import Categories, CategoriesDepartments, CategoriesTeams, Institute,User
+from db.models import Categories, CategoriesDepartments, CategoriesTeams, Institute,User, InstituteDepartment, InstituteTeam
 from db.db import SQLiteDB
 from datetime import datetime
 
@@ -76,13 +76,19 @@ def get_category_details(request):
             department = session.query(CategoriesDepartments).filter_by(category_id=category.category_id).all()
             if department:
                 for dept in department:
-                    department_details[dept.id] = dept.name
+                    # get department name from InstituteDepartment table
+                    department_master = session.query(InstituteDepartment).filter_by(department_id=dept.department_id).first()
+                    if department_master:
+                        department_details[dept.department_id] = department_master.name
             # Fetch team_name based on team_id
             team_details = {}
             team = session.query(CategoriesTeams).filter_by(category_id=category.category_id).all()
             if team:
                 for t in team:
-                    team_details[t.id] = t.name
+                    # get team name from InstituteTeam table
+                    team_master = session.query(InstituteTeam).filter_by(team_id=t.team_id).first()
+                    if team_master:
+                        team_details[t.team_id] = team_master.name
         # get created_by and updated_by names
         created_by_name = None
         updated_by_name = None

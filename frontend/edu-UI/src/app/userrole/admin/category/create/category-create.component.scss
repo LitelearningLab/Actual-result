@@ -1,6 +1,6 @@
 .category-create{ padding:8px; }
 .card{  display: grid; gap: 10px; border-radius:8px; box-shadow:6px var(--border-2); }
-.card-body{background:var(--bg-1); border-radius:8px; padding:8px; border:2px solid var(--border-2);}
+.card-body{background:var(--bg-1); border-radius:8px; padding:2rem; border:2px solid var(--border-2);}
 .form-grid{ display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; margin-top: 12px; }
 .mat-con{ min-width:0; }
 .full{ width:100%; }

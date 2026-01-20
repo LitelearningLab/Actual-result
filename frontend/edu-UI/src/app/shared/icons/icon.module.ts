@@ -125,6 +125,11 @@ export class IconModule {
         'attach_file',
         this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/attach_file.svg')
       );
+      // star icon
+      this.iconRegistry.addSvgIcon(
+        'star',
+        this.sanitizer.bypassSecurityTrustResourceUrl('assets/icons/star.svg')
+      );
     } catch (e) {
       // ignore if registry/sanitizer not available in certain test environments
     }

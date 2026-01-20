@@ -29,6 +29,7 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 export class AdminQuestionsComponent {
   // UI mode: whether currently editing an existing question batch
   isEditing = false;
+  plaintextEditor: boolean = false;
   editId: string | number | undefined;
   questionTypes = [
     { value: 'choose', label: 'Single choice' },
@@ -74,6 +75,7 @@ export class AdminQuestionsComponent {
   ];
   aiIndustry: string = '';
   aiUserRole: string = '';
+  aiTargetUsers: string = '';
   selectedSourceFile: File | null = null;
   sourceText: string = '';
   aiPrompt: string = '';
@@ -264,6 +266,7 @@ export class AdminQuestionsComponent {
 
   focusSourceTextArea(){
     try{
+      this.plaintextEditor = true;
       // small timeout to ensure DOM focus if called from keyboard activation
       setTimeout(()=>{ this.sourceTextArea?.nativeElement.focus(); }, 30);
     }catch(e){ console.warn('focusSourceTextArea failed', e); }
