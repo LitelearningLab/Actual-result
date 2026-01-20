@@ -600,10 +600,38 @@ export class ViewUsersComponent {
 
   deleteUser(u: UserRow){
     try {
-      this.confirmService.confirm({ title: 'Delete User', message: `Delete user ${u.name}?`, confirmText: 'Delete', cancelText: 'Cancel' }).subscribe(ok => {
+      this.confirmService.confirm({ title: 'Delete User', message: `Delete user ${u.name}? This action cannot be undone.`, confirmText: 'Delete', cancelText: 'Cancel' }).subscribe((ok) => {
         if (!ok) return;
-        this.users = this.users.filter(x => x.id !== u.id);
-        try { notify('User deleted', 'success'); } catch (e) {}
+        const uuid = u.id || (u.raw && (u.raw.user_id || u.raw.id || u.raw._id));
+        if (!uuid) {
+          // remove locally if no uuid
+          this.users = this.users.filter(x => x.id !== u.id);
+          try { notify('User removed locally', 'info'); } catch (e) {}
+          return;
+        }
+        const url = `${API_BASE}/delete/user/${encodeURIComponent(String(uuid))}`;
+        try { this.loading.show(); } catch(e) {}
+        this.http.delete<any>(url, { observe: 'response' }).subscribe({
+          next: (res) => {
+            try { this.loading.hide(); } catch(e) {}
+            // remove from list
+            this.users = this.users.filter(x => (x.id !== uuid && x.id !== u.id));
+            try { notify('User deleted successfully', 'success'); } catch (e) {}
+            // reload current list to reflect server state
+            try { this.loadUsers(this.selectedInstitute); } catch(e) {}
+          },
+          error: (err) => {
+            try { this.loading.hide(); } catch(e) {}
+            console.error('Failed to delete user', err);
+            try {
+              if (err && (err.status === 0 || err.status === 502 || err.status === 503)) {
+                notify('Network error: cannot reach backend. Check server and network connection.', 'error');
+              } else {
+                notify('Failed to delete user. Please try again later.', 'error');
+              }
+            } catch (e) {}
+          }
+        });
       });
     } catch (e) {}
   }

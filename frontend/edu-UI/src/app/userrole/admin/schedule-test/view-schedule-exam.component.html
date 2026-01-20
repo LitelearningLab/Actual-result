@@ -140,8 +140,13 @@
                 <!-- Publish Column -->
                 <ng-container matColumnDef="publish">
                     <th mat-header-cell *matHeaderCellDef>Publish</th>
-                    <td mat-cell *matCellDef="let s"><mat-slide-toggle [checked]="s.publish"
-                            (change)="togglePublish(s)"></mat-slide-toggle></td>
+                    <td mat-cell *matCellDef="let s">
+                        <!-- <mat-slide-toggle [checked]="s.publish"
+                            (change)="togglePublish(s)"></mat-slide-toggle> -->
+                           <button type="button" role="switch" [attr.aria-checked]="s.publish ? 'true' : 'false'" [attr.data-state]="s.publish ? 'checked' : 'unchecked'" (click)="togglePublish(s)" class="custom-toggle peer inline-flex">
+                              <span class="toggle-thumb" [attr.data-state]="s.publish ? 'checked' : 'unchecked'"></span>
+                           </button>
+                    </td>
                 </ng-container>
 
                 <!-- Actions Column -->
@@ -150,7 +155,7 @@
                     <td mat-cell *matCellDef="let s">
                                 <div class="actions-inline">
                             <button *hasAccess="'Schedule Exam'; hasAccessAction: 'view'" mat-icon-button color="primary" (click)="viewSchedule(s)" title="View"><mat-icon svgIcon="view"></mat-icon></button>
-                            <button *hasAccess="'Schedule Exam'; hasAccessAction: 'edit'" mat-icon-button color="accent" (click)="editSchedule(s)" title="Edit"><mat-icon svgIcon="edit"></mat-icon></button>
+                            <button *hasAccess="'Schedule Exam'; hasAccessAction: 'edit'" mat-icon-button color="accent" (click)="editSchedule(s)" title="Edit" class="edit-btn"><mat-icon svgIcon="edit"></mat-icon></button>
                             <button *hasAccess="'Schedule Exam'; hasAccessAction: 'delete'" mat-icon-button color="warn" (click)="deleteSchedule(s)" title="Delete" class="delete-btn" ><mat-icon svgIcon="delete"></mat-icon></button>
                         </div>
                     </td>
@@ -209,10 +214,18 @@
                         <mat-tab label="Assigned Users">
                             <div class="tab-panel">
                                 <div class="assigned-users" *ngIf="selectedSchedule.assigned_users && selectedSchedule.assigned_users.length; else none">
-                                    <div class="assigned-grid">
-                                        <div class="assigned-card" *ngFor="let u of selectedSchedule.assigned_users">
-                                            <div class="assigned-name">{{ getAssignedName(u) }}</div>
-                                            <div class="assigned-email muted">{{ getAssignedEmail(u) }}</div>
+                                    <div class="assigned-list">
+                                        <div class="assigned-list-header">
+                                            <div class="col name">Name</div>
+                                            <div class="col email">Email</div>
+                                            <div class="col role">Role</div>
+                                        </div>
+                                        <div class="assigned-list-body">
+                                            <div class="assigned-row" *ngFor="let u of selectedSchedule.assigned_users">
+                                                <div class="col name">{{ getAssignedName(u) }}</div>
+                                                <div class="col email">{{ getAssignedEmail(u) }}</div>
+                                                <div class="col role">{{ u.role || u.user_role || 'User' }}</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

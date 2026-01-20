@@ -739,6 +739,8 @@ export class AdminScheduleTestComponent {
           // on success add to local scheduled list for UI
           this.scheduled.push({ institute: this.model.institute, testName: this.model.testName, start, duration, published: this.model.publish });
           this.model.testName = '';
+          // navigate back to the view scheduled tests page
+          this.goBack();
         },
         error: (err) => {
           console.error('Failed to save scheduled test', err);

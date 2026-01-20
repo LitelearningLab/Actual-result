@@ -71,6 +71,8 @@ export class ViewInstitutesComponent {
   countries: Array<{ code: string; name: string }> = [];
   states: Array<{ code: string; name: string }> = [];
   cities: Array<{ code: string; name: string }> = [];
+  // raw location hierarchy returned by API (countries -> states -> cities)
+  private locationHierarchyRaw: any[] = [];
 
   institutes: Institute[] = [];
   dataSource = new MatTableDataSource<Institute>([]);
@@ -97,6 +99,90 @@ export class ViewInstitutesComponent {
     this.loadInstitutes();
     this.loadCountries();
 
+  }
+
+  // Helpers to resolve campus address fields into user-friendly strings
+  campusAddress(cp: any): string {
+    return cp?.address || cp?.address_line1 || cp?.address1 || cp?.street || cp?.address_line || '';
+  }
+
+  campusCityName(cp: any): string {
+    try {
+      if (!cp) return '';
+      if (cp.city && typeof cp.city === 'object') return cp.city.city_name || cp.city.name || '';
+      if (cp.city_name) return cp.city_name;
+      const code = cp.city || cp.city_code || cp.cityId || cp.city_id || '';
+      if (code) {
+        if (this.cities && this.cities.length) {
+          const found = this.cities.find(c => String(c.code) === String(code) || String(c.name) === String(code));
+          if (found) return found.name;
+        }
+        const node = this.findLocationNodeById(code);
+        if (node) return node.city_name || node.name || node.city || '';
+      }
+      return String(cp.city || cp.city_name || '');
+    } catch (e) { return '' }
+  }
+
+  campusStateName(cp: any): string {
+    try {
+      if (!cp) return '';
+      if (cp.state && typeof cp.state === 'object') return cp.state.state_name || cp.state.name || '';
+      if (cp.state_name) return cp.state_name;
+      const code = cp.state || cp.state_code || cp.stateId || cp.state_id || '';
+      if (code) {
+        if (this.states && this.states.length) {
+          const found = this.states.find(s => String(s.code) === String(code) || String(s.name) === String(code));
+          if (found) return found.name;
+        }
+        const node = this.findLocationNodeById(code);
+        if (node) return node.state_name || node.name || node.state || '';
+      }
+      return String(cp.state || cp.state_name || '');
+    } catch (e) { return '' }
+  }
+
+  campusCountryName(cp: any): string {
+    try {
+      if (!cp) return '';
+      if (cp.country && typeof cp.country === 'object') return cp.country.country_name || cp.country.name || '';
+      if (cp.country_name) return cp.country_name;
+      const code = cp.country || cp.country_code || cp.countryId || cp.country_id || '';
+      if (code) {
+        if (this.countries && this.countries.length) {
+          const found = this.countries.find(c => String(c.code) === String(code) || String(c.name) === String(code));
+          if (found) return found.name;
+        }
+        const node = this.findLocationNodeById(code);
+        if (node) return node.country_name || node.name || node.country || '';
+      }
+      return String(cp.country || cp.country_name || '');
+    } catch (e) { return '' }
+  }
+
+  // Recursively search loaded location hierarchy for a node matching id/code/name
+  private findLocationNodeById(id: any): any {
+    try {
+      if (!id) return null;
+      const needle = String(id).toLowerCase();
+      const queue = Array.isArray(this.locationHierarchyRaw) ? [...this.locationHierarchyRaw] : [];
+      while (queue.length) {
+        const node = queue.shift();
+        if (!node) continue;
+        const checks = [node.country_code, node.code, node.id, node.city_code, node.city_name, node.name, node.state_code, node.state_name, node.city, node.country, node.state];
+        for (const v of checks) {
+          if (v && String(v).toLowerCase() === needle) return node;
+        }
+        if (Array.isArray(node.states)) queue.push(...node.states);
+        if (Array.isArray(node.cities)) queue.push(...node.cities);
+        if (Array.isArray(node.children)) queue.push(...node.children);
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  campusPostal(cp: any): string {
+    return cp?.pin_code || cp?.pincode || cp?.pin || cp?.postal_code || '';
   }
 
   ngOnInit(): void {
@@ -215,6 +301,8 @@ export class ViewInstitutesComponent {
       next: (res) => {
       try{
         const countries = res?.data?.countries || res?.countries || res?.data || [];
+        // store raw hierarchy for recursive lookups
+        this.locationHierarchyRaw = Array.isArray(countries) ? countries : [];
         this.countries = countries.map((c:any)=> ({ code: c.country_code || c.code || c.id, name: c.country_name || c.name || c.country }));
         // try to aggregate all cities from the countries payload (if present)
         let allCities: any[] = [];
@@ -230,6 +318,15 @@ export class ViewInstitutesComponent {
           allCities = res?.data?.cities || res?.cities || [];
         }
         this.cities = (allCities || []).map((c:any)=> ({ code: c.city_code || c.code || c.id, name: c.city_name || c.name || c.city }));
+        // also populate states array if available for lookups
+        const allStates: any[] = [];
+        if (Array.isArray(countries)) {
+          countries.forEach((c:any)=>{
+            if (Array.isArray(c.states)) allStates.push(...c.states);
+            if (Array.isArray(c.children)) c.children.forEach((ch:any)=>{ if(Array.isArray(ch.states)) allStates.push(...ch.states); });
+          });
+        }
+        this.states = (allStates || []).map((s:any) => ({ code: s.state_code || s.code || s.id, name: s.state_name || s.name || s.state }));
       }catch(e){ this.countries = []; this.cities = []; }
     },
     error: () => { this.countries = []; this.cities = []; try{ this.loader.hide(); }catch(e){} },
@@ -384,7 +481,7 @@ export class ViewInstitutesComponent {
           try { notify('Institute removed locally', 'info'); } catch (e) {}
           return;
         }
-        const url = `${API_BASE}/institute/delete/${uuid}`;
+        const url = `${API_BASE}/delete/institute/${uuid}`;
         try{ this.loader.show(); }catch(e){}
         this.http.delete<any>(url, { observe: 'response' }).subscribe({
           next: (res) => {
@@ -392,11 +489,19 @@ export class ViewInstitutesComponent {
             // remove from list
             this.institutes = this.institutes.filter(x => x.institute_id !== uuid && x.id !== i.id);
             try { notify('Institute deleted successfully', 'success'); } catch (e) {}
+            this.loadInstitutes();
           },
           error: (err) => {
             try{ this.loader.hide(); }catch(e){}
             console.error('Failed to delete institute', err);
-            try { notify('Failed to delete institute. Please try again later.', 'error'); } catch (e) {}
+            // Common failure: network disconnected or backend unreachable (status 0)
+            try {
+              if (err && (err.status === 0 || err.status === 502 || err.status === 503)) {
+                notify('Network error: cannot reach backend. Check server and network connection.', 'error');
+              } else {
+                notify('Failed to delete institute. Please try again later.', 'error');
+              }
+            } catch (e) {}
           }
         });
       });

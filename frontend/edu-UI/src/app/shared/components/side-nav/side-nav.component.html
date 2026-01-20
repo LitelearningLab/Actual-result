@@ -16,7 +16,8 @@
 
         <button class="collapse-toggle" mat-icon-button (click)="toggleCollapse()" [attr.aria-expanded]="!collapsed"
             aria-label="Toggle sidebar">
-            <mat-icon svgIcon="{{ collapsed ? 'chevron_right' : 'chevron_left' }}"></mat-icon>
+            <!-- <mat-icon svgIcon="{{ collapsed ? 'arrow_forward' : 'arrow_back' }}"></mat-icon> -->
+            <mat-icon>{{ collapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
         </button>
 
         <div class="logo-wrap" aria-hidden="true" *ngIf="!collapsed">

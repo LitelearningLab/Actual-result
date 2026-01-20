@@ -460,7 +460,7 @@
                   </div>
                   <div>
                     <p><strong>Country / State / City:</strong>
-                      {{ form.get('headOffice')?.get('country')?.value || '-' }} / {{ form.get('headOffice')?.get('state')?.value || '-' }} / {{ form.get('headOffice')?.get('city')?.value || '-' }}
+                      {{ resolveCountryName(form.get('headOffice')?.get('country')?.value) }} / {{ resolveStateName(form.get('headOffice')?.get('state')?.value) }} / {{ resolveCityName(form.get('headOffice')?.get('city')?.value) }}
                     </p>
                     <p><strong>Pincode:</strong> {{ form.get('headOffice')?.get('pincode')?.value || '-' }}</p>
                     <p><strong>Email:</strong> {{ form.get('headOffice')?.get('email')?.value || '-' }}</p>
@@ -474,8 +474,8 @@
                     <p><strong>{{ c.get('name')?.value || ('Campus ' + (i + 1)) }}</strong>
                       <span *ngIf="c.get('isPrimary')?.value"> (Primary)</span></p>
                     <p>{{ c.get('address')?.value || '-' }}</p>
+                    <p><strong>Location:</strong> {{ getCampusCityName(c) }} / {{ getCampusStateName(c) }} / {{ getCampusCountryName(c) }} | {{ c.get('pincode')?.value || '-' }}</p>
                     <p><strong>Contact:</strong> {{ c.get('email')?.value || '-' }} | {{ c.get('phone')?.value || '-' }}</p>
-                    <p><strong>Location:</strong> {{ c.get('country')?.value || '-' }} / {{ c.get('state')?.value || '-' }} / {{ c.get('city')?.value || '-' }} | {{ c.get('pincode')?.value || '-' }}</p>
                   </div>
                 </div>
                 <ng-template #noCampus>

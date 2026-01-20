@@ -1,6 +1,7 @@
 from sqlalchemy import func
 from db.db import SQLiteDB
-from db.models import Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping
+from db.models import User, Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments
+from others.llm import descriptive_evaluation, openai_client
 
 def review_user_exam(request):
 
@@ -44,10 +45,14 @@ def review_user_exam(request):
             # get question, selected option, and correct answer
             question_list = (session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id)
                 .group_by(Answer.question_id).all())
+            total_marks = 0
             for question_answer in question_list:
-                
+
                 question = session.query(Question).filter(Question.question_id == question_answer.question_id).first()
                 question_type = question.question_type if question else ""
+                question_marks = question.marks if question else 0
+                total_marks += question.marks if question and question.marks else 0
+                review_comment_dict = {}
                 if question_type in ["fill", 'choose']:
                     selected_option = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).first()
                     correct_answer_data = selected_option.option_text if selected_option else ""
@@ -55,6 +60,30 @@ def review_user_exam(request):
                     if question_type == "choose":
                         selected_data = session.query(Option).filter(Option.options_id == question_answer.selected_option_id, Option.active_status == 1).first()
                         selected_option = selected_data.option_text if selected_data else ""
+                elif question_type == "descriptive":
+                    selected_option = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).first()
+                    correct_answer_data = selected_option.option_text if selected_option else ""
+                    selected_option = question_answer.written_answer
+
+                    review_comments = session.query(ExamReviewComments).filter( 
+                        ExamReviewComments.attempt_id == attempt.attempt_id,
+                        ExamReviewComments.question_id == question_answer.question_id
+                    ).all()
+                    review_comment_dict['comments'] = []
+                    for comment in review_comments:
+                        created_by = session.query(User).filter(User.user_id == comment.created_by).first()
+                        review_comment_dict_item = {}
+                        review_comment_dict_item['comment_id'] = comment.comment_id
+                        review_comment_dict_item['category'] = comment.category
+                        review_comment_dict_item['comment_text'] = comment.comment_text
+                        review_comment_dict_item['action'] = comment.action
+                        review_comment_dict_item['is_deleted'] = comment.is_deleted
+                        review_comment_dict_item['created_by'] =  created_by.full_name if created_by else comment.created_by
+                        review_comment_dict_item['created_date'] = comment.created_date
+                        review_comment_dict_item['updated_date'] = comment.updated_date
+                        review_comment_dict_item['updated_by'] = comment.updated_by
+                        review_comment_dict['comments'].append(review_comment_dict_item)
+
                 else:
                     selected_options = session.query(Option).join(Answer, Answer.selected_option_id == Option.options_id).filter(
                         Answer.attempt_id == attempt.attempt_id,
@@ -65,6 +94,7 @@ def review_user_exam(request):
                     selected_option = ", ".join(selected_option_texts)
                     correct_answer = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).all()
                     correct_answer_data = ", ".join([ans.option_text for ans in correct_answer])
+
                 options_list = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.active_status == 1).all()
 
                 review_data["review"].append({
@@ -72,14 +102,22 @@ def review_user_exam(request):
                     "question_type": question_type,
                     "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct} for opt in options_list],
                     "selected_option": [selected_option] if isinstance(selected_option, str) else selected_option,
-                    # "correct_option": correct_answer_data,
+                    "correct_option": correct_answer_data,
+                    "review_comment": review_comment_dict,
                     "is_correct": True if question_answer.is_correct == 1 else False,
                     "marks_awarded": question_answer.marks_awarded if question_answer.marks_awarded is not None else 0,
+                    "question_marks": question_marks,
+                    "ai_marks": question_answer.ai_marks if question_answer.ai_marks is not None else 0,
+                    "ai_confidence": question_answer.ai_confidence if question_answer.ai_confidence is not None else 0,
+                    "manual_review_required": True if question_answer.manual_review_required == 1 else False,
+                    "manual_marks": question_answer.manual_marks if question_answer.manual_marks is not None else 0,
                     "feedback": question_answer.feedback if hasattr(question_answer, 'feedback') else ""
-                })   
+                })
+            review_data["total_marks"] = total_marks   
             attempt_reviews.append(review_data)
 
     except Exception as e:
+        print(f"Error in review_user_exam: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
         return {"statusMessage": f"Error fetching exam review: {str(e)}", "status": False}, 500
     finally:
         session.close()
@@ -90,7 +128,7 @@ def validate_answers(attempt_id):
     session = db.connect()
 
     # connect llm model
-    llama = '' #LlamaAPI()
+    openai_client_instance = openai_client()
 
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
@@ -129,6 +167,41 @@ def validate_answers(attempt_id):
                 ans.is_validated = 1
                 ans.feedback = feedback_part
                 session.add(ans)
+        elif question.question_type == 'descriptive':
+            # For descriptive questions, use LLM to evaluate
+            for ans in question_answers:
+                student_answer = ans.written_answer
+                expected_answer = correct_options[0].option_text if correct_options else ""
+                question_mark = question.marks
+                evaluation = descriptive_evaluation(openai_client_instance, question_mark, expected_answer, student_answer)
+                if not evaluation.get("status", False):
+                    continue  # Skip if evaluation failed
+                score = evaluation.get("score", 0)
+                max_marks = question.marks
+                marks_awarded = (score / question_mark) * max_marks if question_mark > 0 else 0
+                ans.is_correct = 1 if marks_awarded == max_marks else 0
+                ans.marks_awarded = marks_awarded
+                ans.is_validated = 1
+                feedback_part = evaluation.get("feedback", "")
+                ans.feedback = feedback_part
+                ai_confidence = evaluation.get("ai_confidence", 0)
+                ans.ai_confidence = ai_confidence
+                session.add(ans)
+
+                # update ExamReviewComments table category wise comments
+                for key in ["missing", "incomplete", "incorrect",'feedback']:
+                    if evaluation.get(key) and evaluation.get(key) != "None":
+                        comment = f"{evaluation.get(key)}"
+
+                        for commt in comment.split('|'):
+                            review_comment = ExamReviewComments(
+                                attempt_id=attempt_id,
+                                question_id=question_id,
+                                comment_text=commt,
+                                category=key,
+                                reviewer_id='cac37fab-4de6-4792-969b-96e57e3c910a'  # or some system user id
+                            )
+                        session.add(review_comment)
         else:
 
             # get the correct options for the question

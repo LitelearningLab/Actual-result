@@ -131,7 +131,7 @@ mat-slide-toggle{ --mat-slide-toggle-bar-background: #dfeeff }
 .privileges-grid {
   display: grid;
   grid-template-columns: 2.5fr repeat(4, 1fr);
-  font-size: 0.95rem;
+  font-size: var(--font-size-base);
   background: var(--table-row-bg);
   border: 1px solid var(--table-border);
   border-radius: 6px;
@@ -182,11 +182,11 @@ mat-slide-toggle{ --mat-slide-toggle-bar-background: #dfeeff }
   border-right: none;
 }
 
-/* Icons */
-mat-icon {
-  font-size: 20px;
-  vertical-align: middle;
-}
+// /* Icons */
+// mat-icon {
+//   font-size: 20px;
+//   vertical-align: middle;
+// }
 
 /* Hover effect on rows */
 .privileges-grid > :not(.head):hover {
@@ -198,7 +198,7 @@ mat-icon {
 @media (max-width: 720px) {
   .privileges-grid {
     grid-template-columns: 2fr repeat(4, 1fr);
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
   }
 }
 

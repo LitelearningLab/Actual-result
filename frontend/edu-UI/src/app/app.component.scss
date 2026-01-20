@@ -1,40 +1,40 @@
 :root {
-  --topbar-height: 4rem; // Top bar fixed height
-  --sidenav-width: 16.25rem; // Side nav fixed width
+  --topbar-height: max(3.5rem, calc(var(--font-size-base) * 5)); /* responsive nominal topbar height */
+  --sidenav-width: 16.25rem; /* Side nav nominal width */
+  --sidenav-collapsed: 4.5rem; /* collapsed width (approx 72px at 16px root) */
 }
 
 /* box sizing */
 * { box-sizing: border-box; }
 
 /* Prevent root scroll */
-html, body { width:100%; margin:0; padding:0; height:100%; background-color:var(--theme-3); overflow:auto; position:relative }
+html, body { width:100%; margin:0; padding:0; min-height:100%; background-color:var(--theme-3); overflow:auto; position:relative }
 
 /* Full height app layout: horizontal row */
 .app-layout {
   overflow: hidden;
   display: flex;
   flex-direction: row;
-  height: 100vh;
-  background: var(--theme-3); // Sidebar background
-  // padding: 40px;
+  min-height: 100vh; /* prefer min-height so zoomed UI doesn't clip */
+  background: var(--theme-3);
   gap: 0;
   min-width: 0;
   position: relative;
 }
 
 /* Side nav: left column, same height as app-main */
-.app-sidenav {
-  position: relative;
-  flex: 0 0 auto;
-  width: auto;
-  height: 100%;
-  background-color: var(--theme-1);
-  overflow: inherit;
-  background: transparent;
-  // border-top-left-radius: 30px;
-  // border-bottom-left-radius: 30px;
-  min-width: 0; /* allow shrinking of the column */
-}
+// .app-sidenav {
+//   position: relative;
+//   flex: 0 0 auto;
+//   width: auto;
+//   height: 100%;
+//   background-color: var(--theme-1);
+//   overflow: inherit;
+//   background: transparent;
+//   // border-top-left-radius: 30px;
+//   // border-bottom-left-radius: 30px;
+//   min-width: 0; /* allow shrinking of the column */
+// }
 
 
 
@@ -58,12 +58,11 @@ html, body { width:100%; margin:0; padding:0; height:100%; background-color:var(
 
 
 /* Top bar inside app-main (10% of app-main) */
-  .app-topbar { flex: 0 0 var(--topbar-height); min-height: var(--topbar-height); width:100%; background:var(--theme-2-bg-1); display:grid; align-items:center; box-shadow:0 0.125rem 0.625rem rgba(20,30,60,0.06); padding:0.625rem 2.5rem 0;
-  border-bottom: 1px solid var(--theme-2-border); }
+  .app-topbar { flex: 0 0 var(--topbar-height); min-height: var(--topbar-height); width:100%; background:var(--theme-2-bg-1); display:grid; align-items:center; box-shadow:0 0.125rem 0.625rem rgba(20,30,60,0.06); padding:0.5rem 1.5rem; border-bottom: 1px solid var(--theme-2-border); font-size: var(--font-size-base); line-height: var(--line-height-base); }
 
 
 /* Content: scrolls internally only */
-.app-content { flex:1 1 auto; display:block; min-height:0; width:100%; background:var(--theme-2); padding:1.25rem 1.5rem; overflow-y:auto; -ms-overflow-style:none }
+.app-content { flex:1 1 auto; display:block; min-height:0; width:100%; background:var(--theme-2); padding:1rem 1rem; overflow-y:auto; -ms-overflow-style:none; height: 100vh ; }
 
 // 
 
@@ -89,14 +88,14 @@ html, body { width:100%; margin:0; padding:0; height:100%; background-color:var(
     display: flex;
     flex-direction: column;
     min-height: 0;      /* REQUIRED for scrolling */
-    /* On mobile the main should be the remaining width after collapsed sidenav (72px) */
-    width: calc(100% - 72px);
+    /* On mobile the main should be the remaining width after collapsed sidenav */
+    width: calc(100% - var(--sidenav-collapsed));
     overflow: hidden;
     background: var(--theme-1);
   }
 
   /* On mobile, shift main content to the right of the collapsed sidenav (72px) */
-  .app-main { margin-left: 72px; }
+  .app-main { margin-left: var(--sidenav-collapsed); }
 
   /* When sidenav expanded via .sidenav-open expand, set main width and margin accordingly */
   .sidenav-open .app-main {
@@ -106,14 +105,15 @@ html, body { width:100%; margin:0; padding:0; height:100%; background-color:var(
 
  
   .app-sidenav {
-    /* on mobile keep a compact collapsed nav by default (72px) */
+    /* on mobile keep a compact collapsed nav by default */
     position: fixed;
     left: 0;
     top: 0;
-    height: 100vh;
-    width: 72px;
+    bottom: 0;
+    height: auto;
+    width: var(--sidenav-collapsed);
     transform: none;
-    flex: 0 0 72px;
+    flex: 0 0 var(--sidenav-collapsed);
     z-index: 65;
     background: var(--theme-1);
     overflow: auto;
@@ -124,8 +124,9 @@ html, body { width:100%; margin:0; padding:0; height:100%; background-color:var(
     position: fixed;
     left: 0;
     top: 0;
-    height: 100vh;
-    width: 72px;
+    bottom: 0;
+    height: auto;
+    width: var(--sidenav-collapsed);
     z-index: 65;
     background: var(--theme-1);
     overflow: auto;
@@ -142,13 +143,13 @@ html, body { width:100%; margin:0; padding:0; height:100%; background-color:var(
 }
 
 /* Custom Scrollbar for sidebar/content */
-.app-sidenav::-webkit-scrollbar,
-.app-content::-webkit-scrollbar {
-  width: 0.5rem;
-  background: rgba(86,91,102,0.09);
-}
-.app-sidenav::-webkit-scrollbar-thumb,
-.app-content::-webkit-scrollbar-thumb {
-  background: #b2bacb;
-  border-radius: 0.4375rem;
-}
+  .app-sidenav::-webkit-scrollbar,
+  .app-content::-webkit-scrollbar {
+    width: 0.5rem;
+    background: rgba(86,91,102,0.09);
+  }
+  .app-sidenav::-webkit-scrollbar-thumb,
+  .app-content::-webkit-scrollbar-thumb {
+    background: #b2bacb;
+    border-radius: 0.4375rem;
+  }

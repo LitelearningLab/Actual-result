@@ -4,13 +4,13 @@ from flask_cors import CORS
 from auth.auth import JWTValidator
 from configparser import ConfigParser
 
-from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, manage_institute, update_institute
-from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details
+from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, delete_institute, manage_institute, update_institute
+from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details, delete_user
 from others.exams import add_exam, get_exam_details, get_exam_list, launch_exam_details, submit_exam_answers,get_user_exam_details
 from others.examschedule import add_exam_schedule, get_exam_schedule_details
 from others.examschedule import update_exam_schedule
 from others.category import add_categories, get_categories_list, get_category_details
-from others.questions import add_question, get_questions_details, bulk_upload_questions
+from others.questions import add_question, get_questions_details, bulk_upload_questions, create_question_using_llm
 from others.exam_review import review_user_exam, validate_answers
 from others.exam_reports import get_user_wise_report, get_exam_analytics
 from others.exam_reports import get_question_wrong_answers
@@ -117,12 +117,30 @@ def get_pages_list_route():
     response_data, status_code = get_pages_list(request)
     return jsonify(response_data), status_code
 
+# delete method for institute, user, category, exam-schedule
+@edu_blueprint.route('/delete/<page>/<uuid>', methods=['DELETE'])
+def delete_page(page, uuid):
+    # get deleted_by 
+    deleted_by = request.args.get('current_user', 'system')
+    if page == 'institute':
+        response_data, status_code = delete_institute(uuid, deleted_by)
+    elif page == 'user':
+        response_data, status_code = delete_user(uuid, deleted_by)
+    elif page == 'category' or page == 'categories':
+        from others.category import delete_category
+        response_data, status_code = delete_category(uuid, deleted_by)
+    elif page == 'exam-schedule' or page == 'exam-schedules' or page == 'schedule':
+        from others.examschedule import delete_schedule
+        response_data, status_code = delete_schedule(uuid, deleted_by)
+    return response_data, status_code
+
 @edu_blueprint.route('/<page>/<action>/<uuid>', methods=['PUT'])
+@jwt_required
 def manage_page(page, action, uuid):
     # get updated_by 
     updated_by = request.json.get('current_user', 'system')
     if action not in ["activate", "deactivate"]:
-        return jsonify({"error": f"Invalid action '{action}'. Use 'activate' or 'deactivate'."}), 400
+        return jsonify({"error": f"Invalid action '{action}'. Use 'activate' or 'deactivate' ."}), 400
     if page == 'institute':
         response_data, status_code =  manage_institute(action, uuid, updated_by)
     elif page == 'user':
@@ -172,6 +190,12 @@ def bulk_upload_users():
 @jwt_required
 def bulk_upload_questions_route():
     response_data, status_code = bulk_upload_questions(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/create-question-using-ai', methods=['POST'])
+@jwt_required
+def create_question_using_ai_route():
+    response_data, status_code = create_question_using_llm(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-users', methods=['GET'])
@@ -411,7 +435,7 @@ def refresh_token_route():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/logout', methods=['POST'])
-@jwt_required
+# @jwt_required
 def logout():
     data = request.json
     jwt_validator = JWTValidator(jwt_secret)

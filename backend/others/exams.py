@@ -380,7 +380,7 @@ def get_user_exam_details(request):
                 Exam_Attempt.user_id == user_id,
                 Exam_Attempt.schedule_id == schedule_obj.schedule_id if schedule_obj else None
             ).all()
-            # if no attempts found, set user_review to False
+
             if not attempts:
                 user_attempt = 0
             else:
@@ -390,10 +390,18 @@ def get_user_exam_details(request):
 
             user_review_data = schedule_obj.user_review if schedule_obj else None
             user_review = False
+
+            # check scrore and feedback for last attempt
+            attempts = sorted(attempts, key=lambda x: x.attempt_number)
+            attempts = attempts[-1] if attempts else None
+            feedback = attempts.feedback if attempts else ''
+
             # if current time between start and end time, exam is active
             current_time = datetime.utcnow()
             if schedule_obj.start_time <= current_time <= schedule_obj.end_time:
                 type = 'active'
+                if feedback.lower() == 'pass':
+                    type = 'completed'
             elif schedule_obj.end_time and current_time > schedule_obj.end_time:
                 type = 'completed'
                 # if user_review_data == 1:

@@ -294,6 +294,9 @@
                                 <div class="label">Title</div>
                                 <div class="value">{{ title || '—' }}</div>
 
+                                <div class="label">Description</div>
+                                <div class="value">{{ description || '—' }}</div>
+
                                 <div class="label">Duration (mins)</div>
                                 <div class="value">{{ durationMinutes || '—' }}</div>
 
@@ -306,8 +309,8 @@
                                 <div class="label">Categories</div>
                                 <div class="value">{{ model.categories?.length || 0 }}</div>
 
-                                <div class="label">Selected questions</div>
-                                <div class="value">{{ selectedQuestionIds.length || 0 }}</div>
+                                <div class="label">Number of attempts</div>
+                                <div class="value">{{ numberOfAttempts || 0 }}</div>
 
                                 <div class="label">Randomize per category</div>
                                 <div class="value">{{ anyCategoryRandomized() ? 'Yes' : 'No' }}</div>

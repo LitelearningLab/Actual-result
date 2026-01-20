@@ -7,7 +7,9 @@ import { API_BASE } from 'src/app/shared/api.config';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { TemplatePortal } from '@angular/cdk/portal';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 @Component({
   selector: 'app-exam-reports',
@@ -31,6 +33,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   // user report state
   userReportData: any[] = [];
   userReportTotal = 0;
+  // user review panel state
+  showUserReviewPanel = false;
+  userReviewAttempts: any[] = [];
+  userReviewLoading = false;
+  selectedUserName: string | null = null;
+  selectedUserScore: string | number | null = null;
+  selectedUserResult: string | null = null;
+  totalQuestions: number | null = null;
+  totalMarks: string | number | null = null;
   pageSize = 25;
   currentPage = 1;
   searchQuery = '';
@@ -40,6 +51,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   instituteCtrl = new FormControl<any>('');
   filteredInstitutes$: Observable<any[]> = of([]);
   filteredExams$: Observable<any[]> = of([]);
+  allExams: any[] = [];
   selectedExam: any = null;
   activeMainTabIndex = 0;
   userFilterOpen = false;
@@ -66,7 +78,107 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   private _subs: Subscription | null = null;
   resetFilters: any = {};
 
-  constructor(private http: HttpClient, private loading: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService) {}
+  constructor(private http: HttpClient, private loading: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private _snack: MatSnackBar) {}
+
+  // Open user review by calling backend API /review-user-exam
+  openUserReview(row: any){
+    if(!row) return;
+    // set header fields used in template
+    try{
+      this.selectedUserName = row.student_name || row.name || row.user_name || row.full_name || null;
+      this.selectedUserScore = row.marks_obtained ?? row.score ?? row.marks ?? null;
+      this.selectedUserResult = row.result ?? row.status ?? null;
+      this.totalQuestions = row.total_questions || row.total || null;
+      this.totalMarks = row.total_marks || row.totalMarks || null;
+    }catch(e){
+      this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null; this.totalMarks = null;
+    }
+    const userId = row.user_id || row.student_id || row.id || row.userId || null;
+    const scheduleId = String(this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || '');
+    if(!userId || !scheduleId) return;
+    const params: any = { user_id: String(userId), scheduler_id: scheduleId };
+    // if browser is offline, show a retry snackbar instead of firing the request
+    if(typeof navigator !== 'undefined' && !navigator.onLine){
+      const snack = this._snack.open('You appear to be offline. Retry?', 'Retry', { duration: 10000 });
+      snack.onAction().subscribe(() => this.fetchUserReview(params));
+      return;
+    }
+    this.fetchUserReview(params);
+  }
+
+  private fetchUserReview(params: any){
+    this.userReviewLoading = true;
+    this.http.get<any>(`${API_BASE}/review-user-exam`, { params }).subscribe({
+      next: (res)=>{
+        try{
+          const body = res || {};
+          // backend returns { data: [ attemptObj, ... ] }
+          let attempts: any[] = [];
+          if(Array.isArray(body.data)) {
+            attempts = body.data;
+          } else if(Array.isArray(body)) {
+            attempts = body as any[];
+          } else if(Array.isArray(body?.data?.data)) {
+            attempts = body.data.data;
+          } else if(Array.isArray(body?.attempts)) {
+            attempts = body.attempts;
+          }
+
+          // normalize each attempt: ensure review/questions array exists
+          this.userReviewAttempts = (attempts || []).map(a => {
+            const reviewList = a.review || a.questions || a.attempt_review || [];
+            return { ...a, review: Array.isArray(reviewList) ? reviewList : [] };
+          });
+          console.debug('[ExamReports] review-user-exam attempts count:', this.userReviewAttempts.length, this.userReviewAttempts);
+          // If total marks not set from the row, try to take it from the first attempt returned
+          if((this.totalMarks === null || this.totalMarks === undefined) && this.userReviewAttempts && this.userReviewAttempts.length){
+            const first = this.userReviewAttempts[0] || {};
+            this.totalMarks = first.total_marks ?? first.totalMarks ?? first.total ?? null;
+            // also set selectedUserScore fallback if not available from the row
+            if((this.selectedUserScore === null || this.selectedUserScore === undefined) && (first.score || first.marks || first.marks_obtained || first.percentage !== undefined)){
+              this.selectedUserScore = first.score ?? first.marks ?? first.marks_obtained ?? null;
+            }
+            // ensure totalQuestions if missing
+            if((this.totalQuestions === null || this.totalQuestions === undefined) && (first.total_questions || first.totalQuestions || first.totalQuestionsCount)){
+              this.totalQuestions = first.total_questions ?? first.totalQuestions ?? null;
+            }
+          }
+        }catch(e){
+          console.warn('Failed to parse review-user-exam response', e);
+          this.userReviewAttempts = [];
+        }
+        this.userReviewLoading = false;
+        if(!this.userReviewAttempts || !this.userReviewAttempts.length){
+          this._snack.open('No review data available for this user.', 'Close', { duration: 4000 });
+          this.showUserReviewPanel = false;
+        } else {
+          this.showUserReviewPanel = true;
+        }
+      },
+      error: (err)=>{
+        console.error('[ExamReports] review-user-exam failed', err);
+        this.userReviewLoading = false;
+        this.userReviewAttempts = [];
+        if(err && err.status === 0){
+          const snack = this._snack.open('Network or server unreachable — check backend and network.', 'Retry', { duration: 8000 });
+          snack.onAction().subscribe(() => {
+            // retry once
+            this.fetchUserReview(params);
+          });
+        } else {
+          const msg = (err && err.error && err.error.statusMessage) ? err.error.statusMessage : (err && err.message) ? err.message : 'Failed to load review data.';
+          this._snack.open(msg, 'Close', { duration: 5000 });
+        }
+        this.showUserReviewPanel = false;
+      }
+    });
+  }
+
+  closeUserReview(){ 
+    this.showUserReviewPanel = false; 
+    this.userReviewAttempts = []; 
+    this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null; this.totalMarks = null;
+  }
 
   onApply(payload: any) {
     this.appliedFilters = payload;
@@ -92,7 +204,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
   closeUserFilter() { this.userFilterOpen = false; }
-  onCountryChange() { /* placeholder */ }
 
   private loadInstitutes(){
     const url = `${API_BASE}/institutes/list`;
@@ -117,7 +228,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         else if(this.institutes.length) this.selectedInstituteId = this.institutes[0].id;
         // set instituteCtrl display value
         const selected = this.institutes.find(i=>i.id === this.selectedInstituteId);
-        if(selected){ try{ this.instituteCtrl.setValue(selected as any); }catch(e){} }
+        if(selected){ try{ this.instituteCtrl.setValue(selected as any); this.onInstituteChange(this.selectedInstituteId); }catch(e){} }
       },
       error: (err)=> console.warn('Failed to load institutes', err)
     });
@@ -126,34 +237,125 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   onInstituteSelected(inst: any){
     if(!inst) return;
     this.selectedInstituteId = inst.id;
+    // populate dependent filter lists then load exams
+    try{ this.loadDepartmentList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadTeamsList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadCampusList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadCountries(); }catch(e){}
     this.loadScheduledExam();
   }
 
   displayInstitute(i: any){ return i ? i.name : ''; }
   onInstituteChange(id: string|null){
     this.selectedInstituteId = id;
+    try{ this.loadDepartmentList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadTeamsList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadCampusList(this.selectedInstituteId); }catch(e){}
+    try{ this.loadCountries(); }catch(e){}
     this.loadScheduledExam();
+  }
+
+  loadCountries() {
+    // reuse location-hierarchy endpoint used elsewhere
+    const url = `${API_BASE}/location-hierarchy`;
+    this.http.get<any>(url).subscribe({ next: (res) => { try { const countries = res?.data?.countries || res?.countries || res?.data || []; this.countries = countries.map((c: any) => ({ code: c.country_code || c.code || c.id, name: c.country_name || c.name || c.country })); } catch (e) { this.countries = []; } }, error: () => { this.countries = []; } });
+  }
+
+  onCountryChange() {
+    this.cities = [];
+    if (!this.userFilters.country_id) return;
+    const url = `${API_BASE}/location-hierarchy`;
+    this.http.get<any>(url, { params: { country: this.userFilters.country_id } }).subscribe({
+      next: (res) => {
+        try {
+          let allCities: any[] = [];
+          const countries = res?.data?.countries || res?.countries || [];
+          if (Array.isArray(countries)) {
+            countries.forEach((c: any) => { if (Array.isArray(c.cities)) allCities = allCities.concat(c.cities); if (Array.isArray(c.states)) c.states.forEach((s: any) => { if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities); }); });
+          }
+          if (allCities.length === 0 && (res?.data?.cities || res?.cities)) allCities = res?.data?.cities || res?.cities || [];
+          this.cities = (allCities || []).map((c: any) => ({ code: c.city_code || c.code || c.id, name: c.city_name || c.name || c.city }));
+        } catch (e) { this.cities = []; }
+      }, error: () => { this.cities = []; }
+    });
+  }
+
+  // load department list for a specific institute
+  loadDepartmentList(instituteId: string | null) {
+    this.departmentList = [];
+    if (!instituteId) return;
+    const url = `${API_BASE}/get-department-list?institute_id=${encodeURIComponent(instituteId)}`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        console.debug('[ExamReports] get-department-list response for', instituteId, res);
+        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.departmentList = arr.map((d: any) => (d.name || d.department_name || d.department || d).toString()).filter((s: any) => !!s);
+      }, error: (err) => { console.warn('Failed to load department list', err); this.departmentList = []; }
+    });
+  }
+
+  // load teams list for a specific institute
+  loadTeamsList(instituteId: string | null) {
+    this.teamList = [];
+    if (!instituteId) return;
+    const url = `${API_BASE}/get-teams-list?institute_id=${encodeURIComponent(instituteId)}`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        console.debug('[ExamReports] get-teams-list response for', instituteId, res);
+        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.teamList = arr.map((t: any) => (t.name || t.team_name || t.team || t).toString()).filter((s: any) => !!s);
+      }, error: (err) => { console.warn('Failed to load teams list', err); this.teamList = []; }
+    });
+  }
+
+  // load campus list for a specific institute
+  loadCampusList(instituteId: string | null) {
+    this.campusList = [];
+    if (!instituteId) return;
+    const url = `${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instituteId)}`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        console.debug('[ExamReports] get-campus-list response for', instituteId, res);
+        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.campusList = arr.map((c: any) => (c.name || c.campus_name || c.campus || c).toString()).filter((s: any) => !!s);
+      }, error: (err) => { console.warn('Failed to load campus list', err); this.campusList = []; }
+    });
   }
   loadScheduledExam() {
     // call API (use API_BASE) and populate filteredExams$
     const url = `${API_BASE}/get-exam-schedule-details`;
     this.loading.show();
-    this.filteredExams$ = new Observable<any[]>(observer => {
-      this.http.get<any>(url, { params: { institute_id: this.selectedInstituteId || '', country_id: this.userFilters.country_id || '', city_id: this.userFilters.city_id || '', campus_id: this.userFilters.campus_id || '' } }).subscribe({
-        next: (res) => {
-          const items = Array.isArray(res) ? res : (res?.data || res?.schedules || []);
-          observer.next(items);
-          observer.complete();
-          try { this.loading.hide(); } catch(e){}
-        },
-        error: (err) => { observer.next([]); observer.complete(); console.warn('Failed to load schedules', err); try { this.loading.hide(); } catch(e){} }
-      });
+    this.http.get<any>(url, { params: { institute_id: this.selectedInstituteId || '', country_id: this.userFilters.country_id || '', city_id: this.userFilters.city_id || '', campus_id: this.userFilters.campus_id || '' } }).subscribe({
+      next: (res) => {
+        try{ const items = Array.isArray(res) ? res : (res?.data || res?.schedules || []);
+          this.allExams = items || [];
+          // set up filtered observable to react to user typing
+          try{
+            this.filteredExams$ = this.examCtrl.valueChanges.pipe(
+              startWith(''),
+              map((val:any) => {
+                const q = (typeof val === 'string' ? val : (val?.title || val?.name || '')).toLowerCase();
+                return (this.allExams || []).filter((it:any) => (it.title || it.name || '').toLowerCase().includes(q));
+              })
+            );
+          }catch(e){ this.filteredExams$ = of(this.allExams || []); }
+        }catch(e){ this.filteredExams$ = of([]); console.warn('Failed to load schedules', e); }
+        try { this.loading.hide(); } catch(e){}
+      },
+      error: (err) => { this.filteredExams$ = of([]); console.warn('Failed to load schedules', err); try { this.loading.hide(); } catch(e){} }
     });
   }
 
   ngOnInit(): void {
     try { this.pageMeta.setMeta('Exam Reports', 'Reports for scheduled exams'); } catch (e) {}
-     this.loadInstitutes();
+      this.loadInstitutes();
+      // load countries for filter dropdowns
+      try{ this.loadCountries(); }catch(e){}
+  }
+
+  // Helper to convert option index to letter (0 -> A, 1 -> B, ...)
+  getOptionLetter(i: number): string {
+    try { return String.fromCharCode(65 + (Number(i) || 0)); } catch (e) { return ''+i; }
   }
 
   openFiltersOverlay(){
@@ -387,4 +589,20 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   closeResourcePanel(){ this.showResourcePanel = false; this.selectedResources = []; this.selectedResourceContext = null; }
+
+  // Format a date like 'On DD-MMM-YYYY HH:MM'
+  formatDate(dateLike: any): string {
+    if(!dateLike) return '';
+    try{
+      const d = new Date(dateLike);
+      if(isNaN(d.getTime())) return '';
+      const dd = String(d.getDate()).padStart(2,'0');
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const m = months[d.getMonth()] || '';
+      const yyyy = d.getFullYear();
+      const hh = String(d.getHours()).padStart(2,'0');
+      const min = String(d.getMinutes()).padStart(2,'0');
+      return `On ${dd}-${m}-${yyyy} ${hh}:${min}`;
+    }catch(e){ return ''; }
+  }
 }

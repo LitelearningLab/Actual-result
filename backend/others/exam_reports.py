@@ -40,10 +40,18 @@ def get_user_wise_report(request):
                 continue
 
             # compute aggregates from Answers for this user and schedule
+            # fetch all answers for marks calculation
             answers = session.query(Answer).filter(Answer.schedule_id == schedule_id, Answer.user_id == uid).all()
-            questions_attempted = len(set([a.question_id for a in answers]))
-            correct = sum(1 for a in answers if a.is_correct == 1)
-            wrong = sum(1 for a in answers if a.is_correct == 0)
+
+            # group by question_id and determine if any attempt for that question was correct
+            grouped = session.query(Answer.question_id, func.max(Answer.is_correct).label('any_correct')).filter(
+                Answer.schedule_id == schedule_id,
+                Answer.user_id == uid
+            ).group_by(Answer.question_id).all()
+
+            questions_attempted = len(grouped)
+            correct = sum(1 for _qid, any_correct in grouped if (any_correct or 0) == 1)
+            wrong = questions_attempted - correct
             marks = sum((a.marks_awarded or 0) for a in answers)
 
             # determine result based on attempts/attempt records (prefer best percentage if attempts exist)
@@ -136,14 +144,33 @@ def get_exam_analytics(request):
             qids = [q[0] for q in qids]
             total_questions = len(qids) if qids else (m.number_of_questions or 0)
 
-            # wrong answers for these questions in this schedule
+            # compute per-question attempts and mistakes (group by question_id)
             wrong_answers = 0
             total_attempts = 0
             if qids:
-                wrong_answers = session.query(func.count(Answer.answer_id)).filter(Answer.schedule_id == schedule_id, Answer.question_id.in_(qids), Answer.is_correct == 0).scalar() or 0
-                total_attempts = session.query(func.count(Answer.answer_id)).filter(Answer.schedule_id == schedule_id, Answer.question_id.in_(qids)).scalar() or 0
+                grouped = session.query(
+                    Answer.question_id,
+                    func.count(Answer.answer_id).label('attempts'),
+                    func.sum((1 - Answer.is_correct)).label('mistakes')  # assumes is_correct is 0/1
+                ).filter(
+                    Answer.schedule_id == schedule_id,
+                    Answer.question_id.in_(qids)
+                ).group_by(Answer.question_id).all()
 
-            error_percentage = (wrong_answers / total_attempts * 100) if total_attempts > 0 else 0
+                total_attempts = sum((g.attempts or 0) for g in grouped)
+                total_wrong_answers = sum((g.mistakes or 0) for g in grouped)
+                wrong_question_count = sum(1 for g in grouped if (g.mistakes or 0) > 0)
+
+                # use wrong_question_count as "wrong_answers" (count of questions with at least one wrong)
+                wrong_answers = wrong_question_count
+            else:
+                total_attempts = 0
+                wrong_answers = 0
+                total_wrong_answers = 0
+                wrong_question_count = 0
+
+            # error percentage: fraction of questions in this category that had at least one wrong attempt
+            error_percentage = (wrong_question_count / total_questions * 100) if total_questions > 0 else 0
 
             # impact percentage heuristic: wrong answers normalized by (total_questions * participant_count)
             denom = (total_questions * participant_count) if (total_questions and participant_count) else 0

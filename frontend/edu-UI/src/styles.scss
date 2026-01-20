@@ -1,6 +1,4 @@
 /* You can add global styles to this file, and also import other style files */
-// Design token variables (inlined here so component styles don't need per-file imports)
-// Theme variants
 :root {
 
     // Top-nav 
@@ -36,22 +34,43 @@
     /* Global layout variables (sidebar width is global so % values work across components) */
     --sidenav-width: 18.75rem; /* 300px ÷ 16 */
     --sidenav-max: 41.25rem;   /* 660px ÷ 16 */
+    --sidenav-collapsed: 4.5rem; /* collapsed width (approx 72px at 16px root) */
+    --control-radius: 0.5rem;
+    --modal-min-height: 18.75rem; /* 300px */
+    --toggle-thumb-size: 1.25rem; /* 20px ≈ 1.25rem */
+
+    /* Responsive typography tokens (use rem so OS scaling affects layout) */
+    --font-sm: 0.875rem; /* 14px */
+    --font-md: 1rem;     /* 16px */
+    --font-lg: 1.125rem; /* 18px */
+    --font-xl: 1.25rem; /* 20px */
+    --font-xsm: 0.8125rem; /* 13px */
+    --font-xs: 0.75rem; /* 12px */
+    /* Backwards-compatible aliases */
+    --font-size-sm: var(--font-sm);
+    --font-size-base: var(--font-md);
+    --font-size-lg: var(--font-lg);
+    --line-height-base: 1.5;
+    --h1-size: clamp(1.25rem, 1.1rem + 1.2vw, 1.75rem);
+    --h2-size: clamp(1.125rem, 1rem + 0.8vw, 1.375rem);
 
 
 
   /* -------------------------------------
    * TABLES
    * -----------------------------------*/
-  --table-header-bg: #1e293b;       /* Updated to match theme palette */
-  --table-header-text: #faf9f9d2;
+  --table-header-bg: #374151;       /* Updated to match theme palette */
+  --table-header-text: #faf9f9e5;
   --table-header-icon: #dcdddf;
 
   --table-row-bg: #ffffff;
   --table-row-icon: #6b7784;
-  --table-row-text: #222b32;
+  --table-row-text: #222b329f;
   --table-row-hover-bg: #eef1f4;   /* Soft hover */
   --table-row-hover-text: #1d2c33;
   --table-border: rgba(15, 35, 55, 0.288);
+  --table-row-border: rgba(0, 0, 0, 0.06);
+  --toggle-color: #1f7bff;
 
   /* -------------------------------------
    * BACKGROUNDS
@@ -64,22 +83,22 @@
   /* -------------------------------------
    * BUTTONS
    * -----------------------------------*/
-  --button-1: #1b284b;    /* Primary blue */
-  --button-2: #fdfdfd;    /* Slate/navy button */
+  --button-1: #1f7bff;    /* Primary blue */
+  --button-2: #1f7bff; //fdfdfd;    /* Slate/navy button */
   --button-3: #0b3946;    /* Deep teal action */
 
   /* Hover states */
-  --button-1-hover: #1b284bc5;
-  --button-2-hover: #dcdee023;
+  --button-1-hover: #1668d6;
+  --button-2-hover: #1668d6; //dcdee023;
   --button-3-hover: #082c34;
 
   /* Button text */
   --button-text-1: #ffffff;
-  --button-text-2: #5c5b5b;
+  --button-text-2: #ffffff; //5c5b5b;
   --button-text-3: #ffffff;
   // Button borders
-  --button-border-1: #1b284b;
-  --button-border-2: #01070ed8;
+  --button-border-1: #0e51a8;
+  --button-border-2: #0754b8;
 
 
   /* -------------------------------------
@@ -88,7 +107,9 @@
   --border-1: rgba(15, 35, 55, 0.089);
   --border-2: rgba(15, 35, 55, 0.059);
   --border-3: rgba(15, 35, 55, 0.019);
-
+  --border-dark-1: rgba(15, 1, 1, 0.856);
+  --border-dark-2: rgba(15, 1, 1, 0.656);
+  --border-dark-3: rgba(15, 1, 1, 0.256);
 
   /* -------------------------------------
    * LABELS / ACCENTS
@@ -98,28 +119,23 @@
   --label-3: #586772;
 
 
-  // /* -------------------------------------
-  //  * ICONS
-  //  * -----------------------------------*/
-  // --icon-1: #6b7784;   /* Neutral slate */
-  // --icon-2: #1f7bff;   /* Accent blue */
-  // --icon-3: #0b3946;   /* Strong deep teal */
-
-
-  // /* -------------------------------------
-  //  * TEXT COLORS
-  //  * -----------------------------------*/
-  // --text-1: #000000;    /* Primary dark text    */
-  // --text-2: #161616b4;  /* Secondary slate      */
-  // --text-3: #5a6973;    /* Tertiary muted text  */
-
 }
 
 // 
+html { font-size: 16px; }
+
+/* Use border-box everywhere for predictable sizing */
+*, *::before, *::after { box-sizing: border-box; }
+
 html, body {
   overflow: hidden;
   margin: 0;
-  font-family:  Roboto, serif !important; // "DM Sans", sans-serif; //
+  font-family: 'Roboto', 'Segoe UI', Arial, sans-serif !important;
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%; /* prevent mobile font auto-scaling */
 }
 
 /* Force Cambria everywhere but avoid overriding icon fonts (mat-icon) */
@@ -170,21 +186,21 @@ html, body {
 /* Richer toolbar & buttons */
 .toolbar .controls{ display:flex; align-items:center; gap:0.75rem; }
 .toolbar .action-row{ display:flex; gap:0.5rem; align-items:center; }
-.toolbar .controls button { background: var(--button-2)!important; color: var(--button-text-2) !important; border-radius: .75rem; height: 2.75rem; border: 2px solid var(--border-1); }
+.toolbar .controls button { background: var(--button-2)!important; color: var(--button-text-2) !important; border-radius: .75rem; height: 2.75rem; border: 2px solid var(--border-1);     box-shadow: 0px 10px 15px -3px rgb(126 129 131 / 86%); }
 .toolbar .controls button:hover { background: var(--button-2-hover) !important; color: var(--button-text-2) !important; border: 2px solid var(--button-border-2); }
 
 .toolbar .controls button:not(.button-one){ background: var(--button-1) !important; color: var(--button-text-1) !important;    border-radius: .75rem; height: 2.75rem; border: 2px solid var(--border-1); }
 .toolbar .controls button:not(.button-one):hover { background: var(--button-1-hover) !important; color: var(--button-text-1) !important; }
-
+// .toolbar .card .mat-icon, .material-icons, .mat-mdc-icon { color: var(--theme-3-icon-1); }
 
 //  ======================== Filters panel styles ================================================================
 .filters-panel{ min-width:20rem;max-width:26.25rem;padding: 0.5rem 0.625rem;border-radius:0.9rem;
-	box-shadow:0 14px 28px rgba(2,10,30,0.16);background: var(--theme-2);font-size:.9rem}
+  box-shadow:0 0.875rem 1.75rem rgba(2,10,30,0.12);background: var(--theme-2);font-size: var(--font-md)}
 .filters-panel .filter-block{	display:flex;	flex-direction:column; gap: 0.75rem; margin-bottom:0.5rem; }
 .filters-panel .filter-item{ width:100%; max-width:100%; max-height:  4.0625rem; background-color: var(--bg-1) ;}
-.filters-panel mat-icon{ font-size:1rem }
-.filter-actions{ display:flex; justify-content:flex-end; gap: 0.5rem; }
-.filter-actions button{ padding: 0.25rem 0.5rem; height:1.875rem; font-size:0.82rem }
+.filters-panel mat-icon{ font-size: var(--font-size-base); }
+.filter-actions{ display:flex; justify-content:flex-end; gap: 0.3rem; }
+.filter-actions button{ padding: 0.25rem 0.5rem; height:1.875rem; font-size: var(--font-size-sm); }
 
 .filter-actions button {background: var(--button-1) !important; color: var(--button-text-1) !important;}
 .filter-actions button:hover {background: var(--button-1-hover) !important; color: var(--button-text-1) !important;}
@@ -193,28 +209,45 @@ html, body {
 
 // ========================= List styles ================================================================
 .list-card {padding: 0.5rem; --mdc-outlined-text-field-outline-color: rgba(255, 255, 255, 0.2);}
-.list-wrapper{ background-color: var(--bg-1);   box-shadow:0 0.875rem 2.625rem rgba(1, 39, 46, 0.08);border-radius: 0.5rem; max-height:75vh; overflow:auto; }
+.list-wrapper{ background-color: var(--bg-1);   box-shadow:0 0.875rem 2.625rem rgba(1, 39, 46, 0.08);border-radius: 0.5rem; max-height: min(75vh, 60rem); overflow:auto; }
 .list-wrapper .actions-inline{ display:flex; gap:0.95rem; align-items:center; }
 
-.list-wrapper .actions-inline button{ width:1.9rem; height:1.9rem; color: var(--table-row-icon);padding: 0px!important; border-radius: 30%;}
+.list-wrapper .actions-inline button{ width:1.9rem; height:1.9rem; color: var(--button-1);padding: 0px!important; border-radius: 30%;}
+.list-wrapper .actions-inline button.delete-btn { color: #ef4444 }
+// .list-wrapper .actions-inline button.edit-btn { color: #ef44d8 }
 .list-wrapper .actions-inline button:hover{ background-color: var(--table-border);  }
-.list-wrapper .actions-inline button svg{ width: .85rem;  height: .85rem;  }
+.list-wrapper .actions-inline button svg{ width: .95rem;  height: .95rem;  }
 .actions-inline button:hover {  color: var(--primary);}
 .actions-inline .delete-btn:hover {  color: #ef4444;}
 
 // ========================= Premium table styles ================================================================
 /* Premium table global theme — dark header, sticky/frozen, zebra rows, hover */
-.premium-table {width: 100%;border-collapse: separate; border-bottom: 0.125rem solid var(--table-border)!important; } 
+.premium-table {width: 100%;border-collapse: separate; border-bottom: 0.125rem solid var(--table-border)!important;
+} 
 .mat-sort-header-arrow {color: var(--table-header-icon) !important;}
 
 .premium-table thead th.mat-header-cell,
 .premium-table thead th.mat-mdc-header-cell {
     background: linear-gradient(180deg, var(--table-header-bg), var(--table-header-bg)) !important;
-    color: var(--table-header-text) !important; font-weight: 500 !important;position: sticky !important;
+    color: var(--table-header-text) !important; font-weight: 560 !important;position: sticky !important;    font-size: medium;
     top: 0 !important;z-index: 60 !important;border-bottom: 1px solid rgba(255,255,255,0.06) !important;
 }
-.premium-table tbody tr:hover{ transform:translateY(-0.125rem); box-shadow:0 0.75rem 1.875rem rgba(6,18,30,0.06);background-color: var(--table-row-hover-bg);color:var(--table-row-hover-text);}
+.premium-table tbody tr{ background-color: var(--table-row-bg) !important; color: var(--table-row-text) !important; line-height: 3 !important; }
+.premium-table tbody td, .premium-table tbody th { border-bottom: 1px solid var(--table-row-border) !important; }
+.premium-table tbody tr:hover{ transform:translateY(-0.125rem);  background-color: var(--table-row-hover-bg) !important;color:var(--table-row-hover-text) !important;}
 .custom-paginator {display: flex; border: 1px solid var(--border-1);}
+
+// /* Custom toggle styles (mirrors requested design) */
+.custom-toggle { display:inline-flex; align-items:center; justify-content:center; height:1.5rem; width:2.75rem; padding:0; border-radius:9999px; border:2px solid var(--theme-3-border); cursor:pointer; transition:background-color .2s ease, border-color .2s ease; background: var(--input-bg, #e6eefb); }
+.custom-toggle:focus { outline: none; box-shadow: 0 0 0 0.25rem rgba(2,112,255,0.12); }
+.custom-toggle .toggle-thumb { display:block; width:var(--toggle-thumb-size); height:var(--toggle-thumb-size); border-radius:9999px; background: var(--background, #fff); transform: translateX(0); transition: transform .18s ease, background .18s ease; box-shadow: 0 0.25rem 0.625rem rgba(2,12,34,0.08); }
+.custom-toggle[data-state="checked"] { background: var(--primary-color, var(--toggle-color) ); }
+.custom-toggle[data-state="checked"] .toggle-thumb { transform: translateX(0.65rem); }
+.custom-toggle[data-state="unchecked"] { background: var(--input-bg, #f1f3f5); }
+.custom-toggle[data-state="unchecked"] .toggle-thumb { transform: translateX(0); }
+
+/* Provide state class helpers for option visuals if needed */
+.custom-toggle.disabled, .custom-toggle[disabled] { opacity:0.6; cursor:not-allowed }
 
 /*==================== Container inside paginator ================================= */
 .custom-paginator .mat-mdc-paginator-container {display: flex;
@@ -225,19 +258,18 @@ html, body {
   align-items: center; gap: 0.5rem;}
 
 // ======================== Stepper styles ================================================================
-.mat-horizontal-stepper-header {  padding: 6px 8px !important; } 
+.mat-horizontal-stepper-header {  padding: 6px 8px !important; font-size: var(--font-size-sm); } 
 .mat-horizontal-stepper-header-container { padding: 6px 8px; border-bottom: 1px solid var(--border-1) !important ;}
 .mat-horizontal-content-container {overflow: hidden; padding: 8px 0 8px 0 !important; }
 .mat-horizontal-content-container .form-actions{  padding:.75rem; border-top: 1px solid var(--border-1) !important; gap: 1rem ;}
 
 // ======================  View Tab Styles ========================================================
-.modal{ min-width:60%; max-width:96%; min-height: 45%; max-height: 80%;
-	background: var(--theme-2) ; border-radius: 0.75rem;  z-index:10060 }
+.modal{ min-width:60%; max-width:96%; min-height: 45%; max-height: 80%; background: var(--theme-2) ; border-radius: 0.75rem;  z-index:10060 }
 .modal-backdrop{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,12,20,0.45); z-index:10050 }
-.modal-header{ display:flex; justify-content:space-between; align-items:center; gap: 0.625rem; font-weight: bold; padding: 0.875rem; }
-.modal-header h1{color:var(--button-1); font-size:1.25rem; margin:0; font-weight: 500; }
-.modal-body{  display:flex; flex-direction:column; gap: 0.625rem; min-height: 18.75rem; max-height:60vh; overflow:auto; padding: 0.875rem; }
-.modal-actions{ display:flex; justify-content:flex-end; gap:0.5rem; padding: 0.875rem; }
+.modal-header{ display:flex; justify-content:space-between; align-items:center; gap: 0.625rem; font-weight: bold; padding: 0.875rem;     border-bottom: 1px solid var(--border-1) !important; }
+.modal-header h1{color:var(--button-1); font-size:var(--h1-size); margin:0; font-weight: 600; }
+.modal-body{  display:flex; flex-direction:column; gap: 0.625rem; min-height: var(--modal-min-height); max-height:60vh; overflow:auto; padding: 0.875rem; }
+.modal-actions{ display:flex; justify-content:flex-end; gap:0.5rem; padding: 0.875rem;  border-top: 1px solid var(--border-1) !important; }
 .modal-actions button {background: var(--button-1) !important; color: var(--button-text-1) !important;}
 .modal-actions button:hover {background: var(--button-1-hover) !important; color: var(--button-text-1) !important;}
 
@@ -304,5 +336,5 @@ button[matStepperNext].next-btn mat-icon { order: 2 !important;}
 
 /* small-screen adjustments */
 @media (max-width: 720px) {.premium-table td.mat-cell { padding:  0.5rem 0.625rem; }
-    .premium-table thead th.mat-header-cell,.premium-table thead th.mat-mdc-header-cell { font-size: 0.9rem; }
+  .premium-table thead th.mat-header-cell,.premium-table thead th.mat-mdc-header-cell { font-size: var(--font-size-sm); }
 }

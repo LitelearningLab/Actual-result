@@ -104,6 +104,17 @@
       <div class="list-wrapper">
 
          <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 compact premium-table" matSort>
+            <colgroup>
+               <col class="col-name"> <!-- name -->
+               <col class="col-short"> <!-- short -->
+               <col class="col-industry"> <!-- industry -->
+               <col class="col-sector"> <!-- sector -->
+               <col class="col-primary-contact"> <!-- primary contact -->
+               <col class="col-sub-start"> <!-- sub start -->
+               <col class="col-sub-end"> <!-- sub end -->
+               <col class="col-active"> <!-- active -->
+               <col> <!-- actions flexible -->
+            </colgroup>
 
             <!-- Name -->
             <ng-container matColumnDef="name">
@@ -156,7 +167,10 @@
             <ng-container matColumnDef="active">
                <th mat-header-cell *matHeaderCellDef mat-sort-header>Active</th>
                <td mat-cell *matCellDef="let i">
-                  <mat-slide-toggle [checked]="i.active" (change)="toggleActive(i)"  ></mat-slide-toggle>
+                           <!-- Custom toggle to match design: uses data-state attribute and toggles on click -->
+                           <button type="button" role="switch" [attr.aria-checked]="i.active ? 'true' : 'false'" [attr.data-state]="i.active ? 'checked' : 'unchecked'" (click)="toggleActive(i)" class="custom-toggle peer inline-flex">
+                              <span class="toggle-thumb" [attr.data-state]="i.active ? 'checked' : 'unchecked'"></span>
+                           </button>
                </td>
             </ng-container>
 
@@ -167,7 +181,7 @@
                   <div class="actions-inline">
                      <button mat-icon-button aria-label="Show / Hide" (click)="viewDetails(u)"
                         title="View details"><mat-icon svgIcon="view" ></mat-icon></button>
-                     <button mat-icon-button aria-label="Edit" (click)="startEdit(u)"
+                     <button mat-icon-button class="edit-btn" (click)="startEdit(u)"
                         title="Edit"><mat-icon svgIcon="edit" ></mat-icon></button>
                      <button mat-icon-button class="delete-btn" (click)="confirmDelete(u)"
                         title="Delete"><mat-icon svgIcon="delete" ></mat-icon></button>
@@ -340,7 +354,7 @@
 
          <div class="modal-actions">
             <button mat-button (click)="closeModal()">Close</button>
-            <button mat-flat-button *ngIf="editing" (click)="saveEdit()">Save</button>
+            <button mat-flat-button (click)="startEdit(selectedInstitute)">Edit</button>
          </div>
       </div>
    </div>

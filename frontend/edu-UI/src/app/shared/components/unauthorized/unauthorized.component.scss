@@ -36,7 +36,7 @@
 
 .unauthorized-page h1 {
   margin: 0.5rem 0 0.25rem;
-  font-size: 1.375rem;
+  font-size: var(--h2-size);
   color: #12273f;
 }
 
@@ -54,5 +54,5 @@
 
 .unauthorized-page .help {
   color: #9aa7bd;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
 }
