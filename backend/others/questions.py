@@ -16,7 +16,13 @@ def add_question(request):
 
         data = request.json
         institute_id = data.get("institute_id")
-        category_id = data.get("category_id",'2c35cee1-305d-4818-ad1e-fbc4af9566fe')
+        category_id = data.get("category_id", None)
+        if not category_id:
+            json_data = {
+                "statusMessage": "Category ID is required",
+                "status": False,
+            }
+            return json_data, 400
 
         for data in request.json.get('questions', []):
             question_type = data.get("type")
@@ -365,6 +371,7 @@ def create_question_using_llm(request):
         response = openai_client_instance.chat_completion(system_message, user_message)
         response_json = response.json()
         if response.status_code != 200:
+            print(f"Error response from LLM: {response_json}")
             result = {"status": False, "error": response_json.get("error", "Unknown error")}
             return result
         result_text = response_json['choices'][0]['message']['content'].strip()

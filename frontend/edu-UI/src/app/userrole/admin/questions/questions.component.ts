@@ -61,11 +61,19 @@ export class AdminQuestionsComponent {
   aiQuestionType: string = '';
   aiQuestionNumber: number = 5;
   aiQuestionComplexity: string = '';
+  // optional AI UI fields used by template
+  aiQuestionLanguage: string = '';
+  languages: Array<{ value: string; label: string }> = [
+    { value: 'en', label: 'English' },
+    { value: 'hi', label: 'Hindi' }
+  ];
   complexityLevels = [
     { value: 'easy', label: 'Easy' },
     { value: 'medium', label: 'Medium' },
     { value: 'hard', label: 'Hard' }
   ];
+  aiIndustry: string = '';
+  aiUserRole: string = '';
   selectedSourceFile: File | null = null;
   sourceText: string = '';
   aiPrompt: string = '';
@@ -536,12 +544,19 @@ export class AdminQuestionsComponent {
       return p;
     });
 
-    // include institute and exam selection if present on the first question (global fields on the page)
-    const body = { institute_id: (this.questions[0] as any).institute_id || undefined, exam_id: (this.questions[0] as any).exam_id || undefined, questions: payload };
+    // include institute, exam and category selection if present on the first question (global fields on the page)
+    const body: any = {
+      institute_id: (this.questions[0] as any).institute_id || undefined,
+      exam_id: (this.questions[0] as any).exam_id || undefined,
+      category_id: (this.questions[0] as any).category_id || undefined,
+      questions: payload
+    };
 
     if (this.isEditing && this.editId) {
       // update single question
       const q = payload[0];
+      // ensure category_id is included on update (use question-level or global selection)
+      if (!q.category_id && (this.questions[0] as any).category_id) q.category_id = (this.questions[0] as any).category_id;
       const url = `${API_BASE}/update-question/${encodeURIComponent(String(this.editId))}`;
       this.http.put<any>(url, q).subscribe({ next: (res) => {
         try {

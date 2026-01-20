@@ -170,8 +170,8 @@
                                                        <div class="header-info">
                                                             <h4>Answer Sheet - {{ selectedUserName || 'User' }}</h4>
                                                             <h3>
-                                                               <span class="score">Score: {{ selectedUserScore || '-' }} / {{ totalMarks || '-' }}</span>
-                                                               <span class="result" [ngClass]="{ 'pass': (selectedUserResult || '').toLowerCase() === 'pass', 'fail': (selectedUserResult || '').toLowerCase() === 'fail' }">&nbsp;|&nbsp;Result: {{ selectedUserResult || '-' }}</span>
+                                                               <span class="score">Score: {{ selectedUserScore || '-' }} / {{ totalMarks || '-' }} &nbsp;|&nbsp;Result: </span>
+                                                               <span class="result" [ngClass]="{ 'pass': (selectedUserResult || '').toLowerCase() === 'pass', 'fail': (selectedUserResult || '').toLowerCase() === 'fail' }">{{ selectedUserResult || '-' }}</span>
                                                             </h3>
                                                        </div>
                                                        <button mat-icon-button aria-label="Close" type="button" (click)="closeUserReview()"><mat-icon>close</mat-icon></button>
@@ -193,8 +193,8 @@
                                                                                           <div class="q-body">
                                                                                                <div class="q-meta">
                                                                                                <div class="q-badge">{{ (q.question_type || q.type || '').toUpperCase() }}</div>
-                                                                                               <div class="q-info" *ngIf="q.question_type  != 'descriptive'" >{{ q.marks_awarded + '/' + q.question_marks + ' marks ' + (q.marks_awarded/(q.question_marks || 1) * 100) + '%' }} </div>
-                                                                                               <div class="q-info" *ngIf="q.question_type  === 'descriptive'" >  {{ q.marks_awarded + '/' + q.question_marks + ' marks ' + (q.marks_awarded/(q.question_marks || 1) * 100) + '%'  }}
+                                                                                               <div class="q-info" *ngIf="q.question_type  != 'descriptive'" >{{ q.marks_awarded + '/' + q.question_marks + ' Marks (' + (q.marks_awarded/(q.question_marks || 1) * 100) + '%)' }} </div>
+                                                                                               <div class="q-info" *ngIf="q.question_type  === 'descriptive'" >  {{ q.marks_awarded + '/' + q.question_marks + ' Marks (' + (q.marks_awarded/(q.question_marks || 1) * 100) + '%)'  }}
                                                                                                     <mat-icon svgIcon="brain"></mat-icon>  {{'AI Confidence: ' + (q.ai_confidence != null ? (q.ai_confidence + '%') : 'N/A')}}
                                                                                                </div>
                                                                                                </div>
@@ -209,7 +209,7 @@
                                                                                 <!-- Fill / short answer style -->
                                                                                 <div *ngIf="(q.question_type || q.type) === 'fill' " class="q-fill">
                                                                                      <div class="fill-row">
-                                                                                          <div class="fill-option" [class.selected]="(q.selected_option || []).length" [class.correct]="q.is_correct"> Your Answer: {{ (q.selected_option || []).join(', ') || '-' }}</div>
+                                                                                          <div class="fill-option" [class.selected]="(q.selected_option || []).length" [class.correct]="q.is_correct"> Student Answer: {{ (q.selected_option || []).join(', ') || '-' }}</div>
                                                                                           <div class="fill-correct" *ngIf="q.marks_awarded === 0">Correct Answer: {{ q.options[0].option_text || q.options[0] }}</div>
                                                                                      </div>
                                                                                 </div>
@@ -221,7 +221,7 @@
                                                                                                <div class="question-value">{{ q.question_text || '-' }}</div>
                                                                                           </div>
                                                                                           <div class="desc-score">
-                                                                                               <div class="score-label">Your Score</div>
+                                                                                               <div class="score-label">Student Score</div>
                                                                                                <div class="score-value">{{ q.marks_awarded != null ? (q.marks_awarded + ' / ' + (q.question_marks || q.marks || '-')) : '-' }}</div>
                                                                                           </div>
                                                                                      </div> -->
@@ -241,13 +241,16 @@
                                                                                                          <div class="review-item" *ngIf="rc.category === 'missing'">
                                                                                                               
                                                                                                               <div class="ri-body">
-                                                                                                                   <div class="review-text" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon missed">✖</span></div>{{ rc.comment_text || rc.comment || '' }}</div>
+                                                                                                                   <div class="review-text-missed" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon missed">✖</span></div>{{ rc.comment_text || rc.comment || '' }}</div>
                                                                                                                    <div class="review-meta small-muted">
                                                                                                                          <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.created_by || rc.reviewer_id || 'System' }}</span>
                                                                                                                          <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.created_by }}</span>
                                                                                                                          <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'System' }} {{ formatDate(rc.updated_date || rc.created_date) }}</span>
                                                                                                                    </div>
-                                                                                                                   <div class="review-actions"><a class="edit-link" href="javascript:void(0)">Edit</a> <a class="delete-link" href="javascript:void(0)">Delete</a></div>
+                                                                                                                   <div class="review-actions">
+                                                                                                                        <a class="edit-link" href="javascript:void(0)"><mat-icon>edit</mat-icon> Edit</a>
+                                                                                                                        <a class="delete-link" href="javascript:void(0)"><mat-icon>delete</mat-icon> Delete</a>
+                                                                                                                   </div>
                                                                                                               </div>
                                                                                                          </div>
                                                                                                     </div>
@@ -258,13 +261,16 @@
                                                                                                          <div class="review-item" *ngIf="rc.category === 'incorrct' || rc.category === 'incorrect' || rc.category === 'incor'">
                                                                                                               
                                                                                                               <div class="ri-body">
-                                                                                                                   <div class="review-text" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon incorrect">⚠</span></div>{{ rc.comment_text || rc.comment || '' }}</div>     
+                                                                                                                   <div class="review-text-incorrect" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon incorrect">⚠</span></div>{{ rc.comment_text || rc.comment || '' }}</div>     
                                                                                                                    <div class="review-meta small-muted">
                                                                                                                          <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
                                                                                                                          <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
                                                                                                                          <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'Instructor' }} {{ formatDate(rc.created_date || rc.commented_at || rc.commented_date) }}</span>
                                                                                                                    </div>
-                                                                                                                   <div class="review-actions"><a class="edit-link" href="javascript:void(0)">Edit</a> <a class="delete-link" href="javascript:void(0)">Delete</a></div>
+                                                                                                                   <div class="review-actions">
+                                                                                                                        <a class="edit-link" href="javascript:void(0)"><mat-icon>edit</mat-icon> Edit</a>
+                                                                                                                        <a class="delete-link" href="javascript:void(0)"><mat-icon>delete</mat-icon> Delete</a>
+                                                                                                                   </div>
                                                                                                               </div>
                                                                                                          </div>
                                                                                                     </div>
@@ -274,13 +280,16 @@
                                                                                                     <div *ngFor="let rc of (q.review_comment.comments || [])">
                                                                                                          <div class="review-item" *ngIf="rc.category === 'incomplete'">
                                                                                                               <div class="ri-body">
-                                                                                                                   <div class="review-text" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon incomplete">⏱</span></div>{{ rc.comment_text || rc.comment || '' }}</div>
+                                                                                                                   <div class="review-text-incomplete" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon incomplete">⏱</span></div>{{ rc.comment_text || rc.comment || '' }}</div>
                                                                                                                    <div class="review-meta small-muted">
                                                                                                                          <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
                                                                                                                          <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
                                                                                                                          <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'Instructor' }} {{ formatDate(rc.created_date || rc.commented_at || rc.commented_date) }}</span>
                                                                                                                    </div>
-                                                                                                                   <div class="review-actions"><a class="edit-link" href="javascript:void(0)">Edit</a> <a class="delete-link" href="javascript:void(0)">Delete</a></div>
+                                                                                                                   <div class="review-actions">
+                                                                                                                        <a class="edit-link" href="javascript:void(0)"><mat-icon>edit</mat-icon> Edit</a>
+                                                                                                                        <a class="delete-link" href="javascript:void(0)"><mat-icon>delete</mat-icon> Delete</a>
+                                                                                                                   </div>
                                                                                                               </div>
                                                                                                          </div>
                                                                                                     </div>
@@ -312,9 +321,9 @@
                                                                                                <div class="opt-text">{{ opt.option_text || opt }}</div>
                                                                                           </div>
                                                                                           <div class="opt-badge">
-                                                                                               <span *ngIf="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1 && !(opt.is_correct == 1 || opt.is_correct === true)" class="badge your-answer">Your Answer</span>
-                                                                                               <span *ngIf="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1 && (opt.is_correct == 1 || opt.is_correct === true)" class="badge correct">Correct</span>
-                                                                                               <span *ngIf="opt.is_correct && (q.selected_option || []).indexOf(opt.option_text || opt) === -1" class="badge missed">Missed</span>
+                                                                                               <span *ngIf="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1 && !(opt.is_correct == 1 || opt.is_correct === true)" class="badge your-answer">Student Answer</span>
+                                                                                               <span *ngIf="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1 && (opt.is_correct == 1 || opt.is_correct === true)" class="badge correct">Correct Answer</span>
+                                                                                               <span *ngIf="opt.is_correct && (q.selected_option || []).indexOf(opt.option_text || opt) === -1" class="badge missed">Correct Answer</span>
                                                                                           </div>
                                                                                      </div>
                                                                                 </div>

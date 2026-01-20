@@ -1,6 +1,6 @@
 
 
-.page{padding: 8px; color: var(--text-1);}
+.page{padding: 1rem; color: var(--text-1);}
 
 .question-card{
 	background: var(--bg-1);
@@ -34,7 +34,7 @@
 
 
 // /* Two column row for better alignment */
-.row.two-cols{ display:flex; gap:1rem; align-items:flex-start;  }
+.row.two-cols{ display:flex; gap:1rem; align-items:flex-start;     margin-top: .5rem; margin-bottom: .5rem;  }
 .form-col{ flex:1; display:flex; flex-direction:column }
 .template-down {
   display: flex;
@@ -252,14 +252,29 @@ button[mat-flat-button], button[mat-stroked-button], button[mat-icon-button]{ mi
 .ai-summary .num{ font-weight:700; }
 .ai-summary .label{ font-size:0.8rem; color: rgba(0,0,0,0.6); }
 
-.ai-grid{ display:grid; grid-template-columns: 360px 1fr; gap:1rem; margin-top:1rem; }
+.ai-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-top:1rem; }
 .controls-row{ display:flex; flex-direction:column; gap:0.5rem; }
 .controls-inline{ display:flex; gap:0.5rem; }
 .controls-inline .half{ flex:1 }
 
+.ai-field{ width:100%;     background-color: var(--theme-3); border-radius:8px; border:1px solid rgba(15,35,55,0.04); }
+.ai-field input.mat-input-element, .ai-field textarea.mat-input-element { background: transparent; border:none; box-shadow:none; padding:10px 12px; font-size:14px; color: inherit; }
+.a1i-field .mat-form-field-infix { padding:0; }
+.ai-field .mat-form-field-wrapper { padding:0; }
+:host ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+	display: none;
+}
+.source-label{ margin-top:0.5rem; font-weight:600 }
 .source-tiles{ display:flex; gap:0.75rem; margin-top:0.75rem; }
 .editor-panel{ display:flex; flex-direction:column; gap:0.5rem; }
-.editor-actions{ display:flex; gap:0.5rem; align-items:center; margin-top:0.25rem }
+.editor-panel[style*="grid-column"]{ width:100%; }
+.editor-actions{ display:flex; gap:0.5rem; align-items:center; margin-top:0.25rem; justify-content:space-between }
+.editor-actions-left{ display:flex; align-items:center; gap:0.5rem }
+.editor-actions-right{ display:flex; align-items:center; gap:0.5rem }
+
+/* Editor CTA */
+.editor-actions .generate-cta{ background: #111731; color: #fff; padding: 10px 20px; border-radius: 12px; font-weight:700; box-shadow: 0 8px 24px rgba(17,23,49,0.12) }
+.editor-actions .generate-cta:hover{ transform: translateY(-2px); box-shadow: 0 12px 32px rgba(17,23,49,0.16) }
 
 .live-preview{ margin-top:0.75rem; border-left: 1px solid rgba(15,35,55,0.04); padding-left:0.75rem }
 .preview-header{ font-weight:700; margin-bottom:0.5rem }
@@ -272,6 +287,7 @@ button[mat-flat-button], button[mat-stroked-button], button[mat-icon-button]{ mi
 
 @media(max-width:920px){
 	.ai-grid{ grid-template-columns: 1fr; }
+	.source-tiles.large{ flex-direction: column; }
 	.live-preview{ border-left:none; padding-left:0 }
 }
 
@@ -301,12 +317,10 @@ button[mat-flat-button], button[mat-stroked-button], button[mat-icon-button]{ mi
 .mode-toggle {
 	display: flex;
 	align-items: center;
-	margin-bottom: 0.5rem;
-	gap: 0.5rem;
-	width: 50%;
+	margin-bottom: 1rem;
+	margin-top: 1rem;
+	width: 100%;
 	box-sizing: border-box;
-	    padding-right: 8px;
-
 }
 
 :host ::ng-deep .mat-button-toggle-group {
@@ -335,14 +349,8 @@ button[mat-flat-button], button[mat-stroked-button], button[mat-icon-button]{ mi
 :host ::ng-deep .mat-button-toggle-group .mat-button-toggle .mat-button-toggle-label-content {
 	width: 100%;
 }
-.ai-grid{
-	display: grid;
-	grid-template-columns: 360px 1fr;
-	gap: 1rem;
-	align-items: start;
-}
+.ai-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-top:1rem; }
 .ai-col { display:flex; flex-direction:column; gap:0.75rem; }
-.ai-col-left { min-width: 220px; }
 .controls-col { display:flex; flex-direction:column; gap:0.5rem; }
 .source-cards .section-label{ font-weight:600; margin-bottom:0.5rem; }
 .card-list{ display:flex; flex-direction:column; gap:0.6rem; }
@@ -353,13 +361,12 @@ button[mat-flat-button], button[mat-stroked-button], button[mat-icon-button]{ mi
 .source-card:hover, .source-card:focus { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(16,24,40,0.08); }
 .source-card.selected{ border-color: rgba(15,35,55,0.08); box-shadow: 0 10px 22px rgba(16,24,40,0.06); }
 
-.ai-col-right { display:flex; flex-direction:column; gap:0.75rem; }
 .ai-actions { display:flex; gap:0.75rem; align-items:center; margin-top:0.25rem }
+
 
 @media (max-width: 920px){
 	.ai-grid{ grid-template-columns: 1fr; }
-	.ai-col-left { order: 2; }
-	.ai-col-right { order: 1; }
+	.source-tiles.large { flex-direction: column; }
 }
 .ai-questions-block .row.two-cols { align-items: flex-start; }
 .ai-questions-block .source-type-section { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -385,6 +392,19 @@ button[mat-flat-button], button[mat-stroked-button], button[mat-icon-button]{ mi
 .source-tile .tile-label { font-weight: 600; font-size: var(--font-sm, 0.875rem); color: var(--theme-3-text-2); text-align: center; }
 .source-tile .tile-sub { font-size: var(--font-xsm, 0.75rem); color: rgba(0,0,0,0.55); text-align: center; }
 .source-tile.upload-file { border-style: dashed; }
+
+/* Form grid inside AI left column to create a 2-column form layout */
+.ai-form-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; align-items:center; }
+.ai-form-grid .half{ width:100%; }
+
+/* Larger tile appearance for AI source tiles (two wide tiles) */
+.source-tiles.large{ margin-top:1rem; }
+.source-tiles.large .source-tile{ min-height: 6.5rem; padding: 1rem 1.25rem; }
+.source-tiles.large .tile-label{ font-size:1rem }
+.source-tiles.large .tile-sub{ font-size:0.9rem }
+
+/* Additional context full width styling */
+.plain-text-block.full-width, .plain-text-block { width:100%; }
 
 .source-tile:hover, .source-tile:focus {
 	transform: translateY(-2px);

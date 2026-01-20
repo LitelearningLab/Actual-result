@@ -21,6 +21,18 @@
    <div class="question-card">
       <div class="card-body">
 
+
+         <div class="entrycheck" *ngIf="!isEditing">
+            <div class="mode-toggle">
+               <mat-button-toggle-group name="mode" [(ngModel)]="activeMode" (change)="onModeChange($event.value)"
+                  appearance="legacy">
+                  <mat-button-toggle value="manual"><mat-icon svgIcon="edit"></mat-icon>Manual</mat-button-toggle>
+                  <mat-button-toggle value="bulk"><mat-icon svgIcon="upload"></mat-icon>Bulk</mat-button-toggle>
+                  <mat-button-toggle value="ai"><mat-icon svgIcon="brain"></mat-icon>AI</mat-button-toggle>
+               </mat-button-toggle-group>
+            </div>
+         </div>
+
          <!-- Global fields: Institute & Exam (single selection for the batch) -->
          <div class="row two-cols" *ngIf="!isEditing">
             <div class="form-col">
@@ -60,39 +72,25 @@
             </div>
          </div>
 
-
-
-         <!-- Mode selector: manual vs bulk upload -->
-         <div class="row two-cols" *ngIf="!isEditing">
-            <div class="form-col">
-               <div class="entrycheck">
-                  <div class="mode-toggle">
-                     <mat-button-toggle-group name="mode" [(ngModel)]="activeMode" (change)="onModeChange($event.value)"
-                        appearance="legacy">
-                        <mat-button-toggle value="manual"><mat-icon svgIcon="edit"></mat-icon>Manual</mat-button-toggle>
-                        <mat-button-toggle value="bulk"><mat-icon svgIcon="upload"></mat-icon>Bulk</mat-button-toggle>
-                        <mat-button-toggle value="ai"><mat-icon svgIcon="brain"></mat-icon>AI</mat-button-toggle>
-                     </mat-button-toggle-group>
-                  </div>
-               </div>
-
-            </div>
-         </div>
-         
          <div class="row two-cols" *ngIf="bulkMode">
             <div class="form-col">
                <div class="bulk-card">
                   <div class="bulk-left">
                      <div class="bulk-dropzone" (click)="triggerFileSelect()" tabindex="0"
-                        [class.drag-active]="dragActive" (dragenter)="onDragOver($event)" (dragover)="onDragOver($event)"
-                        (dragleave)="onDragLeave($event)" (drop)="onDrop($event)" (keydown.enter)="triggerFileSelect()"
+                        [class.drag-active]="dragActive" (dragenter)="onDragOver($event)"
+                        (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)"
+                        (keydown.enter)="triggerFileSelect()"
                         (keydown.space)="$event.preventDefault(); triggerFileSelect()">
                         <div class="dz-icon"><mat-icon svgIcon="cloud_upload"></mat-icon></div>
                         <div class="dz-title">Drop your CSV or Excel file here</div>
-                        <div class="dz-sub">Or click to browse. Max 200 rows. Accepted: <strong>.csv</strong>, <strong>.xlsx</strong></div>
+                        <div class="dz-sub">Or click to browse. Max 200 rows. Accepted: <strong>.csv</strong>,
+                           <strong>.xlsx</strong>
+                        </div>
                         <div class="dz-actions">
-                           <button mat-stroked-button color="primary" type="button" (click)="triggerFileSelect()">Choose file</button>
-                           <button mat-flat-button color="accent" type="button" (click)="downloadTemplate()">Download template</button>
+                           <button mat-stroked-button color="primary" type="button" (click)="triggerFileSelect()">Choose
+                              file</button>
+                           <button mat-flat-button color="accent" type="button" (click)="downloadTemplate()">Download
+                              template</button>
                         </div>
                      </div>
                   </div>
@@ -101,8 +99,8 @@
                         <div class="file-meta">
                            <mat-icon>insert_drive_file</mat-icon>
                            <div class="meta-text">
-                              <div class="name">{{ selectedBulkFile?.name }}</div>
-                              <div class="size">{{ (selectedBulkFile?.size || 0) | number }} bytes</div>
+                              <div class="name">{{ selectedBulkFile.name }}</div>
+                              <div class="size">{{ (selectedBulkFile.size || 0) | number }} bytes</div>
                            </div>
                         </div>
                         <div class="file-actions">
@@ -114,8 +112,9 @@
                      </ng-template>
                   </div>
                </div>
-               <input #hiddenFileInput type="file" class="hidden-file" title="Select questions file Or drag & drop file here"
-                  (change)="onBulkFileSelected($event)" accept=".csv,.xlsx" />
+               <input #hiddenFileInput type="file" class="hidden-file"
+                  title="Select questions file Or drag & drop file here" (change)="onBulkFileSelected($event)"
+                  accept=".csv,.xlsx" />
             </div>
          </div>
          <!-- AI mode questions block (modern enterprise layout) -->
@@ -129,96 +128,119 @@
                   </div>
                </div>
                <div class="ai-summary">
-                  <div class="stat"><div class="num">{{ aiQuestionNumber }}</div><div class="label">Count</div></div>
-                  <div class="stat"><div class="num">{{ aiQuestionComplexity || '—' }}</div><div class="label">Complexity</div></div>
-                  <div class="stat"><div class="num">{{ aiQuestionType || '—' }}</div><div class="label">Type</div></div>
+                  <div class="stat">
+                     <div class="num">{{ aiQuestionNumber }}</div>
+                     <div class="label">Count</div>
+                  </div>
+                  <div class="stat">
+                     <div class="num">{{ aiQuestionComplexity || '—' }}</div>
+                     <div class="label">Complexity</div>
+                  </div>
+                  <div class="stat">
+                     <div class="num">{{ aiQuestionType || '—' }}</div>
+                     <div class="label">Type</div>
+                  </div>
                </div>
             </div>
 
             <div class="ai-grid">
-               <div class="ai-col ai-col-left">
-                  <div class="controls-row">
-                     <mat-form-field appearance="outline" class="full">
-                        <mat-label>Quiz Type</mat-label>
-                        <mat-select [(ngModel)]="aiQuestionType">
-                           <mat-option value="">Select type</mat-option>
-                           <mat-option *ngFor="let t of questionTypes" [value]="t.value">{{t.label}}</mat-option>
-                        </mat-select>
-                     </mat-form-field>
-                     <div class="controls-inline">
-                        <mat-form-field appearance="outline" class="half">
-                           <mat-label>Number</mat-label>
-                           <input matInput type="number" [(ngModel)]="aiQuestionNumber" min="1" />
-                        </mat-form-field>
-                        <mat-form-field appearance="outline" class="half">
-                           <mat-label>Complexity</mat-label>
-                           <mat-select [(ngModel)]="aiQuestionComplexity">
-                              <mat-option value="">Select complexity</mat-option>
-                              <mat-option *ngFor="let c of complexityLevels" [value]="c.value">{{c.label}}</mat-option>
-                           </mat-select>
-                        </mat-form-field>
-                     </div>
-                  </div>
+               <!-- Two-column form fields, each mat-form-field gets placed into the grid automatically -->
+               <mat-form-field appearance="outline" class="ai-field">
+                  <mat-label>Language Preference</mat-label>
+                  <mat-select [(ngModel)]="aiQuestionLanguage">
+                     <mat-option value="en">English</mat-option>
+                     <mat-option *ngFor="let l of languages" [value]="l.value">{{l.label}}</mat-option>
+                  </mat-select>
+               </mat-form-field>
 
-                  <div class="source-tiles">
-                     <div class="source-tile upload-file" role="button" tabindex="0" (click)="triggerSourceFileSelect()">
-                        <mat-icon>cloud_upload</mat-icon>
-                        <div class="tile-label">Upload File</div>
-                        <div class="tile-sub">PDF, DOCX</div>
-                     </div>
-                     <div class="source-tile paste-text selected" role="button" tabindex="0" (click)="focusSourceTextArea()">
-                        <mat-icon>description</mat-icon>
-                        <div class="tile-label">Paste Text</div>
-                        <div class="tile-sub">Quick paste for excerpts</div>
-                     </div>
-                     <div class="source-tile templates" role="button" tabindex="0">
-                        <mat-icon>library_books</mat-icon>
-                        <div class="tile-label">Templates</div>
-                        <div class="tile-sub">Use prompt templates</div>
-                     </div>
-                  </div>
+               <mat-form-field appearance="outline" class="ai-field">
+                  <mat-label>Quiz Type</mat-label>
+                  <mat-select [(ngModel)]="aiQuestionType">
+                     <mat-option value="">Select type</mat-option>
+                     <mat-option *ngFor="let t of questionTypes" [value]="t.value">{{t.label}}</mat-option>
+                  </mat-select>
+               </mat-form-field>
 
-                  <input #hiddenSourceFileInput type="file" class="hidden-file" (change)="onSourceFileSelected($event)" accept=".pdf,.docx" />
+               <mat-form-field appearance="outline" class="ai-field">
+                  <mat-label>Number of Questions</mat-label>
+                  <input matInput type="number" [(ngModel)]="aiQuestionNumber" min="1" />
+               </mat-form-field>
+
+               <mat-form-field appearance="outline" class="ai-field">
+                  <mat-label>Industry</mat-label>
+                  <input matInput type="text" [(ngModel)]="aiIndustry"
+                     placeholder="Enter industry (e.g. Education, IT, Healthcare)" />
+               </mat-form-field>
+
+               <mat-form-field appearance="outline" class="ai-field">
+                  <mat-label>User Role</mat-label>
+                  <input matInput type="text" [(ngModel)]="aiUserRole" placeholder="e.g. Restaurant Waiter, Nurse" />
+               </mat-form-field>
+
+               <mat-form-field appearance="outline" class="ai-field">
+                  <mat-label>Complexity</mat-label>
+                  <mat-select [(ngModel)]="aiQuestionComplexity">
+                     <mat-option value="">Select complexity</mat-option>
+                     <mat-option *ngFor="let c of complexityLevels" [value]="c.value">{{c.label}}</mat-option>
+                  </mat-select>
+               </mat-form-field>
+
+               <!-- Source Material label spanning both columns -->
+               <div class="section-label source-label" style="grid-column: 1 / -1;">Source Material</div>
+
+               <!-- Source tiles spanning both columns -->
+               <div class="source-tiles large" style="grid-column: 1 / -1;">
+                  <div class="source-tile upload-file" role="button" tabindex="0" (click)="triggerSourceFileSelect()">
+                     <mat-icon>cloud_upload</mat-icon>
+                     <div class="tile-label">Upload File</div>
+                     <div class="tile-sub">PDF, DOCX</div>
+                  </div>
+                  <div class="source-tile paste-text selected" role="button" tabindex="0"
+                     (click)="focusSourceTextArea()">
+                     <mat-icon>description</mat-icon>
+                     <div class="tile-label">Paste Text</div>
+                     <div class="tile-sub">Paste source content or excerpts</div>
+                  </div>
                </div>
 
-               <div class="ai-col ai-col-right">
-                  <div class="editor-panel">
-                     <mat-form-field appearance="outline" class="full">
-                        <mat-label>Source Text</mat-label>
-                        <textarea #sourceTextArea matInput [(ngModel)]="sourceText" rows="8" placeholder="Enter or paste source material"></textarea>
-                     </mat-form-field>
+               <input #hiddenSourceFileInput type="file" class="hidden-file" (change)="onSourceFileSelected($event)"
+                  accept=".pdf,.docx" />
+               <!-- </div> -->
 
-                     <mat-form-field appearance="outline" class="full">
-                        <mat-label>Prompt / Additional Context</mat-label>
-                        <textarea matInput [(ngModel)]="aiPrompt" rows="3" placeholder="Instructions for the AI"></textarea>
-                     </mat-form-field>
+               <div class="editor-panel" style="grid-column: 1 / -1;">
+                  <mat-form-field appearance="outline" class="full">
+                     <mat-label>Source Text</mat-label>
+                     <textarea #sourceTextArea matInput [(ngModel)]="sourceText" rows="8"
+                        placeholder="Enter or paste source material"></textarea>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full plain-text-block">
+                     <mat-label>Additional Context</mat-label>
+                     <textarea matInput [(ngModel)]="aiPrompt" rows="4"
+                        placeholder="Any specific topics or rules the AI should follow?"></textarea>
+                  </mat-form-field>
 
-                     <div class="editor-actions">
-                        <button mat-flat-button color="primary" (click)="generateAIQuestions()" [disabled]="!aiQuestionType || aiQuestionNumber<1">Generate</button>
+                  <div class="editor-actions">
+                     <div class="editor-actions-left">
                         <button mat-stroked-button (click)="sourceText=''; aiPrompt=''">Clear</button>
+                     </div>
+                     <div class="editor-actions-right">
                         <button mat-button (click)="showPreview = !showPreview">Toggle Preview</button>
+                        <button class="generate-cta" mat-flat-button color="primary" (click)="generateAIQuestions()" [disabled]="!aiQuestionType || aiQuestionNumber<1">Generate</button>
                      </div>
                   </div>
 
-                  <div class="live-preview" *ngIf="showPreview">
-                     <div class="preview-header">Live Preview</div>
-                     <div *ngIf="generatedQuestions && generatedQuestions.length; else noGenerated">
-                        <div class="preview-item" *ngFor="let g of generatedQuestions; let i=index">
-                           <div class="p-title">{{i+1}}. {{ g.text }}</div>
-                           <div class="p-meta">{{ g.type }} • {{ g.marks }} pts</div>
-                        </div>
-                     </div>
-                     <ng-template #noGenerated>
-                        <div class="muted">No generated questions yet. Click Generate to create placeholders.</div>
-                     </ng-template>
-                  </div>
                </div>
+
             </div>
+
+
 
             <div class="ai-footer">
                <div class="footer-actions">
-                  <button mat-stroked-button color="primary" (click)="applyGeneratedToEditor()" [disabled]="!generatedQuestions || !generatedQuestions.length">Apply to Editor</button>
-                  <button mat-flat-button color="accent" (click)="insertGeneratedToQuestions()" [disabled]="!generatedQuestions || !generatedQuestions.length">Insert into Questions</button>
+                  <button mat-stroked-button color="primary" (click)="applyGeneratedToEditor()"
+                     [disabled]="!generatedQuestions || !generatedQuestions.length">Apply to Editor</button>
+                  <button mat-flat-button color="accent" (click)="insertGeneratedToQuestions()"
+                     [disabled]="!generatedQuestions || !generatedQuestions.length">Insert into Questions</button>
                </div>
             </div>
          </div>
