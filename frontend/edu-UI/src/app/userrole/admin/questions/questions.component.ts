@@ -321,7 +321,50 @@ export class AdminQuestionsComponent {
             // backend returns a single question object or an array — normalize
             const arr = Array.isArray(res) ? res : (res.data ? res.data : (res.question ? [res.question] : []));
             // if response includes question_text/options etc, map to our internal shape
-            this.generatedQuestions = (Array.isArray(arr) ? arr : [arr]).map((r:any) => ({ type: r.type || r.question_type || 'descriptive', text: r.question_text || r.question || r.text || '', marks: r.mark || r.marks || 1, options: r.options || [], correct: r.correct_answer || null, answerText: r.explanation || r.answer || '' }));
+            const normalized = (Array.isArray(arr) ? arr : [arr]).map((r:any) => ({ type: r.type || r.question_type || 'descriptive', text: r.question_text || r.question || r.text || '', marks: r.mark || r.marks || 1, options: Array.isArray(r.options) ? r.options.slice() : (r.options && typeof r.options === 'string' ? r.options.split('|').map((s:string)=>s.trim()) : []), correct: r.correct_answer ?? r.correct ?? null, answerText: r.explanation || r.answer || '' }));
+            this.generatedQuestions = normalized;
+            // Also immediately load generated questions into the editable questions list so they appear in the questions-list
+            try{
+              this.questions = normalized.map((g:any) => {
+                const qtype = (g.type || 'descriptive');
+                const opts = Array.isArray(g.options) ? g.options.map((o:any)=> typeof o === 'string' ? o : (o.option_text || o.text || String(o))) : [];
+                // ensure at least two option placeholders for choice types
+                if ((qtype === 'choose' || qtype === 'multi') && opts.length < 2) { while(opts.length < 2) opts.push(''); }
+                // determine correct indices/value mapping
+                let correct: number | number[] | null = null;
+                const ca = g.correct;
+                if (qtype === 'choose'){
+                  if (typeof ca === 'number') correct = ca;
+                  else if (typeof ca === 'string') {
+                    const idx = opts.findIndex((o:any) => String(o).trim().toLowerCase() === String(ca).trim().toLowerCase());
+                    if (idx >= 0) correct = idx; else correct = null;
+                  }
+                } else if (qtype === 'multi'){
+                  if (Array.isArray(ca)){
+                    // may be indices or values
+                    if (ca.length && typeof ca[0] === 'number') correct = ca;
+                    else {
+                      const idxs:number[] = [];
+                      ca.forEach((val:any)=>{ const idx = opts.findIndex((o:any)=>String(o).trim().toLowerCase() === String(val).trim().toLowerCase()); if(idx>=0) idxs.push(idx); });
+                      correct = idxs;
+                    }
+                  } else if (typeof ca === 'string'){
+                    // comma separated values
+                    const parts = ca.split(',').map((s:string)=>s.trim()).filter(Boolean);
+                    const idxs:number[] = [];
+                    parts.forEach(p=>{ const idx = opts.findIndex((o:any)=>String(o).trim().toLowerCase()===String(p).trim().toLowerCase()); if(idx>=0) idxs.push(idx); });
+                    correct = idxs;
+                  }
+                } else if (qtype === 'fill' || qtype === 'descriptive'){
+                  // put answer in answerText
+                }
+
+                return { type: qtype, text: g.text || '', marks: g.marks || 1, options: opts.length ? opts : ['',''], correct: correct, answerText: (qtype==='fill' || qtype==='descriptive') ? (g.correct && typeof g.correct === 'string' ? g.correct : (g.answerText || '')) : (g.answerText || ''), _expanded: true };
+              });
+              this.mode = 'manual';
+              this.aiMode = false;
+            }catch(e){ console.warn('Failed to apply generated questions to editor', e); }
+
             this.showPreview = true;
             notify('AI generated questions received', 'success');
           } else {

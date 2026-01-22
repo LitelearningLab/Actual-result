@@ -40,7 +40,23 @@ class openai_client:
             "max_tokens": max_tokens
         }
 
-        response = httpx.post(self.url, headers=self.headers, json=payload, verify=False)
+        try:
+            response = httpx.post(self.url, headers=self.headers, json=payload, verify=False, timeout=30.0)
+        except httpx.ReadTimeout:
+            class _Resp:
+                def __init__(self):
+                    self.status_code = 504
+                def json(self):
+                    return {"error": "Read timeout"}
+            response = _Resp()
+        except httpx.RequestError as exc:
+            class _Resp:
+                def __init__(self, msg):
+                    self.status_code = 502
+                    self._msg = msg
+                def json(self):
+                    return {"error": str(self._msg)}
+            response = _Resp(exc)
         return response
 def descriptive_evaluation(api_client, question_mark, expected_answer, student_answer):
     system_message = '''You are an automated, impartial answer evaluator. Always respond ONLY with a single, valid JSON object (no markdown, no surrounding text). Follow these rules:

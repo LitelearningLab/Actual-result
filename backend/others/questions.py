@@ -17,12 +17,12 @@ def add_question(request):
         data = request.json
         institute_id = data.get("institute_id")
         category_id = data.get("category_id", None)
-        if not category_id:
-            json_data = {
-                "statusMessage": "Category ID is required",
-                "status": False,
-            }
-            return json_data, 400
+        # if not category_id:
+        json_data = {
+            "statusMessage": "Category ID is required",
+            "status": False,
+        }
+        return json_data, 400
 
         for data in request.json.get('questions', []):
             question_type = data.get("type")
@@ -324,10 +324,8 @@ def update_question(question_id, request):
     
 def create_question_using_llm(request):
 
-    # Accept JSON body or form-data; prefer form values when present
     data_json = request.get_json(silent=True) or {}
     form = request.form or {}
-    # upload file if present
     question_file = request.files.get("file")
 
     def gv(key, default=None):
@@ -363,13 +361,19 @@ def create_question_using_llm(request):
     openai_client_instance = openai_client()
 
 # You are an expert question setter and evaluator. Your task is to create a question and answer based on the provided source text and parameters.
-    system_message = '''You are an expert question setter and evaluator. Your task is to create a question and answer based on the provided source text and parameters.'''
+    system_message = '''You are an expert question setter and evaluator. Your task is to create a question and answer based on the provided source text and parameters.
+    Note for Question Type : 
+        'fill' --> Filling the blanks
+        'choose' --> Multiple choice single answer
+        'multi' --> Multiple choice multiple answers
+        'descriptive' --> Descriptive answer
+    '''
     user_message = f'''    Using the following parameters, 
     - Industry: {industry}
     - Target Users: {target_users}
     - User Role: {user_role}
     - create {number_of_questions} question(s) along with their correct answers.
-    - Question Type: {type} (choose from 'fill', 'choose', 'multi')
+    - Question Type: {type}
     - Number of Options (if applicable): {number_of_options}
     - Number of Questions: {number_of_questions}
     - Complexity Level: {complexity} (easy, medium, hard)
@@ -382,7 +386,9 @@ def create_question_using_llm(request):
         {{
             "question_text": "<The text of the question>",
             "options": ["<Option 1>", "<Option 2>", "..."] (only for 'choose' and 'multi' types),
-            "correct_answer": "<The correct answer text or indices of correct options>"
+            "correct_answer": "<The correct answer text or indices of correct options>",
+            "type": "<question type>"('fill', 'choose', 'multi' or 'descriptive')",
+            "mark": <question mark>
         }}
     ]
     If only a single question is requested, returning a single JSON object is also acceptable. Ensure the output is valid JSON with no surrounding markdown or text.
@@ -418,5 +424,5 @@ def create_question_using_llm(request):
         result = {
             "status": False,
             "error": str(e)
-        }
-    return result
+        }, 500
+    return result, 200
