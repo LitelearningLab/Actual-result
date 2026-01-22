@@ -41,13 +41,15 @@
             <ng-container
                 *ngIf="['Users','Categories','Questions','Exams','Schedule Exam'].includes(m.label); else plainLink">
                 <a *hasAccess="m.label; hasAccessAction: 'view'" [routerLink]="m.path" class="menu-item"
-                    routerLinkActive="active" [title]="m.label">
+                    routerLinkActive="active" [routerLinkActiveOptions]="{exact: false}"
+                    (click)="onMenuClick(m)" [ngClass]="{ 'active': selectedMenu === m.label }" [title]="m.label">
                     <mat-icon class="menu-icon" svgIcon="{{ m.icon }}"></mat-icon>
                     <span class="menu-label" *ngIf="!collapsed">{{ m.label }}</span>
                 </a>
             </ng-container>
             <ng-template #plainLink>
-                <a [routerLink]="m.path" class="menu-item" routerLinkActive="active" [title]="m.label">
+                <a [routerLink]="m.path" class="menu-item" routerLinkActive="active" [routerLinkActiveOptions]="{exact: false}"
+                    (click)="onMenuClick(m)" [ngClass]="{ 'active': selectedMenu === m.label }" [title]="m.label">
                     <mat-icon class="menu-icon" svgIcon="{{ m.icon || 'menu' }}"></mat-icon>
                     <span class="menu-label" *ngIf="!collapsed">{{ m.label }}</span>
                 </a>

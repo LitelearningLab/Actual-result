@@ -177,8 +177,8 @@ export class CategoryComponent implements OnInit, AfterViewInit {
       }, error: () => {} });
 
     // load unscoped departments/teams as fallback
-    this.http.get<any>(`${API_BASE}/get-department-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.departments = (data || []).map((d:any)=> ({ id: d.dept_id || d.id || d.deptId, name: d.name })); }, error: () => {} });
-    this.http.get<any>(`${API_BASE}/get-teams-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.teams = (data || []).map((t:any)=> ({ id: t.team_id || t.id || t.teamId, name: t.name })); }, error: () => {} });
+    this.http.get<any>(`${API_BASE}/get-department-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.departments = (data || []).map((d:any)=> ({ id: d.department_id || d.dept_id || d.id || d.deptId, name: d.department_name || d.dept_name || d.name })); }, error: () => {} });
+    this.http.get<any>(`${API_BASE}/get-teams-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.teams = (data || []).map((t:any)=> ({ id: t.team_id || t.id || t.teamId, name: t.team_name || t.name })); }, error: () => {} });
   }
 
   onInstituteChange(iid: any) {
@@ -192,14 +192,14 @@ export class CategoryComponent implements OnInit, AfterViewInit {
     this.http.get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: iid } }).subscribe({
       next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data || []);
-        this.departments = (data || []).map((d:any)=> ({ id: d.dept_id || d.id || d.deptId, name: d.name }));
+        this.departments = (data || []).map((d:any)=> ({ id: d.department_id || d.dept_id || d.id || d.deptId, name: d.department_name || d.dept_name || d.name }));
       }, error: () => { this.departments = []; }
     });
     // teams
     this.http.get<any>(`${API_BASE}/get-teams-list`, { params: { institute_id: iid } }).subscribe({
       next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data || []);
-        this.teams = (data || []).map((t:any)=> ({ id: t.team_id || t.id || t.teamId, name: t.name }));
+        this.teams = (data || []).map((t:any)=> ({ id: t.team_id || t.id || t.teamId, name: t.team_name || t.name }));
       }, error: () => { this.teams = []; }
     });
   }

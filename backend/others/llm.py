@@ -40,7 +40,23 @@ class openai_client:
             "max_tokens": max_tokens
         }
 
-        response = httpx.post(self.url, headers=self.headers, json=payload, verify=False)
+        try:
+            response = httpx.post(self.url, headers=self.headers, json=payload, verify=False, timeout=30.0)
+        except httpx.ReadTimeout:
+            class _Resp:
+                def __init__(self):
+                    self.status_code = 504
+                def json(self):
+                    return {"error": "Read timeout"}
+            response = _Resp()
+        except httpx.RequestError as exc:
+            class _Resp:
+                def __init__(self, msg):
+                    self.status_code = 502
+                    self._msg = msg
+                def json(self):
+                    return {"error": str(self._msg)}
+            response = _Resp(exc)
         return response
 def descriptive_evaluation(api_client, question_mark, expected_answer, student_answer):
     system_message = '''You are an automated, impartial answer evaluator. Always respond ONLY with a single, valid JSON object (no markdown, no surrounding text). Follow these rules:
@@ -65,9 +81,9 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
         {{
         "score": <number between 0-{question_mark}>,
-        "missing": "<pipe-separated list of completely missing points or 'None'>",
-        "incomplete": "<pipe-separated list of mentioned but incomplete points or 'None'>",
-        "incorrect": "<pipe-separated list of factually incorrect statements or 'None'>",
+        "missing": "<pipe-separated list of Crisp phrase on what is missed or 'None'>",
+        "incomplete": "<pipe-separated list of Crisp explanation on which part is incomplete or 'None'>",
+        "incorrect": "<pipe-separated list of Crisp explanation on what is incorrect and why or 'None'>",
         "feedback": "<brief constructive feedback>",
         "ai_confidence": <integer between 0-100>
         }}

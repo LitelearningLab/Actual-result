@@ -1,6 +1,6 @@
 import { Component, ChangeDetectorRef, ViewChild, ElementRef, TemplateRef, ViewContainerRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Router, RouterModule } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -14,9 +14,12 @@ import { MatListModule } from '@angular/material/list';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatStepperModule } from '@angular/material/stepper';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { Overlay, OverlayRef, OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
 import { API_BASE } from 'src/app/shared/api.config';
+import { Observable, of } from 'rxjs';
+import { startWith, map } from 'rxjs/operators';
 import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
@@ -24,13 +27,18 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 @Component({
   selector: 'app-admin-schedule-test',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule, RouterModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatIconModule, MatButtonModule, MatCheckboxModule, MatSlideToggleModule, MatListModule, MatDatepickerModule, MatNativeDateModule, MatStepperModule, OverlayModule, PortalModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatIconModule, MatButtonModule, MatCheckboxModule, MatSlideToggleModule, MatListModule, MatDatepickerModule, MatNativeDateModule, MatStepperModule, OverlayModule, PortalModule, MatAutocompleteModule],
   templateUrl: './schedule-test.component.html',
   styleUrls: ['./schedule-test.component.scss']
 })
 export class AdminScheduleTestComponent {
   // institute list will be fetched from backend
   institutes: Array<{ name: string; institute_id?: string }> = [];
+  // autocomplete controls for institute/exam
+  instituteCtrl: FormControl = new FormControl('');
+  filteredInstitutes$: Observable<any[]> = of([]);
+  examCtrl: FormControl = new FormControl('');
+  filteredExams$: Observable<any[]> = of([]);
   batches = ['Batch A', 'Batch B', 'Batch C'];
 
   // User selection related
@@ -275,11 +283,23 @@ export class AdminScheduleTestComponent {
               const found = this.institutes.find(i => String(i.institute_id) === String(instId));
               if (found) {
                 this.model.institute = found.institute_id as any;
+                try{ this.instituteCtrl.setValue(found); }catch(e){}
                 this.onInstituteChange(this.model.institute);
                 return;
               }
             }
           } catch (e) { /* ignore */ }
+
+          // setup filtered institutes observable for autocomplete
+          try{
+            this.filteredInstitutes$ = this.instituteCtrl.valueChanges.pipe(
+              startWith(''),
+              map((val:any) => {
+                const q = (typeof val === 'string' ? val : (val?.name || '')).toLowerCase();
+                return (this.institutes || []).filter((it:any) => (it.name || '').toLowerCase().includes(q));
+              })
+            );
+          }catch(e){ this.filteredInstitutes$ = of(this.institutes || []); }
 
           // Fallback: If user has an institute in session storage, set it as default
           try {
@@ -293,6 +313,7 @@ export class AdminScheduleTestComponent {
                 if (found) {
                   this.model.institute = found.institute_id as any;
                   // trigger change handlers to populate dependent lists
+                  try{ this.instituteCtrl.setValue(found); }catch(e){}
                   this.onInstituteChange(this.model.institute);
                 }
               }
@@ -315,6 +336,27 @@ export class AdminScheduleTestComponent {
     this.loadTeamsList(this.model.institute);
     this.loadCampusList(this.model.institute);
     this.loadUsers();
+  }
+
+  // Autocomplete display / selection helpers
+  displayInstitute(i: any) { return i ? (i.name || '') : ''; }
+  onInstituteAutocompleteSelected(inst: any) {
+    if (!inst) return;
+    // mat-option value is the object; ensure model.institute stores the id
+    const id = inst.institute_id || inst.id || inst.instituteId || '';
+    this.model.institute = id;
+    // keep control display as the selected object
+    try{ this.instituteCtrl.setValue(inst); }catch(e){}
+    this.onInstituteChange(this.model.institute);
+  }
+
+  displayExam(e: any) { return e ? (e.title || e.name || '') : ''; }
+  onExamAutocompleteSelected(exam: any) {
+    if (!exam) return;
+    const id = exam.id || exam.exam_id || exam._id || '';
+    this.model.exam_id = id;
+    try{ this.examCtrl.setValue(exam); }catch(e){}
+    this.onExamChange(this.model.exam_id);
   }
 
   // Called when the Enable Filters checkbox toggles
@@ -455,10 +497,22 @@ export class AdminScheduleTestComponent {
         this.examsList = this.examsRaw.map((e: any) => ({ id: e.exam_id || e.id || e.test_id || e._id, title: e.title || e.name || '' }));
         // if an exam id is already selected, update selectedExam
         if (this.model && this.model.exam_id) this.onExamChange(this.model.exam_id);
+        // wire exam autocomplete observable
+        try{
+          this.filteredExams$ = this.examCtrl.valueChanges.pipe(
+            startWith(''),
+            map((val:any) => {
+              const q = (typeof val === 'string' ? val : (val?.title || val?.name || '')).toLowerCase();
+              return (this.examsList || []).filter((it:any) => (it.title || '').toLowerCase().includes(q));
+            })
+          );
+        }catch(e){ this.filteredExams$ = of(this.examsList || []); }
       },
       error: (err) => {
-        console.warn('Failed to load exams list', err);
+        console.warn('Failed to apply exam filters', err);
         this.examsList = [];
+        this.examsRaw = [];
+        this.selectedExam = null;
       },
       complete: () => { this.loader.hide(); }
     });

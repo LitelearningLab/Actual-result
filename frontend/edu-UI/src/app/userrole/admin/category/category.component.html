@@ -234,8 +234,7 @@
                                 <div class="tab-panel">
                                     <div class="chips">
                                         <span class="chip"
-                                            *ngFor="let d of iterableList(selectedCategory.departments)">{{
-                                            d.name || d }}</span>
+                                            *ngFor="let d of iterableList(selectedCategory.departments)">{{ d.department_name || d.dept_name || d.name || d }}</span>
                                     </div>
                                 </div>
                             </mat-tab>
@@ -244,9 +243,7 @@
                                 *ngIf="selectedCategory.teams && keysLength(selectedCategory.teams) > 0">
                                 <div class="tab-panel">
                                     <div class="chips">
-                                        <span class="chip" *ngFor="let t of iterableList(selectedCategory.teams)">{{
-                                            t.name
-                                            || t }}</span>
+                                        <span class="chip" *ngFor="let t of iterableList(selectedCategory.teams)">{{ t.team_name || t.name || t }}</span>
                                     </div>
                                 </div>
                             </mat-tab>
