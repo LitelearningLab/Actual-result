@@ -25,6 +25,8 @@ export class SideNavComponent implements OnInit, OnDestroy {
   userInstitute: string | null = sessionStorage.getItem('userInstitute') || '';
   menus: Array<{ label: string, path: string, icon?: string }> = [];
   collapsed = false;
+  // track last clicked menu label so it remains highlighted until another side-nav item is clicked
+  selectedMenu: string | null = null;
   private routerSubscription: Subscription;
   private authSubscription?: Subscription;
   private userSubscription?: Subscription;
@@ -63,6 +65,10 @@ export class SideNavComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // No need for redirects here as the router will handle it
+  }
+
+  onMenuClick(menu: { label: string, path: string, icon?: string }){
+    try{ this.selectedMenu = menu?.label || null; }catch(e){ this.selectedMenu = null; }
   }
 
   toggleCollapse() { this.collapsed = !this.collapsed; this.updateParentSidenavClass(); }

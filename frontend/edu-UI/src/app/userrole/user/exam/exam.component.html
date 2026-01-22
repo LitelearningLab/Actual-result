@@ -282,8 +282,8 @@
                            <strong>Result</strong>
                            <span class="value result-badge" [ngClass]="{'result-pass': (a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass', 'result-fail': (a.result | lowercase) === 'failed'}">{{ a.result | titlecase }}</span>
                         </div>
-                     <!-- </div>
-                     <div class="meta-row secondary-row"> -->
+                     </div>
+                     <div class="meta-row primary-row"> <!-- meta-row secondary-row -->
                         <div class="meta-item" *ngIf="a.time_taken">
                            <strong>Time Taken</strong>
                            <span class="value">{{ a.time_taken.split('.')[0] }}</span>
@@ -298,75 +298,49 @@
                         </div>
                      </div>
                   </div>
-                  <table class="review-table">
-                     <thead>
-                        <tr>
-                           <th style="width:40px">#</th>
-                           <th>Question &amp; Options</th>
-                           <th style="width:110px">Mark</th>
-                           <th style="width:120px">Status</th>
-                        </tr>
-                     </thead>
-                     <tbody>
-                        <tr *ngFor="let it of a.items; let idx = index" class="review-row" [ngClass]="getRowClass(it)">
-                           <td class="index-cell">{{ idx + 1 }}</td>
-                           <td class="question-cell">
-                              <div class="q-text">{{ it.question_text || it.question }}</div>
-
-                              <!-- Options list for choose-type questions -->
-                              <div class="not-answered" *ngIf="it.question_type !== 'fill' && it.question_type !== 'descriptive' && normalizeSelectedOptions(it).length === 0">Not answered</div>
-                                 <ul class="options-list" *ngIf="it.question_type !== 'fill' && it.question_type !== 'descriptive' && it.options && it.options.length">
-                                 <li *ngFor="let opt of it.options" [ngClass]="optionStatus(it,opt)">
-                                    <span class="opt-text">{{ opt.option_text || '-' }}</span>
-                                    <span class="opt-indicator" *ngIf="isOptionSelected(it,opt)">
-                                       <mat-icon aria-hidden="true">check_circle</mat-icon>
-                                    </span>
-                                    <!-- show correct indicator when user did not select it (so user can see correct answer when they chose wrong) -->
-                                    <span class="correct-indicator" *ngIf="isOptionCorrect(opt) && !isOptionSelected(it,opt)">
-                                       <mat-icon aria-hidden="true">done</mat-icon>
-                                    </span>
-                                 </li>
-                                 <div class="feedback" *ngIf="it.feedback && it.question_type === 'descriptive'">{{ it.feedback }}</div>
-                              </ul>
-                              
-
-                              <!-- Fill type: show user's answer and correct answer -->
-                              <div class="fill-answer" *ngIf="it.question_type === 'fill'">
-                                 <div class="fill-row">
-                                    <div class="fill-label">Your Answer:</div>
-                                    <div class="fill-value" [ngClass]="{ 'fill-correct': it.is_correct, 'fill-incorrect': !it.is_correct }">{{ (it.selected_option || []).join(', ') || '-' }}</div>
+                  <div class="questions-list">
+                     <div *ngFor="let q of (a.items || []); let qi = index" class="question-review-card">
+                        <div class="q-head-row">
+                           <div class="q-left">
+                              <div class="q-index">{{ qi + 1 }}</div>
+                              <div class="q-body">
+                                 <div class="q-meta">
+                                    <div class="q-badge">{{ (q.question_type || '').toUpperCase() }}</div>
+                                    <div class="q-info" *ngIf="(q.question_type || '')  != 'descriptive'">{{ (q.marks_awarded || 0) + ' Marks' }}</div>
+                                    <div class="q-info" *ngIf="(q.question_type || '') === 'descriptive'">{{ (q.marks_awarded || 0) + ' Marks' }}</div>
                                  </div>
-                                 <div class="fill-row" *ngIf="it.marks_awarded == 0">
-                                    <div class="fill-label">Correct Answer:</div>
-                                    <div class="fill-value expected">{{ it.correct_option || '-' }}</div>
-                                 </div>
-                                 <div class="feedback" *ngIf="it.feedback">{{ it.feedback }}</div>
+                                 <div class="q-text"><strong>{{ q.question_text || q.question || 'Question' }}</strong></div>
                               </div>
-                              <!-- descriptive -->
-                              <div class="descriptive-answer" *ngIf="it.question_type === 'descriptive'">
-                                 <div class="descriptive-row">
-                                    <div class="descriptive-label">Your Answer:</div>
-                                    <!-- <div class="descriptive-value">{{ normalizeSelectedOptions(it).join(', ') || '-' }}</div> -->
-                                    <div *ngFor="let opt of it.options" [ngClass]="optionStatus(it,opt)">
-                                       <span class="descriptive-value">{{ opt.option_text || '-' }}</span>
-                                    </div>
-                                 </div>
-                                 <div class="descriptive-row" *ngIf="it.marks_awarded == 0">
-                                    <div class="descriptive-label">Expected Answer:</div>
-                                    <div class="descriptive-value expected">{{ it.correct_option || '-' }}</div>
-                                 </div>
-                                 <div class="feedback" *ngIf="it.feedback">{{ it.feedback }}</div>
+                           </div>
+                           <div class="q-right">
+                              <div class="q-marks small-muted" [ngClass]="{ 'mark-positive': (q.marks_awarded || 0) > 0, 'mark-negative': (q.marks_awarded || 0) == 0 }">{{ q.marks_awarded != null ? (q.marks_awarded + ' pts') : '-' }}</div>
+                           </div>
+                        </div>
+
+                        <div *ngIf="(q.question_type || '') === 'fill'" class="q-fill">
+                           <div class="fill-row">
+                              <div class="fill-option" [class.selected]="(q.selected_option || []).length" [class.correct]="q.is_correct"> Your Answer: {{ (q.selected_option || []).join(', ') || '-' }}</div>
+                              <div class="fill-correct" *ngIf="q.marks_awarded === 0">Correct Answer: {{ q.options && q.options[0] ? (q.options[0].option_text || q.options[0]) : '-' }}</div>
+                           </div>
+                        </div>
+
+                        <div *ngIf="(q.question_type || '') === 'descriptive'" class="q-descriptive">
+                           <div class="q-feedback" *ngIf="q.feedback"><strong>High-level Feedback</strong><div class="feedback-text">{{ q.feedback }}</div></div>
+                        </div>
+
+                        <div *ngIf="(q.question_type || '') == 'choose' || (q.question_type || '') == 'multi'" class="q-options two-col">
+                           <div *ngFor="let opt of (q.options || []); let oi = index" class="q-option" [class.correct]="isOptionCorrect(opt)" [class.selected]="isOptionSelected(q,opt)" [class.missed]="isOptionCorrect(opt) && !isOptionSelected(q,opt)">
+                              <div class="opt-left"><span class="opt-mark">{{ getOptionLetter(oi) }}</span></div>
+                              <div class="opt-body"><div class="opt-text">{{ opt && (opt.option_text || opt) }}</div></div>
+                              <div class="opt-badge">
+                                 <span *ngIf="isOptionSelected(q,opt) && !isOptionCorrect(opt)" class="badge your-answer">Your Answer</span>
+                                 <span *ngIf="isOptionSelected(q,opt) && isOptionCorrect(opt)" class="badge correct">Correct Answer</span>
+                                 <span *ngIf="isOptionCorrect(opt) && !isOptionSelected(q,opt)" class="badge missed">Correct Answer</span>
                               </div>
-                           </td>
-                           <td class="marks-cell">
-                              <div class="marks">{{ it.marks_awarded || 0 }}</div>
-                           </td>
-                           <td class="status-cell">
-                              <div class="status-badge" [ngClass]="{ 'status-pass': it.is_correct, 'status-fail': !it.is_correct }">{{ it.is_correct ? 'Correct' : 'Incorrect' }}</div>
-                           </td>
-                        </tr>
-                     </tbody>
-                  </table>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
                </div>
             </mat-tab>
          </mat-tab-group>

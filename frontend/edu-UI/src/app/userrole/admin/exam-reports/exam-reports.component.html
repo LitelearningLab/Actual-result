@@ -140,7 +140,7 @@
      </div>
      <div class="list-card">
           <div class="list-wrapper">
-               <mat-tab-group class="exam-tabs" (selectedTabChange)="onTabChange($event)"
+               <mat-tab-group class="exam-tabs" [selectedIndex]="activeMainTabIndex" (selectedTabChange)="onTabChange($event)"
                     (selectedIndexChange)="activeMainTabIndex = $event">
                     <mat-tab label="User Report">
                          <div class="tab-actions">
@@ -320,10 +320,15 @@
                                                                                           <div class="opt-body">
                                                                                                <div class="opt-text">{{ opt.option_text || opt }}</div>
                                                                                           </div>
-                                                                                          <div class="opt-badge">
+                                                                                          <div class="opt-badge" *ngIf="q.question_type == 'choose'">
                                                                                                <span *ngIf="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1 && !(opt.is_correct == 1 || opt.is_correct === true)" class="badge your-answer">Student Answer</span>
                                                                                                <span *ngIf="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1 && (opt.is_correct == 1 || opt.is_correct === true)" class="badge correct">Correct Answer</span>
                                                                                                <span *ngIf="opt.is_correct && (q.selected_option || []).indexOf(opt.option_text || opt) === -1" class="badge missed">Correct Answer</span>
+                                                                                          </div>
+                                                                                          <div class="opt-badge" *ngIf="q.question_type == 'multi'">
+                                                                                               <span *ngIf="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1 && (opt.is_correct == 1 || opt.is_correct === true)" class="badge correct">Correct Option</span>
+                                                                                               <span *ngIf="(q.selected_option || []).indexOf(opt.option_text || opt) !== -1 && !(opt.is_correct == 1 || opt.is_correct === true)" class="badge your-answer">Student Selected</span>
+                                                                                               <span *ngIf="opt.is_correct && (q.selected_option || []).indexOf(opt.option_text || opt) === -1" class="badge missed">Missed Correct Option</span>
                                                                                           </div>
                                                                                      </div>
                                                                                 </div>
@@ -354,31 +359,31 @@
                                         </td>
                                    </ng-container>
                                    <ng-container matColumnDef="questions_attempted">
-                                        <th mat-header-cell *matHeaderCellDef>Attempted</th>
-                                        <td mat-cell *matCellDef="let row">{{row.questions_attempted}}</td>
+                                        <th mat-header-cell *matHeaderCellDef>Marks / Total Marks</th>
+                                        <td mat-cell *matCellDef="let row">{{row.marks_obtained}} / {{row.total_marks}}</td>
                                    </ng-container>
                                    <ng-container matColumnDef="correct_answers">
-                                        <th mat-header-cell *matHeaderCellDef>Correct</th>
-                                        <td mat-cell *matCellDef="let row">{{row.correct_answers}}</td>
+                                        <th mat-header-cell *matHeaderCellDef>Percentage</th>
+                                        <td mat-cell *matCellDef="let row">{{row.percentage}}</td>
                                    </ng-container>
                                    <ng-container matColumnDef="wrong_answers">
-                                        <th mat-header-cell *matHeaderCellDef>Wrong</th>
-                                        <td mat-cell *matCellDef="let row">{{row.wrong_answers}}</td>
+                                        <th mat-header-cell *matHeaderCellDef>Manual Review</th>
+                                        <td mat-cell *matCellDef="let row">{{row.manual_review}}</td>
                                    </ng-container>
-                                   <ng-container matColumnDef="marks_obtained">
+                                   <!-- <ng-container matColumnDef="marks_obtained">
                                         <th mat-header-cell *matHeaderCellDef>Marks</th>
                                         <td mat-cell *matCellDef="let row">{{row.marks_obtained}}</td>
-                                   </ng-container>
+                                   </ng-container> -->
                                    <ng-container matColumnDef="result">
                                         <th mat-header-cell *matHeaderCellDef>Result</th>
                                         <td mat-cell *matCellDef="let row">{{row.result}}</td>
                                    </ng-container>
 
                                    <tr mat-header-row
-                                        *matHeaderRowDef="['student_name','questions_attempted','correct_answers','wrong_answers','marks_obtained','result']">
+                                        *matHeaderRowDef="['student_name','questions_attempted','correct_answers','wrong_answers','result']">
                                    </tr>
                                    <tr mat-row
-                                        *matRowDef="let row; columns: ['student_name','questions_attempted','correct_answers','wrong_answers','marks_obtained','result'];">
+                                        *matRowDef="let row; columns: ['student_name','questions_attempted','correct_answers','wrong_answers','result'];">
                                    </tr>
                               </table>
 
@@ -419,14 +424,17 @@
                                    </tr>
                               </table> -->
 
-                              <mat-tab-group class="inner-analytics-tabs">
+                              <mat-tab-group class="inner-analytics-tabs" [(selectedIndex)]="innerAnalyticsTabIndex">
                                    <mat-tab label="Category Report">
                                         <div class="analytics-section">
-                                             <table mat-table [dataSource]="categoryAnalytics"
+                                                                                      <table mat-table [dataSource]="categoryAnalytics"
                                                   class="mat-elevation-z1 compact premium-table" matSort>
                                                   <ng-container matColumnDef="category">
                                                        <th mat-header-cell *matHeaderCellDef>Category</th>
-                                                       <td mat-cell *matCellDef="let c">{{c.category_name || c.name}}
+                                                       <!-- <td mat-cell *matCellDef="let c">{{c.category_name || c.name}} -->
+                                                       <td mat-cell *matCellDef="let c">
+                                                            <div href="javascript:void(0)" class="student-name" (click)="openCategoryQuestionSummary(c)">{{c.category_name || c.name}}</div>
+                                                            <!-- <div href="javascript:void(0)" (click)="openUserReview(row)"  class="student-name">{{ row.student_name || row.name || 'Student' }}</div> -->
                                                        </td>
                                                   </ng-container>
                                                   <ng-container matColumnDef="questions">
@@ -434,6 +442,15 @@
                                                        <td mat-cell *matCellDef="let c">{{c.total_questions ||
                                                             c.questions_count}}</td>
                                                   </ng-container>
+                                                   <ng-container matColumnDef="users_attempted">
+                                                       <th mat-header-cell *matHeaderCellDef>Users Attempted</th>
+                                                       <td mat-cell *matCellDef="let c">{{c.no_of_students || c.users_attempted}}</td>
+                                                  </ng-container>
+                                                  <ng-container matColumnDef="total_attempts">
+                                                       <th mat-header-cell *matHeaderCellDef>Total Attempts</th>
+                                                       <td mat-cell *matCellDef="let c">{{c.total_attempts}}</td>
+                                                  </ng-container>
+
                                                   <ng-container matColumnDef="mistakes">
                                                        <th mat-header-cell *matHeaderCellDef>Mistakes</th>
                                                        <td mat-cell *matCellDef="let c">{{c.wrong_answers || c.mistakes
@@ -446,17 +463,17 @@
                                                   </ng-container>
 
                                                   <tr mat-header-row
-                                                       *matHeaderRowDef="['category','questions','mistakes','error_pct']">
+                                                       *matHeaderRowDef="['category','questions','users_attempted','total_attempts','mistakes','error_pct']">
                                                   </tr>
                                                   <tr mat-row
-                                                       *matRowDef="let row; columns: ['category','questions','mistakes','error_pct'];">
+                                                       *matRowDef="let row; columns: ['category','questions','users_attempted','total_attempts','mistakes','error_pct'];">
                                                   </tr>
                                              </table>
                                         </div>
                                    </mat-tab>
                                    <mat-tab label="Question Summary">
                                         <div class="analytics-section">
-                                             <table mat-table [dataSource]="questionSummary"
+                                                                                      <table mat-table [dataSource]="(filteredQuestionSummary && filteredQuestionSummary.length) ? filteredQuestionSummary : questionSummary"
                                                   class="mat-elevation-z1 compact premium-table" matSort>
                                                   <ng-container matColumnDef="sno">
                                                        <th mat-header-cell *matHeaderCellDef>#</th>
@@ -467,6 +484,11 @@
                                                        <th mat-header-cell *matHeaderCellDef>Question</th>
                                                        <td mat-cell *matCellDef="let q">{{q.question_text || q.text}}
                                                        </td>
+                                                  </ng-container>
+                                                  <!-- User Attempts -->
+                                                  <ng-container matColumnDef="user_attempts">
+                                                       <th mat-header-cell *matHeaderCellDef>Users Attempted</th>
+                                                       <td mat-cell *matCellDef="let q">{{q.user_attempts}}</td>
                                                   </ng-container>
                                                   <ng-container matColumnDef="attempts">
                                                        <th mat-header-cell *matHeaderCellDef>Attempts</th>
@@ -483,9 +505,9 @@
                                                   </ng-container>
 
                                                   <tr mat-header-row
-                                                       *matHeaderRowDef="['sno','question','attempts','mistakes']"></tr>
+                                                       *matHeaderRowDef="['sno','question','user_attempts','attempts','mistakes']"></tr>
                                                   <tr mat-row
-                                                       *matRowDef="let row; columns: ['sno','question','attempts','mistakes'];">
+                                                       *matRowDef="let row; columns: ['sno','question','user_attempts','attempts','mistakes'];">
                                                   </tr>
                                              </table>
                                         </div>

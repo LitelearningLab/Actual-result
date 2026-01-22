@@ -65,9 +65,9 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
         {{
         "score": <number between 0-{question_mark}>,
-        "missing": "<pipe-separated list of completely missing points or 'None'>",
-        "incomplete": "<pipe-separated list of mentioned but incomplete points or 'None'>",
-        "incorrect": "<pipe-separated list of factually incorrect statements or 'None'>",
+        "missing": "<pipe-separated list of Crisp phrase on what is missed or 'None'>",
+        "incomplete": "<pipe-separated list of Crisp explanation on which part is incomplete or 'None'>",
+        "incorrect": "<pipe-separated list of Crisp explanation on what is incorrect and why or 'None'>",
         "feedback": "<brief constructive feedback>",
         "ai_confidence": <integer between 0-100>
         }}

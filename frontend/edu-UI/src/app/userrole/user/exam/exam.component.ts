@@ -250,6 +250,13 @@ export class UserExamComponent{
     return [String(sel)];
   }
 
+  // Return option letter (A, B, C...)
+  getOptionLetter(index: number): string {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (typeof index !== 'number' || index < 0) return String(index + 1);
+    return letters[index] || String(index + 1);
+  }
+
   isOptionSelected(item: any, opt: any): boolean {
     try {
       const arr = this.normalizeSelectedOptions(item);

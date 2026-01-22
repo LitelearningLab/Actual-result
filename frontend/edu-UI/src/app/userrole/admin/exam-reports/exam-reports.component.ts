@@ -21,11 +21,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   appliedFilters: any = null;
   categoryAnalytics: any[] = [];
   questionSummary: any[] = [];
+  filteredQuestionSummary: any[] = [];
   wrongDistribution: any[] = [];
   // wrong answer modal state
   showWrongAnswerSummary = false;
   selectedQuestionForWrongSummary: any = null;
-  selectedWrongAnswers: Array<{ answer: string; count?: number; pct?: string } | any> = [];
+  selectedWrongAnswers: Array<{ id: string; answer: string; count?: number; pct?: string } | any> = [];
   // resources modal state
   showResourcePanel = false;
   selectedResources: Array<{ resource_id?: string; full_name?: string; email?: string; url?: string }> = [];
@@ -54,6 +55,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   allExams: any[] = [];
   selectedExam: any = null;
   activeMainTabIndex = 0;
+  innerAnalyticsTabIndex = 0;
   userFilterOpen = false;
   userFilters: any = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '' };
   countries: any[] = [];
@@ -74,11 +76,69 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return Math.max(1, Math.ceil((this.userReportTotal || 0) / this.pageSize));
   }
 
+  /**
+   * Open question summary filtered to a specific category. If analytics data isn't loaded yet,
+   * request it first and apply a pending filter.
+   */
+  openCategoryQuestionSummary(category: any){
+    if(!category) return;
+    const cid = String(category.category_id || category.id || category._id || category.categoryId || '');
+    if(!cid) return;
+    // ensure main tab is analytics
+    this.activeMainTabIndex = 1;
+    // if question summary already loaded, filter immediately
+    if(this.questionSummary && this.questionSummary.length){
+      this.filteredQuestionSummary = (this.questionSummary || []).filter((q:any) => this._getQuestionCategoryId(q) === cid);
+      this.innerAnalyticsTabIndex = 1; // switch inner tab to Question Summary
+      return;
+    }
+    // otherwise, request analytics and apply filter after load
+    this._pendingCategoryFilter = cid;
+    this.loadAnalytics();
+  }
+
   private filtersOverlayRef: OverlayRef | null = null;
   private _subs: Subscription | null = null;
   resetFilters: any = {};
 
   constructor(private http: HttpClient, private loading: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private _snack: MatSnackBar) {}
+
+  private _pendingCategoryFilter: string | null = null;
+
+  // Robustly extract a category id from different question shapes.
+  private _getQuestionCategoryId(q: any): string {
+    if (!q) return '';
+    // If question has a nested `category` object, try common id fields
+    const cat = q.category;
+    if (cat && typeof cat === 'object') {
+      return String(cat.id || cat._id || cat.category_id || cat.categoryId || cat.cat_id || '').trim();
+    }
+    // If category_id is an array, take first element
+    if (Array.isArray(q.category_id) && q.category_id.length) return String(q.category_id[0]).trim();
+    // Try several flat fields
+    return String(q.category_id ?? q.category ?? q.categoryId ?? q.cat_id ?? q.catId ?? '').trim();
+  }
+
+  // Normalize selected_option into an array of trimmed strings.
+  private _normalizeSelectedOption(selected: any): string[] {
+    try {
+      if (!selected && selected !== 0) return [];
+      if (Array.isArray(selected)) {
+        // flatten items that might be comma-separated strings
+        return selected.flatMap((it: any) => {
+          if (typeof it === 'string') return it.split(',').map((s: string) => s.trim()).filter(Boolean);
+          return [String(it)];
+        });
+      }
+      if (typeof selected === 'string') {
+        return selected.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      // fallback to single value
+      return [String(selected)];
+    } catch (e) {
+      return [];
+    }
+  }
 
   // Open user review by calling backend API /review-user-exam
   openUserReview(row: any){
@@ -124,10 +184,22 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             attempts = body.attempts;
           }
 
-          // normalize each attempt: ensure review/questions array exists
+          // normalize each attempt: ensure review/questions array exists and normalize selected options
           this.userReviewAttempts = (attempts || []).map(a => {
             const reviewList = a.review || a.questions || a.attempt_review || [];
-            return { ...a, review: Array.isArray(reviewList) ? reviewList : [] };
+            const normalizedReview = (Array.isArray(reviewList) ? reviewList : []).map((q:any) => {
+              try{
+                // normalize selected_option into array of values
+                q.selected_option = this._normalizeSelectedOption(q.selected_option || q.selected_options || q.selected || []);
+                // also ensure options is an array
+                if (!Array.isArray(q.options) && q.options && typeof q.options === 'object') {
+                  // sometimes options come as an object map, convert to array
+                  q.options = Object.keys(q.options).map(k => q.options[k]);
+                }
+              }catch(e){}
+              return q;
+            });
+            return { ...a, review: normalizedReview };
           });
           console.debug('[ExamReports] review-user-exam attempts count:', this.userReviewAttempts.length, this.userReviewAttempts);
           // If total marks not set from the row, try to take it from the first attempt returned
@@ -442,8 +514,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   exportUserCSV(){
     if(!this.userReportData || !this.userReportData.length) return;
-    const headers = ['Student Name','Questions Attempted','Correct Answers','Wrong Answers','Marks Obtained','Result'];
-    const rows = this.userReportData.map((r:any)=>[r.student_name, r.questions_attempted, r.correct_answers, r.wrong_answers, r.marks_obtained, r.result]);
+    const headers = ['Student Name','Questions Attempted','Total Marks','Correct Answers','Wrong Answers','Marks Obtained','Result'];
+    const rows = this.userReportData.map((r:any)=>[r.student_name, r.questions_attempted, r.total_marks, r.correct_answers, r.wrong_answers, r.marks_obtained, r.result]);
     const csv = [headers.join(','), ...rows.map(r=>r.map((v:any)=>`"${String(v||'').replace(/"/g,'""')}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -469,6 +541,16 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.categoryAnalytics = Array.isArray(payload.category_report) ? payload.category_report : (payload.category_report || payload.categories || []);
           this.questionSummary = Array.isArray(payload.question_summary) ? payload.question_summary : (payload.question_summary || payload.questions || []);
           this.wrongDistribution = Array.isArray(payload.wrong_answer_distribution) ? payload.wrong_answer_distribution : (payload.wrong_answer_distribution || payload.distribution || []);
+          // If a category filter was requested while loading, apply it now
+          if(this._pendingCategoryFilter){
+            const cid = String(this._pendingCategoryFilter);
+            this.filteredQuestionSummary = (this.questionSummary || []).filter((q:any) => this._getQuestionCategoryId(q) === cid);
+            this._pendingCategoryFilter = null;
+            // ensure UI switches to analytics -> Question Summary tab
+            try{ this.activeMainTabIndex = 1; this.innerAnalyticsTabIndex = 1; }catch(e){}
+          } else {
+            this.filteredQuestionSummary = [];
+          }
         } catch(e){
           console.error('[ExamReports] Error parsing analytics response', e);
           this.categoryAnalytics = [];
@@ -509,7 +591,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.selectedWrongAnswers = (entries || []).map((en:any, idx:number) => {
       if(typeof en === 'string') return { answer: en, count: null, pct: null };
       return {
-        answer: en.answer || en.text || en.wrong_answer || en.name || en.label || en.option || ('Answer ' + (idx+1)),
+        id: en.id || en._id || null,
+        answer: en.option_text || en.text || en.wrong_answer || en.name || en.label || en.option || ('Answer ' + (idx+1)),
         option_id: en.option_id || en.options_id || en.optionId || en.optionId || null,
         answer_id: en.answer_id || en.answerId || null,
         count: en.count || en.times || en.selected_count || en.selected || en.num || null,

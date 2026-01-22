@@ -118,6 +118,11 @@ def update_exam(request):
         # handle optional start/end times
         start_time_str = data.get('start_time', None)
         end_time_str = data.get('end_time', None)
+
+        # updated_by and updated_date
+        exam.updated_by = data.get('updated_by', exam.updated_by)
+        exam.updated_date = datetime.utcnow()
+        
         if start_time_str:
             try:
                 exam.start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
@@ -477,7 +482,7 @@ def get_exam_list(request):
 
         exams = session.query(Exam).filter(*filter).all()
         if exams is None or len(exams) == 0:
-            return {"statusMessage": "No exams found", "status": False}, 404
+            return {"statusMessage": "No exams found", "status": False, "data": []}, 200
 
         exam_list = []
         for exam in exams:

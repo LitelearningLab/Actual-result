@@ -1,5 +1,5 @@
 from db.db import SQLiteDB
-from db.models import User, ExamSchedule, Exam_Attempt, Answer, Exam, ExamMapping, ExamQuestionMapping, Question, Option
+from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option,QuestionMapping
 from sqlalchemy import func
 
 
@@ -39,11 +39,11 @@ def get_user_wise_report(request):
             if not user:
                 continue
 
-            # compute aggregates from Answers for this user and schedule
-            # fetch all answers for marks calculation
             answers = session.query(Answer).filter(Answer.schedule_id == schedule_id, Answer.user_id == uid).all()
 
-            # group by question_id and determine if any attempt for that question was correct
+            # get total marks from question table 
+            total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(answer.question_id for answer in answers)).scalar() or 0
+
             grouped = session.query(Answer.question_id, func.max(Answer.is_correct).label('any_correct')).filter(
                 Answer.schedule_id == schedule_id,
                 Answer.user_id == uid
@@ -73,9 +73,10 @@ def get_user_wise_report(request):
                 'questions_attempted': questions_attempted,
                 'correct_answers': correct,
                 'wrong_answers': wrong,
+                'total_marks' : total_marks,
                 'marks_obtained': marks,
                 'result': result,
-                'best_percentage': best_percentage
+                'percentage': round(best_percentage, 2) if best_percentage is not None else None
             })
 
         # filter by q
@@ -138,50 +139,72 @@ def get_exam_analytics(request):
         mappings = session.query(ExamMapping).filter(ExamMapping.exam_id == exam_id).all()
         for m in mappings:
             cat_id = m.category_id
-            # total questions for this category in exam
-            # prefer explicit question mapping if present
-            qids = session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == exam_id, ExamQuestionMapping.category_id == cat_id).distinct().all()
+            number_of_questions = m.number_of_questions
+
+            qids = session.query(QuestionMapping.question_id).filter(QuestionMapping.category_id == cat_id).distinct().all()
             qids = [q[0] for q in qids]
+
+            # question ids in this category for this exam
+            qids  = session.query(Answer.question_id).filter(Answer.schedule_id == schedule_id, Answer.question_id.in_(qids)).distinct().all()
+            qids = [q[0] for q in qids]
+
             total_questions = len(qids) if qids else (m.number_of_questions or 0)
 
             # compute per-question attempts and mistakes (group by question_id)
-            wrong_answers = 0
             total_attempts = 0
             if qids:
-                grouped = session.query(
+                # grouped = session.query(
+                #     Answer.question_id,
+                #     func.count(Answer.answer_id).label('attempts'),
+                #     func.sum((1 - Answer.is_correct)).label('mistakes')  # assumes is_correct is 0/1
+                # ).filter(
+                #     Answer.schedule_id == schedule_id,
+                #     Answer.question_id.in_(qids)
+                # ).group_by(Answer.question_id).all()
+                
+                # get the users count who attempted these questions
+                participant_count = session.query(Answer.user_id).filter(Answer.schedule_id == schedule_id, Answer.question_id.in_(qids)).distinct().count()
+                # totals attempts grouped by user and question
+                user_question_attempts = session.query(
+                    Answer.user_id,
                     Answer.question_id,
-                    func.count(Answer.answer_id).label('attempts'),
-                    func.sum((1 - Answer.is_correct)).label('mistakes')  # assumes is_correct is 0/1
                 ).filter(
                     Answer.schedule_id == schedule_id,
                     Answer.question_id.in_(qids)
-                ).group_by(Answer.question_id).all()
+                ).group_by(Answer.user_id, Answer.question_id).all()
+                # count distinct (user_id, question_id) pairs
+                total_attempts = len(set(user_question_attempts))
 
-                total_attempts = sum((g.attempts or 0) for g in grouped)
-                total_wrong_answers = sum((g.mistakes or 0) for g in grouped)
-                wrong_question_count = sum(1 for g in grouped if (g.mistakes or 0) > 0)
+                # calculate wrong answers as count of distinct (user_id, question_id) pairs with incorrect attempts
+                total_wrong_answers = session.query(
+                    Answer.user_id, Answer.question_id
+                ).filter(
+                    Answer.schedule_id == schedule_id,
+                    Answer.question_id.in_(qids),
+                    Answer.is_correct == 0
+                ).distinct().count()
+                
 
-                # use wrong_question_count as "wrong_answers" (count of questions with at least one wrong)
-                wrong_answers = wrong_question_count
+                total_correct_answers = total_attempts - total_wrong_answers
             else:
                 total_attempts = 0
-                wrong_answers = 0
                 total_wrong_answers = 0
-                wrong_question_count = 0
+                participant_count = 0
+                total_correct_answers = 0
+                total_wrong_answers = 0
 
-            # error percentage: fraction of questions in this category that had at least one wrong attempt
-            error_percentage = (wrong_question_count / total_questions * 100) if total_questions > 0 else 0
+            # error percentage: wrong questions over total attempts
+            error_percentage = (total_wrong_answers / total_attempts * 100) if total_attempts > 0 else 0
 
             # impact percentage heuristic: wrong answers normalized by (total_questions * participant_count)
-            denom = (total_questions * participant_count) if (total_questions and participant_count) else 0
-            impact_percentage = (wrong_answers / denom * 100) if denom > 0 else 0
+            denom = (total_attempts * participant_count) if (total_attempts and participant_count) else 0
+            impact_percentage = (total_wrong_answers / denom * 100) if denom > 0 else 0
 
             # category name
             cat_obj = session.query(Question).join(ExamQuestionMapping, Question.question_id == ExamQuestionMapping.question_id).filter(ExamQuestionMapping.category_id == cat_id).first()
             # fallback to categories table name lookup
             category_name = None
             try:
-                from db.models import Categories
                 cat = session.query(Categories).filter(Categories.category_id == cat_id).first()
                 if cat:
                     category_name = cat.name
@@ -191,31 +214,63 @@ def get_exam_analytics(request):
             category_rows.append({
                 'category_id': cat_id,
                 'category_name': category_name or str(cat_id),
-                'total_questions': total_questions,
+                'total_questions': total_questions, # number_of_questions, #
                 'no_of_students': participant_count,
-                'wrong_answers': int(wrong_answers),
+                'total_attempts': int(total_attempts),
+                'correct_answers': int(total_correct_answers),
+                'wrong_answers': int(total_wrong_answers),
                 'error_percentage': round(error_percentage,2),
                 'impact_percentage': round(impact_percentage,2)
             })
 
         # question summary
         question_summary = []
-        # gather all question ids for the exam
-        qmap = session.query(ExamQuestionMapping).filter(ExamQuestionMapping.exam_id == exam_id).all()
-        question_ids = [qm.question_id for qm in qmap]
+        # gather all question ids from Answer table for this schedule
+        question_ids = session.query(Answer.question_id).filter(Answer.schedule_id == schedule_id).distinct().all()
+        question_ids = [qid[0] for qid in question_ids]
+
+        # qmap = session.query(ExamQuestionMapping).filter(ExamQuestionMapping.exam_id == exam_id).all()
+        # question_ids = [qm.question_id for qm in qmap]
+
         # include mapping number_of_questions for randomize cases by pulling questions from QuestionMapping if necessary
         for idx, qid in enumerate(question_ids, start=1):
             qobj = session.query(Question).filter(Question.question_id == qid).first()
             if not qobj:
                 continue
-            attempts = session.query(func.count(Answer.answer_id)).filter(Answer.schedule_id == schedule_id, Answer.question_id == qid).scalar() or 0
-            mistakes = session.query(func.count(Answer.answer_id)).filter(Answer.schedule_id == schedule_id, Answer.question_id == qid, Answer.is_correct == 0).scalar() or 0
-            error_pct = (mistakes / attempts * 100) if attempts > 0 else 0
+            # fetch category name (single query) for this question within the exam
+            try:
+                category_data = session.query(Categories).join(
+                    ExamMapping, ExamMapping.category_id == Categories.category_id
+                ).join(
+                    QuestionMapping, QuestionMapping.category_id == Categories.category_id).filter(
+                    ExamMapping.exam_id == exam_id,
+                    QuestionMapping.question_id == qid
+                ).scalar()
+                category_name = category_data.name if category_data else None
+                category_id = category_data.category_id if category_data else None
+            except Exception:
+                category_name = None
+                category_id = None
+
+
+            user_attempts = session.query(Answer.user_id).filter(Answer.schedule_id == schedule_id, Answer.question_id == qid).distinct().count()
+
+            user_question_attempts = session.query(Answer.user_id, Answer.question_id).filter(
+                Answer.schedule_id == schedule_id,Answer.question_id == qid).distinct().all()
+            total_attempts = len(user_question_attempts)
+
+            mistakes = session.query(Answer.user_id, Answer.question_id).filter(
+                Answer.schedule_id == schedule_id,Answer.question_id == qid,Answer.is_correct == 0).distinct().count()
+            error_pct = (mistakes / total_attempts * 100) if total_attempts > 0 else 0
+
             question_summary.append({
                 'sno': idx,
                 'question_id': qid,
+                'category_id': category_id,
+                'category_name': category_name,
                 'question_text': qobj.question_text,
-                'attempts': int(attempts),
+                'user_attempts': int(user_attempts),
+                'attempts': int(total_attempts),
                 'mistakes': int(mistakes),
                 'error_percentage': round(error_pct,2)
             })
@@ -225,7 +280,7 @@ def get_exam_analytics(request):
         for q in question_summary:
             qid = q['question_id']
             # aggregate selected options for this question
-            opt_counts = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id == schedule_id, Answer.question_id == qid).group_by(Option.options_id).all()
+            opt_counts = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id == schedule_id, Answer.question_id == qid, Answer.is_correct == 0).group_by(Option.options_id).all()
             total_sel = sum([c[2] for c in opt_counts])
             dist = []
             for opt_id, opt_text, cnt in opt_counts:
@@ -244,7 +299,8 @@ def get_exam_analytics(request):
         }
         return result, 200
     except Exception as e:
-        print('Error generating analytics', e)
+        lineno = e.__traceback__.tb_lineno if getattr(e, "__traceback__", None) else 'N/A'
+        print(f"Error generating analytics: {e} Line # {lineno}")
         return {"statusMessage": f"Error generating analytics: {str(e)}", "status": False}, 500
 
 
@@ -276,7 +332,10 @@ def get_question_wrong_answers(request):
         raw_wrong = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.schedule_id == schedule_id, Answer.question_id == question_id, Answer.is_correct == 0).group_by(Answer.written_answer).all()
         raw_list = []
         for txt, cnt in raw_wrong:
-            raw_list.append({'text': txt, 'count': int(cnt)})
+            # get option_id from Option table if it exists
+            option_obj = session.query(Option).filter(Option.option_text == txt, Option.question_id == question_id).first()
+            option_id = option_obj.options_id if option_obj else None
+            raw_list.append({'text': txt, 'count': int(cnt), 'option_id': option_id})
 
         return {'statusMessage': 'Question wrong answers retrieved', 'status': True, 'data': { 'question_id': question_id, 'distribution': distribution, 'raw': raw_list }}, 200
     except Exception as e:

@@ -46,6 +46,7 @@ export class CategoryCreateComponent {
   departments = [ { id: 'd1', name: 'Computer Science' }, { id: 'd2', name: 'Mathematics' }, { id: 'd3', name: 'Physics' } ];
   teams = [ { id: 't1', name: 'Team A' }, { id: 't2', name: 'Team B' }, { id: 't3', name: 'Team C' } ];
   isSuperAdmin: boolean = false;
+  currentUserId: string | null = null;
 
   constructor(private router: Router, private http: HttpClient, private loader: LoaderService,private pageMeta: PageMetaService, private snack: MatSnackBar){}
 
@@ -56,6 +57,7 @@ export class CategoryCreateComponent {
       if (raw) {
         const u = JSON.parse(raw);
         this.isSuperAdmin = !!(u && (u.is_super_admin === true || u.isSuperAdmin || u.role === 'super_admin' || u.user_role === 'super_admin'));
+        this.currentUserId = u?.user_id || u?.id || u?.userId || null;
         const instId = u?.institute_id || u?.instituteId || u?.institute || '';
         if (instId) this.institute = String(instId);
       }
@@ -74,14 +76,41 @@ export class CategoryCreateComponent {
         // map fields where available
         this.name = c.name || c.category_name || '';
         this.description = c.description || '';
-        this.institute = c.institute?.institute_id || c.institute_id || c.institute || '';
+        // institute may be an object or a string id
+        if (c.institute && typeof c.institute === 'object') {
+          this.institute = c.institute.institute_id || c.institute.id || '';
+        } else {
+          this.institute = c.institute_id || c.institute || '';
+        }
         this.type = c.type || '';
         this.whoInputs = c.answer_by || c.who_inputs || '';
         this.evaluation = c.evaluation || '';
         this.status = (typeof c.active_status !== 'undefined') ? String(c.active_status) : (c.status || '');
         this.markForEachQuestion = (typeof c.mark_each_question !== 'undefined') ? c.mark_each_question : (c.mark_for_each_question || null);
-        this.selectedDepartments = Array.isArray(c.departments) ? c.departments : (Array.isArray(c.department_ids) ? c.department_ids : []);
-        this.selectedTeams = Array.isArray(c.teams) ? c.teams : (Array.isArray(c.team_ids) ? c.team_ids : []);
+        // normalize departments: support array of objects [{department_id,..}], object map {id: name}, or array of ids
+        if (Array.isArray(c.departments)) {
+          this.selectedDepartments = c.departments.map((d:any) => (typeof d === 'object' ? (d.department_id || d.id || d._id || '') : String(d))).filter((x:any) => !!x).map(String);
+        } else if (c.departments && typeof c.departments === 'object') {
+          this.selectedDepartments = Object.keys(c.departments).map(k => String(k));
+        } else if (Array.isArray(c.department_ids)) {
+          this.selectedDepartments = c.department_ids.map((x:any) => String(x));
+        } else {
+          this.selectedDepartments = [];
+        }
+
+        // normalize teams: support array of objects [{team_id,..}], object map {id: name}, or array of ids
+        if (Array.isArray(c.teams)) {
+          this.selectedTeams = c.teams.map((t:any) => (typeof t === 'object' ? (t.team_id || t.id || t._id || '') : String(t))).filter((x:any) => !!x).map(String);
+        } else if (c.teams && typeof c.teams === 'object') {
+          this.selectedTeams = Object.keys(c.teams).map(k => String(k));
+        } else if (Array.isArray(c.team_ids)) {
+          this.selectedTeams = c.team_ids.map((x:any) => String(x));
+        } else {
+          this.selectedTeams = [];
+        }
+
+        // ensure dependent option lists load for the institute so selections match available options
+        try{ if (this.institute) this.setInstitute(this.institute); }catch(e){}
         // remove to avoid accidental reuse
         try{ sessionStorage.removeItem('edit_category'); }catch(e){}
       }
@@ -150,12 +179,15 @@ export class CategoryCreateComponent {
     };
 
     if (this.isEditing && this.editId) {
+      // include who updated this category if available
+      if (this.currentUserId) payload.updated_by = this.currentUserId;
       const url = `${API_BASE}/update-category/${encodeURIComponent(String(this.editId))}`;
       this.http.put<any>(url, payload).subscribe({ next: (res) => {
         this.snack.open(res?.message || 'Category updated successfully', 'Close', { duration: 3000, horizontalPosition: 'right', verticalPosition: 'top' });
         this.router.navigate(['/category']);
       }, complete: () => { this.loader.hide(); }, error: (err) => { this.loader.hide(); console.error('Failed to update category', err); const msg = err?.error?.message || err?.message || 'Failed to update category'; this.snack.open(msg, 'Close', { duration: 5000, horizontalPosition: 'right', verticalPosition: 'top' }); } });
     } else {
+      if (this.currentUserId) payload.created_by = this.currentUserId;
       const url = `${API_BASE}/add-categories`;
       this.http.post<any>(url, payload).subscribe({ next: (res) => {
         this.snack.open(res?.message || 'Category saved successfully', 'Close', { duration: 3000, horizontalPosition: 'right', verticalPosition: 'top' });

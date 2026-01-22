@@ -28,13 +28,10 @@
                         <mat-form-field appearance="outline" class="full-width" color="primary">
                            <mat-icon matPrefix>apartment</mat-icon>
                            <mat-label>Institute*</mat-label>
-                           <mat-select name="institute" [(ngModel)]="model.institute"
-                              [disabled]="!isSuperAdmin || readOnly" required>
-                              <mat-option value="">Select institute</mat-option>
-                              <mat-option *ngFor="let inst of institutes" [value]="inst.institute_id">
-                                 {{ inst.name }}
-                              </mat-option>
-                           </mat-select>
+                           <input matInput [formControl]="instituteCtrl" [matAutocomplete]="instAuto" placeholder="Pick an institute" [disabled]="!isSuperAdmin || readOnly" />
+                           <mat-autocomplete #instAuto="matAutocomplete" [displayWith]="displayInstitute.bind(this)" (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
+                              <mat-option *ngFor="let inst of (filteredInstitutes$ | async)" [value]="inst">{{ inst.name }}</mat-option>
+                           </mat-autocomplete>
                            <mat-hint align="start">Required</mat-hint>
                            <mat-error *ngIf="!model.institute">Institute is required.</mat-error>
                         </mat-form-field>
@@ -59,13 +56,10 @@
                         <mat-form-field appearance="outline" class="full-width" color="primary">
                            <mat-icon matPrefix>assignment</mat-icon>
                            <mat-label>Exam*</mat-label>
-                           <mat-select [(ngModel)]="model.exam_id" name="examId"
-                              (selectionChange)="onExamChange($event.value)" required>
-                              <mat-option value="">Select exam</mat-option>
-                              <mat-option *ngFor="let ex of examsList" [value]="ex.id">
-                                 {{ ex.title }}
-                              </mat-option>
-                           </mat-select>
+                           <input matInput [formControl]="examCtrl" [matAutocomplete]="examAuto" placeholder="Pick an exam" required />
+                           <mat-autocomplete #examAuto="matAutocomplete" [displayWith]="displayExam.bind(this)" (optionSelected)="onExamAutocompleteSelected($event.option.value)">
+                              <mat-option *ngFor="let ex of (filteredExams$ | async)" [value]="ex">{{ ex.title }}</mat-option>
+                           </mat-autocomplete>
                            <mat-hint align="start">Required</mat-hint>
                            <mat-error *ngIf="!model.exam_id">Exam is required.</mat-error>
                         </mat-form-field>

@@ -11,6 +11,21 @@ def get_categories_list(request):
     args = getattr(request, "args", {})
     if args.get("institute_id"):
         filter.append(Categories.institute_id == args.get("institute_id"))
+    if args.get("created_after"):
+        filter.append(Categories.created_date >= args.get("created_after"))
+    if args.get("created_before"):
+        filter.append(Categories.created_date <= args.get("created_before"))
+    if args.get("departments"):
+        departments = args.get("departments").split(",")
+        deaptments_data = session.query(CategoriesDepartments).filter(CategoriesDepartments.department_id.in_(departments)).all()
+        filter.append(Categories.category_id.in_([d.category_id for d in deaptments_data]))
+    if args.get("teams"):
+        teams = args.get("teams").split(",")
+        teams_data = session.query(CategoriesTeams).filter(CategoriesTeams.team_id.in_(teams)).all()
+        filter.append(Categories.category_id.in_([t.category_id for t in teams_data]))
+    if args.get("created_by") is not None:
+        filter.append(Categories.created_by == args.get("created_by"))
+
     categories = session.query(Categories).filter(*filter).all()
     categories_list =[]
     for category in categories:
@@ -75,20 +90,24 @@ def get_category_details(request):
         if category.category_id:
             department = session.query(CategoriesDepartments).filter_by(category_id=category.category_id).all()
             if department:
+                department_list = []
                 for dept in department:
                     # get department name from InstituteDepartment table
                     department_master = session.query(InstituteDepartment).filter_by(department_id=dept.department_id).first()
                     if department_master:
-                        department_details[dept.department_id] = department_master.name
+                        department_list.append({"department_id": dept.department_id, "department_name": department_master.name})
+                department_details = department_list
             # Fetch team_name based on team_id
             team_details = {}
             team = session.query(CategoriesTeams).filter_by(category_id=category.category_id).all()
             if team:
+                team_list = []
                 for t in team:
                     # get team name from InstituteTeam table
                     team_master = session.query(InstituteTeam).filter_by(team_id=t.team_id).first()
                     if team_master:
-                        team_details[t.team_id] = team_master.name
+                        team_list.append({"team_id": t.team_id, "team_name": team_master.name})
+                team_details = team_list
         # get created_by and updated_by names
         created_by_name = None
         updated_by_name = None
@@ -135,16 +154,20 @@ def add_categories(request):
     db = SQLiteDB()
     session = db.connect()
     category_data = request.get_json()
+    created_by = category_data.get("created_by", "")
+    created_date = datetime.utcnow()
     new_category = Categories(
         name=category_data.get("name"),
         description=category_data.get("description"),
         institute_id=category_data.get("institute_id"),
         type=category_data.get("type"),
-        answer_by=category_data.get("who_inputs"),
-        evaluation=category_data.get("evaluation"),
+        answer_by=category_data.get("who_inputs",""),
+        evaluation=category_data.get("evaluation",""),
         active_status= 1 if category_data.get("status") == 'true' else 0,
-        mark_each_question=category_data.get("mark_for_each_question"),
-        public_access= 1 if category_data.get("public_access") == True else 0
+        mark_each_question=category_data.get("mark_for_each_question",1),
+        public_access= 1 if category_data.get("public_access") == True else 0,
+        created_by=created_by,
+        created_date=created_date
     )
     session.add(new_category)
     session.commit()
@@ -154,13 +177,17 @@ def add_categories(request):
     for department_id in department_ids:
         category_department = CategoriesDepartments(
             category_id=category_id,
-            department_id=department_id
+            department_id=department_id,
+            created_by=created_by,
+            created_date=created_date
         )
         session.add(category_department)
     for team_id in team_ids:
         category_team = CategoriesTeams(
             category_id=category_id,
-            team_id=team_id
+            team_id=team_id,
+            created_by=created_by,
+            created_date=created_date
         )
         session.add(category_team)
     session.commit()
@@ -185,6 +212,8 @@ def update_category(category_id, request):
     category.type = data.get('type', category.type)
     category.answer_by = data.get('who_inputs', category.answer_by)
     category.evaluation = data.get('evaluation', category.evaluation)
+    category.updated_by = data.get('updated_by', category.updated_by)
+    category.updated_date = datetime.utcnow()
     # status mapping
     if 'status' in data:
         try:

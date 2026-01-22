@@ -26,6 +26,7 @@ import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule } from '@angular/cdk/portal';
+import { LoaderService } from 'src/app/shared/services/loader.service';
 
 @Component({
   selector: 'app-create-exam',
@@ -80,7 +81,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   editExamId: string | null = null;
   private filtersOverlayRef: OverlayRef | null = null;
 
-  constructor(private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef) {
+  constructor(private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private loader: LoaderService) {
     try {
       this._subs = this.auth.user$.subscribe((user: any) => {
         this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
@@ -185,6 +186,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
    * populate the form with its values so the user can edit and save.
    */
   loadEditExam() {
+    this.loader.show();
     try {
       const raw = sessionStorage.getItem('edit_exam');
       if (!raw) return;
@@ -210,6 +212,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         randomize_questions: typeof c.randomize_questions !== 'undefined' ? !!c.randomize_questions : false
       }));
     } catch (_) { /* ignore malformed edit payload */ }
+    finally { this.loader.hide(); }
   }
 
   setStartNow() {
@@ -253,6 +256,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   loadInstitutes() {
+    this.loader.show();
     const url = `${API_BASE}/get-institute-list`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -271,6 +275,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
             }
           }
         } catch (e) { /* ignore */ }
+        finally { this.loader.hide(); }
 
         // Fallback: try reading user's institute from sessionStorage
         try {
@@ -289,28 +294,21 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         } catch (e) { /* ignore malformed session data */ }
 
       }, error: () => { /* ignore - keep empty list */ }
+      , complete: () => { this.loader.hide(); }
     });
   }
 
   loadCategories() {
-    // default: load all categories; this method is also called with filters by onApply
+    this.loader.show();
     const url = `${API_BASE}/get-categories-list`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res?.data || []);
         this.categories = arr.map((c: any) => ({ category_id: c.category_id || c.id || c._id || '', name: c.name || c.category_name || c.title || '' }));
-        // emit full list initially
-        this.filteredCategories$ = of(this.categories || []);
-        try{
-          this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
-            startWith(''),
-            map((val:any) => {
-              const q = (typeof val === 'string' ? val : (val?.name || '')).toLowerCase();
-              return (this.categories || []).filter((c:any) => (c.name || '').toLowerCase().includes(q));
-            })
-          );
-        }catch(e){ this.filteredCategories$ = of(this.categories || []); }
+        // update autocomplete stream
+        this.updateFilteredCategoriesStream();
       }, error: (err) => { console.warn('Failed to load categories', err); this.categories = []; }
+      , complete: () => { this.loader.hide(); }
     });
   }
 
@@ -324,6 +322,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // load categories with filters (called by Apply)
   loadCategoriesWithFilters(filters: any = {}) {
+    this.loader.show();
+    const currentUser = this.getCurrentUserId();
     const base = `${API_BASE}/get-categories-list`;
     const params: string[] = [];
     if (filters.institute_id) params.push(`institute_id=${encodeURIComponent(filters.institute_id)}`);
@@ -331,15 +331,38 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (filters.teams && filters.teams.length) params.push(`teams=${encodeURIComponent(filters.teams.join(','))}`);
     if (filters.created_after) params.push(`created_after=${encodeURIComponent(filters.created_after)}`);
     if (filters.created_before) params.push(`created_before=${encodeURIComponent(filters.created_before)}`);
-    if (typeof filters.created_by_me !== 'undefined' && filters.created_by_me) params.push(`created_by_me=true`);
+    if (typeof filters.created_by !== 'undefined' && filters.created_by && currentUser) params.push(`created_by=${encodeURIComponent(String(currentUser))}`);
     if (typeof filters.public_access !== 'undefined' && filters.public_access !== null) params.push(`public_access=${encodeURIComponent(String(filters.public_access))}`);
     const url = params.length ? `${base}?${params.join('&')}` : base;
     this.http.get<any>(url).subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res?.data || []);
         this.categories = arr.map((c: any) => ({ category_id: c.category_id || c.id || c._id || '', name: c.name || c.category_name || c.title || '' }));
-      }, error: (err) => { console.warn('Failed to load categories with filters', err); this.categories = []; }
+        // ensure autocomplete reflects latest categories
+        this.updateFilteredCategoriesStream();
+      }, error: (err) => { console.warn('Failed to load categories with filters', err); this.categories = []; this.updateFilteredCategoriesStream(); }
+      , complete: () => { this.loader.hide(); }
     });
+  }
+
+  /**
+   * Ensure `filteredCategories$` observable is wired to `categoryCtrl.valueChanges`
+   * so the autocomplete updates when `this.categories` changes.
+   */
+  updateFilteredCategoriesStream() {
+    try {
+      const base = this.categories || [];
+      this.filteredCategories$ = of(base);
+      this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
+        startWith(''),
+        map((val: any) => {
+          const q = (typeof val === 'string' ? val : (val?.name || '')).toLowerCase();
+          return (this.categories || []).filter((c: any) => (c.name || '').toLowerCase().includes(q));
+        })
+      );
+    } catch (e) {
+      this.filteredCategories$ = of(this.categories || []);
+    }
   }
 
   onApply() {
@@ -348,7 +371,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.selectedTeams && this.selectedTeams.length) filters.teams = this.selectedTeams;
     if (this.filterCreationDateAfter) filters.created_after = (this.filterCreationDateAfter as Date).toISOString().slice(0, 10);
     if (this.filterCreationDate) filters.created_before = (this.filterCreationDate as Date).toISOString().slice(0, 10);
-    if (this.filterCreatedByMe) filters.created_by_me = true;
+    if (this.filterCreatedByMe) filters.created_by = true;
     if (this.filterPublicAccess !== null && typeof this.filterPublicAccess !== 'undefined') filters.public_access = this.filterPublicAccess;
     this.loadCategoriesWithFilters(filters);
   }
@@ -380,13 +403,15 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   loadDepartments(instId?: string) {
+    this.loader.show();
     if (!instId) { this.departments = []; return; }
     const url = `${API_BASE}/get-department-list`;
     this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res?.data || []);
         this.departments = arr.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name || d.dept_name || d.title || '' }));
-      }, error: (err) => { console.warn('Failed to load departments', err); this.departments = []; }
+      }, error: (err) => { console.warn('Failed to load departments', err); this.departments = []; },
+      complete: () => { this.loader.hide(); }
     });
   }
 
@@ -407,6 +432,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   loadQuestionsForCategory(catId: string) {
+    this.loader.show();
     this.questionsForCategory = [];
     this.selectedQuestionIds = [];
     this.selectAllQuestions = false;
@@ -416,7 +442,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res?.data || []);
         this.questionsForCategory = arr.map((q: any, i: number) => ({ id: q.id || q.question_id || q._id || String(i), question: q.question || q.text || q.title || '', raw: q }));
-      }, error: (err) => { console.warn('Failed to load questions for category', err); this.questionsForCategory = []; }
+      }, error: (err) => { console.warn('Failed to load questions for category', err); this.questionsForCategory = []; },
+      complete: () => { this.loader.hide(); }
     });
   }
 
@@ -453,11 +480,24 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     }, 0);
   }
 
+  /** Return current user id from session storage if available */
+  getCurrentUserId(): string | null {
+    try {
+      const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+      if (!raw) return null;
+      const u = JSON.parse(raw);
+      return (u && (u.user_id || u.id || u.userId || u._id)) ? String(u.user_id || u.id || u.userId || u._id) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   save() {
     // basic validation
     if (!this.title || !this.title.trim()) { notify('Title is required', 'error'); return; }
     if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) { notify('Duration is required', 'error'); return; }
 
+    const currentUser = this.getCurrentUserId();
     const payload: any = {
       title: String(this.title).trim(),
       description: this.description || null,
@@ -470,9 +510,16 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       total_questions: this.totalQuestions
     };
 
+    // attach audit fields when available
+    if (currentUser) {
+      if (this.editMode && this.editExamId) payload.updated_by = currentUser;
+      else payload.created_by = currentUser;
+    }
+
     // If editing an existing exam, call update endpoint
     if (this.editMode && this.editExamId) {
       payload.exam_id = this.editExamId;
+      this.loader.show();
       const url = `${API_BASE}/update-exam`;
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
@@ -482,12 +529,13 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         }, error: (err) => {
           console.error('Failed to update exam', err);
           try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to update exam', 'error'); } catch(e){}
-        }
+        }, complete: () => { this.loader.hide(); }
       });
       return;
     }
 
     const url = `${API_BASE}/register-exam`;
+    this.loader.show();
     this.http.post<any>(url, payload).subscribe({
       next: (res) => {
         try { const msg = res?.statusMessage || res?.message || 'Exam created'; const ok = typeof res?.status === 'undefined' ? true : !!res.status; notify(msg, ok ? 'success' : 'error'); } catch(e){}
@@ -496,11 +544,12 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       }, error: (err) => {
         console.error('Failed to create exam', err);
         try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to create exam', 'error'); } catch(e){}
-      }
+      }, complete: () => { this.loader.hide(); }
     });
   }
 
   reset() {
+    this.loader.show();
     this.title = '';
     this.description = '';
     this.institute = '';
@@ -509,6 +558,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.startDateTime = '';
     // if not in edit mode, clear any leftover edit payload
     try { if (!this.editMode) sessionStorage.removeItem('edit_exam'); } catch (e) { }
+    this.loader.hide();
   }
 
   cancel() {
