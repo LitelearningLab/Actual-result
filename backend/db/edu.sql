@@ -267,7 +267,6 @@
 --     FOREIGN KEY (city_id) REFERENCES Cities(city_id)
 -- );
 
-
 -- -- Table: Credentials
 -- CREATE TABLE Credentials (
 --     id TEXT PRIMARY KEY, -- UUID
@@ -520,14 +519,53 @@
 --      FOREIGN KEY (selected_option_id) REFERENCES options(option_id)
 -- );
 
+-- Table for exam review comments
+-- DROP TABLE ExamReviewComments;
+-- CREATE TABLE ExamReviewComments (
+--     comment_id TEXT PRIMARY KEY,
+--     attempt_id TEXT NOT NULL,
+--     question_id TEXT NOT NULL,
+--     reviewer_id TEXT,
+--     category TEXT,
+--     comment_text TEXT,
+--     action TEXT,
+--     is_deleted INTEGER DEFAULT 0,
+--     created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+--     updated_date DATETIME,
+--     updated_by TEXT,
+
+--     FOREIGN KEY (attempt_id) REFERENCES exam_attempts(attempt_id),
+--     FOREIGN KEY (question_id) REFERENCES questions(question_id),
+--     FOREIGN KEY (reviewer_id) REFERENCES users(user_id)
+-- );
+
+-- ExamReviewComments history table
+-- DROP TABLE ExamReviewCommentsHistory;
+-- CREATE TABLE ExamReviewCommentsHistory (
+--     history_id TEXT PRIMARY KEY,
+--     comment_id TEXT NOT NULL,
+--     attempt_id TEXT,
+--     question_id TEXT,
+--     category TEXT,
+--     comment_text TEXT,
+--     action TEXT,
+--     is_deleted INTEGER DEFAULT 0,
+--     created_by TEXT,
+--     created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+--     updated_by TEXT,
+--     updated_date DATETIME
+-- );
 
 -- SQLite view all tables list and details
 SELECT * FROM sqlite_master WHERE type='table';
 
 SELECT * from Institutes;
+-- update Institutes set is_deleted = 0 where is_deleted = 1;
 SELECT * FROM Users;
-SELECT * FROM Credentials;
-SELECT * FROM App_Session;
+UPDATE Users SET is_deleted = 1 WHERE user_id = '4d8c66ef-fbfa-4975-8f39-819afbc01085'';
+DELETE FROM Users WHERE user_id = '4d8c66ef-fbfa-4975-8f39-819afbc01085';
+SELECT * FROM Credentials where user_id = '4d8c66ef-fbfa-4975-8f39-819afbc01085'; 
+SELECT * FROM App_Session where user_id = '4d8c66ef-fbfa-4975-8f39-819afbc01085';
 SELECT * FROM Pages;
 SELECT * FROM UserPageAccess;
 
@@ -550,6 +588,9 @@ SELECT * FROM States;
 SELECT * FROM Cities;
 SELECT * FROM Countries;
 
+SELECT * FROM CategoriesDepartments where id = 'db1d811f-d28a-41cd-9062-aab1daadba8b';
+SELECT * FROM CategoriesTeams where id = 'bc604c54-8c53-4faf-a269-781195f227f5';
+
 -- Categories
 SELECT * FROM Categories;
 
@@ -558,20 +599,33 @@ SELECT * FROM Categories;
 select * from Exams;
 SELECT * FROM ExamMapping;
 SELECT * FROM Questions ;
--- ALTER TABLE Questions RENAME COLUMN test_id TO exam_id;
+SELECT * from QuestionMapping  where question_id = '4ad65417-497a-4c2f-a207-cdcc0945ce7b' and created_date >= date('2026-01-01');
+-- update QuestionMapping set category_id = '958fd490-3f23-47c2-8b54-aea5b6da2b4e' where created_date >= date('2026-01-01');
+SELECT * FROM Options WHERE question_id = '4ad65417-497a-4c2f-a207-cdcc0945ce7b';
+-- delete questions and related data
+SELECT * FROM exam_question_mapping WHERE question_id = '4ad65417-497a-4c2f-a207-cdcc0945ce7b';
+-- DELETE FROM exam_question_mapping WHERE question_id in ('b6a71aeb-ea7b-4909-bd31-574701b21861','893ae873-5599-4053-b17a-0465339c636e','d37012e0-bcc3-4f0d-9487-b2f0f80f956e','5d0ae47c-96d1-459b-b780-851f36e1fd7d','1b84938d-cf7d-4c9f-a44b-ec4b235261ed');
+-- DELETE FROM Options WHERE question_id in ('b6a71aeb-ea7b-4909-bd31-574701b21861','893ae873-5599-4053-b17a-0465339c636e','d37012e0-bcc3-4f0d-9487-b2f0f80f956e','5d0ae47c-96d1-459b-b780-851f36e1fd7d','1b84938d-cf7d-4c9f-a44b-ec4b235261ed');
+-- DELETE FROM QuestionMapping WHERE question_id in ('b6a71aeb-ea7b-4909-bd31-574701b21861','893ae873-5599-4053-b17a-0465339c636e','d37012e0-bcc3-4f0d-9487-b2f0f80f956e','5d0ae47c-96d1-459b-b780-851f36e1fd7d','1b84938d-cf7d-4c9f-a44b-ec4b235261ed');
+-- DELETE FROM Questions WHERE question_id in ('b6a71aeb-ea7b-4909-bd31-574701b21861','893ae873-5599-4053-b17a-0465339c636e','d37012e0-bcc3-4f0d-9487-b2f0f80f956e','5d0ae47c-96d1-459b-b780-851f36e1fd7d','1b84938d-cf7d-4c9f-a44b-ec4b235261ed');
 
 SELECT * FROM  ExamSchedules;
 -- DELETE FROM ExamSchedules where schedule_id='5b8ee942-7de1-44cc-bdee-88f301440044'
 
 select * from Exam_Attempts WHERE attempt_id = '5b8ee942-7de1-44cc-bdee-88f301440044' ;
--- DELETE FROM exam_attempts WHERE attempt_id = 'c9ab1eb0-b933-4775-9258-2c078dd90ccf' ;
+-- DELETE FROM exam_attempts WHERE attempt_id = '1932b45d-ecb0-4118-9493-45708341b489' ;
 
-SELECT * from Answers WHERE attempt_id = 'c9ab1eb0-b933-4775-9258-2c078dd90ccf' and question_id = '5a717d8d-40c1-4808-921f-3aea00c9343a' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
--- DELETE FROM Answers WHERE attempt_id = 'c9ab1eb0-b933-4775-9258-2c078dd90ccf' and question_id = '5a717d8d-40c1-4808-921f-3aea00c9343a' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
+SELECT * from Answers WHERE attempt_id = 'ccf4e079-228e-4f78-a6b5-dde490ad7161' and 
+SELECT * from Answers WHERE question_id = '06c819ac-21c5-4321-a96e-c644d84be22f' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
+-- ALTER TABLE Answers ADD COLUMN ai_marks INTEGER;
+-- ALTER TABLE Answers ADD COLUMN ai_confidence INTEGER ;
+-- ALTER TABLE Answers ADD COLUMN manual_review_required INTEGER DEFAULT 0;
+-- ALTER TABLE Answers ADD COLUMN manual_marks INTEGER;
+-- DELETE FROM Answers WHERE attempt_id = '1932b45d-ecb0-4118-9493-45708341b489' and question_id = '5a717d8d-40c1-4808-921f-3aea00c9343a' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
 -- update Answers set is_validated = 0 where attempt_id = 'fa188ab2-23df-4c13-8f0f-77b3f15811e1' and question_id = '5a717d8d-40c1-4808-921f-3aea00c9343a' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
-SELECT * FROM Options WHERE question_id = '52d36163-785f-48d8-9e92-5ea15fe286e3';
+-- DELETE from Answers WHERE attempt_id not in (SELECT attempt_id from exam_attempts );
 
-
+SELECT * from ExamReviewComments
 -- report of exam attempts and answers
 SELECT ea.attempt_id, ea.user_id, ea.schedule_id, ea.attempt_number, ea.started_date, ea.submitted_date, ea.status, ea.score, ea.percentage,
 	  q.question_id, q.question_text, q.question_type,
@@ -582,6 +636,8 @@ JOIN Questions q ON an.question_id = q.question_id
 WHERE ea.schedule_id = 'cdb1341a-bd79-4295-8944-40e1533ae394'
   AND ea.user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
 
+SELECT * from ExamReviewComments 
+SELECT * from ExamReviewCommentsHistory
 
 
 -- delete from Exam_Attempts;

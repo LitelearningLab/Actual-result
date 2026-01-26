@@ -542,6 +542,42 @@ export class AdminQuestionsComponent {
     return false;
   }
 
+  // Call backend fine-tune endpoint to improve question/answer pair
+  generateModelAnswer(qIndex:number, qText:string, answerText:string, finetuneInstructions?:string){
+    try{
+      const payload: any = {
+        question_text: qText || '',
+        answer_text: answerText || ''
+      };
+      if (finetuneInstructions) payload.finetune_instructions = finetuneInstructions;
+      // include question id if available so backend can map
+      try{ const q = this.questions && this.questions[qIndex]; if (q && (q.id || q.question_id)) payload.question_id = q.id || q.question_id; }catch(e){}
+
+      const url = `${API_BASE}/fine-tune-question`;
+      this.http.post<any>(url, payload).subscribe({
+        next: (res) => {
+          try{
+            if (res && (res.status === true || typeof res.status === 'undefined')){
+              const data = res.data || res;
+              // Replace question text and answer for the target block if present in response
+              if (data && (data.question_text || data.answer_text)){
+                const target = this.questions && this.questions[qIndex];
+                if (target){
+                  if (data.question_text) target.text = data.question_text;
+                  if (data.answer_text) target.answerText = data.answer_text;
+                }
+                try{ notify('Fine-tuned question applied', 'success'); }catch(e){}
+                return;
+              }
+            }
+            notify(res?.statusMessage || res?.message || 'Fine-tune did not return improved content', 'error');
+          }catch(e){ console.error('Failed to process fine-tune response', e); try{ notify('Failed to apply fine-tune', 'error'); }catch(_){} }
+        },
+        error: (err) => { console.error('Fine-tune request failed', err); try{ notify(err?.error?.message || 'Fine-tune failed', 'error'); }catch(e){} }
+      });
+    }catch(e){ console.error('generateModelAnswer failed', e); try{ notify('Fine-tune request failed', 'error'); }catch(_){} }
+  }
+
   submit(){
     if (this.mode === 'bulk'){
       // use selected file and submit via FormData

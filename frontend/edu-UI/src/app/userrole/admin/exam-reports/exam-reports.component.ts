@@ -3,6 +3,7 @@ import { FormControl } from '@angular/forms';
 import { Observable, of, Subscription } from 'rxjs';
 import { startWith, map } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
+import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { API_BASE } from 'src/app/shared/api.config';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
@@ -45,7 +46,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   totalMarks: string | number | null = null;
   pageSize = 25;
   currentPage = 1;
-  searchQuery = '';
+  searchQuery = ''; 
+  commentEdit = false;
+  updatedBy = '';
   
   // placeholders for template bindings
   examCtrl = new FormControl('');
@@ -101,7 +104,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   private _subs: Subscription | null = null;
   resetFilters: any = {};
 
-  constructor(private http: HttpClient, private loading: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private _snack: MatSnackBar) {}
+  constructor(
+    private http: HttpClient,
+    private loading: LoaderService,
+    private overlay: Overlay,
+    private vcr: ViewContainerRef,
+    private pageMeta: PageMetaService,
+    private _snack: MatSnackBar,
+    private confirm: ConfirmService
+  ) {}
 
   private _pendingCategoryFilter: string | null = null;
 
@@ -140,6 +151,20 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Return review comments for a question filtered by one or more categories.
+  // `categories` can be a string or an array of strings. Comparison is case-insensitive.
+  reviewComments(q: any, categories: string | string[]): any[] {
+    try {
+      const comments = (q && q.review_comment && Array.isArray(q.review_comment.comments)) ? q.review_comment.comments : [];
+      if (!comments || !comments.length) return [];
+      const cats = Array.isArray(categories) ? categories.map(String) : [String(categories)];
+      const normalized = cats.map(c => (c || '').toString().toLowerCase());
+      return (comments || []).filter((c: any) => normalized.includes(((c && c.category) || '').toString().toLowerCase()));
+    } catch (e) {
+      return [];
+    }
+  }
+
   // Open user review by calling backend API /review-user-exam
   openUserReview(row: any){
     if(!row) return;
@@ -168,6 +193,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   private fetchUserReview(params: any){
     this.userReviewLoading = true;
+    this.loading.show();
     this.http.get<any>(`${API_BASE}/review-user-exam`, { params }).subscribe({
       next: (res)=>{
         try{
@@ -219,6 +245,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           console.warn('Failed to parse review-user-exam response', e);
           this.userReviewAttempts = [];
         }
+        this.loading.hide();
         this.userReviewLoading = false;
         if(!this.userReviewAttempts || !this.userReviewAttempts.length){
           this._snack.open('No review data available for this user.', 'Close', { duration: 4000 });
@@ -242,6 +269,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this._snack.open(msg, 'Close', { duration: 5000 });
         }
         this.showUserReviewPanel = false;
+        this.loading.hide();
       }
     });
   }
@@ -250,6 +278,77 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.showUserReviewPanel = false; 
     this.userReviewAttempts = []; 
     this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null; this.totalMarks = null;
+  }
+
+  // Begin review comment editing helpers
+  startEditComment(rc: any){
+    if(!rc) return;
+    // mark this comment as being edited and store original text
+    rc._editing = true;
+    rc._editedText = rc.comment_text || rc.comment || '';
+    this.commentEdit = true;
+  }
+
+  cancelEditComment(rc: any){
+    if(!rc) return;
+    rc._editing = false;
+    rc._editedText = undefined;
+    // if no other comment is being edited, clear global flag
+    this.commentEdit = !!this.userReviewAttempts?.some((att:any) => (att.review || []).some((q:any) => (q.review_comment?.comments || []).some((c:any)=>c._editing)));
+  }
+
+  saveReviewComment(rc: any){
+    if(!rc) return;
+    const newText = (rc._editedText || '').toString().trim();
+    if(newText.length === 0){ this._snack.open('Comment cannot be empty', 'Close', { duration: 3000 }); return; }
+    this.updateReviewComment('edit', rc, newText);
+  }
+
+  confirmDeleteComment(rc: any){
+    if(!rc) return;
+    this.confirm.confirm({ title: 'Delete comment', message: 'Are you sure you want to delete this review comment?' }).subscribe(confirmed => {
+      if(confirmed) this.updateReviewComment('delete', rc, rc._editedText || rc.comment_text || rc.comment || '');
+    });
+  }
+
+  private updateReviewComment(action: 'edit' | 'delete', rc: any, text: string){
+    if(!rc) return;
+    const commentId = rc.comment_id || rc.id || rc._id || rc.commentId || rc.cid || null;
+    if(!commentId) { this._snack.open('Comment id not found', 'Close', { duration: 3000 }); return; }
+    const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+    // history_id required for delete action
+    const historyId = rc.history_id || rc.hid || rc._hid || null;
+    if (raw) {
+      const u = JSON.parse(raw);
+      this.updatedBy = u.user_id || u.id || u.userId || u._id || '';
+    }
+    const payload: any = { comment_id: String(commentId), history_id: String(historyId),  text: text || '', updated_by: this.updatedBy };
+    this.loading.show();
+    this.http.post<any>(`${API_BASE}/update-review-comments/${action}`, payload).subscribe({
+      next: (res)=>{
+        this.loading.hide();
+        // apply changes locally
+        if(action === 'edit'){
+          rc.comment_text = text;
+          rc.updated_by = this.updatedBy;
+          rc._editing = false;
+          rc._editedText = undefined;
+          this._snack.open('Comment updated', 'Close', { duration: 3000 });
+        } else if(action === 'delete'){
+          rc.is_deleted = 1;
+          rc.updated_by = this.updatedBy;
+          this._snack.open('Comment deleted', 'Close', { duration: 3000 });
+        }
+        // clear global edit flag if no edits remain
+        this.commentEdit = !!this.userReviewAttempts?.some((att:any) => (att.review || []).some((q:any) => (q.review_comment?.comments || []).some((c:any)=>c._editing)));
+      },
+      error: (err)=>{
+        this.loading.hide();
+        console.error('Failed to update review comment', err);
+        const msg = (err && err.error && err.error.statusMessage) ? err.error.statusMessage : (err && err.message) ? err.message : 'Failed to update comment.';
+        this._snack.open(msg, 'Close', { duration: 5000 });
+      }
+    });
   }
 
   onApply(payload: any) {
@@ -263,6 +362,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.categoryAnalytics = [];
     this.questionSummary = [];
     this.wrongDistribution = [];
+  }
+
+  // Reset filters to empty and reload scheduled exams, then close overlay.
+  resetFiltersAndReload() {
+    this.resetFilters = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '' };
+    try { this.loadScheduledExam(); } catch (e) {}
+    try { this.closeFiltersOverlay(); } catch (e) {}
   }
 
   displayExam(exam: any) { return exam ? (exam.title || exam.name || '') : ''; }

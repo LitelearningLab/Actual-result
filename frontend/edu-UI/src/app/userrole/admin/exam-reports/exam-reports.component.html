@@ -34,7 +34,7 @@
                     <button mat-stroked-button color="primary" type="button" (click)="loadAnalytics()" class="button-one">
                          <mat-icon svgIcon="refresh"></mat-icon>Refresh</button>
                     <button #filtersBtn mat-flat-button type="button" class="button-one"
-                         (click)="openFiltersOverlay(); $event.stopPropagation()">
+                              (click)="$event.stopPropagation(); openFiltersOverlay()">
                          <mat-icon svgIcon="filter"></mat-icon>
                          <span>Filters</span>
                     </button>
@@ -126,7 +126,7 @@
                                         Apply
                                    </button>
                                    <button mat-button type="button"
-                                        (click)="resetFilters = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '' }; loadScheduledExam(); closeFiltersOverlay();">
+                                        (click)="resetFiltersAndReload()">
                                         <mat-icon svgIcon="reset_settings"></mat-icon>
                                         Reset
                                    </button>
@@ -145,9 +145,9 @@
                     <mat-tab label="User Report">
                          <div class="tab-actions">
                               <div class="search">
-                                   <mat-form-field appearance="outline" class="search-field">
+                                   <mat-form-field appearance="outline" class="search-field"><mat-icon matPrefix>search</mat-icon>
                                         <mat-label>Search student</mat-label>
-                                        <input matInput [(ngModel)]="searchQuery" placeholder="Name or ID" />
+                                        <input matInput [(ngModel)]="searchQuery" placeholder="Student Name " />
                                    </mat-form-field>
                               </div>
                               <div class="controls">
@@ -224,7 +224,7 @@
                                                                                                <div class="score-label">Student Score</div>
                                                                                                <div class="score-value">{{ q.marks_awarded != null ? (q.marks_awarded + ' / ' + (q.question_marks || q.marks || '-')) : '-' }}</div>
                                                                                           </div>
-                                                                                     </div> -->
+                                                                                     </div>
 
 
                                                                                      <div class="q-feedback" *ngIf="q.feedback">
@@ -233,69 +233,166 @@
                                                                                      </div>
 
                                                                                      <!-- Review Comments summary: split into three columns -->
-                                                                                     <div class="q-review-comments" *ngIf="q.review_comment && q.review_comment.comments && q.review_comment.comments.length">
-                                                                                          <div class="review-columns">
-                                                                                               <div class="col missed">
-                                                                                                    <div class="col-header"><span class="dot red"></span><h4>Points Missed</h4></div>
-                                                                                                    <div *ngFor="let rc of (q.review_comment.comments || [])">
-                                                                                                         <div class="review-item" *ngIf="rc.category === 'missing'">
-                                                                                                              
-                                                                                                              <div class="ri-body">
-                                                                                                                   <div class="review-text-missed" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon missed">✖</span></div>{{ rc.comment_text || rc.comment || '' }}</div>
-                                                                                                                   <div class="review-meta small-muted">
-                                                                                                                         <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.created_by || rc.reviewer_id || 'System' }}</span>
-                                                                                                                         <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.created_by }}</span>
-                                                                                                                         <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'System' }} {{ formatDate(rc.updated_date || rc.created_date) }}</span>
-                                                                                                                   </div>
-                                                                                                                   <div class="review-actions">
-                                                                                                                        <a class="edit-link" href="javascript:void(0)"><mat-icon>edit</mat-icon> Edit</a>
-                                                                                                                        <a class="delete-link" href="javascript:void(0)"><mat-icon>delete</mat-icon> Delete</a>
-                                                                                                                   </div>
-                                                                                                              </div>
+                                                                                      <div class="q-review-comments" *ngIf="q.review_comment && q.review_comment.comments && q.review_comment.comments.length">
+                                                                                            <div class="review-columns">
+                                                                                                  <div class="col missed">
+                                                                                                         <div class="col-header"><span class="dot red"></span><h4>Points Missed</h4></div>
+                                                                                                          <div *ngFor="let rc of reviewComments(q, 'missing'); let rci = index">
+                                                                                                               <div class="review-item">
+                                                                                                                     <div class="ri-body">
+                                                                                                                                  <div *ngIf="rc.history && rc.history.length" class="review-text-history">
+                                                                                                                                       <div *ngFor="let h of rc.history; let hi = index">
+                                                                                                                                                                               <div class="history-entry" [class.deleted]="h.is_deleted == 1">
+                                                                                                                                                 <div *ngIf="!h._editing" class="review-text-missed" [class.deleted]="rc.is_deleted == 1">
+                                                                                                                                                           <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                                                                                                                 <span class="review-text" [class.deleted]="h.is_deleted == 1 || h.updated_by">{{ h.comment_text || h.comment || '' }}</span>
+                                                                                                                                                 </div>
+                                                                                                                                                 <div *ngIf="h._editing" class="review-text-missed editing">
+                                                                                                                                                           <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                                                                                                                                                           <textarea [(ngModel)]="h._editedText" class="edit-comment-text" rows="2"></textarea>
+                                                                                                                                                 </div>
+                                                                                                                                                 <div class="review-meta small-muted">
+                                                                                                                                                           <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted by {{ h.updated_by || h.created_by || h.reviewer_id || 'System' }}</span>
+                                                                                                                                                           <span *ngIf="h.is_deleted != 1 && (h.updated_by || h.edited_by)">Edited by {{ h.updated_by || h.created_by }} On {{ h.updated_date }} </span>
+                                                                                                                                                 </div>
+                                                                                                                                                 <div class="review-actions" *ngIf="!h.updated_by">
+                                                                                                                                                      <a class="edit-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); startEditComment(h)"><mat-icon>edit</mat-icon> Edit</a>
+                                                                                                                                                      <a class="delete-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); confirmDeleteComment(h)"><mat-icon>delete</mat-icon> Delete</a>
+                                                                                                                                                      <a class="save-link" href="javascript:void(0)" *ngIf="h._editing" (click)="$event.stopPropagation(); saveReviewComment(h)"><mat-icon>save</mat-icon> Save</a>
+                                                                                                                                                      <a class="cancel-link" href="javascript:void(0)" *ngIf="h._editing" (click)="$event.stopPropagation(); cancelEditComment(h)"><mat-icon>close</mat-icon> Cancel</a>
+                                                                                                                                                 </div>
+
+                                                                                                                                            </div>
+                                                                                                                                       </div>
+                                                                                                                                  </div>
+                                                                                                                                 <div *ngIf="!rc._editing" class="review-text-missed" [class.deleted]="rc.is_deleted == 1">
+                                                                                                                                           <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                                                                                                                                           <span class="review-text" [class.deleted]="rc.is_deleted == 1 || rc.updated_by">{{ rc.comment_text || rc.comment || '' }}</span>
+                                                                                                                                 </div>
+                                                                                                                               <div *ngIf="rc._editing" class="review-text-missed editing">
+                                                                                                                                       <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                                                                                                                                       <textarea [(ngModel)]="rc._editedText" class="edit-comment-text" rows="2"></textarea>
+                                                                                                                               </div>
+                                                                                                                           <div class="review-meta small-muted">
+                                                                                                                                  <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.created_by || rc.reviewer_id || 'System' }}</span>
+                                                                                                                                  <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.created_by }} On {{ rc.updated_date }} </span>
+                                                                                                                           </div>
+                                                                                                                           <div class="review-actions" *ngIf="!rc.updated_by">
+                                                                                                                                  <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
+                                                                                                                                  <a class="delete-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); confirmDeleteComment(rc)"><mat-icon>delete</mat-icon> Delete</a>
+                                                                                                                                  <a class="save-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); saveReviewComment(rc)"><mat-icon>save</mat-icon> Save</a>
+                                                                                                                                  <a class="cancel-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); cancelEditComment(rc)"><mat-icon>close</mat-icon> Cancel</a>
+                                                                                                                           </div>
+                                                                                                                     </div>
+                                                                                                               </div>
                                                                                                          </div>
-                                                                                                    </div>
-                                                                                               </div>
-                                                                                               <div class="col incorrect">
-                                                                                                    <div class="col-header"><span class="dot orange"></span><h4>Points Incorrect</h4></div>
-                                                                                                    <div *ngFor="let rc of (q.review_comment.comments || [])">
-                                                                                                         <div class="review-item" *ngIf="rc.category === 'incorrct' || rc.category === 'incorrect' || rc.category === 'incor'">
-                                                                                                              
-                                                                                                              <div class="ri-body">
-                                                                                                                   <div class="review-text-incorrect" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon incorrect">⚠</span></div>{{ rc.comment_text || rc.comment || '' }}</div>     
-                                                                                                                   <div class="review-meta small-muted">
-                                                                                                                         <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
-                                                                                                                         <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
-                                                                                                                         <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'Instructor' }} {{ formatDate(rc.created_date || rc.commented_at || rc.commented_date) }}</span>
-                                                                                                                   </div>
-                                                                                                                   <div class="review-actions">
-                                                                                                                        <a class="edit-link" href="javascript:void(0)"><mat-icon>edit</mat-icon> Edit</a>
-                                                                                                                        <a class="delete-link" href="javascript:void(0)"><mat-icon>delete</mat-icon> Delete</a>
-                                                                                                                   </div>
-                                                                                                              </div>
+                                                                                                  </div>
+                                                                                                  <div class="col incorrect">
+                                                                                                         <div class="col-header"><span class="dot orange"></span><h4>Points Incorrect</h4></div>
+                                                                                                          <div *ngFor="let rc of reviewComments(q, ['incorrct','incorrect','incor']); let rci = index">
+                                                                                                               <div class="review-item">
+                                                                                                                     <div class="ri-body">
+                                                                                                                                  <div *ngIf="rc.history && rc.history.length" class="review-text-history">
+                                                                                                                                       <div *ngFor="let h of rc.history; let hi = index">
+                                                                                                                                            <div class="history-entry" [class.deleted]="h.is_deleted == 1">
+                                                                                                                                                 <div *ngIf="!h._editing" class="review-text-missed" [class.deleted]="h.is_deleted == 1">
+                                                                                                                                                           <div class="ri-left"><span class="ri-icon missed">{{ hi + 1 }}</span></div>
+                                                                                                                                                           <span class="review-text" [class.deleted]="h.is_deleted == 1 || h.updated_by">{{ h.comment_text || h.comment || '' }}</span>
+                                                                                                                                                 </div>
+                                                                                                                                                 <div *ngIf="h._editing" class="review-text-missed editing">
+                                                                                                                                                           <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                                                                                                                                                           <textarea [(ngModel)]="h._editedText" class="edit-comment-text" rows="2"></textarea>
+                                                                                                                                                 </div>
+                                                                                                                                                 <div class="review-meta small-muted">
+                                                                                                                                                           <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted by {{ h.updated_by || h.created_by || h.reviewer_id || 'System' }}</span>
+                                                                                                                                                           <span *ngIf="h.is_deleted != 1 && (h.updated_by || h.edited_by)">Edited by {{ h.updated_by || h.created_by }} On {{ h.updated_date }} </span>
+                                                                                                                                                 </div>
+                                                                                                                                                 <div class="review-actions" *ngIf="!h.updated_by">
+                                                                                                                                                      <a class="edit-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); startEditComment(h)"><mat-icon>edit</mat-icon> Edit</a>
+                                                                                                                                                      <a class="delete-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); confirmDeleteComment(h)"><mat-icon>delete</mat-icon> Delete</a>
+                                                                                                                                                      <a class="save-link" href="javascript:void(0)" *ngIf="h._editing" (click)="$event.stopPropagation(); saveReviewComment(h)"><mat-icon>save</mat-icon> Save</a>
+                                                                                                                                                      <a class="cancel-link" href="javascript:void(0)" *ngIf="h._editing" (click)="$event.stopPropagation(); cancelEditComment(h)"><mat-icon>close</mat-icon> Cancel</a>
+                                                                                                                                                 </div>
+
+                                                                                                                                            </div>
+                                                                                                                                       </div>
+                                                                                                                                  </div>
+                                                                                                                        <div *ngIf="!rc._editing" class="review-text-incorrect" [class.deleted]="rc.is_deleted == 1">
+                                                                                                                             <div class="ri-left"><span class="ri-icon incorrect">{{ rci + 1 }}</span></div>
+                                                                                                                             <span class="review-text" [class.deleted]="rc.is_deleted == 1 || rc.updated_by">{{ rc.comment_text || rc.comment || '' }}</span>
+                                                                                                                        </div>
+                                                                                                                           <div *ngIf="rc._editing" class="review-text-incorrect editing">
+                                                                                                                                <div class="ri-left"><span class="ri-icon incorrect">{{ rci + 1 }}</span></div>
+                                                                                                                                <textarea [(ngModel)]="rc._editedText" class="edit-comment-text" rows="2"></textarea>
+                                                                                                                           </div>
+                                                                                                                           <div class="review-meta small-muted">
+                                                                                                                                   <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
+                                                                                                                                   <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
+                                                                                                                           </div>
+                                                                                                                           <div class="review-actions" *ngIf="!rc.updated_by">
+                                                                                                                                <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
+                                                                                                                                <a class="delete-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); confirmDeleteComment(rc)"><mat-icon>delete</mat-icon> Delete</a>
+                                                                                                                                <a class="save-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); saveReviewComment(rc)"><mat-icon>save</mat-icon> Save</a>
+                                                                                                                                <a class="cancel-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); cancelEditComment(rc)"><mat-icon>close</mat-icon> Cancel</a>
+                                                                                                                           </div>
+                                                                                                                     </div>
+                                                                                                               </div>
                                                                                                          </div>
-                                                                                                    </div>
-                                                                                               </div>
-                                                                                               <div class="col incomplete">
-                                                                                                    <div class="col-header"><span class="dot yellow"></span><h4>Points Incomplete</h4></div>
-                                                                                                    <div *ngFor="let rc of (q.review_comment.comments || [])">
-                                                                                                         <div class="review-item" *ngIf="rc.category === 'incomplete'">
-                                                                                                              <div class="ri-body">
-                                                                                                                   <div class="review-text-incomplete" [class.deleted]="rc.is_deleted == 1"><div class="ri-left"><span class="ri-icon incomplete">⏱</span></div>{{ rc.comment_text || rc.comment || '' }}</div>
-                                                                                                                   <div class="review-meta small-muted">
-                                                                                                                         <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
-                                                                                                                         <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
-                                                                                                                         <span *ngIf="!(rc.is_deleted == 1) && !(rc.updated_by || rc.edited_by)">By {{ rc.reviewer_id || rc.commented_by || 'Instructor' }} {{ formatDate(rc.created_date || rc.commented_at || rc.commented_date) }}</span>
-                                                                                                                   </div>
-                                                                                                                   <div class="review-actions">
-                                                                                                                        <a class="edit-link" href="javascript:void(0)"><mat-icon>edit</mat-icon> Edit</a>
-                                                                                                                        <a class="delete-link" href="javascript:void(0)"><mat-icon>delete</mat-icon> Delete</a>
-                                                                                                                   </div>
-                                                                                                              </div>
+                                                                                                  </div>
+                                                                                                  <div class="col incomplete">
+                                                                                                         <div class="col-header"><span class="dot yellow"></span><h4>Points Incomplete</h4></div>
+                                                                                                          <div *ngFor="let rc of reviewComments(q, 'incomplete'); let rci = index">
+                                                                                                               <div class="review-item">
+                                                                                                                     <div class="ri-body">
+                                                                                                                                  <div *ngIf="rc.history && rc.history.length" class="review-text-history">
+                                                                                                                                       <div *ngFor="let h of rc.history; let hi = index">
+                                                                                                                                            <div class="history-entry" [class.deleted]="h.is_deleted == 1">
+                                                                                                                                                 <div *ngIf="!h._editing" class="review-text-missed" [class.deleted]="h.is_deleted == 1">
+                                                                                                                                                           <div class="ri-left"><span class="ri-icon missed">{{ hi + 1 }}</span></div>
+                                                                                                                                                           <span class="review-text" [class.deleted]="h.is_deleted == 1 || h.updated_by">{{ h.comment_text || h.comment || '' }}</span>
+                                                                                                                                                 </div>
+                                                                                                                                                 <div *ngIf="h._editing" class="review-text-missed editing">
+                                                                                                                                                           <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                                                                                                                                                           <textarea [(ngModel)]="h._editedText" class="edit-comment-text" rows="2"></textarea>
+                                                                                                                                                 </div>
+                                                                                                                                                 <div class="review-meta small-muted">
+                                                                                                                                                           <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted by {{ h.updated_by || h.created_by || h.reviewer_id || 'System' }}</span>
+                                                                                                                                                           <span *ngIf="h.is_deleted != 1 && (h.updated_by || h.edited_by)">Edited by {{ h.updated_by || h.created_by }} On {{ h.updated_date }} </span>
+                                                                                                                                                 </div>
+                                                                                                                                                 <div class="review-actions" *ngIf="!h.updated_by">
+                                                                                                                                                      <a class="edit-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); startEditComment(h)"><mat-icon>edit</mat-icon> Edit</a>
+                                                                                                                                                      <a class="delete-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); confirmDeleteComment(h)"><mat-icon>delete</mat-icon> Delete</a>
+                                                                                                                                                      <a class="save-link" href="javascript:void(0)" *ngIf="h._editing" (click)="$event.stopPropagation(); saveReviewComment(h)"><mat-icon>save</mat-icon> Save</a>
+                                                                                                                                                      <a class="cancel-link" href="javascript:void(0)" *ngIf="h._editing" (click)="$event.stopPropagation(); cancelEditComment(h)"><mat-icon>close</mat-icon> Cancel</a>
+                                                                                                                                                 </div>
+
+                                                                                                                                            </div>
+                                                                                                                                       </div>
+                                                                                                                                  </div>
+                                                                                                                            <div *ngIf="!rc._editing" class="review-text-incomplete" [class.deleted]="rc.is_deleted == 1">
+                                                                                                                                 <div class="ri-left"><span class="ri-icon incomplete">{{ rci + 1 }}</span></div>
+                                                                                                                                 <span class="review-text" [class.deleted]="rc.is_deleted == 1 || rc.updated_by">{{ rc.comment_text || rc.comment || '' }}</span>
+                                                                                                                            </div>
+                                                                                                                           <div *ngIf="rc._editing" class="review-text-incomplete editing">
+                                                                                                                                <div class="ri-left"><span class="ri-icon incomplete">{{ rci + 1 }}</span></div>
+                                                                                                                                <textarea [(ngModel)]="rc._editedText" class="edit-comment-text" rows="2"></textarea>
+                                                                                                                           </div>
+                                                                                                                           <div class="review-meta small-muted">
+                                                                                                                                   <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
+                                                                                                                                   <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
+                                                                                                                           </div>
+                                                                                                                           <div class="review-actions" *ngIf="!rc.updated_by">
+                                                                                                                                <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
+                                                                                                                                <a class="delete-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); confirmDeleteComment(rc)"><mat-icon>delete</mat-icon> Delete</a>
+                                                                                                                                <a class="save-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); saveReviewComment(rc)"><mat-icon>save</mat-icon> Save</a>
+                                                                                                                                <a class="cancel-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); cancelEditComment(rc)"><mat-icon>close</mat-icon> Cancel</a>
+                                                                                                                           </div>
+                                                                                                                     </div>
+                                                                                                               </div>
                                                                                                          </div>
-                                                                                                    </div>
-                                                                                               </div>
-                                                                                          </div>
-                                                                                     </div>
+                                                                                                  </div>
+                                                                                            </div>
+                                                                                      </div>
                                                                                      <div class="desc-student">
                                                                                           <div class="student-label">Student's Answer</div>
                                                                                           <div class="answer-text">{{ (q.selected_option || []).join(' ') || '-' }}</div>
@@ -500,7 +597,7 @@
                                                                 <!-- {{q.mistakes}} -->
                                                                 <!-- show link when mistakes > 1 -->
                                                                 <a *ngIf="(q.mistakes || 0) > 0" href="javascript:void(0)" class="wrong-summary-link"
-                                                                     (click)="openWrongAnswerSummary(q); $event.stopPropagation()">{{q.mistakes}}</a>
+                                                                     (click)="$event.stopPropagation(); openWrongAnswerSummary(q)">{{q.mistakes}}</a>
                                                            </td>
                                                   </ng-container>
 
@@ -532,10 +629,10 @@
                                                                                <tbody>
                                                                                     <tr *ngFor="let wa of selectedWrongAnswers">
                                                                                          <td>
-                                                                                              <a href="javascript:void(0)" class="wa-answer-link" (click)="openResourcesForWrongAnswer(selectedQuestionForWrongSummary, wa); $event.stopPropagation()">{{ wa.answer }}</a>
+                                                                                              <a href="javascript:void(0)" class="wa-answer-link" (click)="$event.stopPropagation(); openResourcesForWrongAnswer(selectedQuestionForWrongSummary, wa)">{{ wa.answer }}</a>
                                                                                          </td>
                                                                                          <td>
-                                                                                              <a href="javascript:void(0)" class="wa-count-link" (click)="openResourcesForWrongAnswer(selectedQuestionForWrongSummary, wa); $event.stopPropagation()">{{ wa.count || '-' }}</a>
+                                                                                              <a href="javascript:void(0)" class="wa-count-link" (click)="$event.stopPropagation(); openResourcesForWrongAnswer(selectedQuestionForWrongSummary, wa)">{{ wa.count || '-' }}</a>
                                                                                          </td>
                                                                                          <td>{{ wa.pct || '-' }}</td>
                                                                                     </tr>

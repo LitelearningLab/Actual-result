@@ -366,7 +366,20 @@
                            <textarea matInput id="q-answer-par-{{qi}}" [(ngModel)]="q.answerText" rows="4"
                               title="Model answer" placeholder="Model answer (max 1000 chars)"></textarea>
                         </mat-form-field>
+                        <!-- Finetune  -->
                      </div>
+                     <!-- AI fine-tuning -->
+                      <div *ngIf="q.type==='descriptive' " class="fine-tuning-section">
+                        <mat-form-field appearance="outline" class="full">
+                           <mat-icon matPrefix>tune</mat-icon>
+                           <mat-label>AI Fine-tuning Instructions (optional)</mat-label>
+                           <textarea matInput id="q-finetune-{{qi}}" [(ngModel)]="q.finetuneInstructions" rows="2"
+                              title="AI Fine-tuning Instructions" placeholder="Provide additional instructions for AI grading (max 500 chars)"></textarea>
+                        </mat-form-field>
+                        <!-- Finetune call button -->
+                         <button mat-stroked-button type="button" (click)="generateModelAnswer(qi, q.text, q.answerText, q.finetuneInstructions)"
+                           [disabled]="!q.text || q.text.length<5">Apply Fine-tuning</button>
+                      </div>
                   </div>
                </mat-expansion-panel>
             </mat-accordion>

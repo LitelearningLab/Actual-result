@@ -1,6 +1,6 @@
 from sqlalchemy import func
 from db.db import SQLiteDB
-from db.models import User, Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments
+from db.models import User, Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments,ExamReviewCommentsHistory
 from others.llm import descriptive_evaluation, openai_client
 
 def review_user_exam(request):
@@ -68,11 +68,33 @@ def review_user_exam(request):
                     review_comments = session.query(ExamReviewComments).filter( 
                         ExamReviewComments.attempt_id == attempt.attempt_id,
                         ExamReviewComments.question_id == question_answer.question_id
-                    ).all()
+                    ).order_by(ExamReviewComments.created_date.asc()).all()
                     review_comment_dict['comments'] = []
                     for comment in review_comments:
-                        created_by = session.query(User).filter(User.user_id == comment.created_by).first()
                         review_comment_dict_item = {}
+                        # fetch review history from ExamReviewCommentsHistory table
+                        review_comment_dict_item['history'] = []
+                        history_comments = session.query(ExamReviewCommentsHistory).filter(
+                            ExamReviewCommentsHistory.comment_id == comment.comment_id
+                        ).order_by(ExamReviewCommentsHistory.created_date.asc()).all()
+                        for history in history_comments:
+                            history_created_by = session.query(User).filter(User.user_id == history.created_by).first()
+                            history_updated_by = session.query(User).filter(User.user_id == history.updated_by).first()
+                            review_history_dict_item = {}
+                            review_history_dict_item['history_id'] = history.history_id
+                            review_history_dict_item['comment_id'] = history.comment_id
+                            review_history_dict_item['category'] = history.category
+                            review_history_dict_item['comment_text'] = history.comment_text
+                            review_history_dict_item['action'] = history.action
+                            review_history_dict_item['is_deleted'] = history.is_deleted
+                            review_history_dict_item['created_by'] =  history_created_by.full_name if history_created_by else history.created_by
+                            review_history_dict_item['created_date'] = history.created_date
+                            review_history_dict_item['updated_date'] = history.updated_date
+                            review_history_dict_item['updated_by'] =  history_updated_by.full_name if history_updated_by else history.updated_by
+                            review_comment_dict_item['history'].append(review_history_dict_item)
+                            # add current comment
+                        created_by = session.query(User).filter(User.user_id == comment.created_by).first()
+                        updated_by = session.query(User).filter(User.user_id == comment.updated_by).first()
                         review_comment_dict_item['comment_id'] = comment.comment_id
                         review_comment_dict_item['category'] = comment.category
                         review_comment_dict_item['comment_text'] = comment.comment_text
@@ -81,7 +103,7 @@ def review_user_exam(request):
                         review_comment_dict_item['created_by'] =  created_by.full_name if created_by else comment.created_by
                         review_comment_dict_item['created_date'] = comment.created_date
                         review_comment_dict_item['updated_date'] = comment.updated_date
-                        review_comment_dict_item['updated_by'] = comment.updated_by
+                        review_comment_dict_item['updated_by'] = updated_by.full_name if updated_by else comment.updated_by
                         review_comment_dict['comments'].append(review_comment_dict_item)
 
                 else:
@@ -263,6 +285,83 @@ def validate_answers(attempt_id):
         session.close()
 
     return {"statusMessage": "Answers validated successfully", "status": True}, 200
+
+# update review comments function can be added here
+def update_review_comments(request, action_type="edit"):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+    
+    args = request.json
+
+    comment_id: str = args.get("comment_id", "")
+    history_id: str = args.get("history_id", "")
+    comment_text: str = args.get("text", "")
+    updated_by: str = args.get("updated_by", "")
+    if not comment_id or not history_id:
+        return {"statusMessage": "comment_id or history_id is required", "status": False}, 400
+
+    try:
+        if action_type == "delete":
+            if history_id:
+                # delete from history table
+                history_record = session.query(ExamReviewCommentsHistory).filter(ExamReviewCommentsHistory.history_id == history_id).first()
+                if history_record:
+                    history_record.is_deleted = 1
+                    history_record.updated_by = updated_by
+                    history_record.updated_date = func.now()
+                    session.add(history_record)
+            else:
+                # delete from comments table
+                comment_record = session.query(ExamReviewComments).filter(ExamReviewComments.comment_id == comment_id).first()
+                if comment_record:
+                    comment_record.is_deleted = 1
+                    comment_record.updated_by = updated_by
+                    comment_record.updated_date = func.now()
+                    session.add(comment_record)
+        elif action_type == "edit":
+            if history_id:
+                # edit in history table
+                history_record = session.query(ExamReviewCommentsHistory).filter(ExamReviewCommentsHistory.history_id == history_id).first()
+                if history_record:
+                    history_record.updated_by = updated_by
+                    history_record.updated_date = func.now()
+                    session.add(history_record)
+                # add new entry in history table
+                new_history_record = ExamReviewCommentsHistory(
+                    comment_id=comment_id,
+                    comment_text=comment_text,
+                    is_deleted=0,
+                    created_by=updated_by
+                )
+                session.add(new_history_record)
+            else:
+                # edit in comments table
+                comment_record = session.query(ExamReviewComments).filter(ExamReviewComments.comment_id == comment_id).first()
+                if comment_record:
+                    comment_record.action = action_type
+                    comment_record.updated_by = updated_by
+                    comment_record.updated_date = func.now()
+                    session.add(comment_record)
+                # add new entry in history table
+                    new_history_record = ExamReviewCommentsHistory(
+                        comment_id=comment_id,
+                        comment_text=comment_text,
+                        is_deleted=0,
+                        created_by=updated_by
+                    )
+                    session.add(new_history_record)
+        session.commit()
+
+    except Exception as e:
+        session.rollback()
+        print(f"Error in update_review_comments: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
+        return {"statusMessage": f"Error updating review comment: {str(e)}", "status": False}, 500
+    finally:
+        session.close()
+        return {"statusMessage": "Comment updated successfully", "status": True}, 200
+    
 
 if __name__ == "__main__":
     # For testing purposes

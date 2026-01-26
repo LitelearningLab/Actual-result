@@ -322,7 +322,70 @@ def update_question(question_id, request):
         session.rollback()
         return {"statusMessage": str(e), "status": False}, 500
     
+def default_result():
+    result = {
+    "data": [
+        {
+        "correct_answer": "payment",
+        "mark": 1,
+        "question_text": "Fill in the blank: A hotel is a commercial establishment that provides lodging, meals, and other guest services for travelers and visitors in exchange for ___.",
+        "type": "fill"
+        },
+        {
+        "correct_answer": "Front Office Department",
+        "mark": 1,
+        "options": [
+            "Housekeeping Department",
+            "Front Office Department",
+            "Food and Beverage Department",
+            "Sales and Marketing Department"
+        ],
+        "question_text": "Which of the following departments in a hotel is responsible for guest registration, check-in, and check-out?",
+        "type": "choose"
+        },
+        {
+        "correct_answer": [
+            0,
+            2
+        ],
+        "mark": 1,
+        "options": [
+            "City Hotels",
+            "One Star Hotels",
+            "Airport Hotels",
+            "Boutique Hotels"
+        ],
+        "question_text": "Select all the classifications of hotels based on location.",
+        "type": "multi"
+        },
+        {
+        "correct_answer": "The hotel industry supports tourism and travel by providing accommodation and related services to travelers and guests. It creates employment opportunities, contributing to income generation for individuals and communities. Additionally, it contributes to foreign exchange earnings by attracting international tourists. The industry also promotes cultural exchange by hosting guests from diverse backgrounds and enhances regional development by stimulating local businesses and infrastructure growth. Overall, the hotel industry plays a significant role in national and global economic development.",
+        "mark": 1,
+        "question_text": "Describe the role of the hotel industry in economic development and tourism.",
+        "type": "descriptive"
+        },
+        {
+        "correct_answer": "Decline in hygiene and safety standards",
+        "mark": 1,
+        "options": [
+            "Use of technology and online booking systems",
+            "Focus on sustainability and eco-friendly practices",
+            "Decline in hygiene and safety standards",
+            "Growth of boutique and experiential hotels"
+        ],
+        "question_text": "Which of the following is NOT a current trend in the hotel industry?",
+        "type": "choose"
+        }
+    ],
+    "mark": 5,
+    "status": True,
+    "type": "All types"
+    }
+
+    return result
+
 def create_question_using_llm(request):
+    return default_result(), 200
 
     data_json = request.get_json(silent=True) or {}
     form = request.form or {}
@@ -426,3 +489,62 @@ def create_question_using_llm(request):
             "error": str(e)
         }, 500
     return result, 200
+def default_fine_tune_result():
+    result = {
+    "data":
+        {
+        "question_text": "What is the primary purpose of a hotel?",
+        "answer_text": "The primary purpose of a hotel is to provide lodging, meals, and other guest services for travelers and visitors in exchange for payment."
+        },
+    "status": True
+    }
+
+    return result
+def fine_tune_questions_using_llm(request):
+    return default_fine_tune_result(), 200
+    
+    data_json = request.get_json(silent=True)
+    openai_client_instance = openai_client()
+
+    def gv(key, default=None):
+        return data_json.get(key, default)
+    
+    questions = gv("question_text", [])
+    answer_text = gv("answer_text", "")
+    additional_instructions = gv("additional_instructions", "")
+
+    try:
+        system_message = "You are an expert question and answer evaluator. Your task is to evaluate and improve the provided question(s) and answer based on the given answer text and additional instructions."
+        user_message = f'''Using the following parameters,
+        - Question Text(s): {questions}
+        - Answer Text: {answer_text}
+        - Additional Instructions: {additional_instructions}
+        For each question, evaluate its clarity, relevance, and alignment with the provided answer text. Suggest improvements to enhance the quality of the questions and answers.
+        Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
+            {
+                "question_text": "<The improved question text>",
+                "answer_text": "<The improved answer text>"
+            }
+        Ensure the output is valid JSON with no surrounding markdown or text.
+        '''
+        response = openai_client_instance.chat_completion(system_message, user_message)
+        response_json = response.json()
+        if response.status_code != 200:
+            print(f"Error response from LLM: {response_json}")
+            result = {"status": False, "error": response_json.get("error", "Unknown error")}
+            return result, 500
+        result_text = response_json['choices'][0]['message']['content'].strip()
+        # Remove markdown code blocks if present
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+            result_text = result_text.strip()
+        parsed = json.loads(result_text)
+        result = { 'status': True, 'data': parsed }
+    except Exception as e:
+        print(f"Error in fine_tune_questions_using_llm: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
+        result = {
+            "status": False,
+            "error": str(e)
+        }, 500

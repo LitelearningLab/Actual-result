@@ -389,8 +389,8 @@ class ExamReviewCommentsHistory(Base):
      __tablename__ = 'ExamReviewCommentsHistory'
      history_id = Column(String, primary_key=True, default=generate_uuid)
      comment_id = Column(String, ForeignKey('ExamReviewComments.comment_id'), nullable=False)
-     attempt_id = Column(String, ForeignKey('Exam_Attempts.attempt_id'), nullable=False)
-     question_id = Column(String, ForeignKey('Questions.question_id'), nullable=False)
+     attempt_id = Column(String, ForeignKey('Exam_Attempts.attempt_id'))
+     question_id = Column(String, ForeignKey('Questions.question_id'))
      comment_text = Column(Text, nullable=False)
      category = Column(String)
      action = Column(String)

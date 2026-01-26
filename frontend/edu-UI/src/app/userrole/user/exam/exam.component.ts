@@ -25,6 +25,7 @@ export interface UserExamRow {
   end_time?: string;
   duration_mins?: number;
   total_questions?: number;
+  total_marks?: number;
   published?: boolean;
   pass_mark?: number;
   number_of_attempts?: number;
@@ -83,7 +84,7 @@ export class UserExamComponent{
     is_correct?: boolean | number,
     marks_awarded?: number,
     feedback?: string
-  }>, score?: number, started_date?: string, submitted_date?: string, status?: string, percentage?: number, total_questions?: number, time_taken?: string, result?: string }> = [];
+  }>, score?: number, started_date?: string, submitted_date?: string, status?: string, percentage?: number, total_questions?: number, total_marks?: number, time_taken?: string, result?: string }> = [];
   reviewSelectedAttempt = 0;
 
   // Safe getter to return the currently selected attempt's title or empty string
@@ -147,6 +148,7 @@ export class UserExamComponent{
                   status: a.status || null,
                   percentage: a.percentage || null,
                   total_questions: a.total_questions || null,
+                  total_marks: a.total_marks || a.max_marks || null,
                   time_taken: a.time_taken || null,
                   result: a.result || null
                 };
@@ -212,6 +214,7 @@ export class UserExamComponent{
         number_of_attempts: x.number_of_attempts || 0,
         duration_mins: x.duration_mins || x.duration || 0,
         total_questions: x.total_questions || x.questions_count || 0,
+        total_marks: x.total_marks || x.marks || 0,
         type: x.type
       }));
       this.loading = false;
