@@ -1,5 +1,6 @@
 
 import json
+from flask.cli import load_dotenv
 import httpx
 import configparser
 import os
@@ -9,6 +10,8 @@ class openai_client:
         config.read(config_file)
         return config
     def __init__(self,api_key=None,  model=None):
+        from dotenv import load_dotenv
+        load_dotenv()
         filename = r'./backend/config.ini'
         if api_key:
             self.api_key = api_key

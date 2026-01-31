@@ -34,3 +34,4 @@ __pycache__/
 backend/db/edu.db
 *.db
 frontend/edu-UI/src/app/shared/api.config.ts
+backend/.env

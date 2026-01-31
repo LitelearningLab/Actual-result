@@ -10,6 +10,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { AuthService } from '../../service/auth.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
+import { LoaderService } from 'src/app/shared/services/loader.service';
 
 @Component({
   selector: 'app-login',
@@ -32,7 +33,7 @@ export class LoginComponent {
   loginForm: FormGroup;
   hide = true;
 
-  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router, private notify: NotificationService) {
+  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router, private notify: NotificationService, private loader: LoaderService) {
     this.loginForm = this.fb.group({
       username: ['', Validators.required],
       password: ['', [Validators.required, Validators.minLength(8)]]
@@ -46,7 +47,9 @@ export class LoginComponent {
     }
     const { username, password } = this.loginForm.value;
     // call AuthService which posts to the backend
+    this.loader.show();
     this.auth.login(username, password).then((ok) => {
+      this.loader.hide();
       console.debug('[LoginComponent] login resolved', ok);
       if (ok) {
         try { console.debug('[LoginComponent] sessionStorage user after login', sessionStorage.getItem('user')); } catch(e) {}
@@ -72,6 +75,7 @@ export class LoginComponent {
           this.router.navigate(['/user-dashboard']);
         }
       } else {
+        this.loader.hide();
         this.notify.error('Login failed. Please check your credentials.');
       }
     });

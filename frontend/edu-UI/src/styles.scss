@@ -282,7 +282,10 @@ html, body {
 
 // ======================== Stepper styles ================================================================
 .mat-horizontal-stepper-header {  padding: 6px 8px !important; font-size: var(--font-size-sm); } 
-.mat-horizontal-stepper-header-container { padding: 6px 8px; border-bottom: 1px solid var(--border-1) !important ;}
+// active step
+.mat-horizontal-stepper-header.mat-active .mat-horizontal-stepper-header-label { font-weight: 600; color: var(--button-1) !important; }
+// completed step
+.mat-horizontal-stepper-header-container { padding: 6px 8px; border-bottom: 1px solid var(--border-1) !important ;  }
 .mat-horizontal-content-container {overflow: hidden; padding: 8px 0 8px 0 !important; }
 .mat-horizontal-content-container .form-actions{  padding:.75rem; border-top: 1px solid var(--border-1) !important; gap: 1rem ;}
 

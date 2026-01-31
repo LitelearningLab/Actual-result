@@ -13,6 +13,8 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatStepperModule } from '@angular/material/stepper';
 import { MatChipInputEvent } from '@angular/material/chips';
@@ -26,7 +28,7 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 @Component({
   selector: 'app-institute-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSnackBarModule, MatSelectModule, MatSlideToggleModule, MatIconModule, MatChipsModule, MatExpansionModule, MatCheckboxModule, MatStepperModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSnackBarModule, MatSelectModule, MatSlideToggleModule, MatIconModule, MatChipsModule, MatExpansionModule, MatCheckboxModule, MatStepperModule, MatDatepickerModule, MatNativeDateModule, RouterModule],
   templateUrl: './institute-register.component.html',
   styleUrls: ['./institute-register.component.scss']
 })
@@ -64,8 +66,8 @@ export class InstituteRegisterComponent {
     branch: [''],
     team: [''],
     max_users: [null, [Validators.min(1)]],
-    subscription_start: [''],
-    subscription_end: [''],
+    subscription_start: [null],
+    subscription_end: [null],
     active: [true],
     campuses: this.fb.array([])
   });
@@ -127,8 +129,20 @@ export class InstituteRegisterComponent {
         this.form.patchValue({
           name: obj.name || '', short_name: obj.short_name || obj.short || '', industry_type: obj.industry_type || '', industry_sector: obj.industry_sector || '',
           primary_contact_person: obj.primary_contact_person || '', primary_contact_email: obj.primary_contact_email || '', primary_contact_phone: obj.primary_contact_phone || '',
-          website: obj.website || '', max_users: obj.max_users || null, subscription_start: obj.subscription_start || '', subscription_end: obj.subscription_end || '', active: !!obj.active_status
+          website: obj.website || '', max_users: obj.max_users || null, active: !!obj.active_status
         });
+
+        // If the stored institute has subscription dates, convert them to Date objects for the datepicker
+        try {
+          if (obj.subscription_start) {
+            const s = new Date(obj.subscription_start);
+            if (!isNaN(s.getTime())) this.form.get('subscription_start')?.setValue(s as any);
+          }
+          if (obj.subscription_end) {
+            const e = new Date(obj.subscription_end);
+            if (!isNaN(e.getTime())) this.form.get('subscription_end')?.setValue(e as any);
+          }
+        } catch (e) { /* ignore conversion errors */ }
         // headOffice prefill: try multiple possible field names
         try {
           const ho = obj.headOffice || obj.head_office || obj.head || {};
@@ -392,6 +406,17 @@ export class InstituteRegisterComponent {
       this.cityOptions = cities;
       if (cities.length === 1) this.form.get('headOffice.city')!.setValue(cities[0].id);
     });
+
+    // set default subscription dates when creating a new institute
+    if (!this.isEditing) {
+      try {
+        const today = new Date();
+        const sixMonths = new Date(today);
+        sixMonths.setMonth(sixMonths.getMonth() + 6);
+        this.form.get('subscription_start')?.setValue(today as any);
+        this.form.get('subscription_end')?.setValue(sixMonths as any);
+      } catch (e) { /* ignore date errors */ }
+    }
   }
 
   // Helper to list invalid controls (recursively) for debugging
@@ -473,6 +498,12 @@ export class InstituteRegisterComponent {
     const headers: any = {};
     const token = sessionStorage.getItem('token');
     if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    // Convert Date objects to ISO date strings (YYYY-MM-DD) for the API
+    try {
+      if (payload.subscription_start instanceof Date) payload.subscription_start = payload.subscription_start.toISOString().split('T')[0];
+      if (payload.subscription_end instanceof Date) payload.subscription_end = payload.subscription_end.toISOString().split('T')[0];
+    } catch (e) { /* ignore conversion errors */ }
 
     const req$ = this.isEditing ? this.http.put(url, payload, { headers, observe: 'response' }) : this.http.post(url, payload, { headers, observe: 'response' });
     req$.subscribe({
