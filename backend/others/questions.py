@@ -1,4 +1,4 @@
-from db.models import Question, Option, QuestionMapping, Categories, CategoriesDepartments, CategoriesTeams
+from db.models import Question, Option, QuestionMapping, Categories, CategoriesDepartments, CategoriesTeams, User, openai_requests
 from db.db import SQLiteDB
 import sys
 import pandas as pd
@@ -17,7 +17,7 @@ def add_question(request):
         data = request.json
         institute_id = data.get("institute_id")
         category_id = data.get("category_id", None)
-        # if not category_id:
+        created_by = data.get("created_by",'System')
         json_data = {
             "statusMessage": "Category ID is required",
             "status": False,
@@ -28,7 +28,7 @@ def add_question(request):
             question_type = data.get("type")
             question_text = data.get("text")
             marks = data.get("marks")
-            created_by = data.get("created_by",'System')
+            created_by = created_by
 
             question_options = data.get("options")
             question_correct = data.get("correct")
@@ -234,6 +234,14 @@ def get_questions_details(request):
             # Get category information for this question
             mapping = session.query(QuestionMapping).filter_by(question_id=q.question_id).first()
             category = session.query(Categories).filter_by(category_id=mapping.category_id).first() if mapping else None
+
+            # get user infor for created_by and updated_by
+            created_by_user = None
+            if q.created_by is not None:
+                created_by_user = session.query(User).filter_by(user_id=q.created_by).first()
+            updated_by_user = None
+            if q.updated_by is not None:
+                updated_by_user = session.query(User).filter_by(user_id=q.updated_by).first()
             
             question_list.append({
             "id": q.question_id,
@@ -243,7 +251,11 @@ def get_questions_details(request):
             "options": option_list,
             "category_id": mapping.category_id if mapping else None,
             "category": category.name if category else None,
-            "category_description": category.description if category else None
+            "category_description": category.description if category else None,
+            "created_by": created_by_user.full_name if created_by_user else None,
+            "created_by_id": created_by_user.user_id if created_by_user else None,
+            "updated_by": updated_by_user.full_name if updated_by_user else None,
+            "updated_by_id": updated_by_user.user_id if updated_by_user else None,
             })
         json_data = {"status": True, "data": question_list, "total": len(question_list)}
         return json_data, 200
@@ -385,7 +397,7 @@ def default_result():
     return result
 
 def create_question_using_llm(request):
-    # return default_result(), 200
+    return default_result(), 200
 
     data_json = request.get_json(silent=True) or {}
     form = request.form or {}
@@ -396,11 +408,12 @@ def create_question_using_llm(request):
         if key in form and form.get(key) is not None:
             return form.get(key)
         return data_json.get(key, default)
-    
+    institute_id = gv("institute_id", None)
+    user_id = gv("user_id", None)
     language = gv("language", "English")
-    industry = gv("industry", "general")
-    target_users = gv("target_users", "general")
-    user_role = gv("user_role", "general")
+    industry = gv("industry", "Education")
+    target_users = gv("target_users", "Students")
+    user_role = gv("user_role", "Learner")
     type = gv("type", "fill")
     number_of_options = int(gv("number_of_options", 4) or 4)
     number_of_questions = int(gv("number_of_questions", 1) or 1)
@@ -408,13 +421,13 @@ def create_question_using_llm(request):
     source_text = gv("source_text", "")
     additional_instructions = gv("additional_instructions", "")
     question_mark = int(gv("question_mark", 2) or 2)
-    if question_mark == 2:
+    if question_mark >= 2 and question_mark <=4:
         recommended_words_count = '60-65 words'
         character_count = '450 characters'
-    elif question_mark == 5:
+    elif question_mark >= 5 and question_mark <=9:
         recommended_words_count = '250-280 words'
         character_count = '2000 characters'
-    elif question_mark == 10:
+    elif question_mark >= 10 and question_mark <=15:
         recommended_words_count = '550-600 words'
         character_count = '4000 characters'
     else:
@@ -432,6 +445,7 @@ def create_question_using_llm(request):
         'descriptive' --> Descriptive answer
     '''
     user_message = f'''    Using the following parameters, 
+    - Language: {language}
     - Industry: {industry}
     - Target Users: {target_users}
     - User Role: {user_role}
@@ -443,7 +457,7 @@ def create_question_using_llm(request):
     - Source Text: {source_text}
     - Additional Instructions: {additional_instructions}
     - Question Mark: {question_mark}
-    - Recommended Answer Length: {recommended_words_count} ({character_count})
+    - Recommended Answer Length: word count {recommended_words_count} - character count ({character_count})
     Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
     [
         {{
@@ -457,8 +471,20 @@ def create_question_using_llm(request):
     If only a single question is requested, returning a single JSON object is also acceptable. Ensure the output is valid JSON with no surrounding markdown or text.
     '''
     try:
-        response = openai_client_instance.chat_completion(system_message, user_message)
-        response_json = response.json()
+        # response = openai_client_instance.chat_completion(system_message, user_message)
+        # with open("debug_response.json", "w") as debug_file:
+        #     debug_file.write(response.text)
+        # response_json = response.json()
+        with open("debug_response.json", "r") as debug_file:
+            response_json = json.load(debug_file)
+            class MockResponse:
+                def __init__(self, json_data, status=200):
+                    self._json = json_data
+                    self.status_code = status
+                def json(self):
+                    return self._json
+            response = MockResponse(response_json)
+        response_tracker(response_json, institute_id, user_id)
         if response.status_code != 200:
             print(f"Error response from LLM: {response_json}")
             result = {"status": False, "error": response_json.get("error", "Unknown error")}
@@ -489,6 +515,45 @@ def create_question_using_llm(request):
             "error": str(e)
         }, 500
     return result, 200
+def response_tracker(response_json, institute_id = None, user_id= None):
+    db = SQLiteDB()
+    session = db.connect()
+
+    id = response_json.get("id", None)
+    object_type = response_json.get("object", None)
+    choices = response_json.get("choices", None)
+    model = response_json.get("model", None)
+    usage = response_json.get("usage", None)
+    service_tier = response_json.get("service_tier", None)
+    system_fingerprint = response_json.get("system_fingerprint", None)
+
+    role = choices[0]['message'].get("role", None)
+    content = choices[0]['message'].get("content", None)
+    finish_reason = choices[0].get("finish_reason", None)
+
+    prompt_tokens = usage.get("prompt_tokens", None)
+    completion_tokens = usage.get("completion_tokens", None)
+    total_tokens = usage.get("total_tokens", None)
+
+    insert_record =  openai_requests(
+        id=id,
+        # object_type=object_type,
+        model=model,
+        service_tier=service_tier,
+        system_fingerprint=system_fingerprint,
+        role=role,
+        content=content,
+        finish_reason=finish_reason,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        institute_id=institute_id,
+        created_by=user_id)
+    session.add(insert_record)
+    session.commit()
+    session.close()
+    return
+
 def default_fine_tune_result():
     result = {
     "data":
@@ -512,6 +577,8 @@ def fine_tune_questions_using_llm(request):
     questions = gv("question_text", [])
     answer_text = gv("answer_text", "")
     additional_instructions = gv("additional_instructions", "")
+    institute_id = gv("institute_id", None)
+    user_id = gv("user_id", None)
 
     try:
         system_message = "You are an expert question and answer evaluator. Your task is to evaluate and improve the provided question(s) and answer based on the given answer text and additional instructions."
@@ -527,8 +594,20 @@ def fine_tune_questions_using_llm(request):
             }
         Ensure the output is valid JSON with no surrounding markdown or text.
         '''
-        response = openai_client_instance.chat_completion(system_message, user_message)
-        response_json = response.json()
+        # response = openai_client_instance.chat_completion(system_message, user_message)
+        # with open("debug_fine_tune_response.json", "w") as debug_file:
+        #     debug_file.write(response.text)
+        # response_json = response.json()
+        with open("debug_fine_tune_response.json", "r") as debug_file:
+            response_json = json.load(debug_file)
+            class MockResponse:
+                def __init__(self, json_data, status=200):
+                    self._json = json_data
+                    self.status_code = status
+                def json(self):
+                    return self._json
+            response = MockResponse(response_json)
+        response_tracker(response_json, institute_id, user_id)
         if response.status_code != 200:
             print(f"Error response from LLM: {response_json}")
             result = {"status": False, "error": response_json.get("error", "Unknown error")}

@@ -203,7 +203,7 @@
 .question-card .option-input { font-size: 13px; }
 
 /* Button sizing fixes for Mat buttons in compact layout */
-button[mat-flat-button], button[mat-stroked-button], button[mat-icon-button]{ min-height:36px; padding:6px 12px; display:inline-flex; align-items:center; gap:8px }
+button[mat-flat-button], button[mat-stroked-button], button[mat-icon-button]{ min-height:36px; padding:6px 12px; display:inline-flex; align-items:center; gap:8px; color: red ; }
 
 .mode-select{ margin-top:12px }
 .mode-select .align-end{ display:flex; align-items:flex-end; justify-content:flex-end }
@@ -323,8 +323,8 @@ mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:
 .ai-title mat-icon{ font-size:1.6rem; color: var(--theme-primary); }
 .ai-title .title{ font-weight:800; }
 .ai-title .subtitle{ font-size:0.9rem; }
-.ai-summary{ display:flex; gap:1rem; align-items:center; }
-.ai-summary .stat{ text-align:center; }
+.ai-summary{ display:flex; gap:3rem; align-items:center; }
+.ai-summary .stat{ text-align:center; display: grid;    gap: .5rem; }
 .ai-summary .num{ font-weight:700; }
 .ai-summary .label{ font-size:0.8rem;  }
 

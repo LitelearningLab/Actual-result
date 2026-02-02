@@ -19,14 +19,14 @@ class openai_client:
             config = self.read_config(filename)
             self.api_key = config.get('openai', 'api_key')
             if self.api_key == '' or self.api_key is None:
-                self.api_key = os.getenv('OPENAI_API_KEY', '')
+                self.api_key = os.getenv('api_key', '')
         if model:
             self.model = model
         else:
             config = self.read_config(filename)
             self.model = config.get('openai', 'model')
             if self.model == '' or self.model is None:
-                self.model = os.getenv('OPENAI_MODEL', '')
+                self.model = os.getenv('model', '')
 
         self.url = "https://api.openai.com/v1/chat/completions"
         self.headers = {

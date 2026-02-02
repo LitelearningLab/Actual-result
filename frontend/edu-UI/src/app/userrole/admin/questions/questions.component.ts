@@ -1,4 +1,4 @@
-import { Component, ViewChild, ElementRef, OnInit } from '@angular/core';
+import { Component, ViewChild, ElementRef, OnInit, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatRadioModule } from '@angular/material/radio';
@@ -18,6 +18,7 @@ import { startWith, map } from 'rxjs/operators';
 import { API_BASE } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
+import { LoaderService } from 'src/app/shared/services/loader.service';
 
 @Component({
   selector: 'app-admin-questions',
@@ -27,6 +28,7 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
   styleUrls: ['./questions.component.scss']
 })
 export class AdminQuestionsComponent {
+  // implement AfterViewInit to trigger initial resize
   // UI mode: whether currently editing an existing question batch
   isEditing = false;
   plaintextEditor: boolean = false;
@@ -46,7 +48,8 @@ export class AdminQuestionsComponent {
     options: ['',''],
     correct: null as number | null | number[],
     answerText: '',
-    _expanded: true
+    _expanded: true,
+    showFineTune: false
   }];
 
   // UI mode: 'manual' (default) or 'bulk'
@@ -61,11 +64,16 @@ export class AdminQuestionsComponent {
   aiMode: boolean = false;
   aiQuestionType: string = '';
   aiQuestionNumber: number = 5;
+  aiMarksPerQuestion: number = 5;
   aiQuestionComplexity: string = '';
   // optional AI UI fields used by template
   aiQuestionLanguage: string = '';
   languages: Array<{ value: string; label: string }> = [
     { value: 'en', label: 'English' },
+    { value: 'fr', label: 'French' },
+    { value: 'de', label: 'German' },
+    { value: 'es', label: 'Spanish' },
+    { value: 'ta', label: 'Tamil' },
     { value: 'hi', label: 'Hindi' }
   ];
   complexityLevels = [
@@ -125,7 +133,7 @@ export class AdminQuestionsComponent {
   private institutesUrl = `${API_BASE}/get-institute-list`;
   private examsUrl = `${API_BASE}/get-exams-list`;
   private categoriesUrl = `${API_BASE}/get-categories-list`;
-  constructor(private http: HttpClient,private pageMeta: PageMetaService){
+  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService) {
     // infer super-admin role and default institute from session data when available
     try {
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
@@ -223,6 +231,8 @@ export class AdminQuestionsComponent {
         return this.categories.filter(c => (c.name || '').toLowerCase().indexOf(q) > -1);
       })
     );
+    // ensure any programmatically set textarea content is measured after init
+    setTimeout(() => { try{ this.resizeAll(); }catch(e){} }, 50);
     // if a category was prefilled, set selectedCategory and control value for description display
     try {
       const cid = this.questions && this.questions[0] && (this.questions[0].category_id || '');
@@ -235,6 +245,32 @@ export class AdminQuestionsComponent {
   @ViewChild('hiddenFileInput') hiddenFileInput?: ElementRef<HTMLInputElement>;
   @ViewChild('hiddenSourceFileInput') hiddenSourceFileInput?: ElementRef<HTMLInputElement>;
   @ViewChild('sourceTextArea') sourceTextArea?: ElementRef<HTMLTextAreaElement>;
+
+  // Auto-resize textarea to fit content (used by template via (input))
+  autoResize(el: HTMLTextAreaElement | any){
+    try{
+      if (!el) return;
+      // if passed event target, ensure it's a textarea
+      const ta: HTMLTextAreaElement = el as HTMLTextAreaElement;
+      ta.style.height = 'auto';
+      const newHeight = ta.scrollHeight;
+      if (newHeight) ta.style.height = newHeight + 'px';
+    }catch(e){ /* ignore */ }
+  }
+
+  // Resize all textareas currently in the component DOM (use after data is loaded)
+  resizeAll(){
+    try{
+      // select textareas within component root
+      const els = Array.from(document.querySelectorAll('textarea')) as HTMLTextAreaElement[];
+      els.forEach((ta) => this.autoResize(ta));
+    }catch(e){ }
+  }
+
+  ngAfterViewInit(): void {
+    // ensure initial resize once the view is ready
+    setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} }, 50);
+  }
 
   downloadTemplate() {
     // Create a simple CSV template that Excel can open.
@@ -285,6 +321,8 @@ export class AdminQuestionsComponent {
     if (!this.generatedQuestions || !this.generatedQuestions.length) return;
     // Simple behaviour: insert first generated question into editor sourceText for editing
     try{ this.sourceText = (this.generatedQuestions[0].text || '') + "\n\n" + this.sourceText; }catch(e){}
+    // resize textarea after programmatic content change
+    setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} }, 0);
   }
 
   insertGeneratedToQuestions(){
@@ -293,11 +331,13 @@ export class AdminQuestionsComponent {
     try{
       this.questions = (this.generatedQuestions.map((g:any) => ({ type: g.type || 'descriptive', text: g.text || '', marks: g.marks || 1, options: g.options || [''], correct: null, answerText: '', _expanded: true }))).concat(this.questions || []);
       this.mode = 'manual';
+      setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} }, 0);
     }catch(e){}
   }
 
   // Generate simple placeholder questions from AI inputs (stub implementation)
   generateAIQuestions(){
+    this.loader.show();
     if (!this.aiQuestionType || !this.aiQuestionNumber || this.aiQuestionNumber < 1){
       try { notify('Select a question type and set number of questions', 'error'); } catch(e){}
       return;
@@ -306,8 +346,26 @@ export class AdminQuestionsComponent {
     // Build FormData to support file upload and parameters
     const fd = new FormData();
     if (this.selectedSourceFile) fd.append('file', this.selectedSourceFile as Blob, (this.selectedSourceFile as File).name);
-    fd.append('type', this.aiQuestionType || 'fill');
+    const raw = sessionStorage.getItem('user')
+    if (raw) {
+      const u = JSON.parse(raw);
+      const instId = u?.institute_id || u?.instituteId || u?.institute || '';
+      if (instId) {
+        fd.append('institute_id', String(instId));
+      }
+      const userId = u?.user_id || u?.id || u?.userId || '';
+      if (userId) {
+        fd.append('user_id', String(userId));
+      }
+    }
+    // fd.append('language', this.aiQuestionLanguage || 'English');
+    fd.append('language','English');
+    fd.append('type', this.aiQuestionType || 'Descriptive');
     fd.append('number_of_questions', String(this.aiQuestionNumber || 1));
+    fd.append('marks_per_question', String(this.aiMarksPerQuestion || 5));
+    fd.append('industry', this.aiIndustry || '');
+    fd.append('user_role', this.aiUserRole || '');
+    fd.append('target_users', this.aiTargetUsers || '');
     fd.append('complexity', this.aiQuestionComplexity || 'medium');
     fd.append('source_text', this.sourceText || '');
     fd.append('additional_instructions', this.aiPrompt || '');
@@ -362,7 +420,10 @@ export class AdminQuestionsComponent {
                 return { type: qtype, text: g.text || '', marks: g.marks || 1, options: opts.length ? opts : ['',''], correct: correct, answerText: (qtype==='fill' || qtype==='descriptive') ? (g.correct && typeof g.correct === 'string' ? g.correct : (g.answerText || '')) : (g.answerText || ''), _expanded: true };
               });
               this.mode = 'manual';
-              this.aiMode = false;
+              // this.aiMode = false;
+              this.activeMode = 'manual';
+                // ensure new question textareas resize to fit generated content
+                setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} }, 0);
             }catch(e){ console.warn('Failed to apply generated questions to editor', e); }
 
             this.showPreview = true;
@@ -371,15 +432,17 @@ export class AdminQuestionsComponent {
             notify(res?.statusMessage || res?.message || 'Failed to generate questions', 'error');
           }
         }catch(e){ console.error('Failed to process AI response', e); notify('Failed to generate questions', 'error'); }
+        this.loader.hide();
       },
-      error: (err) => { console.error('AI generation failed', err); try { notify(err?.error?.statusMessage || err?.error?.message || 'AI generation failed', 'error'); } catch(e){} }
+      complete: () => { this.loader.hide(); },
+      error: (err) => { console.error('AI generation failed', err); try { notify(err?.error?.statusMessage || err?.error?.message || 'AI generation failed', 'error'); } catch(e){} this.loader.hide(); }
     });
   }
 
   addQuestion() {
     // collapse other panels and expand newly added one
     if (this.questions && this.questions.length) this.questions.forEach(q => q._expanded = false);
-    this.questions.push({ type: '', text: '', marks: 1, options: ['',''], correct: null, answerText: '', _expanded: true });
+    this.questions.push({ type: '', text: '', marks: 1, options: ['',''], correct: null, answerText: '', _expanded: true, showFineTune: false });
   }
 
   removeQuestion(index: number) {
@@ -393,7 +456,8 @@ export class AdminQuestionsComponent {
       this.questions[0].institute_id = '';
       this.questions[0].exam_id = '';
     }
-    this.questions = [{ type: '', text: '', marks: 1, options: ['',''], correct: null, answerText: '' }];
+    this.questions = [{ type: '', text: '', marks: 1, options: ['',''], correct: null, answerText: '', showFineTune: false }];
+    setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} },0);
   }
 
   onBulkFileSelected(ev: Event){
@@ -421,6 +485,7 @@ export class AdminQuestionsComponent {
   }
 
   loadInstitutes(){
+    this.loader.show();
     this.http.get<any>(this.institutesUrl).subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
@@ -428,12 +493,14 @@ export class AdminQuestionsComponent {
         // If an institute was prefilled (from session), ensure categories load for it
         try{ const pre = this.questions && this.questions[0] && (this.questions[0].institute_id || ''); if(pre) this.loadCategories(pre); }catch(e){}
       },
-      error: (err) => {
+      complete: () => { this.loader.hide(); },
+      error: (err) => { this.loader.hide();
         console.warn('Failed to load institutes', err);
       }
     });
   }
   loadCategories(instId?: string){
+    this.loader.show();
     let url = this.categoriesUrl;
     if (instId) url += `?institute_id=${encodeURIComponent(instId)}`;
     this.http.get<any>(url).subscribe({
@@ -452,7 +519,8 @@ export class AdminQuestionsComponent {
           }
         } catch(e) {}
       },
-      error: (err) => {
+      complete: () => { this.loader.hide(); },
+      error: (err) => { this.loader.hide();
         console.warn('Failed to load categories', err);
       }
     });
@@ -473,7 +541,29 @@ export class AdminQuestionsComponent {
     }catch(e){ return value || '—'; }
   }
 
+  getComplexityLabel(value: string | undefined | null){
+    try{
+      if (!value) return '';
+      const found = (this.complexityLevels || []).find(c => c.value === value);
+      return (found && found.label) ? found.label : (value || '');
+    }catch(e){ return value || ''; }
+  }
+
+  openFineTuningDialog(index: number){
+    try{
+      const q = this.questions && this.questions[index];
+      if (!q) return;
+      q.showFineTune = !q.showFineTune;
+    }catch(e){ /* ignore */ }
+  }
+
+  countWords(text: string | null | undefined){
+    if (!text) return 0;
+    return String(text).trim().split(/\s+/).filter(Boolean).length;
+  }
+
   loadExams(instituteId: string){
+    this.loader.show();
     if(!instituteId){ this.exams = []; return; }
     const url = `${this.examsUrl}?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
@@ -481,7 +571,9 @@ export class AdminQuestionsComponent {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
         this.exams = arr.map((e:any) => ({ title: e.title || e.name || '', exam_id: e.exam_id || e.id || e.examId }));
       },
+      complete: () => { this.loader.hide(); },
       error: (err) => {
+        this.loader.hide();
         console.warn('Failed to load exams', err);
         this.exams = [];
       }
@@ -544,6 +636,7 @@ export class AdminQuestionsComponent {
 
   // Call backend fine-tune endpoint to improve question/answer pair
   generateModelAnswer(qIndex:number, qText:string, answerText:string, finetuneInstructions?:string){
+    this.loader.show();
     try{
       const payload: any = {
         question_text: qText || '',
@@ -573,12 +666,23 @@ export class AdminQuestionsComponent {
             notify(res?.statusMessage || res?.message || 'Fine-tune did not return improved content', 'error');
           }catch(e){ console.error('Failed to process fine-tune response', e); try{ notify('Failed to apply fine-tune', 'error'); }catch(_){} }
         },
-        error: (err) => { console.error('Fine-tune request failed', err); try{ notify(err?.error?.message || 'Fine-tune failed', 'error'); }catch(e){} }
+        complete: () => { this.loader.hide(); },
+        error: (err) => { console.error('Fine-tune request failed', err); try{ notify(err?.error?.message || 'Fine-tune failed', 'error'); }catch(e){} this.loader.hide(); }
       });
     }catch(e){ console.error('generateModelAnswer failed', e); try{ notify('Fine-tune request failed', 'error'); }catch(_){} }
   }
 
   submit(){
+    this.loader.show();
+    // get user_id for created_by and updated_by fields if needed
+    const raw = sessionStorage.getItem('user')
+    let userId = '';
+    try {
+      if (raw) {
+        const u = JSON.parse(raw);
+        userId = u?.user_id || u?.id || u?.userId || '';
+      }
+    } catch (e) { /* ignore */ }
     if (this.mode === 'bulk'){
       // use selected file and submit via FormData
       if (!this.selectedBulkFile){ try { notify('Please select a file to upload', 'error'); } catch(e){}; return; }
@@ -595,7 +699,8 @@ export class AdminQuestionsComponent {
           } catch(e) {}
           this.selectedBulkFile = null;
         },
-        error: (err) => { console.error('Bulk upload failed', err); try { notify(err?.error?.statusMessage || err?.error?.message || 'Bulk upload failed', 'error'); } catch(e){} }
+        complete: () => { this.loader.hide(); },
+        error: (err) => { console.error('Bulk upload failed', err); try { notify(err?.error?.statusMessage || err?.error?.message || 'Bulk upload failed', 'error'); } catch(e){} this.loader.hide(); }
       });
       return;
     }
@@ -604,10 +709,12 @@ export class AdminQuestionsComponent {
     for (let q of this.questions){
       if (q.type === 'choose' && (q.correct === null || q.correct === undefined)){
         try { notify('Please select the correct option for single choice in all question blocks', 'error'); } catch(e){}
+        this.loader.hide();
         return;
       }
       if (q.type === 'multi' && (!Array.isArray(q.correct) || (q.correct as number[]).length === 0)){
         try { notify('Please select one or more correct options for multiple choice in all question blocks', 'error'); } catch(e){}
+        this.loader.hide();
         return;
       }
     }
@@ -622,7 +729,7 @@ export class AdminQuestionsComponent {
         p.correct_indices = q.correct;
         p.correct_values = q.correct.map((i:number) => q.options[i]);
       }
-      p.created_by = sessionStorage.getItem('user_id') || sessionStorage.getItem('username') || 'admin';
+      // p.created_by = sessionStorage.getItem('user_id') || sessionStorage.getItem('username') || 'admin';
       return p;
     });
 
@@ -631,6 +738,7 @@ export class AdminQuestionsComponent {
       institute_id: (this.questions[0] as any).institute_id || undefined,
       exam_id: (this.questions[0] as any).exam_id || undefined,
       category_id: (this.questions[0] as any).category_id || undefined,
+      created_by: userId || undefined,
       questions: payload
     };
 
@@ -639,6 +747,7 @@ export class AdminQuestionsComponent {
       const q = payload[0];
       // ensure category_id is included on update (use question-level or global selection)
       if (!q.category_id && (this.questions[0] as any).category_id) q.category_id = (this.questions[0] as any).category_id;
+      q.updated_by = userId || undefined;
       const url = `${API_BASE}/update-question/${encodeURIComponent(String(this.editId))}`;
       this.http.put<any>(url, q).subscribe({ next: (res) => {
         try {
@@ -652,7 +761,8 @@ export class AdminQuestionsComponent {
       }, error: (err) => {
         console.error('Failed to update question', err);
         try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to update question', 'error'); } catch(e){}
-      } });
+        this.loader.hide();
+      }, complete: () => { this.loader.hide(); } });
     } else {
       this.http.post<any>(this.apiUrl, body).subscribe({
         next: (res) => {
@@ -662,12 +772,15 @@ export class AdminQuestionsComponent {
             notify(msg, ok ? 'success' : 'error');
           } catch(e){}
           // reset to a single empty block
-          this.questions = [{ type: '', text: '', marks: 1, options: ['',''], correct: null, answerText: '' }];
+          this.questions = [{ type: '', text: '', marks: 1, options: ['',''], correct: null, answerText: '', showFineTune: false }];
+          setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} },0);
         },
         error: (err) => {
           console.error('Failed to save questions', err);
           try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to save questions. See console for details.', 'error'); } catch(e){}
-        }
+          this.loader.hide();
+        },
+        complete: () => { this.loader.hide(); }
       });
     }
   }

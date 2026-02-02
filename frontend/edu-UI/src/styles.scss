@@ -255,7 +255,7 @@ html, body {
     color: var(--table-header-text) !important; font-weight: 560 !important;position: sticky !important;    font-size: medium;
     top: 0 !important;z-index: 60 !important;border-bottom: 1px solid rgba(255,255,255,0.06) !important;
 }
-.premium-table tbody tr{ background-color: var(--table-row-bg) !important; color: var(--table-row-text) !important; line-height: 3 !important; }
+.premium-table tbody tr{ background-color: var(--table-row-bg) !important; color: var(--table-row-text) !important; }
 .premium-table tbody td, .premium-table tbody th { border-bottom: 1px solid var(--table-row-border) !important; }
 .premium-table tbody tr:hover{ transform:translateY(-0.125rem);  background-color: var(--table-row-hover-bg) !important;color:var(--table-row-hover-text) !important;}
 .custom-paginator {display: flex; border: 1px solid var(--border-1);}

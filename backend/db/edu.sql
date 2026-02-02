@@ -556,6 +556,35 @@
 --     updated_date DATETIME
 -- );
 
+-- DROP TABLE openai_requests;
+-- CREATE TABLE openai_requests (
+-- 	request_id TEXT PRIMARY KEY,
+-- 	id TEXT,
+-- 	endpoint TEXT,
+-- 	session_id TEXT,
+-- 	model TEXT,
+-- 	prompt TEXT,
+-- 	response TEXT,
+-- 	request_payload TEXT,
+-- 	response_payload TEXT,
+-- 	service_tier TEXT,
+-- 	system_fingerprint TEXT,
+-- 	role TEXT,
+-- 	content TEXT,
+-- 	finish_reason TEXT,
+-- 	status_code INTEGER,
+-- 	error_message TEXT,
+-- 	prompt_tokens INTEGER,
+-- 	completion_tokens INTEGER,
+-- 	total_tokens INTEGER,
+-- 	latency_ms INTEGER,
+-- 	estimated_cost REAL,
+-- 	institute_id TEXT,
+-- 	created_by TEXT,
+-- 	created_date DATETIME DEFAULT CURRENT_TIMESTAMP
+-- );
+
+
 -- SQLite view all tables list and details
 SELECT * FROM sqlite_master WHERE type='table';
 
@@ -670,7 +699,7 @@ WHERE q.question_type = 'multi'
      AND o.is_correct = 1
      AND an.is_validated = 0
 
-
+SELECT * from openai_requests
 
 -- Reset Exam creation
 Exams
