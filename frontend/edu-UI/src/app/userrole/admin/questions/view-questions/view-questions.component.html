@@ -202,7 +202,7 @@
                 <!-- Type Column -->
                 <ng-container matColumnDef="type">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>Type</th>
-                    <td mat-cell *matCellDef="let q">{{ q.originalType || q.type }}</td>
+                    <td mat-cell *matCellDef="let q">{{ formatQuestionType(q.originalType || q.type) }}</td>
                 </ng-container>
 
                 <!-- Marks Column -->
@@ -267,7 +267,7 @@
     <div class="modal-backdrop" *ngIf="viewedQuestion">
         <div class="modal">
             <div class="modal-header">
-                <h3>Question Details</h3>
+                <h3>Question</h3>
                 <h1>{{ viewedQuestion?.question }}</h1>
                 <button mat-icon-button (click)="closeViewModal()"><mat-icon>close</mat-icon></button>
             </div>
@@ -282,7 +282,7 @@
                                     <div class="value">{{ viewedQuestion?.question }}</div>
                                     <!-- type -->
                                     <div class="label">Type</div>
-                                    <div class="value">{{ viewedQuestion?.originalType || viewedQuestion?.type }}</div>
+                                    <div class="value">{{ formatQuestionType(viewedQuestion?.originalType || viewedQuestion?.type) }}</div>
                                     <!-- marks -->
                                     <div class="label">Marks</div>
                                     <div class="value">{{ viewedQuestion?.marks || 0 }}</div>

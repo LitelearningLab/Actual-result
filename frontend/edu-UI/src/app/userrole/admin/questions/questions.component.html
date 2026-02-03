@@ -274,7 +274,7 @@
                         <div class="question-right">
                            <!-- Button with AI icon for enable fine-tuning (visible only in AI mode for descriptive questions) -->
                            <button *ngIf="aiMode && q.type==='descriptive'" type="button" mat-icon-button aria-label="AI Fine-tuning"
-                              (click)="openFineTuningDialog(qi)" title="AI Fine-tuning for this question">
+                              (click)="openFineTuningDialog(qi)" title="AI Fine-tuning for this question" class="fine-tune-btn">
                               <mat-icon svgIcon="brain"></mat-icon>
                            </button>
                            <span class="badge type-label">

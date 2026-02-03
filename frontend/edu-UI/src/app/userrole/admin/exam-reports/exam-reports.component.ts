@@ -794,4 +794,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       return `On ${dd}-${m}-${yyyy} ${hh}:${min}`;
     }catch(e){ return ''; }
   }
+
+  // Convert string to Title Case
+  toTitleCase(str: string | null | undefined): string {
+    if (!str) return '';
+    return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+  }
 }

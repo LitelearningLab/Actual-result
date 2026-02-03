@@ -205,6 +205,11 @@
 /* Button sizing fixes for Mat buttons in compact layout */
 button[mat-flat-button], button[mat-stroked-button], button[mat-icon-button]{ min-height:36px; padding:6px 12px; display:inline-flex; align-items:center; gap:8px; color: red ; }
 
+.fine-tune-btn{
+    color: var(--button-1) !important;
+    background: rgba(15, 35, 55, 0.06);
+}
+
 .mode-select{ margin-top:12px }
 .mode-select .align-end{ display:flex; align-items:flex-end; justify-content:flex-end }
 .bulk-block input[type="file"]{ display:block; margin-top:6px }

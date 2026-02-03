@@ -478,4 +478,20 @@ export class ViewQuestionsComponent implements OnDestroy {
   }
 
   closeViewModal(){ this.viewedQuestion = null; }
+
+  formatQuestionType(type: string | undefined | null): string {
+    if (!type) return '—';
+    const typeMap: { [key: string]: string } = {
+      'choose': 'Single Choice',
+      'multi': 'Multiple Choice',
+      'fill': 'Fill In The Blank',
+      'descriptive': 'Descriptive'
+    };
+    const lowerType = type.toLowerCase();
+    return typeMap[lowerType] || this.toTitleCase(type);
+  }
+
+  private toTitleCase(str: string): string {
+    return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+  }
 }

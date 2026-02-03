@@ -397,7 +397,7 @@ def default_result():
     return result
 
 def create_question_using_llm(request):
-    # return default_result(), 200
+    return default_result(), 200
 
     data_json = request.get_json(silent=True) or {}
     form = request.form or {}

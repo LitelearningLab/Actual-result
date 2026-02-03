@@ -20,7 +20,6 @@ class openai_client:
             self.api_key = config.get('openai', 'api_key')
             if self.api_key == '' or self.api_key is None:
                 self.api_key = os.getenv('api_key', '')
-                self.api_key = "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"
         if model:
             self.model = model
         else:
@@ -28,7 +27,6 @@ class openai_client:
             self.model = config.get('openai', 'model')
             if self.model == '' or self.model is None:
                 self.model = os.getenv('model', '')
-                self.model = "gpt-4.1-mini"
 
         self.url = "https://api.openai.com/v1/chat/completions"
         self.headers = {
