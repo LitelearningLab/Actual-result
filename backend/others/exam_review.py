@@ -223,7 +223,7 @@ def validate_answers(attempt_id):
                                 category=key,
                                 reviewer_id='cac37fab-4de6-4792-969b-96e57e3c910a'  # or some system user id
                             )
-                        session.add(review_comment)
+                            session.add(review_comment)
         else:
 
             # get the correct options for the question

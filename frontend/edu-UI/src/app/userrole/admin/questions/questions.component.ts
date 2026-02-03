@@ -642,7 +642,7 @@ export class AdminQuestionsComponent {
         question_text: qText || '',
         answer_text: answerText || ''
       };
-      if (finetuneInstructions) payload.finetune_instructions = finetuneInstructions;
+      if (finetuneInstructions) payload.additional_instructions = finetuneInstructions;
       // include question id if available so backend can map
       try{ const q = this.questions && this.questions[qIndex]; if (q && (q.id || q.question_id)) payload.question_id = q.id || q.question_id; }catch(e){}
 

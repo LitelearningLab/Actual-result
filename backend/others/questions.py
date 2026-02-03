@@ -18,11 +18,11 @@ def add_question(request):
         institute_id = data.get("institute_id")
         category_id = data.get("category_id", None)
         created_by = data.get("created_by",'System')
-        json_data = {
-            "statusMessage": "Category ID is required",
-            "status": False,
-        }
-        return json_data, 400
+        # json_data = {
+        #     "statusMessage": "Category ID is required",
+        #     "status": False,
+        # }
+        # return json_data, 400
 
         for data in request.json.get('questions', []):
             question_type = data.get("type")
@@ -397,7 +397,7 @@ def default_result():
     return result
 
 def create_question_using_llm(request):
-    return default_result(), 200
+    # return default_result(), 200
 
     data_json = request.get_json(silent=True) or {}
     form = request.form or {}
@@ -442,7 +442,7 @@ def create_question_using_llm(request):
         'fill' --> Filling the blanks
         'choose' --> Multiple choice single answer
         'multi' --> Multiple choice multiple answers
-        'descriptive' --> Descriptive answer
+        'descriptive' --> Question for descriptive answer, appropriate for the answer character count
     '''
     user_message = f'''    Using the following parameters, 
     - Language: {language}
@@ -457,7 +457,7 @@ def create_question_using_llm(request):
     - Source Text: {source_text}
     - Additional Instructions: {additional_instructions}
     - Question Mark: {question_mark}
-    - Recommended Answer Length: word count {recommended_words_count} - character count ({character_count})
+    - Recommended Answer Length: approximately {recommended_words_count} - ({character_count}) (±10%),
     Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
     [
         {{
@@ -471,19 +471,19 @@ def create_question_using_llm(request):
     If only a single question is requested, returning a single JSON object is also acceptable. Ensure the output is valid JSON with no surrounding markdown or text.
     '''
     try:
-        # response = openai_client_instance.chat_completion(system_message, user_message)
-        # with open("debug_response.json", "w") as debug_file:
-        #     debug_file.write(response.text)
-        # response_json = response.json()
-        with open("debug_response.json", "r") as debug_file:
-            response_json = json.load(debug_file)
-            class MockResponse:
-                def __init__(self, json_data, status=200):
-                    self._json = json_data
-                    self.status_code = status
-                def json(self):
-                    return self._json
-            response = MockResponse(response_json)
+        response = openai_client_instance.chat_completion(system_message, user_message)
+        with open("debug_response.json", "w") as debug_file:
+            debug_file.write(response.text)
+        response_json = response.json()
+        # with open("debug_response.json", "r") as debug_file:
+        #     response_json = json.load(debug_file)
+        #     class MockResponse:
+        #         def __init__(self, json_data, status=200):
+        #             self._json = json_data
+        #             self.status_code = status
+        #         def json(self):
+        #             return self._json
+        #     response = MockResponse(response_json)
         response_tracker(response_json, institute_id, user_id)
         if response.status_code != 200:
             print(f"Error response from LLM: {response_json}")
@@ -576,7 +576,7 @@ def fine_tune_questions_using_llm(request):
     
     questions = gv("question_text", [])
     answer_text = gv("answer_text", "")
-    additional_instructions = gv("additional_instructions", "")
+    additional_instructions = gv("additional_instructions", "Update the question with additional related items to make the answer also more detailed ( close to 1800 characters) ")
     institute_id = gv("institute_id", None)
     user_id = gv("user_id", None)
 
@@ -588,25 +588,25 @@ def fine_tune_questions_using_llm(request):
         - Additional Instructions: {additional_instructions}
         For each question, evaluate its clarity, relevance, and alignment with the provided answer text. Suggest improvements to enhance the quality of the questions and answers.
         Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
-            {
+            {{
                 "question_text": "<The improved question text>",
                 "answer_text": "<The improved answer text>"
-            }
+            }}
         Ensure the output is valid JSON with no surrounding markdown or text.
         '''
-        # response = openai_client_instance.chat_completion(system_message, user_message)
-        # with open("debug_fine_tune_response.json", "w") as debug_file:
-        #     debug_file.write(response.text)
-        # response_json = response.json()
-        with open("debug_fine_tune_response.json", "r") as debug_file:
-            response_json = json.load(debug_file)
-            class MockResponse:
-                def __init__(self, json_data, status=200):
-                    self._json = json_data
-                    self.status_code = status
-                def json(self):
-                    return self._json
-            response = MockResponse(response_json)
+        response = openai_client_instance.chat_completion(system_message, user_message)
+        with open("debug_fine_tune_response.json", "w") as debug_file:
+            debug_file.write(response.text)
+        response_json = response.json()
+        # with open("debug_fine_tune_response.json", "r") as debug_file:
+        #     response_json = json.load(debug_file)
+        #     class MockResponse:
+        #         def __init__(self, json_data, status=200):
+        #             self._json = json_data
+        #             self.status_code = status
+        #         def json(self):
+        #             return self._json
+        #     response = MockResponse(response_json)
         response_tracker(response_json, institute_id, user_id)
         if response.status_code != 200:
             print(f"Error response from LLM: {response_json}")
@@ -619,11 +619,12 @@ def fine_tune_questions_using_llm(request):
             if result_text.startswith('json'):
                 result_text = result_text[4:]
             result_text = result_text.strip()
-        parsed = json.loads(result_text)
+        parsed = json.loads(result_text)[0]
         result = { 'status': True, 'data': parsed }
+        return result , 200
     except Exception as e:
         print(f"Error in fine_tune_questions_using_llm: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
-        result = {
+        return  {
             "status": False,
             "error": str(e)
         }, 500

@@ -642,15 +642,15 @@ SELECT * FROM  ExamSchedules;
 -- DELETE FROM ExamSchedules where schedule_id='5b8ee942-7de1-44cc-bdee-88f301440044'
 
 select * from Exam_Attempts WHERE attempt_id = '5b8ee942-7de1-44cc-bdee-88f301440044' ;
--- DELETE FROM exam_attempts WHERE attempt_id = '1932b45d-ecb0-4118-9493-45708341b489' ;
+-- DELETE FROM exam_attempts WHERE attempt_id = 'd3489d5a-04cc-4c71-988f-7a51436022b6' ;
 
-SELECT * from Answers WHERE attempt_id = 'ccf4e079-228e-4f78-a6b5-dde490ad7161' and 
+SELECT * from Answers WHERE attempt_id = '088e3547-da96-4b10-ba6f-ac81fdcda775' and 
 SELECT * from Answers WHERE question_id = '06c819ac-21c5-4321-a96e-c644d84be22f' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
 -- ALTER TABLE Answers ADD COLUMN ai_marks INTEGER;
 -- ALTER TABLE Answers ADD COLUMN ai_confidence INTEGER ;
 -- ALTER TABLE Answers ADD COLUMN manual_review_required INTEGER DEFAULT 0;
 -- ALTER TABLE Answers ADD COLUMN manual_marks INTEGER;
--- DELETE FROM Answers WHERE attempt_id = '1932b45d-ecb0-4118-9493-45708341b489' and question_id = '5a717d8d-40c1-4808-921f-3aea00c9343a' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
+-- DELETE FROM Answers WHERE attempt_id = 'd3489d5a-04cc-4c71-988f-7a51436022b6' and question_id = '5a717d8d-40c1-4808-921f-3aea00c9343a' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
 -- update Answers set is_validated = 0 where attempt_id = 'fa188ab2-23df-4c13-8f0f-77b3f15811e1' and question_id = '5a717d8d-40c1-4808-921f-3aea00c9343a' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
 -- DELETE from Answers WHERE attempt_id not in (SELECT attempt_id from exam_attempts );
 
@@ -665,10 +665,11 @@ JOIN Questions q ON an.question_id = q.question_id
 WHERE ea.schedule_id = 'cdb1341a-bd79-4295-8944-40e1533ae394'
   AND ea.user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
 
-SELECT * from ExamReviewComments 
+SELECT * from ExamReviewComments order by created_date
+DElete  from ExamReviewComments where attempt_id = '088e3547-da96-4b10-ba6f-ac81fdcda775'
 SELECT * from ExamReviewCommentsHistory
 
-
+select * from openai_requests;
 -- delete from Exam_Attempts;
 -- delete from Answers;
 
