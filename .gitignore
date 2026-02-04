@@ -31,7 +31,7 @@ yarn-error.log*
 *.pyc
 __pycache__/
 backend/venv/
-*.db
+# *.db
 
 # Environment variables
 backend/.env

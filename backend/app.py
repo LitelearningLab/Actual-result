@@ -24,21 +24,15 @@ from dashboard.super_admin_dashboard import superadmin_dashboard_details
 from dashboard.admin_dashboard import admin_dashboard_details
 from dashboard.user_dashboard import user_dashboard_details, dashboard_users_list
 
-# read config.ini file
-def read_config(filename='config.ini'):
-    config = ConfigParser()
-    config.read(filename)
-    return config
-# read the configuration
-filename = r'./backend/config.ini'
-config = read_config(filename)
-try:
-    jwt_config = config['jwt']
-except KeyError:
-    filename = r'config.ini'
-    config = read_config(filename)
-    jwt_config = config['jwt']
-jwt_secret = jwt_config.get('jwt_secret', 'your_jwt_secret')
+from dotenv import load_dotenv
+import os
+if load_dotenv():
+    load_dotenv()
+else:
+    load_dotenv(dotenv_path=r".\backend\.env")
+
+# read jwt_secret
+jwt_secret = os.getenv('jwt_secret', 'your_jwt_secret')
 
 # Initialize JWT Validator
 def initialize_jwt_validator(request):
@@ -461,3 +455,4 @@ CORS(app, resources={r"/edu/api/*": {"origins": "*" }}, supports_credentials=Tru
 app.register_blueprint(edu_blueprint)
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
+ 

@@ -5,28 +5,15 @@ import httpx
 import configparser
 import os
 class openai_client:
-    def read_config(self, config_file='config.ini'):
-        config = configparser.ConfigParser()
-        config.read(config_file)
-        return config
     def __init__(self,api_key=None,  model=None):
-        from dotenv import load_dotenv
-        load_dotenv()
-        filename = r'./backend/config.ini'
         if api_key:
             self.api_key = api_key
         else:
-            config = self.read_config(filename)
-            self.api_key = config.get('openai', 'api_key')
-            if self.api_key == '' or self.api_key is None:
-                self.api_key = os.getenv('api_key', '')
+            self.api_key = os.getenv('api_key', '')
         if model:
             self.model = model
         else:
-            config = self.read_config(filename)
-            self.model = config.get('openai', 'model')
-            if self.model == '' or self.model is None:
-                self.model = os.getenv('model', '')
+            self.model = os.getenv('model', '')
 
         self.url = "https://api.openai.com/v1/chat/completions"
         self.headers = {

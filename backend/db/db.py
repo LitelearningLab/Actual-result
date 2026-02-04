@@ -6,7 +6,8 @@ from sqlalchemy.orm import sessionmaker
 class SQLiteDB:
     def __init__(self):
         import os
-        db_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'edu.db')
+        environment_flag = os.getenv('environment_flag')
+        db_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'edu_{environment_flag}.db')
         db_path = f'sqlite:///{db_dir}'
         os.makedirs(os.path.dirname(db_dir), exist_ok=True)
         self.engine = create_engine(db_path, echo=False, future=True)
