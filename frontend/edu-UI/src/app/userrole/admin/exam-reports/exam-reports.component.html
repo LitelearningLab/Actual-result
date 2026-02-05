@@ -193,8 +193,9 @@
                                                                                           <div class="q-body">
                                                                                                <div class="q-meta">
                                                                                                <div class="q-badge">{{ (q.question_type || q.type || '').toUpperCase() }}</div>
-                                                                                               <div class="q-info" *ngIf="q.question_type  != 'descriptive'" >{{ q.marks_awarded + '/' + q.question_marks + ' Marks (' + (q.marks_awarded/(q.question_marks || 1) * 100) + '%)' }} </div>
-                                                                                               <div class="q-info" *ngIf="q.question_type  === 'descriptive'" >  {{ q.marks_awarded + '/' + q.question_marks + ' Marks (' + (q.marks_awarded/(q.question_marks || 1) * 100) + '%)'  }}
+                                                                                               <!-- <div class="q-info" *ngIf="q.question_type  != 'descriptive'" >{{ q.marks_awarded + '/' + q.question_marks + ' Marks (' + (q.marks_awarded/(q.question_marks || 1) * 100) + '%)' }} </div> -->
+                                                                                               <div class="q-info" *ngIf="q.question_type != 'descriptive'">{{ q.marks_awarded }}/{{ q.question_marks }} Marks({{ (q.marks_awarded / (q.question_marks || 1) * 100) | number:'1.2-2' }}%)</div>
+                                                                                               <div class="q-info" *ngIf="q.question_type  === 'descriptive'" >  {{ q.marks_awarded }}/{{ q.question_marks }} Marks({{ (q.marks_awarded / (q.question_marks || 1) * 100) | number:'1.2-2' }}%)
                                                                                                     <mat-icon svgIcon="brain"></mat-icon>  {{'AI Confidence: ' + (q.ai_confidence != null ? (q.ai_confidence + '%') : 'N/A')}}
                                                                                                </div>
                                                                                                </div>
