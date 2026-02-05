@@ -12,6 +12,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
@@ -54,11 +55,13 @@ export interface QuestionRow {
 @Component({
   selector: 'app-view-questions',
   standalone: true,
-  imports: [CommonModule,SharedModule, MatCardModule,  MatIconModule, MatButtonModule, MatInputModule, MatFormFieldModule, MatSelectModule, MatTableModule, MatPaginatorModule, FormsModule, RouterModule, HttpClientModule, MatDatepickerModule, MatNativeDateModule, MatCheckboxModule, MatSortModule, OverlayModule, PortalModule, ReactiveFormsModule, MatAutocompleteModule],
+  imports: [CommonModule,SharedModule, MatCardModule,  MatIconModule, MatButtonModule, MatInputModule, MatFormFieldModule, MatSelectModule, MatTableModule, MatPaginatorModule, FormsModule, RouterModule, HttpClientModule, MatDatepickerModule, MatNativeDateModule, MatTabsModule, MatCheckboxModule, MatSortModule, OverlayModule, PortalModule, ReactiveFormsModule, MatAutocompleteModule],
   templateUrl: './view-questions.component.html',
   styleUrls: ['./view-questions.component.scss']
 })
 export class ViewQuestionsComponent implements OnDestroy {
+  // currently selected question for the details modal
+  viewedQuestion: any = null;
   filter = '';
   institutes: Array<{ name: string; institute_id?: string }> = [];
   exams: Array<{ title: string; exam_id?: string }> = [];
@@ -469,6 +472,26 @@ export class ViewQuestionsComponent implements OnDestroy {
 
   viewDetails(q: QuestionRow) {
     try { sessionStorage.setItem('view_question', JSON.stringify(q)); } catch (e) { }
+    // set the viewed question so the modal in the template becomes visible
+    try { this.viewedQuestion = (q as any).raw || q || null; } catch(e) { this.viewedQuestion = q || null; }
     try { notify(`Q: ${q.question}\nType: ${q.type}\nAnswer: ${q.answer || '—'}`, 'info'); } catch(e) { try { console.warn(`Q: ${q.question}\nType: ${q.type}\nAnswer: ${q.answer || '—'}`); } catch(_) {} }
+  }
+
+  closeViewModal(){ this.viewedQuestion = null; }
+
+  formatQuestionType(type: string | undefined | null): string {
+    if (!type) return '—';
+    const typeMap: { [key: string]: string } = {
+      'choose': 'Single Choice',
+      'multi': 'Multiple Choice',
+      'fill': 'Fill In The Blank',
+      'descriptive': 'Descriptive'
+    };
+    const lowerType = type.toLowerCase();
+    return typeMap[lowerType] || this.toTitleCase(type);
+  }
+
+  private toTitleCase(str: string): string {
+    return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
   }
 }

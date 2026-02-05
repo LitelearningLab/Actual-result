@@ -10,8 +10,8 @@ from others.exams import add_exam, get_exam_details, get_exam_list, launch_exam_
 from others.examschedule import add_exam_schedule, get_exam_schedule_details
 from others.examschedule import update_exam_schedule
 from others.category import add_categories, get_categories_list, get_category_details
-from others.questions import add_question, get_questions_details, bulk_upload_questions, create_question_using_llm
-from others.exam_review import review_user_exam, validate_answers
+from others.questions import add_question, get_questions_details, bulk_upload_questions, create_question_using_llm, fine_tune_questions_using_llm
+from others.exam_review import review_user_exam, validate_answers, update_review_comments
 from others.exam_reports import get_user_wise_report, get_exam_analytics
 from others.exam_reports import get_question_wrong_answers
 from others.exam_reports import get_resources_for_answer
@@ -24,21 +24,15 @@ from dashboard.super_admin_dashboard import superadmin_dashboard_details
 from dashboard.admin_dashboard import admin_dashboard_details
 from dashboard.user_dashboard import user_dashboard_details, dashboard_users_list
 
-# read config.ini file
-def read_config(filename='config.ini'):
-    config = ConfigParser()
-    config.read(filename)
-    return config
-# read the configuration
-filename = r'./backend/config.ini'
-config = read_config(filename)
-try:
-    jwt_config = config['jwt']
-except KeyError:
-    filename = r'config.ini'
-    config = read_config(filename)
-    jwt_config = config['jwt']
-jwt_secret = jwt_config.get('jwt_secret', 'your_jwt_secret')
+from dotenv import load_dotenv
+import os
+if load_dotenv():
+    load_dotenv()
+else:
+    load_dotenv(dotenv_path=r".\backend\.env")
+
+# read jwt_secret
+jwt_secret = os.getenv('jwt_secret', 'your_jwt_secret')
 
 # Initialize JWT Validator
 def initialize_jwt_validator(request):
@@ -198,6 +192,12 @@ def create_question_using_ai_route():
     response_data, status_code = create_question_using_llm(request)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/fine-tune-question', methods=['POST'])
+@jwt_required
+def fine_tune_question_route():
+    response_data, status_code = fine_tune_questions_using_llm(request)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/get-users', methods=['GET'])
 @jwt_required
 def get_users():
@@ -238,6 +238,12 @@ def review_user_exam_route():
 @jwt_required
 def validate_answers_route(attempt_id):
     response_data, status_code = validate_answers(attempt_id)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/update-review-comments/<action>', methods=['POST'])
+@jwt_required
+def update_review_comments_route(action):
+    response_data, status_code = update_review_comments(request, action)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-exams-details', methods=['GET'])
@@ -449,3 +455,4 @@ CORS(app, resources={r"/edu/api/*": {"origins": "*" }}, supports_credentials=Tru
 app.register_blueprint(edu_blueprint)
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
+ 

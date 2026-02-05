@@ -19,7 +19,7 @@
 
 /* Info badges */
 .header .pill, .header .timer {
-	font-size: var(--font-md);
+	font-size: var(--font-size-base);
 	font-weight: 700;
 	border-radius: 999px;
 	box-shadow: 0 2px 8px rgba(30,136,229,0.06);
@@ -29,7 +29,7 @@
 /* Nav buttons */
 .q-nav .nav-item {
 	transition: background 0.18s, color 0.18s, transform 0.12s;
-	font-size: calc(var(--font-md) * 1.04);
+	font-size: calc(var(--font-size-base) * 1.04);
 }
 .q-nav .nav-item:hover {
 	background: #f0f7ff;
@@ -37,7 +37,7 @@
 	transform: scale(1.08);
 }
 .q-nav .nav-item.active {
-	font-size: calc(var(--font-md) * 1.12);
+	font-size: calc(var(--font-size-base) * 1.12);
 	border-width: 2px;
 }
 
@@ -179,7 +179,7 @@
 }
 .timer-warning {
 	margin-left: 8px;
-	font-size: calc(var(--font-md) * 1.1);
+	font-size: calc(var(--font-size-base) * 1.1);
 }
 
 /* Confirmation Dialog */
@@ -200,7 +200,7 @@
 	text-align: center;
 }
 .confirm-title {
-	font-size: var(--font-lg);
+	font-size: var(--font-size-lg);
 	font-weight: 700;
 	margin-bottom: 8px;
 }
@@ -224,7 +224,7 @@
 .card{ background:linear-gradient(180deg,#ffffff,#fbfdff); border-radius:10px; box-shadow:0 8px 24px rgba(16,32,48,0.06); padding:14px }
 .muted{ color:#6b7887 }
 .btn-primary{ background:#0b7285; color:#fff; border-radius:8px; padding:8px 12px }
-.heading-lg{ font-size:var(--font-lg); font-weight:700 }
+.heading-lg{ font-size:var(--font-size-lg); font-weight:700 }
 
 /* small tweaks for inputs inside cards */
 .q-card .mat-form-field-infix { padding:6px 8px }

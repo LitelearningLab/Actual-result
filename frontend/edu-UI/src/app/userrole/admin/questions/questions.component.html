@@ -130,14 +130,14 @@
                <div class="ai-summary">
                   <div class="stat">
                      <div class="num">{{ aiQuestionNumber }}</div>
-                     <div class="label">Count</div>
+                     <div class="label">Total questions</div>
                   </div>
                   <div class="stat">
-                     <div class="num">{{ aiQuestionComplexity || '—' }}</div>
+                     <div class="num">{{ getComplexityLabel(aiQuestionComplexity) || '—' }}</div>
                      <div class="label">Complexity</div>
                   </div>
                   <div class="stat">
-                     <div class="num">{{ aiQuestionType || '—' }}</div>
+                     <div class="num">{{ getQuestionTypeLabel(aiQuestionType) || '—' }}</div>
                      <div class="label">Type</div>
                   </div>
                </div>
@@ -149,7 +149,7 @@
                   <mat-label>Language Preference</mat-label>
                   <mat-select [(ngModel)]="aiQuestionLanguage">
                      <mat-option value="en">English</mat-option>
-                     <mat-option *ngFor="let l of languages" [value]="l.value">{{l.label}}</mat-option>
+                     <mat-option *ngFor="let l of languages" [value]="l.label">{{l.label}}</mat-option>
                   </mat-select>
                </mat-form-field>
 
@@ -164,6 +164,11 @@
                <mat-form-field appearance="outline" class="ai-field">
                   <mat-label>Number of Questions</mat-label>
                   <input matInput type="number" [(ngModel)]="aiQuestionNumber" min="1" />
+               </mat-form-field>
+               <!-- marks -->
+               <mat-form-field appearance="outline" class="ai-field">
+                  <mat-label>Marks per Question</mat-label>
+                  <input matInput type="number" [(ngModel)]="aiMarksPerQuestion" min="1" />
                </mat-form-field>
 
                <mat-form-field appearance="outline" class="ai-field">
@@ -216,18 +221,21 @@
                <div class="editor-panel" style="grid-column: 1 / -1;">
                   <mat-form-field appearance="outline" class="full" *ngIf="plaintextEditor">
                      <mat-label>Source Text</mat-label>
-                     <textarea #sourceTextArea matInput [(ngModel)]="sourceText" rows="8"
+                     <textarea #sourceTextArea matInput (input)="autoResize($event.target)" [(ngModel)]="sourceText" rows="1" style="max-height:40rem ;"
                         placeholder="Enter or paste source material"></textarea>
+                     <div style="display:flex;justify-content:space-between;font-size:0.85rem;color:rgba(0,0,0,0.6);margin-top:6px">
+                        <span>Remaining characters: {{ 1000 - (sourceText.length || 0) }}</span>
+                     </div>
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="full plain-text-block">
                      <mat-label>Additional Context</mat-label>
-                     <textarea matInput [(ngModel)]="aiPrompt" rows="4"
-                        placeholder="Any specific topics or rules the AI should follow?"></textarea>
+                     <textarea matInput (input)="autoResize($event.target)" [(ngModel)]="aiPrompt" rows="1"
+                        placeholder="Any specific topics or inputs the AI should follow?"></textarea>
                   </mat-form-field>
 
                   <div class="editor-actions">
                      <div class="editor-actions-left">
-                        <button class="generate-cta" mat-stroked-button (click)="sourceText=''; aiPrompt=''; plaintextEditor = false">Clear</button>
+                        <button class="generate-cta" mat-stroked-button (click)="sourceText=''; aiPrompt='';activeMode = 'ai'; plaintextEditor = false">Clear</button>
                      </div>
                      <div class="editor-actions-right">
                         <!-- <button mat-button (click)="showPreview = !showPreview">Toggle Preview</button> -->
@@ -252,7 +260,7 @@
          </div>
 
          <!-- Questions block: repeatable; each block has min 2 fields per row -->
-         <div class="questions-list" *ngIf="mode === 'manual' && !aiMode && !bulkMode">
+         <div class="questions-list" *ngIf="activeMode == 'manual'">
             <mat-accordion class="questions-accordion" multi>
                <mat-expansion-panel class="question-panel"
                   *ngFor="let q of questions; let qi = index; trackBy: trackByIndex" [expanded]="q._expanded"
@@ -264,15 +272,19 @@
                            <div class="q-snippet">{{ q.text ? (q.text | slice:0:80) : 'No question text yet' }}</div>
                         </div>
                         <div class="question-right">
-                           <!-- <div class="badge type">{{ q.type || '—' }}</div> -->
+                           <!-- Button with AI icon for enable fine-tuning (visible only in AI mode for descriptive questions) -->
+                           <button *ngIf="aiMode && q.type==='descriptive'" type="button" mat-icon-button aria-label="AI Fine-tuning"
+                              (click)="openFineTuningDialog(qi)" title="AI Fine-tuning for this question" class="fine-tune-btn">
+                              <mat-icon svgIcon="brain"></mat-icon>
+                           </button>
                            <span class="badge type-label">
                               {{ getQuestionTypeLabel(q.type) }}
                            </span>
-                           <div class="badge marks">{{ q.marks || 0 }} pts</div>
+                           <div class="badge marks">{{ q.marks || 0 }} Marks</div>
                            <div class="panel-actions">
                               <button type="button" mat-icon-button aria-label="Remove question"
                                  (click)="removeQuestion(qi)" [disabled]="questions.length<=1">
-                                 <mat-icon>remove_circle</mat-icon>
+                                 <mat-icon svgIcon="delete"></mat-icon>
                               </button>
                            </div>
                         </div>
@@ -280,7 +292,7 @@
                   </mat-expansion-panel-header>
 
                   <div class="panel-body">
-                     <div class="row two-cols">
+                     <div class="row two-cols" *ngIf="!aiMode">
                         <div class="form-col">
                            <mat-form-field appearance="outline" class="full">
                               <mat-icon matPrefix>category</mat-icon>
@@ -303,9 +315,9 @@
 
                      <div class="form-row">
                         <mat-form-field appearance="outline" class="full">
-                           <mat-icon matPrefix>edit</mat-icon>
+                           <!-- <mat-icon matPrefix>edit</mat-icon> -->
                            <mat-label>Question</mat-label>
-                           <textarea matInput [(ngModel)]="q.text" rows="3"
+                           <textarea matInput (input)="autoResize($event.target)" [(ngModel)]="q.text" rows="1" class="aimodel-textarea"
                               placeholder="Write the question..."></textarea>
                         </mat-form-field>
                      </div>
@@ -319,7 +331,7 @@
                                  *ngFor="let opt of q.options; let i = index; trackBy: trackByIndex">
                                  <mat-radio-button [value]="i" class="option-radio"></mat-radio-button>
                                  <mat-form-field appearance="outline" class="option-field">
-                                    <mat-icon matPrefix>label</mat-icon>
+                                    <!-- <mat-icon matPrefix>label</mat-icon> -->
                                     <input matInput [(ngModel)]="q.options[i]" [ngModelOptions]="{standalone: true}"
                                        class="option-input" placeholder="Option {{i+1}}" />
                                  </mat-form-field>
@@ -335,7 +347,7 @@
                                     (change)="toggleMultiCorrect(qi, i, $event.checked)"
                                     class="option-checkbox"></mat-checkbox>
                                  <mat-form-field appearance="outline" class="option-field">
-                                    <mat-icon matPrefix>label</mat-icon>
+                                    <!-- <mat-icon matPrefix>label</mat-icon> -->
                                     <input matInput [(ngModel)]="q.options[i]" [ngModelOptions]="{standalone: true}"
                                        placeholder="Option {{i+1}}" />
                                  </mat-form-field>
@@ -352,8 +364,8 @@
 
                      <div *ngIf="q.type==='fill'" class="form-row">
                         <mat-form-field appearance="outline" class="full">
-                           <mat-icon matPrefix>check</mat-icon>
-                           <mat-label>Answer (single-line)</mat-label>
+                           <!-- <mat-icon matPrefix>check</mat-icon> -->
+                           <mat-label>Answer</mat-label>
                            <input matInput id="q-answer-{{qi}}" [(ngModel)]="q.answerText" title="Answer"
                               placeholder="Correct answer" />
                         </mat-form-field>
@@ -361,12 +373,29 @@
 
                      <div *ngIf="q.type==='descriptive'" class="form-row">
                         <mat-form-field appearance="outline" class="full">
-                           <mat-icon matPrefix>description</mat-icon>
-                           <mat-label>Model answer (descriptive)</mat-label>
-                           <textarea matInput id="q-answer-par-{{qi}}" [(ngModel)]="q.answerText" rows="4"
+                           <!-- <mat-icon matPrefix>description</mat-icon> -->
+                           <mat-label>Answer</mat-label>
+                           <textarea matInput (input)="autoResize($event.target)" id="q-answer-par-{{qi}}" [(ngModel)]="q.answerText" rows="1" class="aimodel-textarea"
                               title="Model answer" placeholder="Model answer (max 1000 chars)"></textarea>
+                           <div style="display:flex;justify-content:space-between;font-size:0.85rem;color:rgba(0,0,0,0.6);margin-top:6px">
+                              <span>Total words: {{ countWords(q.answerText) }}</span>
+                              <span>Total characters: {{ q.answerText?.length || 0 }}</span>
+                           </div>
                         </mat-form-field>
+                        <!-- Finetune  -->
                      </div>
+                     <!-- AI fine-tuning -->
+                      <div *ngIf="q.type==='descriptive' && q.showFineTune" class="fine-tuning-section">
+                        <mat-form-field appearance="outline" class="full">
+                           <!-- <mat-icon matPrefix>tune</mat-icon> -->
+                           <mat-label>AI Fine-tuning Instructions (optional)</mat-label>
+                           <textarea matInput (input)="autoResize($event.target)" id="q-finetune-{{qi}}" [(ngModel)]="q.finetuneInstructions" rows="1"
+                              title="AI Fine-tuning Instructions" placeholder="Provide additional instructions for AI grading (max 500 chars)"></textarea>
+                        </mat-form-field>
+                        <!-- Finetune call button -->
+                         <button mat-stroked-button type="button" (click)="generateModelAnswer(qi, q.text, q.answerText, q.finetuneInstructions)"
+                           [disabled]="!q.text || q.text.length<5">Apply Fine-tuning</button>
+                      </div>
                   </div>
                </mat-expansion-panel>
             </mat-accordion>

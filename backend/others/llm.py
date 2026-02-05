@@ -1,25 +1,19 @@
 
 import json
+from flask.cli import load_dotenv
 import httpx
 import configparser
-
+import os
 class openai_client:
-    def read_config(self, config_file='config.ini'):
-        config = configparser.ConfigParser()
-        config.read(config_file)
-        return config
     def __init__(self,api_key=None,  model=None):
-        filename = r'./backend/config.ini'
         if api_key:
             self.api_key = api_key
         else:
-            config = self.read_config(filename)
-            self.api_key = config.get('openai', 'api_key')
+            self.api_key = os.getenv('api_key', '')
         if model:
             self.model = model
         else:
-            config = self.read_config(filename)
-            self.model = config.get('openai', 'model')
+            self.model = os.getenv('model', '')
 
         self.url = "https://api.openai.com/v1/chat/completions"
         self.headers = {

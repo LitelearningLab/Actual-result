@@ -157,8 +157,8 @@ export class CategoryCreateComponent {
       return;
     }
     if (!this.type) { this.loader.hide(); this.snack.open('Type is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
-    if (!this.whoInputs) { this.loader.hide(); this.snack.open('Who inputs the answer is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
-    if (!this.evaluation) { this.loader.hide(); this.snack.open('Evaluation is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
+    // if (!this.whoInputs) { this.loader.hide(); this.snack.open('Who inputs the answer is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
+    // if (!this.evaluation) { this.loader.hide(); this.snack.open('Evaluation is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
     if (!this.status) { this.loader.hide(); this.snack.open('Status is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
     if (this.markForEachQuestion === null || isNaN(Number(this.markForEachQuestion))){ this.loader.hide(); this.snack.open('Mark for each question is required and must be a number.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
 

@@ -188,15 +188,19 @@
                 <mat-form-field appearance="outline" class="half">
                   <mat-label>Subscription Start Date</mat-label>
                   <mat-icon matPrefix>calendar_today</mat-icon>
-                  <input matInput type="date" formControlName="subscription_start" placeholder="YYYY-MM-DD"
+                  <input matInput [matDatepicker]="startPicker" formControlName="subscription_start" placeholder="YYYY-MM-DD"
                     title="Subscription start date" aria-label="Subscription start date" />
+                  <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+                  <mat-datepicker #startPicker></mat-datepicker>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="half">
                   <mat-label>Subscription End Date</mat-label>
                   <mat-icon matPrefix>calendar_today</mat-icon>
-                  <input matInput type="date" formControlName="subscription_end" placeholder="YYYY-MM-DD"
+                  <input matInput [matDatepicker]="endPicker" formControlName="subscription_end" placeholder="YYYY-MM-DD"
                     title="Subscription end date" aria-label="Subscription end date" />
+                  <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+                  <mat-datepicker #endPicker></mat-datepicker>
                 </mat-form-field>
               </div>
             </div>

@@ -1,4 +1,4 @@
-from db.models import Question, Option, QuestionMapping, Categories, CategoriesDepartments, CategoriesTeams
+from db.models import Question, Option, QuestionMapping, Categories, CategoriesDepartments, CategoriesTeams, User, openai_requests
 from db.db import SQLiteDB
 import sys
 import pandas as pd
@@ -17,18 +17,18 @@ def add_question(request):
         data = request.json
         institute_id = data.get("institute_id")
         category_id = data.get("category_id", None)
-        # if not category_id:
-        json_data = {
-            "statusMessage": "Category ID is required",
-            "status": False,
-        }
-        return json_data, 400
+        created_by = data.get("created_by",'System')
+        # json_data = {
+        #     "statusMessage": "Category ID is required",
+        #     "status": False,
+        # }
+        # return json_data, 400
 
         for data in request.json.get('questions', []):
             question_type = data.get("type")
             question_text = data.get("text")
             marks = data.get("marks")
-            created_by = data.get("created_by",'System')
+            created_by = created_by
 
             question_options = data.get("options")
             question_correct = data.get("correct")
@@ -234,6 +234,14 @@ def get_questions_details(request):
             # Get category information for this question
             mapping = session.query(QuestionMapping).filter_by(question_id=q.question_id).first()
             category = session.query(Categories).filter_by(category_id=mapping.category_id).first() if mapping else None
+
+            # get user infor for created_by and updated_by
+            created_by_user = None
+            if q.created_by is not None:
+                created_by_user = session.query(User).filter_by(user_id=q.created_by).first()
+            updated_by_user = None
+            if q.updated_by is not None:
+                updated_by_user = session.query(User).filter_by(user_id=q.updated_by).first()
             
             question_list.append({
             "id": q.question_id,
@@ -243,7 +251,11 @@ def get_questions_details(request):
             "options": option_list,
             "category_id": mapping.category_id if mapping else None,
             "category": category.name if category else None,
-            "category_description": category.description if category else None
+            "category_description": category.description if category else None,
+            "created_by": created_by_user.full_name if created_by_user else None,
+            "created_by_id": created_by_user.user_id if created_by_user else None,
+            "updated_by": updated_by_user.full_name if updated_by_user else None,
+            "updated_by_id": updated_by_user.user_id if updated_by_user else None,
             })
         json_data = {"status": True, "data": question_list, "total": len(question_list)}
         return json_data, 200
@@ -322,7 +334,70 @@ def update_question(question_id, request):
         session.rollback()
         return {"statusMessage": str(e), "status": False}, 500
     
+def default_result():
+    result = {
+    "data": [
+        {
+        "correct_answer": "payment",
+        "mark": 1,
+        "question_text": "Fill in the blank: A hotel is a commercial establishment that provides lodging, meals, and other guest services for travelers and visitors in exchange for ___.",
+        "type": "fill"
+        },
+        {
+        "correct_answer": "Front Office Department",
+        "mark": 1,
+        "options": [
+            "Housekeeping Department",
+            "Front Office Department",
+            "Food and Beverage Department",
+            "Sales and Marketing Department"
+        ],
+        "question_text": "Which of the following departments in a hotel is responsible for guest registration, check-in, and check-out?",
+        "type": "choose"
+        },
+        {
+        "correct_answer": [
+            0,
+            2
+        ],
+        "mark": 1,
+        "options": [
+            "City Hotels",
+            "One Star Hotels",
+            "Airport Hotels",
+            "Boutique Hotels"
+        ],
+        "question_text": "Select all the classifications of hotels based on location.",
+        "type": "multi"
+        },
+        {
+        "correct_answer": "The hotel industry supports tourism and travel by providing accommodation and related services to travelers and guests. It creates employment opportunities, contributing to income generation for individuals and communities. Additionally, it contributes to foreign exchange earnings by attracting international tourists. The industry also promotes cultural exchange by hosting guests from diverse backgrounds and enhances regional development by stimulating local businesses and infrastructure growth. Overall, the hotel industry plays a significant role in national and global economic development.",
+        "mark": 1,
+        "question_text": "Describe the role of the hotel industry in economic development and tourism.",
+        "type": "descriptive"
+        },
+        {
+        "correct_answer": "Decline in hygiene and safety standards",
+        "mark": 1,
+        "options": [
+            "Use of technology and online booking systems",
+            "Focus on sustainability and eco-friendly practices",
+            "Decline in hygiene and safety standards",
+            "Growth of boutique and experiential hotels"
+        ],
+        "question_text": "Which of the following is NOT a current trend in the hotel industry?",
+        "type": "choose"
+        }
+    ],
+    "mark": 5,
+    "status": True,
+    "type": "All types"
+    }
+
+    return result
+
 def create_question_using_llm(request):
+    # return default_result(), 200
 
     data_json = request.get_json(silent=True) or {}
     form = request.form or {}
@@ -333,11 +408,12 @@ def create_question_using_llm(request):
         if key in form and form.get(key) is not None:
             return form.get(key)
         return data_json.get(key, default)
-    
+    institute_id = gv("institute_id", None)
+    user_id = gv("user_id", None)
     language = gv("language", "English")
-    industry = gv("industry", "general")
-    target_users = gv("target_users", "general")
-    user_role = gv("user_role", "general")
+    industry = gv("industry", "Education")
+    target_users = gv("target_users", "Students")
+    user_role = gv("user_role", "Learner")
     type = gv("type", "fill")
     number_of_options = int(gv("number_of_options", 4) or 4)
     number_of_questions = int(gv("number_of_questions", 1) or 1)
@@ -345,13 +421,13 @@ def create_question_using_llm(request):
     source_text = gv("source_text", "")
     additional_instructions = gv("additional_instructions", "")
     question_mark = int(gv("question_mark", 2) or 2)
-    if question_mark == 2:
+    if question_mark >= 2 and question_mark <=4:
         recommended_words_count = '60-65 words'
         character_count = '450 characters'
-    elif question_mark == 5:
+    elif question_mark >= 5 and question_mark <=9:
         recommended_words_count = '250-280 words'
         character_count = '2000 characters'
-    elif question_mark == 10:
+    elif question_mark >= 10 and question_mark <=15:
         recommended_words_count = '550-600 words'
         character_count = '4000 characters'
     else:
@@ -366,9 +442,10 @@ def create_question_using_llm(request):
         'fill' --> Filling the blanks
         'choose' --> Multiple choice single answer
         'multi' --> Multiple choice multiple answers
-        'descriptive' --> Descriptive answer
+        'descriptive' --> Question for descriptive answer, appropriate for the answer character count
     '''
     user_message = f'''    Using the following parameters, 
+    - Language: {language}
     - Industry: {industry}
     - Target Users: {target_users}
     - User Role: {user_role}
@@ -380,7 +457,7 @@ def create_question_using_llm(request):
     - Source Text: {source_text}
     - Additional Instructions: {additional_instructions}
     - Question Mark: {question_mark}
-    - Recommended Answer Length: {recommended_words_count} ({character_count})
+    - Recommended Answer Length: approximately {recommended_words_count} - ({character_count}) (±10%),
     Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
     [
         {{
@@ -395,7 +472,19 @@ def create_question_using_llm(request):
     '''
     try:
         response = openai_client_instance.chat_completion(system_message, user_message)
+        # with open("debug_response.json", "w") as debug_file:
+        #     debug_file.write(response.text)
         response_json = response.json()
+        # with open("debug_response.json", "r") as debug_file:
+        #     response_json = json.load(debug_file)
+        #     class MockResponse:
+        #         def __init__(self, json_data, status=200):
+        #             self._json = json_data
+        #             self.status_code = status
+        #         def json(self):
+        #             return self._json
+        #     response = MockResponse(response_json)
+        response_tracker(response_json, institute_id, user_id)
         if response.status_code != 200:
             print(f"Error response from LLM: {response_json}")
             result = {"status": False, "error": response_json.get("error", "Unknown error")}
@@ -426,3 +515,116 @@ def create_question_using_llm(request):
             "error": str(e)
         }, 500
     return result, 200
+def response_tracker(response_json, institute_id = None, user_id= None):
+    db = SQLiteDB()
+    session = db.connect()
+
+    id = response_json.get("id", None)
+    object_type = response_json.get("object", None)
+    choices = response_json.get("choices", None)
+    model = response_json.get("model", None)
+    usage = response_json.get("usage", None)
+    service_tier = response_json.get("service_tier", None)
+    system_fingerprint = response_json.get("system_fingerprint", None)
+
+    role = choices[0]['message'].get("role", None)
+    content = choices[0]['message'].get("content", None)
+    finish_reason = choices[0].get("finish_reason", None)
+
+    prompt_tokens = usage.get("prompt_tokens", None)
+    completion_tokens = usage.get("completion_tokens", None)
+    total_tokens = usage.get("total_tokens", None)
+
+    insert_record =  openai_requests(
+        id=id,
+        # object_type=object_type,
+        model=model,
+        service_tier=service_tier,
+        system_fingerprint=system_fingerprint,
+        role=role,
+        content=content,
+        finish_reason=finish_reason,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        institute_id=institute_id,
+        created_by=user_id)
+    session.add(insert_record)
+    session.commit()
+    session.close()
+    return
+
+def default_fine_tune_result():
+    result = {
+    "data":
+        {
+        "question_text": "What is the primary purpose of a hotel?",
+        "answer_text": "The primary purpose of a hotel is to provide lodging, meals, and other guest services for travelers and visitors in exchange for payment."
+        },
+    "status": True
+    }
+
+    return result
+def fine_tune_questions_using_llm(request):
+    # return default_fine_tune_result(), 200
+    
+    data_json = request.get_json(silent=True)
+    openai_client_instance = openai_client()
+
+    def gv(key, default=None):
+        return data_json.get(key, default)
+    
+    questions = gv("question_text", [])
+    answer_text = gv("answer_text", "")
+    additional_instructions = gv("additional_instructions", "Update the question with additional related items to make the answer also more detailed ( close to 1800 characters) ")
+    institute_id = gv("institute_id", None)
+    user_id = gv("user_id", None)
+
+    try:
+        system_message = "You are an expert question and answer evaluator. Your task is to evaluate and improve the provided question(s) and answer based on the given answer text and additional instructions."
+        user_message = f'''Using the following parameters,
+        - Question Text(s): {questions}
+        - Answer Text: {answer_text}
+        - Additional Instructions: {additional_instructions}
+        For each question, evaluate its clarity, relevance, and alignment with the provided answer text. Suggest improvements to enhance the quality of the questions and answers.
+        Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
+            {{
+                "question_text": "<The improved question text>",
+                "answer_text": "<The improved answer text>"
+            }}
+        Ensure the output is valid JSON with no surrounding markdown or text.
+        '''
+        response = openai_client_instance.chat_completion(system_message, user_message)
+        # with open("debug_fine_tune_response.json", "w") as debug_file:
+        #     debug_file.write(response.text)
+        response_json = response.json()
+        # with open("debug_fine_tune_response.json", "r") as debug_file:
+        #     response_json = json.load(debug_file)
+        #     class MockResponse:
+        #         def __init__(self, json_data, status=200):
+        #             self._json = json_data
+        #             self.status_code = status
+        #         def json(self):
+        #             return self._json
+        #     response = MockResponse(response_json)
+        response_tracker(response_json, institute_id, user_id)
+        if response.status_code != 200:
+            print(f"Error response from LLM: {response_json}")
+            result = {"status": False, "error": response_json.get("error", "Unknown error")}
+            return result, 500
+        result_text = response_json['choices'][0]['message']['content'].strip()
+        # Remove markdown code blocks if present
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+            result_text = result_text.strip()
+        parsed = json.loads(result_text)[0]
+        result = { 'status': True, 'data': parsed }
+        return result , 200
+    except Exception as e:
+        print(f"Error in fine_tune_questions_using_llm: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
+        return  {
+            "status": False,
+            "error": str(e)
+        }, 500
