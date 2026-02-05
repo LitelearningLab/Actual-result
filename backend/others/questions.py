@@ -420,7 +420,7 @@ def create_question_using_llm(request):
     complexity = gv("complexity", "medium")
     source_text = gv("source_text", "")
     additional_instructions = gv("additional_instructions", "")
-    question_mark = int(gv("question_mark", 2) or 2)
+    question_mark = int(gv("marks_per_question", 2) or 2)
     if question_mark >= 2 and question_mark <=4:
         recommended_words_count = '60-65 words'
         character_count = '450 characters'
@@ -433,7 +433,7 @@ def create_question_using_llm(request):
     else:
         recommended_words_count = 'as appropriate'
         character_count = 'as appropriate'
-
+    aimodel = 2 if question_mark <5 else 1
     openai_client_instance = openai_client()
 
 # You are an expert question setter and evaluator. Your task is to create a question and answer based on the provided source text and parameters.
@@ -471,7 +471,7 @@ def create_question_using_llm(request):
     If only a single question is requested, returning a single JSON object is also acceptable. Ensure the output is valid JSON with no surrounding markdown or text.
     '''
     try:
-        response = openai_client_instance.chat_completion(system_message, user_message)
+        response = openai_client_instance.chat_completion(system_message, user_message, aimodel = aimodel)
         # with open("debug_response.json", "w") as debug_file:
         #     debug_file.write(response.text)
         response_json = response.json()
