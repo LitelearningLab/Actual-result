@@ -42,7 +42,7 @@ def initialize_jwt_validator(request):
 def jwt_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        return f(*args, **kwargs)
+        # return f(*args, **kwargs)
         validation_result = initialize_jwt_validator(request)
         if validation_result != "Access granted":
             return jsonify({"status": False, "statusMessage": validation_result}), 401

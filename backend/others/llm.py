@@ -1,19 +1,23 @@
 
 import json
-from flask.cli import load_dotenv
 import httpx
-import configparser
-import os
+
 class openai_client:
     def __init__(self,api_key=None,  model=None):
+        from dotenv import dotenv_values
+        def get_config():
+            return dotenv_values(".env") or dotenv_values("./backend/.env")
+        config = get_config()
+
         if api_key:
             self.api_key = api_key
         else:
-            self.api_key = os.getenv('api_key', '')
+            self.api_key = config.get('api_key', '')
         if model:
             self.model = model
         else:
-            self.model = os.getenv('model', '')
+            self.model1 = config.get('model1', '')
+            self.model2 = config.get('model2', '')
 
         self.url = "https://api.openai.com/v1/chat/completions"
         self.headers = {
@@ -21,14 +25,14 @@ class openai_client:
             "Content-Type": "application/json",
         }
 
-    def chat_completion(self, system_message, InputData, temperature: float = 0.2, max_tokens: int = 1024):
+    def chat_completion(self, system_message, InputData, aimodel =1, max_tokens: int = 5200, temperature: float = 0.2):
         messages = []
         if system_message:
             messages.append({"role": "system", "content": system_message})
         messages.append({"role": "user", "content": InputData})
-
+        model = self.model1 if aimodel == 1 else self.model2
         payload = {
-            "model": self.model,
+            "model": model,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens
