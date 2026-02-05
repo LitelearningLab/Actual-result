@@ -397,7 +397,7 @@ def default_result():
     return result
 
 def create_question_using_llm(request):
-    return default_result(), 200
+    # return default_result(), 200
 
     data_json = request.get_json(silent=True) or {}
     form = request.form or {}
@@ -472,8 +472,8 @@ def create_question_using_llm(request):
     '''
     try:
         response = openai_client_instance.chat_completion(system_message, user_message)
-        with open("debug_response.json", "w") as debug_file:
-            debug_file.write(response.text)
+        # with open("debug_response.json", "w") as debug_file:
+        #     debug_file.write(response.text)
         response_json = response.json()
         # with open("debug_response.json", "r") as debug_file:
         #     response_json = json.load(debug_file)
@@ -595,8 +595,8 @@ def fine_tune_questions_using_llm(request):
         Ensure the output is valid JSON with no surrounding markdown or text.
         '''
         response = openai_client_instance.chat_completion(system_message, user_message)
-        with open("debug_fine_tune_response.json", "w") as debug_file:
-            debug_file.write(response.text)
+        # with open("debug_fine_tune_response.json", "w") as debug_file:
+        #     debug_file.write(response.text)
         response_json = response.json()
         # with open("debug_fine_tune_response.json", "r") as debug_file:
         #     response_json = json.load(debug_file)
