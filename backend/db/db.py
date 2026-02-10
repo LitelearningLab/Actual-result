@@ -6,8 +6,11 @@ import os
 class SQLiteDB:
     def __init__(self):
         environment_flag = os.getenv('environment_flag')
+        print(f"Environment flag = {environment_flag}")
+        print(f" JWT key: {os.getenv('jwt_secret')}")
         db_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'edu_{environment_flag}.db')
         db_path = f'sqlite:///{db_dir}'
+        print(f"Database Path: {db_path}")
         os.makedirs(os.path.dirname(db_dir), exist_ok=True)
         self.engine = create_engine(db_path, echo=False, future=True)
         self.Session = sessionmaker(bind=self.engine)
