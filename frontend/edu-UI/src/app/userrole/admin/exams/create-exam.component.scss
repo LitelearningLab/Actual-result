@@ -12,7 +12,7 @@
 .row{  gap:12px; flex-wrap:wrap; }
 .col{ flex:1; min-width:160px }
 .col textarea{height: 22px;}
-.row.small .col{ min-width:160px }
+.row.small .col{ min-width:125px }
 .actions-col{ display:flex; align-items:center }
 .cat-item{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px;  border-radius:8px; background: transparent }
 .cat-main{ display:flex; align-items:center; gap:12px; flex:1 1 auto; min-width:0; }
@@ -26,23 +26,34 @@
 .row.small{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:12px; border-radius:8px; margin-top:8px; justify-content:space-between }
 
 /* Improved compact grid for small control rows (category selector + controls) */
-.row.small.small-grid{ display:grid; grid-template-columns: 1fr 160px min-content 56px;  align-items:center; background-color: var(--bg-2); }
+.row.small.small-grid{
+	display: grid;
+	grid-template-columns: 1fr 160px;
+	grid-template-rows: auto auto;
+	align-items: center;
+	gap: 0 12px;
+	background-color: var(--bg-2);
+}
 .row.small.small-grid .category-col{ min-width: 0; }
-.row.small.small-grid .questions-col{ width:160px }
-.row.small.small-grid .checkbox-col{ justify-self:start; display:flex; align-items:center; gap:8px; white-space:nowrap; overflow:hidden }
-.row.small.small-grid .checkbox-col .mat-checkbox-layout{ gap:8px }
-.row.small.small-grid .checkbox-col .mat-checkbox-label{ font-size:13px }
-.row.small.small-grid .actions-col{  display:flex; align-items:center }
-.row.small.small-grid .actions-col .add-btn{ margin-left:6px;color: var(--button-1); }
-// .row.small.small-grid .add-btn{ height:40px; width:40px; min-width:40px; display:inline-flex; align-items:center; justify-content:center }
+.row.small.small-grid .questions-col{ width: 160px; }
 
-/* When space is tight (mobile), stack into two rows: category full width, controls below */
+/* Second row: checkbox + Add button span full width */
+.row.small.small-grid .actions-row{
+	grid-column: 1 / -1;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 4px 0 12px;
+}
+.row.small.small-grid .actions-row .add-btn{
+	margin-left: auto;
+	white-space: nowrap;
+}
+
+/* When space is tight (mobile), stack everything */
 @media (max-width:720px){
-	.row.small.small-grid{ grid-template-columns: 1fr; grid-auto-rows: auto; }
-	.row.small.small-grid .questions-col,
-	.row.small.small-grid .checkbox-col,
-	.row.small.small-grid .actions-col{ display:flex; gap:8px; align-items:center; color: var(--button-1); }
-	.row.small.small-grid .actions-col{ justify-content:flex-end }
+	.row.small.small-grid{ grid-template-columns: 1fr; }
+	.row.small.small-grid .actions-row{ flex-wrap: wrap; }
 }
 
 .row.header-row { display: flex; gap:12px; flex-wrap:wrap; }

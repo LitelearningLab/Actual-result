@@ -218,16 +218,13 @@
                                         </mat-form-field>
                                     </div>
 
-                                    <div class="col checkbox-col">
+                                    <div class="col actions-row">
                                         <mat-checkbox [(ngModel)]="newCategory.randomize_questions"
-                                            [disabled]="readOnly">Random</mat-checkbox>
-                                    </div>
-
-                                    <div class="filter-actions">
-                                        <button mat-flat-button aria-label="Add category" class="add-btn" type="button"
+                                            [disabled]="readOnly">Include Questions Randomly</mat-checkbox>
+                                        <button mat-flat-button color="primary" aria-label="Add category" class="add-btn" type="button"
                                             (click)="addCategory()"
                                             [disabled]="!selectedCategory || ( !(newCategory.questions>0) && !(selectedQuestionIds && selectedQuestionIds.length) ) || readOnly">
-                                            <mat-icon class="add-icon">add</mat-icon>ADD
+                                            <mat-icon class="add-icon">add</mat-icon>Add Selected
                                         </button>
                                     </div>
                                 </div>
@@ -242,7 +239,7 @@
                                                         <div class="cat-meta">
                                                             <span class="cat-questions">{{c.questions}} Q</span>
                                                             <span class="cat-randomize"
-                                                                *ngIf="c.randomize_questions">Random</span>
+                                                                *ngIf="c.randomize_questions">Include Questions Randomly</span>
                                                         </div>
                                                     </div>
                                                     <div class="cat-actions">

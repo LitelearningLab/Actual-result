@@ -19,6 +19,7 @@
 .q-title{ font-weight:600; color:#0b394d }
 .opt-row{ display:flex;  gap:12px; padding:6px 0 }
 .opt-label{ font-weight:700; margin-right:8px }
+.more-link{ color:#1976d2; cursor:pointer; text-decoration:none; font-weight:500; margin-left:4px; &:hover{ text-decoration:underline } }
 .correct-mark{ color:green; font-weight:700 }
 
 @media (max-width:720px){ .premium-table td, .premium-table th{ padding:8px } }

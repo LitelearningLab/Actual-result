@@ -21,7 +21,10 @@
         </button>
 
         <div class="logo-wrap" aria-hidden="true" *ngIf="!collapsed">
-            <img class="institute-logo" src="/assets/images/profluent-lab.png" alt="Institute logo" />
+            <img class="institute-logo" src="/assets/images/logo-main.png" alt="Institute logo" />
+        </div>
+        <div class="logo-wrap" aria-hidden="true" *ngIf="collapsed">
+            <img class="institute-logo" src="/assets/images/logo.png" alt="Institute logo" />
         </div>
         <!-- if *ngIf="collapsed" display logo as oval -->
         <div class="logo-wrap logo-collapsed" aria-hidden="true" *ngIf="collapsed">

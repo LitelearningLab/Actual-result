@@ -221,7 +221,13 @@
                                     <span class="opt-label" *ngIf="q.type === 'multi' || q.type === 'choose'">{{
                                         ('ABCDEFGHIJKLMNOPQRSTUVWXYZ')[idx] || idx+1
                                         }}.</span>
-                                    <span class="opt-text">{{ o?.text }}</span>
+                                    <span class="opt-text">
+                                        <ng-container *ngIf="o?.text && o.text.length > 300; else fullText">
+                                            {{ o.text | slice:0:300 }}…
+                                            <a href="javascript:void(0)" class="more-link" (click)="viewDetails(q)">more</a>
+                                        </ng-container>
+                                        <ng-template #fullText>{{ o?.text }}</ng-template>
+                                    </span>
                                 </div>
                                 <div class="opt-right" *ngIf="q.type === 'multi' || q.type === 'choose'">
                                     <span *ngIf="o?.is_correct === 1" class="correct-mark">✔</span>

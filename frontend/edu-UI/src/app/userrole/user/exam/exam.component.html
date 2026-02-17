@@ -306,14 +306,23 @@
                               <div class="q-body">
                                  <div class="q-meta">
                                     <div class="q-badge">{{ (q.question_type || '').toUpperCase() }}</div>
-                                    <div class="q-info" *ngIf="(q.question_type || '')  != 'descriptive'">{{ (q.marks_awarded || 0) + ' Marks' }}</div>
-                                    <div class="q-info" *ngIf="(q.question_type || '') === 'descriptive'">{{ (q.marks_awarded || 0) + ' Marks' }}</div>
+                                    <div class="q-info">{{ (q.marks_awarded || 0) + ' Marks' }}</div>
                                  </div>
                                  <div class="q-text"><strong>{{ q.question_text || q.question || 'Question' }}</strong></div>
                               </div>
                            </div>
                            <div class="q-right">
-                              <div class="q-marks small-muted" [ngClass]="{ 'mark-positive': (q.marks_awarded || 0) > 0, 'mark-negative': (q.marks_awarded || 0) == 0 }">{{ q.marks_awarded != null ? (q.marks_awarded + ' pts') : '-' }}</div>
+                              <div class="score-chip"
+                                 [ngClass]="{
+                                    'score-full': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) >= (q.question_marks || 0),
+                                    'score-partial': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.question_marks || 0),
+                                    'score-zero': (q.marks_awarded || 0) === 0
+                                 }">
+                                 <span class="score-awarded">{{ q.marks_awarded != null ? q.marks_awarded : '-' }}</span>
+                                 <span class="score-sep">/</span>
+                                 <span class="score-total">{{ q.question_marks ||  0 }}</span>
+                                 <!-- <span class="score-unit">Marks</span> -->
+                              </div>
                            </div>
                         </div>
 
@@ -327,7 +336,112 @@
                         <div *ngIf="(q.question_type || '') === 'descriptive'" class="q-descriptive">
                            <div class="q-feedback" *ngIf="q.feedback"><strong>High-level Feedback</strong><div class="feedback-text">{{ q.feedback }}</div></div>
                         </div>
-
+                        <div class="q-review-comments" *ngIf="q.review_comment && q.review_comment.comments && q.review_comment.comments.length">
+                              <div class="review-columns">
+                                    <div class="col missed">
+                                          <div class="col-header"><span class="dot red"></span><h4>Points Missed</h4></div>
+                                          <div *ngFor="let rc of reviewComments(q, 'missing'); let rci = index">
+                                                <div class="review-item">
+                                                      <div class="ri-body">
+                                                            <div *ngIf="rc.history && rc.history.length" class="review-text-history">
+                                                                  <div *ngFor="let h of rc.history; let hi = index">
+                                                                        <div class="history-entry" [class.deleted]="h.is_deleted == 1">
+                                                                              <div class="review-text-missed" [class.deleted]="h.is_deleted == 1">
+                                                                                    <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                                                                                    <span class="review-text" [class.deleted]="h.is_deleted == 1 || h.updated_by">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
+                                                                              </div>
+                                                                              <div class="review-meta small-muted">
+                                                                                    <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
+                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by">Edited on {{ h.updated_date }}</span>
+                                                                              </div>
+                                                                        </div>
+                                                                  </div>
+                                                            </div>
+                                                            <div class="review-text-missed" [class.deleted]="rc.is_deleted == 1">
+                                                                  <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                                                                  <span class="review-text" [class.deleted]="rc.is_deleted == 1 || rc.updated_by">{{ toTitleCase(rc.comment_text || rc.comment || '') }}</span>
+                                                            </div>
+                                                            <div class="review-meta small-muted">
+                                                                  <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
+                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by">Edited on {{ rc.updated_date }}</span>
+                                                            </div>
+                                                      </div>
+                                                </div>
+                                          </div>
+                                    </div>
+                                    <div class="col incorrect">
+                                          <div class="col-header"><span class="dot orange"></span><h4>Points Incorrect</h4></div>
+                                          <div *ngFor="let rc of reviewComments(q, ['incorrct','incorrect','incor']); let rci = index">
+                                                <div class="review-item">
+                                                      <div class="ri-body">
+                                                            <div *ngIf="rc.history && rc.history.length" class="review-text-history">
+                                                                  <div *ngFor="let h of rc.history; let hi = index">
+                                                                        <div class="history-entry" [class.deleted]="h.is_deleted == 1">
+                                                                              <div class="review-text-missed" [class.deleted]="h.is_deleted == 1">
+                                                                                    <div class="ri-left"><span class="ri-icon incorrect">{{ hi + 1 }}</span></div>
+                                                                                    <span class="review-text" [class.deleted]="h.is_deleted == 1 || h.updated_by">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
+                                                                              </div>
+                                                                              <div class="review-meta small-muted">
+                                                                                    <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
+                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by">Edited on {{ h.updated_date }}</span>
+                                                                              </div>
+                                                                        </div>
+                                                                  </div>
+                                                            </div>
+                                                            <div class="review-text-incorrect" [class.deleted]="rc.is_deleted == 1">
+                                                                  <div class="ri-left"><span class="ri-icon incorrect">{{ rci + 1 }}</span></div>
+                                                                  <span class="review-text" [class.deleted]="rc.is_deleted == 1 || rc.updated_by">{{ toTitleCase(rc.comment_text || rc.comment || '') }}</span>
+                                                            </div>
+                                                            <div class="review-meta small-muted">
+                                                                  <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
+                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by">Edited on {{ rc.updated_date }}</span>
+                                                            </div>
+                                                      </div>
+                                                </div>
+                                          </div>
+                                    </div>
+                                    <div class="col incomplete">
+                                          <div class="col-header"><span class="dot yellow"></span><h4>Points Incomplete</h4></div>
+                                          <div *ngFor="let rc of reviewComments(q, 'incomplete'); let rci = index">
+                                                <div class="review-item">
+                                                      <div class="ri-body">
+                                                            <div *ngIf="rc.history && rc.history.length" class="review-text-history">
+                                                                  <div *ngFor="let h of rc.history; let hi = index">
+                                                                        <div class="history-entry" [class.deleted]="h.is_deleted == 1">
+                                                                              <div class="review-text-missed" [class.deleted]="h.is_deleted == 1">
+                                                                                    <div class="ri-left"><span class="ri-icon incomplete">{{ hi + 1 }}</span></div>
+                                                                                    <span class="review-text" [class.deleted]="h.is_deleted == 1 || h.updated_by">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
+                                                                              </div>
+                                                                              <div class="review-meta small-muted">
+                                                                                    <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
+                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by">Edited on {{ h.updated_date }}</span>
+                                                                              </div>
+                                                                        </div>
+                                                                  </div>
+                                                            </div>
+                                                            <div class="review-text-incomplete" [class.deleted]="rc.is_deleted == 1">
+                                                                  <div class="ri-left"><span class="ri-icon incomplete">{{ rci + 1 }}</span></div>
+                                                                  <span class="review-text" [class.deleted]="rc.is_deleted == 1 || rc.updated_by">{{ toTitleCase(rc.comment_text || rc.comment || '') }}</span>
+                                                            </div>
+                                                            <div class="review-meta small-muted">
+                                                                  <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
+                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by">Edited on {{ rc.updated_date }}</span>
+                                                            </div>
+                                                      </div>
+                                                </div>
+                                          </div>
+                                    </div>
+                              </div>
+                        </div>
+                        <div *ngIf="(q.question_type || '') === 'descriptive'" class="desc-student">
+                           <div class="student-label">Student's Answer</div>
+                           <div class="answer-text">{{ (q.selected_option || []).join(' ') || '-' }}</div>
+                        </div>
+                        
+                        <!-- <div class="desc-model">
+                           <div class="model-label">Model Answer</div>
+                           <div class="model-text">{{ q.correct_option || (q.options && q.options[0] && q.options[0].option_text) || '-' }}</div>
+                        </div> -->
                         <div *ngIf="(q.question_type || '') == 'choose' || (q.question_type || '') == 'multi'" class="q-options two-col">
                            <div *ngFor="let opt of (q.options || []); let oi = index" class="q-option" [class.correct]="isOptionCorrect(opt)" [class.selected]="isOptionSelected(q,opt)" [class.missed]="isOptionCorrect(opt) && !isOptionSelected(q,opt)">
                               <div class="opt-left"><span class="opt-mark">{{ getOptionLetter(oi) }}</span></div>
