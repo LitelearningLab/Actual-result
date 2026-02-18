@@ -32,7 +32,7 @@
 
     
     /* Global layout variables (sidebar width is global so % values work across components) */
-    --sidenav-width: 22rem; /* 300px ÷ 16 */
+    --sidenav-width: 20rem; /* 300px ÷ 16 */
     --sidenav-max: 45.25rem;   /* 660px ÷ 16 */
     --sidenav-collapsed: 4.5rem; /* collapsed width (approx 72px at 16px root) */
     --control-radius: 0.5rem;
@@ -232,7 +232,7 @@ html, body {
 
 // ========================= List styles ================================================================
 .list-card {padding: 0.5rem; --mdc-outlined-text-field-outline-color: rgba(255, 255, 255, 0.2);}
-.list-wrapper{ background-color: var(--bg-1);   box-shadow:0 0.875rem 2.625rem rgba(1, 39, 46, 0.08);border-radius: 0.5rem; max-height: min(75vh, 60rem); overflow:auto; }
+.list-wrapper{ background-color: var(--bg-1);   box-shadow:0 0.875rem 2.625rem rgba(1, 39, 46, 0.08);border-radius: 0.5rem; max-height: min(70vh, 60rem); overflow:auto; }
 .list-wrapper .actions-inline{ display:flex; gap:0.95rem; align-items:center; }
 
 .list-wrapper .actions-inline button{ width:1.9rem; height:1.9rem; color: var(--button-1);padding: 0px!important; border-radius: 30%;}

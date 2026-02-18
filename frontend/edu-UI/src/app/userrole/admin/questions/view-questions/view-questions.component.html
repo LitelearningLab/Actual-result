@@ -273,8 +273,10 @@
     <div class="modal-backdrop" *ngIf="viewedQuestion">
         <div class="modal">
             <div class="modal-header">
-                <h3>Question</h3>
-                <h1>{{ viewedQuestion?.question }}</h1>
+                <div class="modal-header-text">
+                    <h3>Question</h3>
+                    <h1 class="modal-user-name">{{ viewedQuestion?.question }}</h1>
+                </div>
                 <button mat-icon-button (click)="closeViewModal()"><mat-icon>close</mat-icon></button>
             </div>
             <div class="modal-body">

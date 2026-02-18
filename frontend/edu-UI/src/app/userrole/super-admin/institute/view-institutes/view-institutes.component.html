@@ -1,361 +1,373 @@
-<div class="view-institutes page">
-   <div class="toolbar">
-      <!-- <div class="title">
-      <h2>Institutes</h2>
-      <p class="muted">View and manage registered institutes</p>
-    </div> -->
+<div class="page view-institutes">
 
-      <div class="search">
-         <mat-form-field appearance="outline" class="search-field">
-            <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
-            <input matInput placeholder="Search institutes, industry, sector" [(ngModel)]="filter"
-               (ngModelChange)="applyFilter($event)" aria-label="Search institutes" />
-            <button mat-icon-button matSuffix *ngIf="filter" (click)="filter = ''; applyFilter('')"
-               aria-label="Clear search">
-               <mat-icon>close</mat-icon>
+  <!-- ── Toolbar ── -->
+  <div class="toolbar">
+    <div class="search">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
+        <input matInput placeholder="Search institutes, industry, sector" [(ngModel)]="filter"
+          (ngModelChange)="applyFilter($event)" aria-label="Search institutes" />
+        <button mat-icon-button matSuffix *ngIf="filter" (click)="filter = ''; applyFilter('')"
+          aria-label="Clear search">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+
+    <div class="controls">
+      <div class="action-row">
+        <button #filtersBtn mat-flat-button type="button" (click)="openFiltersOverlay(); $event.stopPropagation()"
+          class="button-one">
+          <mat-icon svgIcon="filter"></mat-icon>
+          <span>Filters</span>
+        </button>
+
+        <button mat-flat-button (click)="loadInstitutes()" class="button-one">
+          <mat-icon svgIcon="refresh"></mat-icon>
+          <span>Refresh</span>
+        </button>
+
+        <button mat-flat-button type="button" routerLink="/institute-register" class="register-btn">
+          <mat-icon svgIcon="add"></mat-icon>
+          <span>Register Institute</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Filter Overlay Panel ── -->
+  <ng-template #filtersPanel>
+    <div class="filters-panel" (click)="$event.stopPropagation()">
+      <div class="filters-panel-header">
+        <h4><mat-icon>tune</mat-icon> Filters</h4>
+      </div>
+      <div class="filter-block">
+        <mat-form-field appearance="outline" class="filter-item">
+          <mat-label>Institute</mat-label>
+          <input matInput placeholder="Institute name" [(ngModel)]="filters.name" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item">
+          <mat-label>Industry</mat-label>
+          <mat-select [(ngModel)]="filters.industry" placeholder="Industry type">
+            <mat-option value="">Any</mat-option>
+            <mat-option *ngFor="let t of industryTypes" [value]="t">{{t}}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item">
+          <mat-label>Sector</mat-label>
+          <mat-select [(ngModel)]="filters.sector" placeholder="Industry sector">
+            <mat-option value="">Any</mat-option>
+            <mat-option *ngFor="let s of industrySectors" [value]="s">{{s}}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item">
+          <mat-label>Country</mat-label>
+          <mat-select [(ngModel)]="filters.country">
+            <mat-option value="">Any</mat-option>
+            <mat-option *ngFor="let c of countries" [value]="c.code">{{c.name}}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item">
+          <mat-label>City</mat-label>
+          <mat-select [(ngModel)]="filters.city">
+            <mat-option value="">Any</mat-option>
+            <mat-option *ngFor="let c of cities" [value]="c.code">{{c.name}}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-item">
+          <mat-label>Active</mat-label>
+          <mat-select [(ngModel)]="filters.active_status">
+            <mat-option value="">Any</mat-option>
+            <mat-option [value]="true">Active</mat-option>
+            <mat-option [value]="false">Inactive</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div class="filter-actions">
+        <button mat-flat-button (click)="applyFilters()" class="filter-apply-btn">
+          <mat-icon svgIcon="apply"></mat-icon> Apply
+        </button>
+        <button mat-flat-button (click)="resetFilters()" class="filter-reset-btn">
+          <mat-icon svgIcon="reset_settings"></mat-icon> Reset
+        </button>
+      </div>
+    </div>
+  </ng-template>
+
+  <!-- ── Data Table Card ── -->
+  <div class="list-card">
+    <div class="list-wrapper">
+      <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 compact premium-table" matSort>
+        <colgroup>
+          <col class="col-name">
+          <col class="col-short">
+          <col class="col-industry">
+          <col class="col-sector">
+          <col class="col-primary-contact">
+          <col class="col-sub-start">
+          <col class="col-sub-end">
+          <col class="col-active">
+          <col>
+        </colgroup>
+
+        <!-- Name -->
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Institute</th>
+          <td mat-cell *matCellDef="let i">
+            <span class="cell-primary">{{i.name}}</span>
+          </td>
+        </ng-container>
+
+        <!-- Short -->
+        <ng-container matColumnDef="short">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Short Name</th>
+          <td mat-cell *matCellDef="let i">
+            <span class="cell-mono">{{i.short}}</span>
+          </td>
+        </ng-container>
+
+        <!-- Industry Type -->
+        <ng-container matColumnDef="industry_type">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Industry</th>
+          <td mat-cell *matCellDef="let i">
+            <span class="cell-badge cell-badge--blue" *ngIf="i.industry_type">{{i.industry_type}}</span>
+            <span class="cell-muted" *ngIf="!i.industry_type">—</span>
+          </td>
+        </ng-container>
+
+        <!-- Industry Sector -->
+        <ng-container matColumnDef="industry_sector">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Sector</th>
+          <td mat-cell *matCellDef="let i">
+            <span class="cell-badge cell-badge--teal" *ngIf="i.industry_sector">{{i.industry_sector}}</span>
+            <span class="cell-muted" *ngIf="!i.industry_sector">—</span>
+          </td>
+        </ng-container>
+
+        <!-- Primary contact -->
+        <ng-container matColumnDef="primary_contact_person">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Primary Contact</th>
+          <td mat-cell *matCellDef="let i">
+            {{i.primary_contact || i.primary_contact_person || i.primary_email || '—'}}
+          </td>
+        </ng-container>
+
+        <!-- Subscription start -->
+        <ng-container matColumnDef="subscription_start">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Sub. Start</th>
+          <td mat-cell *matCellDef="let i">
+            <span class="cell-date" *ngIf="i.subscription_start">{{i.subscription_start | date:'dd-MMM-yyyy'}}</span>
+            <span class="cell-muted" *ngIf="!i.subscription_start">—</span>
+          </td>
+        </ng-container>
+
+        <!-- Subscription end -->
+        <ng-container matColumnDef="subscription_end">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Sub. End</th>
+          <td mat-cell *matCellDef="let i">
+            <span class="cell-date" *ngIf="i.subscription_end">{{i.subscription_end | date:'dd-MMM-yyyy'}}</span>
+            <span class="cell-muted" *ngIf="!i.subscription_end">—</span>
+          </td>
+        </ng-container>
+
+        <!-- Active -->
+        <ng-container matColumnDef="active">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Active</th>
+          <td mat-cell *matCellDef="let i">
+            <button type="button" role="switch"
+              aria-label="Toggle active status"
+              aria-checked="false"
+              [attr.aria-checked]="i.active ? 'true' : 'false'"
+              [attr.data-state]="i.active ? 'checked' : 'unchecked'"
+              (click)="toggleActive(i)"
+              title="Toggle active status"
+              class="custom-toggle peer inline-flex">
+              <span class="toggle-thumb" [attr.data-state]="i.active ? 'checked' : 'unchecked'"></span>
             </button>
-         </mat-form-field>
+          </td>
+        </ng-container>
+
+        <!-- Actions -->
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>Actions</th>
+          <td mat-cell *matCellDef="let u">
+            <div class="actions-inline">
+              <button mat-icon-button aria-label="View details" (click)="viewDetails(u)" title="View details">
+                <mat-icon svgIcon="view"></mat-icon>
+              </button>
+              <button mat-icon-button class="edit-btn" (click)="startEdit(u)" title="Edit">
+                <mat-icon svgIcon="edit"></mat-icon>
+              </button>
+              <button mat-icon-button class="delete-btn" (click)="confirmDelete(u)" title="Delete">
+                <mat-icon svgIcon="delete"></mat-icon>
+              </button>
+            </div>
+          </td>
+        </ng-container>
+
+        <thead>
+          <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        </thead>
+        <tbody>
+          <tr mat-row *matRowDef="let row; columns: columns"></tr>
+        </tbody>
+      </table>
+
+      <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+    </div>
+  </div>
+
+  <!-- ── Detail Modal ── -->
+  <div class="modal-backdrop" *ngIf="selectedInstitute || editing">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-header-text">
+          <h3 *ngIf="!editing">Institute Details</h3>
+          <h3 *ngIf="editing">Edit Institute</h3>
+          <h1 class="modal-inst-name">{{selectedInstitute.name}}</h1>
+        </div>
+        <button mat-icon-button (click)="closeModal()" class="modal-close-btn">
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
 
-      <div class="controls">
-         <div class="action-row">
+      <div class="modal-body">
+        <ng-container *ngIf="selectedInstitute && !editing">
+          <div class="detail-card">
+            <mat-tab-group dynamicHeight mat-align-tabs="start">
 
-            <button #filtersBtn mat-flat-button type="button" (click)="openFiltersOverlay(); $event.stopPropagation()"
-               class="button-one">
-               <mat-icon svgIcon="filter" ></mat-icon>
-               <span>Filters</span>
-            </button>
+              <!-- Basic Info Tab -->
+              <mat-tab>
+                <ng-template mat-tab-label>Basic Information</ng-template>
+                <div class="detail-grid">
+                  <div class="label"><mat-icon>domain</mat-icon> Name</div>
+                  <div class="value">{{selectedInstitute.name}}</div>
 
-            <button mat-flat-button (click)="loadInstitutes()" class="refresh-btn custom-refresh-btn"
-               class="button-one">
-               <mat-icon svgIcon="refresh"></mat-icon>
-               <span>Refresh</span>
-            </button>
+                  <div class="label"><mat-icon>badge</mat-icon> Short Name</div>
+                  <div class="value">{{selectedInstitute.short_name || selectedInstitute.short}}</div>
 
-            <button mat-flat-button type="button" routerLink="/institute-register"
-               class="register-btn custom-register-btn">
-               <mat-icon svgIcon="add"></mat-icon>
-               <span>Register Institute</span>
-            </button>
-         </div>
-      </div>
-   </div>
+                  <div class="label"><mat-icon>business</mat-icon> Industry</div>
+                  <div class="value">{{selectedInstitute.industry_type || selectedInstitute.industry_sector || '—'}}</div>
 
-   <div class="list-card">
-      <!-- Filters panel -->
-      <!-- Filter popover template (attached to CDK Overlay) -->
-      <ng-template #filtersPanel>
-         <div class="filters-panel card" (click)="$event.stopPropagation()">
-            <div class="filter-block">
-               <mat-form-field appearance="outline" class="filter-item">
-                  <mat-label>Institute</mat-label>
-                  <input matInput placeholder="Institute name" [(ngModel)]="filters.name" />
-               </mat-form-field>
-
-               <mat-form-field appearance="outline" class="filter-item">
-                  <mat-label>Industry</mat-label>
-                  <mat-select [(ngModel)]="filters.industry" placeholder="Industry type">
-                     <mat-option value="">Any</mat-option>
-                     <mat-option *ngFor="let t of industryTypes" [value]="t">{{t}}</mat-option>
-                  </mat-select>
-               </mat-form-field>
-
-               <mat-form-field appearance="outline" class="filter-item">
-                  <mat-label>Sector</mat-label>
-                  <mat-select [(ngModel)]="filters.sector" placeholder="Industry sector">
-                     <mat-option value="">Any</mat-option>
-                     <mat-option *ngFor="let s of industrySectors" [value]="s">{{s}}</mat-option>
-                  </mat-select>
-               </mat-form-field>
-
-               <mat-form-field appearance="outline" class="filter-item">
-                  <mat-label>Country</mat-label>
-                  <mat-select [(ngModel)]="filters.country">
-                     <mat-option value="">Any</mat-option>
-                     <mat-option *ngFor="let c of countries" [value]="c.code">{{c.name}}</mat-option>
-                  </mat-select>
-               </mat-form-field>
-
-               <mat-form-field appearance="outline" class="filter-item">
-                  <mat-label>City</mat-label>
-                  <mat-select [(ngModel)]="filters.city">
-                     <mat-option value="">Any</mat-option>
-                     <mat-option *ngFor="let c of cities" [value]="c.code">{{c.name}}</mat-option>
-                  </mat-select>
-               </mat-form-field>
-
-               <mat-form-field appearance="outline" class="filter-item">
-                  <mat-label>Active</mat-label>
-                  <mat-select [(ngModel)]="filters.active_status">
-                     <mat-option value="">Any</mat-option>
-                     <mat-option [value]="true">Active</mat-option>
-                     <mat-option [value]="false">Inactive</mat-option>
-                  </mat-select>
-               </mat-form-field>
-
-            </div>
-            <div class="filter-actions">
-               <button mat-flat-button (click)="applyFilters()"><mat-icon svgIcon="apply"></mat-icon> Apply</button>
-               <button mat-flat-button (click)="resetFilters()"><mat-icon svgIcon="reset_settings"></mat-icon> Reset</button>
-            </div>
-         </div>
-      </ng-template>
-
-      <div class="list-wrapper">
-
-         <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 compact premium-table" matSort>
-            <colgroup>
-               <col class="col-name"> <!-- name -->
-               <col class="col-short"> <!-- short -->
-               <col class="col-industry"> <!-- industry -->
-               <col class="col-sector"> <!-- sector -->
-               <col class="col-primary-contact"> <!-- primary contact -->
-               <col class="col-sub-start"> <!-- sub start -->
-               <col class="col-sub-end"> <!-- sub end -->
-               <col class="col-active"> <!-- active -->
-               <col> <!-- actions flexible -->
-            </colgroup>
-
-            <!-- Name -->
-            <ng-container matColumnDef="name">
-               <th mat-header-cell *matHeaderCellDef mat-sort-header>Institute</th>
-               <td mat-cell *matCellDef="let i">{{i.name}}</td>
-            </ng-container>
-
-            <!-- Short -->
-            <ng-container matColumnDef="short">
-               <th mat-header-cell *matHeaderCellDef mat-sort-header>Short name</th>
-               <td mat-cell *matCellDef="let i">{{i.short}}</td>
-            </ng-container>
-
-            <!-- Industry Type -->
-            <ng-container matColumnDef="industry_type">
-               <th mat-header-cell *matHeaderCellDef mat-sort-header>Industry</th>
-               <td mat-cell *matCellDef="let i">{{i.industry_type || '—'}}</td>
-            </ng-container>
-
-            <!-- Industry Sector -->
-            <ng-container matColumnDef="industry_sector">
-               <th mat-header-cell *matHeaderCellDef mat-sort-header>Sector</th>
-               <td mat-cell *matCellDef="let i">{{i.industry_sector || '—'}}</td>
-            </ng-container>
-
-            <!-- Primary contact -->
-            <ng-container matColumnDef="primary_contact_person">
-               <th mat-header-cell *matHeaderCellDef mat-sort-header>Primary contact</th>
-               <td mat-cell *matCellDef="let i">{{i.primary_contact || i.primary_contact_person || i.primary_email ||
-                  '—'}}
-               </td>
-            </ng-container>
-
-            <!-- Subscription start -->
-            <ng-container matColumnDef="subscription_start">
-               <th mat-header-cell *matHeaderCellDef mat-sort-header>Sub. start</th>
-               <td mat-cell *matCellDef="let i">{{i.subscription_start ? (i.subscription_start | date:'dd-MMM-yyyy') :
-                  '—'}}
-               </td>
-            </ng-container>
-
-            <!-- Subscription end -->
-            <ng-container matColumnDef="subscription_end">
-               <th mat-header-cell *matHeaderCellDef mat-sort-header>Sub. end</th>
-               <td mat-cell *matCellDef="let i">{{i.subscription_end ? (i.subscription_end | date:'dd-MMM-yyyy') : '—'}}
-               </td>
-            </ng-container>
-
-            <!-- Active -->
-            <ng-container matColumnDef="active">
-               <th mat-header-cell *matHeaderCellDef mat-sort-header>Active</th>
-               <td mat-cell *matCellDef="let i">
-                           <!-- Custom toggle to match design: uses data-state attribute and toggles on click -->
-                           <button type="button" role="switch" [attr.aria-checked]="i.active ? 'true' : 'false'" [attr.data-state]="i.active ? 'checked' : 'unchecked'" (click)="toggleActive(i)" class="custom-toggle peer inline-flex">
-                              <span class="toggle-thumb" [attr.data-state]="i.active ? 'checked' : 'unchecked'"></span>
-                           </button>
-               </td>
-            </ng-container>
-
-            <!-- Actions -->
-            <ng-container matColumnDef="actions">
-               <th mat-header-cell *matHeaderCellDef>Actions</th>
-               <td mat-cell *matCellDef="let u">
-                  <div class="actions-inline">
-                     <button mat-icon-button aria-label="Show / Hide" (click)="viewDetails(u)"
-                        title="View details"><mat-icon svgIcon="view" ></mat-icon></button>
-                     <button mat-icon-button class="edit-btn" (click)="startEdit(u)"
-                        title="Edit"><mat-icon svgIcon="edit" ></mat-icon></button>
-                     <button mat-icon-button class="delete-btn" (click)="confirmDelete(u)"
-                        title="Delete"><mat-icon svgIcon="delete" ></mat-icon></button>
+                  <div class="label"><mat-icon>language</mat-icon> Website</div>
+                  <div class="value" *ngIf="selectedInstitute.website">
+                    <a [href]="selectedInstitute.website" target="_blank" class="link">{{selectedInstitute.website}}</a>
                   </div>
-               </td>
-            </ng-container>
 
-            <thead>
-               <tr mat-header-row *matHeaderRowDef="columns"></tr>
-            </thead>
-            <tbody>
-               <tr mat-row *matRowDef="let row; columns: columns"></tr>
-            </tbody>
-         </table>
-         <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+                  <div class="label"><mat-icon>toggle_on</mat-icon> Active</div>
+                  <div class="value">
+                    <span class="status-pill" [class.status-pill--active]="selectedInstitute.active_status" [class.status-pill--inactive]="!selectedInstitute.active_status">
+                      {{selectedInstitute.active_status ? 'Active' : 'Inactive'}}
+                    </span>
+                  </div>
+
+                  <div class="label"><mat-icon>event</mat-icon> Subscription Period</div>
+                  <div class="value">
+                    {{selectedInstitute.subscription_start ? (selectedInstitute.subscription_start | date:'dd-MMM-yyyy') : '—'}}
+                    &nbsp;→&nbsp;
+                    {{selectedInstitute.subscription_end ? (selectedInstitute.subscription_end | date:'dd-MMM-yyyy') : '—'}}
+                  </div>
+                </div>
+              </mat-tab>
+
+              <!-- Contacts Tab -->
+              <mat-tab>
+                <ng-template mat-tab-label>Contacts</ng-template>
+                <div class="detail-grid">
+                  <div class="label"><mat-icon>person</mat-icon> Primary Contact</div>
+                  <div class="value">{{selectedInstitute.primary_contact_person || '—'}}</div>
+
+                  <div class="label"><mat-icon>phone</mat-icon> Primary Phone</div>
+                  <div class="value">{{selectedInstitute.primary_contact_phone || selectedInstitute.primary_contact || '—'}}</div>
+
+                  <div class="label"><mat-icon>email</mat-icon> Primary Email</div>
+                  <div class="value">{{selectedInstitute.primary_contact_email || selectedInstitute.primary_email || '—'}}</div>
+
+                  <div class="label"><mat-icon>people</mat-icon> Max Users</div>
+                  <div class="value">{{selectedInstitute.max_users || '—'}}</div>
+                </div>
+              </mat-tab>
+
+              <!-- Campuses Tab -->
+              <mat-tab *ngIf="selectedInstitute.campuses && selectedInstitute.campuses.length">
+                <ng-template mat-tab-label>
+                  Campuses ({{selectedInstitute.campuses.length}})
+                </ng-template>
+                <div class="campus-list">
+                  <div *ngFor="let cp of selectedInstitute.campuses" class="campus-card">
+                    <div class="campus-header">
+                      <strong>{{cp.name}}</strong>
+                      <span class="campus-tag" *ngIf="(cp.is_primary === true) || cp.isPrimary">Primary</span>
+                      <span class="campus-tag campus-tag--active" *ngIf="(cp.active_status === true) || cp.active_status">Active</span>
+                    </div>
+                    <div class="campus-line">{{cp.address}}</div>
+                    <div class="campus-line campus-line--muted">
+                      {{cp.city?.city_name || ''}}, {{cp.state?.state_name || ''}}, {{cp.country?.country_name || ''}} — {{cp.pin_code || cp.pincode || ''}}
+                    </div>
+                    <div class="campus-line campus-line--muted">
+                      Email: {{cp.email || '—'}} &nbsp;|&nbsp; Phone: {{cp.phone || cp.contact_no || '—'}}
+                    </div>
+                  </div>
+                </div>
+              </mat-tab>
+
+              <!-- Departments & Teams Tab -->
+              <mat-tab *ngIf="(selectedInstitute.departments && selectedInstitute.departments.length) || (selectedInstitute.teams && selectedInstitute.teams.length)">
+                <ng-template mat-tab-label>Departments &amp; Teams</ng-template>
+                <div class="dept-teams-grid">
+                  <div class="dept-section" *ngIf="selectedInstitute.departments && selectedInstitute.departments.length">
+                    <h5 class="section-label">Departments</h5>
+                    <ul class="clean-list">
+                      <li *ngFor="let d of selectedInstitute.departments">{{d.name}}</li>
+                    </ul>
+                  </div>
+                  <div class="dept-section" *ngIf="selectedInstitute.teams && selectedInstitute.teams.length">
+                    <h5 class="section-label">Teams</h5>
+                    <ul class="clean-list">
+                      <li *ngFor="let t of selectedInstitute.teams">{{t.name}}</li>
+                    </ul>
+                  </div>
+                </div>
+              </mat-tab>
+
+              <!-- Metadata Tab -->
+              <mat-tab>
+                <ng-template mat-tab-label>Metadata</ng-template>
+                <div class="detail-grid">
+                  <div class="label"><mat-icon>date_range</mat-icon> Created Date</div>
+                  <div class="value">
+                    {{selectedInstitute.created_date ? (selectedInstitute.created_date | date:'dd-MMM-yyyy HH:mm') : '—'}}
+                  </div>
+
+                  <div class="label"><mat-icon>person</mat-icon> Created By</div>
+                  <div class="value">{{ selectedInstitute.created_by?.user_name || '—'}}</div>
+
+                  <div class="label"><mat-icon>update</mat-icon> Updated Date</div>
+                  <div class="value">
+                    {{selectedInstitute.updated_date ? (selectedInstitute.updated_date | date:'dd-MMM-yyyy HH:mm') : '—'}}
+                  </div>
+
+                  <div class="label"><mat-icon>person</mat-icon> Updated By</div>
+                  <div class="value">{{selectedInstitute.updated_by?.user_name || '—'}}</div>
+                </div>
+              </mat-tab>
+
+            </mat-tab-group>
+          </div>
+        </ng-container>
       </div>
-   </div>
 
-   <!-- Detail / Edit modal (simple in-template modal) -->
-   <div class="modal-backdrop" *ngIf="selectedInstitute || editing">
-      <div class="modal">
-         <div class="modal-header">
-            <h3 *ngIf="!editing">Institute details</h3>
-            <h1>{{selectedInstitute.name}}</h1>
-            <h3 *ngIf="editing">Edit Institute</h3>
-            <button mat-icon-button (click)="closeModal()"><mat-icon>close</mat-icon></button>
-         </div>
-
-         <div class="modal-body">
-            <ng-container *ngIf="selectedInstitute && !editing">
-               <div class="detail-card">
-                  <mat-tab-group dynamicHeight mat-align-tabs="start">
-                     <mat-tab>
-                        <ng-template mat-tab-label>
-                           <!-- <mat-icon>info</mat-icon>  -->
-                           Basic information
-                        </ng-template>
-                        <div class="detail-grid">
-                           <div class="label"><mat-icon>domain</mat-icon> Name</div>
-                           <div class="value">{{selectedInstitute.name}}</div>
-
-                           <div class="label"><mat-icon>badge</mat-icon> Short name</div>
-                           <div class="value">{{selectedInstitute.short_name || selectedInstitute.short}}</div>
-
-                           <div class="label"><mat-icon>business</mat-icon> Industry</div>
-                           <div class="value">{{selectedInstitute.industry_type || selectedInstitute.industry_sector ||
-                              '—'}}</div>
-
-                           <div class="label"><mat-icon>language</mat-icon> Website</div>
-                           <div class="value" *ngIf="selectedInstitute.website"><a [href]="selectedInstitute.website"
-                                 target="_blank">{{selectedInstitute.website}}</a></div>
-
-                           <div class="label"><mat-icon>toggle_on</mat-icon> Active</div>
-                           <div class="value">{{selectedInstitute.active_status ? 'Yes' : 'No'}}</div>
-
-                           <div class="label"><mat-icon>event</mat-icon> Period</div>
-                           <div class="value">
-                              {{selectedInstitute.subscription_start ? (selectedInstitute.subscription_start |
-                              date:'dd-MM-yyyy') : '—'}}
-                              —
-                              {{selectedInstitute.subscription_end ? (selectedInstitute.subscription_end |
-                              date:'dd-MM-yyyy') : '—'}}
-                           </div>
-
-                        </div>
-                     </mat-tab>
-
-                     <mat-tab>
-                        <ng-template mat-tab-label>
-                           <!-- <mat-icon>contacts</mat-icon> -->
-                           Contacts
-                        </ng-template>
-                        <div class="detail-grid">
-                           <div class="label"><mat-icon>person</mat-icon> Primary contact</div>
-                           <div class="value">{{selectedInstitute.primary_contact_person || '—'}}</div>
-
-                           <div class="label"><mat-icon>phone</mat-icon> Primary phone</div>
-                           <div class="value">{{selectedInstitute.primary_contact_phone ||
-                              selectedInstitute.primary_contact || '—'}}</div>
-
-                           <div class="label"><mat-icon>email</mat-icon> Primary email</div>
-                           <div class="value">{{selectedInstitute.primary_contact_email ||
-                              selectedInstitute.primary_email || '—'}}</div>
-
-                           <div class="label"><mat-icon>people</mat-icon> Max users</div>
-                           <div class="value">{{selectedInstitute.max_users || '—'}}</div>
-                        </div>
-                     </mat-tab>
-
-                     <mat-tab *ngIf="selectedInstitute.campuses && selectedInstitute.campuses.length">
-                        <ng-template mat-tab-label>
-                           <!-- <mat-icon>location_city</mat-icon> -->
-                           Campuses ({{selectedInstitute.campuses.length}})
-                        </ng-template>
-                        <div class="campus-list">
-                           <div *ngFor="let cp of selectedInstitute.campuses" class="campus-card">
-                              <div class="campus-header">
-                                 <strong>{{cp.name}}</strong>
-                                 <span class="muted">{{(cp.is_primary === true) || cp.isPrimary ? '(Primary)' :
-                                    ''}}</span>
-                                 <span class="muted">{{(cp.active_status === true) || cp.active_status ? '(Active)' :
-                                    ''}}</span>
-                              </div>
-                              <div class="campus-lines">{{cp.address}}</div>
-                              <div class="campus-lines muted">{{cp.city?.city_name || ''}}, {{cp.state?.state_name ||
-                                 ''}}, {{cp.country?.country_name || ''}} — {{cp.pin_code || cp.pincode || ''}}</div>
-                              <div class="campus-lines muted">Email: {{cp.email || '—'}} | Phone: {{cp.phone ||
-                                 cp.contact_no || '—'}}</div>
-                           </div>
-                        </div>
-                     </mat-tab>
-
-                     <mat-tab
-                        *ngIf="(selectedInstitute.departments && selectedInstitute.departments.length) || (selectedInstitute.teams && selectedInstitute.teams.length)">
-                        <ng-template mat-tab-label>
-                           Departments & Teams
-                        </ng-template>
-                        <div class="department-list">
-                           <div class="detail-grid">
-                              <div *ngIf="selectedInstitute.departments && selectedInstitute.departments.length">
-                                 <div class="label">Departments</div>
-                                 <ul>
-                                    <li *ngFor="let d of selectedInstitute.departments">{{d.name}}</li>
-                                 </ul>
-                              </div>
-                           </div>
-                           <div class="detail-grid">
-                              <div *ngIf="selectedInstitute.teams && selectedInstitute.teams.length">
-                                 <div class="label">Teams</div >
-                                 <ul>
-                                    <li *ngFor="let t of selectedInstitute.teams">{{t.name}}</li>
-                                 </ul>
-                              </div>
-                           </div>
-                        </div>
-                     </mat-tab>
-
-                     <mat-tab>
-                        <ng-template mat-tab-label>
-                           <!-- <mat-icon>metadata</mat-icon> -->
-                           Metadata
-                        </ng-template>
-                        <div class="detail-grid">
-                           <div class="label"><mat-icon>date_range</mat-icon>Created Date</div>
-                           <div class="value">
-                              {{selectedInstitute.created_date ? (selectedInstitute.created_date | date:'dd-MMM-yyyy
-                              HH:mm') : '—'}}
-                           </div>
-
-                           <div class="label"><mat-icon>person</mat-icon> Created by</div>
-                           <div class="value">
-                              {{ selectedInstitute.created_by?.user_name || '—'}}
-                           </div>
-                           <div class="label"><mat-icon>update</mat-icon>Updated Date</div>
-                           <div class="value">
-                              {{selectedInstitute.updated_date ? (selectedInstitute.updated_date | date:'dd-MMM-yyyy
-                              HH:mm') : '—'}}
-                           </div>
-                           <div class="label"><mat-icon>person</mat-icon>Updated by</div>
-                           <div class="value">
-                              {{selectedInstitute.updated_by?.user_name || '—'}}
-                           </div>
-                        </div>
-                     </mat-tab>
-                  </mat-tab-group>
-               </div>
-            </ng-container>
-
-         </div>
-
-         <div class="modal-actions">
-            <button mat-button (click)="closeModal()">Close</button>
-            <button mat-flat-button (click)="startEdit(selectedInstitute)">Edit</button>
-         </div>
+      <div class="modal-actions">
+        <button mat-button (click)="closeModal()" class="modal-btn-close">Close</button>
+        <button mat-flat-button (click)="startEdit(selectedInstitute)" class="modal-btn-edit">
+          <mat-icon>edit</mat-icon> Edit
+        </button>
       </div>
-   </div>
+    </div>
+  </div>
 </div>

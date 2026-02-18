@@ -252,9 +252,11 @@
    <div class="review-backdrop" *ngIf="reviewOpen">
       <div class="review-panel">
          <div class="review-header">
+            <div class = "review-header-text">
             <h3>Exam Review</h3>
             <!-- title -->
-            <div class="exam-title"><h2>{{ selectedReviewTitle }}</h2></div>
+            <h1 class="review-exam-title">{{ selectedReviewTitle }}</h1>
+            </div>
             <button mat-icon-button (click)="closeReview()"><mat-icon>close</mat-icon></button>
          </div>
 
@@ -283,7 +285,7 @@
                            <span class="value result-badge" [ngClass]="{'result-pass': (a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass', 'result-fail': (a.result | lowercase) === 'failed'}">{{ a.result | titlecase }}</span>
                         </div>
                      </div>
-                     <div class="meta-row primary-row"> <!-- meta-row secondary-row -->
+                     <div class="meta-row secondary-row">
                         <div class="meta-item" *ngIf="a.time_taken">
                            <strong>Time Taken</strong>
                            <span class="value">{{ a.time_taken.split('.')[0] }}</span>

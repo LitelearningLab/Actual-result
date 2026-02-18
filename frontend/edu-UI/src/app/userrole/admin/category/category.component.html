@@ -181,8 +181,10 @@
     <div class="modal-backdrop" *ngIf="selectedCategory || editing">
         <div class="modal">
             <div class="modal-header">
+                <div class="modal-header-text">
                 <h3 *ngIf="!editing">Category details</h3>
-                <h1>{{ selectedCategory.name || '—' }}</h1>
+                <h1 class="modal-user-name">{{ selectedCategory.name || '—' }}</h1>
+                </div>
                 <button mat-icon-button (click)="closeModal()"><mat-icon>close</mat-icon></button>
             </div>
 

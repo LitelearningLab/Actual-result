@@ -1,156 +1,131 @@
-.view-institutes{ padding:8px  }
+// ============================================
+// Profluent Lab - View Institutes (Enterprise)
+// ============================================
 
-// mat-slide-toggle{ --mat-slide-toggle-bar-background: #dfeeff }
-@media (max-width:760px){ .search{ width:100% } .view-institutes .toolbar{ flex-direction:column; align-items:stretch } }
+$ease: cubic-bezier(0.4, 0, 0.2, 1);
+$radius: 0.75rem;
+$shadow-sm: 0 0.0625rem 0.1875rem rgba(0, 0, 0, 0.04), 0 0.0625rem 0.125rem rgba(0, 0, 0, 0.03);
+$shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
 
+// Page
+.page.view-institutes { padding: 1.25rem 1.5rem 3rem; display: flex; flex-direction: column; gap: 1.25rem; }
 
-/* Modal styles */
-.modal-backdrop{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,12,20,0.45); z-index:10050 }
-.modal{ min-width:60%; max-width:96%; min-height: 45%; max-height: 80%;
-	background: var(--theme-2) ; border-radius:12px; padding:14px; box-shadow:0 22px 58px rgba(2,10,30,0.42); z-index:10060 }
-.modal-body{  display:flex; flex-direction:column; gap:10px; min-height: 300px; max-height:60vh; overflow:auto; }
+// Toolbar
+.toolbar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.search { flex: 1; min-width: 13.75rem; max-width: 26.25rem; }
+.search-field { width: 100%; }
+.controls { margin-left: auto; flex-shrink: 0; }
+.action-row { display: flex; align-items: center; gap: 0.5rem; }
+.register-btn { background: var(--button-1) !important; color: var(--button-text-1) !important; border-radius: $radius !important; height: 2.75rem; font-weight: 600 !important; letter-spacing: 0.01em; transition: background 0.2s $ease, box-shadow 0.2s $ease; }
+.register-btn:hover { background: var(--button-1-hover) !important; box-shadow: $shadow-sm; }
+.register-btn mat-icon { font-size: 1.125rem; margin-right: 0.25rem; }
+:host ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
 
-// ==
-/* Icon badge for labels */
-.detail-card .detail-grid { grid-template-columns: 200px 1fr; gap:6px 40px; }
+// List card (table container)
+.list-card { background: #fff; border: 0.0625rem solid #e2e8f0; border-radius: $radius; overflow: hidden; transition: box-shadow 0.2s $ease; }
+.list-card:hover { box-shadow: $shadow-sm; }
+.list-wrapper::-webkit-scrollbar { height: 0.375rem; }
+.list-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 0.1875rem; }
 
-.detail-grid{ 
-	display:grid; background: var(--bg-1);
-	grid-template-columns: 180px 1fr; gap:2px 2px; align-items:center;
-	border:4px solid rgba(84, 167, 212, 0.06); border-radius:8px;
-	margin-left:48px; /* 2 * 16px (TAP) */ margin-right:32px;
+// Table cell enhancements
+.cell-primary { font-weight: 600; color: var(--theme-3-text-1); }
+.cell-mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8125rem; color: var(--theme-3-text-2); background: #f8fafc; padding: 0.125rem 0.375rem; border-radius: 0.25rem; letter-spacing: 0.02em; }
+.cell-badge { display: inline-block; font-size: 0.6875rem; font-weight: 600; padding: 0.175rem 0.5rem; border-radius: 1rem; letter-spacing: 0.02em; white-space: nowrap; }
+.cell-badge--blue { background: #eff6ff; color: #2563eb; }
+.cell-badge--teal { background: #f0fdfa; color: #0d9488; }
+.cell-muted { color: #94a3b8; }
+.cell-date { font-size: 0.8125rem; color: var(--theme-3-text-2); font-variant-numeric: tabular-nums; }
+.actions-inline { display: flex; align-items: center; gap: 0.125rem; }
+.actions-inline button { width: 2rem; height: 2rem; transition: background 0.15s $ease; }
+.actions-inline button mat-icon { font-size: 1.125rem; width: 1.125rem; height: 1.125rem; transition: color 0.15s $ease; }
+.actions-inline button:hover mat-icon { color: #0f172a; }
+.actions-inline .delete-btn:hover mat-icon { color: #e11d48; }
+.actions-inline .edit-btn:hover mat-icon { color: #2563eb; }
+
+// Column widths
+.col-name { width: 18%; }
+.col-short { width: 10%; }
+.col-industry { width: 10%; }
+.col-sector { width: 10%; }
+.col-primary-contact { width: 14%; }
+.col-sub-start { width: 10%; }
+.col-sub-end { width: 10%; }
+.col-active { width: 7%; }
+
+// Modal
+.modal-backdrop { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(8, 12, 20, 0.45); -webkit-backdrop-filter: blur(0.125rem); backdrop-filter: blur(0.125rem); z-index: 10050; animation: fadeIn 0.2s $ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(0.75rem); } to { opacity: 1; transform: translateY(0); } }
+.modal { min-width: 58%; max-width: 96%; min-height: 45%; max-height: 82%; background: var(--theme-2); border-radius: $radius; padding: 0; box-shadow: 0 1.375rem 3.625rem rgba(2, 10, 30, 0.35); z-index: 10060; display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.25s $ease; }
+.modal-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 0.0625rem solid rgba(0, 0, 0, 0.06); flex-shrink: 0; }
+.modal-header-text { display: flex; flex-direction: column; gap: 0.25rem; }
+.modal-header-text h3 { margin: 0; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #64748b; }
+.modal-inst-name { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--theme-3-text-1); letter-spacing: -0.02em; }
+.modal-close-btn { width: 2.25rem; height: 2.25rem; flex-shrink: 0; }
+.modal-close-btn mat-icon { color: #94a3b8; transition: color 0.15s $ease; }
+.modal-close-btn:hover mat-icon { color: #0f172a; }
+.modal-body { flex: 1; padding: 0 1.5rem 1rem; overflow-y: auto; min-height: 17.5rem; max-height: 60vh; }
+.modal-body::-webkit-scrollbar { width: 0.3125rem; }
+.modal-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 0.1875rem; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.625rem; padding: 0.875rem 1.5rem; border-top: 0.0625rem solid rgba(0, 0, 0, 0.06); flex-shrink: 0; }
+.modal-btn-edit { background: var(--button-1) !important; color: var(--button-text-1) !important; border-radius: 0.5rem !important; font-weight: 600 !important; padding: 0 1rem !important; }
+.modal-btn-edit mat-icon { font-size: 1.125rem; width: 1.125rem; height: 1.125rem; margin-right: 0.25rem; }
+
+// Detail card and tabs
+.detail-card { padding-top: 0.75rem; }
+:host ::ng-deep .detail-card .mat-tab-group .mat-tab-label, :host ::ng-deep .detail-card .mat-mdc-tab { font-size: var(--font-size-sm); padding: 0.375rem 0.75rem; min-width: 5rem; font-weight: 500; }
+.detail-grid { display: grid; grid-template-columns: 12.5rem 1fr; gap: 0; background: var(--bg-1); border: 0.0625rem solid #e2e8f0; border-radius: 0.5rem; margin: 1rem 0.5rem; overflow: hidden; }
+.detail-grid .label { display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1rem; font-weight: 500; font-size: 0.8125rem; color: var(--theme-3-text-1); background: #f8fafc; border-bottom: 0.0625rem solid #f1f5f9; }
+.detail-grid .label mat-icon { font-size: 1rem; width: 1rem; height: 1rem; color: #64748b; flex-shrink: 0; }
+.detail-grid .value { display: flex; align-items: center; padding: 0.625rem 1rem; font-size: 0.8125rem; color: var(--theme-3-text-2); border-bottom: 0.0625rem solid #f1f5f9; }
+.detail-grid .label:last-of-type, .detail-grid .value:last-of-type { border-bottom: none; }
+.link { color: var(--button-1); text-decoration: none; font-weight: 500; }
+.link:hover { text-decoration: underline; }
+
+// Status pill
+.status-pill { display: inline-flex; align-items: center; font-size: 0.6875rem; font-weight: 600; padding: 0.175rem 0.5rem; border-radius: 1rem; letter-spacing: 0.02em; }
+.status-pill--active { background: #ecfdf5; color: #059669; }
+.status-pill--inactive { background: #fef2f2; color: #dc2626; }
+
+// Campus cards
+.campus-list { display: flex; flex-direction: column; gap: 0.625rem; margin: 1rem 0.5rem; }
+.campus-card { background: var(--bg-1); border: 0.0625rem solid #e2e8f0; padding: 0.875rem 1rem; border-radius: 0.5rem; transition: border-color 0.15s $ease; }
+.campus-card:hover { border-color: #cbd5e1; }
+.campus-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.375rem; }
+.campus-header strong { font-size: 0.875rem; font-weight: 600; color: var(--theme-3-text-1); }
+.campus-tag { font-size: 0.625rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.125rem 0.375rem; border-radius: 0.25rem; background: #eff6ff; color: #2563eb; }
+.campus-tag--active { background: #ecfdf5; color: #059669; }
+.campus-line { font-size: 0.8125rem; color: var(--theme-3-text-2); margin-top: 0.25rem; line-height: 1.5; }
+.campus-line--muted { color: var(--theme-3-text-3); font-size: 0.75rem; }
+
+// Departments and teams
+.dept-teams-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0.5rem; }
+.dept-section { background: var(--bg-1); border: 0.0625rem solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; }
+.section-label { margin: 0 0 0.625rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #64748b; }
+.clean-list { list-style: none; margin: 0; padding: 0; }
+.clean-list li { padding: 0.375rem 0; font-size: 0.8125rem; color: var(--theme-3-text-2); border-bottom: 0.0625rem solid #f1f5f9; }
+.clean-list li:last-child { border-bottom: none; }
+
+// Responsive
+@media (max-width: 62.5rem) { .dept-teams-grid { grid-template-columns: 1fr; } }
+@media (max-width: 48rem) {
+  .page.view-institutes { padding: 1rem; }
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .search { max-width: 100%; }
+  .controls { margin-left: 0; }
+  .action-row { flex-wrap: wrap; }
+  .detail-grid { grid-template-columns: 1fr; margin: 0.75rem 0; }
+  .detail-grid .label { background: transparent; padding: 0.5rem 0.75rem 0.125rem; border-bottom: none; }
+  .detail-grid .value { padding: 0.125rem 0.75rem 0.5rem; }
 }
-.detail-grid .label{ color: var(--theme-3-text-1); gap: 15px; font-weight:500; min-height:36px; display:flex; align-items:center; padding-left: 20PX;}
-.detail-grid .value{ color: var(--theme-3-text-2); min-height:36px; display:flex; align-items:center; }
-
-
-
-// ============= Capus list styles =============
-.campus-list{ display:flex; flex-direction:column; gap:8px; margin-left:48px; margin-right:32px; }
-.department-list{ display:flex;}// gap:8px; margin-left:48px; margin-right:32px; }
-.department-list .detail-grid{ grid-template-columns: 440px 1fr; gap:6px 24px; align-content: baseline; }
-.campus-card{ background:var(--bg-1); border:1px solid rgba(11,114,133,0.06); padding:8px 10px; border-radius:8px }
-.campus-header{ display:flex; justify-content:space-between; align-items:center; gap:8px }
-.campus-lines{ margin-top:6px } 
-
-// ============= Department and Team chips styles =============
-.chips{ display:grid; gap:8px; flex-wrap:wrap; margin-left:48px; margin-right:32px; padding: 6px; background-color: var(--bg-1);}
-.chip{  font-weight:700 }
-
-
-@media (max-width:520px){
-	.modal-body .detail-row{ grid-template-columns:1fr }
-	.modal-body .detail-row strong{ margin-bottom:6px }
+@media (max-width: 45rem) { .modal { width: 96%; padding: 0; } .list-wrapper { max-height: 50vh; } }
+@media (max-width: 32.5rem) {
+  .detail-grid { grid-template-columns: 1fr; }
+  .campus-list { margin: 0.5rem 0; }
+  .dept-teams-grid { grid-template-columns: 1fr; margin: 0.5rem 0; }
+  .modal-header { padding: 1rem; }
+  .modal-body { padding: 0 1rem 0.75rem; }
+  .modal-actions { padding: 0.75rem 1rem; }
 }
-
-@media (max-width:720px){ .modal{ width:96%; padding:12px } }
-
-@media (max-width:520px){ .detail-card .detail-grid{ grid-template-columns:1fr } }
-
-@media (max-width:420px){
-	.filters-panel{ width: calc(100% - 24px); min-width: unset; max-width: calc(100% - 24px); }
-}
-
-@media (max-width:720px){ .list-wrapper{ max-height:50vh } }
-
-/* Custom button styles for all buttons */
-// .view-institutes .action-row button {background: var(--button-1); color: var(--button-text-1);}
-// .view-institutes .action-row button:hover {background: var(--button-1-hover); color: var(--button-text-2);}
-
-// .view-institutes .filter-actions button {background: var(--button-1); color: var(--button-text-1);}
-// .view-institutes .filter-actions button:hover {background: var(--button-1-hover); color: var(--button-text-2);}
-
-
-
-/* Filters panel styles */
-// .filters-panel{ margin:12px 0; padding:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; border:2px solid rgba(4, 40, 46, 0.12); border-radius:8px; background:#fff; box-shadow:0 4px 12px rgba(1, 39, 46, 0.08) }
-// .filter-block{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; width:100% }
-// .filter-item{ min-width:300px; max-width:340px }
-// .filter-actions{ display:flex; gap:8px; align-items:center; margin-left:auto }
-:host ::ng-deep .mat-mdc-form-field-subscript-wrapper {
-	display: none;
-}
-
-// mat-slide-toggle color change
-// mat-slide-toggle{ --mat-slide-toggle-bar-background: var(--button-1) }
-
-// Filter block visibility control for floating panel
-
-
-
-/* Make primary button visually distinct */
-// .filter-actions button.mat-flat-button:first-child{ background: var(--button-1); color: var(--button-text-1); }
-
-// :host ::ng-deep .filters-panel .mat-form-field-infix,
-// :host ::ng-deep .filters-panel .mat-form-field-flex{
-// 	min-height:22px !important;
-// 	padding-top:4px !important;
-// 	padding-bottom:2px !important;
-// }
-
-// :host ::ng-deep .filters-panel .mat-form-field-appearance-outline .mat-form-field-outline {
-// 	stroke: rgba(11,114,133,0.06);
-// }
-
-// /* Dense label and input sizing */
-
-:host ::ng-deep .filters-panel .mat-form-field-label {
-    font-size: var(--font-size-base) !important;
-}
-
-:host ::ng-deep .detail-card .mat-tab-group .mat-tab-label {
-    font-size: var(--font-size-sm);
-    padding: 6px 8px;
-}
-
-// :host ::ng-deep .filters-panel .mat-input-element {
-// 	padding: 2px 6px !important;
-// 	font-size: 0.88rem !important;
-// 	line-height: 1rem !important;
-// 	height: auto !important;
-// }
-
-
-
-
-// /* mat-tab-group / detail-card tuning */
-// .detail-card { padding: 8px; }
-// // .detail-card mat-tab-group { width: 100%; min-width: 340px; max-width: 880px; }
-
-// :host ::ng-deep .detail-card .mat-tab-group .mat-tab-header {
-// 	border-bottom: 1px solid rgba(15,35,55,0.06);
-// 	padding: 6px 8px;
-// }
-
-// :host ::ng-deep .detail-card .mat-tab-group .mat-tab-label {
-// 	font-size: 0.92rem;
-// 	padding: 6px 10px;
-// 	min-width: 90px;
-// 	margin-right: 6px;
-// }
-
-// :host ::ng-deep .detail-card .mat-tab-group .mat-tab-label .mat-icon {
-// 	font-size: 16px; margin-right:6px; vertical-align:middle;
-// }
-
-// /* make tab content area scrollable and bounded to modal height */
-// :host ::ng-deep .detail-card .mat-tab-group .mat-tab-body-wrapper {
-// 	max-height: calc(60vh - 80px);
-// 	overflow: auto;
-// 	padding: 8px 6px 2px 6px;
-// }
-
-// /* ensure inner grids/cards adapt */
-
-
-// @media (max-width:920px){
-// 	.detail-card mat-tab-group { min-width: 280px; max-width: calc(100% - 32px); }
-// 	:host ::ng-deep .detail-card .mat-tab-group .mat-tab-label { font-size: 0.84rem; padding: 6px 8px; }
-// 	.detail-card .detail-grid { grid-template-columns: 140px 1fr; }
-// }
-
-// @media (max-width:520px){
-// 	.detail-card mat-tab-group { min-width: unset; }
-// 	.detail-card .detail-grid { grid-template-columns: 1fr; margin-left:0; margin-right:0; }
-// 	.chips, .campus-list { margin-left:0; margin-right:0; }
-// }
+@media (max-width: 26.25rem) { .filters-panel { width: calc(100% - 1.5rem); min-width: unset; max-width: calc(100% - 1.5rem); } }
+:host ::ng-deep .filters-panel .mat-form-field-label { font-size: var(--font-size-base) !important; }

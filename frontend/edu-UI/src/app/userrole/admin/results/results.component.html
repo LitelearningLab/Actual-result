@@ -1,83 +1,202 @@
 <div class="page dashboard admin-dashboard">
+
+  <!-- ── Under Development Banner ── -->
+  <div class="dev-banner">
+    <div class="dev-banner-inner">
+      <mat-icon class="dev-icon">construction</mat-icon>
+      <div class="dev-text">
+        <strong>Dashboard Under Development</strong>
+        <span>Some features and data visualizations are still being built. Data shown may be incomplete.</span>
+      </div>
+      <span class="dev-badge">PREVIEW</span>
+    </div>
+  </div>
+
+  <!-- ── Header ── -->
   <header class="dash-header">
-    <!-- <div>
+    <!-- <div class="header-left">
+      <div class="header-title-wrap">
+        <h2 class="dash-title">Admin Dashboard</h2>
+        <p class="dash-subtitle">Institute analytics &amp; test management</p>
+      </div>
     </div> -->
-    <div style="display:flex;align-items:center;gap:12px">
-      <mat-form-field appearance="outline" style="min-width:220px">
+
+    <div class="header-actions">
+      <mat-form-field appearance="outline" class="filter-field">
         <mat-label>Institute</mat-label>
         <mat-select [(value)]="selectedInstituteId" (selectionChange)="onInstituteChange($event.value)">
           <mat-option *ngFor="let inst of institutes" [value]="inst.id">{{inst.name}}</mat-option>
         </mat-select>
+        <mat-icon matPrefix>business</mat-icon>
       </mat-form-field>
 
-    </div>
-    <!-- <div style="margin-left:auto">
-      <button mat-raised-button color="primary" routerLink="/admin/exam-reports">Exam Reports</button>
-    </div> -->
-    <div class="kpis">
-      <div class="kpi">
-        <div class="kpi-val">{{metrics.totalStudents}}</div>
-        <div class="kpi-label">Students</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-val">{{metrics.testsScheduled}}</div>
-        <div class="kpi-label">Scheduled tests</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-val">{{metrics.attemptsToday}}</div>
-        <div class="kpi-label">Attempts today</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-val">{{metrics.avgScore}}%</div>
-        <div class="kpi-label">Average score</div>
-      </div>
+      <button mat-icon-button class="refresh-btn" (click)="loadDashboard()" aria-label="Refresh dashboard">
+        <mat-icon>refresh</mat-icon>
+      </button>
     </div>
   </header>
 
-  <section class="charts-grid">
-    <ng-container *ngFor="let c of charts">
-      <div class="chart-card">
-        <h4>{{c.title}}</h4>
-        <div class="chart-placeholder">
-          <app-dynamic-chart [type]="c.type" [data]="c.data"></app-dynamic-chart>
-        </div>
+  <!-- ── KPI Cards ── -->
+  <section class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon-wrap kpi-icon--blue">
+        <mat-icon>school</mat-icon>
       </div>
-    </ng-container>
-    <!-- fallback placeholders when no charts are provided -->
-    <div class="chart-card" *ngIf="charts.length === 0">
-      <h4>Overview</h4>
-      <div class="chart-placeholder">
-        <svg viewBox="0 0 200 80" preserveAspectRatio="none" class="svg-small">
-          <rect x="10" y="30" width="20" height="50" rx="3" fill="#0b7285" />
-          <rect x="40" y="10" width="20" height="70" rx="3" fill="#1f7bff" />
-          <rect x="70" y="45" width="20" height="35" rx="3" fill="#66c2d9" />
-        </svg>
+      <div class="kpi-body">
+        <div class="kpi-val">{{ metrics.totalStudents }}</div>
+        <div class="kpi-label">Total Students</div>
+      </div>
+      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-wrap kpi-icon--purple">
+        <mat-icon>event_note</mat-icon>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-val">{{ metrics.testsScheduled }}</div>
+        <div class="kpi-label">Scheduled Tests</div>
+      </div>
+      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-wrap kpi-icon--teal">
+        <mat-icon>play_circle</mat-icon>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-val">{{ metrics.attemptsToday }}</div>
+        <div class="kpi-label">Attempts Today</div>
+      </div>
+      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-wrap kpi-icon--green">
+        <mat-icon>trending_up</mat-icon>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-val">{{ metrics.avgScore }}<small>%</small></div>
+        <div class="kpi-label">Average Score</div>
+      </div>
+      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-wrap kpi-icon--amber">
+        <mat-icon>check_circle</mat-icon>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-val">{{ metrics.passRate ?? '--' }}<small *ngIf="metrics.passRate != null">%</small></div>
+        <div class="kpi-label">Pass Rate</div>
+      </div>
+      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-wrap kpi-icon--rose">
+        <mat-icon>groups</mat-icon>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-val">{{ metrics.activeUsers ?? '--' }}</div>
+        <div class="kpi-label">Active Users</div>
+      </div>
+      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
+    </div>
+  </section>
+
+  <!-- ── Charts Grid ── -->
+  <section class="charts-section">
+    <div class="section-header">
+      <h3 class="section-title">
+        <mat-icon>insights</mat-icon>
+        Analytics
+      </h3>
+      <span class="section-badge">Live</span>
+    </div>
+
+    <div class="charts-grid">
+      <ng-container *ngFor="let c of charts">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <h4>{{ c.title }}</h4>
+            <mat-icon class="chart-menu-icon">more_vert</mat-icon>
+          </div>
+          <div class="chart-placeholder">
+            <app-dynamic-chart [type]="c.type" [data]="c.data"></app-dynamic-chart>
+          </div>
+        </div>
+      </ng-container>
+
+      <div class="chart-card chart-card--empty" *ngIf="charts.length === 0">
+        <div class="empty-state">
+          <mat-icon class="empty-icon">bar_chart</mat-icon>
+          <h4>No Analytics Yet</h4>
+          <p>Charts will appear here once test data is available.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="lists">
+  <!-- ── Bottom: Table + Quick Actions ── -->
+  <section class="bottom-grid">
     <div class="table-card">
-      <h4>Upcoming Tests</h4>
-      <table class="stats-table">
-        <thead><tr><th>Test</th><th>Class</th><th>Start</th></tr></thead>
+      <div class="table-card-header">
+        <h4>
+          <mat-icon>calendar_today</mat-icon>
+          Upcoming Tests
+        </h4>
+        <span class="table-count" *ngIf="upcomingTests.length">{{ upcomingTests.length }} scheduled</span>
+      </div>
+      <table class="stats-table" *ngIf="upcomingTests.length > 0">
+        <thead>
+          <tr>
+            <th>Test</th>
+            <th>Class</th>
+            <th>Start</th>
+          </tr>
+        </thead>
         <tbody>
           <tr *ngFor="let t of upcomingTests">
-            <td>{{t.title}}</td>
-            <td>{{t.class}}</td>
-            <td>{{t.start | date:'short'}}</td>
+            <td>
+              <span class="test-name">{{ t.title }}</span>
+            </td>
+            <td><span class="class-badge">{{ t.class }}</span></td>
+            <td>{{ t.start | date:'short' }}</td>
           </tr>
         </tbody>
       </table>
+      <div class="empty-table" *ngIf="upcomingTests.length === 0">
+        <mat-icon>event_busy</mat-icon>
+        <span>No upcoming tests scheduled</span>
+      </div>
     </div>
 
-    <div class="report-card">
-      <h4>Quick Actions</h4>
-      <ul>
-        <li><button class="btn">Create test</button></li>
-        <li><button class="btn btn-outline">Export results</button></li>
-        <li>Review flagged answers</li>
-      </ul>
+    <div class="actions-card">
+      <div class="actions-card-header">
+        <h4>
+          <mat-icon>bolt</mat-icon>
+          Quick Actions
+        </h4>
+      </div>
+      <div class="action-list">
+        <button class="action-item" mat-button>
+          <mat-icon>add_circle</mat-icon>
+          <span>Create Test</span>
+        </button>
+        <button class="action-item" mat-button>
+          <mat-icon>download</mat-icon>
+          <span>Export Results</span>
+        </button>
+        <button class="action-item" mat-button>
+          <mat-icon>flag</mat-icon>
+          <span>Review Flagged Answers</span>
+        </button>
+        <button class="action-item" mat-button routerLink="/admin/exam-reports">
+          <mat-icon>assessment</mat-icon>
+          <span>Exam Reports</span>
+        </button>
+      </div>
     </div>
   </section>
 </div>

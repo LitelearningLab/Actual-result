@@ -1,4 +1,4 @@
-<div class="navbar-main">
+<div class="navbar-main" role="banner">
   <div class="navbar-inner">
     <div class="navbar-left">
       <div class="app-title">
@@ -7,26 +7,37 @@
       </div>
     </div>
 
-    <div class="navbar-right" *ngIf="isLogin">
-      <button mat-icon-button aria-label="Notifications">
-        <mat-icon fontSet="material-icons-outlined">notifications</mat-icon>
+    <div class="navbar-right" *ngIf="isLogin" role="toolbar" aria-label="Top navigation actions">
+      <button mat-icon-button 
+        aria-label="Show notifications" 
+        class="navbar-icon-btn notifications-btn"
+        title="Notifications">
+        <mat-icon fontSet="material-icons-outlined" class="navbar-icon">notifications</mat-icon>
       </button>
-      <button mat-icon-button aria-label="Settings">
-        <mat-icon fontSet="material-icons-outlined">settings</mat-icon>
+      <button mat-icon-button 
+        aria-label="Open settings" 
+        class="navbar-icon-btn settings-btn"
+        title="Settings">
+        <mat-icon fontSet="material-icons-outlined" class="navbar-icon">settings</mat-icon>
       </button>
 
-      <!-- Inline avatar + name (no dropdown) -->
-      <div class="user-inline">
-        <div class="avatar-inline">{{ initials }}</div>
+      <!-- User Profile Section -->
+      <div class="user-profile-divider" role="separator" aria-orientation="vertical"></div>
+      
+      <div class="user-inline" role="complementary" aria-label="User profile information">
+        <div class="avatar-inline" [title]="displayName">{{ initials }}</div>
         <div class="user-inline-meta">
           <div class="user-name">{{ displayName }}</div>
           <div class="user-institute">{{ instituteShortName }}</div>
-          <!-- <div class="user-role">{{ userRole }}</div> -->
         </div>
       </div>
 
-      <button mat-icon-button aria-label="logout" class="logout-inline" (click)="confirmLogout()">
-        <mat-icon class="logout-icon">logout</mat-icon>
+      <button mat-icon-button 
+        aria-label="Sign out from application" 
+        class="navbar-icon-btn logout-inline-btn"
+        (click)="confirmLogout()"
+        title="Sign out">
+        <mat-icon class="navbar-icon logout-icon">logout</mat-icon>
       </button>
     </div>
   </div>

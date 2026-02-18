@@ -1,44 +1,128 @@
 <div class="login-root">
-  <div class="login-container">
-    <div class="login-card-modern">
-      <div class="login-brand">
-        <img src="assets/images/edu-small.png" alt="brand" />
+
+  <!-- ─── Left: Brand Panel ─── -->
+  <aside class="login-brand-panel">
+    <div class="brand-panel-bg" aria-hidden="true">
+      <div class="brand-shape brand-shape--1"></div>
+      <div class="brand-shape brand-shape--2"></div>
+      <div class="brand-grid-overlay"></div>
+    </div>
+
+    <div class="brand-panel-content">
+      <div class="brand-logo" routerLink="/">
+        <img src="assets/images/profluent-lab.png" alt="Profluent Lab logo" />
       </div>
-      <h3 class="login-heading">Welcome back</h3>
 
-      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
-        <mat-form-field appearance="outline" class="form-field">
-          <mat-label>Username</mat-label>
-          <mat-icon matPrefix>person</mat-icon>
-          <input matInput formControlName="username" placeholder="Username" aria-label="Username" />
-          <mat-error *ngIf="loginForm.get('username')?.hasError('required') && (loginForm.get('username')?.dirty || loginForm.get('username')?.touched)">
-            Username is required
-          </mat-error>
-        </mat-form-field>
+      <h1 class="brand-headline">Smarter Assessments,<br />Better Outcomes.</h1>
+      <p class="brand-sub">Trusted by 500+ institutions to deliver secure, scalable online exams with real-time analytics.</p>
 
-        <mat-form-field appearance="outline" class="form-field">
-          <mat-label>Password</mat-label>
-          <mat-icon matPrefix>lock</mat-icon>
-          <input matInput [type]="hide ? 'password' : 'text'" formControlName="password" placeholder="Password" aria-label="Password" />
-          <button mat-icon-button matSuffix type="button" aria-label="Toggle password visibility" (click)="hide = !hide">
-            <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
-          </button>
-          <mat-error *ngIf="loginForm.get('password')?.hasError('required') && (loginForm.get('password')?.dirty || loginForm.get('password')?.touched)">
-            Password is required
-          </mat-error>
-        </mat-form-field>
+      <div class="brand-highlights">
+        <div class="highlight">
+          <div class="highlight-icon"><mat-icon>shield</mat-icon></div>
+          <div class="highlight-text">
+            <strong>Enterprise Security</strong>
+            <span>End-to-end encryption &amp; AI proctoring</span>
+          </div>
+        </div>
+        <div class="highlight">
+          <div class="highlight-icon"><mat-icon>speed</mat-icon></div>
+          <div class="highlight-text">
+            <strong>99.9% Uptime</strong>
+            <span>Guaranteed SLA with global CDN</span>
+          </div>
+        </div>
+        <div class="highlight">
+          <div class="highlight-icon"><mat-icon>insights</mat-icon></div>
+          <div class="highlight-text">
+            <strong>Live Analytics</strong>
+            <span>Real-time dashboards &amp; reports</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Testimonial -->
+      <div class="brand-testimonial">
+        <p>"Profluent Lab cut our exam setup time by 80%. The analytics are a game-changer."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">JD</div>
+          <div>
+            <strong>Dr. Jane Doe</strong>
+            <span>Dean, University of Technology</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="brand-footer">© 2025 Profluent Lab · <a routerLink="/privacy">Privacy</a> · <a routerLink="/terms">Terms</a></p>
+  </aside>
+
+  <!-- ─── Right: Login Form ─── -->
+  <div class="login-form-panel">
+    <div class="login-card">
+
+      <div class="login-header">
+        <div class="login-icon-badge">
+          <mat-icon>lock_open</mat-icon>
+        </div>
+        <h2 class="login-heading">Welcome back</h2>
+        <p class="login-sub">Enter your credentials to access your account</p>
+      </div>
+
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form" autocomplete="on">
+        <div class="field-group">
+          <label class="field-label" for="login-username">Username</label>
+          <mat-form-field appearance="outline" class="form-field">
+            <mat-icon matPrefix>person_outline</mat-icon>
+            <input matInput formControlName="username" id="login-username" placeholder="Enter your username" aria-label="Username" autocomplete="username" />
+            <mat-error *ngIf="loginForm.get('username')?.hasError('required') && (loginForm.get('username')?.dirty || loginForm.get('username')?.touched)">
+              Username is required
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="login-password">Password</label>
+          <mat-form-field appearance="outline" class="form-field">
+            <mat-icon matPrefix>lock_outline</mat-icon>
+            <input matInput [type]="hide ? 'password' : 'text'" formControlName="password" id="login-password" placeholder="Enter your password" aria-label="Password" autocomplete="current-password" />
+            <button mat-icon-button matSuffix type="button" aria-label="Toggle password visibility" (click)="hide = !hide" tabindex="-1">
+              <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <mat-error *ngIf="loginForm.get('password')?.hasError('required') && (loginForm.get('password')?.dirty || loginForm.get('password')?.touched)">
+              Password is required
+            </mat-error>
+          </mat-form-field>
+        </div>
 
         <div class="form-row between">
-          <mat-checkbox color="primary" formControlName="remember">Remember</mat-checkbox>
-          <a routerLink="/password-reset" class="forgot-link">Forgot?</a>
+          <mat-checkbox color="primary" formControlName="remember">Remember me</mat-checkbox>
+          <a routerLink="/password-reset" class="forgot-link">Forgot password?</a>
         </div>
 
-        <button mat-flat-button color="primary" class="submit-btn" type="submit">Login</button>
-
-        <div class="back-home">
-          <a routerLink="/">Back to Home</a>
-        </div>
+        <button mat-flat-button color="primary" class="submit-btn" type="submit">
+          <span>Sign in</span>
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
       </form>
+
+      <div class="login-divider">
+        <span>or</span>
+      </div>
+
+      <div class="login-alt-actions">
+        <a routerLink="/register" class="alt-link">
+          Don't have an account? <strong>Sign up</strong>
+        </a>
+      </div>
+
+      <div class="login-footer">
+        <a routerLink="/" class="back-home-link">
+          <mat-icon>arrow_back</mat-icon>
+          <span>Back to Home</span>
+        </a>
+      </div>
+
     </div>
   </div>
+
 </div>
