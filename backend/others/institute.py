@@ -370,7 +370,7 @@ def get_institute_details(request):
     else:
         query = session.query(Institute).filter(*filters)
         total_count = query.count()
-        institutes = query.offset((page_number - 1) * page_size).limit(page_size).all()
+        institutes = query.order_by(Institute.id).offset((page_number - 1) * page_size).limit(page_size).all()
     
     result = []
     for inst in institutes:

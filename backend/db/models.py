@@ -13,6 +13,7 @@ def generate_uuid():
 
 class Institute(Base):
      __tablename__ = 'Institutes'
+     id = Column(String, nullable=False)
      institute_id = Column(String, primary_key=True, default=generate_uuid)
      name = Column(String, nullable=False)
      short_name = Column(String)

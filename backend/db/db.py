@@ -6,13 +6,20 @@ import os
 class SQLiteDB:
     def __init__(self):
         environment_flag = os.getenv('environment_flag')
-        print(f"Environment flag = {environment_flag}")
-        print(f" JWT key: {os.getenv('jwt_secret')}")
-        db_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'edu_{environment_flag}.db')
-        db_path = f'sqlite:///{db_dir}'
-        print(f"Database Path: {db_path}")
-        os.makedirs(os.path.dirname(db_dir), exist_ok=True)
-        self.engine = create_engine(db_path, echo=False, future=True)
+        server = os.getenv('SQL_SERVER', 'localhost')  # e.g., localhost\SQLEXPRESS
+        database = os.getenv('SQL_DATABASE', 'actual-result')
+        username = os.getenv('SQL_USER', 'sa')
+        password = os.getenv('SQL_PASSWORD', 'YourStrong!Passw0rd')
+        driver = 'ODBC Driver 17 for SQL Server'
+
+        # # SQL Server connection string
+        # db_url = f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver=ODBC+Driver+17+for+SQL+Server"
+        # Windows Authentication
+        db_url = f"mssql+pyodbc://@{server}/{database}?driver={driver}&trusted_connection=yes"
+
+        print(f"Connecting to SQL Server at {server}, database {database}")
+
+        self.engine = create_engine(db_url, echo=False, future=True)
         self.Session = sessionmaker(bind=self.engine)
         self.session = None
 
