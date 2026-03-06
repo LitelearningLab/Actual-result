@@ -43,8 +43,8 @@ def review_user_exam(request):
             review_data["review"] = []
             
             # get question, selected option, and correct answer
-            question_list = (session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id)
-                .group_by(Answer.question_id).all())
+            question_list = (session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id).all())
+                # .group_by(Answer.question_id).all())
             total_marks = 0
             for question_answer in question_list:
 

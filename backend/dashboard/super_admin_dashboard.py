@@ -3,6 +3,7 @@ from db.models import User, Institute, InstituteDepartment, InstituteTeam,Instit
 import datetime
 from db.models import ExamSchedule
 from db.models import Exam, Question
+
 def superadmin_dashboard_details():
     db = SQLiteDB()
     session = db.connect()
@@ -42,7 +43,7 @@ def superadmin_dashboard_details():
         }
     # Institute-wise User Count
     from sqlalchemy import func
-    institute_user_counts = session.query(Institute.name, func.count(User.user_id)).join(User).group_by(Institute.institute_id).all()
+    institute_user_counts = session.query(Institute.name, func.count(User.user_id)).join(User).group_by(Institute.institute_id, Institute.name).all()
     users_by_institute = [{"institute": name, "users": count} for name, count in institute_user_counts]
     chart_users_by_institute = {
         "id": "institutes_users",

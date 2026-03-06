@@ -165,6 +165,7 @@ class UserPageAccess(Base):
 
 class User(Base):
      __tablename__ = 'Users'
+     id = Column(String, nullable=False)
      user_id = Column(String, primary_key=True, default=generate_uuid)
      institute_id = Column(String, ForeignKey('Institutes.institute_id'))
      full_name = Column(String, nullable=False)
@@ -203,7 +204,7 @@ class Credential(Base):
 
 class AppSession(Base):
      __tablename__ = 'App_Session'
-     id = Column(String, primary_key=True, default=generate_uuid)
+     id = Column(String, primary_key=True, nullable=False, default=generate_uuid)
      user_id = Column(String, ForeignKey('Users.user_id'), nullable=False)
      token = Column(String, nullable=False)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
@@ -213,6 +214,7 @@ class AppSession(Base):
 
 class Exam(Base):
      __tablename__ = 'Exams'
+     id = Column(String, nullable=False)
      exam_id = Column(String, primary_key=True, default=generate_uuid)
      title = Column(String, nullable=False)
      description = Column(String)
@@ -236,6 +238,7 @@ class Exam(Base):
 
 class ExamMapping(Base):
      __tablename__ = 'ExamMapping'
+     id = Column(String, nullable=False)
      mapping_id = Column(String, primary_key=True, default=generate_uuid)
      exam_id = Column(String, ForeignKey('Exams.exam_id'), nullable=False)
      category_id = Column(String, ForeignKey('Categories.category_id'), nullable=False)
@@ -297,6 +300,7 @@ class ExamScheduleMapping(Base):
 
 class Question(Base):
      __tablename__ = 'Questions'
+     id = Column(String, nullable=False)
      question_id = Column(String, primary_key=True, default=generate_uuid)
     #  institute_id = Column(String, ForeignKey('Institutes.institute_id'))
     #  exam_id = Column(String, ForeignKey('Exam.exam_id'))
@@ -315,6 +319,7 @@ class Question(Base):
 
 class QuestionMapping(Base):
      __tablename__ = 'QuestionMapping'
+     id = Column(String, nullable=False)
      map_id = Column(String, primary_key=True, default=generate_uuid)
      question_id = Column(String, ForeignKey('Questions.question_id'), nullable=False)
      category_id = Column(String, ForeignKey('Categories.category_id'), nullable=False)
@@ -336,6 +341,7 @@ class Option(Base):
 
 class Answer(Base):
      __tablename__ = 'Answers'
+     id = Column(String, nullable=False)
      answer_id = Column(String, primary_key=True, default=generate_uuid)
      user_id = Column(String, ForeignKey('Users.user_id'), nullable=False)
      schedule_id = Column(String, ForeignKey('ExamSchedules.schedule_id'), nullable=False)
