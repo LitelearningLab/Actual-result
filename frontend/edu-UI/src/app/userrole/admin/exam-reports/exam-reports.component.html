@@ -203,7 +203,27 @@
                                                                                           </div>    
                                                                                      </div>
                                                                                      <div class="q-right">
-                                                                                          <div class="q-marks small-muted" [ngClass]="{ 'mark-positive': (q.marks_awarded || 0) == (q.question_marks || 0), 'mark-negative': (q.marks_awarded || 0) == 0, 'mark-mid': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.question_marks || 0) }">{{ q.marks_awarded != null ? (q.marks_awarded + ' / ' + (q.question_marks || '-')) : (q.marks ? ('0 / ' + q.marks) : '') }}</div>
+                                                                                          <!-- Mark display with edit option for descriptive questions -->
+                                                                                          <div class="marks-container" *ngIf="(q.question_type || q.type) === 'descriptive'">
+                                                                                               <div *ngIf="!q._editingMarks" class="marks-display">
+                                                                                                    <div class="q-marks small-muted" [ngClass]="{ 'mark-positive': (q.marks_awarded || 0) == (q.question_marks || 0), 'mark-negative': (q.marks_awarded || 0) == 0, 'mark-mid': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.question_marks || 0) }">{{ q.marks_awarded != null ? (q.marks_awarded + ' / ' + (q.question_marks || '-')) : (q.marks ? ('0 / ' + q.marks) : '') }}</div>
+                                                                                                    <button mat-icon-button class="edit-marks-btn" type="button" (click)="$event.stopPropagation(); startEditMarks(q)" title="Edit marks">
+                                                                                                         <mat-icon>edit</mat-icon>
+                                                                                                    </button>
+                                                                                               </div>
+                                                                                               <div *ngIf="q._editingMarks" class="marks-edit">
+                                                                                                    <input type="number" class="marks-input" [(ngModel)]="q._editedMarks" [min]="0" [max]="q.question_marks || 100" step="0.5" />
+                                                                                                    <span class="marks-max">/ {{ q.question_marks || '-' }}</span>
+                                                                                                    <button mat-icon-button class="save-marks-btn" type="button" (click)="$event.stopPropagation(); saveMarks(q)" title="Save marks">
+                                                                                                         <mat-icon>check</mat-icon>
+                                                                                                    </button>
+                                                                                                    <button mat-icon-button class="cancel-marks-btn" type="button" (click)="$event.stopPropagation(); cancelEditMarks(q)" title="Cancel">
+                                                                                                         <mat-icon>close</mat-icon>
+                                                                                                    </button>
+                                                                                               </div>
+                                                                                          </div>
+                                                                                          <!-- Standard marks display for non-descriptive questions -->
+                                                                                          <div *ngIf="(q.question_type || q.type) !== 'descriptive'" class="q-marks small-muted" [ngClass]="{ 'mark-positive': (q.marks_awarded || 0) == (q.question_marks || 0), 'mark-negative': (q.marks_awarded || 0) == 0, 'mark-mid': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.question_marks || 0) }">{{ q.marks_awarded != null ? (q.marks_awarded + ' / ' + (q.question_marks || '-')) : (q.marks ? ('0 / ' + q.marks) : '') }}</div>
                                                                                      </div>
                                                                                 </div>
 

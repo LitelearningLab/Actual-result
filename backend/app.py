@@ -246,6 +246,13 @@ def update_review_comments_route(action):
     response_data, status_code = update_review_comments(request, action)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/update-descriptive-marks', methods=['POST'])
+@jwt_required
+def update_descriptive_marks_route():
+    from others.exam_review import update_descriptive_marks
+    response_data, status_code = update_descriptive_marks(request)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/get-exams-details', methods=['GET'])
 @jwt_required
 def get_exams():

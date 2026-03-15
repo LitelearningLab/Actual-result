@@ -361,6 +361,94 @@ def update_review_comments(request, action_type="edit"):
     finally:
         session.close()
         return {"statusMessage": "Comment updated successfully", "status": True}, 200
+
+
+def update_descriptive_marks(request):
+    """
+    Update marks awarded for a descriptive question.
+    Expected payload:
+    {
+        "question_id": "...",
+        "schedule_id": "...",
+        "attempt_id": "...",
+        "marks_awarded": 5.0,
+        "updated_by": "user_id"
+    }
+    """
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    try:
+        data = request.json or {}
+        question_id = data.get("question_id", "")
+        schedule_id = data.get("schedule_id", "")
+        attempt_id = data.get("attempt_id", "")
+        marks_awarded = data.get("marks_awarded", 0)
+        updated_by = data.get("updated_by", "")
+
+        if not question_id or not attempt_id:
+            return {"statusMessage": "Missing question_id or attempt_id", "status": False}, 400
+
+        # Validate marks against question max marks
+        question = session.query(Question).filter(Question.question_id == question_id).first()
+        if not question:
+            return {"statusMessage": "Question not found", "status": False}, 404
+        
+        max_marks = question.marks or 0
+        if float(marks_awarded) > float(max_marks):
+            return {"statusMessage": f"Marks cannot exceed maximum ({max_marks})", "status": False}, 400
+        if float(marks_awarded) < 0:
+            return {"statusMessage": "Marks cannot be negative", "status": False}, 400
+
+        # Find the answer record
+        answer = session.query(Answer).filter(
+            Answer.attempt_id == attempt_id,
+            Answer.question_id == question_id
+        ).first()
+
+        if not answer:
+            return {"statusMessage": "Answer record not found", "status": False}, 404
+
+        old_marks = answer.marks_awarded or 0
+        answer.marks_awarded = float(marks_awarded)
+        answer.is_correct = 1 if float(marks_awarded) == float(max_marks) else 0
+        session.add(answer)
+
+        # Update the attempt total score
+        attempt = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id == attempt_id).first()
+        if attempt:
+            # Recalculate total score
+            marks_diff = float(marks_awarded) - float(old_marks)
+            new_score = (attempt.score or 0) + marks_diff
+            attempt.score = new_score
+            
+            # Recalculate percentage if total_marks is available
+            exam_schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == schedule_id).first()
+            if exam_schedule:
+                exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
+                if exam and exam.total_marks:
+                    attempt.percentage = (new_score / exam.total_marks) * 100
+            
+            session.add(attempt)
+
+        session.commit()
+        return {
+            "statusMessage": "Marks updated successfully",
+            "status": True,
+            "data": {
+                "marks_awarded": float(marks_awarded),
+                "new_score": attempt.score if attempt else None
+            }
+        }, 200
+
+    except Exception as e:
+        session.rollback()
+        print(f"Error in update_descriptive_marks: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
+        return {"statusMessage": f"Error updating marks: {str(e)}", "status": False}, 500
+    finally:
+        session.close()
     
 
 if __name__ == "__main__":
