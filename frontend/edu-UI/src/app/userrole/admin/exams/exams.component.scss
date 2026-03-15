@@ -454,8 +454,8 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
 
 .questions-table thead th {
   font-weight: 700;
-  background: #f1f5f9;
-  color: var(--table-header-text, #1e293b);
+  background: var(--table-header-bg);
+  color: var(--table-header-text);
   text-transform: uppercase;
   letter-spacing: 0.02em;
   font-size: 0.75rem;
