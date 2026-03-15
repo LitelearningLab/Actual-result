@@ -341,7 +341,7 @@ class Option(Base):
 
 class Answer(Base):
      __tablename__ = 'Answers'
-     id = Column(String, nullable=False)
+     # id = Column(String, nullable=False)
      answer_id = Column(String, primary_key=True, default=generate_uuid)
      user_id = Column(String, ForeignKey('Users.user_id'), nullable=False)
      schedule_id = Column(String, ForeignKey('ExamSchedules.schedule_id'), nullable=False)
