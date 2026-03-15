@@ -1,10 +1,13 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { API_BASE } from 'src/app/shared/api.config';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
+
+// Web Speech API typings
+declare var webkitSpeechRecognition: any;
 
 interface Question {
   id?: string;
@@ -29,6 +32,11 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
   currentIndex = 0;
 
   showConfirm = false;
+
+  // Voice input properties
+  recognition: any = null;
+  recordingQuestionId: string | number | null = null;
+  speechSupported = false;
   get answeredCount() {
     return this.questions.filter((q, i) => {
       const key = q.id || i;
@@ -51,7 +59,90 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
   submitting = false;
   private submitUrl = `${API_BASE}/submit-exam`;
 
-  constructor(private http: HttpClient, private confirmService: ConfirmService){}
+  constructor(private http: HttpClient, private confirmService: ConfirmService, private ngZone: NgZone){
+    // Initialize speech recognition
+    this.initSpeechRecognition();
+  }
+
+  initSpeechRecognition() {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      this.speechSupported = true;
+      this.recognition = new SpeechRecognition();
+      this.recognition.continuous = true;
+      this.recognition.interimResults = true;
+      this.recognition.lang = 'en-US';
+
+      this.recognition.onresult = (event: any) => {
+        this.ngZone.run(() => {
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript;
+            }
+          }
+          if (finalTranscript && this.recordingQuestionId !== null) {
+            const currentAnswer = this.answers[this.recordingQuestionId] || '';
+            this.answers[this.recordingQuestionId] = currentAnswer + (currentAnswer ? ' ' : '') + finalTranscript;
+          }
+        });
+      };
+
+      this.recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error:', event.error);
+        this.ngZone.run(() => {
+          this.recordingQuestionId = null;
+          if (event.error === 'not-allowed') {
+            notify('Microphone access denied. Please allow microphone access to use voice input.', 'error');
+          } else if (event.error !== 'aborted') {
+            notify('Voice input error: ' + event.error, 'error');
+          }
+        });
+      };
+
+      this.recognition.onend = () => {
+        this.ngZone.run(() => {
+          this.recordingQuestionId = null;
+        });
+      };
+    } else {
+      this.speechSupported = false;
+    }
+  }
+
+  toggleVoiceInput(questionId: string | number) {
+    if (!this.speechSupported) {
+      notify('Voice input is not supported in your browser. Please use Chrome or Edge.', 'error');
+      return;
+    }
+
+    if (this.recordingQuestionId === questionId) {
+      // Stop recording
+      this.recognition.stop();
+      this.recordingQuestionId = null;
+    } else {
+      // Stop any existing recording first
+      if (this.recordingQuestionId !== null) {
+        this.recognition.stop();
+      }
+      // Start new recording
+      this.recordingQuestionId = questionId;
+      try {
+        this.recognition.start();
+      } catch (e) {
+        // Recognition might already be running
+        this.recognition.stop();
+        setTimeout(() => {
+          this.recognition.start();
+        }, 100);
+      }
+    }
+  }
+
+  isRecording(questionId: string | number): boolean {
+    return this.recordingQuestionId === questionId;
+  }
 
   ngOnInit(){
     try{ const raw = sessionStorage.getItem('launched_exam'); this.exam = raw ? JSON.parse(raw) : null; }catch(e){}

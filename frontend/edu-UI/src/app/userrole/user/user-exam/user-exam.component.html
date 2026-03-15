@@ -68,8 +68,23 @@
           </div>
 
           <!-- Descriptive -->
-          <div *ngIf="q.type === 'descriptive' || q.type === 'Paragraph'" class="q-input">
-            <textarea rows="6" [(ngModel)]="answers[q.id || i]" placeholder="Write your answer here"></textarea>
+          <div *ngIf="q.type === 'descriptive' || q.type === 'Paragraph'" class="q-input descriptive-input">
+            <div class="textarea-wrapper">
+              <textarea rows="6" [(ngModel)]="answers[q.id || i]" placeholder="Write your answer here or use voice input"></textarea>
+              <button type="button" class="voice-btn" 
+                      *ngIf="speechSupported"
+                      (click)="toggleVoiceInput(q.id || i)" 
+                      [class.recording]="isRecording(q.id || i)"
+                      [attr.aria-label]="isRecording(q.id || i) ? 'Stop voice input' : 'Start voice input'"
+                      [title]="isRecording(q.id || i) ? 'Stop recording' : 'Click to speak your answer'">
+                <span class="mic-icon" *ngIf="!isRecording(q.id || i)">🎤</span>
+                <span class="recording-icon" *ngIf="isRecording(q.id || i)">⏹️</span>
+              </button>
+            </div>
+            <div class="voice-hint" *ngIf="speechSupported">
+              <span *ngIf="!isRecording(q.id || i)">Click 🎤 to use voice input</span>
+              <span *ngIf="isRecording(q.id || i)" class="recording-status">🔴 Listening... Speak now</span>
+            </div>
           </div>
         </div>
 
