@@ -280,6 +280,81 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null; this.totalMarks = null;
   }
 
+  // Marks editing helpers for descriptive questions
+  startEditMarks(q: any){
+    if(!q) return;
+    q._editingMarks = true;
+    q._editedMarks = q.marks_awarded ?? 0;
+  }
+
+  cancelEditMarks(q: any){
+    if(!q) return;
+    q._editingMarks = false;
+    q._editedMarks = undefined;
+  }
+
+  saveMarks(q: any, row?: any){
+    if(!q) return;
+    const newMarks = parseFloat(q._editedMarks);
+    if(isNaN(newMarks) || newMarks < 0){
+      this._snack.open('Please enter a valid mark value', 'Close', { duration: 3000 });
+      return;
+    }
+    const maxMarks = q.question_marks || q.marks || 0;
+    if(newMarks > maxMarks){
+      this._snack.open(`Marks cannot exceed ${maxMarks}`, 'Close', { duration: 3000 });
+      return;
+    }
+
+    // Get required IDs
+    const answerID = q.answer_id || null;
+    
+    // Get user ID from current context
+    const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+    let updatedBy = '';
+    if (raw) {
+      const u = JSON.parse(raw);
+      updatedBy = u.user_id || u.id || u.userId || u._id || '';
+    }
+
+    if(!answerID){
+      console.warn('[saveMarks] Missing answer ID:', { answerID });
+      this._snack.open('Missing answer ID', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const payload = {
+      answer_id: String(answerID),
+      marks_awarded: newMarks,
+      updated_by: updatedBy
+    };
+
+    this.loading.show();
+    this.http.post<any>(`${API_BASE}/update-descriptive-marks`, payload).subscribe({
+      next: (res) => {
+        this.loading.hide();
+        // Update local state
+        const oldMarks = q.marks_awarded || 0;
+        q.marks_awarded = newMarks;
+        q._editingMarks = false;
+        q._editedMarks = undefined;
+        
+        // Update total score if available
+        if(this.selectedUserScore !== null && typeof this.selectedUserScore === 'number'){
+          this.selectedUserScore = this.selectedUserScore - oldMarks + newMarks;
+        }
+        
+        this._snack.open('Marks updated successfully', 'Close', { duration: 3000 });
+      },
+      error: (err) => {
+        this.loading.hide();
+        console.error('Failed to update marks', err);
+        const msg = err?.error?.statusMessage || err?.message || 'Failed to update marks.';
+        this._snack.open(msg, 'Close', { duration: 5000 });
+      }
+    });
+  }
+
   // Begin review comment editing helpers
   startEditComment(rc: any){
     if(!rc) return;

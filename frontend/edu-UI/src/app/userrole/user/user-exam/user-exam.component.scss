@@ -229,3 +229,79 @@
 /* small tweaks for inputs inside cards */
 .q-card .mat-form-field-infix { padding:6px 8px }
 .q-card .mat-form-field-label { font-size: var(--font-xsm) }
+
+/* Voice input styles */
+.descriptive-input {
+  .textarea-wrapper {
+    position: relative;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  textarea {
+    flex: 1;
+    padding: 12px;
+    padding-right: 50px;
+  }
+
+  .voice-btn {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #e6eef2;
+    background: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+
+    &:hover {
+      border-color: #0b7285;
+      background: #f0f9fb;
+      transform: scale(1.05);
+    }
+
+    &.recording {
+      border-color: #e53935;
+      background: #ffebee;
+      animation: pulse-recording 1.5s ease-in-out infinite;
+    }
+
+    .mic-icon, .recording-icon {
+      line-height: 1;
+    }
+  }
+
+  .voice-hint {
+    margin-top: 6px;
+    font-size: var(--font-xsm);
+    color: #6b7887;
+
+    .recording-status {
+      color: #e53935;
+      font-weight: 600;
+      animation: blink 1s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes pulse-recording {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(229, 57, 53, 0);
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

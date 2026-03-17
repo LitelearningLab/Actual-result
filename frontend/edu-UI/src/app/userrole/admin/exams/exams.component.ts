@@ -183,7 +183,11 @@ export class AdminExamsComponent implements AfterViewInit {
   deleteSchedule(row: any) {
     this.confirmService.confirm({ title: 'Delete Scheduled Exam', message: 'Delete this scheduled exam?', confirmText: 'Delete', cancelText: 'Cancel' }).subscribe(ok => {
       if (!ok) return;
-      const id = row.id;
+      const id = row.test_id || row.exam_id || row.id;
+      if (!id) {
+        notify('Unable to delete: exam ID not found', 'error');
+        return;
+      }
       const url = `${API_BASE}/delete-exam?exam_id=${encodeURIComponent(id)}`;
       this.http.delete<any>(url).subscribe({
         next: (res) => {

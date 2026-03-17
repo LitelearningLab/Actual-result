@@ -171,6 +171,30 @@ def update_exam(request):
         print(f"{e} occurred while updating exam at line {sys.exc_info()[-1].tb_lineno}")
         session.rollback()
         return {"statusMessage": "Error updating exam", "status": False}, 500
+
+def delete_exam(exam_id, deleted_by):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    exam = session.query(Exam).filter_by(exam_id=exam_id).first()
+    if not exam:
+        return {"statusMessage": "Exam not found", "status": False}, 404
+
+    try:
+        # delete exam question mappings
+        session.query(ExamQuestionMapping).filter_by(exam_id=exam_id).delete()
+        # delete exam mappings
+        session.query(ExamMapping).filter_by(exam_id=exam_id).delete()
+        # delete the exam
+        session.delete(exam)
+        session.commit()
+        return {"statusMessage": "Exam deleted successfully", "status": True}, 200
+    except Exception as e:
+        session.rollback()
+        print(f"{e} occurred while deleting exam at line {sys.exc_info()[-1].tb_lineno}")
+        return {"statusMessage": f"Error deleting exam: {str(e)}", "status": False}, 500
     
 def get_exam_details(request):
     db = SQLiteDB()
@@ -405,7 +429,7 @@ def get_user_exam_details(request):
             current_time = datetime.utcnow()
             if schedule_obj.start_time <= current_time <= schedule_obj.end_time:
                 type = 'active'
-                if feedback.lower() == 'pass':
+                if str(feedback).lower() == 'pass':
                     type = 'completed'
             elif schedule_obj.end_time and current_time > schedule_obj.end_time:
                 type = 'completed'

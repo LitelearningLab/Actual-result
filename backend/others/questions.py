@@ -333,6 +333,29 @@ def update_question(question_id, request):
     except Exception as e:
         session.rollback()
         return {"statusMessage": str(e), "status": False}, 500
+
+def delete_question(question_id, deleted_by):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    question = session.query(Question).filter_by(question_id=question_id).first()
+    if not question:
+        return {"statusMessage": "Question not found", "status": False}, 404
+
+    try:
+        # delete related options
+        session.query(Option).filter_by(question_id=question_id).delete()
+        # delete question mappings
+        session.query(QuestionMapping).filter_by(question_id=question_id).delete()
+        # delete the question
+        session.delete(question)
+        session.commit()
+        return {"statusMessage": "Question deleted successfully", "status": True}, 200
+    except Exception as e:
+        session.rollback()
+        return {"statusMessage": f"Error deleting question: {str(e)}", "status": False}, 500
     
 def default_result():
     result = {

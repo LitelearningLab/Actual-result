@@ -584,6 +584,19 @@
 -- 	created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 -- );
 
+-- Create a table for marks history
+DROP TABLE MarksHistory;
+CREATE TABLE MarksHistory (
+    history_id TEXT PRIMARY KEY,
+    answer_id TEXT NOT NULL,
+    question_id TEXT,
+    marks_awarded INTEGER,
+    source TEXT,
+    updated_by TEXT,
+    updated_date DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Alter TABLE Answers ADD COLUMN created_by TEXT;
 
 -- SQLite view all tables list and details
 SELECT * FROM sqlite_master WHERE type='table';

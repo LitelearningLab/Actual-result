@@ -250,6 +250,33 @@ def update_category(category_id, request):
     session.commit()
     return {"statusMessage": "Category updated successfully", "status": True}, 200
 
+def delete_category(category_id, deleted_by):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+    
+    category = session.query(Categories).filter_by(category_id=category_id).first()
+    if not category:
+        return {"statusMessage": "Category not found", "status": False}, 404
+    
+    try:
+        # remove related department/team links first
+        try:
+            session.query(CategoriesDepartments).filter_by(category_id=category_id).delete()
+        except Exception:
+            pass
+        try:
+            session.query(CategoriesTeams).filter_by(category_id=category_id).delete()
+        except Exception:
+            pass
+        session.delete(category)
+        session.commit()
+        return {"statusMessage": "Category deleted successfully", "status": True}, 200
+    except Exception as e:
+        session.rollback()
+        return {"statusMessage": f"Error deleting category: {str(e)}", "status": False}, 500
+
 def manage_category(action, uuid, updated_by):
     db = SQLiteDB()
     session = db.connect()
