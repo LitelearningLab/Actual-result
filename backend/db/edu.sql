@@ -655,9 +655,9 @@ SELECT * FROM  ExamSchedules;
 -- DELETE FROM ExamSchedules where schedule_id='5b8ee942-7de1-44cc-bdee-88f301440044'
 
 select * from Exam_Attempts WHERE attempt_id = '5b8ee942-7de1-44cc-bdee-88f301440044' ;
--- DELETE FROM exam_attempts WHERE attempt_id = 'd3489d5a-04cc-4c71-988f-7a51436022b6' ;
+-- DELETE FROM exam_attempts WHERE attempt_id = 'e96e5e9c-4ddc-489a-ab14-22265bf007f8' ;
 
-SELECT * from Answers WHERE attempt_id = '088e3547-da96-4b10-ba6f-ac81fdcda775' and 
+SELECT * from Answers WHERE attempt_id = '5b8ee942-7de1-44cc-bdee-88f301440044' and 
 SELECT * from Answers WHERE question_id = '06c819ac-21c5-4321-a96e-c644d84be22f' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
 -- ALTER TABLE Answers ADD COLUMN ai_marks INTEGER;
 -- ALTER TABLE Answers ADD COLUMN ai_confidence INTEGER ;
@@ -666,6 +666,10 @@ SELECT * from Answers WHERE question_id = '06c819ac-21c5-4321-a96e-c644d84be22f'
 -- DELETE FROM Answers WHERE attempt_id = 'd3489d5a-04cc-4c71-988f-7a51436022b6' and question_id = '5a717d8d-40c1-4808-921f-3aea00c9343a' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
 -- update Answers set is_validated = 0 where attempt_id = 'fa188ab2-23df-4c13-8f0f-77b3f15811e1' and question_id = '5a717d8d-40c1-4808-921f-3aea00c9343a' and user_id = '6d3acbd7-5abb-4214-8943-b66750d0beff';
 -- DELETE from Answers WHERE attempt_id not in (SELECT attempt_id from exam_attempts );
+update answers set created_by = 'cac37fab-4de6-4792-969b-96e57e3c910a' where created_by is null;
+
+select * from marksHistory;
+update marksHistory set updated_by = 'cac37fab-4de6-4792-969b-96e57e3c910a' where updated_by is null;
 
 SELECT * from ExamReviewComments
 -- report of exam attempts and answers
