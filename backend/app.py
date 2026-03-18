@@ -7,7 +7,7 @@ from configparser import ConfigParser
 from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, delete_institute, manage_institute, update_institute
 from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details, delete_user
 from others.exams import add_exam, get_exam_details, get_exam_list, launch_exam_details, submit_exam_answers,get_user_exam_details
-from others.examschedule import add_exam_schedule, get_exam_schedule_details
+from others.examschedule import add_exam_schedule, get_exam_schedule_details, delete_exam_schedule
 from others.examschedule import update_exam_schedule
 from others.category import add_categories, get_categories_list, get_category_details
 from others.questions import add_question, get_questions_details, bulk_upload_questions, create_question_using_llm, fine_tune_questions_using_llm
@@ -23,6 +23,8 @@ from masters.others import get_pages_list
 from dashboard.super_admin_dashboard import superadmin_dashboard_details
 from dashboard.admin_dashboard import admin_dashboard_details
 from dashboard.user_dashboard import user_dashboard_details, dashboard_users_list
+
+from others.demo_request import submit_demo_request, get_demo_requests, get_demo_request_by_id, update_demo_request_status, delete_demo_request
 
 from dotenv import load_dotenv
 import os
@@ -111,22 +113,30 @@ def get_pages_list_route():
     response_data, status_code = get_pages_list(request)
     return jsonify(response_data), status_code
 
-# delete method for institute, user, category, exam-schedule
-@edu_blueprint.route('/delete/<page>/<uuid>', methods=['DELETE'])
-def delete_page(page, uuid):
+# delete method for institute, user, category, exam-schedule, question, exam
+@edu_blueprint.route('/delete/<page>/<id>', methods=['DELETE'])
+@jwt_required
+def delete_page(page, id):
     # get deleted_by 
     deleted_by = request.args.get('current_user', 'system')
     if page == 'institute':
-        response_data, status_code = delete_institute(uuid, deleted_by)
+        response_data, status_code = delete_institute(id, deleted_by)
     elif page == 'user':
-        response_data, status_code = delete_user(uuid, deleted_by)
+        response_data, status_code = delete_user(id, deleted_by)
     elif page == 'category' or page == 'categories':
         from others.category import delete_category
-        response_data, status_code = delete_category(uuid, deleted_by)
+        response_data, status_code = delete_category(id, deleted_by)
+    elif page == 'question' or page == 'questions':
+        from others.questions import delete_question
+        response_data, status_code = delete_question(id, deleted_by)
+    elif page == 'exam' or page == 'exams':
+        from others.exams import delete_exam
+        response_data, status_code = delete_exam(id, deleted_by)
     elif page == 'exam-schedule' or page == 'exam-schedules' or page == 'schedule':
-        from others.examschedule import delete_schedule
-        response_data, status_code = delete_schedule(uuid, deleted_by)
-    return response_data, status_code
+        response_data, status_code = delete_exam_schedule(id)
+    else:
+        return jsonify({"statusMessage": f"Unknown page '{page}'", "status": False}), 400
+    return jsonify(response_data), status_code
 
 @edu_blueprint.route('/<page>/<action>/<uuid>', methods=['PUT'])
 @jwt_required
@@ -245,12 +255,45 @@ def validate_answers_route(attempt_id):
 def update_review_comments_route(action):
     response_data, status_code = update_review_comments(request, action)
     return jsonify(response_data), status_code
-
 @edu_blueprint.route('/update-descriptive-marks', methods=['POST'])
 @jwt_required
 def update_descriptive_marks_route():
     from others.exam_review import update_descriptive_marks
     response_data, status_code = update_descriptive_marks(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/delete-scheduled-exam', methods=['DELETE', 'OPTIONS'])
+def delete_scheduled_exam_route():
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    # Validate JWT for DELETE
+    validation_result = initialize_jwt_validator(request)
+    if validation_result != "Access granted":
+        return jsonify({"status": False, "statusMessage": validation_result}), 401
+    
+    schedule_id = request.args.get('id')
+    if not schedule_id:
+        return jsonify({"statusMessage": "id is required", "status": False}), 400
+    response_data, status_code = delete_exam_schedule(schedule_id)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/delete-exam', methods=['DELETE', 'OPTIONS'])
+def delete_exam_route():
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    # Validate JWT for DELETE
+    validation_result = initialize_jwt_validator(request)
+    if validation_result != "Access granted":
+        return jsonify({"status": False, "statusMessage": validation_result}), 401
+    
+    exam_id = request.args.get('exam_id') or request.args.get('id')
+    if not exam_id:
+        return jsonify({"statusMessage": "exam_id is required", "status": False}), 400
+    from others.exams import delete_exam
+    deleted_by = request.args.get('current_user', 'system')
+    response_data, status_code = delete_exam(exam_id, deleted_by)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-exams-details', methods=['GET'])
@@ -454,6 +497,46 @@ def logout():
     jwt_validator = JWTValidator(jwt_secret)
     logout_status, status_code = jwt_validator.logout(data)
     return jsonify(logout_status), status_code
+
+# ─────────────────────────────────────────────────────────────
+# Demo Request Endpoints (Public - No JWT required for submit)
+# ─────────────────────────────────────────────────────────────
+
+@edu_blueprint.route('/demo-request', methods=['POST'])
+def submit_demo_request_route():
+    """Submit a new demo request (public endpoint - no auth required)"""
+    data = request.json
+    response_data, status_code = submit_demo_request(data)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/demo-requests', methods=['GET'])
+@jwt_required
+def get_demo_requests_route():
+    """Get all demo requests with pagination and filtering (admin only)"""
+    response_data, status_code = get_demo_requests(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/demo-request/<request_id>', methods=['GET'])
+@jwt_required
+def get_demo_request_details_route(request_id):
+    """Get a single demo request by ID (admin only)"""
+    response_data, status_code = get_demo_request_by_id(request_id)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/demo-request/<request_id>', methods=['PUT'])
+@jwt_required
+def update_demo_request_route(request_id):
+    """Update demo request status and notes (admin only)"""
+    data = request.json
+    response_data, status_code = update_demo_request_status(request_id, data)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/demo-request/<request_id>', methods=['DELETE'])
+@jwt_required
+def delete_demo_request_route(request_id):
+    """Delete a demo request (admin only)"""
+    response_data, status_code = delete_demo_request(request_id)
+    return jsonify(response_data), status_code
 
 app = Flask(__name__)
 # CORS(app, resources={r"/edu/api/*": {"origins": ["http://localhost:4200","http://192.168.1.5:4200" ]}}, supports_credentials=True)

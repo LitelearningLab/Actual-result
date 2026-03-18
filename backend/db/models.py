@@ -357,12 +357,23 @@ class Answer(Base):
      ai_confidence = Column(Integer)
      manual_review_required = Column(Integer, default=0)
      manual_marks = Column(Integer)
+     created_by = Column(String, default='cac37fab-4de6-4792-969b-96e57e3c910a')
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
 
      user = relationship("User", back_populates="answers")
     #  exam = relationship("Exam", back_populates="answers")
      question = relationship("Question", back_populates="answers")
      selected_option = relationship("Option", back_populates="answers")
+
+class MarksHistory(Base):
+     __tablename__ = 'MarksHistory'
+     history_id = Column(String, primary_key=True, default=generate_uuid)
+     answer_id = Column(String, ForeignKey('Answers.answer_id'), nullable=False)
+     question_id = Column(String)
+     marks_awarded = Column(Integer)
+     source = Column(String)
+     updated_by = Column(String, ForeignKey('Users.user_id'))
+     updated_date = Column(DateTime, default=datetime.datetime.utcnow)
 
 class Exam_Attempt(Base):
     __tablename__ = 'Exam_Attempts'
@@ -474,3 +485,39 @@ class openai_requests(Base):
      institute_id = Column(String)
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.now)
+
+class DemoRequest(Base):
+     """
+     Table to store demo request form submissions from potential customers.
+     Fields map to the "Request a Demo" form in the frontend.
+     """
+     __tablename__ = 'DemoRequests'
+     request_id = Column(String, primary_key=True, default=generate_uuid)
+     
+     # Personal Information
+     first_name = Column(String, nullable=False)
+     last_name = Column(String, nullable=False)
+     email = Column(String, nullable=False)
+     phone = Column(String)
+     
+     # Organization Details
+     organization_name = Column(String, nullable=False)
+     role = Column(String)  # admin, it-head, dean, instructor, hr, other
+     team_size = Column(String)  # 1-50, 51-200, 201-1000, 1001-5000, 5000+
+     source = Column(String)  # search, social, referral, event, other
+     
+     # Additional Information
+     requirements = Column(Text)
+     
+     # Status tracking
+     status = Column(String, default='pending')  # pending, contacted, demo_scheduled, converted, rejected
+     assigned_to = Column(String, ForeignKey('Users.user_id'))
+     notes = Column(Text)
+     
+     # Terms agreement
+     agreed_to_terms = Column(Boolean, default=False)
+     
+     # Audit fields
+     created_date = Column(DateTime, default=datetime.datetime.utcnow)
+     updated_by = Column(String)
+     updated_date = Column(DateTime)

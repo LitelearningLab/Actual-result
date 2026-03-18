@@ -227,7 +227,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             });
             return { ...a, review: normalizedReview };
           });
-          console.debug('[ExamReports] review-user-exam attempts count:', this.userReviewAttempts.length, this.userReviewAttempts);
           // If total marks not set from the row, try to take it from the first attempt returned
           if((this.totalMarks === null || this.totalMarks === undefined) && this.userReviewAttempts && this.userReviewAttempts.length){
             const first = this.userReviewAttempts[0] || {};
@@ -307,9 +306,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
 
     // Get required IDs
-    const questionId = q.question_id || q.id || q._id || q.qid || null;
-    const scheduleId = String(this.selectedExam?.schedule_id || this.selectedExam?.id || '');
-    const attemptId = q.attempt_id || this.userReviewAttempts?.[0]?.attempt_id || '';
+    const answerID = q.answer_id || null;
     
     // Get user ID from current context
     const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
@@ -319,15 +316,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       updatedBy = u.user_id || u.id || u.userId || u._id || '';
     }
 
-    if(!questionId || !scheduleId){
-      this._snack.open('Missing question or schedule ID', 'Close', { duration: 3000 });
+    if(!answerID){
+      console.warn('[saveMarks] Missing answer ID:', { answerID });
+      this._snack.open('Missing answer ID', 'Close', { duration: 3000 });
       return;
     }
 
     const payload = {
-      question_id: String(questionId),
-      schedule_id: scheduleId,
-      attempt_id: String(attemptId),
+      answer_id: String(answerID),
       marks_awarded: newMarks,
       updated_by: updatedBy
     };
@@ -543,7 +539,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const url = `${API_BASE}/get-department-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        console.debug('[ExamReports] get-department-list response for', instituteId, res);
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.departmentList = arr.map((d: any) => (d.name || d.department_name || d.department || d).toString()).filter((s: any) => !!s);
       }, error: (err) => { console.warn('Failed to load department list', err); this.departmentList = []; }
@@ -557,10 +552,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const url = `${API_BASE}/get-teams-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        console.debug('[ExamReports] get-teams-list response for', instituteId, res);
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.teamList = arr.map((t: any) => (t.name || t.team_name || t.team || t).toString()).filter((s: any) => !!s);
-      }, error: (err) => { console.warn('Failed to load teams list', err); this.teamList = []; }
+      }, error: (err) => { console.warn('Failed to load teams list', err); this.teamList = []; } }
     });
   }
 

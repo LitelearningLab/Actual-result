@@ -424,6 +424,49 @@
                                                                                           <div class="model-text">{{ q.correct_option || (q.options && q.options[0] && q.options[0].option_text) || q.correct_answer || '-' }}</div>
                                                                                      </div>
 
+                                                                                     <!-- Marks History Section -->
+                                                                                     <div class="marks-history-section" *ngIf="(q.marks_history && q.marks_history.length)">
+                                                                                          <div class="marks-history-header">
+                                                                                               <mat-icon>history</mat-icon>
+                                                                                               <span>Marks History</span>
+                                                                                          </div>
+                                                                                          <div class="marks-history-timeline">
+                                                                                               <!-- Current Marks (Latest) -->
+                                                                                               <div class="history-item current" *ngIf="q.updated_by">
+                                                                                                    <div class="history-indicator">
+                                                                                                         <div class="dot current"></div>
+                                                                                                         <div class="line" *ngIf="q.marks_history && q.marks_history.length"></div>
+                                                                                                    </div>
+                                                                                                    <div class="history-content">
+                                                                                                         <div class="history-card current">
+                                                                                                              <div class="history-badge">Current</div>
+                                                                                                              <div class="history-marks">{{ q.marks_awarded }} <span class="marks-total">/ {{ q.question_marks || '-' }}</span></div>
+                                                                                                              <div class="history-meta">
+                                                                                                                   <span class="updated-by"><mat-icon>person</mat-icon>{{ q.updated_by }}</span>
+                                                                                                                   <span class="updated-date"><mat-icon>schedule</mat-icon>{{ q.updated_date }}</span>
+                                                                                                              </div>
+                                                                                                         </div>
+                                                                                                    </div>
+                                                                                               </div>
+                                                                                               <!-- Previous Marks History -->
+                                                                                               <div class="history-item" *ngFor="let mh of q.marks_history; let mhi = index; let isLast = last">
+                                                                                                    <div class="history-indicator">
+                                                                                                         <div class="dot past"></div>
+                                                                                                         <div class="line" *ngIf="!isLast"></div>
+                                                                                                    </div>
+                                                                                                    <div class="history-content">
+                                                                                                         <div class="history-card past">
+                                                                                                              <div class="history-marks">{{ mh.marks_awarded }} <span class="marks-total">/ {{ q.question_marks || '-' }}</span></div>
+                                                                                                              <div class="history-meta">
+                                                                                                                   <span class="updated-by"><mat-icon>person</mat-icon>{{ mh.updated_by || 'System' }}</span>
+                                                                                                                   <span class="updated-date"><mat-icon>schedule</mat-icon>{{ mh.updated_date }}</span>
+                                                                                                              </div>
+                                                                                                         </div>
+                                                                                                    </div>
+                                                                                               </div>
+                                                                                          </div>
+                                                                                     </div>
+
                                                                                 </div>
 
                                                                                 <!-- Multiple choice / multi select -->

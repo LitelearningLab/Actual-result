@@ -51,7 +51,7 @@
       </div>
     </div>
 
-    <p class="brand-footer">© 2025 Profluent Lab · <a routerLink="/privacy">Privacy</a> · <a routerLink="/terms">Terms</a></p>
+    <p class="brand-footer">© 2026 Profluent Lab · <a routerLink="/privacy">Privacy</a> · <a routerLink="/terms">Terms</a></p>
   </aside>
 
   <!-- ─── Right: Register Form ─── -->
@@ -66,7 +66,7 @@
         <p class="register-sub">Fill in your details to get started with Profluent Lab</p>
       </div>
 
-      <form class="register-form" (submit)="$event.preventDefault()">
+      <form class="register-form" [formGroup]="demoForm" (ngSubmit)="onSubmit()">
 
         <!-- Step indicator -->
         <div class="form-section-label">
@@ -79,7 +79,9 @@
             <label class="field-label">First name *</label>
             <mat-form-field appearance="outline" class="form-field">
               <mat-icon matPrefix>person_outline</mat-icon>
-              <input matInput name="firstName" placeholder="John" />
+              <input matInput formControlName="firstName" placeholder="John" />
+              <mat-error *ngIf="hasError('firstName', 'required')">First name is required</mat-error>
+              <mat-error *ngIf="hasError('firstName', 'minlength')">Minimum 2 characters</mat-error>
             </mat-form-field>
           </div>
 
@@ -87,7 +89,9 @@
             <label class="field-label">Last name *</label>
             <mat-form-field appearance="outline" class="form-field">
               <mat-icon matPrefix>person_outline</mat-icon>
-              <input matInput name="lastName" placeholder="Doe" />
+              <input matInput formControlName="lastName" placeholder="Doe" />
+              <mat-error *ngIf="hasError('lastName', 'required')">Last name is required</mat-error>
+              <mat-error *ngIf="hasError('lastName', 'minlength')">Minimum 2 characters</mat-error>
             </mat-form-field>
           </div>
 
@@ -95,7 +99,9 @@
             <label class="field-label">Work email *</label>
             <mat-form-field appearance="outline" class="form-field">
               <mat-icon matPrefix>email</mat-icon>
-              <input matInput type="email" name="email" placeholder="you&#64;company.com" />
+              <input matInput type="email" formControlName="email" placeholder="you&#64;company.com" />
+              <mat-error *ngIf="hasError('email', 'required')">Email is required</mat-error>
+              <mat-error *ngIf="hasError('email', 'email')">Please enter a valid email</mat-error>
             </mat-form-field>
           </div>
 
@@ -103,7 +109,7 @@
             <label class="field-label">Phone number</label>
             <mat-form-field appearance="outline" class="form-field">
               <mat-icon matPrefix>phone</mat-icon>
-              <input matInput type="tel" name="phone" placeholder="+91 98765 43210" />
+              <input matInput type="tel" formControlName="phone" placeholder="+91 98765 43210" />
             </mat-form-field>
           </div>
         </div>
@@ -118,7 +124,8 @@
             <label class="field-label">Organization name *</label>
             <mat-form-field appearance="outline" class="form-field">
               <mat-icon matPrefix>business</mat-icon>
-              <input matInput name="organization" placeholder="Your company or institute" />
+              <input matInput formControlName="organization" placeholder="Your company or institute" />
+              <mat-error *ngIf="hasError('organization', 'required')">Organization name is required</mat-error>
             </mat-form-field>
           </div>
 
@@ -126,7 +133,7 @@
             <label class="field-label">Your role</label>
             <mat-form-field appearance="outline" class="form-field">
               <mat-icon matPrefix>badge</mat-icon>
-              <mat-select name="role" placeholder="Select your role">
+              <mat-select formControlName="role" placeholder="Select your role">
                 <mat-option value="admin">Administrator</mat-option>
                 <mat-option value="it-head">IT Head / CTO</mat-option>
                 <mat-option value="dean">Dean / Principal</mat-option>
@@ -141,7 +148,7 @@
             <label class="field-label">Team size</label>
             <mat-form-field appearance="outline" class="form-field">
               <mat-icon matPrefix>groups</mat-icon>
-              <mat-select name="teamSize" placeholder="Expected users">
+              <mat-select formControlName="teamSize" placeholder="Expected users">
                 <mat-option value="1-50">1 – 50</mat-option>
                 <mat-option value="51-200">51 – 200</mat-option>
                 <mat-option value="201-1000">201 – 1,000</mat-option>
@@ -155,7 +162,7 @@
             <label class="field-label">How did you hear about us?</label>
             <mat-form-field appearance="outline" class="form-field">
               <mat-icon matPrefix>campaign</mat-icon>
-              <mat-select name="source" placeholder="Select source">
+              <mat-select formControlName="source" placeholder="Select source">
                 <mat-option value="search">Google / Search</mat-option>
                 <mat-option value="social">Social Media</mat-option>
                 <mat-option value="referral">Referral / Word of mouth</mat-option>
@@ -175,7 +182,7 @@
           <label class="field-label">Tell us about your requirements</label>
           <mat-form-field appearance="outline" class="form-field">
             <mat-icon matPrefix>notes</mat-icon>
-            <textarea matInput name="requirements" placeholder="Any specific needs or questions?"></textarea>
+            <textarea matInput formControlName="requirements" placeholder="Any specific needs or questions?"></textarea>
           </mat-form-field>
          </div>
 
@@ -207,15 +214,19 @@
         </div> -->
 
         <div class="form-agreement">
-          <mat-checkbox color="primary">
+          <mat-checkbox color="primary" formControlName="agreedToTerms">
             I agree to the <a routerLink="/terms">Terms of Service</a> and <a routerLink="/privacy">Privacy Policy</a>
           </mat-checkbox>
+          <mat-error *ngIf="hasError('agreedToTerms', 'required')" class="terms-error">
+            You must agree to the terms
+          </mat-error>
         </div>
 
         <div class="form-actions">
-          <button mat-flat-button color="primary" type="submit" class="submit-btn">
-            <span>Request Demo</span>
-            <mat-icon>arrow_forward</mat-icon>
+          <button mat-flat-button color="primary" type="submit" class="submit-btn" [disabled]="isSubmitting">
+            <span *ngIf="!isSubmitting">Request Demo</span>
+            <span *ngIf="isSubmitting">Submitting...</span>
+            <mat-icon *ngIf="!isSubmitting">arrow_forward</mat-icon>
           </button>
         </div>
 

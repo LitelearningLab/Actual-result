@@ -1,6 +1,6 @@
 from sqlalchemy import func
 from db.db import SQLiteDB
-from db.models import User, Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments,ExamReviewCommentsHistory
+from db.models import User, Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments,ExamReviewCommentsHistory, MarksHistory
 from others.llm import descriptive_evaluation, openai_client
 
 def review_user_exam(request):
@@ -43,8 +43,8 @@ def review_user_exam(request):
             review_data["review"] = []
             
             # get question, selected option, and correct answer
-            question_list = (session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id).all())
-                # .group_by(Answer.question_id).all())
+            question_list = (session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id)
+                .group_by(Answer.question_id).all())
             total_marks = 0
             for question_answer in question_list:
 
@@ -118,8 +118,11 @@ def review_user_exam(request):
                     correct_answer_data = ", ".join([ans.option_text for ans in correct_answer])
 
                 options_list = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.active_status == 1).all()
+                updated_by = session.query(User).filter(User.user_id == question_answer.created_by).first()
 
                 review_data["review"].append({
+                    "answer_id": question_answer.answer_id,
+                    "question_id": question_answer.question_id,
                     "question_text": question.question_text  if question else "",
                     "question_type": question_type,
                     "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct} for opt in options_list],
@@ -128,6 +131,8 @@ def review_user_exam(request):
                     "review_comment": review_comment_dict,
                     "is_correct": True if question_answer.is_correct == 1 else False,
                     "marks_awarded": question_answer.marks_awarded if question_answer.marks_awarded is not None else 0,
+                    "updated_by": updated_by.full_name if updated_by else question_answer.created_by,
+                    "updated_date": question_answer.created_date,
                     "question_marks": question_marks,
                     "ai_marks": question_answer.ai_marks if question_answer.ai_marks is not None else 0,
                     "ai_confidence": question_answer.ai_confidence if question_answer.ai_confidence is not None else 0,
@@ -135,6 +140,11 @@ def review_user_exam(request):
                     "manual_marks": question_answer.manual_marks if question_answer.manual_marks is not None else 0,
                     "feedback": question_answer.feedback if hasattr(question_answer, 'feedback') else ""
                 })
+                # marks history can also be added here if needed by fetching from MarksHistory table
+                marks_history = session.query(MarksHistory).filter(MarksHistory.answer_id == question_answer.answer_id).all()
+                if marks_history:
+                    review_data["review"][-1]["marks_history"] = [{"marks_awarded": mh.marks_awarded, "updated_by": session.query(User).filter(User.user_id == mh.updated_by).first().full_name , "updated_date": mh.updated_date} for mh in marks_history]
+                
             review_data["total_marks"] = total_marks   
             attempt_reviews.append(review_data)
 
@@ -382,74 +392,56 @@ def update_descriptive_marks(request):
 
     try:
         data = request.json or {}
-        question_id = data.get("question_id", "")
-        schedule_id = data.get("schedule_id", "")
-        attempt_id = data.get("attempt_id", "")
+        answer_id = data.get("answer_id", "")
         marks_awarded = data.get("marks_awarded", 0)
         updated_by = data.get("updated_by", "")
 
-        if not question_id or not attempt_id:
-            return {"statusMessage": "Missing question_id or attempt_id", "status": False}, 400
-
-        # Validate marks against question max marks
-        question = session.query(Question).filter(Question.question_id == question_id).first()
-        if not question:
-            return {"statusMessage": "Question not found", "status": False}, 404
-        
-        max_marks = question.marks or 0
-        if float(marks_awarded) > float(max_marks):
-            return {"statusMessage": f"Marks cannot exceed maximum ({max_marks})", "status": False}, 400
-        if float(marks_awarded) < 0:
-            return {"statusMessage": "Marks cannot be negative", "status": False}, 400
-
-        # Find the answer record
-        answer = session.query(Answer).filter(
-            Answer.attempt_id == attempt_id,
-            Answer.question_id == question_id
-        ).first()
-
-        if not answer:
+        if not answer_id or updated_by is None:
+            return {"statusMessage": "answer_id and updated_by are required", "status": False}, 400
+        answer_record = session.query(Answer).filter(Answer.answer_id == answer_id).first()
+        if not answer_record:
             return {"statusMessage": "Answer record not found", "status": False}, 404
-
-        old_marks = answer.marks_awarded or 0
-        answer.marks_awarded = float(marks_awarded)
-        answer.is_correct = 1 if float(marks_awarded) == float(max_marks) else 0
-        session.add(answer)
-
-        # Update the attempt total score
-        attempt = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id == attempt_id).first()
-        if attempt:
-            # Recalculate total score
-            marks_diff = float(marks_awarded) - float(old_marks)
-            new_score = (attempt.score or 0) + marks_diff
-            attempt.score = new_score
-            
-            # Recalculate percentage if total_marks is available
-            exam_schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == schedule_id).first()
-            if exam_schedule:
-                exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
-                if exam and exam.total_marks:
-                    attempt.percentage = (new_score / exam.total_marks) * 100
-            
-            session.add(attempt)
-
+        
+        # update Answer history table with old marks
+        answer_history_record = MarksHistory(
+            answer_id=answer_id,
+            marks_awarded=answer_record.marks_awarded,
+            updated_by= answer_record.created_by,
+            updated_date= answer_record.created_date
+        )
+        session.add(answer_history_record)
+        # update Answer table with new marks
+        answer_record.marks_awarded = marks_awarded
+        answer_record.created_by = updated_by
+        answer_record.created_date = func.now()
+        session.add(answer_record)
         session.commit()
-        return {
-            "statusMessage": "Marks updated successfully",
-            "status": True,
-            "data": {
-                "marks_awarded": float(marks_awarded),
-                "new_score": attempt.score if attempt else None
-            }
-        }, 200
+
+        # Update exam attempt score
+        attempt = session.query(Exam_Attempt).filter_by(attempt_id=answer_record.attempt_id).first()
+        if attempt:
+            total_score = session.query(Answer).filter_by(attempt_id=answer_record.attempt_id).with_entities(func.sum(Answer.marks_awarded)).scalar() or 0
+            attempt.score = total_score
+            total_possible_marks = session.query(Question).join(Answer, Answer.question_id == Question.question_id).filter(
+                Answer.attempt_id == answer_record.attempt_id
+            ).with_entities(func.sum(Question.marks)).scalar() or 0
+            passing_score = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first().pass_mark
+            if total_possible_marks > 0 and (total_score / total_possible_marks * 100) >= passing_score:
+                attempt.feedback = 'Pass'
+            else:
+                attempt.feedback = 'Fail'
+            attempt.percentage = (total_score / total_possible_marks * 100) if total_possible_marks > 0 else 0
+            session.add(attempt)
+            session.commit()
 
     except Exception as e:
         session.rollback()
         print(f"Error in update_descriptive_marks: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
-        return {"statusMessage": f"Error updating marks: {str(e)}", "status": False}, 500
+        return {"statusMessage": f"Error updating descriptive marks: {str(e)}", "status": False}, 500
     finally:
         session.close()
-    
+        return {"statusMessage": "Descriptive marks updated successfully", "status": True}, 200
+
 
 if __name__ == "__main__":
     # For testing purposes
