@@ -24,6 +24,8 @@ from dashboard.super_admin_dashboard import superadmin_dashboard_details
 from dashboard.admin_dashboard import admin_dashboard_details
 from dashboard.user_dashboard import user_dashboard_details, dashboard_users_list
 
+from others.demo_request import submit_demo_request, get_demo_requests, get_demo_request_by_id, update_demo_request_status, delete_demo_request
+
 from dotenv import load_dotenv
 import os
 if load_dotenv():
@@ -495,6 +497,46 @@ def logout():
     jwt_validator = JWTValidator(jwt_secret)
     logout_status, status_code = jwt_validator.logout(data)
     return jsonify(logout_status), status_code
+
+# ─────────────────────────────────────────────────────────────
+# Demo Request Endpoints (Public - No JWT required for submit)
+# ─────────────────────────────────────────────────────────────
+
+@edu_blueprint.route('/demo-request', methods=['POST'])
+def submit_demo_request_route():
+    """Submit a new demo request (public endpoint - no auth required)"""
+    data = request.json
+    response_data, status_code = submit_demo_request(data)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/demo-requests', methods=['GET'])
+@jwt_required
+def get_demo_requests_route():
+    """Get all demo requests with pagination and filtering (admin only)"""
+    response_data, status_code = get_demo_requests(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/demo-request/<request_id>', methods=['GET'])
+@jwt_required
+def get_demo_request_details_route(request_id):
+    """Get a single demo request by ID (admin only)"""
+    response_data, status_code = get_demo_request_by_id(request_id)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/demo-request/<request_id>', methods=['PUT'])
+@jwt_required
+def update_demo_request_route(request_id):
+    """Update demo request status and notes (admin only)"""
+    data = request.json
+    response_data, status_code = update_demo_request_status(request_id, data)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/demo-request/<request_id>', methods=['DELETE'])
+@jwt_required
+def delete_demo_request_route(request_id):
+    """Delete a demo request (admin only)"""
+    response_data, status_code = delete_demo_request(request_id)
+    return jsonify(response_data), status_code
 
 app = Flask(__name__)
 # CORS(app, resources={r"/edu/api/*": {"origins": ["http://localhost:4200","http://192.168.1.5:4200" ]}}, supports_credentials=True)

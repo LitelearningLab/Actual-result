@@ -596,7 +596,29 @@ CREATE TABLE MarksHistory (
     updated_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Alter TABLE Answers ADD COLUMN created_by TEXT;
+-- Table: DemoRequests
+select * from DemoRequests;
+DROP TABLE DemoRequests;
+CREATE TABLE DemoRequests (
+  request_id TEXT PRIMARY KEY,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  organization_name TEXT NOT NULL,
+  role TEXT,  -- admin, it-head, dean, instructor, hr, other
+  team_size TEXT,  -- 1-50, 51-200, 201-1000, 1001-5000, 5000+
+  source TEXT,  -- search, social, referral, event, other
+  requirements TEXT,
+  status TEXT DEFAULT 'pending',  -- pending, contacted, demo_scheduled, converted, rejected
+  assigned_to TEXT,  -- ForeignKey('Users.user_id')
+  notes TEXT,
+  agreed_to_terms INTEGER DEFAULT 0,
+  created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_by TEXT,
+  updated_date DATETIME
+);
+
 
 -- SQLite view all tables list and details
 SELECT * FROM sqlite_master WHERE type='table';

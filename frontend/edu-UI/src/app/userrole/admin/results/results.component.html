@@ -14,123 +14,144 @@
 
   <!-- ── Header ── -->
   <header class="dash-header">
-    <!-- <div class="header-left">
-      <div class="header-title-wrap">
-        <h2 class="dash-title">Admin Dashboard</h2>
-        <p class="dash-subtitle">Institute analytics &amp; test management</p>
+    <div class="header-content">
+      <div class="header-actions">
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>Institute</mat-label>
+          <mat-select [(value)]="selectedInstituteId" (selectionChange)="onInstituteChange($event.value)">
+            <mat-option *ngFor="let inst of institutes" [value]="inst.id">{{inst.name}}</mat-option>
+          </mat-select>
+          <mat-icon matPrefix>business</mat-icon>
+        </mat-form-field>
+
+        <button mat-icon-button class="refresh-btn" (click)="loadDashboard()" aria-label="Refresh dashboard">
+          <mat-icon>refresh</mat-icon>
+        </button>
       </div>
-    </div> -->
-
-    <div class="header-actions">
-      <mat-form-field appearance="outline" class="filter-field">
-        <mat-label>Institute</mat-label>
-        <mat-select [(value)]="selectedInstituteId" (selectionChange)="onInstituteChange($event.value)">
-          <mat-option *ngFor="let inst of institutes" [value]="inst.id">{{inst.name}}</mat-option>
-        </mat-select>
-        <mat-icon matPrefix>business</mat-icon>
-      </mat-form-field>
-
-      <button mat-icon-button class="refresh-btn" (click)="loadDashboard()" aria-label="Refresh dashboard">
-        <mat-icon>refresh</mat-icon>
-      </button>
     </div>
   </header>
 
   <!-- ── KPI Cards ── -->
-  <section class="kpi-grid">
-    <div class="kpi-card">
-      <div class="kpi-icon-wrap kpi-icon--blue">
-        <mat-icon>school</mat-icon>
+  <section class="kpi-section">
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-card--gradient kpi-card--blue">
+        <div class="kpi-card-inner">
+          <div class="kpi-icon-wrap">
+            <mat-icon>school</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-val">{{ metrics.totalStudents }}</div>
+            <div class="kpi-label">Total Students</div>
+          </div>
+          <div class="kpi-decoration"></div>
+        </div>
       </div>
-      <div class="kpi-body">
-        <div class="kpi-val">{{ metrics.totalStudents }}</div>
-        <div class="kpi-label">Total Students</div>
-      </div>
-      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
-    </div>
 
-    <div class="kpi-card">
-      <div class="kpi-icon-wrap kpi-icon--purple">
-        <mat-icon>event_note</mat-icon>
+      <div class="kpi-card kpi-card--gradient kpi-card--purple">
+        <div class="kpi-card-inner">
+          <div class="kpi-icon-wrap">
+            <mat-icon>event_note</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-val">{{ metrics.testsScheduled }}</div>
+            <div class="kpi-label">Scheduled Tests</div>
+          </div>
+          <div class="kpi-decoration"></div>
+        </div>
       </div>
-      <div class="kpi-body">
-        <div class="kpi-val">{{ metrics.testsScheduled }}</div>
-        <div class="kpi-label">Scheduled Tests</div>
-      </div>
-      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
-    </div>
 
-    <div class="kpi-card">
-      <div class="kpi-icon-wrap kpi-icon--teal">
-        <mat-icon>play_circle</mat-icon>
+      <div class="kpi-card kpi-card--gradient kpi-card--teal">
+        <div class="kpi-card-inner">
+          <div class="kpi-icon-wrap">
+            <mat-icon>play_circle</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-val">{{ metrics.attemptsToday }}</div>
+            <div class="kpi-label">Attempts Today</div>
+          </div>
+          <div class="kpi-decoration"></div>
+        </div>
       </div>
-      <div class="kpi-body">
-        <div class="kpi-val">{{ metrics.attemptsToday }}</div>
-        <div class="kpi-label">Attempts Today</div>
-      </div>
-      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
-    </div>
 
-    <div class="kpi-card">
-      <div class="kpi-icon-wrap kpi-icon--green">
-        <mat-icon>trending_up</mat-icon>
+      <div class="kpi-card kpi-card--gradient kpi-card--green">
+        <div class="kpi-card-inner">
+          <div class="kpi-icon-wrap">
+            <mat-icon>trending_up</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-val">{{ metrics.avgScore }}<small>%</small></div>
+            <div class="kpi-label">Average Score</div>
+          </div>
+          <div class="kpi-decoration"></div>
+        </div>
       </div>
-      <div class="kpi-body">
-        <div class="kpi-val">{{ metrics.avgScore }}<small>%</small></div>
-        <div class="kpi-label">Average Score</div>
-      </div>
-      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
-    </div>
 
-    <div class="kpi-card">
-      <div class="kpi-icon-wrap kpi-icon--amber">
-        <mat-icon>check_circle</mat-icon>
+      <div class="kpi-card kpi-card--gradient kpi-card--amber">
+        <div class="kpi-card-inner">
+          <div class="kpi-icon-wrap">
+            <mat-icon>check_circle</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-val">{{ metrics.passRate ?? '--' }}<small *ngIf="metrics.passRate != null">%</small></div>
+            <div class="kpi-label">Pass Rate</div>
+          </div>
+          <div class="kpi-decoration"></div>
+        </div>
       </div>
-      <div class="kpi-body">
-        <div class="kpi-val">{{ metrics.passRate ?? '--' }}<small *ngIf="metrics.passRate != null">%</small></div>
-        <div class="kpi-label">Pass Rate</div>
-      </div>
-      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
-    </div>
 
-    <div class="kpi-card">
-      <div class="kpi-icon-wrap kpi-icon--rose">
-        <mat-icon>groups</mat-icon>
+      <div class="kpi-card kpi-card--gradient kpi-card--rose">
+        <div class="kpi-card-inner">
+          <div class="kpi-icon-wrap">
+            <mat-icon>groups</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-val">{{ metrics.activeUsers ?? '--' }}</div>
+            <div class="kpi-label">Active Users</div>
+          </div>
+          <div class="kpi-decoration"></div>
+        </div>
       </div>
-      <div class="kpi-body">
-        <div class="kpi-val">{{ metrics.activeUsers ?? '--' }}</div>
-        <div class="kpi-label">Active Users</div>
-      </div>
-      <div class="kpi-trend kpi-trend--neutral"><mat-icon>remove</mat-icon></div>
     </div>
   </section>
 
-  <!-- ── Charts Grid ── -->
+  <!-- ── Charts Section ── -->
   <section class="charts-section">
     <div class="section-header">
-      <h3 class="section-title">
-        <mat-icon>insights</mat-icon>
-        Analytics
-      </h3>
-      <span class="section-badge">Live</span>
+      <div class="section-title-wrap">
+        <h3 class="section-title">
+          <mat-icon>insights</mat-icon>
+          Analytics
+        </h3>
+        <span class="section-badge live-badge">
+          <span class="live-dot"></span>
+          Live
+        </span>
+      </div>
     </div>
 
     <div class="charts-grid">
       <ng-container *ngFor="let c of charts">
-        <div class="chart-card">
+        <div class="chart-card" [class.chart-card--wide]="c.type === 'line'">
           <div class="chart-card-header">
-            <h4>{{ c.title }}</h4>
-            <mat-icon class="chart-menu-icon">more_vert</mat-icon>
+            <div class="chart-title-wrap">
+              <h4>{{ c.title }}</h4>
+              <span class="chart-type-badge" [ngClass]="'badge--' + c.type">{{ c.type | titlecase }}</span>
+            </div>
+            <button mat-icon-button class="chart-menu-btn">
+              <mat-icon>more_vert</mat-icon>
+            </button>
           </div>
-          <div class="chart-placeholder">
-            <app-dynamic-chart [type]="c.type" [data]="c.data"></app-dynamic-chart>
+          <div class="chart-body">
+            <app-dynamic-chart [type]="c.type" [data]="c.data" [animated]="true"></app-dynamic-chart>
           </div>
         </div>
       </ng-container>
 
       <div class="chart-card chart-card--empty" *ngIf="charts.length === 0">
         <div class="empty-state">
-          <mat-icon class="empty-icon">bar_chart</mat-icon>
+          <div class="empty-icon-wrap">
+            <mat-icon class="empty-icon">bar_chart</mat-icon>
+          </div>
           <h4>No Analytics Yet</h4>
           <p>Charts will appear here once test data is available.</p>
         </div>
@@ -139,63 +160,112 @@
   </section>
 
   <!-- ── Bottom: Table + Quick Actions ── -->
-  <section class="bottom-grid">
-    <div class="table-card">
-      <div class="table-card-header">
-        <h4>
-          <mat-icon>calendar_today</mat-icon>
-          Upcoming Tests
-        </h4>
-        <span class="table-count" *ngIf="upcomingTests.length">{{ upcomingTests.length }} scheduled</span>
+  <section class="bottom-section">
+    <div class="bottom-grid">
+      <!-- Upcoming Tests Table -->
+      <div class="data-card table-card">
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <mat-icon class="card-icon">calendar_today</mat-icon>
+            <h3>Upcoming Tests</h3>
+          </div>
+          <span class="badge count-badge" *ngIf="upcomingTests.length">{{ upcomingTests.length }} scheduled</span>
+        </div>
+        
+        <div class="card-body">
+          <table class="modern-table" *ngIf="upcomingTests.length > 0">
+            <thead>
+              <tr>
+                <th>Test</th>
+                <th>Class</th>
+                <th>Start</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let t of upcomingTests; let idx = index" [style.--row-delay]="idx * 0.05 + 's'">
+                <td>
+                  <div class="test-cell">
+                    <div class="test-avatar">{{ t.title.charAt(0) }}</div>
+                    <span class="test-name">{{ t.title }}</span>
+                  </div>
+                </td>
+                <td><span class="class-badge">{{ t.class }}</span></td>
+                <td><span class="date-text">{{ t.start | date:'short' }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="empty-table" *ngIf="upcomingTests.length === 0">
+            <mat-icon>event_busy</mat-icon>
+            <span>No upcoming tests scheduled</span>
+          </div>
+        </div>
       </div>
-      <table class="stats-table" *ngIf="upcomingTests.length > 0">
-        <thead>
-          <tr>
-            <th>Test</th>
-            <th>Class</th>
-            <th>Start</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let t of upcomingTests">
-            <td>
-              <span class="test-name">{{ t.title }}</span>
-            </td>
-            <td><span class="class-badge">{{ t.class }}</span></td>
-            <td>{{ t.start | date:'short' }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="empty-table" *ngIf="upcomingTests.length === 0">
-        <mat-icon>event_busy</mat-icon>
-        <span>No upcoming tests scheduled</span>
-      </div>
-    </div>
 
-    <div class="actions-card">
-      <div class="actions-card-header">
-        <h4>
-          <mat-icon>bolt</mat-icon>
-          Quick Actions
-        </h4>
-      </div>
-      <div class="action-list">
-        <button class="action-item" mat-button>
-          <mat-icon>add_circle</mat-icon>
-          <span>Create Test</span>
-        </button>
-        <button class="action-item" mat-button>
-          <mat-icon>download</mat-icon>
-          <span>Export Results</span>
-        </button>
-        <button class="action-item" mat-button>
-          <mat-icon>flag</mat-icon>
-          <span>Review Flagged Answers</span>
-        </button>
-        <button class="action-item" mat-button routerLink="/admin/exam-reports">
-          <mat-icon>assessment</mat-icon>
-          <span>Exam Reports</span>
-        </button>
+      <!-- Quick Actions -->
+      <div class="data-card actions-card">
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <mat-icon class="card-icon">bolt</mat-icon>
+            <h3>Quick Actions</h3>
+          </div>
+        </div>
+        
+        <div class="card-body">
+          <div class="action-grid">
+            <button class="action-btn" mat-button>
+              <div class="action-icon-wrap action-icon--blue">
+                <mat-icon>add_circle</mat-icon>
+              </div>
+              <div class="action-content">
+                <div class="action-text">
+                  <span class="action-title">Create Test</span>
+                  <span class="action-desc">New exam</span>
+                </div>
+                <mat-icon class="action-arrow">arrow_forward</mat-icon>
+              </div>
+            </button>
+            
+            <button class="action-btn" mat-button>
+              <div class="action-icon-wrap action-icon--purple">
+                <mat-icon>download</mat-icon>
+              </div>
+              <div class="action-content">
+                <div class="action-text">
+                  <span class="action-title">Export Results</span>
+                  <span class="action-desc">Download CSV</span>
+                </div>
+                <mat-icon class="action-arrow">arrow_forward</mat-icon>
+              </div>
+            </button>
+            
+            <button class="action-btn" mat-button>
+              <div class="action-icon-wrap action-icon--amber">
+                <mat-icon>flag</mat-icon>
+              </div>
+              <div class="action-content">
+                <div class="action-text">
+                  <span class="action-title">Review Flagged</span>
+                  <span class="action-desc">Check answers</span>
+                </div>
+                <mat-icon class="action-arrow">arrow_forward</mat-icon>
+              </div>
+            </button>
+            
+            <button class="action-btn" mat-button routerLink="/admin/exam-reports">
+              <div class="action-icon-wrap action-icon--green">
+                <mat-icon>assessment</mat-icon>
+              </div>
+              <div class="action-content">
+                <div class="action-text">
+                  <span class="action-title">Exam Reports</span>
+                  <span class="action-desc">View analytics</span>
+                </div>
+                <mat-icon class="action-arrow">arrow_forward</mat-icon>
+              </div>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </section>

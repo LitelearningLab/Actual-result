@@ -478,3 +478,39 @@ class openai_requests(Base):
      institute_id = Column(String)
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.now)
+
+class DemoRequest(Base):
+     """
+     Table to store demo request form submissions from potential customers.
+     Fields map to the "Request a Demo" form in the frontend.
+     """
+     __tablename__ = 'DemoRequests'
+     request_id = Column(String, primary_key=True, default=generate_uuid)
+     
+     # Personal Information
+     first_name = Column(String, nullable=False)
+     last_name = Column(String, nullable=False)
+     email = Column(String, nullable=False)
+     phone = Column(String)
+     
+     # Organization Details
+     organization_name = Column(String, nullable=False)
+     role = Column(String)  # admin, it-head, dean, instructor, hr, other
+     team_size = Column(String)  # 1-50, 51-200, 201-1000, 1001-5000, 5000+
+     source = Column(String)  # search, social, referral, event, other
+     
+     # Additional Information
+     requirements = Column(Text)
+     
+     # Status tracking
+     status = Column(String, default='pending')  # pending, contacted, demo_scheduled, converted, rejected
+     assigned_to = Column(String, ForeignKey('Users.user_id'))
+     notes = Column(Text)
+     
+     # Terms agreement
+     agreed_to_terms = Column(Boolean, default=False)
+     
+     # Audit fields
+     created_date = Column(DateTime, default=datetime.datetime.utcnow)
+     updated_by = Column(String)
+     updated_date = Column(DateTime)
