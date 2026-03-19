@@ -67,7 +67,31 @@ def add_exam_schedule(request):
         }
         return json_data, 500
 
+# delete-scheduled-exam
+def delete_exam_schedule(schedule_id):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
 
+    if not schedule_id:
+        return {"statusMessage": "schedule_id is required", "status": False}, 400
+
+    try:
+        sched = session.query(ExamSchedule).filter_by(schedule_id=schedule_id).first()
+        if not sched:
+            return {"statusMessage": "Schedule not found", "status": False}, 404
+
+        # delete mappings and schedule
+        session.query(ExamScheduleMapping).filter_by(schedule_id=schedule_id).delete()
+        session.delete(sched)
+        session.commit()
+        return {"statusMessage": "Schedule deleted", "status": True}, 200
+    except Exception as e:
+        session.rollback()
+        print(f"{e} occurred while deleting schedule at line {sys.exc_info()[-1].tb_lineno}")
+        return {"statusMessage": "Error deleting schedule", "status": False}, 500
+    
 def update_exam_schedule(request):
     db = SQLiteDB()
     session = db.connect()
