@@ -554,7 +554,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       next: (res) => {
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.teamList = arr.map((t: any) => (t.name || t.team_name || t.team || t).toString()).filter((s: any) => !!s);
-      }, error: (err) => { console.warn('Failed to load teams list', err); this.teamList = []; } }
+      }, error: (err) => { console.warn('Failed to load teams list', err); this.teamList = []; }
     });
   }
 
@@ -872,3 +872,4 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!str) return '';
     return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
   }
+}

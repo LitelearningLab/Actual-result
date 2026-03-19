@@ -4,14 +4,23 @@
 
 <div class="landing-wrapper">
 
+   <!-- Skip to main content for accessibility -->
+   <a href="#main-content" class="skip-link">Skip to main content</a>
+
    <!-- ─── Sticky Header ─── -->
    <header class="header" role="banner">
       <div class="header-inner">
          <div class="brand" routerLink="/" aria-label="Profluent Lab Home">
-            <img src="/assets/images/profluent-lab.png" alt="Profluent Lab logo" class="logo" />
+            <img src="/assets/images/profluent-lab.png" alt="Profluent Lab logo" class="logo" loading="eager" />
          </div>
 
-         <nav class="nav" aria-label="Main navigation">
+         <!-- Mobile menu toggle -->
+         <button class="mobile-menu-toggle" (click)="mobileMenuOpen = !mobileMenuOpen" 
+                 [attr.aria-expanded]="mobileMenuOpen" aria-controls="main-nav" aria-label="Toggle menu">
+            <mat-icon>{{ mobileMenuOpen ? 'close' : 'menu' }}</mat-icon>
+         </button>
+
+         <nav class="nav" [class.nav--open]="mobileMenuOpen" id="main-nav" aria-label="Main navigation">
             <a routerLink="/" class="nav-link" routerLinkActive="active"
                [routerLinkActiveOptions]="{ exact: true }">Home</a>
             <a routerLink="/features" class="nav-link" routerLinkActive="active">Features</a>
@@ -31,7 +40,7 @@
    </header>
 
    <!-- ─── Scrollable Main ─── -->
-   <main class="main-scroll" role="main">
+   <main class="main-scroll" role="main" id="main-content">
 
       <!-- ═══ Hero ═══ -->
       <section class="hero">
@@ -291,9 +300,15 @@
                   <h5>Profluent Lab</h5>
                   <p>Enterprise online assessment platform trusted by institutions and corporates worldwide.</p>
                   <div class="social-links" aria-label="Social links">
-                     <a href="#" aria-label="LinkedIn"><mat-icon>public</mat-icon></a>
-                     <a href="#" aria-label="Twitter"><mat-icon>tag</mat-icon></a>
-                     <a href="#" aria-label="GitHub"><mat-icon>code</mat-icon></a>
+                     <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                        <mat-icon>business</mat-icon>
+                     </a>
+                     <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
+                        <mat-icon>chat_bubble</mat-icon>
+                     </a>
+                     <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+                        <mat-icon>code</mat-icon>
+                     </a>
                   </div>
                </div>
                <div class="footer-col">
@@ -316,10 +331,15 @@
                </div>
             </div>
             <div class="footer-bottom">
-               <p>© 2026 Profluent Lab. All rights reserved.</p>
+               <p>© {{ currentYear }} Profluent Lab. All rights reserved.</p>
             </div>
          </div>
       </footer>
+
+      <!-- Back to top button -->
+      <button class="back-to-top" (click)="scrollToTop()" aria-label="Back to top" [class.visible]="showBackToTop">
+         <mat-icon>keyboard_arrow_up</mat-icon>
+      </button>
 
    </main>
 </div>
