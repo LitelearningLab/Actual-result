@@ -1,25 +1,25 @@
-<aside class="app-side-nav" [class.collapsed]="collapsed" *ngIf="isLogin" role="navigation" aria-label="Main application navigation">
+<aside class="app-side-nav" [class.collapsed]="collapsed" *ngIf="isLogin" role="navigation" aria-label="Main navigation">
 
-    <!-- ── Branding ── -->
+    <!-- Branding & Toggle -->
     <div class="side-top">
         <button class="collapse-toggle" mat-icon-button (click)="toggleCollapse()"
-            [attr.aria-expanded]="!collapsed" aria-label="Toggle navigation sidebar">
+            [attr.aria-expanded]="!collapsed" 
+            [attr.aria-label]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
             <mat-icon class="collapse-icon">{{ collapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
         </button>
 
-        <div class="logo-wrap" role="banner" *ngIf="!collapsed">
+        <div class="logo-wrap" *ngIf="!collapsed">
             <img class="institute-logo institute-logo-expanded" src="/assets/images/logo-main.png" alt="Institute logo" loading="lazy" />
         </div>
-        <div class="logo-wrap" role="banner" *ngIf="collapsed">
-            <img class="institute-logo institute-logo-collapsed" src="/assets/images/logo.png" alt="Institute" loading="lazy" />
+        <div class="logo-wrap" *ngIf="collapsed">
+            <img class="institute-logo institute-logo-collapsed" src="/assets/images/logo.png" alt="" loading="lazy" />
         </div>
     </div>
 
-    <!-- ── Menu Navigation ── -->
-    <nav class="menu" role="menubar">
+    <!-- Menu Navigation -->
+    <nav class="menu" role="menubar" aria-label="Main menu">
         <ng-container *ngFor="let m of menus">
-            <ng-container
-                *ngIf="['Users','Categories','Questions','Exams','Schedule Exam'].includes(m.label); else plainLink">
+            <ng-container *ngIf="['Users','Categories','Questions','Exams','Schedule Exam'].includes(m.label); else plainLink">
                 <a *hasAccess="m.label; hasAccessAction: 'view'" 
                     [routerLink]="m.path" 
                     class="menu-item"
@@ -55,14 +55,14 @@
         </ng-container>
     </nav>
 
-    <!-- ── Footer Information ── -->
+    <!-- Footer -->
     <footer class="side-bottom">
         <div class="app-info">
             <p class="app-version" *ngIf="!collapsed">
-                <span class="version-label">V1.1.0</span>
+                <span class="version-label">v1.1.0</span>
                 <span class="copyright">&copy; 2026 Profluent Labs</span>
             </p>
-            <p class="app-version" *ngIf="collapsed" title="Version">V1.0</p>
+            <p class="app-version" *ngIf="collapsed" title="v1.1.0">v1.1</p>
         </div>
     </footer>
 

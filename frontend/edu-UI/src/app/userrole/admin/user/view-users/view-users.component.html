@@ -35,11 +35,10 @@
   <div class="list-card">
     <!-- Filters panel -->
     <ng-template #filtersPanel>
-      <div class="filters-panel card" (click)="$event.stopPropagation()">
-        <!-- <div class="filters-header">
-          <div class="filters-title">Filters</div>
-          <div class="filters-subtitle">Refine results by organization and status</div>
-        </div> -->
+      <div class="filters-panel" (click)="$event.stopPropagation()">
+        <div class="filters-panel-header">
+          <h4><mat-icon>tune</mat-icon> Filters</h4>
+        </div>
         <div class="filter-block">
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Institute</mat-label>
@@ -96,10 +95,14 @@
             </mat-select>
           </mat-form-field>
 
-          <div class="filter-actions">
-            <button mat-flat-button color="primary" (click)="applyFilters()"><mat-icon svgIcon="apply"></mat-icon>Apply</button>
-            <button mat-flat-button color="primary" (click)="resetFilters()"><mat-icon svgIcon="reset_settings"></mat-icon>Reset</button>
-          </div>
+        </div>
+        <div class="filter-actions">
+          <button mat-flat-button (click)="applyFilters()" class="filter-apply-btn">
+            <mat-icon svgIcon="apply"></mat-icon> Apply
+          </button>
+          <button mat-flat-button (click)="resetFilters()" class="filter-reset-btn">
+            <mat-icon svgIcon="reset_settings"></mat-icon> Reset
+          </button>
         </div>
       </div>
     </ng-template>
@@ -276,8 +279,10 @@
     </div>
 
     <div class="modal-actions">
-      <button mat-button (click)="closeModal()">Close</button>
-      <button mat-flat-button (click)="startEditUser(selectedUser)">Edit</button>
+      <button mat-button (click)="closeModal()" class="modal-btn-close">Close</button>
+      <button mat-flat-button (click)="startEditUser(selectedUser)" class="modal-btn-edit">
+        <mat-icon>edit</mat-icon> Edit
+      </button>
     </div>
   </div>
 </div>

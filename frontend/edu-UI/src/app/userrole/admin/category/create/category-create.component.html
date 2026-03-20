@@ -169,7 +169,7 @@
                             <div class="row two-cols">
                                 <div>
                                     <p><strong>Departments:</strong>
-                                        <span *ngIf="selectedDepartments?.length; else noDept">
+                                        <span *ngIf="selectedDepartments.length; else noDept">
                                             <span *ngFor="let d of selectedDepartments; let idx = index">{{ getDepartmentName(d) || d }}<span *ngIf="idx < selectedDepartments.length - 1">, </span></span>
                                         </span>
                                         <ng-template #noDept>-</ng-template>
@@ -177,7 +177,7 @@
                                 </div>
                                 <div>
                                     <p><strong>Teams:</strong>
-                                        <span *ngIf="selectedTeams?.length; else noTeam">
+                                        <span *ngIf="selectedTeams.length; else noTeam">
                                             <span *ngFor="let t of selectedTeams; let idx = index">{{ getTeamName(t) || t }}<span *ngIf="idx < selectedTeams.length - 1">, </span></span>
                                         </span>
                                         <ng-template #noTeam>-</ng-template>
