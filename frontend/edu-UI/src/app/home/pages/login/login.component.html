@@ -9,72 +9,73 @@
     </div>
 
     <div class="brand-panel-content">
-      <div class="brand-logo" routerLink="/">
-        <img src="assets/images/profluent-lab.png" alt="Profluent Lab logo" />
+      <div class="brand-logo" routerLink="/" role="button" tabindex="0" aria-label="Go to homepage">
+        <img src="assets/images/profluent-lab.png" alt="Profluent Lab logo" loading="lazy" />
       </div>
 
-      <h1 class="brand-headline">Smarter Assessments,<br />Better Outcomes.</h1>
-      <p class="brand-sub">Trusted by 500+ institutions to deliver secure, scalable online exams with real-time analytics.</p>
+      <header>
+        <h1 class="brand-headline">Smarter Assessments,<br />Better Outcomes.</h1>
+        <p class="brand-sub">Trusted by many institutions to deliver secure, scalable online exams with real-time analytics.</p>
+      </header>
 
-      <div class="brand-highlights">
-        <div class="highlight">
-          <div class="highlight-icon"><mat-icon>shield</mat-icon></div>
+      <ul class="brand-highlights" role="list">
+        <li class="highlight">
+          <div class="highlight-icon"><mat-icon fontSet="material-icons-outlined">verified_user</mat-icon></div>
           <div class="highlight-text">
             <strong>Enterprise Security</strong>
             <span>End-to-end encryption &amp; AI proctoring</span>
           </div>
-        </div>
-        <div class="highlight">
-          <div class="highlight-icon"><mat-icon>speed</mat-icon></div>
+        </li>
+        <li class="highlight">
+          <div class="highlight-icon"><mat-icon fontSet="material-icons-outlined">bolt</mat-icon></div>
           <div class="highlight-text">
             <strong>99.9% Uptime</strong>
             <span>Guaranteed SLA with global CDN</span>
           </div>
-        </div>
-        <div class="highlight">
-          <div class="highlight-icon"><mat-icon>insights</mat-icon></div>
+        </li>
+        <li class="highlight">
+          <div class="highlight-icon"><mat-icon fontSet="material-icons-outlined">monitoring</mat-icon></div>
           <div class="highlight-text">
             <strong>Live Analytics</strong>
             <span>Real-time dashboards &amp; reports</span>
           </div>
-        </div>
-      </div>
+        </li>
+      </ul>
 
-      <!-- Testimonial -->
-      <div class="brand-testimonial">
+      <blockquote class="brand-testimonial">
         <p>"Profluent Lab cut our exam setup time by 80%. The analytics are a game-changer."</p>
-        <div class="testimonial-author">
-          <div class="author-avatar">JD</div>
+        <footer class="testimonial-author">
+          <div class="author-avatar" aria-hidden="true">JD</div>
           <div>
             <strong>Dr. Jane Doe</strong>
             <span>Dean, University of Technology</span>
           </div>
-        </div>
-      </div>
+        </footer>
+      </blockquote>
     </div>
 
     <p class="brand-footer">© 2026 Profluent Lab · <a routerLink="/privacy">Privacy</a> · <a routerLink="/terms">Terms</a></p>
   </aside>
 
   <!-- ─── Right: Login Form ─── -->
-  <div class="login-form-panel">
-    <div class="login-card">
+  <main class="login-form-panel">
+    <article class="login-card">
 
-      <div class="login-header">
-        <div class="login-icon-badge">
-          <mat-icon>lock_open</mat-icon>
+      <header class="login-header">
+        <div class="login-icon-badge" aria-hidden="true">
+          <mat-icon fontSet="material-icons-outlined">lock_open</mat-icon>
         </div>
         <h2 class="login-heading">Welcome back</h2>
         <p class="login-sub">Enter your credentials to access your account</p>
-      </div>
+      </header>
 
       <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form" autocomplete="on">
         <div class="field-group">
           <label class="field-label" for="login-username">Username</label>
           <mat-form-field appearance="outline" class="form-field">
-            <mat-icon matPrefix>person_outline</mat-icon>
-            <input matInput formControlName="username" id="login-username" placeholder="Enter your username" aria-label="Username" autocomplete="username" />
-            <mat-error *ngIf="loginForm.get('username')?.hasError('required') && (loginForm.get('username')?.dirty || loginForm.get('username')?.touched)">
+            <mat-icon matPrefix fontSet="material-icons-outlined">person</mat-icon>
+            <input matInput formControlName="username" id="login-username" placeholder="Enter your username" aria-describedby="username-error" autocomplete="username" />
+            <mat-error id="username-error" *ngIf="loginForm.get('username')?.hasError('required') && (loginForm.get('username')?.dirty || loginForm.get('username')?.touched)">
               Username is required
             </mat-error>
           </mat-form-field>
@@ -83,12 +84,12 @@
         <div class="field-group">
           <label class="field-label" for="login-password">Password</label>
           <mat-form-field appearance="outline" class="form-field">
-            <mat-icon matPrefix>lock_outline</mat-icon>
-            <input matInput [type]="hide ? 'password' : 'text'" formControlName="password" id="login-password" placeholder="Enter your password" aria-label="Password" autocomplete="current-password" />
-            <button mat-icon-button matSuffix type="button" aria-label="Toggle password visibility" (click)="hide = !hide" tabindex="-1">
-              <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
+            <mat-icon matPrefix fontSet="material-icons-outlined">lock</mat-icon>
+            <input matInput [type]="hide ? 'password' : 'text'" formControlName="password" id="login-password" placeholder="Enter your password" aria-describedby="password-error" autocomplete="current-password" />
+            <button mat-icon-button matSuffix type="button" [attr.aria-label]="hide ? 'Show password' : 'Hide password'" (click)="hide = !hide" tabindex="-1">
+              <mat-icon fontSet="material-icons-outlined">{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
-            <mat-error *ngIf="loginForm.get('password')?.hasError('required') && (loginForm.get('password')?.dirty || loginForm.get('password')?.touched)">
+            <mat-error id="password-error" *ngIf="loginForm.get('password')?.hasError('required') && (loginForm.get('password')?.dirty || loginForm.get('password')?.touched)">
               Password is required
             </mat-error>
           </mat-form-field>
@@ -99,30 +100,30 @@
           <a routerLink="/password-reset" class="forgot-link">Forgot password?</a>
         </div>
 
-        <button mat-flat-button color="primary" class="submit-btn" type="submit">
+        <button mat-flat-button color="primary" class="submit-btn" type="submit" [disabled]="loginForm.invalid">
           <span>Sign in</span>
-          <mat-icon>arrow_forward</mat-icon>
+          <mat-icon fontSet="material-icons-outlined">arrow_forward</mat-icon>
         </button>
       </form>
 
-      <div class="login-divider">
+      <div class="login-divider" role="separator">
         <span>or</span>
       </div>
 
-      <div class="login-alt-actions">
+      <nav class="login-alt-actions" aria-label="Additional sign-in options">
         <a routerLink="/register" class="alt-link">
-          Don't have an account? <strong>Sign up</strong>
+          Don't have an account? <strong>Request a demo</strong>
         </a>
-      </div>
+      </nav>
 
-      <div class="login-footer">
+      <footer class="login-footer">
         <a routerLink="/" class="back-home-link">
-          <mat-icon>arrow_back</mat-icon>
+          <mat-icon fontSet="material-icons-outlined">arrow_back</mat-icon>
           <span>Back to Home</span>
         </a>
-      </div>
+      </footer>
 
-    </div>
-  </div>
+    </article>
+  </main>
 
 </div>

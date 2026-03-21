@@ -1,5 +1,4 @@
 <div class="page admin-user-register">
-
   <!-- ── Top Toolbar ── -->
   <div class="toolbar">
     <div class="title"></div>
@@ -92,20 +91,22 @@
                   <p class="section-desc">User limits for the selected institute.</p>
                 </div>
               </div>
-              <div class="limit-grid">
-                <div class="limit-item">
-                  <div class="label">Max Users</div>
-                  <div class="value">{{ bulkUserLimit.max_user_limit !== null ? bulkUserLimit.max_user_limit : '—' }}</div>
-                </div>
-                <div class="limit-item">
-                  <div class="label">Assigned</div>
-                  <div class="value">{{ bulkUserLimit.already_assigned !== null ? bulkUserLimit.already_assigned : '—' }}</div>
-                </div>
-                <div class="limit-item">
-                  <div class="label">Available</div>
-                  <div class="value">{{ bulkUserLimit.available_licenses !== null ? bulkUserLimit.available_licenses : '—' }}</div>
-                </div>
-              </div>
+              <table class="limit-table">
+                <thead>
+                  <tr>
+                    <th>Max Users</th>
+                    <th>Assigned</th>
+                    <th>Available</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{{ bulkUserLimit.max_user_limit !== null ? bulkUserLimit.max_user_limit : '—' }}</td>
+                    <td>{{ bulkUserLimit.already_assigned !== null ? bulkUserLimit.already_assigned : '—' }}</td>
+                    <td [class.available]="(bulkUserLimit.available_licenses ?? 0) > 10" [class.warning]="(bulkUserLimit.available_licenses ?? 0) <= 10 && (bulkUserLimit.available_licenses ?? 0) > 0" [class.danger]="(bulkUserLimit.available_licenses ?? 0) <= 0">{{ bulkUserLimit.available_licenses !== null ? bulkUserLimit.available_licenses : '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             <div class="form-actions">

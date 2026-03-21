@@ -1,17 +1,7 @@
 /* You can add global styles to this file, and also import other style files */
 :root {
 
-    // Top-nav 
-    --theme-2: #f0f2f5;             // Theme
-    --theme-2-text-1: #010f13;      // Text primary
-    --theme-2-text-2: #243843;      // Text secondary
-    --theme-2-icon-1: #6b7784;      // Icon primary
-    --theme-2-bg-1: #ffffff;        // Background primary
-    --theme-2-avatar: #e0e2e17a;        //
-    --theme-2-border: rgba(15, 35, 55, 0.089);
-    --theme-2-hanover-bg: rgba(15, 35, 55, 0.06);
-
-    // Side-nav
+      // Side-nav
     --theme-1: #374151;
     --theme-1-text-1: #ffffff;
     --theme-1-text-2: #c8cbce;
@@ -19,6 +9,16 @@
     --theme-1-border: rgba(232, 234, 236, 0.089);
     --theme-1-active-bg: #eceaea11;
     --theme-1-hanover-bg: rgba(255, 255, 255, 0.06);
+
+    // Top-nav 
+    --theme-2: #f0f2f5;             // Theme
+    --theme-2-text-1: #010f13;      // Text primary
+    --theme-2-text-2: #243843;      // Text secondary
+    --theme-2-icon-1: #6b7784;      // Icon primary
+    --theme-2-bg-1: #ffffff;        // Background primary
+    --theme-2-avatar: #e0e2e17a;        // Avatar background
+    --theme-2-border: rgba(15, 35, 55, 0.089);
+    --theme-2-hanover-bg: rgba(15, 35, 55, 0.06);
     
     // main content area
     --theme-3: #f9fafb;
@@ -82,22 +82,18 @@
    * BUTTONS
    * -----------------------------------*/
   --button-1: #1f7bff;    /* Primary blue */
-  --button-2: #1f7bff; //fdfdfd;    /* Slate/navy button */
+  --button-2: #1f7bff;    /* Slate/navy button */
   --button-3: #0b3946;    /* Deep teal action */
 
   /* Hover states */
   --button-1-hover: #1668d6;
-  --button-2-hover: #1668d6; //dcdee023;
+  --button-2-hover: #1668d6; 
   --button-3-hover: #082c34;
 
   /* Button text */
   --button-text-1: #ffffff;
-  --button-text-2: #ffffff; //5c5b5b;
+  --button-text-2: #ffffff;
   --button-text-3: #ffffff;
-  // Button borders
-  --button-border-1: #0e51a8;
-  --button-border-2: #0754b8;
-
 
   /* -------------------------------------
    * BORDERS
@@ -109,12 +105,6 @@
   --border-dark-2: rgba(15, 1, 1, 0.656);
   --border-dark-3: rgba(15, 1, 1, 0.256);
 
-  /* -------------------------------------
-   * LABELS / ACCENTS
-   * -----------------------------------*/
-  --label-1: #050505;   /* Slightly refined slate */
-  --label-2: #484b4e;
-  --label-3: #586772;
 }
 
 // Import Inter font (variable weights) with font-display=swap
@@ -138,10 +128,6 @@ html, body {
   -webkit-text-size-adjust: 100%; /* prevent mobile font auto-scaling */
 }
 
-// /* Force Cambria everywhere but avoid overriding icon fonts (mat-icon) */
-// *:not(.mat-icon):not(.material-icons):not(.mat-mdc-icon) , *:not(.mat-icon):not(.material-icons):not(.mat-mdc-icon)::before, *:not(.mat-icon):not(.material-icons):not(.mat-mdc-icon)::after {
-//   font-family: Roboto, serif !important;
-// }
 
 /* Set Inter as primary for app content while preserving icon fonts */
 *:not(.mat-icon):not(.material-icons):not(.mat-mdc-icon),
@@ -182,6 +168,25 @@ html, body {
 .mat-mdc-tab-group .mdc-tab:hover .mdc-tab__text-label { color: var(--button-2); font-weight: 600; }
 
 // ════════════════════════════════════════════════════════════════════════════════
+// FORM FIELD STYLES — Global outline design
+// ════════════════════════════════════════════════════════════════════════════════
+$form-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+.mat-mdc-form-field { margin-bottom:0.25rem; }
+.mat-mdc-form-field-subscript-wrapper { display:none; }
+.mat-mdc-text-field-wrapper { border-radius:0.5rem; }
+.mdc-notched-outline__leading,.mdc-notched-outline__notch,.mdc-notched-outline__trailing { border-color:var(--theme-3-border)!important; }
+.mat-mdc-form-field:hover .mdc-notched-outline__leading,.mat-mdc-form-field:hover .mdc-notched-outline__notch,.mat-mdc-form-field:hover .mdc-notched-outline__trailing { border-color:var(--button-1)!important; }
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__leading,.mat-mdc-form-field.mat-focused .mdc-notched-outline__notch,.mat-mdc-form-field.mat-focused .mdc-notched-outline__trailing { border-color:var(--button-1)!important; }
+.mat-mdc-form-field .mat-mdc-floating-label { color:var(--theme-3-text-2); }
+.mat-mdc-form-field.mat-focused .mat-mdc-floating-label { color:var(--button-1)!important; }
+.mat-mdc-form-field mat-icon[matPrefix] { color:var(--theme-3-icon-1); margin-right:0.5rem; transition:color 0.2s $form-ease; }
+.mat-mdc-form-field:hover mat-icon[matPrefix] { color:var(--button-1); }
+.mat-mdc-form-field.mat-focused mat-icon[matPrefix] { color:var(--button-1); }
+.mat-mdc-form-field input,.mat-mdc-form-field textarea { color:var(--theme-3-text-1); }
+.mat-mdc-form-field input::placeholder,.mat-mdc-form-field textarea::placeholder { color:var(--theme-3-text-3); }
+
+// ════════════════════════════════════════════════════════════════════════════════
 // TOOLBAR STYLES
 // ════════════════════════════════════════════════════════════════════════════════
 $search-ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -190,123 +195,35 @@ $search-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 .toolbar { padding: 0.5rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
 
 // Premium Search — Modern Floating Design
-.toolbar .search { 
-  flex: 1 1 26.25rem; 
-  min-width: 13.75rem; 
-  max-width: 28.125rem; 
-  position: relative;
-  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-  transition: all 0.25s $search-ease;
-  overflow: hidden;
-}
-.toolbar .search::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(139, 92, 246, 0.02) 100%);
-  opacity: 0;
-  transition: opacity 0.25s $search-ease;
-  pointer-events: none;
-}
-.toolbar .search:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
-}
-.toolbar .search:hover::before { opacity: 1; }
-.toolbar .search:focus-within {
-  border-color: var(--button-1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12), 0 4px 16px rgba(99, 102, 241, 0.08);
-  background: #ffffff;
-}
-.toolbar .search:focus-within::before { opacity: 0; }
-
-.toolbar .search .search-field { 
-  width: 100%; 
-  --mdc-outlined-text-field-outline-color: transparent;
-  --mdc-outlined-text-field-hover-outline-color: transparent;
-  --mdc-outlined-text-field-focus-outline-color: transparent;
-  border-radius: inherit;
-}
-.toolbar .search .search-field .mdc-notched-outline { display: none !important; }
-.toolbar .search .search-field .mat-mdc-form-field-flex { height: 2.75rem; padding: 0 0.875rem; }
-.toolbar .search .search-field .mat-mdc-form-field-infix { padding: 0.5rem 0; min-height: unset; }
-.toolbar .search .search-field input { 
-  font-size: 0.875rem; 
-  font-weight: 500; 
-  color: #0f172a; 
-  letter-spacing: -0.01em;
-}
-.toolbar .search .search-field input::placeholder { color: #94a3b8; font-weight: 400; }
-
-.toolbar .search mat-icon[matPrefix] { 
-  color: #94a3b8; 
-  margin-right: 0.625rem; 
-  font-size: 1.25rem;
-  width: 1.25rem;
-  height: 1.25rem;
-  transition: all 0.25s $search-ease;
-}
-.toolbar .search:hover mat-icon[matPrefix] { color: #64748b; }
-.toolbar .search:focus-within mat-icon[matPrefix] { 
-  color: var(--button-1); 
-  transform: scale(1.05);
-}
-
-.toolbar .search button[matSuffix] {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 0.375rem;
-  background: #f1f5f9;
-  border: none;
-  transition: all 0.2s $search-ease;
-  margin-right: 0.25rem;
-}
-.toolbar .search button[matSuffix] mat-icon { 
-  font-size: 1rem; 
-  width: 1rem; 
-  height: 1rem; 
-  color: #64748b;
-  transition: color 0.15s $search-ease;
-}
-.toolbar .search button[matSuffix]:hover { background: #fee2e2; }
-.toolbar .search button[matSuffix]:hover mat-icon { color: #dc2626; }
-
+.toolbar .search { flex:1 1 26.25rem; min-width:13.75rem; max-width:28.125rem; position:relative; background:var(--bg-1); border:1px solid var(--theme-3-border); border-radius:0.75rem; box-shadow:0 1px 3px rgba(0,0,0,0.04); transition:all 0.25s $search-ease; overflow:hidden; }
+.toolbar .search::before { content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(135deg,rgba(31,123,255,0.03) 0%,rgba(139,92,246,0.02) 100%); opacity:0; transition:opacity 0.25s $search-ease; pointer-events:none; }
+.toolbar .search:hover { border-color:var(--border-1); box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+.toolbar .search:hover::before { opacity:1; }
+.toolbar .search:focus-within { border-color:var(--button-1); box-shadow:0 0 0 3px rgba(31,123,255,0.12),0 4px 16px rgba(31,123,255,0.08); background:var(--bg-1); }
+.toolbar .search:focus-within::before { opacity:0; }
+.toolbar .search .search-field { width:100%; --mdc-outlined-text-field-outline-color:transparent; --mdc-outlined-text-field-hover-outline-color:transparent; --mdc-outlined-text-field-focus-outline-color:transparent; border-radius:inherit; }
+.toolbar .search .search-field .mdc-notched-outline { display:none !important; }
+.toolbar .search .search-field .mat-mdc-form-field-flex { height:2.75rem; padding:0 0.875rem; }
+.toolbar .search .search-field .mat-mdc-form-field-infix { padding:0.5rem 0; min-height:unset; }
+.toolbar .search .search-field input { font-size:var(--font-sm); font-weight:500; color:var(--theme-3-text-1); letter-spacing:-0.01em; }
+.toolbar .search .search-field input::placeholder { color:var(--theme-3-text-3); font-weight:400; }
+.toolbar .search mat-icon[matPrefix] { color:var(--theme-3-icon-1); margin-right:0.625rem; font-size:1.25rem; width:1.25rem; height:1.25rem; transition:all 0.25s $search-ease; }
+.toolbar .search:hover mat-icon[matPrefix] { color:var(--theme-3-text-3); }
+.toolbar .search:focus-within mat-icon[matPrefix] { color:var(--button-1); transform:scale(1.05); }
+.toolbar .search button[matSuffix] { width:1.75rem; height:1.75rem; border-radius:0.375rem; background:var(--bg-2); border:none; transition:all 0.2s $search-ease; margin-right:0.25rem; display:flex; align-items:center; justify-content:center; padding:0; }
+.toolbar .search button[matSuffix] mat-icon { font-size:1rem; width:1rem; height:1rem; color:var(--theme-3-text-3); transition:color 0.15s $search-ease; }
+.toolbar .search button[matSuffix]:hover { background:#fee2e2; }
+.toolbar .search button[matSuffix]:hover mat-icon { color:#dc2626; }
 // Keyboard shortcut hint (optional enhancement)
-.toolbar .search .search-hint {
-  display: none;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  background: #f1f5f9;
-  border-radius: 0.375rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: #94a3b8;
-  letter-spacing: 0.02em;
-  margin-right: 0.5rem;
-}
-.toolbar .search .search-hint kbd {
-  padding: 0.125rem 0.375rem;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.25rem;
-  font-family: inherit;
-  font-size: 0.625rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-@media (min-width: 768px) {
-  .toolbar .search .search-hint { display: flex; }
-}
-.toolbar .search:focus-within .search-hint { display: none; }
+.toolbar .search .search-hint { display:none; align-items:center; gap:0.25rem; padding:0.25rem 0.5rem; background:var(--bg-2); border-radius:0.375rem; font-size:var(--font-xs); font-weight:600; color:var(--theme-3-icon-1); letter-spacing:0.02em; margin-right:0.5rem; }
+.toolbar .search .search-hint kbd { padding:0.125rem 0.375rem; background:var(--bg-1); border:1px solid var(--theme-3-border); border-radius:0.25rem; font-family:inherit; font-size:var(--font-xs); box-shadow:0 1px 2px rgba(0,0,0,0.05); }
+@media (min-width: 768px) { .toolbar .search .search-hint { display:flex; } }
+.toolbar .search:focus-within .search-hint { display:none; }
 
 .toolbar .controls { display: flex; align-items: center; gap: 0.75rem; }
 .toolbar .action-row { display: flex; gap: 0.5rem; align-items: center; }
 .toolbar .controls button { background: var(--button-2) !important; color: var(--button-text-2) !important; border-radius: 0.75rem; height: 2.75rem; border: 2px solid var(--border-1); box-shadow: 0px 10px 15px -3px rgb(126 129 131 / 86%); }
-.toolbar .controls button:hover { background: var(--button-2-hover) !important; color: var(--button-text-2) !important; border: 2px solid var(--button-border-2); }
+.toolbar .controls button:hover { background: var(--button-2-hover) !important; color: var(--button-text-2) !important;  }
 .toolbar .controls button:not(.button-one) { background: var(--button-1) !important; color: var(--button-text-1) !important; border-radius: 0.75rem; height: 2.75rem; border: 2px solid var(--border-1); }
 .toolbar .controls button:not(.button-one):hover { background: var(--button-1-hover) !important; color: var(--button-text-1) !important; }
 

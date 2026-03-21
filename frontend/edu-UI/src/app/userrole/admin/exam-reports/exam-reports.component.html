@@ -133,6 +133,40 @@
                <mat-tab-group class="exam-tabs" [selectedIndex]="activeMainTabIndex" (selectedTabChange)="onTabChange($event)"
                     (selectedIndexChange)="activeMainTabIndex = $event">
                     <mat-tab label="User Report">
+                              <div class="report-summary-grid">
+                                   <div class="summary-card">
+                                        <div class="summary-icon"><mat-icon>groups</mat-icon></div>
+                                        <div class="summary-copy">
+                                             <div class="summary-label">Students</div>
+                                             <div class="summary-value">{{ userReportTotal || 0 }}</div>
+                                             <div class="summary-meta">{{ userReportData.length || 0 }} visible for {{ selectedExam?.title || selectedExam?.name || 'selected exam' }}</div>
+                                        </div>
+                                   </div>
+                                   <div class="summary-card">
+                                        <div class="summary-icon"><mat-icon>article</mat-icon></div>
+                                        <div class="summary-copy">
+                                             <div class="summary-label">Current Page</div>
+                                             <div class="summary-value">{{ currentPage }}/{{ totalPages }}</div>
+                                             <div class="summary-meta">Paginated user report results</div>
+                                        </div>
+                                   </div>
+                                   <div class="summary-card">
+                                        <div class="summary-icon"><mat-icon>military_tech</mat-icon></div>
+                                        <div class="summary-copy">
+                                             <div class="summary-label">Average Score</div>
+                                             <div class="summary-value">{{ userAverageScore | number:'1.0-1' }}</div>
+                                             <div class="summary-meta">Average marks from loaded users</div>
+                                        </div>
+                                   </div>
+                                   <div class="summary-card">
+                                        <div class="summary-icon"><mat-icon>task_alt</mat-icon></div>
+                                        <div class="summary-copy">
+                                             <div class="summary-label">Pass Rate</div>
+                                             <div class="summary-value">{{ userPassRate | number:'1.0-0' }}%</div>
+                                             <div class="summary-meta">Success ratio in current view</div>
+                                        </div>
+                                   </div>
+                              </div>
                          <div class="tab-actions">
                               <div class="search">
                                    <mat-form-field appearance="outline" class="search-field"><mat-icon matPrefix>search</mat-icon>
@@ -198,6 +232,40 @@
                     </mat-tab>
                     <mat-tab label="Analytics Report">
                          <div class="analytics-section">
+                              <div class="report-summary-grid analytics-summary-grid">
+                                   <div class="summary-card">
+                                        <div class="summary-icon"><mat-icon>grid_view</mat-icon></div>
+                                        <div class="summary-copy">
+                                             <div class="summary-label">Categories</div>
+                                             <div class="summary-value">{{ categoryAnalytics.length || 0 }}</div>
+                                             <div class="summary-meta">Performance groups in analytics</div>
+                                        </div>
+                                   </div>
+                                   <div class="summary-card">
+                                        <div class="summary-icon"><mat-icon>quiz</mat-icon></div>
+                                        <div class="summary-copy">
+                                             <div class="summary-label">Questions</div>
+                                             <div class="summary-value">{{ activeQuestionCount || 0 }}</div>
+                                             <div class="summary-meta">{{ filteredQuestionSummary.length ? 'Filtered question summary view' : 'Complete question summary view' }}</div>
+                                        </div>
+                                   </div>
+                                   <div class="summary-card">
+                                        <div class="summary-icon"><mat-icon>stacked_line_chart</mat-icon></div>
+                                        <div class="summary-copy">
+                                             <div class="summary-label">Total Attempts</div>
+                                             <div class="summary-value">{{ analyticsTotalAttempts || 0 }}</div>
+                                             <div class="summary-meta">Attempts recorded across categories</div>
+                                        </div>
+                                   </div>
+                                   <div class="summary-card">
+                                        <div class="summary-icon"><mat-icon>warning_amber</mat-icon></div>
+                                        <div class="summary-copy">
+                                             <div class="summary-label">Mistakes</div>
+                                             <div class="summary-value">{{ analyticsMistakeCount || 0 }}</div>
+                                             <div class="summary-meta">Wrong answers identified in analytics</div>
+                                        </div>
+                                   </div>
+                              </div>
                               <!-- <h3>Category Report</h3>
                               <table mat-table [dataSource]="categoryAnalytics" class="mat-elevation-z2 full-width">
                                    <ng-container matColumnDef="category">
@@ -227,7 +295,8 @@
                               <mat-tab-group class="inner-analytics-tabs" [(selectedIndex)]="innerAnalyticsTabIndex">
                                    <mat-tab label="Category Report">
                                         <div class="analytics-section">
-                                                                                      <table mat-table [dataSource]="categoryAnalytics"
+                                             <div class="table-wrap">
+                                                  <table mat-table [dataSource]="categoryAnalytics"
                                                   class="mat-elevation-z1 compact premium-table" matSort>
                                                   <ng-container matColumnDef="category">
                                                        <th mat-header-cell *matHeaderCellDef>Category</th>
@@ -269,11 +338,13 @@
                                                        *matRowDef="let row; columns: ['category','questions','users_attempted','total_attempts','mistakes','error_pct'];">
                                                   </tr>
                                              </table>
+                                             </div>
                                         </div>
                                    </mat-tab>
                                    <mat-tab label="Question Summary">
                                         <div class="analytics-section">
-                                                                                      <table mat-table [dataSource]="(filteredQuestionSummary && filteredQuestionSummary.length) ? filteredQuestionSummary : questionSummary"
+                                             <div class="table-wrap">
+                                                  <table mat-table [dataSource]="(filteredQuestionSummary && filteredQuestionSummary.length) ? filteredQuestionSummary : questionSummary"
                                                   class="mat-elevation-z1 compact premium-table" matSort>
                                                   <ng-container matColumnDef="sno">
                                                        <th mat-header-cell *matHeaderCellDef>#</th>
@@ -310,6 +381,7 @@
                                                        *matRowDef="let row; columns: ['sno','question','user_attempts','attempts','mistakes'];">
                                                   </tr>
                                              </table>
+                                             </div>
                                         </div>
                                    </mat-tab>
                               </mat-tab-group>
@@ -679,9 +751,12 @@
      <div class="wrong-summary-panel" (click)="$event.stopPropagation()">
           <div class="card">
                <div class="panel-header">
-                    <div>
-                         <h4>Wrong Answer Summary</h4>
-                         <div class="panel-sub">Details for selected question</div>
+                    <div class="header-info">
+                         <div class="header-icon"><mat-icon>rule_folder</mat-icon></div>
+                         <div class="header-copy">
+                              <h4>Wrong Answer Summary</h4>
+                              <div class="panel-sub">Details for selected question</div>
+                         </div>
                     </div>
                     <button mat-icon-button aria-label="Close" type="button" (click)="closeWrongAnswerSummary()"><mat-icon>close</mat-icon></button>
                </div>
@@ -692,13 +767,13 @@
                               <thead><tr><th>Wrong Answers</th><th>No. of times selected</th><th>Occurrence %</th></tr></thead>
                               <tbody>
                                    <tr *ngFor="let wa of selectedWrongAnswers">
-                                        <td>
+                                        <td data-label="Wrong Answer">
                                              <a href="javascript:void(0)" class="wa-answer-link" (click)="$event.stopPropagation(); openResourcesForWrongAnswer(selectedQuestionForWrongSummary, wa)">{{ wa.answer }}</a>
                                         </td>
-                                        <td>
+                                        <td data-label="Selected Count">
                                              <a href="javascript:void(0)" class="wa-count-link" (click)="$event.stopPropagation(); openResourcesForWrongAnswer(selectedQuestionForWrongSummary, wa)">{{ wa.count || '-' }}</a>
                                         </td>
-                                        <td>{{ wa.pct || '-' }}</td>
+                                        <td data-label="Occurrence %">{{ wa.pct || '-' }}</td>
                                    </tr>
                               </tbody>
                          </table>
@@ -717,9 +792,12 @@
      <div class="wrong-summary-panel" (click)="$event.stopPropagation()">
           <div class="card">
                <div class="panel-header">
-                    <div>
-                         <h4>Resources</h4>
-                         <div class="panel-sub small-muted">Resources related to the selected wrong answer</div>
+                    <div class="header-info">
+                         <div class="header-icon"><mat-icon>folder_shared</mat-icon></div>
+                         <div class="header-copy">
+                              <h4>Resources</h4>
+                              <div class="panel-sub small-muted">Resources related to the selected wrong answer</div>
+                         </div>
                     </div>
                     <button mat-icon-button aria-label="Close resources" type="button" (click)="closeResourcePanel()"><mat-icon>close</mat-icon></button>
                </div>
