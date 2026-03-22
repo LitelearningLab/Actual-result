@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { MatIconModule } from '@angular/material/icon';
 import { API_BASE } from 'src/app/shared/api.config';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
@@ -21,7 +22,7 @@ interface Question {
 @Component({
   selector: 'app-user-exam-runner',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule],
+  imports: [CommonModule, FormsModule, HttpClientModule, MatIconModule],
   templateUrl: './user-exam.component.html',
   styleUrls: ['./user-exam.component.scss']
 })
@@ -196,7 +197,21 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
   scrollToQuestion(index: number){
     try{
       const el = document.getElementById('q-' + index);
-      if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if(el) {
+        // Find the scroll container (.app-content)
+        const scrollContainer = document.querySelector('.app-content');
+        if(scrollContainer) {
+          // Calculate offset for sticky headers (header + progress + nav ~200px)
+          const stickyOffset = 200;
+          const containerRect = scrollContainer.getBoundingClientRect();
+          const elementRect = el.getBoundingClientRect();
+          const scrollTop = scrollContainer.scrollTop + elementRect.top - containerRect.top - stickyOffset;
+          scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
+        } else {
+          // Fallback to scrollIntoView
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
       this.currentIndex = index;
     }catch(e){ console.warn('scrollToQuestion failed', e); }
   }

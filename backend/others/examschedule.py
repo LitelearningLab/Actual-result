@@ -91,7 +91,7 @@ def delete_exam_schedule(schedule_id):
         session.rollback()
         print(f"{e} occurred while deleting schedule at line {sys.exc_info()[-1].tb_lineno}")
         return {"statusMessage": "Error deleting schedule", "status": False}, 500
-    
+
 def update_exam_schedule(request):
     db = SQLiteDB()
     session = db.connect()

@@ -48,9 +48,11 @@
 
         <!-- Filters panel -->
         <ng-template #filtersPanel>
-            <div class="filters-panel card" (click)="$event.stopPropagation()">
+            <div class="filters-panel" (click)="$event.stopPropagation()">
+                <div class="filters-panel-header">
+                    <h4><mat-icon>tune</mat-icon> Filters</h4>
+                </div>
                 <div class="filter-block">
-                    <!-- <div class="filter-row"> -->
                     <mat-form-field appearance="outline" class="filter-item">
                         <mat-label>Institute</mat-label>
                         <mat-select [(ngModel)]="selectedInstitute" [disabled]="!isSuperAdmin"
@@ -132,15 +134,14 @@
                         </div>
                     </div>
 
-                    <div class="filter-actions">
-                        <button mat-flat-button color="primary" type="button" (click)="onApply()"><mat-icon
-                                svgIcon="apply"></mat-icon>
-                            Apply</button>
-                        <button mat-flat-button color="primary" type="button" (click)="onReset()"><mat-icon
-                                svgIcon="reset_settings"></mat-icon>
-                            Reset</button>
-                    </div>
-                    <!-- </div> -->
+                </div>
+                <div class="filter-actions">
+                    <button mat-flat-button (click)="onApply()" class="filter-apply-btn">
+                        <mat-icon svgIcon="apply"></mat-icon> Apply
+                    </button>
+                    <button mat-flat-button (click)="onReset()" class="filter-reset-btn">
+                        <mat-icon svgIcon="reset_settings"></mat-icon> Reset
+                    </button>
                 </div>
             </div>
         </ng-template>

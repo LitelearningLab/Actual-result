@@ -79,6 +79,29 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return Math.max(1, Math.ceil((this.userReportTotal || 0) / this.pageSize));
   }
 
+  get userAverageScore(): number {
+    const scores = (this.userReportData || []).map((row: any) => this.toMetricNumber(row.marks_obtained ?? row.score ?? row.marks)).filter((value: number) => value > 0);
+    return scores.length ? scores.reduce((sum: number, value: number) => sum + value, 0) / scores.length : 0;
+  }
+
+  get userPassRate(): number {
+    const rows = this.userReportData || [];
+    const passed = rows.filter((row: any) => String(row.result || row.status || '').toLowerCase() === 'pass').length;
+    return rows.length ? (passed / rows.length) * 100 : 0;
+  }
+
+  get analyticsTotalAttempts(): number {
+    return (this.categoryAnalytics || []).reduce((sum: number, item: any) => sum + this.toMetricNumber(item.total_attempts ?? item.attempts), 0);
+  }
+
+  get analyticsMistakeCount(): number {
+    return (this.categoryAnalytics || []).reduce((sum: number, item: any) => sum + this.toMetricNumber(item.wrong_answers ?? item.mistakes ?? item.wrong_count), 0);
+  }
+
+  get activeQuestionCount(): number {
+    return (this.filteredQuestionSummary && this.filteredQuestionSummary.length ? this.filteredQuestionSummary : this.questionSummary || []).length;
+  }
+
   /**
    * Open question summary filtered to a specific category. If analytics data isn't loaded yet,
    * request it first and apply a pending filter.
@@ -128,6 +151,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (Array.isArray(q.category_id) && q.category_id.length) return String(q.category_id[0]).trim();
     // Try several flat fields
     return String(q.category_id ?? q.category ?? q.categoryId ?? q.cat_id ?? q.catId ?? '').trim();
+  }
+
+  private toMetricNumber(value: any): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   // Normalize selected_option into an array of trimmed strings.

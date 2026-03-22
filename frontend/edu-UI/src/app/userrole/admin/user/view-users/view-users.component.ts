@@ -116,11 +116,15 @@ export class ViewUsersComponent {
         this.loadDepartments(iid);
         this.loadTeams(iid);
         // also reload users filtered to the institute
-        this.loadUsers(iid);
+        // this.loadUsers(iid);
       } else {
+        // Clear institute filter and reload all users
+        this.selectedInstitute = '';
+        this.filters.institute = '';
         this.departments = [];
         this.teams = [];
-        this.loadUsers();
+        this.pageIndex = 0;
+        // this.loadUsers();
       }
     } catch (e) { }
   }
@@ -142,16 +146,20 @@ export class ViewUsersComponent {
   }
 
   ngAfterViewInit(): void {
-    try{ this.dataSource.paginator = this.paginator; this.dataSource.sort = this.sort; }catch(e){}
+    // Do NOT assign paginator to dataSource for server-side pagination
+    // this.dataSource.paginator = this.paginator; // This enables client-side pagination - REMOVE IT
+    try { this.dataSource.sort = this.sort; } catch(e) {}
+    // Load initial data
+    // this.loadUsers();
   }
 
   applyFilter(value: string){
     const q = (value || '').trim().toLowerCase();
     this.dataSource.filter = q;
-    if (this.dataSource.paginator) {
-      // reset to first page when filter text changes
-      this.pageIndex = 0;
-      this.dataSource.paginator.firstPage();
+    // Reset to first page when filter text changes
+    this.pageIndex = 0;
+    if (this.paginator) {
+      this.paginator.firstPage();
     }
   }
 
@@ -269,9 +277,9 @@ export class ViewUsersComponent {
     });
   }
 
-  applyFilters(){ this.loadUsers(); }
+  applyFilters(){ this.pageIndex = 0; this.loadUsers(); }
 
-  resetFilters(){ this.filters = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', city: '' }; this.states=[]; /* keep cities loaded so options remain visible */ this.loadUsers(); }
+  resetFilters(){ this.pageIndex = 0; this.filters = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', city: '' }; this.states=[]; /* keep cities loaded so options remain visible */ this.loadUsers(); }
 
   onPageEvent(ev: PageEvent){
     try{

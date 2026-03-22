@@ -57,14 +57,49 @@ export class SideNavComponent implements OnInit, OnDestroy {
     // Subscribe to router events to check login status after navigation
     this.routerSubscription = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
-      .subscribe(() => {
+      .subscribe((event) => {
         // keep previous route-change based checks
         this.setupMenus();
+        // Update selectedMenu based on current URL
+        this.updateSelectedMenuFromUrl((event as NavigationEnd).urlAfterRedirects || this.router.url);
       });
   }
 
   ngOnInit(): void {
-    // No need for redirects here as the router will handle it
+    // Set initial selected menu based on current URL
+    this.updateSelectedMenuFromUrl(this.router.url);
+  }
+
+  /** Route-to-menu mapping for related routes */
+  private readonly routeToMenuMap: Record<string, string> = {
+    '/user-register': 'Users',
+    '/view-users': 'Users',
+    '/category': 'Categories',
+    '/category-create': 'Categories',
+    '/view-questions': 'Questions',
+    '/questions': 'Questions',
+    '/exams': 'Exams',
+    '/create-exam': 'Exams',
+    '/view-schedule-exam': 'Schedule Exam',
+    '/schedule-exam': 'Schedule Exam',
+    '/view-institutes': 'Institutes',
+    '/institute-register': 'Institutes',
+    '/admin/exam-reports': 'Exam Reports',
+  };
+
+  /** Updates selectedMenu by finding which menu path matches the current URL */
+  private updateSelectedMenuFromUrl(url: string): void {
+    if (!url || !this.menus.length) return;
+    // Check the route mapping first
+    for (const [route, menuLabel] of Object.entries(this.routeToMenuMap)) {
+      if (url.startsWith(route)) {
+        this.selectedMenu = menuLabel;
+        return;
+      }
+    }
+    // Fallback: find menu whose path is a prefix of the current URL
+    const matched = this.menus.find(m => url.startsWith(m.path));
+    this.selectedMenu = matched?.label || null;
   }
 
   onMenuClick(menu: { label: string, path: string, icon?: string }){
@@ -129,6 +164,9 @@ export class SideNavComponent implements OnInit, OnDestroy {
       this.menus.push({ label: 'User Dashboard', path: '/user-dashboard', icon: 'user' });
       this.menus.push({ label: 'Exam', path: '/user/exam', icon: 'assignment' });
     }
+
+    // After menus are set, update selected menu based on current URL
+    this.updateSelectedMenuFromUrl(this.router.url);
   }
 
 

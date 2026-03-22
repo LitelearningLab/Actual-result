@@ -37,7 +37,10 @@
     </div>
 
     <ng-template #filtersPanel>
-        <div class="filters-panel card" (click)="$event.stopPropagation()">
+        <div class="filters-panel" (click)="$event.stopPropagation()">
+            <div class="filters-panel-header">
+                <h4><mat-icon>tune</mat-icon> Filters</h4>
+            </div>
             <div class="filter-block">
                 <mat-form-field appearance="outline" class="filter-item">
                     <mat-label>Institute</mat-label>
@@ -97,13 +100,14 @@
                     <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by me</mat-checkbox>
                 </div>
 
-                <div class="filter-actions">
-                    <button mat-flat-button color="primary" type="button" (click)="onApply()"><mat-icon svgIcon="apply"></mat-icon>
-                        Apply</button>
-                    <button mat-flat-button color="primary" type="button"
-                        (click)="onReset()"><mat-icon svgIcon="reset_settings"></mat-icon>
-                        Reset</button>
-                </div>
+            </div>
+            <div class="filter-actions">
+                <button mat-flat-button (click)="onApply()" class="filter-apply-btn">
+                    <mat-icon svgIcon="apply"></mat-icon> Apply
+                </button>
+                <button mat-flat-button (click)="onReset()" class="filter-reset-btn">
+                    <mat-icon svgIcon="reset_settings"></mat-icon> Reset
+                </button>
             </div>
         </div>
     </ng-template>
@@ -116,7 +120,7 @@
                 <!-- Title Column -->
                 <ng-container matColumnDef="title">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
-                    <td mat-cell *matCellDef="let s">{{ s.title }}</td>
+                    <td mat-cell *matCellDef="let s" class="cell-primary">{{ s.title }}</td>
                 </ng-container>
 
                 <!-- Institute Column -->

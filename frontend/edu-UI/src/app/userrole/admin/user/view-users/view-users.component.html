@@ -35,11 +35,10 @@
   <div class="list-card">
     <!-- Filters panel -->
     <ng-template #filtersPanel>
-      <div class="filters-panel card" (click)="$event.stopPropagation()">
-        <!-- <div class="filters-header">
-          <div class="filters-title">Filters</div>
-          <div class="filters-subtitle">Refine results by organization and status</div>
-        </div> -->
+      <div class="filters-panel" (click)="$event.stopPropagation()">
+        <div class="filters-panel-header">
+          <h4><mat-icon>tune</mat-icon> Filters</h4>
+        </div>
         <div class="filter-block">
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Institute</mat-label>
@@ -96,10 +95,14 @@
             </mat-select>
           </mat-form-field>
 
-          <div class="filter-actions">
-            <button mat-flat-button color="primary" (click)="applyFilters()"><mat-icon svgIcon="apply"></mat-icon>Apply</button>
-            <button mat-flat-button color="primary" (click)="resetFilters()"><mat-icon svgIcon="reset_settings"></mat-icon>Reset</button>
-          </div>
+        </div>
+        <div class="filter-actions">
+          <button mat-flat-button (click)="applyFilters()" class="filter-apply-btn">
+            <mat-icon svgIcon="apply"></mat-icon> Apply
+          </button>
+          <button mat-flat-button (click)="resetFilters()" class="filter-reset-btn">
+            <mat-icon svgIcon="reset_settings"></mat-icon> Reset
+          </button>
         </div>
       </div>
     </ng-template>
@@ -118,7 +121,9 @@
 
         <ng-container matColumnDef="role">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Role</th>
-          <td mat-cell *matCellDef="let u" class="cell-muted">{{u.role}}</td>
+          <td mat-cell *matCellDef="let u">
+            <span class="cell-muted">{{u.role}}</span>
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="department">
@@ -198,7 +203,11 @@
                 <div class="value">{{selectedUser.user_role || selectedUser.role}}</div>
 
                 <div class="label"><mat-icon>toggle_on</mat-icon> Active</div>
-                <div class="value">{{selectedUser.active_status ? 'Yes' : 'No'}}</div>
+                <div class="value">
+                  <span class="status-pill" [class.status-pill--active]="selectedUser.active || selectedUser.active_status" [class.status-pill--inactive]="!(selectedUser.active || selectedUser.active_status)">
+                    {{(selectedUser.active || selectedUser.active_status) ? 'Active' : 'Inactive'}}
+                  </span>
+                </div>
 
                 <div class="label"><mat-icon>email</mat-icon> Email</div>
                 <div class="value">{{selectedUser.email || '—'}}</div>
@@ -257,16 +266,16 @@
 
             <mat-tab label="Metadata">
               <div class="detail-grid">
-                <div class="label">Created By</div>
+                <div class="label"><mat-icon>person</mat-icon> Created By</div>
                 <div class="value">{{selectedUser.created_by || '—'}}</div>
-                <div class="label">Created Date</div>
+                <div class="label"><mat-icon>calendar_today</mat-icon> Created Date</div>
                 <div class="value">{{selectedUser.created_date || selectedUser.created_at || '—'}}</div>
-                <div class="label">Updated By</div>
+                <div class="label"><mat-icon>person</mat-icon> Updated By</div>
                 <div class="value">{{selectedUser.updated_by || '—'}}</div>
-                <div class="label">Updated Date</div>
+                <div class="label"><mat-icon>calendar_today</mat-icon> Updated Date</div>
                 <div class="value">{{selectedUser.updated_date || selectedUser.updated_at || '—'}}</div>
 
-                <div class="label">Notes</div>
+                <div class="label"><mat-icon>note</mat-icon> Notes</div>
                 <div class="value">{{selectedUser.notes || '—'}}</div>
               </div>
             </mat-tab>
@@ -276,8 +285,10 @@
     </div>
 
     <div class="modal-actions">
-      <button mat-button (click)="closeModal()">Close</button>
-      <button mat-flat-button (click)="startEditUser(selectedUser)">Edit</button>
+      <button mat-button (click)="closeModal()" class="modal-btn-close">Close</button>
+      <button mat-flat-button (click)="startEditUser(selectedUser)" class="modal-btn-edit">
+        <mat-icon>edit</mat-icon> Edit
+      </button>
     </div>
   </div>
 </div>
