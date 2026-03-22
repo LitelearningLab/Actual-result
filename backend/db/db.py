@@ -7,7 +7,7 @@ class SQLiteDB:
     def __init__(self):
         environment_flag = os.getenv('environment_flag')
         server = os.getenv('SQL_SERVER', 'localhost')  # e.g., localhost\SQLEXPRESS
-        database = os.getenv('SQL_DATABASE', 'actual-result')
+        database = os.getenv('SQL_DATABASE', 'actual-result-prod')
         username = os.getenv('SQL_USER', 'sa')
         password = os.getenv('SQL_PASSWORD', 'YourStrong!Passw0rd')
         driver = 'ODBC Driver 17 for SQL Server'

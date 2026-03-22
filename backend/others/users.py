@@ -358,7 +358,7 @@ def get_user_details(request):
     if args.get("city"):
         filter.append(User.city_id == args.get("city"))
 
-    user_details = session.query(User).filter(*filter).order_by(User.id).offset((page_number - 1) * page_size).limit(page_size).all()
+    user_details = session.query(User).filter(*filter).order_by(User.created_date).offset((page_number - 1) * page_size).limit(page_size).all()
     total_count = session.query(User).filter(*filter).count()
     
     result = []

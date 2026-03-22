@@ -44,10 +44,7 @@ def get_user_wise_report(request):
             # get total marks from question table 
             total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(answer.question_id for answer in answers)).scalar() or 0
 
-            grouped = session.query(Answer.question_id, func.max(Answer.is_correct).label('any_correct')).filter(
-                Answer.schedule_id == schedule_id,
-                Answer.user_id == uid
-            ).group_by(Answer.question_id).all()
+            grouped = session.query(Answer.question_id, func.max(Answer.is_correct).label('any_correct')).filter(Answer.schedule_id == schedule_id,Answer.user_id == uid).group_by(Answer.question_id).all()
 
             questions_attempted = len(grouped)
             correct = sum(1 for _qid, any_correct in grouped if (any_correct or 0) == 1)
@@ -108,7 +105,7 @@ def get_user_wise_report(request):
             }
         }, 200
     except Exception as e:
-        print('Error generating user-wise report', e)
+        print(f'Error generating user-wise report {e}, at line {e.__traceback__.tb_lineno}')
         return {"statusMessage": f"Error generating report: {str(e)}", "status": False}, 500
 
 

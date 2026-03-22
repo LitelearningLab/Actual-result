@@ -56,8 +56,15 @@ def superadmin_dashboard_details():
     }
 
     # Monthly Exams Conducted
-    monthly_exams = session.query(func.strftime("%Y-%m", ExamSchedule.created_date), func.count(ExamSchedule.schedule_id)).group_by(func.strftime("%Y-%m", ExamSchedule.created_date)).all()
-    exams_conducted = [{"month": month, "exams": count} for month, count in monthly_exams]
+    monthly_exams = (
+        session.query(
+            func.year(ExamSchedule.created_date).label("year"),func.month(ExamSchedule.created_date).label("month"),
+            func.count(ExamSchedule.schedule_id).label("count"))
+        .group_by( func.year(ExamSchedule.created_date),func.month(ExamSchedule.created_date) )
+        .order_by(func.year(ExamSchedule.created_date),func.month(ExamSchedule.created_date) )
+        .all()
+    )
+    exams_conducted = [{"month": f"{year}-{month:02d}", "exams": count} for year, month, count in monthly_exams]
     chart_exams_conducted = {
         "id": "monthly_exams",
         "title": "Monthly Exams Conducted",

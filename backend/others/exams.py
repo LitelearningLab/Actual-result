@@ -275,6 +275,7 @@ def get_exam_details(request):
                 category_list.append(category_data)
             # category_list = [{"category_id": cat.category_id, "category_name": cat.name, "description": cat.description} for cat in categories]
                 # get created user details
+            Institute_data = session.query(Institute).filter(Institute.institute_id == exam.institute_id).first()
             created_user_name = None
             if exam.created_by:
                 created_user = session.query(User).filter_by(user_id=exam.created_by).first()
@@ -291,8 +292,8 @@ def get_exam_details(request):
                 "exam_id": exam.exam_id,
                 "title": exam.title,
                 "institute": {
-                    "institute_id": institutes_by_id.get(exam.institute_id, None).institute_id,
-                    "institute_name": institutes_by_id.get(exam.institute_id, None).name,
+                    "institute_id": exam.institute_id,
+                    "institute_name": Institute_data.name,
                 },
                 "categories": category_list,
                 "description": exam.description,
