@@ -424,7 +424,6 @@
 # # sqlite_conn.close()
 # # sql_conn.close()
 
-
 import sqlite3
 import pyodbc
 import uuid
@@ -438,15 +437,13 @@ sqlite_cursor = sqlite_conn.cursor()
 # ----------------------------
 # 2. Connect to SQL Server
 # ----------------------------
-
 sql_server_conn = pyodbc.connect(
     'DRIVER={ODBC Driver 17 for SQL Server};'
-    'SERVER=localhost;'  # e.g., 'localhost\SQLEXPRESS'
+    'SERVER=localhost;'  # e.g., 'localhost\\SQLEXPRESS'
     'DATABASE=actual-result-prod;'
     'Trusted_Connection=yes;'
     'TrustServerCertificate=yes;'
 )
-sql_cursor = sql_server_conn.cursor()
 sql_cursor = sql_server_conn.cursor()
 
 # ----------------------------
@@ -455,7 +452,7 @@ sql_cursor = sql_server_conn.cursor()
 sqlite_cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
 tables = [t[0] for t in sqlite_cursor.fetchall()]
 
-# Keep a map of old_id → new_uuid for all tables
+# Store old_id -> new_uuid maps for all tables
 id_maps = {}
 
 # Store foreign key info for each table
@@ -465,33 +462,38 @@ foreign_keys = {}
 # 4. Create tables in SQL Server
 # ----------------------------
 for table in tables:
+    # Columns
     sqlite_cursor.execute(f"PRAGMA table_info({table})")
-    cols = sqlite_cursor.fetchall()
+    cols_info = sqlite_cursor.fetchall()
     
+    # Foreign keys
     sqlite_cursor.execute(f"PRAGMA foreign_key_list({table})")
     fk_list = sqlite_cursor.fetchall()
     foreign_keys[table] = fk_list
     
-    # ----------------------------
     # Drop table if exists
-    drop_table_sql = f"IF OBJECT_ID('{table}', 'U') IS NOT NULL DROP TABLE [{table}]"
-    sql_cursor.execute(drop_table_sql)
+    sql_cursor.execute(f"IF OBJECT_ID('{table}', 'U') IS NOT NULL DROP TABLE [{table}]")
     sql_server_conn.commit()
     print(f"Dropped table {table} if it existed.")
-    # ----------------------------
     
     columns_def = []
-    for idx, col in enumerate(cols):
+    for idx, col in enumerate(cols_info):
         col_name = col[1]
         col_type = col[2].upper()
         
-        # Primary key and _id columns → UNIQUEIDENTIFIER
-        if idx == 0 or col_name.lower() == 'id' or col_name.lower().endswith('_id'):
-            col_type_sql = 'UNIQUEIDENTIFIER'
+        # Convert PKs and *_id columns to NVARCHAR(36)
+        if idx == 0 or col_name.lower() == 'id' or col_name.lower().endswith('_id') or col_name.lower().endswith('_by'):
+            col_type_sql = 'NVARCHAR(64)'
         elif 'INT' in col_type:
             col_type_sql = 'INT'
         elif 'CHAR' in col_type or 'CLOB' in col_type or 'TEXT' in col_type:
-            col_type_sql = 'NVARCHAR(MAX)'
+            sqlite_cursor.execute(f"SELECT MAX(LENGTH([{col_name}])) FROM [{table}]")
+            max_len = sqlite_cursor.fetchone()[0] or 1
+            buffer = 5
+            if max_len + buffer > 300:
+                col_type_sql = 'NVARCHAR(MAX)'
+            else:
+                col_type_sql = f'NVARCHAR({max_len + buffer})'
         elif 'BLOB' in col_type:
             col_type_sql = 'VARBINARY(MAX)'
         elif 'REAL' in col_type or 'FLOA' in col_type or 'DOUB' in col_type:
@@ -516,49 +518,29 @@ for table in tables:
 # 5. Copy data with UUID conversion
 # ----------------------------
 for table in tables:
-    sqlite_cursor.execute(f"SELECT * FROM {table}")
-    rows = sqlite_cursor.fetchall()
-    
-    if not rows:
-        continue
-    
-    # Get column names
+    # Get columns
     sqlite_cursor.execute(f"PRAGMA table_info({table})")
     cols = [c[1] for c in sqlite_cursor.fetchall()]
     
+    # Read rows
+    sqlite_cursor.execute(f"SELECT * FROM {table}")
+    rows = sqlite_cursor.fetchall()
+    if not rows:
+        continue
+    
     new_rows = []
     table_id_map = {}  # old PK -> new UUID
+    
+    # Build new rows
     for row in rows:
         new_row = []
         for idx, (col_name, value) in enumerate(zip(cols, row)):
-            # Primary key column
-            if idx == 0 or col_name.lower() == 'id':
-                new_uuid = str(uuid.uuid4())
-                table_id_map[value] = new_uuid
-                value = new_uuid
-            # Foreign key column (_id)
-            elif col_name.lower().endswith('_id'):
-                if value is not None:
-                    # Map old parent ID → new UUID
-                    parent_table = None
-                    # Find which table this _id refers to
-                    for fk in foreign_keys[table]:
-                        if fk[3] == col_name:  # fk[3] = child column
-                            parent_table = fk[2]  # fk[2] = parent table
-                            break
-                    if parent_table and value in id_maps.get(parent_table, {}):
-                        value = id_maps[parent_table][value]
-                    else:
-                        # fallback: generate new UUID
-                        value = str(uuid.uuid4())
-                else:
-                    value = None
             new_row.append(value)
         new_rows.append(tuple(new_row))
     
-    # Save mapping for this table's PKs
     id_maps[table] = table_id_map
     
+    # Insert into SQL Server
     placeholders = ','.join(['?'] * len(cols))
     insert_sql = f"INSERT INTO [{table}] ({', '.join(cols)}) VALUES ({placeholders})"
     sql_cursor.executemany(insert_sql, new_rows)
@@ -566,8 +548,28 @@ for table in tables:
     print(f"Inserted {len(new_rows)} rows into {table}")
 
 # ----------------------------
-# 6. Close connections
+# 6. Optional: Add foreign key constraints in SQL Server
+# ----------------------------
+for table, fk_list in foreign_keys.items():
+    for fk in fk_list:
+        from_col = fk[3]  # FK column in current table
+        ref_table = fk[2]
+        ref_col = fk[4]
+        constraint_name = f"FK_{table}_{from_col}_{ref_table}_{ref_col}"
+        try:
+            sql_cursor.execute(f"""
+                ALTER TABLE [{table}] 
+                ADD CONSTRAINT [{constraint_name}] FOREIGN KEY ([{from_col}]) 
+                REFERENCES [{ref_table}]([{ref_col}])
+            """)
+            sql_server_conn.commit()
+            print(f"Added FK constraint {constraint_name}")
+        except Exception as e:
+            print(f"Failed to add FK {constraint_name}: {e}")
+
+# ----------------------------
+# 7. Close connections
 # ----------------------------
 sqlite_conn.close()
 sql_server_conn.close()
-print("Migration completed with UUID primary keys and foreign key mapping!")
+print("Migration completed successfully with UUID primary keys and foreign keys mapped!")
