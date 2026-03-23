@@ -44,10 +44,7 @@ def get_user_wise_report(request):
             # get total marks from question table 
             total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(answer.question_id for answer in answers)).scalar() or 0
 
-            grouped = session.query(Answer.question_id, func.max(Answer.is_correct).label('any_correct')).filter(
-                Answer.schedule_id == schedule_id,
-                Answer.user_id == uid
-            ).group_by(Answer.question_id).all()
+            grouped = session.query(Answer.question_id, func.max(Answer.is_correct).label('any_correct')).filter(Answer.schedule_id == schedule_id,Answer.user_id == uid).group_by(Answer.question_id).all()
 
             questions_attempted = len(grouped)
             correct = sum(1 for _qid, any_correct in grouped if (any_correct or 0) == 1)
@@ -108,7 +105,7 @@ def get_user_wise_report(request):
             }
         }, 200
     except Exception as e:
-        print('Error generating user-wise report', e)
+        print(f'Error generating user-wise report {e}, at line {e.__traceback__.tb_lineno}')
         return {"statusMessage": f"Error generating report: {str(e)}", "status": False}, 500
 
 
@@ -280,7 +277,7 @@ def get_exam_analytics(request):
         for q in question_summary:
             qid = q['question_id']
             # aggregate selected options for this question
-            opt_counts = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id == schedule_id, Answer.question_id == qid, Answer.is_correct == 0).group_by(Option.options_id).all()
+            opt_counts = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id == schedule_id, Answer.question_id == qid, Answer.is_correct == 0).group_by(Option.options_id, Option.option_text).all()
             total_sel = sum([c[2] for c in opt_counts])
             dist = []
             for opt_id, opt_text, cnt in opt_counts:
@@ -321,7 +318,7 @@ def get_question_wrong_answers(request):
 
     try:
         # aggregate selected options and raw answers for this question
-        opt_counts = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id == schedule_id, Answer.question_id == question_id).group_by(Option.options_id).all()
+        opt_counts = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id == schedule_id, Answer.question_id == question_id).group_by(Option.options_id, Option.option_text).all()
         total_sel = sum([c[2] for c in opt_counts])
         distribution = []
         for opt_id, opt_text, cnt in opt_counts:
@@ -339,7 +336,8 @@ def get_question_wrong_answers(request):
 
         return {'statusMessage': 'Question wrong answers retrieved', 'status': True, 'data': { 'question_id': question_id, 'distribution': distribution, 'raw': raw_list }}, 200
     except Exception as e:
-        print('Error fetching question wrong answers', e)
+        lineno = e.__traceback__.tb_lineno if getattr(e, "__traceback__", None) else 'N/A'
+        print(f"Error fetching question wrong answers: {e} Line # {lineno}")
         return {"statusMessage": f"Error fetching wrong answers: {str(e)}", "status": False}, 500
 
 

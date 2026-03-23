@@ -18,12 +18,13 @@ import { MatButtonModule } from '@angular/material/button';
 
 export class SuperDashboardComponent implements OnInit {
  
-    summary = {
+    summary: any = {
     totalUsers: 0,
     totalInstitutes: 0,
     activeTests: 0,
     upcomingTests: 0,
-    completedTests: 0
+    completedTests: 0,
+    avgScore: null
   };
   instituteStats: Array<{ name: string; users: number; scheduledTests: number }> = [];
   // visual / metric fields
@@ -39,7 +40,7 @@ export class SuperDashboardComponent implements OnInit {
   constructor(private http: HttpClient, private pageMeta: PageMetaService){ }
 
   ngOnInit(): void {
-    try { this.pageMeta.setMeta('Super Admin Dashboard', 'Overview'); } catch(e){}
+    try { this.pageMeta.setMeta('Super Admin Dashboard', 'Platform-wide overview & reports'); } catch(e){}
     this.loadDashboard();
   }
 
@@ -59,6 +60,7 @@ export class SuperDashboardComponent implements OnInit {
     this.summary.upcomingTests = s.upcoming_exams ?? s.upcomingExams ?? 0;
     this.summary.activeTests = s.active_exams ?? s.activeExams ?? 0;
     this.summary.completedTests = s.completed_exams ?? s.completedExams ?? 0;
+    this.summary.avgScore = s.avg_score ?? s.avgScore ?? this.avgScore ?? null;
 
     // core lists (top institutes may live under details.top_institutes)
     const topInstitutes = res.details?.top_institutes || res.top_institutes || res.topInstitutes || [];

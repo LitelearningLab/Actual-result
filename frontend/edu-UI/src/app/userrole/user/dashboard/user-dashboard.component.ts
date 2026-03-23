@@ -17,7 +17,7 @@ import { MatButtonModule } from '@angular/material/button';
   styleUrls: ['./user-dashboard.component.scss']
 })
 export class UserDashboardComponent implements OnInit {
-  metrics: any = { lastScore: null, lastPercent: null, totalQuestions: 0, accuracy: 0 };
+  metrics: any = { lastScore: null, lastPercent: null, totalQuestions: 0, accuracy: 0, totalExams: null, avgScore: null };
   charts: Array<any> = [];
   selectedUserId: string | null = null;
   selectedInstituteId: string | null = null;
@@ -27,7 +27,7 @@ export class UserDashboardComponent implements OnInit {
   constructor(private pageMeta: PageMetaService, private svc: UserDashboardService){ }
 
   ngOnInit(): void {
-    try{ this.pageMeta.setMeta('User Dashboard','Overview'); } catch(e){}
+    try{ this.pageMeta.setMeta('User Dashboard','Performance overview & analytics'); } catch(e){}
     // fetch institutes first, then users for the default institute
     this.svc.getInstitutes().subscribe({ next: (inst:any)=>{ this.institutes = inst || []; this.setDefaultInstitute(); }, error: ()=>{ this.setDefaultInstitute(); } });
   }
@@ -76,6 +76,8 @@ export class UserDashboardComponent implements OnInit {
     this.metrics.lastPercent = res.last_percent ?? res.percent ?? null;
     this.metrics.totalQuestions = res.total_questions ?? res.questions_total ?? 0;
     this.metrics.accuracy = res.accuracy ?? 0;
+    this.metrics.totalExams = res.total_exams ?? res.exams_taken ?? null;
+    this.metrics.avgScore = res.avg_score ?? res.average_score ?? null;
 
     // charts mapping - reuse same mapping as superadmin when possible
     this.charts = res.charts || res.charts_list || [];

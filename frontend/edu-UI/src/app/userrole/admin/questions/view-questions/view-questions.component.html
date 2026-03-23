@@ -48,9 +48,11 @@
 
         <!-- Filters panel -->
         <ng-template #filtersPanel>
-            <div class="filters-panel card" (click)="$event.stopPropagation()">
+            <div class="filters-panel" (click)="$event.stopPropagation()">
+                <div class="filters-panel-header">
+                    <h4><mat-icon>tune</mat-icon> Filters</h4>
+                </div>
                 <div class="filter-block">
-                    <!-- <div class="filter-row"> -->
                     <mat-form-field appearance="outline" class="filter-item">
                         <mat-label>Institute</mat-label>
                         <mat-select [(ngModel)]="selectedInstitute" [disabled]="!isSuperAdmin"
@@ -132,15 +134,14 @@
                         </div>
                     </div>
 
-                    <div class="filter-actions">
-                        <button mat-flat-button color="primary" type="button" (click)="onApply()"><mat-icon
-                                svgIcon="apply"></mat-icon>
-                            Apply</button>
-                        <button mat-flat-button color="primary" type="button" (click)="onReset()"><mat-icon
-                                svgIcon="reset_settings"></mat-icon>
-                            Reset</button>
-                    </div>
-                    <!-- </div> -->
+                </div>
+                <div class="filter-actions">
+                    <button mat-flat-button (click)="onApply()" class="filter-apply-btn">
+                        <mat-icon svgIcon="apply"></mat-icon> Apply
+                    </button>
+                    <button mat-flat-button (click)="onReset()" class="filter-reset-btn">
+                        <mat-icon svgIcon="reset_settings"></mat-icon> Reset
+                    </button>
                 </div>
             </div>
         </ng-template>
@@ -221,7 +222,13 @@
                                     <span class="opt-label" *ngIf="q.type === 'multi' || q.type === 'choose'">{{
                                         ('ABCDEFGHIJKLMNOPQRSTUVWXYZ')[idx] || idx+1
                                         }}.</span>
-                                    <span class="opt-text">{{ o?.text }}</span>
+                                    <span class="opt-text">
+                                        <ng-container *ngIf="o?.text && o.text.length > 300; else fullText">
+                                            {{ o.text | slice:0:300 }}…
+                                            <a href="javascript:void(0)" class="more-link" (click)="viewDetails(q)">more</a>
+                                        </ng-container>
+                                        <ng-template #fullText>{{ o?.text }}</ng-template>
+                                    </span>
                                 </div>
                                 <div class="opt-right" *ngIf="q.type === 'multi' || q.type === 'choose'">
                                     <span *ngIf="o?.is_correct === 1" class="correct-mark">✔</span>
@@ -267,8 +274,10 @@
     <div class="modal-backdrop" *ngIf="viewedQuestion">
         <div class="modal">
             <div class="modal-header">
-                <h3>Question</h3>
-                <h1>{{ viewedQuestion?.question }}</h1>
+                <div class="modal-header-text">
+                    <h3>Question</h3>
+                    <h1 class="modal-user-name">{{ viewedQuestion?.question }}</h1>
+                </div>
                 <button mat-icon-button (click)="closeViewModal()"><mat-icon>close</mat-icon></button>
             </div>
             <div class="modal-body">

@@ -10,6 +10,40 @@
 /* Prevent root scroll */
 html, body { width:100%; margin:0; padding:0; min-height:100%; background-color:var(--theme-3); overflow:auto; position:relative }
 
+/* ═══════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Skip link for keyboard navigation
+   ═══════════════════════════════════════════════════════════════ */
+.skip-link {
+  position: fixed;
+  top: -3rem;
+  left: 1rem;
+  z-index: 99999;
+  padding: 0.75rem 1.25rem;
+  background: var(--button-1, #4f46e5);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: 0 0 0.5rem 0.5rem;
+  text-decoration: none;
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
+  transition: top 0.2s ease-in-out;
+  
+  &:focus {
+    top: 0;
+    outline: 0.1875rem solid var(--button-1, #4f46e5);
+    outline-offset: 0.125rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PUBLIC VIEW — Landing/Login pages layout
+   ═══════════════════════════════════════════════════════════════ */
+.public-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Full height app layout: horizontal row */
 .app-layout {
   overflow: hidden;
@@ -42,7 +76,7 @@ html, body { width:100%; margin:0; padding:0; min-height:100%; background-color:
 .app-main {
   position: relative;
   background-color: var(--theme-1);
-  z-index: 1;
+  /* z-index removed to prevent stacking context issues with modals */
   display: flex;
   flex-direction: column;
   flex: 1 1 auto; // Take remaining width
@@ -50,52 +84,73 @@ html, body { width:100%; margin:0; padding:0; min-height:100%; background-color:
   height: 100%;
   /* Make main width the remaining space after the side-nav */
   width: calc(100% - var(--sidenav-width));
-  // background-color: transparent;
-  overflow: inherit;
-  // border-top-right-radius: 30px;
-  // border-bottom-right-radius: 30px;
+  overflow: visible; /* Allow modals to escape stacking context */
 }
 
 
-/* Top bar inside app-main (10% of app-main) */
-  .app-topbar { flex: 0 0 var(--topbar-height); min-height: var(--topbar-height); width:100%; background:var(--theme-2-bg-1); display:grid; align-items:center; box-shadow:0 0.125rem 0.625rem rgba(20,30,60,0.06); padding:0.5rem 1.5rem; border-bottom: 1px solid var(--theme-2-border); font-size: var(--font-size-base); line-height: var(--line-height-base); }
+/* Top bar inside app-main */
+.app-topbar {
+  flex: 0 0 var(--topbar-height);
+  min-height: var(--topbar-height);
+  width: 100%;
+  background: var(--theme-2-bg-1);
+  display: grid;
+  align-items: center;
+  box-shadow: 0 0.125rem 0.625rem rgba(20, 30, 60, 0.06);
+  padding: 0.5rem 1.5rem;
+  border-bottom: 1px solid var(--theme-2-border);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  position: relative;
+  z-index: 100; /* Below modal backdrops (10050) but above content */
+}
 
 
 /* Content: scrolls internally only */
-.app-content { flex:1 1 auto; display:block; min-height:0; width:100%; background:var(--theme-2); padding:1rem 1rem; overflow-y:auto; -ms-overflow-style:none; height: 100vh ; }
+.app-content {
+  flex: 1 1 auto;
+  display: block;
+  min-height: 0;
+  width: 100%;
+  background: var(--theme-2);
+  padding: 1rem 1rem;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  height: 100vh;
+  position: relative;
+  /* No z-index to avoid stacking context issues */
+}
 
 // 
 
-/* Responsive Layout */
-@media (max-width:992px ) {
+/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+   RESPONSIVE LAYOUT \u2014 Mobile & Tablet
+   \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */
+@media (max-width: 992px) {
 
   :root {
     --topbar-height: 4rem;
   }
 
   .app-layout {
-    // flex-direction: row;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
     width: 100%;
     background: var(--theme-3);
-    overflow: hidden;
+    overflow: visible; /* Allow modals to work properly */
   }
 
   .app-main {
-    flex: 1 1 auto;     /* REQUIRED */
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    min-height: 0;      /* REQUIRED for scrolling */
-    /* On mobile the main should be the remaining width after collapsed sidenav */
+    min-height: 0;
     width: calc(100% - var(--sidenav-collapsed));
-    overflow: hidden;
+    overflow: visible; /* Allow modals to escape */
     background: var(--theme-1);
+    margin-left: var(--sidenav-collapsed);
   }
-
-  /* On mobile, shift main content to the right of the collapsed sidenav (72px) */
-  .app-main { margin-left: var(--sidenav-collapsed); }
 
   /* When sidenav expanded via .sidenav-open expand, set main width and margin accordingly */
   .sidenav-open .app-main {

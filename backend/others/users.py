@@ -283,24 +283,23 @@ def update_user_details(user_id, request):
         return json_data, 404
     
     # Update user details based on the provided data
-    date_fields = ['joining_date', 'created_date', 'updated_date']
+    date_fields = ['joining_date']
+
     for field in date_fields:
         if field in data and data[field]:
-            data[field] = datetime.strptime(data[field], "%Y-%m-%d").date()
+            data[field] = datetime.strptime(data[field], "%Y-%m-%d")
+
     for key, value in data.items():
         if hasattr(user, key):
             setattr(user, key, value)
 
-    user.updated_by = data.get("current_user", 'system')
+    user.updated_by = data.get("current_user", "system")
     user.updated_date = datetime.utcnow()
 
     # update user privileges
     page_data = data.get('page_access', [])
     for page_access in page_data:
-        user_page_access = session.query(UserPageAccess).filter_by(
-            user_id=user_id,
-            page_id=page_access.get('page_key')
-        ).first()
+        user_page_access = session.query(UserPageAccess).filter_by(user_id=user_id,page_id=page_access.get('page_key')).first()
         if user_page_access:
             user_page_access.can_view = page_access.get('view', user_page_access.can_view)
             user_page_access.can_add = page_access.get('add', user_page_access.can_add)
@@ -359,7 +358,7 @@ def get_user_details(request):
     if args.get("city"):
         filter.append(User.city_id == args.get("city"))
 
-    user_details = session.query(User).filter(*filter).offset((page_number - 1) * page_size).limit(page_size).all()
+    user_details = session.query(User).filter(*filter).order_by(User.created_date).offset((page_number - 1) * page_size).limit(page_size).all()
     total_count = session.query(User).filter(*filter).count()
     
     result = []

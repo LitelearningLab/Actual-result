@@ -79,6 +79,29 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return Math.max(1, Math.ceil((this.userReportTotal || 0) / this.pageSize));
   }
 
+  get userAverageScore(): number {
+    const scores = (this.userReportData || []).map((row: any) => this.toMetricNumber(row.marks_obtained ?? row.score ?? row.marks)).filter((value: number) => value > 0);
+    return scores.length ? scores.reduce((sum: number, value: number) => sum + value, 0) / scores.length : 0;
+  }
+
+  get userPassRate(): number {
+    const rows = this.userReportData || [];
+    const passed = rows.filter((row: any) => String(row.result || row.status || '').toLowerCase() === 'pass').length;
+    return rows.length ? (passed / rows.length) * 100 : 0;
+  }
+
+  get analyticsTotalAttempts(): number {
+    return (this.categoryAnalytics || []).reduce((sum: number, item: any) => sum + this.toMetricNumber(item.total_attempts ?? item.attempts), 0);
+  }
+
+  get analyticsMistakeCount(): number {
+    return (this.categoryAnalytics || []).reduce((sum: number, item: any) => sum + this.toMetricNumber(item.wrong_answers ?? item.mistakes ?? item.wrong_count), 0);
+  }
+
+  get activeQuestionCount(): number {
+    return (this.filteredQuestionSummary && this.filteredQuestionSummary.length ? this.filteredQuestionSummary : this.questionSummary || []).length;
+  }
+
   /**
    * Open question summary filtered to a specific category. If analytics data isn't loaded yet,
    * request it first and apply a pending filter.
@@ -128,6 +151,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (Array.isArray(q.category_id) && q.category_id.length) return String(q.category_id[0]).trim();
     // Try several flat fields
     return String(q.category_id ?? q.category ?? q.categoryId ?? q.cat_id ?? q.catId ?? '').trim();
+  }
+
+  private toMetricNumber(value: any): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   // Normalize selected_option into an array of trimmed strings.
@@ -227,7 +255,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             });
             return { ...a, review: normalizedReview };
           });
-          console.debug('[ExamReports] review-user-exam attempts count:', this.userReviewAttempts.length, this.userReviewAttempts);
           // If total marks not set from the row, try to take it from the first attempt returned
           if((this.totalMarks === null || this.totalMarks === undefined) && this.userReviewAttempts && this.userReviewAttempts.length){
             const first = this.userReviewAttempts[0] || {};
@@ -278,6 +305,81 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.showUserReviewPanel = false; 
     this.userReviewAttempts = []; 
     this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null; this.totalMarks = null;
+  }
+
+  // Marks editing helpers for descriptive questions
+  startEditMarks(q: any){
+    if(!q) return;
+    q._editingMarks = true;
+    q._editedMarks = q.marks_awarded ?? 0;
+  }
+
+  cancelEditMarks(q: any){
+    if(!q) return;
+    q._editingMarks = false;
+    q._editedMarks = undefined;
+  }
+
+  saveMarks(q: any, row?: any){
+    if(!q) return;
+    const newMarks = parseFloat(q._editedMarks);
+    if(isNaN(newMarks) || newMarks < 0){
+      this._snack.open('Please enter a valid mark value', 'Close', { duration: 3000 });
+      return;
+    }
+    const maxMarks = q.question_marks || q.marks || 0;
+    if(newMarks > maxMarks){
+      this._snack.open(`Marks cannot exceed ${maxMarks}`, 'Close', { duration: 3000 });
+      return;
+    }
+
+    // Get required IDs
+    const answerID = q.answer_id || null;
+    
+    // Get user ID from current context
+    const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+    let updatedBy = '';
+    if (raw) {
+      const u = JSON.parse(raw);
+      updatedBy = u.user_id || u.id || u.userId || u._id || '';
+    }
+
+    if(!answerID){
+      console.warn('[saveMarks] Missing answer ID:', { answerID });
+      this._snack.open('Missing answer ID', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const payload = {
+      answer_id: String(answerID),
+      marks_awarded: newMarks,
+      updated_by: updatedBy
+    };
+
+    this.loading.show();
+    this.http.post<any>(`${API_BASE}/update-descriptive-marks`, payload).subscribe({
+      next: (res) => {
+        this.loading.hide();
+        // Update local state
+        const oldMarks = q.marks_awarded || 0;
+        q.marks_awarded = newMarks;
+        q._editingMarks = false;
+        q._editedMarks = undefined;
+        
+        // Update total score if available
+        if(this.selectedUserScore !== null && typeof this.selectedUserScore === 'number'){
+          this.selectedUserScore = this.selectedUserScore - oldMarks + newMarks;
+        }
+        
+        this._snack.open('Marks updated successfully', 'Close', { duration: 3000 });
+      },
+      error: (err) => {
+        this.loading.hide();
+        console.error('Failed to update marks', err);
+        const msg = err?.error?.statusMessage || err?.message || 'Failed to update marks.';
+        this._snack.open(msg, 'Close', { duration: 5000 });
+      }
+    });
   }
 
   // Begin review comment editing helpers
@@ -465,7 +567,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const url = `${API_BASE}/get-department-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        console.debug('[ExamReports] get-department-list response for', instituteId, res);
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.departmentList = arr.map((d: any) => (d.name || d.department_name || d.department || d).toString()).filter((s: any) => !!s);
       }, error: (err) => { console.warn('Failed to load department list', err); this.departmentList = []; }
@@ -479,7 +580,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const url = `${API_BASE}/get-teams-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        console.debug('[ExamReports] get-teams-list response for', instituteId, res);
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.teamList = arr.map((t: any) => (t.name || t.team_name || t.team || t).toString()).filter((s: any) => !!s);
       }, error: (err) => { console.warn('Failed to load teams list', err); this.teamList = []; }

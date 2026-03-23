@@ -1,77 +1,70 @@
-<aside class="app-side-nav" [class.collapsed]="collapsed" *ngIf="isLogin">
+<aside class="app-side-nav" [class.collapsed]="collapsed" *ngIf="isLogin" role="navigation" aria-label="Main navigation">
 
+    <!-- Branding & Toggle -->
     <div class="side-top">
-
-        <!-- <div class="avatar-wrap">
-        <div class="avatar">
-          <span class="avatar-initial">{{ (userName && userName.length>0) ? userName.charAt(0) : 'U' }}</span>
-        </div>
-        <div class="status-dot" *ngIf="!collapsed"></div>
-      </div> -->
-        <!-- <div class="user-meta" *ngIf="!collapsed">
-        <div class="name">{{ userName }}</div>
-        <div class="institute">{{ userInstitute || '' }}</div> -->
-        <!-- <div class="role">{{ userRole || '' }}</div> -->
-        <!-- </div> -->
-
-        <button class="collapse-toggle" mat-icon-button (click)="toggleCollapse()" [attr.aria-expanded]="!collapsed"
-            aria-label="Toggle sidebar">
-            <!-- <mat-icon svgIcon="{{ collapsed ? 'arrow_forward' : 'arrow_back' }}"></mat-icon> -->
-            <mat-icon>{{ collapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+        <button class="collapse-toggle" mat-icon-button (click)="toggleCollapse()"
+            [attr.aria-expanded]="!collapsed" 
+            [attr.aria-label]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+            <mat-icon class="collapse-icon">{{ collapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
         </button>
 
-        <div class="logo-wrap" aria-hidden="true" *ngIf="!collapsed">
-            <img class="institute-logo" src="/assets/images/profluent-lab.png" alt="Institute logo" />
+        <div class="logo-wrap" *ngIf="!collapsed">
+            <img class="institute-logo institute-logo-expanded" src="/assets/images/logo-main.png" alt="Institute logo" loading="lazy" />
         </div>
-        <!-- if *ngIf="collapsed" display logo as oval -->
-        <div class="logo-wrap logo-collapsed" aria-hidden="true" *ngIf="collapsed">
-            <mat-icon class="institute-logo-collapsed">dictionary</mat-icon>
+        <div class="logo-wrap" *ngIf="collapsed">
+            <img class="institute-logo institute-logo-collapsed" src="/assets/images/logo.png" alt="" loading="lazy" />
         </div>
-
     </div>
 
-    <!-- <nav class="menu">
-    <a *ngFor="let m of menus" [routerLink]="m.path" class="menu-item" routerLinkActive="active" [title]="m.label">
-      <mat-icon class="menu-icon">{{ m.icon || 'menu' }}</mat-icon>
-      <span class="menu-label" *ngIf="!collapsed">{{ m.label }}</span>
-    </a>
-  </nav> -->
-    <nav class="menu">
+    <!-- Menu Navigation -->
+    <nav class="menu" role="menubar" aria-label="Main menu">
         <ng-container *ngFor="let m of menus">
-            <ng-container
-                *ngIf="['Users','Categories','Questions','Exams','Schedule Exam'].includes(m.label); else plainLink">
-                <a *hasAccess="m.label; hasAccessAction: 'view'" [routerLink]="m.path" class="menu-item"
-                    routerLinkActive="active" [routerLinkActiveOptions]="{exact: false}"
-                    (click)="onMenuClick(m)" [ngClass]="{ 'active': selectedMenu === m.label }" [title]="m.label">
-                    <mat-icon class="menu-icon" svgIcon="{{ m.icon }}"></mat-icon>
+            <ng-container *ngIf="['Users','Categories','Questions','Exams','Schedule Exam'].includes(m.label); else plainLink">
+                <a *hasAccess="m.label; hasAccessAction: 'view'" 
+                    [routerLink]="m.path" 
+                    class="menu-item"
+                    role="menuitem"
+                    routerLinkActive="active" 
+                    [routerLinkActiveOptions]="{exact: false}"
+                    (click)="onMenuClick(m)" 
+                    [ngClass]="{ 'active': selectedMenu === m.label }" 
+                    [title]="m.label"
+                    [attr.aria-current]="selectedMenu === m.label ? 'page' : null">
+                    <span class="menu-icon-wrap" aria-hidden="true">
+                        <mat-icon class="menu-icon" svgIcon="{{ m.icon }}"></mat-icon>
+                    </span>
                     <span class="menu-label" *ngIf="!collapsed">{{ m.label }}</span>
                 </a>
             </ng-container>
             <ng-template #plainLink>
-                <a [routerLink]="m.path" class="menu-item" routerLinkActive="active" [routerLinkActiveOptions]="{exact: false}"
-                    (click)="onMenuClick(m)" [ngClass]="{ 'active': selectedMenu === m.label }" [title]="m.label">
-                    <mat-icon class="menu-icon" svgIcon="{{ m.icon || 'menu' }}"></mat-icon>
+                <a [routerLink]="m.path" 
+                    class="menu-item"
+                    role="menuitem"
+                    routerLinkActive="active"
+                    [routerLinkActiveOptions]="{exact: false}"
+                    (click)="onMenuClick(m)" 
+                    [ngClass]="{ 'active': selectedMenu === m.label }" 
+                    [title]="m.label"
+                    [attr.aria-current]="selectedMenu === m.label ? 'page' : null">
+                    <span class="menu-icon-wrap" aria-hidden="true">
+                        <mat-icon class="menu-icon" svgIcon="{{ m.icon || 'menu' }}"></mat-icon>
+                    </span>
                     <span class="menu-label" *ngIf="!collapsed">{{ m.label }}</span>
                 </a>
             </ng-template>
         </ng-container>
     </nav>
-    <nav class="side-bottom">
-        <!-- Display application version and copyright -->
-        <div class="app-version" *ngIf="!collapsed">
-            V1.0.0 &copy; 2026 Profluent Labs
-        </div>
-        <!-- while collapsed display only version -->
-        <div class="app-version" *ngIf="collapsed">
-            V1.0.0
-        </div>
 
-        <!-- <button class="menu-item menu-button" mat-button routerLink="/settings" routerLinkActive="active"
-            title="Settings" aria-label="Settings">
-            <mat-icon class="menu-icon">settings</mat-icon>
-            <span class="menu-label" *ngIf="!collapsed">Settings</span>
-        </button> -->
-    </nav>
+    <!-- Footer -->
+    <footer class="side-bottom">
+        <div class="app-info">
+            <p class="app-version" *ngIf="!collapsed">
+                <span class="version-label">v1.1.0</span>
+                <span class="copyright">&copy; 2026 Profluent Labs</span>
+            </p>
+            <p class="app-version" *ngIf="collapsed" title="v1.1.0">v1.1</p>
+        </div>
+    </footer>
 
     <ng-content></ng-content>
 </aside>

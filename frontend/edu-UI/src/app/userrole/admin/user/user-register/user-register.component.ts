@@ -17,6 +17,8 @@ import { MatStepperModule } from '@angular/material/stepper';
 import { RouterModule } from '@angular/router';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
+import { LoaderService } from 'src/app/shared/services/loader.service';
+
 @Component({
   selector: 'app-admin-user-register',
   standalone: true,
@@ -79,7 +81,7 @@ export class AdminUserRegisterComponent implements OnInit {
   // header select-all checkbox state for pages permissions
   selectAll: boolean = false;
 
-  constructor(private fb: FormBuilder, private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private notify: NotificationService) {
+  constructor(private fb: FormBuilder, private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private notify: NotificationService, private loader: LoaderService) {
     this.form = this.fb.group({
       institute: ['', Validators.required],
       role: ['', Validators.required],
@@ -102,6 +104,7 @@ export class AdminUserRegisterComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loader.show();
     try{
       const raw = sessionStorage.getItem('edit_user');
       if (raw) this.isEditing = true;
@@ -112,6 +115,7 @@ export class AdminUserRegisterComponent implements OnInit {
     this.setupFormListeners();
     this.loadInitialData();
     this.handleEditUserPrefill();
+    this.loader.hide();
   }
 
   private setupAuth() {
@@ -222,6 +226,7 @@ export class AdminUserRegisterComponent implements OnInit {
   }
 
   private loadInitialData() {
+    this.loader.show();
     // load institutes early so selects render; other lists are loaded when institute selected
     try { this.loadInstitutes(); } catch (e) {}
 
@@ -240,9 +245,13 @@ export class AdminUserRegisterComponent implements OnInit {
           this.loadTeams(this.loggedInstitute);
           this.loadCampusList(this.loggedInstitute);
           this.loadLocationHierarchy(this.loggedInstitute);
-        } catch (e) { }
+          this.loader.hide();
+        } catch (e) { this.loader.hide(); }
+      } else {
+        this.loader.hide();
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) { 
+      this.loader.hide(); }
   }
 
   private handleEditUserPrefill() {
@@ -295,6 +304,7 @@ export class AdminUserRegisterComponent implements OnInit {
   }
 
   loadPagesList() {
+    this.loader.show();
     const url = `${API_BASE}/get_pages_list`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -303,8 +313,9 @@ export class AdminUserRegisterComponent implements OnInit {
           this.pagesList = (data || []).map((p: any) => ({ key: p.key || p.page_id || p.id || p.name, name: p.name || p.page_name || p.page || p.key }));
           this.initPermissions();
         } catch (e) { this.pagesList = []; }
+          finally { this.loader.hide(); }
       },
-      error: (err) => { console.warn('Failed to load pages list', err); this.pagesList = []; }
+      error: (err) => { console.warn('Failed to load pages list', err); this.pagesList = []; this.loader.hide(); }
     });
   }
 
@@ -386,6 +397,7 @@ export class AdminUserRegisterComponent implements OnInit {
   }
 
   loadInstitutes() {
+    this.loader.show();
     this.loadingInstitutes = true;
     const url = `${API_BASE}/get-institute-list`;
     this.http.get<any>(url).subscribe({
@@ -395,12 +407,14 @@ export class AdminUserRegisterComponent implements OnInit {
           this.institutes = data.map((i: any) => ({ id: i.institute_id, name: i.short_name }));
         } catch (e) { this.institutes = []; }
         this.loadingInstitutes = false;
+        this.loader.hide();
       },
-      error: (err) => { console.error('Failed loading institutes', err); this.loadingInstitutes = false; this.institutes = []; }
+      error: (err) => { console.error('Failed loading institutes', err); this.loadingInstitutes = false; this.institutes = []; this.loader.hide(); }
     });
   }
 
   loadDepartments(instituteId: string) {
+    this.loader.show();
     const url = `${API_BASE}/get-department-list`;
     this.departmentsLoading = true;
     // try with institute_id param first, then fallback to institute if empty
@@ -416,9 +430,9 @@ export class AdminUserRegisterComponent implements OnInit {
             }
             this.departments = data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name }));
           } catch (e) { this.departments = []; }
-          finally { this.departmentsLoading = false; }
+          finally { this.departmentsLoading = false; this.loader.hide(); }
         },
-        error: (err) => { console.warn('Failed to load departments', err); this.departments = []; this.departmentsLoading = false; }
+        error: (err) => { console.warn('Failed to load departments', err); this.departments = []; this.departmentsLoading = false; this.loader.hide(); }
       });
     };
 
@@ -426,17 +440,20 @@ export class AdminUserRegisterComponent implements OnInit {
   }
 
   loadTeams(instituteId: string) {
+    this.loader.show();
     const url = `${API_BASE}/get-teams-list`;
     this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
       next: (res) => {
         try { const data = res?.data || []; this.teams = data.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name })); } catch (e) { this.teams = []; }
-      }, error: (err) => { console.warn('Failed to load teams', err); this.teams = []; }
+        finally { this.loader.hide(); }
+      }, error: (err) => { console.warn('Failed to load teams', err); this.teams = []; this.loader.hide(); }
     });
   }
 
 
   // New: call the dedicated campus-list endpoint
   loadCampusList(instituteId: string) {
+    this.loader.show();
     const url = `${API_BASE}/get-campus-list`;
     this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
       next: (res) => {
@@ -449,12 +466,14 @@ export class AdminUserRegisterComponent implements OnInit {
 
           }));
         } catch (e) { this.campuses = []; }
-      }, error: (err) => { console.warn('Failed to load campus-list', err); this.campuses = []; }
+        finally { this.loader.hide(); }
+      }, error: (err) => { console.warn('Failed to load campus-list', err); this.campuses = []; this.loader.hide(); }
     });
   }
 
   // New: load country/state/city hierarchy scoped to institute
   loadLocationHierarchy(instituteId: string) {
+    this.loader.show();
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
       next: (res) => {
@@ -514,8 +533,8 @@ export class AdminUserRegisterComponent implements OnInit {
             this.filteredCities = [];
           }
 
-        } catch (e) { this.countries = []; this.states = []; this.cities = []; }
-      }, error: (err) => { console.warn('Failed to load location-hierarchy for institute', err); this.countries = []; this.states = []; this.cities = []; }
+        } catch (e) { this.countries = []; this.states = []; this.cities = []; this.loader.hide(); }
+      }, error: (err) => { console.warn('Failed to load location-hierarchy for institute', err); this.countries = []; this.states = []; this.cities = []; this.loader.hide(); }
     });
   }
 
@@ -611,8 +630,10 @@ export class AdminUserRegisterComponent implements OnInit {
   }
 
   submit() {
+    this.loader.show();
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.loader.hide();
       return;
     }
     const v = this.form.value;
@@ -659,7 +680,7 @@ export class AdminUserRegisterComponent implements OnInit {
           this.notify.success(res?.statusMessage || 'User updated');
           this.router.navigate(['/view-users']);
         },
-        error: (err) => { this.submitting = false; console.error('Update failed', err); this.notify.error('Failed to update user. See console.'); }
+        error: (err) => { this.submitting = false; console.error('Update failed', err); this.notify.error('Failed to update user. See console.'); this.loader.hide(); }
       });
     } else {
       const url = `${API_BASE}/register-user`;
@@ -667,8 +688,10 @@ export class AdminUserRegisterComponent implements OnInit {
       if (!this.isSuperAdmin && this.loggedInstitute) payload.institute_id = payload.institute_id || this.loggedInstitute;
       this.http.post<any>(url, payload).subscribe({
         next: (res) => { this.submitting = false; this.notify.success(res?.statusMessage || 'User registered'); this.router.navigate(['/view-users']); },
+        complete: () => { this.loader.hide(); },
         error: (err) => {
           this.submitting = false;
+          this.loader.hide();
           console.error('Register failed', err);
           const serverMsg = err?.error?.statusMessage || err?.error?.message || err?.statusMessage || err?.message || (typeof err === 'string' ? err : null);
           this.notify.error(serverMsg ? `Failed to register user. ${serverMsg}` : 'Failed to register user.');
@@ -757,7 +780,8 @@ export class AdminUserRegisterComponent implements OnInit {
 
   // Confirm upload after successful validation or direct upload
   confirmUpload() {
-    if (!this.bulkFile) { this.notify.error('Please select a file to upload'); return; }
+    this.loader.show();
+    if (!this.bulkFile) { this.notify.error('Please select a file to upload'); this.loader.hide(); return; }
     const url = `${API_BASE}/bulk-register-users`;
     const fd = new FormData();
     fd.append('file', this.bulkFile, this.bulkFile.name);
@@ -774,7 +798,8 @@ export class AdminUserRegisterComponent implements OnInit {
           this.bulkPreviewRows = [];
         }
       },
-      error: (err) => { console.error('Bulk upload failed', err); this.bulkUploading = false; this.bulkUploadResult = 'Upload failed. See console for details.'; }
+      error: (err) => { console.error('Bulk upload failed', err); this.bulkUploading = false; this.bulkUploadResult = 'Upload failed. See console for details.'; this.loader.hide(); },
+      complete: () => { this.loader.hide(); }
     });
   }
 
@@ -783,8 +808,10 @@ export class AdminUserRegisterComponent implements OnInit {
 
   // fetch user license/limit info for the selected institute (used by bulk upload UI)
   fetchBulkUserLimit(instituteId: string) {
+    this.loader.show();
     if (!instituteId) {
       this.bulkUserLimit = { max_user_limit: null, available_licenses: null, already_assigned: null };
+      this.loader.hide();
       return;
     }
     this.bulkLimitLoading = true;
@@ -801,7 +828,9 @@ export class AdminUserRegisterComponent implements OnInit {
         } catch (e) { this.bulkUserLimit = { max_user_limit: null, available_licenses: null, already_assigned: null }; }
         this.bulkLimitLoading = false;
       },
-      error: (err) => { console.warn('Failed to load user limits', err); this.bulkLimitLoading = false; this.bulkUserLimit = { max_user_limit: null, available_licenses: null, already_assigned: null }; }
+      error: (err) => { console.warn('Failed to load user limits', err); this.bulkLimitLoading = false; this.bulkUserLimit = { max_user_limit: null, available_licenses: null, already_assigned: null }; this.loader.hide(); },
+      complete: () => { this.loader.hide(); }
+
     });
   }
 

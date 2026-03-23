@@ -13,16 +13,18 @@ import { RouterModule } from '@angular/router';
 @Component({
   selector: 'app-admin-results',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, DynamicChartComponent, MatSelectModule, MatIconModule, MatButtonModule, RouterModule],
+  imports: [CommonModule, HttpClientModule, DynamicChartComponent, MatSelectModule, MatFormFieldModule, MatIconModule, MatButtonModule, RouterModule],
   templateUrl: './results.component.html',
   styleUrls: ['./results.component.scss']
 })
 export class AdminResultsComponent implements OnInit {
-  metrics = {
+  metrics: any = {
     totalStudents: 1240,
     testsScheduled: 12,
     attemptsToday: 86,
-    avgScore: 72
+    avgScore: 72,
+    passRate: null,
+    activeUsers: null
   };
   upcomingTests: Array<{ title: string; class: string; start: Date }> = [];
 
@@ -36,7 +38,7 @@ export class AdminResultsComponent implements OnInit {
   constructor(private http: HttpClient, private pageMeta: PageMetaService) {}
 
   ngOnInit(): void {
-    try { this.pageMeta.setMeta('Admin Dashboard', 'Overview'); } catch(e){}
+    try { this.pageMeta.setMeta('Admin Dashboard', 'Institute analytics & test management'); } catch(e){}
     this.loadDashboard();
     this.loadInstitutes();
   }
@@ -60,7 +62,7 @@ export class AdminResultsComponent implements OnInit {
     this.loadDashboard();
   }
 
-  private loadDashboard(){
+  loadDashboard(){
     const params = this.selectedInstituteId ? `?institute_id=${encodeURIComponent(this.selectedInstituteId)}` : '';
     this.http.get<any>(this.apiUrl + params).subscribe({
       next: (res) => this.applyDashboardData(res),
@@ -75,6 +77,8 @@ export class AdminResultsComponent implements OnInit {
     this.metrics.testsScheduled = s.scheduled_tests ?? s.testsScheduled ?? this.metrics.testsScheduled;
     this.metrics.attemptsToday = s.attempts_today ?? s.attemptsToday ?? this.metrics.attemptsToday;
     this.metrics.avgScore = s.avg_score ?? s.avgScore ?? this.metrics.avgScore;
+    this.metrics.passRate = s.pass_rate ?? s.passRate ?? null;
+    this.metrics.activeUsers = s.active_users ?? s.activeUsers ?? null;
 
     this.upcomingTests = (res.upcoming_tests || res.upcoming || res.details?.upcoming || []).map((t:any)=>({ title: t.title || t.name || 'Test', class: t.class || t.group || '-', start: new Date(t.start || t.scheduled_at || Date.now()) }));
 

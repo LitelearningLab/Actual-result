@@ -333,6 +333,29 @@ def update_question(question_id, request):
     except Exception as e:
         session.rollback()
         return {"statusMessage": str(e), "status": False}, 500
+
+def delete_question(question_id, deleted_by):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    question = session.query(Question).filter_by(question_id=question_id).first()
+    if not question:
+        return {"statusMessage": "Question not found", "status": False}, 404
+
+    try:
+        # delete related options
+        session.query(Option).filter_by(question_id=question_id).delete()
+        # delete question mappings
+        session.query(QuestionMapping).filter_by(question_id=question_id).delete()
+        # delete the question
+        session.delete(question)
+        session.commit()
+        return {"statusMessage": "Question deleted successfully", "status": True}, 200
+    except Exception as e:
+        session.rollback()
+        return {"statusMessage": f"Error deleting question: {str(e)}", "status": False}, 500
     
 def default_result():
     result = {
@@ -423,20 +446,22 @@ def create_question_using_llm(request):
     question_mark = int(gv("marks_per_question", 2) or 2)
     if question_mark >= 2 and question_mark <=4:
         recommended_words_count = '60-65 words'
-        character_count = '450 characters'
+        character_count = 450
     elif question_mark >= 5 and question_mark <=9:
         recommended_words_count = '250-280 words'
-        character_count = '2000 characters'
+        character_count = 2000
     elif question_mark >= 10 and question_mark <=15:
         recommended_words_count = '550-600 words'
-        character_count = '4000 characters'
+        character_count = 4000
     else:
         recommended_words_count = 'as appropriate'
-        character_count = 'as appropriate'
+        character_count = 500  # default estimate
     aimodel = 2 if question_mark <5 else 1
     openai_client_instance = openai_client()
 
-# You are an expert question setter and evaluator. Your task is to create a question and answer based on the provided source text and parameters.
+    # Token calculation based on number of questions and character count
+    total_tokens_estimate = number_of_questions * character_count // 4
+
     system_message = '''You are an expert question setter and evaluator. Your task is to create a question and answer based on the provided source text and parameters.
     Note for Question Type : 
         'fill' --> Filling the blanks
@@ -457,7 +482,7 @@ def create_question_using_llm(request):
     - Source Text: {source_text}
     - Additional Instructions: {additional_instructions}
     - Question Mark: {question_mark}
-    - Recommended Answer Length: approximately {recommended_words_count} - ({character_count}) (±10%),
+    - Recommended Answer Length: approximately {recommended_words_count} - ({character_count} characters) (±10%),
     Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
     [
         {{
@@ -470,8 +495,10 @@ def create_question_using_llm(request):
     ]
     If only a single question is requested, returning a single JSON object is also acceptable. Ensure the output is valid JSON with no surrounding markdown or text.
     '''
+    # Token calculation based on number of questions and character/ word count
+    total_tokens_estimate = number_of_questions * character_count // 4  
     try:
-        response = openai_client_instance.chat_completion(system_message, user_message, aimodel = aimodel)
+        response = openai_client_instance.chat_completion(system_message, user_message, aimodel = aimodel, max_tokens= total_tokens_estimate + 500)
         # with open("debug_response.json", "w") as debug_file:
         #     debug_file.write(response.text)
         response_json = response.json()

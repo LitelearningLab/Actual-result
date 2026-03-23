@@ -1,81 +1,236 @@
-<div class="register-page">
-  <div class="register-container">
-    <div class="register-left">
-      <img src="assets/images/register.png" alt="Register illustration" class="register-illustration" />
+<div class="register-root">
+
+  <!-- ─── Left: Brand Panel ─── -->
+  <aside class="register-brand-panel">
+    <div class="brand-panel-bg" aria-hidden="true">
+      <div class="brand-shape brand-shape--1"></div>
+      <div class="brand-shape brand-shape--2"></div>
+      <div class="brand-grid-overlay"></div>
     </div>
 
-    <div class="register-right">
-      <div class="register-card card">
-        <div class="card-header">
-          <img src="assets/images/edu-small.png" alt="logo" class="logo-small" />
+    <div class="brand-panel-content">
+      <div class="brand-logo" routerLink="/" role="button" tabindex="0" aria-label="Go to homepage">
+        <img src="assets/images/profluent-lab.png" alt="Profluent Lab logo" loading="lazy" />
+      </div>
+
+      <header>
+        <h1 class="brand-headline">Start your free trial<br />in minutes.</h1>
+        <p class="brand-sub">No credit card required. Get instant access to the full platform and see why many institutions trust Profluent Lab.</p>
+      </header>
+
+      <ul class="brand-checklist" role="list">
+        <li class="check-item">
+          <mat-icon fontSet="material-icons-outlined">check_circle</mat-icon>
+          <span>14-day free trial with full access</span>
+        </li>
+        <li class="check-item">
+          <mat-icon fontSet="material-icons-outlined">check_circle</mat-icon>
+          <span>Unlimited exams &amp; question banks</span>
+        </li>
+        <li class="check-item">
+          <mat-icon fontSet="material-icons-outlined">check_circle</mat-icon>
+          <span>AI proctoring &amp; real-time analytics</span>
+        </li>
+        <li class="check-item">
+          <mat-icon fontSet="material-icons-outlined">check_circle</mat-icon>
+          <span>Dedicated onboarding support</span>
+        </li>
+        <li class="check-item">
+          <mat-icon fontSet="material-icons-outlined">check_circle</mat-icon>
+          <span>Cancel anytime — no lock-in</span>
+        </li>
+      </ul>
+
+      <blockquote class="brand-testimonial">
+        <p>"We onboarded 2,000 students in under a week. The setup was incredibly smooth."</p>
+        <footer class="testimonial-author">
+          <div class="author-avatar" aria-hidden="true">RS</div>
           <div>
-            <h2>Create your account</h2>
-            <p class="subtitle">Sign up to create, manage and take secure online exams.</p>
+            <strong>Raj Singh</strong>
+            <span>CTO, EdTech Corp</span>
           </div>
+        </footer>
+      </blockquote>
+    </div>
+
+    <p class="brand-footer">© 2026 Profluent Lab · <a routerLink="/privacy">Privacy</a> · <a routerLink="/terms">Terms</a></p>
+  </aside>
+
+  <!-- ─── Right: Register Form ─── -->
+  <main class="register-form-panel">
+    <article class="register-card">
+
+      <header class="register-header">
+        <div class="register-icon-badge" aria-hidden="true">
+          <mat-icon fontSet="material-icons-outlined">play_circle</mat-icon>
+        </div>
+        <h2 class="register-heading">Request a Demo</h2>
+        <p class="register-sub">Fill in your details to get started with Profluent Lab</p>
+      </header>
+
+      <form class="register-form" [formGroup]="demoForm" (ngSubmit)="onSubmit()">
+
+        <!-- Personal Info Section -->
+        <fieldset class="form-section">
+          <legend class="form-section-label">
+            <mat-icon fontSet="material-icons-outlined">person</mat-icon>
+            <span>Personal Information</span>
+          </legend>
+
+          <div class="form-grid">
+            <div class="field-group">
+              <label class="field-label" for="firstName">First name *</label>
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-icon matPrefix fontSet="material-icons-outlined">badge</mat-icon>
+                <input matInput formControlName="firstName" id="firstName" placeholder="John" aria-describedby="firstName-error" />
+                <mat-error id="firstName-error" *ngIf="hasError('firstName', 'required')">First name is required</mat-error>
+                <mat-error *ngIf="hasError('firstName', 'minlength')">Minimum 2 characters</mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="lastName">Last name *</label>
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-icon matPrefix fontSet="material-icons-outlined">badge</mat-icon>
+                <input matInput formControlName="lastName" id="lastName" placeholder="Doe" aria-describedby="lastName-error" />
+                <mat-error id="lastName-error" *ngIf="hasError('lastName', 'required')">Last name is required</mat-error>
+                <mat-error *ngIf="hasError('lastName', 'minlength')">Minimum 2 characters</mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="email">Work email *</label>
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-icon matPrefix fontSet="material-icons-outlined">mail</mat-icon>
+                <input matInput type="email" formControlName="email" id="email" placeholder="you&#64;company.com" aria-describedby="email-error" />
+                <mat-error id="email-error" *ngIf="hasError('email', 'required')">Email is required</mat-error>
+                <mat-error *ngIf="hasError('email', 'email')">Please enter a valid email</mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="phone">Phone number</label>
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-icon matPrefix fontSet="material-icons-outlined">call</mat-icon>
+                <input matInput type="tel" formControlName="phone" id="phone" placeholder="+91 98765 43210" />
+              </mat-form-field>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Organization Section -->
+        <fieldset class="form-section">
+          <legend class="form-section-label">
+            <mat-icon fontSet="material-icons-outlined">apartment</mat-icon>
+            <span>Organization Details</span>
+          </legend>
+
+          <div class="form-grid">
+            <div class="field-group">
+              <label class="field-label" for="organization">Organization name *</label>
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-icon matPrefix fontSet="material-icons-outlined">domain</mat-icon>
+                <input matInput formControlName="organization" id="organization" placeholder="Your company or institute" aria-describedby="org-error" />
+                <mat-error id="org-error" *ngIf="hasError('organization', 'required')">Organization name is required</mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="role">Your role</label>
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-icon matPrefix fontSet="material-icons-outlined">work</mat-icon>
+                <mat-select formControlName="role" id="role" placeholder="Select your role">
+                  <mat-option value="admin">Administrator</mat-option>
+                  <mat-option value="it-head">IT Head / CTO</mat-option>
+                  <mat-option value="dean">Dean / Principal</mat-option>
+                  <mat-option value="instructor">Instructor / Faculty</mat-option>
+                  <mat-option value="hr">HR / Training Manager</mat-option>
+                  <mat-option value="other">Other</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="teamSize">Team size</label>
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-icon matPrefix fontSet="material-icons-outlined">groups</mat-icon>
+                <mat-select formControlName="teamSize" id="teamSize" placeholder="Expected users">
+                  <mat-option value="1-50">1 – 50</mat-option>
+                  <mat-option value="51-200">51 – 200</mat-option>
+                  <mat-option value="201-1000">201 – 1,000</mat-option>
+                  <mat-option value="1001-5000">1,001 – 5,000</mat-option>
+                  <mat-option value="5000+">5,000+</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="source">How did you hear about us?</label>
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-icon matPrefix fontSet="material-icons-outlined">campaign</mat-icon>
+                <mat-select formControlName="source" id="source" placeholder="Select source">
+                  <mat-option value="search">Google / Search</mat-option>
+                  <mat-option value="social">Social Media</mat-option>
+                  <mat-option value="referral">Referral / Word of mouth</mat-option>
+                  <mat-option value="event">Conference / Event</mat-option>
+                  <mat-option value="other">Other</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Additional Info Section -->
+        <fieldset class="form-section">
+          <legend class="form-section-label">
+            <mat-icon fontSet="material-icons-outlined">description</mat-icon>
+            <span>Additional Information</span>
+          </legend>
+          <div class="field-group full-width">
+            <label class="field-label" for="requirements">Tell us about your requirements</label>
+            <mat-form-field appearance="outline" class="form-field">
+              <mat-icon matPrefix fontSet="material-icons-outlined">edit_note</mat-icon>
+              <textarea matInput formControlName="requirements" id="requirements" placeholder="Any specific needs or questions?" rows="3"></textarea>
+            </mat-form-field>
+          </div>
+        </fieldset>
+
+        <div class="form-agreement">
+          <mat-checkbox color="primary" formControlName="agreedToTerms">
+            I agree to the <a routerLink="/terms">Terms of Service</a> and <a routerLink="/privacy">Privacy Policy</a>
+          </mat-checkbox>
+          <mat-error *ngIf="hasError('agreedToTerms', 'required')" class="terms-error" role="alert">
+            You must agree to the terms
+          </mat-error>
         </div>
 
-        <form class="register-form" (submit)="$event.preventDefault()">
-          <div class="form-grid">
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-label>Full name</mat-label>
-              <mat-icon matPrefix>person</mat-icon>
-              <input matInput name="name" placeholder="John Doe" />
-            </mat-form-field>
+        <div class="form-actions">
+          <button mat-flat-button color="primary" type="submit" class="submit-btn" [disabled]="isSubmitting || demoForm.invalid" aria-live="polite">
+            <span *ngIf="!isSubmitting">Request Demo</span>
+            <span *ngIf="isSubmitting">Submitting...</span>
+            <mat-icon *ngIf="!isSubmitting" fontSet="material-icons-outlined">arrow_forward</mat-icon>
+            <mat-icon *ngIf="isSubmitting" fontSet="material-icons-outlined" class="spin">sync</mat-icon>
+          </button>
+        </div>
 
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-label>Email</mat-label>
-              <mat-icon matPrefix>email</mat-icon>
-              <input matInput type="email" name="email" placeholder="you@school.edu" />
-            </mat-form-field>
+        <div class="register-divider" role="separator"><span>or</span></div>
 
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-label>Institute</mat-label>
-              <mat-icon matPrefix>business</mat-icon>
-              <input matInput name="institute" placeholder="Institute name (optional)" />
-            </mat-form-field>
+        <nav class="register-alt-actions" aria-label="Alternative actions">
+          <a routerLink="/login" class="alt-link">
+            Already have an account? <strong>Sign in</strong>
+          </a>
+        </nav>
 
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-label>Role</mat-label>
-              <mat-icon matPrefix>badge</mat-icon>
-              <mat-select name="role">
-                <mat-option value="student">Student</mat-option>
-                <mat-option value="instructor">Instructor</mat-option>
-                <mat-option value="admin">Admin</mat-option>
-              </mat-select>
-            </mat-form-field>
+      </form>
 
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-label>Phone</mat-label>
-              <mat-icon matPrefix>phone</mat-icon>
-              <input matInput type="tel" name="phone" placeholder="+1 555 555 5555" />
-            </mat-form-field>
+      <footer class="register-footer">
+        <a routerLink="/" class="back-home-link">
+          <mat-icon fontSet="material-icons-outlined">arrow_back</mat-icon>
+          <span>Back to Home</span>
+        </a>
+      </footer>
 
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-label>Password</mat-label>
-              <mat-icon matPrefix>lock</mat-icon>
-              <input matInput type="password" name="password" placeholder="Create password" />
-            </mat-form-field>
+    </article>
+  </main>
 
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-label>Confirm password</mat-label>
-              <mat-icon matPrefix>lock</mat-icon>
-              <input matInput type="password" name="confirmPassword" placeholder="Re-enter password" />
-            </mat-form-field>
-          </div>
-
-          <div class="file-row">
-            <label class="file-label">
-              <input type="file" name="profile" accept="image/*" />
-              <span>Upload profile image (optional)</span>
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button type="submit" class="btn-primary">Create account</button>
-            <a routerLink="/login" class="btn-outline">Already have an account?</a>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
 </div>

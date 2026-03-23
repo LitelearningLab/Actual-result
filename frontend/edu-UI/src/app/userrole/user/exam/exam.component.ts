@@ -83,7 +83,9 @@ export class UserExamComponent{
     selected_option?: string[],
     is_correct?: boolean | number,
     marks_awarded?: number,
-    feedback?: string
+    question_marks?: number,
+    feedback?: string,
+    review_comment?: { comments?: any[] }
   }>, score?: number, started_date?: string, submitted_date?: string, status?: string, percentage?: number, total_questions?: number, total_marks?: number, time_taken?: string, result?: string }> = [];
   reviewSelectedAttempt = 0;
 
@@ -135,7 +137,9 @@ export class UserExamComponent{
                     selected_option: selectedArr,
                     is_correct: itemIsCorrect,
                     marks_awarded: (typeof it.marks_awarded !== 'undefined') ? it.marks_awarded : (typeof it.marks !== 'undefined' ? it.marks : 0),
-                    feedback: it.feedback || null
+                    question_marks: (typeof it.question_marks !== 'undefined') ? it.question_marks : (typeof it.marks !== 'undefined' ? it.marks : 0),
+                    feedback: it.feedback || null,
+                    review_comment: it.review_comment || it.reviewComment || null
                   } as any;
                 });
                 return {
@@ -161,6 +165,26 @@ export class UserExamComponent{
   }
 
   closeReview(){ this.reviewOpen = false; this.reviewAttempts = []; this.reviewSelectedAttempt = 0; }
+
+  /** Filter review comments by category (missing / incorrect / incomplete) */
+  reviewComments(q: any, categories: string | string[]): any[] {
+    try {
+      const comments = (q && q.review_comment && Array.isArray(q.review_comment.comments)) ? q.review_comment.comments : [];
+      if (!comments || !comments.length) return [];
+      const cats = Array.isArray(categories) ? categories.map(String) : [String(categories)];
+      const normalized = cats.map(c => (c || '').toString().toLowerCase());
+      return (comments || []).filter((c: any) => normalized.includes(((c && c.category) || '').toString().toLowerCase()));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /** Convert string to Title Case */
+  toTitleCase(str: string | null | undefined): string {
+    if (!str) return '';
+    return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+  }
+
   ngOnInit(): void{
 
     this.pageMeta.setMeta('User Exams', 'Explore and manage your exams');
