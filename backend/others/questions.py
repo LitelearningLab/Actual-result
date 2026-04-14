@@ -174,7 +174,8 @@ def get_questions_details(request):
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list))
         if args.get("category_name"):
-            category_data = session.query(Categories).filter(Categories.name.ilike(f"%{args.get('category_name')}%"), Categories.public_access==public_access).all()
+            # category_data = session.query(Categories).filter(Categories.name.ilike(f"%{args.get('category_name')}%"), Categories.public_access==public_access).all()
+            category_data = session.query(Categories).filter(Categories.name == f"{args.get('category_name')}", Categories.public_access==public_access).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
