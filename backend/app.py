@@ -546,6 +546,6 @@ CORS(app, resources={r"/edu/api/*": {"origins": "*" }}, supports_credentials=Tru
 
 app.register_blueprint(edu_blueprint)
 if __name__ == '__main__':
-    # app.run(debug=True, host='0.0.0.0', port=5001)
-    app.run(debug=False, host='0.0.0.0', port=5001)# (venv) ubuntu@profluent--ar-webportal:/opt/ActualResults/backend$
+    app.run(debug=True, host='0.0.0.0', port=5001)
+    # app.run(debug=False, host='0.0.0.0', port=5001)# (venv) ubuntu@profluent--ar-webportal:/opt/ActualResults/backend$
  
