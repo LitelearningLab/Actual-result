@@ -36,3 +36,4 @@ backend/venv/
 # Environment variables
 backend/.env
 /.vscode
+frontend/edu-UI/src/app/shared/api.config.ts

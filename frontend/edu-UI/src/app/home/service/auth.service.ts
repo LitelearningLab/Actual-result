@@ -73,6 +73,7 @@ export class AuthService {
               this._user.next(u);
               // also set username for legacy components
               if (u.name) sessionStorage.setItem('username', u.name);
+              if (u.user_id) sessionStorage.setItem('user_id',u.user_id);
               if (u.role) sessionStorage.setItem('userRole', u.role);
               if (u.institute) sessionStorage.setItem('institute', u.institute);
               if (u.institute_id) sessionStorage.setItem('institute_id', u.institute_id.toString());
