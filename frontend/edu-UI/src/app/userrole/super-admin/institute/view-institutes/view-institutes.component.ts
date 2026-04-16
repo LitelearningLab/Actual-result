@@ -296,7 +296,7 @@ export class ViewInstitutesComponent {
 
   loadCountries(){
     const url = `${API_BASE}/location-hierarchy`;
-  this.loader.show();
+  // this.loader.show();
   this.http.get<any>(url).subscribe({
       next: (res) => {
       try{
@@ -329,8 +329,8 @@ export class ViewInstitutesComponent {
         this.states = (allStates || []).map((s:any) => ({ code: s.state_code || s.code || s.id, name: s.state_name || s.name || s.state }));
       }catch(e){ this.countries = []; this.cities = []; }
     },
-    error: () => { this.countries = []; this.cities = []; try{ this.loader.hide(); }catch(e){} },
-    complete: () => { try{ this.loader.hide(); }catch(e){} }
+    error: () => { this.countries = []; this.cities = [];  },
+    complete: () => { }
   });
   }
 
