@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { API_BASE } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -58,7 +58,7 @@ export class UserExamComponent{
   private examsUrl = `${API_BASE}/get-user-exams-details`;
   private launchUrl = `${API_BASE}/launch-exam`;
 
-  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService ){
+  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService, private router: Router ){
     // try to read institute id from sessionStorage
     try{
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
@@ -333,7 +333,8 @@ export class UserExamComponent{
         // store the returned exam payload (questions etc) in sessionStorage for the user-exam page
         try{ sessionStorage.setItem('launched_exam', JSON.stringify(res?.data || res)); }catch(e){}
         // navigate to user exam page
-        window.location.href = '/user-exam';
+        // window.location.href = '/user-exam';
+        this.router.navigate(['/user-exam'])
       },
       error: (err) => { console.warn('Failed to launch exam', err); try { notify('Could not launch exam', 'error'); } catch(e){} }
     });

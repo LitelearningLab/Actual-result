@@ -186,7 +186,10 @@ export class ViewUsersComponent {
       const id = u.id || (u.raw && (u.raw.user_id || u.raw.id));
       if (!id) { try { notify('User id missing', 'error'); } catch(e){}; u.active = prev; return; }
       const url = `${API_BASE}/user/${newState ? 'activate' : 'deactivate'}/${encodeURIComponent(String(id))}`;
-      this.http.put<any>(url, { current_user: sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || '' }).subscribe({
+      const currentUserRaw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
+      let current_user: any = null;
+      try { current_user = currentUserRaw ? JSON.parse(currentUserRaw) : null; } catch (e) { current_user = currentUserRaw || null; }
+      this.http.put<any>(url, { current_user: current_user.user_id || '' }).subscribe({
         next: (res) => { try { notify(`User ${newState ? 'activated' : 'deactivated'}`, 'success'); } catch(e){} },
         error: (err) => { console.error('Failed toggling user active', err); try { notify('Failed to update user status', 'error'); } catch(e){}; u.active = prev; }
       });
