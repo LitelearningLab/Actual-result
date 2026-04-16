@@ -183,6 +183,7 @@ export class ViewUsersComponent {
       // optimistic update
       const prev = u.active;
       u.active = newState;
+      this.loading.show();
       const id = u.id || (u.raw && (u.raw.user_id || u.raw.id));
       if (!id) { try { notify('User id missing', 'error'); } catch(e){}; u.active = prev; return; }
       const url = `${API_BASE}/user/${newState ? 'activate' : 'deactivate'}/${encodeURIComponent(String(id))}`;
@@ -191,7 +192,8 @@ export class ViewUsersComponent {
       try { current_user = currentUserRaw ? JSON.parse(currentUserRaw) : null; } catch (e) { current_user = currentUserRaw || null; }
       this.http.put<any>(url, { current_user: current_user.user_id || '' }).subscribe({
         next: (res) => { try { notify(`User ${newState ? 'activated' : 'deactivated'}`, 'success'); } catch(e){} },
-        error: (err) => { console.error('Failed toggling user active', err); try { notify('Failed to update user status', 'error'); } catch(e){}; u.active = prev; }
+        error: (err) => { console.error('Failed toggling user active', err); try { notify('Failed to update user status', 'error'); } catch(e){}; u.active = prev; },
+        complete: () => this.loading.hide()
       });
     });
   }
@@ -620,7 +622,9 @@ export class ViewUsersComponent {
           try { notify('User removed locally', 'info'); } catch (e) {}
           return;
         }
-        const url = `${API_BASE}/delete/user/${encodeURIComponent(String(uuid))}`;
+        // let current_user= '';
+        const current_user = sessionStorage.getItem('user_id')
+        const url = `${API_BASE}/delete/user/${encodeURIComponent(String(uuid))}?current_user=${encodeURIComponent(String(current_user))}`;
         try { this.loading.show(); } catch(e) {}
         this.http.delete<any>(url, { observe: 'response' }).subscribe({
           next: (res) => {

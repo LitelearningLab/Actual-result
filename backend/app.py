@@ -31,9 +31,9 @@ import os
 if load_dotenv():
     load_dotenv()
 else:
-    load_dotenv(dotenv_path=r".\backend\.env")
-    # env_path = "/opt/ActualResults/backend/.env"
-    # load_dotenv(dotenv_path=env_path)
+    # load_dotenv(dotenv_path=r".\backend\.env")
+    env_path = "/opt/ActualResults/backend/.env"
+    load_dotenv(dotenv_path=env_path)
 
 # read jwt_secret
 jwt_secret = os.getenv('jwt_secret', 'your_jwt_secret')
@@ -135,7 +135,7 @@ def delete_page(page, id):
         from others.exams import delete_exam
         response_data, status_code = delete_exam(id, deleted_by)
     elif page == 'exam-schedule' or page == 'exam-schedules' or page == 'schedule':
-        response_data, status_code = delete_exam_schedule(id)
+        response_data, status_code = delete_exam_schedule(id, deleted_by)
     else:
         return jsonify({"statusMessage": f"Unknown page '{page}'", "status": False}), 400
     return jsonify(response_data), status_code
@@ -262,22 +262,6 @@ def update_review_comments_route(action):
 def update_descriptive_marks_route():
     from others.exam_review import update_descriptive_marks
     response_data, status_code = update_descriptive_marks(request)
-    return jsonify(response_data), status_code
-
-@edu_blueprint.route('/delete-scheduled-exam', methods=['DELETE', 'OPTIONS'])
-def delete_scheduled_exam_route():
-    # Handle CORS preflight
-    if request.method == 'OPTIONS':
-        return jsonify({}), 200
-    # Validate JWT for DELETE
-    validation_result = initialize_jwt_validator(request)
-    if validation_result != "Access granted":
-        return jsonify({"status": False, "statusMessage": validation_result}), 401
-    
-    schedule_id = request.args.get('id')
-    if not schedule_id:
-        return jsonify({"statusMessage": "id is required", "status": False}), 400
-    response_data, status_code = delete_exam_schedule(schedule_id)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/delete-exam', methods=['DELETE', 'OPTIONS'])

@@ -8,7 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-
+import { LoaderService } from 'src/app/shared/services/loader.service';
 @Component({
   selector: 'app-user-dashboard',
   standalone: true,
@@ -24,7 +24,7 @@ export class UserDashboardComponent implements OnInit {
   users: Array<any> = [];
   institutes: Array<any> = [];
 
-  constructor(private pageMeta: PageMetaService, private svc: UserDashboardService){ }
+  constructor(private pageMeta: PageMetaService, private svc: UserDashboardService,private loader: LoaderService){ }
 
   ngOnInit(): void {
     try{ this.pageMeta.setMeta('User Dashboard','Performance overview & analytics'); } catch(e){}
@@ -50,6 +50,7 @@ export class UserDashboardComponent implements OnInit {
   }
 
   onInstituteChange(id:any){
+    this.loader.show();
     this.selectedInstituteId = id;
     // load users for this institute
     this.svc.getUsersByInstitute(this.selectedInstituteId).subscribe({ next: (res:any)=>{
@@ -58,7 +59,7 @@ export class UserDashboardComponent implements OnInit {
       else this.users = Array.isArray(res) ? res : [];
       // reset selected user to appropriate default
       this.setDefaultUser();
-    }, error: (err)=>{ console.warn('failed to load users for institute', err); this.users = []; this.setDefaultUser(); } });
+    }, error: (err)=>{ console.warn('failed to load users for institute', err); this.users = []; this.setDefaultUser(); },complete: () => this.loader.hide() });
   }
 
   onUserChange(id:any){
@@ -67,7 +68,8 @@ export class UserDashboardComponent implements OnInit {
   }
 
   loadDashboard(){
-    this.svc.getDashboard(this.selectedUserId).subscribe({ next: (res:any)=> this.applyDashboard(res), error: (err)=> console.warn('user dashboard load failed', err) });
+    this.loader.show();
+    this.svc.getDashboard(this.selectedUserId).subscribe({ next: (res:any)=> this.applyDashboard(res), error: (err)=> console.warn('user dashboard load failed', err),complete: () => this.loader.hide() });
   }
 
   private applyDashboard(res:any){

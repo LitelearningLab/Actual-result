@@ -156,9 +156,10 @@ export class CategoryComponent implements OnInit, AfterViewInit {
       const prev = [...this.categories];
       this.categories = this.categories.filter(x => x.id !== c.id);
       this.dataSource.data = this.categories;
-      const url = `${API_BASE}/category/${encodeURIComponent(String(id))}/manage`;
+      const current_user = sessionStorage.getItem('user_id')
+      const url = `${API_BASE}/delete/category/${encodeURIComponent(String(id))}?current_user=${encodeURIComponent(String(current_user))}`;
       // call backend generic manage route (category/delete)
-      this.http.put<any>(`${API_BASE}/category/delete/${encodeURIComponent(String(id))}`, { current_user: sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || '' }).subscribe({
+      this.http.delete<any>(url , { }).subscribe({
         next: (res) => { try { notify('Category deleted', 'success'); } catch(e) {} },
         error: (err) => { console.error('Failed deleting category', err); try { notify('Failed to delete category', 'error'); } catch(e) {}; this.categories = prev; this.dataSource.data = this.categories; }
       });

@@ -9,7 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
-
+import { LoaderService } from 'src/app/shared/services/loader.service';
 @Component({
   selector: 'app-admin-results',
   standalone: true,
@@ -35,7 +35,7 @@ export class AdminResultsComponent implements OnInit {
 
   private apiUrl = `${API_BASE}/admin-dashboard`;
 
-  constructor(private http: HttpClient, private pageMeta: PageMetaService) {}
+  constructor(private http: HttpClient, private pageMeta: PageMetaService,private loader: LoaderService) {}
 
   ngOnInit(): void {
     try { this.pageMeta.setMeta('Admin Dashboard', 'Institute analytics & test management'); } catch(e){}
@@ -44,6 +44,7 @@ export class AdminResultsComponent implements OnInit {
   }
 
   private loadInstitutes(){
+    this.loader.show();
     const url = `${API_BASE}/institutes/list`;
     this.http.get<any>(url).subscribe({
       next: (res)=>{
@@ -53,7 +54,7 @@ export class AdminResultsComponent implements OnInit {
         if(loginInst) this.selectedInstituteId = String(loginInst);
         else if(this.institutes.length) this.selectedInstituteId = this.institutes[0].id;
       },
-      error: (err)=> console.warn('Failed to load institutes', err)
+      error: (err)=> console.warn('Failed to load institutes', err),complete: () => this.loader.hide()
     });
   }
 
@@ -63,10 +64,11 @@ export class AdminResultsComponent implements OnInit {
   }
 
   loadDashboard(){
+    this.loader.show();
     const params = this.selectedInstituteId ? `?institute_id=${encodeURIComponent(this.selectedInstituteId)}` : '';
     this.http.get<any>(this.apiUrl + params).subscribe({
       next: (res) => this.applyDashboardData(res),
-      error: (err) => console.warn('Failed to load dashboard', err)
+      error: (err) => console.warn('Failed to load dashboard', err),complete: () => this.loader.hide()
     });
   }
 
