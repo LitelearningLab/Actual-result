@@ -418,12 +418,16 @@ export class ViewQuestionsComponent implements OnDestroy {
   deleteQuestion(q: QuestionRow) {
     this.confirmService.confirm({ title: 'Delete Question', message: 'Delete this question? This action cannot be undone.', confirmText: 'Delete', cancelText: 'Cancel' }).subscribe(ok => {
       if (!ok) return;
-      const url = `${this.questionsUrl}?question_id=${encodeURIComponent(String(q.id))}`;
+      // const url = `${this.questionsUrl}?question_id=${encodeURIComponent(String(q.id))}`;
+      const url = `${API_BASE}/delete/question/${encodeURIComponent(String(q.id))}`;
       this.http!.delete<any>(url).subscribe({
         next: (res) => {
           // remove from local array
           this.questions = this.questions.filter(x => x.id !== q.id);
-          try { notify('Question deleted', 'success'); } catch(e) {}
+          try { 
+            notify('Question deleted', 'success');
+            this.loadQuestions();
+           } catch(e) {}
         },
         error: (err) => { console.warn('Failed to delete question', err); try { notify('Failed to delete question', 'error'); } catch(e) {} }
       });

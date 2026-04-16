@@ -429,7 +429,9 @@ export class ViewScheduleExamComponent implements OnInit, AfterViewInit {
         next: () => {
           this.schedules = this.schedules.filter(s => s.id !== id);
           this.dataSource.data = this.schedules;
-          try { notify('Schedule deleted', 'success'); } catch(e) {}
+          try { notify('Schedule deleted', 'success');
+            this.loadSchedules(this.selectedInstitute || undefined);
+           } catch(e) {}
         }, error: (err) => {
           console.error('Failed to delete schedule', err);
           try { notify('Failed to delete schedule', 'error'); } catch(e) {}
