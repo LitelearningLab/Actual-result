@@ -1,7 +1,7 @@
 from db.models import Categories, CategoriesDepartments, CategoriesTeams, Institute,User, InstituteDepartment, InstituteTeam
 from db.db import SQLiteDB
 from datetime import datetime
-
+from sqlalchemy import func
 def get_categories_list(request):
     db = SQLiteDB()
     session = db.connect()
@@ -50,6 +50,7 @@ def get_category_details(request):
 
     filter = []
     args = getattr(request, "args", {})
+    filter.append(func.coalesce(Categories.is_deleted, False) == False)
     if args.get("institute_id"):
         filter.append(Categories.institute_id == args.get("institute_id"))
     if args.get("departments"):
@@ -261,16 +262,19 @@ def delete_category(category_id, deleted_by):
         return {"statusMessage": "Category not found", "status": False}, 404
     
     try:
-        # remove related department/team links first
-        try:
-            session.query(CategoriesDepartments).filter_by(category_id=category_id).delete()
-        except Exception:
-            pass
-        try:
-            session.query(CategoriesTeams).filter_by(category_id=category_id).delete()
-        except Exception:
-            pass
-        session.delete(category)
+        # # remove related department/team links first
+        # try:
+        #     session.query(CategoriesDepartments).filter_by(category_id=category_id).delete()
+        # except Exception:
+        #     pass
+        # try:
+        #     session.query(CategoriesTeams).filter_by(category_id=category_id).delete()
+        # except Exception:
+        #     pass
+        # session.delete(category)
+        category.is_deleted = 1
+        category.updated_by = deleted_by
+        category.updated_date = datetime.utcnow()
         session.commit()
         return {"statusMessage": "Category deleted successfully", "status": True}, 200
     except Exception as e:
@@ -289,16 +293,19 @@ def manage_category(action, uuid, updated_by):
     if not category:
         return {"statusMessage": "Category not found", "status": False}, 404
     if action == 'delete':
-        try:
-            # remove related department/team links first
-            session.query(CategoriesDepartments).filter_by(category_id=uuid).delete()
-        except Exception:
-            pass
-        try:
-            session.query(CategoriesTeams).filter_by(category_id=uuid).delete()
-        except Exception:
-            pass
-        session.delete(category)
+        # try:
+        #     # remove related department/team links first
+        #     session.query(CategoriesDepartments).filter_by(category_id=uuid).delete()
+        # except Exception:
+        #     pass
+        # try:
+        #     session.query(CategoriesTeams).filter_by(category_id=uuid).delete()
+        # except Exception:
+        #     pass
+        # session.delete(category)
+        category.is_deleted = 1
+        category.updated_by = updated_by
+        category.updated_date = datetime.utcnow()
         session.commit()
         return {"statusMessage": "Category deleted", "status": True}, 200
     # activate/deactivate

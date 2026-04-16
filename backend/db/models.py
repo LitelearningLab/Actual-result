@@ -273,6 +273,7 @@ class ExamSchedule(Base):
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
      updated_by = Column(String)
      updated_date = Column(DateTime)
+     is_deleted = Column(Boolean)
 
 class ExamScheduleMapping(Base):
     __tablename__ = 'ExamScheduleMapping'
@@ -428,6 +429,7 @@ class Categories(Base):
     created_date = Column(DateTime, default=datetime.datetime.utcnow)
     updated_by = Column(String)
     updated_date = Column(DateTime)
+    is_deleted = Column(Boolean)
 
 class CategoriesDepartments(Base):
     __tablename__ = 'CategoriesDepartments'

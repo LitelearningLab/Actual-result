@@ -6,6 +6,7 @@ import { API_BASE } from 'src/app/shared/api.config';
 import { DynamicChartComponent } from '../dynamic-chart.component';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { LoaderService } from 'src/app/shared/services/loader.service';
 
 @Component({
   selector: 'app-super-dashboard',
@@ -37,7 +38,7 @@ export class SuperDashboardComponent implements OnInit {
   
   private apiUrl = `${API_BASE}/superadmin-dashboard`;
 
-  constructor(private http: HttpClient, private pageMeta: PageMetaService){ }
+  constructor(private http: HttpClient, private pageMeta: PageMetaService,private loader: LoaderService){ }
 
   ngOnInit(): void {
     try { this.pageMeta.setMeta('Super Admin Dashboard', 'Platform-wide overview & reports'); } catch(e){}
@@ -45,9 +46,11 @@ export class SuperDashboardComponent implements OnInit {
   }
 
   loadDashboard(){
+    this.loader.show();
     this.http.get<any>(this.apiUrl).subscribe({
       next: (res) => this.applyDashboardData(res),
-      error: (err) => console.warn('Failed to load dashboard', err)
+      error: (err) => console.warn('Failed to load dashboard', err),
+      complete: () => this.loader.hide()
     });
   }
 

@@ -424,7 +424,8 @@ export class ViewScheduleExamComponent implements OnInit, AfterViewInit {
       if (!ok) return;
       const id = row.id;
       // best-effort delete endpoint; adapt to your backend if different
-      const url = `${this.baseUrl}/delete-scheduled-exam?id=${encodeURIComponent(id)}`;
+      const current_user = sessionStorage.getItem('user_id')
+      const url = `${this.baseUrl}/delete/exam-schedule/${encodeURIComponent(id)}?current_user=${encodeURIComponent(String(current_user))}`;
       this.http.delete<any>(url).subscribe({
         next: () => {
           this.schedules = this.schedules.filter(s => s.id !== id);

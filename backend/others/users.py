@@ -267,6 +267,8 @@ def delete_user(user_id, deleted_by):
             "status": False
         }
         return json_data, 500
+    finally:
+        session.close()
 def update_user_details(user_id, request):
     db = SQLiteDB()
     session = db.connect()

@@ -3,7 +3,7 @@ from db.db import SQLiteDB
 import sys
 import datetime
 from others.exam_review import validate_answers
-
+from sqlalchemy import func
 
 def add_exam_schedule(request):
     # get exam details from the request
@@ -68,7 +68,7 @@ def add_exam_schedule(request):
         return json_data, 500
 
 # delete-scheduled-exam
-def delete_exam_schedule(schedule_id):
+def delete_exam_schedule(schedule_id, deleted_by):
     db = SQLiteDB()
     session = db.connect()
     if not session:
@@ -82,9 +82,12 @@ def delete_exam_schedule(schedule_id):
         if not sched:
             return {"statusMessage": "Schedule not found", "status": False}, 404
 
-        # delete mappings and schedule
-        session.query(ExamScheduleMapping).filter_by(schedule_id=schedule_id).delete()
-        session.delete(sched)
+        # # delete mappings and schedule
+        # session.query(ExamScheduleMapping).filter_by(schedule_id=schedule_id).delete()
+        # session.delete(sched)
+        sched.is_deleted = 1
+        sched.updated_by = deleted_by
+        sched.updated_date = datetime.datetime.utcnow()
         session.commit()
         return {"statusMessage": "Schedule deleted", "status": True}, 200
     except Exception as e:
@@ -193,6 +196,7 @@ def get_exam_schedule_details(request):
     try:
         filter = []
         args = getattr(request, "args", {})
+        filter.append(func.coalesce(ExamSchedule.is_deleted, False) == False)
         if args.get("institute_id"):
             filter.append(ExamSchedule.institute_id == args.get("institute_id"))
         if args.get("name"):
