@@ -38,7 +38,7 @@ export class CategoryCreateComponent {
 
   // option lists (replace with API calls as needed)
   institutesList = [ { id: '1', name: 'Default Institute' } ];
-  typeOptions = [ { id: 'objective', name: 'Objective' }, { id: 'subjective', name: 'Subjective' } ];
+  typeOptions = [ { id: 'objective', name: 'Objective' }, { id: 'descriptive', name: 'Descriptive' } ];
   whoInputOptions = [ { id: 'instructor', name: 'Instructor' }, { id: 'student', name: 'Student' } ];
   evaluationOptions = [ { id: 'auto', name: 'Automatic' }, { id: 'manual', name: 'Manual' } ];
   statusOptions = [ { id: 'true', name: 'Active' }, { id: 'false', name: 'Inactive' } ];

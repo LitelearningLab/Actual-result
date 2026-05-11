@@ -57,7 +57,7 @@ export class InstituteRegisterComponent {
     contact_email: ['', [Validators.email]],
     contact_phone: ['', [Validators.pattern(/^\+?[0-9\s\-()]{7,20}$/)]],
     primary_contact_phone: ['', [Validators.pattern(/^\+?[0-9\s\-()]{7,20}$/)]],
-    website: ['', [Validators.pattern('https?://.+')]],
+    website: ['', [Validators.pattern('.+')]], //['', [Validators.pattern('https?://.+')]],
     primary_contact_person: ['', Validators.required],
     primary_contact_email: ['', [Validators.required, Validators.email]],
     industry_type: ['', Validators.required],

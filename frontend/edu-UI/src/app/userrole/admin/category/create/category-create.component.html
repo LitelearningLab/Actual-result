@@ -47,19 +47,19 @@
 
                         <div class="field-row">
                             <mat-form-field appearance="outline" class="field-half">
-                                <mat-label>Type</mat-label>
-                                <mat-icon matPrefix>category</mat-icon>
-                                <mat-select [value]="type" (selectionChange)="setType($event.value)">
-                                    <mat-option *ngFor="let t of typeOptions" [value]="t.id">{{t.name}}</mat-option>
-                                </mat-select>
-                            </mat-form-field>
-
-                            <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Description</mat-label>
                                 <mat-icon matPrefix>description</mat-icon>
                                 <input matInput [value]="description"
                                     (input)="setDescription($any($event.target).value)"
                                     placeholder="Optional description" />
+                            </mat-form-field>
+                            
+                            <mat-form-field appearance="outline" class="field-half">
+                                <mat-label>Type</mat-label>
+                                <mat-icon matPrefix>category</mat-icon>
+                                <mat-select [value]="type" (selectionChange)="setType($event.value)">
+                                    <mat-option *ngFor="let t of typeOptions" [value]="t.id">{{t.name}}</mat-option>
+                                </mat-select>
                             </mat-form-field>
                         </div>
                     </div>

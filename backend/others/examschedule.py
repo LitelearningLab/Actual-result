@@ -213,7 +213,7 @@ def get_exam_schedule_details(request):
             active = 0 if args.get("active").lower() == 'true' else 1
             filter.append(ExamSchedule.published == active)
 
-        schedules = session.query(ExamSchedule).filter(*filter).all()
+        schedules = session.query(ExamSchedule).filter(*filter).order_by(ExamSchedule.created_date.desc()).all()
         if schedules is None or len(schedules) == 0:
             return {"statusMessage": "No schedules found", "status": False}, 404
 

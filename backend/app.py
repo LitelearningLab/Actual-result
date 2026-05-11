@@ -31,9 +31,9 @@ import os
 if load_dotenv():
     load_dotenv()
 else:
-    # load_dotenv(dotenv_path=r".\backend\.env")
-    env_path = "/opt/ActualResults/backend/.env"
-    load_dotenv(dotenv_path=env_path)
+    load_dotenv(dotenv_path=r".\backend\.env")
+    # env_path = "/opt/ActualResults/backend/.env"
+    # load_dotenv(dotenv_path=env_path)
 
 # read jwt_secret
 jwt_secret = os.getenv('jwt_secret', 'your_jwt_secret')
@@ -190,6 +190,21 @@ def get_user_page_access_route(user_id):
 @jwt_required
 def bulk_upload_users():
     response_data, status_code = user_bulk_upload(request)
+    if status_code == 400:
+        # auto-download the error report as CSV        df = response_data.get('data')
+        df = response_data.get('data', [])
+        if df:
+            import pandas as pd
+            from io import StringIO
+            csv_data = StringIO()
+            pd.DataFrame(df).to_csv(csv_data, index=False)
+            csv_data.seek(0)
+            return Response(
+                csv_data,
+                mimetype='text/csv',
+                headers={'Content-Disposition': 'attachment; filename=error_report.csv'}
+            )
+            
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/upload-questions', methods=['POST'])

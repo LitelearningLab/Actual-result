@@ -68,7 +68,7 @@
 
                 <div class="field-third upload-btn-col">
                   <button mat-flat-button color="primary" type="button" (click)="uploadBulk()"
-                    [disabled]="!bulkFile || bulkUploading" class="upload-btn">
+                    [disabled]="!bulkFile || bulkUploading || !bulkUploadAllowed" class="upload-btn">
                     <mat-icon *ngIf="!bulkUploading">cloud_upload</mat-icon>
                     <mat-icon *ngIf="bulkUploading">autorenew</mat-icon>
                     <span>{{ bulkUploading ? 'Uploading...' : 'Upload' }}</span>
@@ -110,8 +110,8 @@
             </div>
 
             <div class="form-actions">
-              <button mat-button type="button" (click)="stepper.next()">Skip</button>
-              <button mat-button type="button" (click)="stepper.next()" class="next-btn">
+              <button mat-button type="button" (click)="stepper.next()" [disabled]="!bulkUploadAllowed">Skip</button>
+              <button mat-button type="button" (click)="stepper.next()" class="next-btn" [disabled]="!bulkUploadAllowed">
                 <span>Next</span>
                 <mat-icon>arrow_forward</mat-icon>
               </button>
@@ -142,7 +142,10 @@
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="field-half">
-                  <mat-label>User Name</mat-label>
+                  <mat-label>
+                    User Name
+                    <mat-icon class="info-icon" matTooltip="Institute registration number or email" matTooltipPosition="above" style="font-size: 16px; cursor: help; margin-left: 4px;">info</mat-icon>
+                  </mat-label>
                   <mat-icon matPrefix>badge</mat-icon>
                   <input matInput id="user_username" formControlName="username" placeholder="username" aria-label="User Name" />
                   <mat-error *ngIf="form.get('username')?.touched && form.get('username')?.invalid">User name is required</mat-error>
@@ -183,7 +186,9 @@
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Joining date</mat-label>
                   <mat-icon matPrefix>calendar_today</mat-icon>
-                  <input matInput type="date" id="joining_date" formControlName="joining_date" aria-label="Joining date" />
+                  <input matInput [matDatepicker]="joiningDatePicker" type="text" id="joining_date" formControlName="joining_date" placeholder="dd/mm/yyyy" aria-label="Joining date" />
+                  <mat-datepicker-toggle matSuffix [for]="joiningDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker #joiningDatePicker></mat-datepicker>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="field-half">
@@ -349,24 +354,24 @@
                 <table class="simple-table compact">
                   <thead>
                     <tr>
-                      <th>Page</th>
-                      <th class="center">
+                      <th width="25%">Page</th>
+                      <th class="center" width="15%">
                         <mat-checkbox [checked]="isAllChecked('view')" [indeterminate]="isIndeterminate('view')"
                           (change)="$event ? toggleAllAction('view', $event.checked) : null">View</mat-checkbox>
                       </th>
-                      <th class="center">
+                      <th class="center" width="15%">
                         <mat-checkbox [checked]="isAllChecked('add')" [indeterminate]="isIndeterminate('add')"
                           (change)="$event ? toggleAllAction('add', $event.checked) : null">Add</mat-checkbox>
                       </th>
-                      <th class="center">
+                      <th class="center" width="15%">
                         <mat-checkbox [checked]="isAllChecked('edit')" [indeterminate]="isIndeterminate('edit')"
                           (change)="$event ? toggleAllAction('edit', $event.checked) : null">Edit</mat-checkbox>
                       </th>
-                      <th class="center">
+                      <th class="center" width="15%">
                         <mat-checkbox [checked]="isAllChecked('delete')" [indeterminate]="isIndeterminate('delete')"
                           (change)="$event ? toggleAllAction('delete', $event.checked) : null">Delete</mat-checkbox>
                       </th>
-                      <th class="center">
+                      <th class="center" width="15%">
                         <mat-checkbox [checked]="selectAll" (change)="toggleSelectAll($event.checked)"
                           aria-label="Select all pages">ALL</mat-checkbox>
                       </th>

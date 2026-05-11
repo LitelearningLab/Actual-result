@@ -240,6 +240,8 @@ export class AdminQuestionsComponent {
         // will populate when categories are loaded
       }
     } catch(e) {}
+    // Ensure languages array has unique entries to prevent duplicates in dropdown
+    this.languages = this.languages.filter((lang, index, self) => self.findIndex(l => l.label === lang.label) === index);
   }
 
   @ViewChild('hiddenFileInput') hiddenFileInput?: ElementRef<HTMLInputElement>;
@@ -275,17 +277,20 @@ export class AdminQuestionsComponent {
   downloadTemplate() {
     // Create a simple CSV template that Excel can open.
     const headers = [
-      'Question',	'Correct_answer',	'option_1',	'option_2',	'option_3',	'option_4'
+      'Question','Type', 'Correct_answer',	'option_1',	'option_2',	'option_3',	'option_4'
     ];
     const sample = [
-      ['What is 2+2?', '4', '2', '3', '4', '5']
+      ['What is 2+2?','choice', '4', '2', '3', '4', '5'],
+      ['Select prime numbers','multi', '2,3', '2', '3', '4', '5'],
+      ['The capital of France is ___.','fill', 'Paris'],
+      ['Describe the water cycle.','descriptive', '']
     ];
     const rows = [headers, ...sample].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'user-import-template.csv';
+    a.download = 'Questions-template.csv';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -763,6 +768,11 @@ export class AdminQuestionsComponent {
         try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to update question', 'error'); } catch(e){}
         this.loader.hide();
       }, complete: () => { this.loader.hide(); } });
+        // After successful update go back to view question page
+      try {
+        window.location.href = '/view-questions';
+      } catch(e){  console.warn('Failed to redirect to view-question after update', e);
+        }
     } else {
       this.http.post<any>(this.apiUrl, body).subscribe({
         next: (res) => {

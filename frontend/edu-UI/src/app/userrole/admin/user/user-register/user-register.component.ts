@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup, FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { API_BASE } from 'src/app/shared/api.config';
-import { HttpClient, HttpClientModule, HttpEventType } from '@angular/common/http';
+import { HttpClient, HttpClientModule, HttpEventType, HttpErrorResponse, HttpEvent } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
@@ -14,15 +14,35 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatStepperModule } from '@angular/material/stepper';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 
+const MY_DATE_FORMATS = {
+  parse: {
+    dateInput: 'DD/MM/YYYY',
+  },
+  display: {
+    dateInput: 'DD/MM/YYYY',
+    monthYearLabel: 'MMM YYYY',
+    dateA11yLabel: 'LL',
+    monthYearA11yLabel: 'MMMM YYYY',
+  },
+};
+
 @Component({
   selector: 'app-admin-user-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, HttpClientModule, MatButtonModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatSlideToggleModule, MatIconModule, MatStepperModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, HttpClientModule, MatButtonModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatSlideToggleModule, MatIconModule, MatStepperModule, MatDatepickerModule, MatNativeDateModule, MatTooltipModule, RouterModule],
+  providers: [
+    DatePipe,
+    { provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS },
+    { provide: MAT_DATE_LOCALE, useValue: 'en-GB' }
+  ],
   templateUrl: './user-register.component.html',
   styleUrls: ['./user-register.component.scss']
 })
@@ -63,6 +83,10 @@ export class AdminUserRegisterComponent implements OnInit {
   // bulk institute user limit info
   bulkUserLimit: { max_user_limit?: number | null; available_licenses?: number | null; already_assigned?: number | null } = { max_user_limit: null, available_licenses: null, already_assigned: null };
   bulkLimitLoading = false;
+
+  get bulkUploadAllowed(): boolean {
+    return (this.bulkUserLimit.available_licenses ?? 0) > 0 && !this.bulkLimitLoading;
+  }
   departmentsLoading = false;
   isEditing = false;
   editingUserId: string | null = null;
@@ -211,7 +235,7 @@ export class AdminUserRegisterComponent implements OnInit {
       try { this.form.patchValue({ city: '' }); } catch (e) {}
     });
 
-    // campus selection (keep simple clearing behavior)
+    // campus selection: fetch campus location details and populate the location fields
     this.form.get('campus')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((cid) => {
       if (!cid) {
         this.form.patchValue({ country: '', state: '', city: '' });
@@ -221,7 +245,7 @@ export class AdminUserRegisterComponent implements OnInit {
         this.filteredCities = [];
         return;
       }
-      // detailed population logic lives in the existing campus handler (if present elsewhere)
+      this.loadCampusLocation(cid);
     });
   }
 
@@ -532,10 +556,98 @@ export class AdminUserRegisterComponent implements OnInit {
           } else {
             this.filteredCities = [];
           }
-
-        } catch (e) { this.countries = []; this.states = []; this.cities = []; this.loader.hide(); }
-      }, error: (err) => { console.warn('Failed to load location-hierarchy for institute', err); this.countries = []; this.states = []; this.cities = []; this.loader.hide(); }
+        } catch (e) {
+          this.countries = [];
+          this.states = [];
+          this.cities = [];
+        } finally {
+          this.loader.hide();
+        }
+      }, error: (err) => {
+        console.warn('Failed to load location-hierarchy for institute', err);
+        this.countries = [];
+        this.states = [];
+        this.cities = [];
+        this.filteredStates = [];
+        this.filteredCities = [];
+        this.loader.hide();
+      }
     });
+  }
+
+  private loadCampusLocation(campusId: string) {
+    if (!campusId) {
+      this.form.patchValue({ country: '', state: '', city: '' });
+      this.filteredStates = [];
+      this.filteredCities = [];
+      return;
+    }
+    const url = `${API_BASE}/location-hierarchy`;
+    this.http.get<any>(url, { params: { campus_id: campusId } }).subscribe({
+      next: (res) => {
+        try {
+          const data = res?.data || {};
+          const cities = Array.isArray(data.cities) ? data.cities : [];
+          const states = Array.isArray(data.states) ? data.states : [];
+          const countries = Array.isArray(data.countries) ? data.countries : [];
+
+          const city = cities[0] || {};
+          const selectedCityId = String(city.id || city.city_id || city.code || city.city_code || '').trim();
+          const selectedStateId = String(city.state_id || city.stateId || city.state || '').trim();
+
+          const selectedState = states.find((s: any) => String(s.id || s.state_id || s.code || s.state_code || '').trim() === selectedStateId);
+          const selectedCountryId = String(
+            (selectedState && (selectedState.country_id || selectedState.countryId || selectedState.country)) ||
+            (countries[0] && (countries[0].id || countries[0].country_id || countries[0].code || '')) ||
+            ''
+          ).trim();
+
+          if (countries.length) {
+            this.countries = countries.map((c: any) => ({ code: String(c.id || c.country_id || c.code || ''), name: c.name || c.country_name || '' }));
+          }
+          if (states.length) {
+            this.states = states.map((s: any) => ({ code: String(s.id || s.state_id || s.code || ''), name: s.name || s.state_name || '', country_id: String(s.country_id || s.countryId || s.country || '') }));
+          }
+          if (cities.length) {
+            this.cities = cities.map((c: any) => ({ code: String(c.id || c.city_id || c.code || ''), name: c.name || c.city_name || '', state_id: String(c.state_id || c.stateId || c.state || '') }));
+          }
+
+          const countryId = selectedCountryId || this.extractLocationId(data, 'country');
+          const stateId = selectedStateId || this.extractLocationId(data, 'state');
+          const cityId = selectedCityId || this.extractLocationId(data, 'city');
+
+          this.form.patchValue({ country: countryId || '', state: stateId || '', city: cityId || '' });
+          this.updateLocationFilters(countryId, stateId);
+        } catch (e) {
+          console.warn('Failed to parse campus location response', e);
+        }
+      },
+      error: (err) => { console.warn('Failed to load location-hierarchy for campus', err); }
+    });
+  }
+
+  private extractLocationId(payload: any, key: 'country' | 'state' | 'city'): string {
+    if (!payload) return '';
+    const raw = payload[key] ?? payload[`${key}_id`] ?? payload[`${key}Id`] ?? payload[`${key}_code`] ?? payload[`${key}Code`] ?? '';
+    if (!raw && key === 'country') {
+      // if response is a single location object with its own name/code values
+      return String(payload.country_id || payload.countryCode || payload.country_code || payload.country || '');
+    }
+    if (!raw) return '';
+    if (typeof raw === 'object') {
+      return String(raw[`${key}_id`] || raw.id || raw.code || raw[`${key}_code`] || raw[`${key}Id`] || raw[`${key}Code`] || '').trim();
+    }
+    return String(raw).trim();
+  }
+
+  private updateLocationFilters(countryId: string, stateId: string) {
+    const countryKey = String(countryId || '');
+    if (countryKey) {
+      this.filteredStates = (this.states || []).filter((s: any) => !s.country_id || String(s.country_id) === countryKey).map((s: any) => ({ code: s.code, name: s.name }));
+    } else {
+      this.filteredStates = (this.states || []).map((s: any) => ({ code: s.code, name: s.name }));
+    }
+    this.filteredCities = stateId ? this.resolveCitiesForState(String(stateId)) : [];
   }
 
   // Return normalized list of cities for a given state identifier
@@ -717,21 +829,18 @@ export class AdminUserRegisterComponent implements OnInit {
       'department',
       'team',
       'campus',
-      'country',
-      'state',
-      'city',
       'joining_date',
       'password',
     ];
     const sample = [
-      ['John Doe', 'jdoe', 'jdoe@example.com', '+911234567890', 'user', 'Main Campus', 'Sales', 'Alpha', '2025-01-01', 'Secret123']
+      ['John Doe', 'jdoe', 'jdoe@example.com', '+911234567890', 'user', 'Sales', 'Alpha', 'Main Campus', '2025-01-01', 'Secret123']
     ];
     const rows = [headers, ...sample].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'user-import-template.csv';
+    a.download = 'user-upload-template.csv';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -764,6 +873,7 @@ export class AdminUserRegisterComponent implements OnInit {
     const fd = new FormData();
     fd.append('file', this.bulkFile, this.bulkFile.name);
     if (this.bulkInstitute) fd.append('institute_id', this.bulkInstitute);
+    fd.append('current_user', this.getCurrentUserId() || 'admin');
     fd.append('validateOnly', 'true');
     this.bulkUploading = true; this.bulkUploadResult = null; this.bulkValidated = false; this.bulkPreviewRows = [];
     this.http.post<any>(url, fd).subscribe({
@@ -786,21 +896,109 @@ export class AdminUserRegisterComponent implements OnInit {
     const fd = new FormData();
     fd.append('file', this.bulkFile, this.bulkFile.name);
     if (this.bulkInstitute) fd.append('institute_id', this.bulkInstitute);
+    fd.append('current_user', this.getCurrentUserId() || 'admin');
     this.bulkUploading = true; this.bulkUploadResult = null; this.uploadProgress = 0;
-    this.http.post<any>(url, fd, { reportProgress: true, observe: 'events' }).subscribe({
-      next: (ev) => {
+    this.http.post(url, fd, { reportProgress: true, observe: 'events', responseType: 'blob' }).subscribe({
+      next: (ev: HttpEvent<Blob>) => {
         if (ev.type === HttpEventType.UploadProgress && ev.total) {
           this.uploadProgress = Math.round(100 * (ev.loaded / ev.total));
         } else if (ev.type === HttpEventType.Response) {
           this.bulkUploading = false;
-          this.bulkUploadResult = ev.body?.statusMessage || 'Upload finished';
           this.bulkValidated = false;
           this.bulkPreviewRows = [];
+          const contentType = ev.headers.get('Content-Type') || '';
+          const disposition = ev.headers.get('Content-Disposition') || '';
+
+          if (contentType.includes('application/json')) {
+            if (ev.body) {
+              this.readBlobAsJson(ev.body).then((data) => {
+                this.bulkUploadResult = data?.statusMessage || 'Upload finished';
+              }).catch(() => {
+                this.bulkUploadResult = 'Upload finished';
+              });
+            } else {
+              this.bulkUploadResult = 'Upload finished';
+            }
+          } else if (contentType.includes('text/csv') || disposition.includes('attachment')) {
+            if (ev.body) {
+              const filename = this.getFileNameFromContentDisposition(disposition) || 'bulk_upload_errors.csv';
+              this.downloadBlob(ev.body, filename);
+              this.bulkUploadResult = 'Upload failed. Error report downloaded.';
+            } else {
+              this.bulkUploadResult = 'Upload failed. Error report returned without body.';
+            }
+          } else {
+            this.bulkUploadResult = 'Upload finished';
+          }
         }
       },
-      error: (err) => { console.error('Bulk upload failed', err); this.bulkUploading = false; this.bulkUploadResult = 'Upload failed. See console for details.'; this.loader.hide(); },
+      error: (err: HttpErrorResponse) => {
+        this.bulkUploading = false;
+        this.loader.hide();
+        if (err.error instanceof Blob) {
+          const contentType = err.error.type || '';
+          const disposition = err.headers?.get('Content-Disposition') || '';
+          if (contentType.includes('text/csv') || disposition.includes('attachment')) {
+            const filename = this.getFileNameFromContentDisposition(disposition) || 'bulk_upload_errors.csv';
+            this.downloadBlob(err.error, filename);
+            this.bulkUploadResult = 'Upload failed. Error report downloaded.';
+            return;
+          }
+          this.readBlobAsJson(err.error).then((data) => {
+            this.bulkUploadResult = data?.statusMessage || 'Upload failed. See console for details.';
+          }).catch(() => {
+            this.bulkUploadResult = 'Upload failed. See console for details.';
+          });
+        } else {
+          console.error('Bulk upload failed', err);
+          this.bulkUploadResult = 'Upload failed. See console for details.';
+        }
+      },
       complete: () => { this.loader.hide(); }
     });
+  }
+
+  private readBlobAsJson(blob: Blob): Promise<any> {
+    return blob.text().then((text) => {
+      try { return JSON.parse(text); } catch { return null; }
+    });
+  }
+
+  private getFileNameFromContentDisposition(contentDisposition: string | null): string | null {
+    if (!contentDisposition) {
+      return null;
+    }
+    const match = /filename\*=UTF-8''([^;]+)/i.exec(contentDisposition) || /filename="?([^";]+)"?/i.exec(contentDisposition);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  private downloadBlob(blob: Blob, filename: string) {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  }
+
+  private getCurrentUserId(): string | null {
+    try {
+      const storedUser = sessionStorage.getItem('user');
+      const storedProfile = sessionStorage.getItem('user_profile');
+      const raw = storedUser || storedProfile || sessionStorage.getItem('user_id');
+      if (!raw) {
+        return null;
+      }
+      if (raw.startsWith('{')) {
+        const parsed = JSON.parse(raw);
+        return parsed?.user_id || parsed?.id || null;
+      }
+      return raw;
+    } catch {
+      return sessionStorage.getItem('user_id');
+    }
   }
 
   // Convenience wrapper kept for compatibility (direct upload)

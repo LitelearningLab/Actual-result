@@ -258,7 +258,21 @@
                   <div class="value" *ngIf="selectedInstitute.website">
                     <a [href]="selectedInstitute.website" target="_blank" class="link">{{selectedInstitute.website}}</a>
                   </div>
+                  <div class="label"><mat-icon>person</mat-icon> Primary Contact</div>
+                  <div class="value">{{selectedInstitute.primary_contact_person || '—'}}</div>
 
+                  <div class="label"><mat-icon>phone</mat-icon> Primary Phone</div>
+                  <div class="value">{{selectedInstitute.primary_contact_phone || selectedInstitute.primary_contact || '—'}}</div>
+
+                  <div class="label"><mat-icon>email</mat-icon> Primary Email</div>
+                  <div class="value">{{selectedInstitute.primary_contact_email || selectedInstitute.primary_email || '—'}}</div>
+                </div>
+              </mat-tab>
+
+              <!-- Contacts Tab -->
+              <mat-tab>
+                <ng-template mat-tab-label>Subscription</ng-template>
+                <div class="detail-grid">
                   <div class="label"><mat-icon>toggle_on</mat-icon> Active</div>
                   <div class="value">
                     <span class="status-pill" [class.status-pill--active]="selectedInstitute.active_status" [class.status-pill--inactive]="!selectedInstitute.active_status">
@@ -272,21 +286,6 @@
                     &nbsp;→&nbsp;
                     {{selectedInstitute.subscription_end ? (selectedInstitute.subscription_end | date:'dd-MMM-yyyy') : '—'}}
                   </div>
-                </div>
-              </mat-tab>
-
-              <!-- Contacts Tab -->
-              <mat-tab>
-                <ng-template mat-tab-label>Contacts</ng-template>
-                <div class="detail-grid">
-                  <div class="label"><mat-icon>person</mat-icon> Primary Contact</div>
-                  <div class="value">{{selectedInstitute.primary_contact_person || '—'}}</div>
-
-                  <div class="label"><mat-icon>phone</mat-icon> Primary Phone</div>
-                  <div class="value">{{selectedInstitute.primary_contact_phone || selectedInstitute.primary_contact || '—'}}</div>
-
-                  <div class="label"><mat-icon>email</mat-icon> Primary Email</div>
-                  <div class="value">{{selectedInstitute.primary_contact_email || selectedInstitute.primary_email || '—'}}</div>
 
                   <div class="label"><mat-icon>people</mat-icon> Max Users</div>
                   <div class="value">{{selectedInstitute.max_users || '—'}}</div>
@@ -339,21 +338,18 @@
               <mat-tab>
                 <ng-template mat-tab-label>Metadata</ng-template>
                 <div class="detail-grid">
+                  <div class="label"><mat-icon>person</mat-icon> Created By</div>
+                  <div class="value">{{ selectedInstitute.created_by?.user_name || '—'}}</div>
                   <div class="label"><mat-icon>date_range</mat-icon> Created Date</div>
                   <div class="value">
                     {{selectedInstitute.created_date ? (selectedInstitute.created_date | date:'dd-MMM-yyyy HH:mm') : '—'}}
                   </div>
-
-                  <div class="label"><mat-icon>person</mat-icon> Created By</div>
-                  <div class="value">{{ selectedInstitute.created_by?.user_name || '—'}}</div>
-
-                  <div class="label"><mat-icon>update</mat-icon> Updated Date</div>
+                  <div class="label"><mat-icon>person</mat-icon> Last Updated By</div>
+                  <div class="value">{{selectedInstitute.updated_by?.user_name || '—'}}</div>
+                  <div class="label"><mat-icon>update</mat-icon> Last Updated Date</div>
                   <div class="value">
                     {{selectedInstitute.updated_date ? (selectedInstitute.updated_date | date:'dd-MMM-yyyy HH:mm') : '—'}}
                   </div>
-
-                  <div class="label"><mat-icon>person</mat-icon> Updated By</div>
-                  <div class="value">{{selectedInstitute.updated_by?.user_name || '—'}}</div>
                 </div>
               </mat-tab>
 
