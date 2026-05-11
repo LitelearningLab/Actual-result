@@ -362,16 +362,16 @@ def get_institute_details(request):
         query = (
             session.query(Institute)
             .join(InstituteCampus, Institute.institute_id == InstituteCampus.institute_id)
-            .filter(*filters)
+            .filter(*filters).order_by(Institute.created_date.desc())
             .distinct()
         )
         total_count = query.count()
         institutes = query.offset((page_number - 1) * page_size).limit(page_size).all()
     else:
-        query = session.query(Institute).filter(*filters)
+        query = session.query(Institute).filter(*filters).order_by(Institute.created_date.desc())
         total_count = query.count()
-        institutes = query.order_by(Institute.created_date).offset((page_number - 1) * page_size).limit(page_size).all()
-    
+        institutes = query.offset((page_number - 1) * page_size).limit(page_size).all()
+
     result = []
     for inst in institutes:
         # get InstituteDepartments details

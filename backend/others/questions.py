@@ -272,6 +272,7 @@ def update_question(question_id, request):
 
     try:
         data = request.json
+        updated_by = data.get("updated_by", "System")
         q = session.query(Question).filter_by(question_id=question_id).first()
         if not q:
             return {"statusMessage": "Question not found", "status": False}, 404
@@ -328,7 +329,7 @@ def update_question(question_id, request):
             else:
                 newmap = QuestionMapping(question_id=question_id, category_id=data.get('category_id'))
                 session.add(newmap)
-
+        q.updated_by = updated_by
         session.commit()
         return {"statusMessage": "Question updated", "status": True}, 200
     except Exception as e:

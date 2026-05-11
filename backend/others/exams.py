@@ -228,7 +228,7 @@ def get_exam_details(request):
 
         # join with Institute to fetch institute details as well
         # rows = session.query(ExamScheduleMapping, ExamSchedule, Exam).join(ExamSchedule, ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id).join(Exam, ExamSchedule.exam_id == Exam.exam_id).filter(*filter).all()
-        rows = session.query(Exam, Institute).join(Institute, Exam.institute_id == Institute.institute_id).filter(*filter).all()
+        rows = session.query(Exam, Institute).join(Institute, Exam.institute_id == Institute.institute_id).filter(*filter).order_by(Exam.created_date.desc()).all()
 
         # keep exams as list of Exam objects for existing usage
         exams = [row[0] for row in rows]

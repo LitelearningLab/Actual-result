@@ -62,7 +62,7 @@ export class CategoryComponent implements OnInit, AfterViewInit {
 
   categories: Array<{ id: string; name: string; description?: string; institute?: any; departments?: any[]; teams?: any[] }> = [];
   dataSource = new MatTableDataSource<any>([]);
-  columns = ['name','description','evaluation','active','actions'];
+  columns = ['name','description','active','actions'];
 
   private filtersOverlayRef: OverlayRef | null = null;
   constructor(private http: HttpClient, private router: Router, private loader: LoaderService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private confirmService: ConfirmService) {}
@@ -320,7 +320,7 @@ export class CategoryComponent implements OnInit, AfterViewInit {
       const id = element.category_id || element.id;
       if (!id) { element.active = prev; return; }
       const url = `${API_BASE}/category/${action}/${encodeURIComponent(String(id))}`;
-      this.http.put<any>(url, { current_user: sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || '' }).subscribe({
+      this.http.put<any>(url, { current_user: sessionStorage.getItem('user_id') || sessionStorage.getItem('user') || '' }).subscribe({
         next: () => { try { notify(`Category ${action}d`, 'success'); } catch(e) {} },
         error: (err) => { console.error('Failed updating category state', err); try { notify('Failed to update category status', 'error'); } catch(e) {} ; element.active = prev; element.active_status = prev; }
       });

@@ -24,7 +24,8 @@ def insert_user(data):
     state_id = data.get("state_id", None)
     city_id = data.get("city_id", None)
     joining_date = data.get("joining_date", None)
-    joining_date = datetime.strptime(joining_date, "%Y-%m-%d").date()
+    joining_date = joining_date.split("T")[0] if joining_date else None    
+    joining_date = datetime.strptime(joining_date, "%Y-%m-%d") if joining_date else None
     created_by = data.get("current_user", "Admin")
 
     db = SQLiteDB()
@@ -33,7 +34,7 @@ def insert_user(data):
         return None
     
     # check if user_name or email already exists
-    existing_user = session.query(User).filter( User.email == email ).first()
+    existing_user = session.query(User).filter( User.email == email, User.user_name == user_name ).first()
     if existing_user:
         json_data = {
             "statusMessage": "Username or Email already exists",
@@ -109,6 +110,7 @@ def user_bulk_upload(request):
         return None
     
     institute_id = request.form.get("institute_id", None)
+    created_by = request.form.get("current_user", "Admin")
     # get file from request
     file = request.files.get("file", None)
     if not file:
@@ -120,23 +122,30 @@ def user_bulk_upload(request):
     # Get Page table data
     page_data = session.query(Page).all()
 
+    # get institute limit for user creation
+    max_user_limit = session.query(Institute).filter_by(institute_id=institute_id).first().max_users
+    already_assigned = session.query(User).filter_by(institute_id=institute_id, active_status=1,is_deleted=0).count()
+    available_licenses = max_user_limit - already_assigned
+
     error_users_list = []
 
     for index, row in df.iterrows():
+        if available_licenses <= 0:
+            error_users_list.extend(df['username'][ index: ].tolist())
+            df.loc[index:, 'status'] = "Failed: User limit exceeded for the institute"
+            break
         full_name = row.get("full_name", None)
         user_name = row.get("username", None)
         email = row.get("email", None)
         user_role = row.get("role", None)
         contact_no = row.get("contact_no", None)
-        password = row.get('password', "User@12321")
+        password = str(row.get('password', "User@12321"))
         department = row.get("department", None)
         team = row.get("team", None)
         campus = row.get("campus", None)
-        country = row.get("country", None)
-        state = row.get("state", None)
-        city = row.get("city", None)
         joining_date = row.get("joining_date", None)
-        joining_date = datetime.strptime(joining_date, "%y-%m-%Y").date() if joining_date else None
+        joining_date = datetime.strptime(joining_date, "%d-%m-%Y") if joining_date else None
+
 
         # Get department_id from InstituteDepartment
         department_data = session.query(InstituteDepartment).filter(
@@ -159,25 +168,9 @@ def user_bulk_upload(request):
         ).first()
         campus_id = campus_data.campus_id if campus_data else None
 
-        # Get country_id from Country
-        country_data = session.query(Country).filter(
-            Country.country_name.ilike(f"%{country}%")
-        ).first()
-        country_id = country_data.country_id if country_data else None
-
-        # Get state_id from State
-        state_data = session.query(State).filter(
-            State.state_name.ilike(f"%{state}%")
-        ).first()
-        state_id = state_data.state_id if state_data else None
-
-        # Get city_id from City
-        city_data = session.query(City).filter(
-            City.city_name.ilike(f"%{city}%")
-        ).first()
-        city_id = city_data.city_id if city_data else None
-
-        created_by = "Admin"
+        country_id = campus_data.country_id if campus_data else None
+        state_id = campus_data.state_id if campus_data else None
+        city_id = campus_data.city_id if campus_data else None
 
         try:
             new_user = User(
@@ -223,21 +216,28 @@ def user_bulk_upload(request):
             )
             session.add(cred_data)
             session.commit()
+            available_licenses -= 1
+            df.at[index, 'status'] = 'Success'
         except Exception as e:
+            print(f"Error inserting user {user_name}: {e}")
             error_users_list.append(user_name)
+            df.at[index, 'status'] = f"Failed: {str(e)}"
             session.rollback()
 
     if error_users_list:
         json_data ={
             "status": False,
-            "statusMessage": f"Failed to register users: {', '.join(error_users_list)}"
+            "statusMessage": f"Failed to register users: {', '.join(error_users_list)}",
+            "data": df.to_dict(orient='records')
         }
+        return json_data , 400
 
     json_data = {
         "statusMessage": "User registered successfully",
-        "status": True,
+        "status": True
     }
     return json_data, 200
+
 def delete_user(user_id, deleted_by):
     db = SQLiteDB()
     session = db.connect()

@@ -73,11 +73,11 @@ def get_category_details(request):
         filter.append(Categories.created_date <= args.get("created_before"))
 
     if args.get("departments"):
-        category_details = session.query(Categories).join(CategoriesDepartments, Categories.category_id == CategoriesDepartments.category_id).filter(*filter).all()
+        category_details = session.query(Categories).join(CategoriesDepartments, Categories.category_id == CategoriesDepartments.category_id).filter(*filter).order_by(Categories.created_date.desc()).all()
     elif args.get("teams"):
-        category_details = session.query(Categories).join(CategoriesTeams, Categories.category_id == CategoriesTeams.category_id).filter(*filter).all()
+        category_details = session.query(Categories).join(CategoriesTeams, Categories.category_id == CategoriesTeams.category_id).filter(*filter).order_by(Categories.created_date.desc()).all()
     else:
-        category_details = session.query(Categories).filter(*filter).all()
+        category_details = session.query(Categories).filter(*filter).order_by(Categories.created_date.desc()).all()
     result = []
     for category in category_details:
         # Fetch institute_name based on institute_id
