@@ -39,7 +39,6 @@ export class AdminResultsComponent implements OnInit {
 
   ngOnInit(): void {
     try { this.pageMeta.setMeta('Admin Dashboard', 'Institute analytics & test management'); } catch(e){}
-    this.loadDashboard();
     this.loadInstitutes();
   }
 
@@ -53,6 +52,7 @@ export class AdminResultsComponent implements OnInit {
         const loginInst = sessionStorage.getItem('institute_id') || sessionStorage.getItem('instituteId');
         if(loginInst) this.selectedInstituteId = String(loginInst);
         else if(this.institutes.length) this.selectedInstituteId = this.institutes[0].id;
+        if(this.selectedInstituteId) this.loadDashboard();
       },
       error: (err)=> console.warn('Failed to load institutes', err),complete: () => this.loader.hide()
     });

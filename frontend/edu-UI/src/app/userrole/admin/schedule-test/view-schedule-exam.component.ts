@@ -134,6 +134,7 @@ export class ViewScheduleExamComponent implements OnInit, AfterViewInit {
           } catch (e) { /* ignore */ }
 
           // Fallback: try reading user's institute from sessionStorage and apply it
+          let schedulesLoaded = false;
           try {
             const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
             if (raw) {
@@ -147,10 +148,15 @@ export class ViewScheduleExamComponent implements OnInit, AfterViewInit {
                   this.loadTeams(this.selectedInstitute);
                   // this.loadCategoriesForInstitute(this.selectedInstitute);
                   this.loadSchedules(this.selectedInstitute);
+                  schedulesLoaded = true;
                 }
               }
             }
           } catch (e) { /* ignore malformed session data */ }
+          // Ensure schedules are loaded even when no institute filter is determined
+          if (!schedulesLoaded) {
+            this.loadSchedules();
+          }
         }
       },
       error: (err) => console.warn('Failed to load institutes', err)
