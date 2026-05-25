@@ -348,7 +348,7 @@ export class AdminScheduleTestComponent {
     // load department/team/campus lists for the selected institute
     this.loadDepartmentList(this.model.institute);
     this.loadTeamsList(this.model.institute);
-    this.loadCampusList(this.model.institute);
+    this.loadCampusList(this.model.institute);                                   
     this.loadUsers();
   }
 
