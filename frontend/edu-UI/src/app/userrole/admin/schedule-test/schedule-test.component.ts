@@ -237,6 +237,7 @@ export class AdminScheduleTestComponent {
         this.isSuperAdmin = !!(u && (u.is_super_admin === true || u.isSuperAdmin || u.role === 'super_admin' || u.user_role === 'super_admin'));
       }
     } catch (e) { /* ignore parse errors */ }
+    this.updateInstituteDisabledState();
   }
 
   loadCountries() {
@@ -276,21 +277,8 @@ export class AdminScheduleTestComponent {
       next: (res) => {
         if (res && res.data && Array.isArray(res.data)) {
           this.institutes = res.data.map((r: any) => ({ name: r.name || r.institute_name || r.short_name || '', institute_id: r.institute_id }));
-          // If the model already has an institute (for example when applying edit/view), prefer it
-          try {
-            if (this.model && this.model.institute) {
-              const instId = this.model.institute;
-              const found = this.institutes.find(i => String(i.institute_id) === String(instId));
-              if (found) {
-                this.model.institute = found.institute_id as any;
-                try{ this.instituteCtrl.setValue(found); }catch(e){}
-                this.onInstituteChange(this.model.institute);
-                return;
-              }
-            }
-          } catch (e) { /* ignore */ }
 
-          // setup filtered institutes observable for autocomplete
+          // setup filtered institutes observable for autocomplete (must happen before early returns)
           try{
             this.filteredInstitutes$ = this.instituteCtrl.valueChanges.pipe(
               startWith(''),
@@ -300,6 +288,22 @@ export class AdminScheduleTestComponent {
               })
             );
           }catch(e){ this.filteredInstitutes$ = of(this.institutes || []); }
+
+          // If the model already has an institute (for example when applying edit/view), prefer it
+          try {
+            if (this.model && this.model.institute) {
+              const instId = this.model.institute;
+              const found = this.institutes.find(i => String(i.institute_id) === String(instId));
+              if (found) {
+                this.model.institute = found.institute_id as any;
+                this.instituteCtrl.setValue(found);
+                this.updateInstituteDisabledState();
+                this.onInstituteChange(this.model.institute);
+                try { this.cd.detectChanges(); } catch (e) { /* noop */ }
+                return;
+              }
+            }
+          } catch (e) { /* ignore */ }
 
           // Fallback: If user has an institute in session storage, set it as default
           try {
@@ -313,8 +317,10 @@ export class AdminScheduleTestComponent {
                 if (found) {
                   this.model.institute = found.institute_id as any;
                   // trigger change handlers to populate dependent lists
-                  try{ this.instituteCtrl.setValue(found); }catch(e){}
+                  this.instituteCtrl.setValue(found);
+                  this.updateInstituteDisabledState();
                   this.onInstituteChange(this.model.institute);
+                  try { this.cd.detectChanges(); } catch (e) { /* noop */ }
                 }
               }
             }
@@ -327,6 +333,14 @@ export class AdminScheduleTestComponent {
     });
   }
 
+  // Track whether institute field should be disabled (used in template via [readonly] + [matAutocompleteDisabled])
+  // NOTE: We do NOT call FormControl.disable() because that prevents MatAutocompleteTrigger
+  // from invoking displayWith after setValue, causing the input to appear blank.
+  instituteDisabled = false;
+  updateInstituteDisabledState() {
+    this.instituteDisabled = !this.isSuperAdmin || this.readOnly;
+  }
+
   // when the institute select changes in the template, call this helper to load exams
   onInstituteChange(value: string) {
     this.model.institute = value || '';
@@ -334,7 +348,7 @@ export class AdminScheduleTestComponent {
     // load department/team/campus lists for the selected institute
     this.loadDepartmentList(this.model.institute);
     this.loadTeamsList(this.model.institute);
-    this.loadCampusList(this.model.institute);
+    this.loadCampusList(this.model.institute);                                   
     this.loadUsers();
   }
 
@@ -584,8 +598,14 @@ export class AdminScheduleTestComponent {
     this.selectedExam = null;
     if (!examId) return;
     const found = (this.examsRaw || []).find((e: any) => String(e.exam_id || e.id || e.test_id || e._id) === String(examId));
-    if (found) this.selectedExam = found;
-    // otherwise optionally fetch exam detail from API (not implemented)
+    if (found) {
+      this.selectedExam = found;
+      // set the autocomplete control so the exam name displays in the input
+      try {
+        const examOption = (this.examsList || []).find((ex: any) => String(ex.id) === String(examId));
+        if (examOption) this.examCtrl.setValue(examOption);
+      } catch (e) { /* noop */ }
+    }
   }
 
   // load department list for a specific institute
@@ -813,7 +833,7 @@ export class AdminScheduleTestComponent {
         // preserve schedule id for update detection
         this.model.schedule_id = e.schedule_id || e.id || e._id || e.scheduleId || null;
         // map fields into the form model where possible
-        this.model.institute = e.institute || e.institute_id || '';
+        this.model.institute = (e.institute && typeof e.institute === 'object' ? (e.institute.institute_id || e.institute.id || '') : e.institute) || e.institute_id || '';
         // try multiple shapes for exam reference
         this.model.exam_id = e.exam_id || (e.exam && (e.exam.exam_id || e.exam.id || e.exam._id || e.exam.test_id)) || e.test_id || '';
         // scheduler name used in template; also set legacy testName for compatibility
@@ -886,7 +906,7 @@ export class AdminScheduleTestComponent {
         const v = JSON.parse(rawView);
         // set schedule id for view mode as well
         this.model.schedule_id = v.schedule_id || v.id || v._id || v.scheduleId || null;
-        this.model.institute = v.institute || v.institute_id || '';
+        this.model.institute = (v.institute && typeof v.institute === 'object' ? (v.institute.institute_id || v.institute.id || '') : v.institute) || v.institute_id || '';
         // exam id from view payload (similar shapes as edit)
         this.model.exam_id = v.exam_id || (v.exam && (v.exam.exam_id || v.exam.id || v.exam._id || v.exam.test_id)) || v.test_id || '';
         this.model.schedulerName = v.title || v.testName || v.schedulerName || '';

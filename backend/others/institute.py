@@ -366,11 +366,12 @@ def get_institute_details(request):
             .distinct()
         )
         total_count = query.count()
-        institutes = query.offset((page_number - 1) * page_size).limit(page_size).all()
+        # institutes = query.offset((page_number - 1) * page_size).limit(page_size).all()
+        institutes = query.all()
     else:
         query = session.query(Institute).filter(*filters).order_by(Institute.created_date.desc())
         total_count = query.count()
-        institutes = query.offset((page_number - 1) * page_size).limit(page_size).all()
+        institutes = query.all()
 
     result = []
     for inst in institutes:

@@ -32,6 +32,7 @@ export class AdminResultsComponent implements OnInit {
 
   institutes: Array<{ id: string; name: string }> = [];
   selectedInstituteId: string | null = null;
+  isSuperAdmin = false;
 
   private apiUrl = `${API_BASE}/admin-dashboard`;
 
@@ -39,7 +40,14 @@ export class AdminResultsComponent implements OnInit {
 
   ngOnInit(): void {
     try { this.pageMeta.setMeta('Admin Dashboard', 'Institute analytics & test management'); } catch(e){}
-    this.loadDashboard();
+    try {
+      const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        const role = u?.role || u?.user_role || u?.role_name || '';
+        this.isSuperAdmin = (String(role) === 'super_admin' || String(role) === 'super-admin' || u?.is_super_admin === true || !!u?.isSuperAdmin);
+      }
+    } catch (e) { /* ignore */ }
     this.loadInstitutes();
   }
 
@@ -53,6 +61,7 @@ export class AdminResultsComponent implements OnInit {
         const loginInst = sessionStorage.getItem('institute_id') || sessionStorage.getItem('instituteId');
         if(loginInst) this.selectedInstituteId = String(loginInst);
         else if(this.institutes.length) this.selectedInstituteId = this.institutes[0].id;
+        if(this.selectedInstituteId) this.loadDashboard();
       },
       error: (err)=> console.warn('Failed to load institutes', err),complete: () => this.loader.hide()
     });
