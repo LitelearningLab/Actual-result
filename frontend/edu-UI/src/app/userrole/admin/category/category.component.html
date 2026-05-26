@@ -45,10 +45,10 @@
                 </div>
                 <div class="filter-block">
 
-                        <mat-form-field appearance="outline" class="filter-item">
+                        <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
                             <mat-label>Institute</mat-label>
                             <mat-select [(ngModel)]="selectedInstitute" placeholder="Select institute"
-                                [disabled]="!isSuperAdmin" (selectionChange)="onInstituteChange($event.value)">
+                                (selectionChange)="onInstituteChange($event.value)">
                                 <mat-option [value]="null">All</mat-option>
                                 <mat-option *ngFor="let i of institutes"
                                     [value]="i.institute_id">{{i.short_name}}</mat-option>

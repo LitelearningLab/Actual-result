@@ -60,10 +60,9 @@
                     <h4><mat-icon>tune</mat-icon> Filters</h4>
                 </div>
                 <div class="filter-block">
-                    <mat-form-field appearance="outline" class="filter-item">
+                    <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
                         <mat-label>Institute</mat-label>
                         <mat-select [(ngModel)]="selectedInstitute" 
-                            [disabled]="!isSuperAdmin"
                             (selectionChange)="onInstituteChange($event.value)"
                             aria-label="Filter by institute">
                             <mat-option value="">All Institutes</mat-option>

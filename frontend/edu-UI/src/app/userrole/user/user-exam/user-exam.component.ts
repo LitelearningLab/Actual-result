@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { API_BASE } from 'src/app/shared/api.config';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
@@ -60,7 +61,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
   submitting = false;
   private submitUrl = `${API_BASE}/submit-exam`;
 
-  constructor(private http: HttpClient, private confirmService: ConfirmService, private ngZone: NgZone){
+  constructor(private http: HttpClient, private confirmService: ConfirmService, private ngZone: NgZone, private router: Router){
     // Initialize speech recognition
     this.initSpeechRecognition();
   }
@@ -263,7 +264,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
         this.submitting = false;
         this.stopTimer();
         // redirect to user dashboard
-        window.location.href = '/user-dashboard';
+        this.ngZone.run(() => this.router.navigate(['/user-dashboard']));
       },
       error: (err) => {
         console.warn('Submit failed', err);

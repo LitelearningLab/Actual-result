@@ -32,6 +32,7 @@ export class AdminResultsComponent implements OnInit {
 
   institutes: Array<{ id: string; name: string }> = [];
   selectedInstituteId: string | null = null;
+  isSuperAdmin = false;
 
   private apiUrl = `${API_BASE}/admin-dashboard`;
 
@@ -39,6 +40,14 @@ export class AdminResultsComponent implements OnInit {
 
   ngOnInit(): void {
     try { this.pageMeta.setMeta('Admin Dashboard', 'Institute analytics & test management'); } catch(e){}
+    try {
+      const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        const role = u?.role || u?.user_role || u?.role_name || '';
+        this.isSuperAdmin = (String(role) === 'super_admin' || String(role) === 'super-admin' || u?.is_super_admin === true || !!u?.isSuperAdmin);
+      }
+    } catch (e) { /* ignore */ }
     this.loadInstitutes();
   }
 
