@@ -107,6 +107,32 @@
           <div class="kpi-decoration"></div>
         </div>
       </div>
+
+      <div class="kpi-card kpi-card--gradient kpi-card--indigo">
+        <div class="kpi-card-inner">
+          <div class="kpi-icon-wrap">
+            <mat-icon>quiz</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-val">{{ summary.totalExams }}</div>
+            <div class="kpi-label">Total Exams</div>
+          </div>
+          <div class="kpi-decoration"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-card--gradient kpi-card--cyan">
+        <div class="kpi-card-inner">
+          <div class="kpi-icon-wrap">
+            <mat-icon>help_outline</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-val">{{ summary.totalQuestions }}</div>
+            <div class="kpi-label">Total Questions</div>
+          </div>
+          <div class="kpi-decoration"></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -268,6 +294,37 @@
                 <mat-icon class="action-arrow">arrow_forward</mat-icon>
               </div>
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Recent Activity Feed ── -->
+  <section class="activity-section" *ngIf="recentActivity.length > 0">
+    <div class="data-card">
+      <div class="card-header">
+        <div class="card-title-wrap">
+          <mat-icon class="card-icon">notifications_active</mat-icon>
+          <h3>Recent Activity</h3>
+        </div>
+        <span class="badge count-badge">{{ recentActivity.length }} events</span>
+      </div>
+      <div class="card-body">
+        <div class="activity-list">
+          <div class="activity-item" *ngFor="let a of recentActivity; let idx = index" [style.--row-delay]="idx * 0.06 + 's'">
+            <div class="activity-icon-wrap" [ngClass]="a.type === 'user_registered' ? 'activity-icon--user' : 'activity-icon--exam'">
+              <mat-icon>{{ a.type === 'user_registered' ? 'person_add' : 'note_add' }}</mat-icon>
+            </div>
+            <div class="activity-body">
+              <span class="activity-text" *ngIf="a.type === 'user_registered'">
+                <strong>{{ a.user }}</strong> registered
+              </span>
+              <span class="activity-text" *ngIf="a.type !== 'user_registered'">
+                Exam <strong>{{ a.exam }}</strong> created
+              </span>
+              <span class="activity-time">{{ a.timestamp || 'Recently' }}</span>
+            </div>
           </div>
         </div>
       </div>

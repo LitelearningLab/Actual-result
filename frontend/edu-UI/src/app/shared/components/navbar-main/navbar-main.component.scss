@@ -64,8 +64,6 @@ $ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
       &::after { content: ''; width: 0.35rem; height: 0.35rem; border-radius: 50%; background: var(--button-1); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12); }
   }
 
-    // &:hover .title { filter: drop-shadow(0 6px 10px rgba(99, 102, 241, 0.15)); transform: translateX(1px); }
-    // &:hover .title::after { transform: scaleX(1.06); box-shadow: 0 0 16px rgba(99, 102, 241, 0.42); }
     &:hover .subtitle { transform: translateX(2px); }
     &:hover .subtitle::before { transform: translateX(1px); }
 }

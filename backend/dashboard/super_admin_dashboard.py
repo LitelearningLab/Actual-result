@@ -152,9 +152,21 @@ def superadmin_dashboard_details():
         "last_downtime": "2025-10-15T02:00:00Z",
         "active_sessions": 320
     }
+    # Test Distribution Pie Chart
+    chart_test_distribution = {
+        "id": "test_distribution",
+        "title": "Test Status Distribution",
+        "type": "pie",
+        "data": {
+            "labels": ["Active", "Upcoming", "Completed"],
+            "values": [active_exams, upcoming_exams, completed_exams]
+        }
+    }
+
     charts = [
         chart_users_by_institute,
-        chart_exams_conducted
+        chart_exams_conducted,
+        chart_test_distribution
     ]
     json_data = {
         "summary": summary,

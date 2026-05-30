@@ -22,12 +22,16 @@ export class SuperDashboardComponent implements OnInit {
     summary: any = {
     totalUsers: 0,
     totalInstitutes: 0,
+    totalExams: 0,
+    totalQuestions: 0,
     activeTests: 0,
     upcomingTests: 0,
     completedTests: 0,
-    avgScore: null
+    avgScore: null,
+    passRate: null
   };
   instituteStats: Array<{ name: string; users: number; scheduledTests: number }> = [];
+  recentActivity: Array<{ type: string; user?: string; exam?: string; timestamp: string }> = [];
   // visual / metric fields
   passRate = 0;
   avgScore = 0;
@@ -60,19 +64,26 @@ export class SuperDashboardComponent implements OnInit {
     const s = res.summary || res.details?.summary || res || {};
     this.summary.totalUsers = s.total_users ?? s.totalUsers ?? 0;
     this.summary.totalInstitutes = s.total_institutes ?? s.totalInstitutes ?? 0;
+    this.summary.totalExams = s.total_exams ?? s.totalExams ?? 0;
+    this.summary.totalQuestions = s.total_questions ?? s.totalQuestions ?? 0;
     this.summary.upcomingTests = s.upcoming_exams ?? s.upcomingExams ?? 0;
     this.summary.activeTests = s.active_exams ?? s.activeExams ?? 0;
     this.summary.completedTests = s.completed_exams ?? s.completedExams ?? 0;
     this.summary.avgScore = s.avg_score ?? s.avgScore ?? this.avgScore ?? null;
+    this.summary.passRate = s.pass_rate ?? s.passRate ?? null;
 
     // core lists (top institutes may live under details.top_institutes)
     const topInstitutes = res.details?.top_institutes || res.top_institutes || res.topInstitutes || [];
     this.instituteStats = (topInstitutes || []).map((t:any)=>({ name: t.name || t.institute || 'N/A', users: t.users || t.count || 0, scheduledTests: t.exams || t.scheduled_tests || t.scheduledTests || 0 }));
 
+    // recent activity
+    this.recentActivity = (res.recent_activity || res.recentActivity || []).slice(0, 5);
+
     // exam stats
     const examStats = res.details?.exam_stats || res.exam_stats || {};
     this.passRate = examStats?.pass_rate ? Math.round(examStats.pass_rate * 100) : (examStats?.pass_rate || 0);
     this.avgScore = examStats?.average_score || examStats?.avg_score || 0;
+    this.summary.passRate = this.passRate || this.summary.passRate;
 
     // attempts / growth
     this.attempts = (res.user_growth || res.userGrowth || res.attempts_over_time || []).map((x:any)=> x.users ?? x.count ?? x.value ?? 0);
@@ -131,9 +142,61 @@ export class SuperDashboardComponent implements OnInit {
       });
     } else {
       // fallback: build default charts from computed/internal data
-      this.charts = [
-        { type: 'bar', title: 'Users by Institute', data: { barRects: [] }, key: 'users_by_institute' }
-      ];
+      this.charts = [];
+
+      // Test Status Distribution (pie)
+      if (this.summary.activeTests || this.summary.upcomingTests || this.summary.completedTests) {
+        const testLabels = ['Active', 'Upcoming', 'Completed'];
+        const testValues = [this.summary.activeTests, this.summary.upcomingTests, this.summary.completedTests];
+        const total = testValues.reduce((s, n) => s + n, 0) || 1;
+        let acc = 0;
+        const pieColors = ['#10b981', '#f59e0b', '#667eea'];
+        const pieSlices = testValues.map((v: number, i: number) => {
+          const pct = Math.round((v / total) * 100);
+          const dasharray = `${pct} ${100 - pct}`;
+          const dashoffset = -acc;
+          acc += pct;
+          return { label: testLabels[i], value: v, pct, color: pieColors[i], dasharray, dashoffset };
+        });
+        this.charts.push({ type: 'pie', title: 'Test Status Distribution', data: { pieSlices }, key: 'test_distribution' });
+      }
+
+      // Pass Rate Gauge
+      if (this.passRate > 0) {
+        const val = this.passRate;
+        const angle = (1 - val / 100) * Math.PI;
+        const gx = 6 + 22 * Math.cos(angle);
+        const gy = 20 - 22 * Math.sin(angle);
+        const gaugePathD = `M6 20 A12 12 0 0 1 ${gx} ${gy}`;
+        this.charts.push({ type: 'gauge', title: 'Pass Rate', data: { gaugePathD, metricValue: val }, key: 'pass_rate_gauge' });
+      }
+
+      // User Growth (line) from attempts data
+      if (this.attempts.length > 1) {
+        const n = this.attempts.length;
+        const maxV = Math.max(...this.attempts, 1);
+        const pts: string[] = [];
+        const attemptPoints = this.attempts.map((v: number, i: number) => {
+          const cx = i * (200 / Math.max(n - 1, 1));
+          const cy = 60 - (v / maxV * 50);
+          pts.push(`${cx},${cy}`);
+          return { cx, cy, v };
+        });
+        this.charts.push({ type: 'line', title: 'User Growth Trend', data: { attemptsPointsStr: pts.join(' '), attemptPoints, labels: [], values: this.attempts }, key: 'user_growth' });
+      }
+
+      // Users by Institute (bar) placeholder
+      if (this.instituteStats.length > 0) {
+        const max = Math.max(...this.instituteStats.map(i => i.users), 1);
+        const colors = ['#667eea', '#7c3aed', '#10b981', '#f59e0b', '#14b8a6'];
+        const barRects = this.instituteStats.slice(0, 6).map((inst, i) => ({
+          x: 10 + i * 40, y: 100 - (inst.users / max) * 80,
+          width: 24, height: (inst.users / max) * 80,
+          color: colors[i % colors.length],
+          label: inst.name, value: inst.users
+        }));
+        this.charts.push({ type: 'bar', title: 'Users by Institute', data: { barRects }, key: 'users_by_institute' });
+      }
     }
   }
 

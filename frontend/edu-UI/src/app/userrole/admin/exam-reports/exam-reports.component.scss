@@ -168,8 +168,18 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 .analytics-summary-grid { padding:0 0 1rem; background:transparent; border-bottom:none; }
 .summary-card { display:flex; align-items:flex-start; gap:0.875rem; min-width:0; padding:1rem; border:1px solid var(--theme-3-border); border-radius:0.875rem; background:linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%); box-shadow:0 1rem 2rem var(--theme-3-hanover-bg); transition:transform 0.25s $ease, border-color 0.25s $ease, box-shadow 0.25s $ease; }
 .summary-card:hover { transform:translateY(-0.125rem); border-color:var(--button-1); box-shadow:0 1.25rem 2.25rem var(--theme-3-hanover-bg); }
-.summary-icon { width:2.75rem; height:2.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; border-radius:0.875rem; background:var(--theme-2-hanover-bg); color:var(--button-1); }
+.summary-icon { width:2.75rem; height:2.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; border-radius:0.875rem; background:var(--theme-2-hanover-bg); color:var(--button-1); transition:transform 0.2s $ease-bounce; }
+.summary-icon:hover { transform:scale(1.05); }
 .summary-icon mat-icon { font-size:1.25rem; width:1.25rem; height:1.25rem; }
+// Icon color variants
+.summary-icon--students { background:rgba(99,102,241,0.1); color:#6366f1; }
+.summary-icon--page { background:rgba(59,130,246,0.1); color:#3b82f6; }
+.summary-icon--score { background:rgba(245,158,11,0.1); color:#f59e0b; }
+.summary-icon--pass { background:rgba(16,185,129,0.1); color:#10b981; }
+.summary-icon--categories { background:rgba(139,92,246,0.1); color:#8b5cf6; }
+.summary-icon--questions { background:rgba(59,130,246,0.1); color:#3b82f6; }
+.summary-icon--attempts { background:rgba(99,102,241,0.1); color:#6366f1; }
+.summary-icon--mistakes { background:rgba(239,68,68,0.1); color:#ef4444; }
 .summary-copy { display:flex; flex-direction:column; gap:0.25rem; min-width:0; }
 .summary-label { font-size:var(--font-xs); font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--theme-3-text-3); }
 .summary-value { font-size:clamp(1.25rem, 1.05rem + 0.7vw, 1.75rem); font-weight:800; line-height:1; letter-spacing:-0.03em; color:var(--theme-3-text-1); }
@@ -248,6 +258,28 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 .premium-table tr.mat-row:hover td { background: rgba(99,102,241,0.045); box-shadow: inset 0.1875rem 0 0 var(--button-1); }
 .student-name { color: var(--button-1); cursor: pointer; font-weight: 600; font-size: var(--font-md); letter-spacing: -0.01em; transition: opacity 0.2s $ease, transform 0.2s $ease-bounce; display: inline-block; }
 .student-name:hover { opacity: 0.85; text-decoration: underline; text-underline-offset: 0.125rem; transform: translateX(0.0625rem); }
+
+// ── Student / Category avatar cells ──
+.student-cell { display:flex; align-items:center; gap:0.625rem; cursor:pointer; }
+.student-avatar { width:2rem; height:2rem; border-radius:0.5rem; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.8125rem; color:#fff; flex-shrink:0; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.category-cell { display:flex; align-items:center; gap:0.625rem; cursor:pointer; }
+.category-avatar { width:2rem; height:2rem; border-radius:0.5rem; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.8125rem; color:#fff; flex-shrink:0; background:linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+
+// ── Marks inline ──
+.marks-inline { font-weight:600; font-size:0.8125rem; color:var(--theme-3-text-1); }
+.marks-sep { color:var(--theme-3-text-3); margin:0 0.125rem; }
+
+// ── Percentage badge ──
+.pct-badge { display:inline-flex; align-items:center; padding:0.1875rem 0.5rem; border-radius:0.375rem; font-size:0.75rem; font-weight:700; background:rgba(99,102,241,0.08); color:#6366f1; }
+
+// ── Manual review status ──
+.review-status { font-size:0.8125rem; font-weight:500; }
+.review-status.review-pending { color:var(--orange-text); font-weight:600; }
+
+// ── Result pills ──
+.result-pill { display:inline-flex; align-items:center; padding:0.1875rem 0.625rem; border-radius:1rem; font-size:0.6875rem; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; background:rgba(0,0,0,0.04); color:var(--theme-3-text-3); }
+.result-pill.result-pass { background:var(--green-bg); color:var(--green-text); border:0.0625rem solid var(--bgreen-border); }
+.result-pill.result-fail { background:var(--red-bg); color:var(--red-text); border:0.0625rem solid var(--bred-border); }
 
 // ── Table wrap scrollbar ──
 .table-wrap {

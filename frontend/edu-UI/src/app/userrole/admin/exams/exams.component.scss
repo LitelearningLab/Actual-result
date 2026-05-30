@@ -177,6 +177,24 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
   border: 1px solid rgba(226, 232, 240, 0.3);
 }
 
+// Avatar cell – table
+.item-cell { display: flex; align-items: center; gap: 0.75rem; }
+.item-avatar { width: 2.125rem; height: 2.125rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; color: #fff; flex-shrink: 0; }
+.item-avatar--exam { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.item-info { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.item-name { font-weight: 600; color: var(--theme-3-text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-sub { font-size: 0.75rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+// Modal header – enhanced
+.modal-header-left { display: flex; align-items: center; gap: 0.875rem; flex: 1; min-width: 0; }
+.modal-avatar { width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.25rem; color: #fff; flex-shrink: 0; }
+.modal-avatar--exam { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.modal-item-name { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--theme-3-text-1); letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.modal-item-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem; }
+.modal-stat-badge { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 0.375rem; font-size: 0.7rem; font-weight: 600; background: rgba(99,102,241,0.1); color: #6366f1; }
+.modal-stat-badge--duration { background: rgba(16,185,129,0.1); color: #10b981; }
+.modal-stat-badge--attempts { background: rgba(245,158,11,0.1); color: #f59e0b; }
+
 // Modal header
 .modal-header {
   display: flex;
@@ -192,23 +210,6 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
   flex-direction: column;
   gap: 0.25rem;
   flex: 1;
-}
-
-.modal-header-text h3 {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.modal-user-name {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--theme-3-text-1);
-  letter-spacing: -0.02em;
 }
 
 // Modal body

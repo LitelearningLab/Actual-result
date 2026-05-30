@@ -135,7 +135,7 @@
                     <mat-tab label="User Report">
                               <div class="report-summary-grid">
                                    <div class="summary-card">
-                                        <div class="summary-icon"><mat-icon>groups</mat-icon></div>
+                                        <div class="summary-icon summary-icon--students"><mat-icon>groups</mat-icon></div>
                                         <div class="summary-copy">
                                              <div class="summary-label">Students</div>
                                              <div class="summary-value">{{ userReportTotal || 0 }}</div>
@@ -143,7 +143,7 @@
                                         </div>
                                    </div>
                                    <div class="summary-card">
-                                        <div class="summary-icon"><mat-icon>article</mat-icon></div>
+                                        <div class="summary-icon summary-icon--page"><mat-icon>article</mat-icon></div>
                                         <div class="summary-copy">
                                              <div class="summary-label">Current Page</div>
                                              <div class="summary-value">{{ currentPage }}/{{ totalPages }}</div>
@@ -151,7 +151,7 @@
                                         </div>
                                    </div>
                                    <div class="summary-card">
-                                        <div class="summary-icon"><mat-icon>military_tech</mat-icon></div>
+                                        <div class="summary-icon summary-icon--score"><mat-icon>military_tech</mat-icon></div>
                                         <div class="summary-copy">
                                              <div class="summary-label">Average Score</div>
                                              <div class="summary-value">{{ userAverageScore | number:'1.0-1' }}</div>
@@ -159,7 +159,7 @@
                                         </div>
                                    </div>
                                    <div class="summary-card">
-                                        <div class="summary-icon"><mat-icon>task_alt</mat-icon></div>
+                                        <div class="summary-icon summary-icon--pass"><mat-icon>task_alt</mat-icon></div>
                                         <div class="summary-copy">
                                              <div class="summary-label">Pass Rate</div>
                                              <div class="summary-value">{{ userPassRate | number:'1.0-0' }}%</div>
@@ -188,29 +188,36 @@
                                    class="mat-elevation-z1 compact premium-table" matSort>
                                    <ng-container matColumnDef="student_name">
                                         <th mat-header-cell *matHeaderCellDef>Student</th>
-                                        <td mat-cell *matCellDef="let row">
-                                            <div href="javascript:void(0)" (click)="openUserReview(row)"  class="student-name">{{ row.student_name || row.name || 'Student' }}</div>
+                                        <td mat-cell *matCellDef="let row" class="cell-primary">
+                                             <div class="student-cell" (click)="openUserReview(row)">
+                                                  <div class="student-avatar">{{ (row.student_name || row.name || 'S').charAt(0).toUpperCase() }}</div>
+                                                  <span class="student-name">{{ row.student_name || row.name || 'Student' }}</span>
+                                             </div>
                                         </td>
                                    </ng-container>
                                    <ng-container matColumnDef="questions_attempted">
-                                        <th mat-header-cell *matHeaderCellDef>Marks / Total Marks</th>
-                                        <td mat-cell *matCellDef="let row">{{row.marks_obtained}} / {{row.total_marks}}</td>
+                                        <th mat-header-cell *matHeaderCellDef>Marks / Total</th>
+                                        <td mat-cell *matCellDef="let row">
+                                             <span class="marks-inline">{{row.marks_obtained}} <span class="marks-sep">/</span> {{row.total_marks}}</span>
+                                        </td>
                                    </ng-container>
                                    <ng-container matColumnDef="correct_answers">
                                         <th mat-header-cell *matHeaderCellDef>Percentage</th>
-                                        <td mat-cell *matCellDef="let row">{{row.percentage}}</td>
+                                        <td mat-cell *matCellDef="let row">
+                                             <span class="pct-badge">{{row.percentage}}</span>
+                                        </td>
                                    </ng-container>
                                    <ng-container matColumnDef="wrong_answers">
                                         <th mat-header-cell *matHeaderCellDef>Manual Review</th>
-                                        <td mat-cell *matCellDef="let row">{{row.manual_review}}</td>
+                                        <td mat-cell *matCellDef="let row">
+                                             <span class="review-status" [class.review-pending]="row.manual_review === 'pending' || row.manual_review === 'Pending'">{{row.manual_review}}</span>
+                                        </td>
                                    </ng-container>
-                                   <!-- <ng-container matColumnDef="marks_obtained">
-                                        <th mat-header-cell *matHeaderCellDef>Marks</th>
-                                        <td mat-cell *matCellDef="let row">{{row.marks_obtained}}</td>
-                                   </ng-container> -->
                                    <ng-container matColumnDef="result">
                                         <th mat-header-cell *matHeaderCellDef>Result</th>
-                                        <td mat-cell *matCellDef="let row">{{row.result}}</td>
+                                        <td mat-cell *matCellDef="let row">
+                                             <span class="result-pill" [class.result-pass]="(row.result || '').toLowerCase() === 'pass' || (row.result || '').toLowerCase() === 'passed'" [class.result-fail]="(row.result || '').toLowerCase() === 'fail' || (row.result || '').toLowerCase() === 'failed'">{{row.result}}</span>
+                                        </td>
                                    </ng-container>
 
                                    <tr mat-header-row
@@ -234,7 +241,7 @@
                          <div class="analytics-section">
                               <div class="report-summary-grid analytics-summary-grid">
                                    <div class="summary-card">
-                                        <div class="summary-icon"><mat-icon>grid_view</mat-icon></div>
+                                        <div class="summary-icon summary-icon--categories"><mat-icon>grid_view</mat-icon></div>
                                         <div class="summary-copy">
                                              <div class="summary-label">Categories</div>
                                              <div class="summary-value">{{ categoryAnalytics.length || 0 }}</div>
@@ -242,7 +249,7 @@
                                         </div>
                                    </div>
                                    <div class="summary-card">
-                                        <div class="summary-icon"><mat-icon>quiz</mat-icon></div>
+                                        <div class="summary-icon summary-icon--questions"><mat-icon>quiz</mat-icon></div>
                                         <div class="summary-copy">
                                              <div class="summary-label">Questions</div>
                                              <div class="summary-value">{{ activeQuestionCount || 0 }}</div>
@@ -250,7 +257,7 @@
                                         </div>
                                    </div>
                                    <div class="summary-card">
-                                        <div class="summary-icon"><mat-icon>stacked_line_chart</mat-icon></div>
+                                        <div class="summary-icon summary-icon--attempts"><mat-icon>stacked_line_chart</mat-icon></div>
                                         <div class="summary-copy">
                                              <div class="summary-label">Total Attempts</div>
                                              <div class="summary-value">{{ analyticsTotalAttempts || 0 }}</div>
@@ -258,7 +265,7 @@
                                         </div>
                                    </div>
                                    <div class="summary-card">
-                                        <div class="summary-icon"><mat-icon>warning_amber</mat-icon></div>
+                                        <div class="summary-icon summary-icon--mistakes"><mat-icon>warning_amber</mat-icon></div>
                                         <div class="summary-copy">
                                              <div class="summary-label">Mistakes</div>
                                              <div class="summary-value">{{ analyticsMistakeCount || 0 }}</div>
@@ -300,10 +307,11 @@
                                                   class="mat-elevation-z1 compact premium-table" matSort>
                                                   <ng-container matColumnDef="category">
                                                        <th mat-header-cell *matHeaderCellDef>Category</th>
-                                                       <!-- <td mat-cell *matCellDef="let c">{{c.category_name || c.name}} -->
-                                                       <td mat-cell *matCellDef="let c">
-                                                            <div href="javascript:void(0)" class="student-name" (click)="openCategoryQuestionSummary(c)">{{c.category_name || c.name}}</div>
-                                                            <!-- <div href="javascript:void(0)" (click)="openUserReview(row)"  class="student-name">{{ row.student_name || row.name || 'Student' }}</div> -->
+                                                       <td mat-cell *matCellDef="let c" class="cell-primary">
+                                                            <div class="category-cell" (click)="openCategoryQuestionSummary(c)">
+                                                                 <div class="category-avatar">{{ (c.category_name || c.name || '?').charAt(0).toUpperCase() }}</div>
+                                                                 <span class="student-name">{{c.category_name || c.name}}</span>
+                                                            </div>
                                                        </td>
                                                   </ng-container>
                                                   <ng-container matColumnDef="questions">
