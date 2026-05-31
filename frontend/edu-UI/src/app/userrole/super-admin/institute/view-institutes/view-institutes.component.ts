@@ -59,7 +59,7 @@ export interface Institute {
 })
 export class ViewInstitutesComponent {
   // Show only requested columns in list-card table (include subscription dates and active)
-  columns = ['name','short','industry_type','industry_sector', 'primary_contact_person','subscription_start','subscription_end','active','actions'];
+  columns = ['name','industry_type','industry_sector', 'primary_contact_person','subscription_start','subscription_end','active','actions'];
 
   filter = '';
 

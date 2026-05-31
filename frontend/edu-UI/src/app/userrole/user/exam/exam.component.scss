@@ -48,9 +48,9 @@ $shadow-panel: 0 1.5rem 3.75rem rgba(5,18,40,0.22), 0 0.375rem 1rem rgba(5,18,40
 
 // ── List card + tabs ──
 .list-card { background: #fff; border: 0.0625rem solid #e2e8f0; border-radius: $radius; box-shadow: $shadow-md; overflow: hidden; }
-.list-wrapper { overflow: hidden; }
+.list-wrapper { overflow: visible; }
 .exam-tabs { width: 100%; }
-.tab-table { overflow-x: auto; }
+.tab-table { max-height: 70vh; overflow: auto; }
 
 // ── Tab styling (::ng-deep) ──
 :host ::ng-deep .exam-tabs .mat-mdc-tab-header { background: #f5f7fa; border-radius: $radius $radius 0 0; border-bottom: 0.0625rem solid #e0e4ea; }
