@@ -31,9 +31,9 @@ import os
 if load_dotenv():
     load_dotenv()
 else:
-    load_dotenv(dotenv_path=r".\backend\.env")
-    # env_path = "/opt/ActualResults/backend/.env"
-    # load_dotenv(dotenv_path=env_path)
+    # load_dotenv(dotenv_path=r".\backend\.env")
+    env_path = "/opt/ActualResults/backend/.env"
+    load_dotenv(dotenv_path=env_path)
 
 # read jwt_secret
 jwt_secret = os.getenv('jwt_secret', 'your_jwt_secret')
@@ -50,6 +50,7 @@ def jwt_required(f):
         validation_result = initialize_jwt_validator(request)
         if validation_result != "Access granted":
             return jsonify({"status": False, "statusMessage": validation_result}), 401
+   
         return f(*args, **kwargs)
     return decorated_function
 def get_pagination():

@@ -424,8 +424,8 @@ def get_institute_details(request):
             "pin_code": campus.pin_code,
             "email": campus.email,
             "phone": campus.phone,
-            "is_primary": True if campus.is_primary else False,
-            "active_status": True if campus.active_status else False,
+            "is_primary": True if campus.is_primary == True else False,
+            "active_status": True if campus.active_status == True else False,
             })
         created_by = None
         updated_by = None
