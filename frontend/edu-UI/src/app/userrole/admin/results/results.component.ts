@@ -19,10 +19,13 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 })
 export class AdminResultsComponent implements OnInit {
   metrics: any = {
-    totalStudents: 1240,
-    testsScheduled: 12,
-    attemptsToday: 86,
-    avgScore: 72,
+    totalStudents: 0,
+    testsScheduled: 0,
+    activeTests: 0,
+    upcomingTests: 0,
+    completedTests: 0,
+    attemptsToday: 0,
+    avgScore: 0,
     passRate: null,
     activeUsers: null
   };
@@ -86,6 +89,9 @@ export class AdminResultsComponent implements OnInit {
     const s = res.summary || res.details?.summary || res || {};
     this.metrics.totalStudents = s.total_students ?? s.totalStudents ?? this.metrics.totalStudents;
     this.metrics.testsScheduled = s.scheduled_tests ?? s.testsScheduled ?? this.metrics.testsScheduled;
+    this.metrics.activeTests = s.active_exams ?? s.activeTests ?? 0;
+    this.metrics.upcomingTests = s.upcoming_exams ?? s.upcomingTests ?? 0;
+    this.metrics.completedTests = s.completed_exams ?? s.completedTests ?? 0;
     this.metrics.attemptsToday = s.attempts_today ?? s.attemptsToday ?? this.metrics.attemptsToday;
     this.metrics.avgScore = s.avg_score ?? s.avgScore ?? this.metrics.avgScore;
     this.metrics.passRate = s.pass_rate ?? s.passRate ?? null;
@@ -94,8 +100,8 @@ export class AdminResultsComponent implements OnInit {
     this.upcomingTests = (res.upcoming_tests || res.upcoming || res.details?.upcoming || []).map((t:any)=>({ title: t.title || t.name || 'Test', class: t.class || t.group || '-', start: new Date(t.start || t.scheduled_at || Date.now()) }));
 
     const apiCharts = Array.isArray(res.charts) ? res.charts : Array.isArray(res.charts_list) ? res.charts_list : null;
-    if(apiCharts){
-      const colors = ['#0b7285','#1f7bff','#66c2d9','#8ad1c8'];
+    if(apiCharts && apiCharts.length > 0){
+      const colors = ['#6366f1','#0ea5e9','#10b981','#f59e0b'];
       this.charts = apiCharts.map((c:any, idx:number)=>{
         const type = (c.type || 'line').toString();
         const title = c.title || c.label || ('Chart ' + (idx+1));
@@ -112,7 +118,7 @@ export class AdminResultsComponent implements OnInit {
         if(type === 'pie'){
           const total = values.reduce((s,n)=>s+n,0) || 1;
           let acc = 0;
-          const pcolors = ['#1f7bff','#0b7285','#66c2d9','#8ad1c8'];
+          const pcolors = ['#6366f1','#0ea5e9','#10b981','#f59e0b'];
           const pieSlices = values.map((v:number,i:number)=>{ const pct = Math.round((v/total)*100); const dasharray = `${pct} ${100 - pct}`; const dashoffset = -acc; acc += pct; return { label: labels[i] || ('#'+i), value: v, pct, color: pcolors[i % pcolors.length], dasharray, dashoffset }; });
           return { type: 'pie', title, data: { pieSlices }, key: c.id };
         }
@@ -132,7 +138,34 @@ export class AdminResultsComponent implements OnInit {
         return { type: 'line', title, data: { attemptsPointsStr: fallbackPts.join(' '), attemptPoints: fallbackPoints, labels, values }, key: c.id };
       });
     } else {
-      this.charts = [ { type: 'gauge', title: 'Average Score', data: { gaugePathD: '', metricValue: this.metrics.avgScore }, key: 'avg_score' } ];
+      this.charts = [];
+    }
+
+    // Always add test distribution pie chart from summary data
+    if (this.metrics.activeTests || this.metrics.upcomingTests || this.metrics.completedTests) {
+      const testLabels = ['Active', 'Upcoming', 'Completed'];
+      const testValues = [this.metrics.activeTests, this.metrics.upcomingTests, this.metrics.completedTests];
+      const total = testValues.reduce((s, n) => s + n, 0) || 1;
+      let acc = 0;
+      const pieColors = ['#10b981', '#f59e0b', '#6366f1'];
+      const pieSlices = testValues.map((v: number, i: number) => {
+        const pct = Math.round((v / total) * 100);
+        const dasharray = `${pct} ${100 - pct}`;
+        const dashoffset = -acc;
+        acc += pct;
+        return { label: testLabels[i], value: v, pct, color: pieColors[i], dasharray, dashoffset };
+      });
+      this.charts.push({ type: 'pie', title: 'Test Status Distribution', data: { pieSlices }, key: 'test_distribution' });
+    }
+
+    // Average Score gauge
+    if (this.metrics.avgScore > 0) {
+      const val = this.metrics.avgScore;
+      const angle = (1 - val / 100) * Math.PI;
+      const gx = 6 + 22 * Math.cos(angle);
+      const gy = 20 - 22 * Math.sin(angle);
+      const gaugePathD = `M6 20 A12 12 0 0 1 ${gx} ${gy}`;
+      this.charts.push({ type: 'gauge', title: 'Average Score', data: { gaugePathD, metricValue: val }, key: 'avg_score_gauge' });
     }
   }
 }

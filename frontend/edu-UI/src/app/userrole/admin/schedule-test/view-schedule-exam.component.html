@@ -120,7 +120,15 @@
                 <!-- Title Column -->
                 <ng-container matColumnDef="title">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
-                    <td mat-cell *matCellDef="let s" class="cell-primary">{{ s.title }}</td>
+                    <td mat-cell *matCellDef="let s" class="cell-primary">
+                        <div class="item-cell">
+                            <div class="item-avatar item-avatar--schedule">{{ (s.title || '?').charAt(0).toUpperCase() }}</div>
+                            <div class="item-info">
+                                <span class="item-name">{{ s.title }}</span>
+                                <!-- <span class="item-sub" *ngIf="s.institute">{{ s.institute }}</span> -->
+                            </div>
+                        </div>
+                    </td>
                 </ng-container>
 
                 <!-- Institute Column -->
@@ -177,9 +185,20 @@
     <div class="modal-backdrop" *ngIf="selectedSchedule">
         <div class="modal">
             <div class="modal-header">
-                <div class="modal-header-text">
-                    <h3>Schedule details</h3>
-                    <h1 class="modal-user-name">{{ selectedSchedule.title || '—' }}</h1>
+                <div class="modal-header-left">
+                    <div class="modal-avatar modal-avatar--schedule">
+                        {{ (selectedSchedule.title || '?').charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="modal-header-text">
+                        <h1 class="modal-item-name">{{ selectedSchedule.title || '—' }}</h1>
+                        <div class="modal-item-meta">
+                            <span class="modal-status" [class.modal-status--published]="selectedSchedule.published || selectedSchedule.publish" [class.modal-status--unpublished]="!(selectedSchedule.published || selectedSchedule.publish)">
+                                <span class="status-dot"></span>
+                                {{ (selectedSchedule.published || selectedSchedule.publish) ? 'Published' : 'Unpublished' }}
+                            </span>
+                            <span class="modal-stat-badge" *ngIf="selectedSchedule.exam?.title">{{ selectedSchedule.exam.title }}</span>
+                        </div>
+                    </div>
                 </div>
                 <button mat-icon-button (click)="closeModal()"><mat-icon>close</mat-icon></button>
             </div>

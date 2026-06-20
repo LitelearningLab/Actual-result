@@ -37,6 +37,8 @@ $grad-green: linear-gradient(135deg, #10b981 0%, #34d399 100%);
 $grad-amber: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
 $grad-teal: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%);
 $grad-rose: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%);
+$grad-indigo: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+$grad-cyan: linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%);
 
 // ═══════════════════════════════════════════════════════════════════
 // PAGE CONTAINER
@@ -225,6 +227,8 @@ $grad-rose: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%);
   &--amber { background: $grad-amber; }
   &--teal { background: $grad-teal; }
   &--rose { background: $grad-rose; }
+  &--indigo { background: $grad-indigo; }
+  &--cyan { background: $grad-cyan; }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -815,6 +819,89 @@ $grad-rose: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%);
 .dev-text span { font-size: 0.75rem; color: #a16207; line-height: 1.4; }
 .dev-badge { font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.25rem 0.625rem; border-radius: 1rem; background: #f59e0b; color: #fff; white-space: nowrap; flex-shrink: 0; }
 
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTIVITY FEED
+// ═══════════════════════════════════════════════════════════════════
+
+.activity-section {
+  margin-top: 0.5rem;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem;
+  border-radius: $radius-md;
+  background: $bg-page;
+  border: 1px solid lighten($border, 2%);
+  transition: all 0.2s $ease;
+  animation: rowFade 0.3s $ease forwards;
+  animation-delay: var(--row-delay, 0s);
+  opacity: 0;
+
+  &:hover {
+    background: white;
+    box-shadow: $shadow-sm;
+    border-color: $border;
+  }
+
+  .activity-icon-wrap {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: $radius-sm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    mat-icon {
+      font-size: 1.125rem;
+      width: 1.125rem;
+      height: 1.125rem;
+      color: white;
+    }
+
+    &.activity-icon--user {
+      background: $grad-blue;
+    }
+
+    &.activity-icon--exam {
+      background: $grad-green;
+    }
+  }
+
+  .activity-body {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .activity-text {
+    font-size: 0.8125rem;
+    color: $text-primary;
+
+    strong {
+      font-weight: 600;
+      color: $text-dark;
+    }
+  }
+
+  .activity-time {
+    font-size: 0.6875rem;
+    color: $text-muted;
+    white-space: nowrap;
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // ANIMATIONS

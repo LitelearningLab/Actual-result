@@ -38,6 +38,14 @@ import { NotificationService } from '../../../shared/services/notification.servi
 export class RegisterComponent implements OnInit {
   demoForm!: FormGroup;
   isSubmitting = false;
+  currentStep = 1;
+  totalSteps = 3;
+
+  steps = [
+    { label: 'Personal', icon: 'person' },
+    { label: 'Organization', icon: 'apartment' },
+    { label: 'Details', icon: 'description' }
+  ];
 
   constructor(
     private fb: FormBuilder,
@@ -62,6 +70,45 @@ export class RegisterComponent implements OnInit {
     });
   }
 
+  get progressPercent(): number {
+    return (this.currentStep / this.totalSteps) * 100;
+  }
+
+  canProceed(): boolean {
+    if (this.currentStep === 1) {
+      const fields = ['firstName', 'lastName', 'email'];
+      return fields.every(f => this.demoForm.get(f)?.valid);
+    }
+    if (this.currentStep === 2) {
+      return this.demoForm.get('organization')?.valid ?? false;
+    }
+    return true;
+  }
+
+  nextStep(): void {
+    if (this.currentStep === 1) {
+      ['firstName', 'lastName', 'email', 'phone'].forEach(f => this.demoForm.get(f)?.markAsTouched());
+    } else if (this.currentStep === 2) {
+      ['organization', 'role', 'teamSize'].forEach(f => this.demoForm.get(f)?.markAsTouched());
+    }
+
+    if (this.canProceed() && this.currentStep < this.totalSteps) {
+      this.currentStep++;
+    }
+  }
+
+  prevStep(): void {
+    if (this.currentStep > 1) {
+      this.currentStep--;
+    }
+  }
+
+  goToStep(step: number): void {
+    if (step < this.currentStep) {
+      this.currentStep = step;
+    }
+  }
+
   onSubmit(): void {
     if (this.demoForm.invalid) {
       this.demoForm.markAllAsTouched();
@@ -82,8 +129,7 @@ export class RegisterComponent implements OnInit {
         if (response.status) {
           this.notify.success(response.statusMessage || 'Demo request submitted successfully!');
           this.demoForm.reset();
-          // Optionally redirect to a thank you page or home
-          // this.router.navigate(['/']);
+          this.currentStep = 1;
         } else {
           this.notify.error(response.statusMessage || 'Failed to submit demo request.');
         }
@@ -98,7 +144,6 @@ export class RegisterComponent implements OnInit {
     });
   }
 
-  // Helper method for template
   hasError(field: string, error: string): boolean {
     const control = this.demoForm.get(field);
     return control ? control.hasError(error) && control.touched : false;

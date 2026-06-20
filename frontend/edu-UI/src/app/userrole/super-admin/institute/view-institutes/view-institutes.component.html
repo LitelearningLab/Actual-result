@@ -119,17 +119,23 @@
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Institute</th>
           <td mat-cell *matCellDef="let i">
-            <span class="cell-primary">{{i.name}}</span>
+            <div class="inst-cell">
+              <div class="inst-avatar">{{ (i.name || '?').charAt(0).toUpperCase() }}</div>
+              <div class="inst-info">
+                <span class="inst-name">{{i.name}}</span>
+                <span class="inst-short" *ngIf="i.short">{{i.short}}</span>
+              </div>
+            </div>
           </td>
         </ng-container>
 
         <!-- Short -->
-        <ng-container matColumnDef="short">
+        <!-- <ng-container matColumnDef="short">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Short Name</th>
           <td mat-cell *matCellDef="let i">
             <span class="cell-mono">{{i.short}}</span>
           </td>
-        </ng-container>
+        </ng-container> -->
 
         <!-- Industry Type -->
         <ng-container matColumnDef="industry_type">
@@ -226,10 +232,21 @@
   <div class="modal-backdrop" *ngIf="selectedInstitute || editing">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-header-text">
-          <h3 *ngIf="!editing">Institute Details</h3>
-          <h3 *ngIf="editing">Edit Institute</h3>
-          <h1 class="modal-inst-name">{{selectedInstitute.name}}</h1>
+        <div class="modal-header-left">
+          <div class="modal-avatar">
+            {{ (selectedInstitute.name || '?').charAt(0).toUpperCase() }}
+          </div>
+          <div class="modal-header-text">
+            <h1 class="modal-inst-name">{{selectedInstitute.name}}</h1>
+            <div class="modal-inst-meta">
+              <span class="modal-industry-badge" *ngIf="selectedInstitute.industry_type">{{selectedInstitute.industry_type}}</span>
+              <span class="modal-sector-badge" *ngIf="selectedInstitute.industry_sector">{{selectedInstitute.industry_sector}}</span>
+              <span class="modal-status" [class.modal-status--active]="selectedInstitute.active_status || selectedInstitute.active" [class.modal-status--inactive]="!(selectedInstitute.active_status || selectedInstitute.active)">
+                <span class="status-dot"></span>
+                {{(selectedInstitute.active_status || selectedInstitute.active) ? 'Active' : 'Inactive'}}
+              </span>
+            </div>
+          </div>
         </div>
         <button mat-icon-button (click)="closeModal()" class="modal-close-btn">
           <mat-icon>close</mat-icon>
@@ -273,9 +290,10 @@
               <mat-tab>
                 <ng-template mat-tab-label>Subscription</ng-template>
                 <div class="detail-grid">
-                  <div class="label"><mat-icon>toggle_on</mat-icon> Active</div>
+                  <div class="label"><mat-icon>toggle_on</mat-icon> Status</div>
                   <div class="value">
                     <span class="status-pill" [class.status-pill--active]="selectedInstitute.active_status" [class.status-pill--inactive]="!selectedInstitute.active_status">
+                      <span class="status-dot"></span>
                       {{selectedInstitute.active_status ? 'Active' : 'Inactive'}}
                     </span>
                   </div>

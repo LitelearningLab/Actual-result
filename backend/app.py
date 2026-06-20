@@ -50,6 +50,7 @@ def jwt_required(f):
         validation_result = initialize_jwt_validator(request)
         if validation_result != "Access granted":
             return jsonify({"status": False, "statusMessage": validation_result}), 401
+   
         return f(*args, **kwargs)
     return decorated_function
 def get_pagination():

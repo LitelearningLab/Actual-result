@@ -78,6 +78,44 @@ def admin_dashboard_details(institute_id=None):
     except Exception:
         pass
 
+    # Attempts per day (last 7 days)
+    try:
+        from datetime import timedelta
+        day_labels = []
+        day_values = []
+        for i in range(6, -1, -1):
+            d = today - timedelta(days=i)
+            start_d = datetime.datetime.combine(d, datetime.time.min)
+            end_d = datetime.datetime.combine(d, datetime.time.max)
+            q = session.query(func.count(Exam_Attempt.attempt_id)).filter(
+                Exam_Attempt.submitted_date >= start_d,
+                Exam_Attempt.submitted_date <= end_d
+            )
+            if institute_id:
+                q = q.join(ExamSchedule, Exam_Attempt.schedule_id == ExamSchedule.schedule_id).filter(ExamSchedule.institute_id == institute_id)
+            count = q.scalar() or 0
+            day_labels.append(d.strftime("%a"))
+            day_values.append(count)
+        if any(v > 0 for v in day_values):
+            charts.append({ 'id': 'daily_attempts', 'type': 'bar', 'title': 'Daily Attempts (Last 7 Days)', 'data': { 'labels': day_labels, 'values': day_values } })
+    except Exception:
+        pass
+
+    # Pass rate
+    pass_rate = None
+    try:
+        total_attempts = session.query(func.count(Exam_Attempt.attempt_id))
+        passed_attempts = session.query(func.count(Exam_Attempt.attempt_id)).filter(Exam_Attempt.percentage >= 40)
+        if institute_id:
+            total_attempts = total_attempts.join(ExamSchedule, Exam_Attempt.schedule_id == ExamSchedule.schedule_id).filter(ExamSchedule.institute_id == institute_id)
+            passed_attempts = passed_attempts.join(ExamSchedule, Exam_Attempt.schedule_id == ExamSchedule.schedule_id).filter(ExamSchedule.institute_id == institute_id)
+        total_count = total_attempts.scalar() or 0
+        passed_count = passed_attempts.scalar() or 0
+        if total_count > 0:
+            pass_rate = round((passed_count / total_count) * 100, 1)
+    except Exception:
+        pass_rate = None
+
     summary = {
         'total_students': total_students,
         'scheduled_tests': tests_scheduled,
@@ -85,7 +123,8 @@ def admin_dashboard_details(institute_id=None):
         'active_exams': active_tests,
         'completed_exams': completed_tests,
         'attempts_today': attempts_today,
-        'avg_score': avg_score
+        'avg_score': avg_score,
+        'pass_rate': pass_rate
     }
 
     return {

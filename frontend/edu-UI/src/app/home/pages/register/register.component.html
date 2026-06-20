@@ -15,14 +15,29 @@
 
       <header>
         <h1 class="brand-headline">Start your free trial<br />in minutes.</h1>
-        <p class="brand-sub">No credit card required. Get instant access to the full platform and see why many institutions trust Profluent Lab.</p>
+        <p class="brand-sub">No credit card required. Get instant access to the full platform.</p>
       </header>
 
+      <!-- Stats row -->
+      <div class="brand-stats">
+        <div class="stat-item">
+          <span class="stat-number">14</span>
+          <span class="stat-label">Day Free Trial</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-number">5min</span>
+          <span class="stat-label">Setup Time</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-number">24/7</span>
+          <span class="stat-label">Support</span>
+        </div>
+      </div>
+
+      <!-- Feature checklist -->
       <ul class="brand-checklist" role="list">
-        <li class="check-item">
-          <mat-icon fontSet="material-icons-outlined">check_circle</mat-icon>
-          <span>14-day free trial with full access</span>
-        </li>
         <li class="check-item">
           <mat-icon fontSet="material-icons-outlined">check_circle</mat-icon>
           <span>Unlimited exams &amp; question banks</span>
@@ -41,6 +56,7 @@
         </li>
       </ul>
 
+      <!-- Testimonial -->
       <blockquote class="brand-testimonial">
         <p>"We onboarded 2,000 students in under a week. The setup was incredibly smooth."</p>
         <footer class="testimonial-author">
@@ -56,59 +72,82 @@
     <p class="brand-footer">© 2026 Profluent Lab · <a routerLink="/privacy">Privacy</a> · <a routerLink="/terms">Terms</a></p>
   </aside>
 
-  <!-- ─── Right: Register Form ─── -->
+  <!-- ─── Right: Multi-Step Register Form ─── -->
   <main class="register-form-panel">
     <article class="register-card">
 
+      <!-- Header -->
       <header class="register-header">
         <div class="register-icon-badge" aria-hidden="true">
           <mat-icon fontSet="material-icons-outlined">play_circle</mat-icon>
         </div>
         <h2 class="register-heading">Request a Demo</h2>
-        <p class="register-sub">Fill in your details to get started with Profluent Lab</p>
+        <p class="register-sub">Complete the steps below to get started</p>
       </header>
 
+      <!-- Step Progress -->
+      <div class="step-progress">
+        <div class="progress-bar">
+          <div class="progress-fill" [style.width.%]="progressPercent"></div>
+        </div>
+        <nav class="step-indicators" aria-label="Form steps">
+          <button
+            *ngFor="let step of steps; let i = index"
+            type="button"
+            class="step-indicator"
+            [class.active]="currentStep === i + 1"
+            [class.completed]="currentStep > i + 1"
+            [attr.aria-current]="currentStep === i + 1 ? 'step' : null"
+            (click)="goToStep(i + 1)">
+            <span class="step-dot">
+              <mat-icon *ngIf="currentStep > i + 1" fontSet="material-icons-outlined">check</mat-icon>
+              <span *ngIf="currentStep <= i + 1">{{ i + 1 }}</span>
+            </span>
+            <span class="step-label">{{ step.label }}</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Form -->
       <form class="register-form" [formGroup]="demoForm" (ngSubmit)="onSubmit()">
 
-        <!-- Personal Info Section -->
-        <fieldset class="form-section">
-          <legend class="form-section-label">
+        <!-- Step 1: Personal Info -->
+        <div class="form-step" [class.active]="currentStep === 1">
+          <div class="step-title">
             <mat-icon fontSet="material-icons-outlined">person</mat-icon>
             <span>Personal Information</span>
-          </legend>
+          </div>
 
           <div class="form-grid">
             <div class="field-group">
-              <label class="field-label" for="firstName">First name *</label>
+              <label class="field-label" for="firstName">First name <span class="required">*</span></label>
               <mat-form-field appearance="outline" class="form-field">
-                <mat-icon matPrefix fontSet="material-icons-outlined">badge</mat-icon>
-                <input matInput formControlName="firstName" id="firstName" placeholder="John" aria-describedby="firstName-error" />
-                <mat-error id="firstName-error" *ngIf="hasError('firstName', 'required')">First name is required</mat-error>
-                <mat-error *ngIf="hasError('firstName', 'minlength')">Minimum 2 characters</mat-error>
+                <input matInput formControlName="firstName" id="firstName" placeholder="John" />
+                <mat-error *ngIf="hasError('firstName', 'required')">Required</mat-error>
+                <mat-error *ngIf="hasError('firstName', 'minlength')">Min 2 characters</mat-error>
               </mat-form-field>
             </div>
 
             <div class="field-group">
-              <label class="field-label" for="lastName">Last name *</label>
+              <label class="field-label" for="lastName">Last name <span class="required">*</span></label>
               <mat-form-field appearance="outline" class="form-field">
-                <mat-icon matPrefix fontSet="material-icons-outlined">badge</mat-icon>
-                <input matInput formControlName="lastName" id="lastName" placeholder="Doe" aria-describedby="lastName-error" />
-                <mat-error id="lastName-error" *ngIf="hasError('lastName', 'required')">Last name is required</mat-error>
-                <mat-error *ngIf="hasError('lastName', 'minlength')">Minimum 2 characters</mat-error>
+                <input matInput formControlName="lastName" id="lastName" placeholder="Doe" />
+                <mat-error *ngIf="hasError('lastName', 'required')">Required</mat-error>
+                <mat-error *ngIf="hasError('lastName', 'minlength')">Min 2 characters</mat-error>
               </mat-form-field>
             </div>
 
-            <div class="field-group">
-              <label class="field-label" for="email">Work email *</label>
+            <div class="field-group full-width">
+              <label class="field-label" for="email">Work email <span class="required">*</span></label>
               <mat-form-field appearance="outline" class="form-field">
                 <mat-icon matPrefix fontSet="material-icons-outlined">mail</mat-icon>
-                <input matInput type="email" formControlName="email" id="email" placeholder="you&#64;company.com" aria-describedby="email-error" />
-                <mat-error id="email-error" *ngIf="hasError('email', 'required')">Email is required</mat-error>
-                <mat-error *ngIf="hasError('email', 'email')">Please enter a valid email</mat-error>
+                <input matInput type="email" formControlName="email" id="email" placeholder="you&#64;company.com" />
+                <mat-error *ngIf="hasError('email', 'required')">Required</mat-error>
+                <mat-error *ngIf="hasError('email', 'email')">Invalid email</mat-error>
               </mat-form-field>
             </div>
 
-            <div class="field-group">
+            <div class="field-group full-width">
               <label class="field-label" for="phone">Phone number</label>
               <mat-form-field appearance="outline" class="form-field">
                 <mat-icon matPrefix fontSet="material-icons-outlined">call</mat-icon>
@@ -116,30 +155,29 @@
               </mat-form-field>
             </div>
           </div>
-        </fieldset>
+        </div>
 
-        <!-- Organization Section -->
-        <fieldset class="form-section">
-          <legend class="form-section-label">
+        <!-- Step 2: Organization -->
+        <div class="form-step" [class.active]="currentStep === 2">
+          <div class="step-title">
             <mat-icon fontSet="material-icons-outlined">apartment</mat-icon>
             <span>Organization Details</span>
-          </legend>
+          </div>
 
           <div class="form-grid">
-            <div class="field-group">
-              <label class="field-label" for="organization">Organization name *</label>
+            <div class="field-group full-width">
+              <label class="field-label" for="organization">Organization name <span class="required">*</span></label>
               <mat-form-field appearance="outline" class="form-field">
                 <mat-icon matPrefix fontSet="material-icons-outlined">domain</mat-icon>
-                <input matInput formControlName="organization" id="organization" placeholder="Your company or institute" aria-describedby="org-error" />
-                <mat-error id="org-error" *ngIf="hasError('organization', 'required')">Organization name is required</mat-error>
+                <input matInput formControlName="organization" id="organization" placeholder="Your company or institute" />
+                <mat-error *ngIf="hasError('organization', 'required')">Required</mat-error>
               </mat-form-field>
             </div>
 
             <div class="field-group">
               <label class="field-label" for="role">Your role</label>
               <mat-form-field appearance="outline" class="form-field">
-                <mat-icon matPrefix fontSet="material-icons-outlined">work</mat-icon>
-                <mat-select formControlName="role" id="role" placeholder="Select your role">
+                <mat-select formControlName="role" id="role" placeholder="Select role">
                   <mat-option value="admin">Administrator</mat-option>
                   <mat-option value="it-head">IT Head / CTO</mat-option>
                   <mat-option value="dean">Dean / Principal</mat-option>
@@ -153,7 +191,6 @@
             <div class="field-group">
               <label class="field-label" for="teamSize">Team size</label>
               <mat-form-field appearance="outline" class="form-field">
-                <mat-icon matPrefix fontSet="material-icons-outlined">groups</mat-icon>
                 <mat-select formControlName="teamSize" id="teamSize" placeholder="Expected users">
                   <mat-option value="1-50">1 – 50</mat-option>
                   <mat-option value="51-200">51 – 200</mat-option>
@@ -163,11 +200,20 @@
                 </mat-select>
               </mat-form-field>
             </div>
+          </div>
+        </div>
 
-            <div class="field-group">
+        <!-- Step 3: Additional Info -->
+        <div class="form-step" [class.active]="currentStep === 3">
+          <div class="step-title">
+            <mat-icon fontSet="material-icons-outlined">description</mat-icon>
+            <span>Almost Done</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="field-group full-width">
               <label class="field-label" for="source">How did you hear about us?</label>
               <mat-form-field appearance="outline" class="form-field">
-                <mat-icon matPrefix fontSet="material-icons-outlined">campaign</mat-icon>
                 <mat-select formControlName="source" id="source" placeholder="Select source">
                   <mat-option value="search">Google / Search</mat-option>
                   <mat-option value="social">Social Media</mat-option>
@@ -177,51 +223,77 @@
                 </mat-select>
               </mat-form-field>
             </div>
-          </div>
-        </fieldset>
 
-        <!-- Additional Info Section -->
-        <fieldset class="form-section">
-          <legend class="form-section-label">
-            <mat-icon fontSet="material-icons-outlined">description</mat-icon>
-            <span>Additional Information</span>
-          </legend>
-          <div class="field-group full-width">
-            <label class="field-label" for="requirements">Tell us about your requirements</label>
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-icon matPrefix fontSet="material-icons-outlined">edit_note</mat-icon>
-              <textarea matInput formControlName="requirements" id="requirements" placeholder="Any specific needs or questions?" rows="3"></textarea>
-            </mat-form-field>
-          </div>
-        </fieldset>
+            <div class="field-group full-width">
+              <label class="field-label" for="requirements">Any specific requirements?</label>
+              <mat-form-field appearance="outline" class="form-field">
+                <textarea matInput formControlName="requirements" id="requirements" placeholder="Tell us about your needs..." rows="3"></textarea>
+              </mat-form-field>
+            </div>
 
-        <div class="form-agreement">
-          <mat-checkbox color="primary" formControlName="agreedToTerms">
-            I agree to the <a routerLink="/terms">Terms of Service</a> and <a routerLink="/privacy">Privacy Policy</a>
-          </mat-checkbox>
-          <mat-error *ngIf="hasError('agreedToTerms', 'required')" class="terms-error" role="alert">
-            You must agree to the terms
-          </mat-error>
+            <div class="field-group full-width">
+              <div class="form-agreement">
+                <mat-checkbox color="primary" formControlName="agreedToTerms">
+                  I agree to the <a routerLink="/terms">Terms of Service</a> and <a routerLink="/privacy">Privacy Policy</a>
+                </mat-checkbox>
+                <mat-error *ngIf="hasError('agreedToTerms', 'required')" class="terms-error" role="alert">
+                  You must agree to the terms
+                </mat-error>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="form-actions">
-          <button mat-flat-button color="primary" type="submit" class="submit-btn" [disabled]="isSubmitting || demoForm.invalid" aria-live="polite">
-            <span *ngIf="!isSubmitting">Request Demo</span>
+        <!-- Step Navigation -->
+        <div class="step-actions">
+          <button
+            *ngIf="currentStep > 1"
+            type="button"
+            mat-stroked-button
+            class="step-btn step-btn--back"
+            (click)="prevStep()">
+            <mat-icon fontSet="material-icons-outlined">arrow_back</mat-icon>
+            <span>Back</span>
+          </button>
+
+          <div class="step-spacer" *ngIf="currentStep === 1"></div>
+
+          <button
+            *ngIf="currentStep < totalSteps"
+            type="button"
+            mat-flat-button
+            color="primary"
+            class="step-btn step-btn--next"
+            [disabled]="!canProceed()"
+            (click)="nextStep()">
+            <span>Continue</span>
+            <mat-icon fontSet="material-icons-outlined">arrow_forward</mat-icon>
+          </button>
+
+          <button
+            *ngIf="currentStep === totalSteps"
+            type="submit"
+            mat-flat-button
+            color="primary"
+            class="step-btn step-btn--submit"
+            [disabled]="isSubmitting || demoForm.invalid">
+            <span *ngIf="!isSubmitting">Submit Request</span>
             <span *ngIf="isSubmitting">Submitting...</span>
-            <mat-icon *ngIf="!isSubmitting" fontSet="material-icons-outlined">arrow_forward</mat-icon>
+            <mat-icon *ngIf="!isSubmitting" fontSet="material-icons-outlined">send</mat-icon>
             <mat-icon *ngIf="isSubmitting" fontSet="material-icons-outlined" class="spin">sync</mat-icon>
           </button>
         </div>
 
-        <div class="register-divider" role="separator"><span>or</span></div>
-
-        <nav class="register-alt-actions" aria-label="Alternative actions">
-          <a routerLink="/login" class="alt-link">
-            Already have an account? <strong>Sign in</strong>
-          </a>
-        </nav>
-
       </form>
+
+      <!-- Footer -->
+      <div class="register-divider" role="separator"><span>or</span></div>
+
+      <nav class="register-alt-actions" aria-label="Alternative actions">
+        <a routerLink="/login" class="alt-link">
+          Already have an account? <strong>Sign in</strong>
+        </a>
+      </nav>
 
       <footer class="register-footer">
         <a routerLink="/" class="back-home-link">
