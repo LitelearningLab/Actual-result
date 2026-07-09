@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy, TemplateRef, ViewChild, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, TemplateRef, ViewChild } from '@angular/core';
 import { Subscription, filter } from 'rxjs';
 import { AuthService } from '../../../home/service/auth.service';
 import { Router, NavigationEnd ,RouterModule} from '@angular/router';
@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageMetaService } from '../../services/page-meta.service';
+import { GlobalInstituteContextService } from '../../services/global-institute-context.service';
 
 @Component({
   selector: 'app-navbar-main',
@@ -20,7 +21,7 @@ import { PageMetaService } from '../../services/page-meta.service';
 })
 export class NavbarMainComponent implements OnInit, OnDestroy {
   @ViewChild('logoutConfirmationDialog') logoutConfirmationDialog!: TemplateRef<any>;
-  showProfileDropdown: boolean = false; // Profile dropdown visibility
+  isUserPanelOpen = false;
   isLogin = false;
   moduleName: string = '';
   moduleData: string = '';
@@ -42,11 +43,13 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
   private authSubscription?: Subscription;
   private userSubscription?: Subscription;
   private pageMetaSubscription?: Subscription;
+  private globalInstituteSubscription?: Subscription;
 
   username = sessionStorage.getItem('username') || 'Guest'; // Default to 'Guest' if username is not set
   userRole = sessionStorage.getItem('userRole') || 'unknown user role'; // Default to 'unknown user role' if not set
-  displayName = this.username;
+  displayName = this.getStoredDisplayName();
   displayInstitute = sessionStorage.getItem('institute') || '';
+  instituteDisplayName = this.getStoredInstituteName();
   userObj: any = null;
   initials = this.username ? this.username.split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase() : 'G';
 
@@ -56,7 +59,8 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     private pageMeta: PageMetaService,
     private _snackBar: MatSnackBar,
     public dialog: MatDialog,
-    private http: HttpClient
+    private http: HttpClient,
+    private globalInstituteContext: GlobalInstituteContextService
   ) {
     // subscribe to page meta service for dynamic module title/subtitle
     this.pageMetaSubscription = this.pageMeta.getMetaObservable().subscribe(m => {
@@ -68,48 +72,80 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     this.userSubscription = this.authService.user$.subscribe(u => {
       if (u) {
         this.userObj = u;
-        this.displayName = u.name || sessionStorage.getItem('username') || 'Guest';
-        this.displayInstitute = u.institute || sessionStorage.getItem('institute') || '';
+        this.displayName = this.getUserDisplayName(u);
+        this.displayInstitute = u.institute_name || u.institute || sessionStorage.getItem('institute') || '';
         this.instituteShortName = u.institute_short_name || this.instituteShortName;
+        this.instituteDisplayName = this.getNavbarInstituteName(u.institute_name || u.institute || this.displayInstitute || this.instituteShortName);
         this.userRole = u.role || this.userRole;
         this.initials = (this.displayName || 'G').split(' ').map((s: string) => s[0]).slice(0,2).join('').toUpperCase();
       } else {
-        this.displayName = sessionStorage.getItem('username') || 'Guest';
+        this.displayName = this.getStoredDisplayName();
         this.displayInstitute = sessionStorage.getItem('institute') || '';
+        this.instituteDisplayName = this.getNavbarInstituteName();
         this.initials = (this.displayName || 'G').split(' ').map((s: string) => s[0]).slice(0,2).join('').toUpperCase();
       }
+    });
+
+    this.globalInstituteSubscription = this.globalInstituteContext.selectedInstitute$.subscribe(() => {
+      this.instituteDisplayName = this.getNavbarInstituteName();
     });
 
     this.routerSubscription = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {
-        // keep route-change behaviour (close dropdown etc.)
-        this.showProfileDropdown = false;
+        this.closeUserPanel();
       });
   }
 
   ngOnInit(): void { }
 
-  openMenu(event: MouseEvent): void {
-    event.stopPropagation(); // Prevent closing the menu immediately
-    this.showProfileDropdown = !this.showProfileDropdown;
+  private getUserDisplayName(user: any, fallback: string = 'Guest'): string {
+    const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim();
+    return user?.full_name || user?.fullname || user?.fullName || user?.displayName || fullName || user?.user_name || user?.name || user?.email || fallback;
   }
 
-  // Close menu if click happens outside of it
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    // Close the menu if clicked outside
-    if (this.showProfileDropdown) {
-      this.showProfileDropdown = false;
-    }
+  private getStoredDisplayName(): string {
+    try {
+      const raw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
+      if (raw) return this.getUserDisplayName(JSON.parse(raw), sessionStorage.getItem('username') || 'Guest');
+    } catch (e) { /* ignore */ }
+    return sessionStorage.getItem('username') || 'Guest';
+  }
+  private getStoredInstituteName(): string {
+    try {
+      const raw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
+      if (raw) {
+        const user = JSON.parse(raw);
+        return user?.institute_name || user?.institute || user?.institute_short_name || sessionStorage.getItem('institute') || this.instituteShortName || '';
+      }
+    } catch (e) { /* ignore */ }
+    return sessionStorage.getItem('institute') || this.instituteShortName || '';
   }
 
+  private getNavbarInstituteName(fallback?: string): string {
+    const activeInstitute = this.globalInstituteContext.activeContext;
+    return activeInstitute?.institute_name || fallback || this.getStoredInstituteName();
+  }
+  openUserPanel(event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.isUserPanelOpen = true;
+  }
+
+  closeUserPanel(): void {
+    this.isUserPanelOpen = false;
+  }
   private updateLoginStatus(): void {
     // kept for compatibility; primary source of truth is AuthService
     this.isLogin = this.authService.isLoggedIn;
   }
 
+  openSettings(): void {
+    this.closeUserPanel();
+    this._snackBar.open('Settings option selected', 'Close', { duration: 2000 });
+  }
+
   confirmLogout() {
+    this.closeUserPanel();
     this.dialog.open(this.logoutConfirmationDialog, { width: '420px', panelClass: 'logout-dialog-panel' });
   }
 
@@ -174,5 +210,7 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     if (this.authSubscription) this.authSubscription.unsubscribe();
     if (this.userSubscription) this.userSubscription.unsubscribe();
     if (this.pageMetaSubscription) this.pageMetaSubscription.unsubscribe();
+    if (this.globalInstituteSubscription) this.globalInstituteSubscription.unsubscribe();
   }
 }
+

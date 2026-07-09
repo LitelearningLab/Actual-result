@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { map, shareReplay } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
+import { catchError, map, shareReplay } from 'rxjs/operators';
 import { API_BASE } from 'src/app/shared/api.config';
 
 export interface MasterItem { id: string; name: string; order?: number; active?: boolean }
@@ -35,16 +35,28 @@ export class LocationService {
     }
     return this.hierarchy$;
   }
+  //26-06-2026 06:26 am
+  // getCountries(forceReload = false): Observable<Country[]> {
+  //   return this.getHierarchy(forceReload).pipe(map(d => (d.countries || []).slice().sort((a,b) => (a.order||0) - (b.order||0))));
+  // }
 
   getCountries(forceReload = false): Observable<Country[]> {
-    return this.getHierarchy(forceReload).pipe(map(d => (d.countries || []).slice().sort((a,b) => (a.order||0) - (b.order||0))));
-  }
+  return this.getHierarchy(forceReload).pipe(map(d => (d.countries || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''))));
+}
 
   getStatesForCountry(countryId: string): Observable<State[]> {
-    return this.getHierarchy().pipe(map(d => (d.states || []).filter(s => s.country_id === countryId).slice().sort((a,b) => (a.order||0) - (b.order||0))));
+    if (!countryId) return of([]);
+    return this.http.get<LocationHierarchyResponse>(`${this.url}?country_id=${encodeURIComponent(countryId)}`).pipe(
+      map(r => (r.data?.states || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''))),
+      catchError(() => of([]))
+    );
   }
 
   getCitiesForState(stateId: string): Observable<City[]> {
-    return this.getHierarchy().pipe(map(d => (d.cities || []).filter(c => c.state_id === stateId).slice().sort((a,b) => (a.order||0) - (b.order||0))));
+    if (!stateId) return of([]);
+    return this.http.get<LocationHierarchyResponse>(`${this.url}?state_id=${encodeURIComponent(stateId)}`).pipe(
+      map(r => (r.data?.cities || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''))),
+      catchError(() => of([]))
+    );
   }
 }

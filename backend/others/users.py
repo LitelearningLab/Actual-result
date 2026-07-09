@@ -33,11 +33,19 @@ def insert_user(data):
     if not session:
         return None
     
-    # check if user_name or email already exists
-    existing_user = session.query(User).filter( User.email == email, User.user_name == user_name ).first()
-    if existing_user:
+    # Check each unique login identifier separately so either conflict blocks creation.
+    existing_email = session.query(User).filter(User.email == email).first()
+    if existing_email:
         json_data = {
-            "statusMessage": "Username or Email already exists",
+            "statusMessage": "Email already exists",
+            "status": False
+        }
+        return json_data, 400
+    
+    existing_username = session.query(User).filter(User.user_name == user_name).first()
+    if existing_username:
+        json_data = {
+            "statusMessage": "Username already exists",
             "status": False
         }
         return json_data, 400
@@ -469,7 +477,7 @@ def get_user_details(request):
     }
     return json_data, 200
 
-def get_user_list(request):
+def get_user_list(request, current_user=None):
 
     db = SQLiteDB()
     session = db.connect()
@@ -479,7 +487,14 @@ def get_user_list(request):
     filter = []
     args = getattr(request, "args", {})
     filter.append(User.is_deleted == 0)
-    if args.get("institute_id"):
+
+    current_role = getattr(current_user, "user_role", None) if current_user else None
+    if current_user and current_role not in ("super_admin", "superadmin", "super-admin"):
+        if current_role == "admin":
+            filter.append(User.institute_id == current_user.institute_id)
+        else:
+            filter.append(User.user_id == current_user.user_id)
+    elif args.get("institute_id"):
         filter.append(User.institute_id == args.get("institute_id"))
     if args.get("department_id"):
         filter.append(User.department_id == args.get("department_id"))

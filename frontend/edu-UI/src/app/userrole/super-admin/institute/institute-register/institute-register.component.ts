@@ -1,7 +1,7 @@
 import { Component, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { of, Subscription } from 'rxjs';
-import { switchMap, tap } from 'rxjs/operators';
+import { finalize, switchMap, tap } from 'rxjs/operators';
 import { LocationService, Country, State, City } from '../../../../services/location.service';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup, FormArray, AbstractControl } from '@angular/forms';
@@ -14,9 +14,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatStepperModule } from '@angular/material/stepper';
+import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import { MatChipInputEvent } from '@angular/material/chips';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -28,13 +27,14 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 @Component({
   selector: 'app-institute-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSnackBarModule, MatSelectModule, MatSlideToggleModule, MatIconModule, MatChipsModule, MatExpansionModule, MatCheckboxModule, MatStepperModule, MatDatepickerModule, MatNativeDateModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSnackBarModule, MatSelectModule, MatSlideToggleModule, MatIconModule, MatChipsModule, MatExpansionModule, MatCheckboxModule, MatStepperModule, MatDatepickerModule, RouterModule],
   templateUrl: './institute-register.component.html',
   styleUrls: ['./institute-register.component.scss']
 })
 export class InstituteRegisterComponent {
   // keep the original institute id when editing so we can send it in update payload
   editingInstituteId: string | null = null;
+  headOfficeCampusId: string | null = null;
   // index of the expansion panel that should be expanded (helps open newly added campus)
   expandedIndex: number | null = null;
   form = this.fb.group({
@@ -60,8 +60,9 @@ export class InstituteRegisterComponent {
     website: ['', [Validators.pattern('.+')]], //['', [Validators.pattern('https?://.+')]],
     primary_contact_person: ['', Validators.required],
     primary_contact_email: ['', [Validators.required, Validators.email]],
-    industry_type: ['', Validators.required],
-    industry_sector: ['', Validators.required],
+    // Use null for empty select values so Material does not treat a blank option as selected.
+    industry_type: [null as string | null, Validators.required],
+    industry_sector: [null as string | null, Validators.required],
     department: [''],
     branch: [''],
     team: [''],
@@ -74,6 +75,10 @@ export class InstituteRegisterComponent {
 
   // static fallback list is removed; we'll use the location service
   countries: Country[] = [];
+  headOfficeCountrySearch = '';
+  headOfficeStateSearch = '';
+  campusCountrySearch: Record<string, string> = {};
+  campusStateSearch: Record<string, string> = {};
   stateOptions: State[] = [];
   cityOptions: City[] = [];
   loadingStates = false;
@@ -115,6 +120,125 @@ export class InstituteRegisterComponent {
   constructor(private fb: FormBuilder, private _snack: MatSnackBar, private http: HttpClient, private cd: ChangeDetectorRef, private locationService: LocationService, private pageMetaService: PageMetaService, private router: Router) { }
 
   isEditing = false;
+  isSubmitting = false;
+
+  get filteredHeadOfficeCountries(): Country[] {
+    return this.filterCountries(this.headOfficeCountrySearch);
+  }
+
+  get filteredHeadOfficeStates(): State[] {
+    return this.filterStates(this.stateOptions, this.headOfficeStateSearch);
+  }
+
+  private filterCountries(searchText: string | null | undefined): Country[] {
+    const term = (searchText || '').trim().toLowerCase();
+    if (!term) return this.countries;
+    return this.countries.filter(country => (country.name || '').toLowerCase().includes(term));
+  }
+
+  private filterStates(states: State[], searchText: string | null | undefined): State[] {
+    const term = (searchText || '').trim().toLowerCase();
+    if (!term) return states;
+    return states.filter(state => (state.name || '').toLowerCase().includes(term));
+  }
+
+  private isPrimaryCampus(campus: any): boolean {
+    const value = campus?.is_primary ?? campus?.isPrimary;
+    if (typeof value === 'string') {
+      return ['true', '1', 'yes', 'primary'].includes(value.trim().toLowerCase());
+    }
+    return value === true || value === 1;
+  }
+
+  private isHeadOfficeCampus(campus: any, institute: any): boolean {
+    const campusName = (campus?.name || '').toString().trim().toLowerCase();
+    const shortName = (institute?.short_name || institute?.short || '').toString().trim().toLowerCase();
+    // Backend-created Head Office rows are stored as primary campuses named with the institute short name.
+    return this.isPrimaryCampus(campus) && !!shortName && campusName === shortName;
+  }
+
+  onHeadOfficeCountryOpened(opened: boolean) {
+    if (opened) {
+      this.focusLocationSearchInput();
+      return;
+    }
+    this.headOfficeCountrySearch = '';
+  }
+
+  onHeadOfficeStateOpened(opened: boolean) {
+    if (opened) {
+      this.focusLocationSearchInput();
+      return;
+    }
+    this.headOfficeStateSearch = '';
+  }
+
+  stopLocationSearchEvent(event: Event) {
+    event.stopPropagation();
+  }
+
+  private focusLocationSearchInput() {
+    setTimeout(() => {
+      try {
+        const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+        input?.focus();
+      } catch (e) { /* ignore non-browser environments */ }
+    });
+  }
+
+  private campusControlId(control: AbstractControl | any): string {
+    try { return control?.get('_cid')?.value || ''; } catch (e) { return ''; }
+  }
+
+  getCampusCountrySearch(control: AbstractControl | any): string {
+    const cid = this.campusControlId(control);
+    return cid ? (this.campusCountrySearch[cid] || '') : '';
+  }
+
+  setCampusCountrySearch(control: AbstractControl | any, value: string) {
+    const cid = this.campusControlId(control);
+    if (!cid) return;
+    this.campusCountrySearch[cid] = value || '';
+  }
+
+  getFilteredCampusCountries(control: AbstractControl | any): Country[] {
+    return this.filterCountries(this.getCampusCountrySearch(control));
+  }
+
+  onCampusCountryOpened(control: AbstractControl | any, opened: boolean) {
+    if (opened) {
+      this.focusLocationSearchInput();
+      return;
+    }
+    const cid = this.campusControlId(control);
+    if (cid) this.campusCountrySearch[cid] = '';
+  }
+
+  getCampusStateSearch(control: AbstractControl | any): string {
+    const cid = this.campusControlId(control);
+    return cid ? (this.campusStateSearch[cid] || '') : '';
+  }
+
+  setCampusStateSearch(control: AbstractControl | any, value: string) {
+    const cid = this.campusControlId(control);
+    if (!cid) return;
+    this.campusStateSearch[cid] = value || '';
+  }
+
+  getFilteredCampusStates(control: AbstractControl | any): State[] {
+    const cid = this.campusControlId(control);
+    const states = cid ? (this.campusStateOptions[cid] || []) : [];
+    return this.filterStates(states, this.getCampusStateSearch(control));
+  }
+
+  onCampusStateOpened(control: AbstractControl | any, opened: boolean) {
+    if (opened) {
+      this.focusLocationSearchInput();
+      return;
+    }
+    const cid = this.campusControlId(control);
+    if (cid) this.campusStateSearch[cid] = '';
+  }
 
   ngAfterViewInit(): void {
     // If we have an institute to edit in sessionStorage, prefill the form
@@ -127,7 +251,8 @@ export class InstituteRegisterComponent {
         this.editingInstituteId = obj.institute_id || obj.id || obj._id || null;
         // populate simple fields
         this.form.patchValue({
-          name: obj.name || '', short_name: obj.short_name || obj.short || '', industry_type: obj.industry_type || '', industry_sector: obj.industry_sector || '',
+          // Keep missing industry values as null so required validation works consistently.
+          name: obj.name || '', short_name: obj.short_name || obj.short || '', industry_type: obj.industry_type || null, industry_sector: obj.industry_sector || null,
           primary_contact_person: obj.primary_contact_person || '', primary_contact_email: obj.primary_contact_email || '', primary_contact_phone: obj.primary_contact_phone || '',
           website: obj.website || '', max_users: obj.max_users || null, active: !!obj.active_status
         });
@@ -143,10 +268,15 @@ export class InstituteRegisterComponent {
             if (!isNaN(e.getTime())) this.form.get('subscription_end')?.setValue(e as any);
           }
         } catch (e) { /* ignore conversion errors */ }
-        // headOffice prefill: try multiple possible field names
+        const campusesData = Array.isArray(obj.campuses) ? obj.campuses : [];
+        // Backend stores Head Office as the primary campus, so split it out before filling the campus UI.
+        const headOfficeCampus = campusesData.find((campus: any) => this.isHeadOfficeCampus(campus, obj));
+
+        // headOffice prefill: try explicit head office fields first, then fallback to the primary campus.
         try {
-          const ho = obj.headOffice || obj.head_office || obj.head || {};
+          const ho = obj.headOffice || obj.head_office || obj.head || headOfficeCampus || {};
           if (ho && Object.keys(ho).length) {
+            this.headOfficeCampusId = ho.campus_id || ho.id || ho._id || null;
             const countryId = ho.country?.country_id || ho.country?.countryId || ho.country || ho.country_id || ho.country_code || '';
             const stateId = ho.state?.state_id || ho.state?.stateId || ho.state || ho.state_id || '';
             const cityId = ho.city?.city_id || ho.city?.cityId || ho.city || ho.city_id || '';
@@ -182,8 +312,8 @@ export class InstituteRegisterComponent {
         this.form.get('department')?.setValue(this.departmentList.join(','));
         this.form.get('team')?.setValue(this.teamList.join(','));
         // campuses
-        if (Array.isArray(obj.campuses)) {
-          for (const cp of obj.campuses) {
+        if (campusesData.length) {
+          for (const cp of campusesData.filter((campus: any) => !this.isHeadOfficeCampus(campus, obj))) {
             this.addCampus({
               campus_id: cp.campus_id || cp.id || cp._id || null,
               name: cp.name,
@@ -404,7 +534,7 @@ export class InstituteRegisterComponent {
     ).subscribe(cities => {
       this.loadingCities = false;
       this.cityOptions = cities;
-      if (cities.length === 1) this.form.get('headOffice.city')!.setValue(cities[0].id);
+      // City is now a free-text input in the Head Office form, so do not auto-fill it from dropdown data.
     });
 
     // set default subscription dates when creating a new institute
@@ -453,20 +583,41 @@ export class InstituteRegisterComponent {
     } else {
       this.sectorOptions = [];
     }
-    // reset selected sector when options change
+    // Reset selected sector only when it is not valid for the selected industry.
     const sectorCtrl = this.form.get('industry_sector');
     if (sectorCtrl) {
+      const selectedSector = sectorCtrl.value;
+      if (selectedSector && this.sectorOptions.includes(selectedSector)) {
+        return;
+      }
+
       // If there is exactly one option, auto-select it; otherwise clear the selection.
-      if (this.sectorOptions && this.sectorOptions.length === 1) {
+      if (this.sectorOptions.length === 1) {
         sectorCtrl.setValue(this.sectorOptions[0]);
       } else {
-        sectorCtrl.setValue('');
+        sectorCtrl.setValue(null);
       }
     }
   }
 
+  goToLocations(stepper: MatStepper) {
+    const industryTypeCtrl = this.form.get('industry_type');
+    const industrySectorCtrl = this.form.get('industry_sector');
+
+    // Step 2 has custom validation because only these industry fields should block this Next button.
+    industryTypeCtrl?.markAsTouched();
+    industrySectorCtrl?.markAsTouched();
+    industryTypeCtrl?.updateValueAndValidity();
+    industrySectorCtrl?.updateValueAndValidity();
+
+    if (industryTypeCtrl?.invalid || industrySectorCtrl?.invalid) return;
+
+    stepper.next();
+  }
+
   onSubmit() {
-    if (this.form.invalid) return;
+    if (this.form.invalid || this.isSubmitting) return;
+    this.isSubmitting = true;
     // prepare payload: include current user and arrays for department/team/branch
     const currentUserRaw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
     let current_user: any = null;
@@ -492,8 +643,35 @@ export class InstituteRegisterComponent {
     if (this.isEditing && this.editingInstituteId) {
       payload.institute_id = this.editingInstituteId;
     }
-    // ensure campuses payload uses the form's campuses (which include campus_id)
-    try{ payload.campuses = base.campuses || []; }catch(e){ payload.campuses = []; }
+    // Send only campus rows that have actual user-entered data; empty rows can make the update fail.
+    try {
+      payload.campuses = (base.campuses || []).filter((campus: any) =>
+        campus.name || campus.address || campus.country || campus.state || campus.city || campus.pincode || campus.email || campus.phone
+      );
+    } catch(e) { payload.campuses = []; }
+    if (this.isEditing) {
+      const headOffice: any = base.headOffice || {};
+      const hasHeadOffice = Object.values(headOffice).some((value) => !!value);
+      if (hasHeadOffice) {
+        // Preserve the primary campus row that represents Head Office, otherwise the backend update deletes it.
+        payload.campuses = [
+          {
+            campus_id: this.headOfficeCampusId,
+            name: base.short_name || base.name || 'Head Office',
+            address: headOffice.address || '',
+            country: headOffice.country || '',
+            state: headOffice.state || '',
+            city: headOffice.city || '',
+            pincode: headOffice.pincode || '',
+            email: headOffice.email || '',
+            phone: headOffice.phone || '',
+            isPrimary: true,
+            isActive: true
+          },
+          ...payload.campuses
+        ];
+      }
+    }
     const url = this.isEditing ? `${API_BASE}/update-institute` : `${API_BASE}/register-institute`;
     const headers: any = {};
     const token = sessionStorage.getItem('token');
@@ -506,7 +684,7 @@ export class InstituteRegisterComponent {
     } catch (e) { /* ignore conversion errors */ }
 
     const req$ = this.isEditing ? this.http.put(url, payload, { headers, observe: 'response' }) : this.http.post(url, payload, { headers, observe: 'response' });
-    req$.subscribe({
+    req$.pipe(finalize(() => this.isSubmitting = false)).subscribe({
       next: (res) => {
         const msg = this.isEditing ? 'Institute updated successfully.' : 'Institute registered successfully.';
         this._snack.open(msg, 'Close', { duration: 3500 });
@@ -518,10 +696,11 @@ export class InstituteRegisterComponent {
         } catch (e) { /* ignore navigation errors */ }
       },
       error: (err) => {
+        console.error('Update institute failed:', err);
         // fallback: store locally and notify
         try { sessionStorage.setItem('institute_new', JSON.stringify(payload)); } catch (e) { }
-        const msg = this.isEditing ? 'Update failed — saved locally.' : 'Register failed — saved locally.';
-        this._snack.open(msg + ' Check server and try again.', 'Close', { duration: 5000 });
+        const serverMsg = err?.error?.statusMessage || err?.error?.message || err?.message || (this.isEditing ? 'Update failed. Please check server logs.' : 'Register failed. Please check server logs.');
+        this._snack.open(serverMsg, 'Close', { duration: 5000 });
       }
     });
   }

@@ -54,10 +54,10 @@ export class AuthService {
     }
   }
 
-  async login(email: string, password: string): Promise<boolean> {
+  async login(identifier: string, password: string): Promise<boolean> {
   const url = `${API_BASE}/login`;
     try {
-      const resp = await firstValueFrom(this.http.post<LoginResponse>(url, { email, password }));
+      const resp = await firstValueFrom(this.http.post<LoginResponse>(url, { identifier, email: identifier, password }));
       // treat presence of token or status true/success as success
       const ok = !!(resp && (resp.token || resp.status === true || resp.status === 'success' || resp.status === 'true'));
       this._logged.next(ok);

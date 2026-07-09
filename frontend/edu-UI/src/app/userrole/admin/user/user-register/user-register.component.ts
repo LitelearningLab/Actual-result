@@ -15,33 +15,18 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatStepperModule } from '@angular/material/stepper';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 
-const MY_DATE_FORMATS = {
-  parse: {
-    dateInput: 'DD/MM/YYYY',
-  },
-  display: {
-    dateInput: 'DD/MM/YYYY',
-    monthYearLabel: 'MMM YYYY',
-    dateA11yLabel: 'LL',
-    monthYearA11yLabel: 'MMMM YYYY',
-  },
-};
-
 @Component({
   selector: 'app-admin-user-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, HttpClientModule, MatButtonModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatSlideToggleModule, MatIconModule, MatStepperModule, MatDatepickerModule, MatNativeDateModule, MatTooltipModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, HttpClientModule, MatButtonModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatSlideToggleModule, MatIconModule, MatStepperModule, MatDatepickerModule, MatTooltipModule, RouterModule],
   providers: [
-    DatePipe,
-    { provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS },
-    { provide: MAT_DATE_LOCALE, useValue: 'en-GB' }
+    DatePipe
   ],
   templateUrl: './user-register.component.html',
   styleUrls: ['./user-register.component.scss']
@@ -50,15 +35,23 @@ export class AdminUserRegisterComponent implements OnInit {
   filteredStates: Array<any> = [];
   filteredCities: Array<any> = [];
   form: FormGroup;
+  // { value: 'super_admin', label: 'Super Admin' },
   roles = [
-    { value: 'super_admin', label: 'Super Admin' },
+     { value: 'super_admin', label: 'Super Admin' },
     { value: 'admin', label: 'Admin' },
     { value: 'user', label: 'User' }
   ];
 
   get availableRoles() {
-    if (this.isSuperAdmin) return this.roles;
+    if (this.isSuperAdmin && this.isProfluentInstituteSelected()) return this.roles;
     return this.roles.filter(r => r.value !== 'super_admin');
+  }
+
+  private isProfluentInstituteSelected(): boolean {
+    const selectedInstituteId = this.form?.get('institute')?.value;
+    const selectedInstitute = this.institutes.find((institute) => String(institute.id) === String(selectedInstituteId));
+    const instituteName = (selectedInstitute?.name || '').trim().toLowerCase();
+    return instituteName === 'profluent lab' || instituteName === 'profluent labs';
   }
   institutes: Array<{ id: string; name: string }> = [];
   loadingInstitutes = false;
@@ -83,6 +76,8 @@ export class AdminUserRegisterComponent implements OnInit {
   // bulk institute user limit info
   bulkUserLimit: { max_user_limit?: number | null; available_licenses?: number | null; already_assigned?: number | null } = { max_user_limit: null, available_licenses: null, already_assigned: null };
   bulkLimitLoading = false;
+  showPassword = false;
+  showConfirmPassword = false;
 
   get bulkUploadAllowed(): boolean {
     return (this.bulkUserLimit.available_licenses ?? 0) > 0 && !this.bulkLimitLoading;
@@ -115,7 +110,7 @@ export class AdminUserRegisterComponent implements OnInit {
       city: [''],
       username: ['', [Validators.required, Validators.minLength(3)]],
       name: ['', [Validators.required, Validators.minLength(3)]],
-      email: ['', [Validators.email]],
+      email: ['', [Validators.required, Validators.email]],
       joining_date: [''],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required],
@@ -190,6 +185,10 @@ export class AdminUserRegisterComponent implements OnInit {
 
     // institute changes
     this.form.get('institute')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((iid) => {
+      if (!this.isProfluentInstituteSelected() && this.form.get('role')?.value === 'super_admin') {
+        // Super Admin users can only be created under Profluent Lab/Labs.
+        this.form.patchValue({ role: '' }, { emitEvent: false });
+      }
       if (iid) {
         this.loadDepartments(iid);
         this.loadTeams(iid);
@@ -259,7 +258,8 @@ export class AdminUserRegisterComponent implements OnInit {
       const cur = this.auth?.currentUserValue || null;
       const raw = (!cur) ? (sessionStorage.getItem('user_profile') || sessionStorage.getItem('user')) : null;
       const obj = cur || (raw ? JSON.parse(raw) : null) || null;
-      this.loggedInstitute = obj?.institute_id || obj?.instituteId || obj?.institute || '';
+      const globalInstituteId = sessionStorage.getItem('global_institute_id') || '';
+      this.loggedInstitute = globalInstituteId || obj?.institute_id || obj?.instituteId || obj?.institute || '';
       if (!this.isEditing && this.loggedInstitute) {
         this.bulkInstitute = this.loggedInstitute;
         try { this.form.patchValue({ institute: this.loggedInstitute }); } catch (e) { }
@@ -304,7 +304,7 @@ export class AdminUserRegisterComponent implements OnInit {
         const campusId = u.campus?.campus_id || u.campus_id || u.campus || '';
         const countryId = u.campus?.country?.country_id || u.country || u.country_id || '';
         const stateId = u.campus?.state?.state_id || u.state || u.state_id || '';
-        const cityId = u.campus?.city?.city_id || u.city || u.city_id || '';
+        const cityId = u.campus?.city?.city_name || u.campus?.city?.name || u.campus?.city?.city_id || u.city || u.city_id || '';
         this.form.patchValue({ campus: campusId, country: countryId, state: stateId, city: cityId });
       } catch (e) { }
       try {
@@ -487,7 +487,14 @@ export class AdminUserRegisterComponent implements OnInit {
             id: c.campus_id || c.id || c.campusId,
             name: c.name || c.campus_name || c.label || '',
             address: c.address || '',
-
+            // Keep campus location in the dropdown data so campus changes can reflect immediately.
+            country: c.country || null,
+            country_id: c.country?.country_id || c.country_id || '',
+            state: c.state || null,
+            state_id: c.state?.state_id || c.state_id || '',
+            city: c.city || null,
+            city_id: c.city?.city_id || c.city_id || '',
+            city_name: c.city?.city_name || c.city_name || ''
           }));
         } catch (e) { this.campuses = []; }
         finally { this.loader.hide(); }
@@ -582,6 +589,11 @@ export class AdminUserRegisterComponent implements OnInit {
       this.filteredCities = [];
       return;
     }
+    const selectedCampus = (this.campuses || []).find((campus: any) => String(campus.id || campus.campus_id || '') === String(campusId));
+    if (selectedCampus) {
+      // Reflect the selected campus location immediately; the API response below can refresh the same fields.
+      this.patchCampusLocation(selectedCampus);
+    }
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url, { params: { campus_id: campusId } }).subscribe({
       next: (res) => {
@@ -593,7 +605,9 @@ export class AdminUserRegisterComponent implements OnInit {
 
           const city = cities[0] || {};
           const selectedCityId = String(city.id || city.city_id || city.code || city.city_code || '').trim();
+          const selectedCityName = String(city.name || city.city_name || city.city || '').trim();
           const selectedStateId = String(city.state_id || city.stateId || city.state || '').trim();
+          const fallbackStateId = states[0] ? String(states[0].id || states[0].state_id || states[0].code || states[0].state_code || '').trim() : '';
 
           const selectedState = states.find((s: any) => String(s.id || s.state_id || s.code || s.state_code || '').trim() === selectedStateId);
           const selectedCountryId = String(
@@ -613,11 +627,10 @@ export class AdminUserRegisterComponent implements OnInit {
           }
 
           const countryId = selectedCountryId || this.extractLocationId(data, 'country');
-          const stateId = selectedStateId || this.extractLocationId(data, 'state');
-          const cityId = selectedCityId || this.extractLocationId(data, 'city');
+          const stateId = selectedStateId || fallbackStateId || this.extractLocationId(data, 'state');
+          const cityId = selectedCityName || selectedCityId || this.extractLocationId(data, 'city');
 
-          this.form.patchValue({ country: countryId || '', state: stateId || '', city: cityId || '' });
-          this.updateLocationFilters(countryId, stateId);
+          this.patchCampusLocation({ country_id: countryId, state_id: stateId, city: cityId });
         } catch (e) {
           console.warn('Failed to parse campus location response', e);
         }
@@ -638,6 +651,21 @@ export class AdminUserRegisterComponent implements OnInit {
       return String(raw[`${key}_id`] || raw.id || raw.code || raw[`${key}_code`] || raw[`${key}Id`] || raw[`${key}Code`] || '').trim();
     }
     return String(raw).trim();
+  }
+
+  private patchCampusLocation(campus: any) {
+    const countryId = campus?.country?.country_id || campus?.country?.id || campus?.country_id || campus?.country || '';
+    const stateId = campus?.state?.state_id || campus?.state?.id || campus?.state_id || campus?.state || '';
+    const cityValue = campus?.city?.city_name || campus?.city?.name || campus?.city_name || campus?.city || campus?.city_id || '';
+
+    // Patch without firing country/state listeners, because those listeners clear dependent fields.
+    this.form.patchValue({
+      country: countryId || '',
+      state: stateId || '',
+      city: cityValue || ''
+    }, { emitEvent: false });
+
+    this.updateLocationFilters(countryId, stateId);
   }
 
   private updateLocationFilters(countryId: string, stateId: string) {
@@ -741,10 +769,16 @@ export class AdminUserRegisterComponent implements OnInit {
     this.router.navigate(['/view-users']);
   }
 
-  submit() {
+  submit(stepper?: any) {
     this.loader.show();
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      const roleControl = this.form.get('role');
+      if (roleControl?.invalid) {
+        roleControl.markAsTouched();
+        this.goToStep(stepper, this.isEditing ? 1 : 2);
+        this.notify.error('Please select a role before registering.');
+      }
       this.loader.hide();
       return;
     }
@@ -797,7 +831,7 @@ export class AdminUserRegisterComponent implements OnInit {
     } else {
       const url = `${API_BASE}/register-user`;
       // if user cannot change institute (non-super admin), ensure payload uses loggedInstitute
-      if (!this.isSuperAdmin && this.loggedInstitute) payload.institute_id = payload.institute_id || this.loggedInstitute;
+      if (this.loggedInstitute) payload.institute_id = this.loggedInstitute;
       this.http.post<any>(url, payload).subscribe({
         next: (res) => { this.submitting = false; this.notify.success(res?.statusMessage || 'User registered'); this.router.navigate(['/view-users']); },
         complete: () => { this.loader.hide(); },
@@ -1047,3 +1081,4 @@ export class AdminUserRegisterComponent implements OnInit {
     return [row];
   }
 }
+

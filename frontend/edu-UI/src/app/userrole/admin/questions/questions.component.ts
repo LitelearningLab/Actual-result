@@ -1,4 +1,4 @@
-import { Component, ViewChild, ElementRef, OnInit, AfterViewInit } from '@angular/core';
+import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatRadioModule } from '@angular/material/radio';
@@ -13,6 +13,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { startWith, map } from 'rxjs/operators';
 import { API_BASE } from 'src/app/shared/api.config';
@@ -23,7 +25,7 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 @Component({
   selector: 'app-admin-questions',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatRadioModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatExpansionModule, HttpClientModule, RouterModule, MatIconModule, MatButtonModule, MatSelectModule, MatAutocompleteModule, MatButtonToggleModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatRadioModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatExpansionModule, HttpClientModule, RouterModule, MatIconModule, MatButtonModule, MatSelectModule, MatAutocompleteModule, MatDatepickerModule, MatButtonToggleModule],
   templateUrl: './questions.component.html',
   styleUrls: ['./questions.component.scss']
 })
@@ -33,6 +35,7 @@ export class AdminQuestionsComponent {
   isEditing = false;
   plaintextEditor: boolean = false;
   editId: string | number | undefined;
+  pendingDeletedQuestionId: string | number | undefined;
   questionTypes = [
     { value: 'choose', label: 'Single choice' },
     { value: 'multi', label: 'Multiple choice' },
@@ -89,6 +92,7 @@ export class AdminQuestionsComponent {
   aiPrompt: string = '';
   // live preview / generated content
   generatedQuestions: Array<any> = [];
+  private aiAnswerGenerationPending = false;
   showPreview: boolean = true;
 
   // convenience boolean binding for a compact checkbox UI in the template
@@ -120,28 +124,41 @@ export class AdminQuestionsComponent {
 
   institutes: Array<{ name: string; institute_id?: string }> = [];
   isSuperAdmin: boolean = false;
-  categories: Array<{ name: string; category_id?: string; description?: string }> = [];
+  private loginInstituteId: string | null = null;
+  categories: Array<{ name: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any }> = [];
   // reactive control + filtered observable for autocomplete
   categoryCtrl: FormControl = new FormControl('');
-  filteredCategories$?: Observable<Array<{ name: string; category_id?: string; description?: string }>>;
+  filteredCategories$?: Observable<Array<{ name: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any }>>;
   // currently selected category object (for showing description)
-  selectedCategory: { name?: string; category_id?: string; description?: string } | null = null;
+  selectedCategory: { name?: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any } | null = null;
   exams: Array<{ title: string; exam_id?: string }> = [];
+  questionBankFilterOpen = false;
+  questionBankFiltersApplied = false;
+  departments: Array<{ id: string; name: string }> = [];
+  teams: Array<{ id: string; name: string }> = [];
+  selectedDepartments: string[] = [];
+  selectedTeams: string[] = [];
+  filterCreationDateAfter: Date | null = null;
+  filterCreationDate: Date | null = null;
+  filterCreatedByMe = false;
+  filterPublicAccess = false;
 
   private apiUrl = `${API_BASE}/add-question`;
   // updated endpoints per request
   private institutesUrl = `${API_BASE}/get-institute-list`;
   private examsUrl = `${API_BASE}/get-exams-list`;
   private categoriesUrl = `${API_BASE}/get-categories-list`;
-  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService) {
+  private categoryDetailsUrl = `${API_BASE}/category-details`;
+  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService, private router: Router) {
     // infer super-admin role and default institute from session data when available
     try {
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       if (raw) {
         const u = JSON.parse(raw);
         this.isSuperAdmin = !!(u && (u.is_super_admin === true || u.isSuperAdmin || u.role === 'super_admin' || u.user_role === 'super_admin'));
-        const instId = u?.institute_id || u?.instituteId || u?.institute || '';
+        const instId = sessionStorage.getItem('global_institute_id') || u?.institute_id || u?.instituteId || u?.institute?.institute_id || u?.institute?.id || (typeof u?.institute === 'string' ? u.institute : '');
         if (instId) {
+          this.loginInstituteId = String(instId);
           // prefill the first question's institute selection so the template select shows the user's institute
           try { this.questions[0].institute_id = String(instId); } catch(e){}
         }
@@ -150,6 +167,18 @@ export class AdminQuestionsComponent {
 
     // call to populate institutes dropdown; loadCategories will be triggered after institutes load if an institute is prefilled
     this.loadInstitutes();
+  }
+
+  goBackToQuestions(): void {
+    this.router.navigate(['/view-questions']);
+  }
+
+  @HostListener('document:click', ['$event'])
+  closeQuestionBankFiltersOnOutsideClick(event: MouseEvent) {
+    if (!this.questionBankFilterOpen) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.question-bank-filter-anchor, .cdk-overlay-container')) return;
+    this.questionBankFilterOpen = false;
   }
 
   ngOnInit(): void {
@@ -187,17 +216,26 @@ export class AdminQuestionsComponent {
           else if (correctIdxs.length > 1) correct = correctIdxs;
         }
 
+        const rawQuestionType = q.type || q.originalType || q.question_type || q.questionType || '';
+        const questionType = this.normalizeQuestionType(rawQuestionType, q);
+        let optionAnswer = '';
+        if ((questionType === 'fill' || questionType === 'descriptive') && Array.isArray(q.options)) {
+          const answerOption = q.options.find((o: any) => o && typeof o === 'object' && (o.is_correct === 1 || o.is_correct === true || o.is_correct === '1' || o.is_correct === 'true')) || q.options[0];
+          if (typeof answerOption === 'string') optionAnswer = answerOption;
+          else if (answerOption && typeof answerOption === 'object') optionAnswer = answerOption.text || answerOption.option_text || answerOption.option || answerOption.value || answerOption.label || '';
+        }
+
         const first: any = {
-          type: q.type || q.originalType || q.question_type || '',
+          type: questionType,
           text: q.question || q.text || q.title || '',
-          marks: q.marks || q.points || 1,
+          marks: q.marks || q.points || this.getCategoryQuestionMark() || 1,
           options: opts.length ? opts : ['',''],
           correct: correct,
-          answerText: q.answer || q.answerText || q.correct || '',
+          answerText: q.answer || q.answerText || optionAnswer || (typeof q.correct === 'string' ? q.correct : ''),
           // copy global selections if provided
-          institute_id: q.institute_id || (q.institute && (q.institute.institute_id || q.institute.id)) || '',
-          exam_id: q.exam_id || (q.exam && (q.exam.exam_id || q.exam.id)) || '',
-          category_id: q.category_id || (q.category && (q.category.category_id || q.category.id)) || '',
+          institute_id: q.institute_id || q.instituteId || q.instituteID || (q.institute && (q.institute.institute_id || q.institute.id || q.institute._id)) || '',
+          exam_id: q.exam_id || q.examId || q.examID || (q.exam && (q.exam.exam_id || q.exam.id || q.exam._id)) || '',
+          category_id: q.category_id || q.categoryId || q.categoryID || (q.category && (q.category.category_id || q.category.id || q.category._id)) || '',
           // keep original id for reference if backend uses it
           id: q.id || q.question_id || q._id || undefined
         };
@@ -274,23 +312,24 @@ export class AdminQuestionsComponent {
     setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} }, 50);
   }
 
-  downloadTemplate() {
-    // Create a simple CSV template that Excel can open.
-    const headers = [
-      'Question','Type', 'Correct_answer',	'option_1',	'option_2',	'option_3',	'option_4'
-    ];
-    const sample = [
-      ['What is 2+2?','choice', '4', '2', '3', '4', '5'],
-      ['Select prime numbers','multi', '2,3', '2', '3', '4', '5'],
-      ['The capital of France is ___.','fill', 'Paris'],
-      ['Describe the water cycle.','descriptive', '']
-    ];
+  downloadTemplate(templateType: 'objective' | 'descriptive') {
+    const headers = ['Question', 'Type', 'Correct_answer', 'marks', 'option_1', 'option_2', 'option_3', 'option_4'];
+    const sample = templateType === 'objective'
+      ? [
+          ['What is 2+2?', 'choose', '3', '1', '2', '3', '4', '5'],
+          ['Select prime numbers', 'multi', '1,2', '1', '2', '3', '4', '5'],
+          ['The capital of France is ___.', 'fill', 'Paris', '1', '', '', '', '']
+        ]
+      : [
+          ['Describe the water cycle.', 'descriptive', 'Evaporation, condensation, and precipitation move water through the environment.', '5', '', '', '', ''],
+          ['Explain the importance of photosynthesis.', 'descriptive', 'Photosynthesis helps plants make food and releases oxygen.', '5', '', '', '', '']
+        ];
     const rows = [headers, ...sample].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'Questions-template.csv';
+    a.download = `${templateType === 'objective' ? 'Objective' : 'Descriptive'}-questions-template.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -334,14 +373,74 @@ export class AdminQuestionsComponent {
     if (!this.generatedQuestions || !this.generatedQuestions.length) return;
     // Insert generated items into questions array and switch to manual mode for editing
     try{
-      this.questions = (this.generatedQuestions.map((g:any) => ({ type: g.type || 'descriptive', text: g.text || '', marks: g.marks || 1, options: g.options || [''], correct: null, answerText: '', _expanded: true }))).concat(this.questions || []);
+      this.questions = (this.generatedQuestions.map((g:any) => ({ type: g.type || 'descriptive', text: g.text || '', marks: this.getCategoryQuestionMark() || g.marks || 1, options: g.options || [''], correct: null, answerText: '', _expanded: true }))).concat(this.questions || []);
       this.mode = 'manual';
       setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} }, 0);
     }catch(e){}
   }
 
+  private getCorrectFromGeneratedOptions(options: any): any {
+    if (!Array.isArray(options)) return null;
+    const correctIndexes: number[] = [];
+    options.forEach((option: any, index: number) => {
+      if (option && (option.is_correct === 1 || option.is_correct === true || option.is_correct === '1' || option.is_correct === 'true')) {
+        correctIndexes.push(index);
+      }
+    });
+    if (correctIndexes.length === 1) return correctIndexes[0];
+    if (correctIndexes.length > 1) return correctIndexes;
+    return null;
+  }
+
+  private resolveGeneratedCorrectValue(qtype: string, options: any[], correctValue: any): number | number[] | null {
+    if (qtype === 'choose') {
+      if (typeof correctValue === 'number') return correctValue;
+      if (typeof correctValue === 'string') {
+        const idx = options.findIndex((option: any) => String(option).trim().toLowerCase() === String(correctValue).trim().toLowerCase());
+        return idx >= 0 ? idx : null;
+      }
+    }
+    if (qtype === 'multi') {
+      if (Array.isArray(correctValue)) {
+        if (correctValue.length && typeof correctValue[0] === 'number') return correctValue;
+        return correctValue
+          .map((value: any) => options.findIndex((option: any) => String(option).trim().toLowerCase() === String(value).trim().toLowerCase()))
+          .filter((idx: number) => idx >= 0);
+      }
+      if (typeof correctValue === 'string') {
+        return correctValue
+          .split(',')
+          .map((value: string) => value.trim())
+          .filter(Boolean)
+          .map((value: string) => options.findIndex((option: any) => String(option).trim().toLowerCase() === value.toLowerCase()))
+          .filter((idx: number) => idx >= 0);
+      }
+    }
+    return null;
+  }
+
+  private applyGeneratedAnswersToQuestions(): boolean {
+    if (!this.aiAnswerGenerationPending || !this.generatedQuestions?.length || !this.questions?.length) return false;
+    this.questions.forEach((question: any, index: number) => {
+      const generated = this.generatedQuestions[index];
+      if (!generated) return;
+      const qtype = question.type || generated.type || 'descriptive';
+      const generatedAnswer = generated.answerText || generated.answer || generated.explanation || '';
+      const correctValue = generated.correct ?? generated.correct_answer ?? generatedAnswer;
+      if (qtype === 'fill' || qtype === 'descriptive') {
+        question.answerText = generatedAnswer || (typeof correctValue === 'string' ? correctValue : '');
+      } else {
+        question.correct = this.resolveGeneratedCorrectValue(qtype, question.options || [], correctValue);
+      }
+    });
+    this.aiAnswerGenerationPending = false;
+    try { notify('Answers generated for the current questions', 'success'); } catch(e) {}
+    return true;
+  }
+
   // Generate simple placeholder questions from AI inputs (stub implementation)
   generateAIQuestions(){
+    if (this.applyGeneratedAnswersToQuestions()) return;
     this.loader.show();
     if (!this.aiQuestionType || !this.aiQuestionNumber || this.aiQuestionNumber < 1){
       try { notify('Select a question type and set number of questions', 'error'); } catch(e){}
@@ -354,7 +453,7 @@ export class AdminQuestionsComponent {
     const raw = sessionStorage.getItem('user')
     if (raw) {
       const u = JSON.parse(raw);
-      const instId = u?.institute_id || u?.instituteId || u?.institute || '';
+      const instId = sessionStorage.getItem('global_institute_id') || u?.institute_id || u?.instituteId || u?.institute?.institute_id || u?.institute?.id || (typeof u?.institute === 'string' ? u.institute : '');
       if (instId) {
         fd.append('institute_id', String(instId));
       }
@@ -367,14 +466,15 @@ export class AdminQuestionsComponent {
     fd.append('language','English');
     fd.append('type', this.aiQuestionType || 'Descriptive');
     fd.append('number_of_questions', String(this.aiQuestionNumber || 1));
-    fd.append('marks_per_question', String(this.aiMarksPerQuestion || 5));
+    const categoryQuestionMark = this.getCategoryQuestionMark() || this.aiMarksPerQuestion || 5;
+    fd.append('marks_per_question', String(categoryQuestionMark));
     fd.append('industry', this.aiIndustry || '');
     fd.append('user_role', this.aiUserRole || '');
     fd.append('target_users', this.aiTargetUsers || '');
     fd.append('complexity', this.aiQuestionComplexity || 'medium');
     fd.append('source_text', this.sourceText || '');
     fd.append('additional_instructions', this.aiPrompt || '');
-    fd.append('question_mark', String(5));
+    fd.append('question_mark', String(categoryQuestionMark));
 
     const url = `${API_BASE}/create-question-using-ai`;
     this.http.post<any>(url, fd).subscribe({
@@ -384,46 +484,20 @@ export class AdminQuestionsComponent {
             // backend returns a single question object or an array — normalize
             const arr = Array.isArray(res) ? res : (res.data ? res.data : (res.question ? [res.question] : []));
             // if response includes question_text/options etc, map to our internal shape
-            const normalized = (Array.isArray(arr) ? arr : [arr]).map((r:any) => ({ type: r.type || r.question_type || 'descriptive', text: r.question_text || r.question || r.text || '', marks: r.mark || r.marks || 1, options: Array.isArray(r.options) ? r.options.slice() : (r.options && typeof r.options === 'string' ? r.options.split('|').map((s:string)=>s.trim()) : []), correct: r.correct_answer ?? r.correct ?? null, answerText: r.explanation || r.answer || '' }));
+            const normalized = (Array.isArray(arr) ? arr : [arr]).map((r:any) => ({ type: r.type || r.question_type || 'descriptive', text: r.question_text || r.question || r.text || '', marks: this.getCategoryQuestionMark() || r.mark || r.marks || 1, options: Array.isArray(r.options) ? r.options.slice() : (r.options && typeof r.options === 'string' ? r.options.split('|').map((s:string)=>s.trim()) : []), correct: r.correct_answer ?? r.correct ?? this.getCorrectFromGeneratedOptions(r.options), answerText: r.explanation || r.answer || '' }));
             this.generatedQuestions = normalized;
             // Also immediately load generated questions into the editable questions list so they appear in the questions-list
             try{
+              const selectedInstituteId = this.questions?.[0]?.institute_id || '';
+              const selectedCategoryId = this.questions?.[0]?.category_id || '';
               this.questions = normalized.map((g:any) => {
                 const qtype = (g.type || 'descriptive');
                 const opts = Array.isArray(g.options) ? g.options.map((o:any)=> typeof o === 'string' ? o : (o.option_text || o.text || String(o))) : [];
                 // ensure at least two option placeholders for choice types
                 if ((qtype === 'choose' || qtype === 'multi') && opts.length < 2) { while(opts.length < 2) opts.push(''); }
-                // determine correct indices/value mapping
-                let correct: number | number[] | null = null;
-                const ca = g.correct;
-                if (qtype === 'choose'){
-                  if (typeof ca === 'number') correct = ca;
-                  else if (typeof ca === 'string') {
-                    const idx = opts.findIndex((o:any) => String(o).trim().toLowerCase() === String(ca).trim().toLowerCase());
-                    if (idx >= 0) correct = idx; else correct = null;
-                  }
-                } else if (qtype === 'multi'){
-                  if (Array.isArray(ca)){
-                    // may be indices or values
-                    if (ca.length && typeof ca[0] === 'number') correct = ca;
-                    else {
-                      const idxs:number[] = [];
-                      ca.forEach((val:any)=>{ const idx = opts.findIndex((o:any)=>String(o).trim().toLowerCase() === String(val).trim().toLowerCase()); if(idx>=0) idxs.push(idx); });
-                      correct = idxs;
-                    }
-                  } else if (typeof ca === 'string'){
-                    // comma separated values
-                    const parts = ca.split(',').map((s:string)=>s.trim()).filter(Boolean);
-                    const idxs:number[] = [];
-                    parts.forEach(p=>{ const idx = opts.findIndex((o:any)=>String(o).trim().toLowerCase()===String(p).trim().toLowerCase()); if(idx>=0) idxs.push(idx); });
-                    correct = idxs;
-                  }
-                } else if (qtype === 'fill' || qtype === 'descriptive'){
-                  // put answer in answerText
-                }
-
-                return { type: qtype, text: g.text || '', marks: g.marks || 1, options: opts.length ? opts : ['',''], correct: correct, answerText: (qtype==='fill' || qtype==='descriptive') ? (g.correct && typeof g.correct === 'string' ? g.correct : (g.answerText || '')) : (g.answerText || ''), _expanded: true };
+                return { type: qtype, text: g.text || '', marks: this.getCategoryQuestionMark() || g.marks || 1, options: opts.length ? opts : ['',''], correct: null, answerText: '', institute_id: selectedInstituteId, category_id: selectedCategoryId, _expanded: true };
               });
+              this.aiAnswerGenerationPending = true;
               this.mode = 'manual';
               // this.aiMode = false;
               this.activeMode = 'manual';
@@ -447,21 +521,28 @@ export class AdminQuestionsComponent {
   addQuestion() {
     // collapse other panels and expand newly added one
     if (this.questions && this.questions.length) this.questions.forEach(q => q._expanded = false);
-    this.questions.push({ type: '', text: '', marks: 1, options: ['',''], correct: null, answerText: '', _expanded: true, showFineTune: false });
+    this.questions.push({ type: '', text: '', marks: this.getCategoryQuestionMark() || 1, options: ['',''], correct: null, answerText: '', _expanded: true, showFineTune: false });
   }
 
   removeQuestion(index: number) {
-    if (this.questions.length <= 1) return; // keep at least one
+    const q = this.questions && this.questions[index];
+    if (!q) return;
+    if (this.isEditing) {
+      this.pendingDeletedQuestionId = q.id || q.question_id || q._id || this.editId;
+      this.questions.splice(index, 1);
+      return;
+    }
+    if (this.questions.length <= 1) return; // keep at least one while adding new questions
     this.questions.splice(index, 1);
   }
 
   resetAll(){
     // clear institute/exam selection stored on first block and reset to single empty block
     if (this.questions && this.questions.length) {
-      this.questions[0].institute_id = '';
+      this.questions[0].institute_id = sessionStorage.getItem('global_institute_id') || '';
       this.questions[0].exam_id = '';
     }
-    this.questions = [{ type: '', text: '', marks: 1, options: ['',''], correct: null, answerText: '', showFineTune: false }];
+    this.questions = [{ type: '', text: '', marks: this.getCategoryQuestionMark() || 1, options: ['',''], correct: null, answerText: '', showFineTune: false }];
     setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} },0);
   }
 
@@ -489,6 +570,27 @@ export class AdminQuestionsComponent {
     }
   }
 
+  private getScopedInstituteId(instId?: string): string {
+    if (!this.isSuperAdmin && this.loginInstituteId) return String(this.loginInstituteId);
+    return String(instId || this.questions?.[0]?.institute_id || '');
+  }
+
+  private getCategoryInstituteId(item: any): string {
+    return String(
+      item?.institute_id ??
+      item?.instituteId ??
+      item?.institute?.institute_id ??
+      item?.institute?.id ??
+      item?.institutes?.institute_id ??
+      item?.institutes?.id ??
+      ''
+    );
+  }
+
+  private isAllowedCategoryForInstitute(item: any, scopedInstitute: string): boolean {
+    if (this.isSuperAdmin || !scopedInstitute) return true;
+    return this.getCategoryInstituteId(item) === String(scopedInstitute);
+  }
   loadInstitutes(){
     this.loader.show();
     this.http.get<any>(this.institutesUrl).subscribe({
@@ -496,7 +598,7 @@ export class AdminQuestionsComponent {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
         this.institutes = arr.map((r:any) => ({ name: r.name || r.institute_name || r.short_name || '', institute_id: r.institute_id || r.id }));
         // If an institute was prefilled (from session), ensure categories load for it
-        try{ const pre = this.questions && this.questions[0] && (this.questions[0].institute_id || ''); if(pre) this.loadCategories(pre); }catch(e){}
+        try{ const pre = this.questions && this.questions[0] && (this.questions[0].institute_id || ''); if(pre) { this.loadDepartments(pre); this.loadTeams(pre); this.loadCategories(pre); } }catch(e){}
       },
       complete: () => { this.loader.hide(); },
       error: (err) => { this.loader.hide();
@@ -504,14 +606,48 @@ export class AdminQuestionsComponent {
       }
     });
   }
-  loadCategories(instId?: string){
-    this.loader.show();
-    let url = this.categoriesUrl;
-    if (instId) url += `?institute_id=${encodeURIComponent(instId)}`;
+  onQuestionInstituteChange(instId?: string) {
+    try {
+      instId = this.getScopedInstituteId(instId);
+      if (this.questions && this.questions[0]) this.questions[0].institute_id = instId || '';
+      if (this.questions && this.questions[0]) this.questions[0].category_id = '';
+      this.selectedCategory = null;
+      this.categoryCtrl.setValue('');
+      this.categories = [];
+      this.resetQuestionBankFilters(false);
+      this.loadDepartments(instId);
+      this.loadTeams(instId);
+      this.clearQuestionTypes();
+    } catch(e) {}
+    this.loadCategories(instId);
+  }
+
+  loadCategories(instId?: string, showLoader: boolean = true){
+    if (showLoader) this.loader.show();
+    instId = this.getScopedInstituteId(instId);
+    if (!instId) {
+      this.categories = [];
+      this.selectedCategory = null;
+      try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
+      try { this.categoryCtrl.setValue(''); } catch(e) {}
+      if (showLoader) this.loader.hide();
+      return;
+    }
+    const params = this.buildCategoryFilterParams(instId);
+    const url = `${this.categoryDetailsUrl}?${params.join('&')}&_ts=${Date.now()}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.categories = arr.map((r:any) => ({ name: r.name || '', category_id: r.category_id || r.id, description: r.description || r.desc || '' }));
+        const scopedInstitute = this.getScopedInstituteId(instId);
+        this.categories = arr.filter((r: any) => this.isAllowedCategoryForInstitute(r, scopedInstitute)).map((r:any) => ({
+          name: r.name || r.category_name || '',
+          category_id: r.category_id || r.id,
+          description: r.description || r.desc || '',
+          type: r.type || r.category_type || '',
+          mark_each_question: (typeof r.mark_each_question !== 'undefined') ? r.mark_each_question : (r.mark_for_each_question ?? r.question_mark ?? r.marks ?? null),
+          mark_for_each_question: r.mark_for_each_question ?? r.mark_each_question ?? r.question_mark ?? r.marks ?? null,
+          institute: r.institute || { institute_id: r.institute_id || r.instituteId || null }
+        }));
         // if a category was prefilled on the first question, set control to that object so autocomplete shows it
         try {
           const cid = this.questions && this.questions[0] && (this.questions[0].category_id || '');
@@ -520,23 +656,227 @@ export class AdminQuestionsComponent {
             if (found) {
               this.selectedCategory = found as any;
               try { this.categoryCtrl.setValue(found); } catch(e) {}
+              this.enforceQuestionTypeForSelectedCategory();
+              this.syncQuestionMarksToCategory();
+              this.loadCategorySettings(found.category_id);
             }
           }
         } catch(e) {}
       },
-      complete: () => { this.loader.hide(); },
-      error: (err) => { this.loader.hide();
+      complete: () => { if (showLoader) this.loader.hide(); },
+      error: (err) => { if (showLoader) this.loader.hide();
         console.warn('Failed to load categories', err);
       }
     });
+  }
+
+  private formatFilterDate(value: Date | null): string {
+    if (!value) return '';
+    const date = value instanceof Date ? value : new Date(value as any);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+  }
+
+  private getCurrentUserId(): string {
+    try {
+      const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+      const user = raw ? JSON.parse(raw) : null;
+      return String(user?.user_id || user?.id || user?.userId || user?._id || sessionStorage.getItem('user_id') || '');
+    } catch (e) {
+      return String(sessionStorage.getItem('user_id') || '');
+    }
+  }
+
+  private buildCategoryFilterParams(instId?: string): string[] {
+    const params: string[] = [];
+    if (instId) params.push(`institute_id=${encodeURIComponent(instId)}`);
+    if (this.selectedDepartments.length) params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
+    if (this.selectedTeams.length) params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
+    const createdAfter = this.formatFilterDate(this.filterCreationDateAfter);
+    const createdBefore = this.formatFilterDate(this.filterCreationDate);
+    if (createdAfter) params.push(`created_after=${encodeURIComponent(createdAfter)}`);
+    if (createdBefore) params.push(`created_before=${encodeURIComponent(createdBefore)}`);
+    if (this.filterPublicAccess) params.push('public_access=true');
+    if (this.filterCreatedByMe) {
+      const userId = this.getCurrentUserId();
+      if (userId) params.push(`created_by=${encodeURIComponent(userId)}`);
+    }
+    return params;
+  }
+
+  loadDepartments(instId?: string) {
+    if (!instId) { this.departments = []; return; }
+    const url = `${API_BASE}/get-department-list`;
+    this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
+      next: (res) => {
+        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        this.departments = arr.map((d: any) => ({ id: String(d.department_id || d.dept_id || d.id || d.deptId || ''), name: d.name || d.department_name || d.dept_name || d.title || '' })).filter((d: any) => d.id);
+      },
+      error: (err) => { console.warn('Failed to load departments', err); this.departments = []; }
+    });
+  }
+
+  loadTeams(instId?: string) {
+    if (!instId) { this.teams = []; return; }
+    const url = `${API_BASE}/get-teams-list`;
+    this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
+      next: (res) => {
+        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        this.teams = arr.map((t: any) => ({ id: String(t.team_id || t.teams_id || t.id || t.teamId || ''), name: t.name || t.team_name || t.title || '' })).filter((t: any) => t.id);
+      },
+      error: (err) => { console.warn('Failed to load teams', err); this.teams = []; }
+    });
+  }
+
+  toggleQuestionBankFilters() {
+    this.questionBankFilterOpen = !this.questionBankFilterOpen;
+  }
+
+  applyQuestionBankFilters() {
+    this.questionBankFiltersApplied = true;
+    this.selectedCategory = null;
+    try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
+    try { this.categoryCtrl.setValue(''); } catch(e) {}
+    this.loadCategories(this.questions?.[0]?.institute_id || '', true);
+    this.questionBankFilterOpen = false;
+  }
+
+  resetQuestionBankFilters(reload: boolean = true) {
+    this.selectedDepartments = [];
+    this.selectedTeams = [];
+    this.filterCreationDateAfter = null;
+    this.filterCreationDate = null;
+    this.filterCreatedByMe = false;
+    this.filterPublicAccess = false;
+    this.questionBankFiltersApplied = false;
+    if (reload) {
+      this.selectedCategory = null;
+      try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
+      try { this.categoryCtrl.setValue(''); } catch(e) {}
+      this.loadCategories(this.questions?.[0]?.institute_id || '', true);
+    }
+    this.questionBankFilterOpen = false;
+  }
+  refreshCategoriesOnCategoryOpen(opened: boolean) {
+    if (!opened) return;
+    const instId = this.questions && this.questions[0] && this.questions[0].institute_id;
+    if (!instId) return;
+    this.loadCategories(instId, false);
   }
   onCategoryAutocompleteSelected(cat: any){
     if (!cat) { this.selectedCategory = null; this.questions[0].category_id = ''; return; }
     this.selectedCategory = cat;
     try { this.questions[0].category_id = cat.category_id; } catch(e) {}
+    this.enforceQuestionTypeForSelectedCategory();
+    this.syncQuestionMarksToCategory();
+    this.loadCategorySettings(cat.category_id);
   }
 
   displayCategory(cat: any){ return cat && cat.name ? cat.name : ''; }
+
+  onCategorySelected(categoryId: string) {
+    const found = (this.categories || []).find(c => String(c.category_id) === String(categoryId));
+    this.selectedCategory = found || null;
+    try { this.questions[0].category_id = found?.category_id || ''; } catch(e) {}
+    try { this.categoryCtrl.setValue(found || ''); } catch(e) {}
+    this.enforceQuestionTypeForSelectedCategory();
+    this.syncQuestionMarksToCategory();
+    if (categoryId) this.loadCategorySettings(categoryId);
+  }
+
+  private loadCategorySettings(categoryId: any) {
+    if (!categoryId) return;
+    const url = `${this.categoryDetailsUrl}?category_id=${encodeURIComponent(String(categoryId))}&_ts=${Date.now()}`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        const items = Array.isArray(res) ? res : (res?.data || []);
+        const detail = Array.isArray(items) && items.length ? items[0] : (res?.data && !Array.isArray(res.data) ? res.data : res);
+        if (!detail) return;
+        const current: any = this.selectedCategory || {};
+        this.selectedCategory = {
+          ...current,
+          name: detail.name || detail.category_name || current.name,
+          category_id: detail.category_id || detail.id || detail._id || current.category_id,
+          description: detail.description || detail.desc || current.description,
+          type: detail.type || detail.category_type || current.type,
+          mark_each_question: (typeof detail.mark_each_question !== 'undefined') ? detail.mark_each_question : (detail.mark_for_each_question ?? detail.question_mark ?? detail.marks ?? current.mark_each_question),
+          mark_for_each_question: detail.mark_for_each_question ?? detail.mark_each_question ?? detail.question_mark ?? detail.marks ?? current.mark_for_each_question
+        };
+        this.enforceQuestionTypeForSelectedCategory();
+        this.syncQuestionMarksToCategory();
+      },
+      error: (err) => { console.warn('Failed to load category settings', err); }
+    });
+  }
+  get filteredQuestionTypes() {
+    const type = this.normalizeCategoryType(this.selectedCategory?.type);
+    if (type === 'descriptive') return this.questionTypes.filter(t => t.value === 'descriptive');
+    if (type === 'objective') return this.questionTypes.filter(t => t.value !== 'descriptive');
+    return this.questionTypes;
+  }
+
+  getQuestionTypeOptions(q: any) {
+    const options = this.isEditing ? [...this.questionTypes] : [...this.filteredQuestionTypes];
+    const currentType = q?.type ? this.normalizeQuestionType(q.type, q) : '';
+    if (currentType && !options.some(t => t.value === currentType)) {
+      const found = (this.questionTypes || []).find(t => t.value === currentType);
+      if (found) options.unshift(found);
+    }
+    return options;
+  }
+
+  private normalizeCategoryType(type: any): string {
+    const normalized = String(type || '').trim().toLowerCase();
+    if (normalized === 'descriptive') return 'descriptive';
+    if (normalized === 'objective') return 'objective';
+    return normalized;
+  }
+
+  private normalizeQuestionType(type: any, question?: any): string {
+    const normalized = String(type || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    if (['choose', 'single', 'single_choice', 'singlechoice', 'mcq', 'objective'].includes(normalized)) return 'choose';
+    if (['multi', 'multiple', 'multiple_choice', 'multiplechoice', 'multi_choice'].includes(normalized)) return 'multi';
+    if (['fill', 'fill_blank', 'fill_in_the_blank', 'fillintheblank', 'blank'].includes(normalized)) return 'fill';
+    if (['descriptive', 'description', 'subjective', 'essay', 'long_answer'].includes(normalized)) return 'descriptive';
+    if (question && Array.isArray(question.options) && question.options.length) return 'choose';
+    return normalized;
+  }
+
+  hasCategorySettings(): boolean {
+    return this.isEditing || !!this.selectedCategory;
+  }
+  getCategoryQuestionMark(): number | null {
+    const cat: any = this.selectedCategory;
+    const raw = cat?.mark_each_question ?? cat?.mark_for_each_question ?? cat?.question_mark ?? cat?.marks ?? null;
+    if (raw === null || raw === undefined || raw === '') return null;
+    const mark = Number(raw);
+    return isNaN(mark) ? null : mark;
+  }
+
+  private syncQuestionMarksToCategory() {
+    const mark = this.getCategoryQuestionMark();
+    if (mark === null) return;
+    try {
+      this.aiMarksPerQuestion = mark;
+      (this.questions || []).forEach((q: any) => q.marks = mark);
+    } catch(e) {}
+  }
+  private enforceQuestionTypeForSelectedCategory() {
+    const allowed = new Set(this.filteredQuestionTypes.map(t => t.value));
+    try {
+      if (this.aiQuestionType && !allowed.has(this.aiQuestionType)) this.aiQuestionType = '';
+      (this.questions || []).forEach((q: any) => {
+        if (!this.isEditing && q?.type && !allowed.has(q.type)) q.type = '';
+      });
+    } catch(e) {}
+  }
+
+  private clearQuestionTypes() {
+    try {
+      this.aiQuestionType = '';
+      (this.questions || []).forEach((q: any) => q.type = '');
+    } catch(e) {}
+  }
 
   getQuestionTypeLabel(value: string | undefined | null){
     try{
@@ -579,7 +919,7 @@ export class AdminQuestionsComponent {
       complete: () => { this.loader.hide(); },
       error: (err) => {
         this.loader.hide();
-        console.warn('Failed to load exams', err);
+        console.warn('Failed to load tests', err);
         this.exams = [];
       }
     });
@@ -594,12 +934,17 @@ export class AdminQuestionsComponent {
 
   removeOption(qIndex:number, i:number){
     const q = this.questions[qIndex];
+    if (!q || !Array.isArray(q.options) || i < 0 || i >= q.options.length) return;
     q.options.splice(i,1);
-    // clean correct answers if necessary
-    if (q.type === 'choose' && q.correct === i) q.correct = null;
+    // Keep selected correct indexes aligned with the remaining option rows.
+    if (q.type === 'choose') {
+      if (q.correct === i) q.correct = null;
+      else if (typeof q.correct === 'number' && q.correct > i) q.correct = q.correct - 1;
+    }
     if (q.type === 'multi' && Array.isArray(q.correct)){
-      const idx = q.correct.indexOf(i);
-      if (idx > -1) q.correct.splice(idx,1);
+      q.correct = q.correct
+        .filter((idx: number) => idx !== i)
+        .map((idx: number) => idx > i ? idx - 1 : idx);
     }
   }
 
@@ -637,6 +982,27 @@ export class AdminQuestionsComponent {
     if (q.type === 'choose') return q.correct === i;
     if (q.type === 'multi') return Array.isArray(q.correct) && (q.correct as number[]).indexOf(i) > -1;
     return false;
+  }
+
+  private isValidQuestion(q: any): boolean {
+    return !!q && !!String(q.type || '').trim() && !!String(q.text || '').trim();
+  }
+
+  private hasRequiredAnswer(q: any): boolean {
+    if (!q) return false;
+    const type = this.normalizeQuestionType(q.type, q);
+    if (type === 'fill' || type === 'descriptive') {
+      return !!String(q.answerText || q.answer || '').trim();
+    }
+    if (type === 'choose') {
+      if (typeof q.correct !== 'number') return false;
+      return !!String((q.options || [])[q.correct] || '').trim();
+    }
+    if (type === 'multi') {
+      if (!Array.isArray(q.correct) || !q.correct.length) return false;
+      return q.correct.every((idx: number) => !!String((q.options || [])[idx] || '').trim());
+    }
+    return true;
   }
 
   // Call backend fine-tune endpoint to improve question/answer pair
@@ -690,7 +1056,7 @@ export class AdminQuestionsComponent {
     } catch (e) { /* ignore */ }
     if (this.mode === 'bulk'){
       // use selected file and submit via FormData
-      if (!this.selectedBulkFile){ try { notify('Please select a file to upload', 'error'); } catch(e){}; return; }
+      if (!this.selectedBulkFile){ this.loader.hide(); try { notify('Please select a file to upload', 'error'); } catch(e){}; return; }
       const fd = new FormData();
       fd.append('file', this.selectedBulkFile);
       if (this.questions[0] && this.questions[0].institute_id) fd.append('institute_id', this.questions[0].institute_id);
@@ -710,29 +1076,85 @@ export class AdminQuestionsComponent {
       return;
     }
 
+    if (this.isEditing && this.pendingDeletedQuestionId && (!this.questions || this.questions.length === 0)) {
+      const deleteId = this.pendingDeletedQuestionId;
+      const url = `${API_BASE}/delete/question/${encodeURIComponent(String(deleteId))}`;
+      this.http.delete<any>(url).subscribe({
+        next: (res) => {
+          try {
+            const ok = typeof res?.status === 'undefined' ? true : !!res.status;
+            const msg = ok ? 'Question deleted successfully.' : (res?.statusMessage || res?.message || 'Failed to delete question.');
+            notify(msg, ok ? 'success' : 'error');
+            if (ok) {
+              this.pendingDeletedQuestionId = undefined;
+              this.editId = undefined;
+              this.isEditing = false;
+            }
+          } catch(e){}
+        },
+        error: (err) => {
+          console.error('Failed to delete question', err);
+          try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to delete question.', 'error'); } catch(e){}
+          this.loader.hide();
+        },
+        complete: () => { this.loader.hide(); }
+      });
+      return;
+    }
+    const selectedInstituteId = this.questions && this.questions[0] && (this.questions[0] as any).institute_id;
+    const selectedCategoryId = this.questions && this.questions[0] && (this.questions[0] as any).category_id;
+    if (!this.isEditing && (!selectedInstituteId || !selectedCategoryId)) {
+      this.loader.hide();
+      try { notify('Please select an Institution and Question Bank before saving.', 'error'); } catch(e){}
+      return;
+    }
+
+    this.syncQuestionMarksToCategory();
+
+    const validQuestions = (this.questions || []).filter((q: any) => this.isValidQuestion(q));
+    if (!validQuestions.length) {
+      this.loader.hide();
+      try { notify('Please add at least one question before saving.', 'error'); } catch(e){}
+      return;
+    }
+
     // Submit all questions as a batch; basic validation per question
-    for (let q of this.questions){
-      if (q.type === 'choose' && (q.correct === null || q.correct === undefined)){
+    for (let q of validQuestions){
+      const optionCount = Array.isArray(q.options) ? q.options.length : 0;
+      if (q.type === 'choose' && optionCount > 0 && (q.correct === null || q.correct === undefined)){
         try { notify('Please select the correct option for single choice in all question blocks', 'error'); } catch(e){}
         this.loader.hide();
         return;
       }
-      if (q.type === 'multi' && (!Array.isArray(q.correct) || (q.correct as number[]).length === 0)){
+      if (q.type === 'multi' && optionCount > 0 && (!Array.isArray(q.correct) || (q.correct as number[]).length === 0)){
         try { notify('Please select one or more correct options for multiple choice in all question blocks', 'error'); } catch(e){}
+        this.loader.hide();
+        return;
+      }
+      if (!this.hasRequiredAnswer(q)) {
+        try { notify('Answer is required for all question blocks', 'error'); } catch(e){}
         this.loader.hide();
         return;
       }
     }
 
-    const payload = this.questions.map((q:any) => {
+    const payload = validQuestions.map((q:any) => {
       const p = JSON.parse(JSON.stringify(q));
-      if (q.type === 'choose' && typeof q.correct === 'number'){
+      p.options = Array.isArray(q.options) ? q.options.slice() : [];
+      if (q.type === 'choose' && typeof q.correct === 'number' && p.options[q.correct] !== undefined){
         p.correct_indices = [q.correct];
-        p.correct_values = [q.options[q.correct]];
+        p.correct_values = [p.options[q.correct]];
+      } else if (q.type === 'choose') {
+        p.correct_indices = [];
+        p.correct_values = [];
       }
       if (q.type === 'multi' && Array.isArray(q.correct)){
-        p.correct_indices = q.correct;
-        p.correct_values = q.correct.map((i:number) => q.options[i]);
+        const validCorrect = q.correct.filter((i:number) => p.options[i] !== undefined);
+        p.correct_indices = validCorrect;
+        p.correct_values = validCorrect.map((i:number) => p.options[i]);
+      } else if (q.type === 'multi') {
+        p.correct_indices = [];
+        p.correct_values = [];
       }
       // p.created_by = sessionStorage.getItem('user_id') || sessionStorage.getItem('username') || 'admin';
       return p;
@@ -750,7 +1172,8 @@ export class AdminQuestionsComponent {
     if (this.isEditing && this.editId) {
       // update single question
       const q = payload[0];
-      // ensure category_id is included on update (use question-level or global selection)
+      // ensure hidden global selections are kept on update when available
+      if (!q.institute_id && (this.questions[0] as any).institute_id) q.institute_id = (this.questions[0] as any).institute_id;
       if (!q.category_id && (this.questions[0] as any).category_id) q.category_id = (this.questions[0] as any).category_id;
       q.updated_by = userId || undefined;
       const url = `${API_BASE}/update-question/${encodeURIComponent(String(this.editId))}`;
@@ -760,19 +1183,12 @@ export class AdminQuestionsComponent {
           const ok = typeof res?.status === 'undefined' ? true : !!res.status;
           notify(msg, ok ? 'success' : 'error');
         } catch(e){}
-        // optionally reset editing state
-        this.isEditing = false;
-        this.editId = undefined;
+        // Keep edit mode active so the user stays on the same page after update.
       }, error: (err) => {
         console.error('Failed to update question', err);
         try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to update question', 'error'); } catch(e){}
         this.loader.hide();
       }, complete: () => { this.loader.hide(); } });
-        // After successful update go back to view question page
-      try {
-        window.location.href = '/view-questions';
-      } catch(e){  console.warn('Failed to redirect to view-question after update', e);
-        }
     } else {
       this.http.post<any>(this.apiUrl, body).subscribe({
         next: (res) => {
@@ -782,7 +1198,7 @@ export class AdminQuestionsComponent {
             notify(msg, ok ? 'success' : 'error');
           } catch(e){}
           // reset to a single empty block
-          this.questions = [{ type: '', text: '', marks: 1, options: ['',''], correct: null, answerText: '', showFineTune: false }];
+          this.questions = [{ type: '', text: '', marks: this.getCategoryQuestionMark() || 1, options: ['',''], correct: null, answerText: '', showFineTune: false }];
           setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} },0);
         },
         error: (err) => {

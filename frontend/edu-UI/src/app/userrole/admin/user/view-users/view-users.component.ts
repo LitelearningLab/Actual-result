@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit,ElementRef, TemplateRef,ViewContainerRef } from '@angular/core';
+import { Component, OnInit, ViewChild,OnDestroy, AfterViewInit,ElementRef, TemplateRef,ViewContainerRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatPaginatorModule, MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { RouterModule } from '@angular/router';
@@ -45,18 +46,20 @@ export interface UserRow {
 @Component({
   selector: 'app-view-users',
   standalone: true,
-  imports: [CommonModule, MatTableModule, MatIconModule, MatButtonModule, MatSlideToggleModule, MatInputModule, MatTabsModule, MatFormFieldModule, MatSelectModule, FormsModule, RouterModule, HttpClientModule, MatPaginatorModule, MatSortModule,OverlayModule, PortalModule, SharedModule],
+  imports: [CommonModule, MatTableModule, MatIconModule, MatButtonModule, MatSlideToggleModule, MatInputModule, MatTabsModule, MatFormFieldModule, MatSelectModule, MatAutocompleteModule, FormsModule, RouterModule, HttpClientModule, MatPaginatorModule, MatSortModule,OverlayModule, PortalModule, SharedModule],
   templateUrl: './view-users.component.html',
   styleUrls: ['./view-users.component.scss']
 })
-export class ViewUsersComponent {
+export class ViewUsersComponent implements OnDestroy, OnInit {
   // loading = false;
   // show full name, institute, role, department, team, active
   columns = ['name','institute','role','department','team','active','actions'];
   filter = '';
   selectedInstitute = '';
+  instituteSearch = '';
   users: UserRow[] = [];
   dataSource = new MatTableDataSource<UserRow>([]);
+  hasAppliedFilters = false;
   rawRecords: any[] = [];
 
   // pagination
@@ -87,23 +90,35 @@ export class ViewUsersComponent {
   constructor(private http: HttpClient, private router: Router, private loading: LoaderService, private auth: AuthService, private overlay: Overlay, private vcr: ViewContainerRef,private pageMeta: PageMetaService, private confirmService: ConfirmService) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
-      this.isSuperAdmin = !!this.auth.currentUserValue && ['super_admin', 'superadmin', 'super-admin'].includes((this.auth.currentUserValue.role || '').toLowerCase());
+      this.isSuperAdmin = this.checkSuperAdmin(this.auth.currentUserValue);
     } catch (e) { this.isSuperAdmin = false; }
     try {
       this._subs = this.auth.user$.subscribe((user: any) => {
-        this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
+        this.isSuperAdmin = this.checkSuperAdmin(user);
       });
     } catch (e) { /* ignore in tests */ }
   }
 
+  private checkSuperAdmin(user: any): boolean {
+    try {
+      const role = (user?.role || user?.user_role || sessionStorage.getItem('userRole') || '').toString().toLowerCase();
+      return ['super_admin', 'superadmin', 'super-admin'].includes(role);
+    } catch (e) {
+      return false;
+    }
+  }
+
   ngOnDestroy(): void {
     try { this._subs?.unsubscribe(); } catch (e) { /* ignore */ }
+    this.saveUsersReturnState();
   }
   private filtersOverlayRef: OverlayRef | null = null;
   ngOnInit(): void{
 
     this.pageMeta.setMeta('Users', 'Manage platform users');
     this.loadInstitutes();
+    this.applyGlobalInstituteScopeIfActive();
+    this.restoreUsersReturnState();
     // this.loadCountries();
     // this.loadCities();
 
@@ -112,19 +127,18 @@ export class ViewUsersComponent {
 
   onInstituteChange(iid: string) {
     try {
+      this.selectedInstitute = iid || '';
+      this.filters.institute = iid || '';
+      this.syncInstituteSearch();
+      this.pageIndex = 0;
+
       if (iid) {
         this.loadDepartments(iid);
         this.loadTeams(iid);
-        // also reload users filtered to the institute
-        // this.loadUsers(iid);
       } else {
         // Clear institute filter and reload all users
-        this.selectedInstitute = '';
-        this.filters.institute = '';
         this.departments = [];
         this.teams = [];
-        this.pageIndex = 0;
-        // this.loadUsers();
       }
     } catch (e) { }
   }
@@ -153,6 +167,7 @@ export class ViewUsersComponent {
     // this.loadUsers();
   }
 
+ 
   applyFilter(value: string){
     const q = (value || '').trim().toLowerCase();
     this.dataSource.filter = q;
@@ -175,6 +190,56 @@ export class ViewUsersComponent {
     );
   }
 
+  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
+    if (!this.hasAppliedFilters) return [];
+    const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    const instituteId = this.filters.institute || this.selectedInstitute;
+    if (instituteId) chips.push({ key: 'institute', label: `Institute: ${this.getInstituteLabel(instituteId)}`, removable: this.isSuperAdmin });
+    if (this.filters.name) chips.push({ key: 'name', label: `Name: ${this.filters.name}`, removable: true });
+    if (this.filters.department) chips.push({ key: 'department', label: `Department: ${this.getSelectedName(this.departments, this.filters.department)}`, removable: true });
+    if (this.filters.team) chips.push({ key: 'team', label: `Team: ${this.getSelectedName(this.teams, this.filters.team)}`, removable: true });
+    if (this.filters.country) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`, removable: true });
+    if (this.filters.city) chips.push({ key: 'city', label: `City: ${this.getSelectedName(this.cities, this.filters.city, 'code')}`, removable: true });
+    if (this.filters.active_status !== '') chips.push({ key: 'active_status', label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`, removable: true });
+    return chips;
+  }
+
+  removeAppliedFilter(key: string) {
+    if (!key) return;
+    if (key === 'institute' && this.isSuperAdmin) {
+      this.selectedInstitute = '';
+      this.filters.institute = '';
+      this.instituteSearch = '';
+      this.departments = [];
+      this.teams = [];
+      this.countries = [];
+      this.cities = [];
+    } else if (key === 'name') this.filters.name = '';
+    else if (key === 'department') this.filters.department = '';
+    else if (key === 'team') this.filters.team = '';
+    else if (key === 'country') { this.filters.country = ''; this.filters.city = ''; }
+    else if (key === 'city') this.filters.city = '';
+    else if (key === 'active_status') this.filters.active_status = '';
+    this.pageIndex = 0;
+    this.refreshAfterFilterChipChange();
+  }
+
+  clearAppliedFilters() { this.resetFilters(); }
+
+  private refreshAfterFilterChipChange() {
+    if (this.appliedFilterChips.length) this.loadUsers();
+    else { this.hasAppliedFilters = false; this.users = []; this.rawRecords = []; this.dataSource.data = []; this.totalCount = 0; }
+  }
+
+  private getInstituteLabel(id: any): string {
+    const found = this.institutes.find(i => String(i.institute_id) === String(id));
+    return found?.short_name || String(id || '');
+  }
+
+  private getSelectedName(list: any[], selectedId: any, idKey: string = 'id'): string {
+    const found = (list || []).find(item => String(item?.[idKey]) === String(selectedId));
+    return found?.name || String(selectedId || '');
+  }
   toggleActive(u: UserRow){
     const newState = !u.active;
     const action = newState ? 'Activate' : 'Deactivate';
@@ -281,15 +346,68 @@ export class ViewUsersComponent {
       error: (err) => { console.error('Failed loading users', err); this.loading.hide(); this.users = []; }
     });
   }
+  private hasFilterValues(): boolean {
+    return !!(
+      this.filters.institute ||
+      this.filters.name ||
+      this.filters.department ||
+      this.filters.team ||
+      this.filters.joining_from ||
+      this.filters.joining_to ||
+      this.filters.active_status !== '' ||
+      this.filters.country ||
+      this.filters.city
+    );
+  }
 
-  applyFilters(){ this.pageIndex = 0; this.loadUsers(); }
+  applyFilters(){
+    if (!this.hasFilterValues()) {
+      try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
+      return;
+    }
+    this.pageIndex = 0;
+    this.hasAppliedFilters = true;
+    this.loadUsers();
+    this.closeFiltersOverlay();
+  }
 
-  resetFilters(){ this.pageIndex = 0; this.filters = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', city: '' }; this.states=[]; /* keep cities loaded so options remain visible */ this.loadUsers(); }
+  resetFilters(){
+    this.pageIndex = 0;
+    this.filters = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', city: '' };
+    this.selectedInstitute = '';
+    this.instituteSearch = '';
+    this.filter = '';
+    this.dataSource.filter = '';
+    this.states=[];
+    this.departments = [];
+    this.teams = [];
+    if (!this.isSuperAdmin) {
+      try {
+        const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+        const user = raw ? JSON.parse(raw) : null;
+        const instId = user?.institute_id || user?.instituteId || user?.institute || '';
+        if (instId) {
+          this.selectedInstitute = instId;
+          this.filters.institute = String(instId);
+          this.syncInstituteSearch();
+          this.loadDepartments(instId);
+          this.loadTeams(instId);
+          this.loadCountries(instId);
+        }
+      } catch (e) { /* ignore malformed session data */ }
+    }
+    this.users = [];
+    this.rawRecords = [];
+    this.dataSource.data = [];
+    this.totalCount = 0;
+    this.hasAppliedFilters = false;
+  }
 
   onPageEvent(ev: PageEvent){
     try{
       this.pageIndex = ev.pageIndex || 0;
       this.pageSize = ev.pageSize || this.pageSize;
+      if (!this.hasAppliedFilters) return;
       this.loadUsers();
     }catch(e){}
   }
@@ -332,9 +450,11 @@ export class ViewUsersComponent {
               if (found) {
                 // ensure exact match type/value and load schedules
                 this.selectedInstitute = found.institute_id as any;
-                this.loadUsers(this.selectedInstitute);
+                try { this.filters.institute = String(this.selectedInstitute); } catch (e) { /* ignore */ }
+                this.syncInstituteSearch();
                 this.loadDepartments(this.selectedInstitute);
                 this.loadTeams(this.selectedInstitute);
+                this.loadCountries(this.selectedInstitute);
                 return;
               }
             }
@@ -350,7 +470,8 @@ export class ViewUsersComponent {
                 const found = this.institutes.find(i => String(i.institute_id) === String(instId));
                 if (found) {
                   this.selectedInstitute = found.institute_id as any;
-                  this.loadUsers(this.selectedInstitute);
+                  try { this.filters.institute = String(this.selectedInstitute); } catch (e) { /* ignore */ }
+                  this.syncInstituteSearch();
                   this.loadDepartments(this.selectedInstitute);
                   this.loadTeams(this.selectedInstitute);
                   this.loadCountries(this.selectedInstitute);
@@ -358,13 +479,32 @@ export class ViewUsersComponent {
                   // institute list shape didn't match or id not present in fetched list - still set and load using raw instId
                   this.selectedInstitute = instId as any;
                   try { this.filters.institute = String(instId); } catch (e) { /* ignore */ }
-                  this.loadUsers(this.selectedInstitute);
+                  this.syncInstituteSearch();
+                  this.loadCountries(this.selectedInstitute);
                 }
               }
             }
           } catch (e) { /* ignore malformed session data */ }
     }, error: () => { this.institutes = []; this.loading.hide(); } });
     this.loading.hide();
+  }
+
+  filteredInstitutes() {
+    const q = (this.instituteSearch || '').trim().toLowerCase();
+    if (!q) return this.institutes;
+    return this.institutes.filter((i: any) => (i.short_name || '').toLowerCase().includes(q));
+  }
+
+  onInstituteAutocompleteSelected(id: string) {
+    this.selectedInstitute = id || '';
+    this.filters.institute = this.selectedInstitute;
+    this.syncInstituteSearch();
+    this.onInstituteChange(this.selectedInstitute);
+  }
+
+  private syncInstituteSearch() {
+    const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute || ''));
+    this.instituteSearch = found ? found.short_name : '';
   }
 
   loadCountries( instituteId: string){ 
@@ -447,7 +587,13 @@ export class ViewUsersComponent {
 
   closeFiltersOverlay(){ if(this.filtersOverlayRef){ try{ this.filtersOverlayRef.dispose(); }catch(e){}; this.filtersOverlayRef = null; } }
 
-  refresh(){ this.loadUsers(); }
+  refresh(){
+    if (!this.hasAppliedFilters) {
+      try { notify('Apply filters to fetch users', 'info'); } catch (e) {}
+      return;
+    }
+    this.loadUsers();
+  }
 
   // Modal / actions
     viewDetails(u: UserRow){
@@ -599,6 +745,7 @@ export class ViewUsersComponent {
 
       sessionStorage.setItem('edit_user', JSON.stringify(payload));
     } catch(e) {}
+    this.saveUsersReturnState();
     this.router.navigate(['/user-register']);
   }
 
@@ -633,7 +780,7 @@ export class ViewUsersComponent {
             this.users = this.users.filter(x => (x.id !== uuid && x.id !== u.id));
             try { notify('User deleted successfully', 'success'); } catch (e) {}
             // reload current list to reflect server state
-            try { this.loadUsers(this.selectedInstitute); } catch(e) {}
+            try { if (this.hasAppliedFilters) this.loadUsers(this.selectedInstitute); } catch(e) {}
           },
           error: (err) => {
             try { this.loading.hide(); } catch(e) {}
@@ -652,4 +799,61 @@ export class ViewUsersComponent {
   }
 
   closeModal(){ this.selectedUser = null; this.editing = false; this.editableUser = null }
+  openUserRegister(): void {
+    this.saveUsersReturnState();
+    this.router.navigate(['/user-register']);
+  }
+
+  saveUsersReturnState(): void {
+    try {
+      sessionStorage.setItem('users_return_state', JSON.stringify({
+        filter: this.filter,
+        selectedInstitute: this.selectedInstitute,
+        instituteSearch: this.instituteSearch,
+        filters: this.filters,
+        users: this.users,
+        rawRecords: this.rawRecords,
+        hasAppliedFilters: this.hasAppliedFilters,
+        pageSize: this.pageSize,
+        pageIndex: this.pageIndex,
+        totalCount: this.totalCount
+      }));
+    } catch (e) { }
+  }
+
+  private restoreUsersReturnState(): void {
+    try {
+      const raw = sessionStorage.getItem('users_return_state');
+      if (!raw) return;
+      sessionStorage.removeItem('users_return_state');
+      const state = JSON.parse(raw);
+      this.filter = state?.filter || '';
+      this.selectedInstitute = state?.selectedInstitute || '';
+      this.instituteSearch = state?.instituteSearch || '';
+      this.filters = state?.filters || this.filters;
+      this.users = Array.isArray(state?.users) ? state.users : [];
+      this.rawRecords = Array.isArray(state?.rawRecords) ? state.rawRecords : [];
+      this.hasAppliedFilters = !!state?.hasAppliedFilters;
+      this.pageSize = Number(state?.pageSize || this.pageSize);
+      this.pageIndex = Number(state?.pageIndex || 0);
+      this.totalCount = Number(state?.totalCount || this.users.length || 0);
+      this.dataSource.data = this.users;
+      this.applyFilter(this.filter || '');
+    } catch (e) {
+      try { sessionStorage.removeItem('users_return_state'); } catch (_) { }
+    }
+  }
+
+  private applyGlobalInstituteScopeIfActive(): void {
+    const iid = sessionStorage.getItem('global_institute_id') || '';
+    if (!iid) return;
+    this.selectedInstitute = iid;
+    try { this.filters.institute = iid; } catch (e) {}
+    this.hasAppliedFilters = false;
+    try { this.loadDepartments(iid); } catch (e) {}
+    try { this.loadTeams(iid); } catch (e) {}
+    try { this.loadCountries(iid); } catch (e) {}
+    this.users = []; this.rawRecords = []; this.dataSource.data = []; this.totalCount = 0;
+  }
 }
+

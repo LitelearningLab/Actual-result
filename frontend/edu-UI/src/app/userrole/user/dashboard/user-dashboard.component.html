@@ -16,7 +16,7 @@
   <header class="dash-header">
     <div class="header-content">
       <div class="header-actions">
-        <mat-form-field appearance="outline" class="filter-field">
+        <mat-form-field appearance="outline" class="filter-field local-institute-field" *ngIf="!isRegularUser">
           <mat-label>Institute</mat-label>
           <mat-select [(value)]="selectedInstituteId" (selectionChange)="onInstituteChange($any($event).value)">
             <mat-option *ngFor="let i of institutes" [value]="i.id">{{i.name}}</mat-option>
@@ -24,7 +24,7 @@
           <mat-icon matPrefix>business</mat-icon>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="filter-field">
+        <mat-form-field appearance="outline" class="filter-field" *ngIf="!isRegularUser">
           <mat-label>User</mat-label>
           <mat-select [(value)]="selectedUserId" (selectionChange)="onUserChange($any($event).value)">
             <mat-option *ngFor="let u of users" [value]="u.id">{{u.name || u.email}}</mat-option>
@@ -32,7 +32,12 @@
           <mat-icon matPrefix>person</mat-icon>
         </mat-form-field>
 
-        <button mat-icon-button class="refresh-btn" (click)="loadDashboard()" aria-label="Refresh dashboard">
+        <div class="refresh-status" aria-live="polite">
+          <mat-icon fontSet="material-icons-outlined">schedule</mat-icon>
+          <span>{{ lastUpdatedLabel }}</span>
+        </div>
+
+        <button mat-icon-button class="refresh-btn" (click)="loadDashboard()" aria-label="Refresh dashboard" title="Refresh dashboard">
           <mat-icon>refresh</mat-icon>
         </button>
       </div>
@@ -91,8 +96,8 @@
           <div class="kpi-icon-wrap">
             <mat-icon>assignment</mat-icon>
           </div>
-          <div class="kpi-val">{{ metrics.totalExams ?? '--' }}</div>
-          <div class="kpi-label">Exams Taken</div>
+          <div class="kpi-val">{{ metrics.totalTests ?? '--' }}</div>
+          <div class="kpi-label">Tests Taken</div>
         </div>
         <div class="kpi-decoration"></div>
       </div>
@@ -150,9 +155,10 @@
             <mat-icon class="empty-icon">bar_chart</mat-icon>
           </div>
           <h4>No Analytics Yet</h4>
-          <p>Charts will appear here once you complete your first exam.</p>
+          <p>Charts will appear here once you complete your first test.</p>
         </div>
       </div>
     </div>
   </section>
 </div>
+

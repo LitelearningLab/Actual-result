@@ -15,7 +15,7 @@
 
       <header>
         <h1 class="brand-headline">Smarter Assessments,<br />Better Outcomes.</h1>
-        <p class="brand-sub">Trusted by many institutions to deliver secure, scalable online exams with real-time analytics.</p>
+        <p class="brand-sub">Trusted by many institutions to deliver secure, scalable online tests with real-time analytics.</p>
       </header>
 
       <!-- Stat counters -->
@@ -26,7 +26,7 @@
         </div>
         <div class="stat-card">
           <span class="stat-number">1M+</span>
-          <span class="stat-label">Exams Delivered</span>
+          <span class="stat-label">Tests Delivered</span>
         </div>
         <div class="stat-card">
           <span class="stat-number">99.9%</span>
@@ -103,17 +103,17 @@
       </div>
 
       <div class="login-divider" role="separator">
-        <span>or continue with email</span>
+        <span>or continue with email or username</span>
       </div>
 
       <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form" autocomplete="on">
         <div class="field-group">
-          <label class="field-label" for="login-username">Username</label>
+          <label class="field-label" for="login-username">Email or Username</label>
           <mat-form-field appearance="outline" class="form-field">
             <mat-icon matPrefix fontSet="material-icons-outlined">person</mat-icon>
-            <input matInput formControlName="username" id="login-username" placeholder="Enter your username" aria-describedby="username-error" autocomplete="username" />
+            <input matInput formControlName="username" id="login-username" placeholder="Enter your email or username" aria-describedby="username-error" autocomplete="username" />
             <mat-error id="username-error" *ngIf="loginForm.get('username')?.hasError('required') && (loginForm.get('username')?.dirty || loginForm.get('username')?.touched)">
-              Username is required
+              Email or username is required
             </mat-error>
           </mat-form-field>
         </div>

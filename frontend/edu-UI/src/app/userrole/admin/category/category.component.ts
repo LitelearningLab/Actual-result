@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ViewChild,ElementRef, TemplateRef, ViewContainerRef} from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild,ElementRef, OnDestroy, TemplateRef, ViewContainerRef} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router , RouterModule} from '@angular/router';
 import { MatSortModule, MatSort } from '@angular/material/sort';
@@ -8,8 +8,8 @@ import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -31,19 +31,21 @@ import { Overlay, OverlayRef } from '@angular/cdk/overlay';
   selector: 'app-category',
   standalone: true,
   // imports: [CommonModule, SharedModule, FormsModule, RouterModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, HttpClientModule],
-  imports: [CommonModule, SharedModule, FormsModule, MatPaginatorModule, HttpClientModule, RouterModule, MatTableModule, MatIconModule, MatSortModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule, MatSlideToggleModule, MatButtonModule, MatCheckboxModule, MatTabsModule, OverlayModule, PortalModule],
+  imports: [CommonModule, SharedModule, FormsModule, MatPaginatorModule, HttpClientModule, RouterModule, MatTableModule, MatIconModule, MatSortModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatAutocompleteModule, MatDatepickerModule, MatSlideToggleModule, MatButtonModule, MatCheckboxModule, MatTabsModule, OverlayModule, PortalModule],
   templateUrl: './category.component.html',
   styleUrls: ['./category.component.scss']
 })
-export class CategoryComponent implements OnInit, AfterViewInit {
+export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   filter = '';
   name = '';
   description = '';
   // filters
   filterName = '';
+  categoryOptions: Array<{ id: string; name: string }> = [];
   selectedCategory: any = null;
   editing = false;
   selectedInstitute: string | null = null;
+  instituteSearch = '';
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
   // additional filters
@@ -55,7 +57,7 @@ export class CategoryComponent implements OnInit, AfterViewInit {
   filterPublicAccess: boolean | null = null; // tri-state: null = any, true = public, false = restricted
   // role
   isSuperAdmin: boolean = false;
-
+  private loginInstituteId: string | null = null;
   institutes: Array<{ institute_id: string; short_name: string }> = [];
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
@@ -63,13 +65,14 @@ export class CategoryComponent implements OnInit, AfterViewInit {
   categories: Array<{ id: string; name: string; description?: string; institute?: any; departments?: any[]; teams?: any[] }> = [];
   dataSource = new MatTableDataSource<any>([]);
   columns = ['name','description','active','actions'];
+  hasAppliedFilters = false;
 
   private filtersOverlayRef: OverlayRef | null = null;
   constructor(private http: HttpClient, private router: Router, private loader: LoaderService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private confirmService: ConfirmService) {}
 
   ngOnInit(): void {
 
-    this.pageMeta.setMeta('Categories', 'View and manage question bank categories');
+    this.pageMeta.setMeta('Question Banks', 'View and manage question banks');
 
     // try to auto-select institute based on logged-in user
     try {
@@ -78,20 +81,19 @@ export class CategoryComponent implements OnInit, AfterViewInit {
         const obj = JSON.parse(raw);
         // detect super admin role
         const role = obj?.role || obj?.user_role || obj?.role_name || '';
-        this.isSuperAdmin = (String(role) === 'super_admin' || String(role) === 'super-admin');
+        const normalizedRole = String(role || '').toLowerCase();
+        this.isSuperAdmin = ['super_admin', 'superadmin', 'super-admin'].includes(normalizedRole);
         // if user belongs to an institute, pre-select it
-        const iid = obj?.institute_id || obj?.instituteId || obj?.institute || null;
+        const iid = sessionStorage.getItem('global_institute_id') || obj?.institute_id || obj?.instituteId || obj?.institute?.institute_id || obj?.institute?.id || (typeof obj?.institute === 'string' ? obj.institute : null);
         if (iid) {
-          this.selectedInstitute = iid;
+          this.loginInstituteId = String(iid);
+          this.selectedInstitute = this.isSuperAdmin ? this.selectedInstitute : this.loginInstituteId;
         }
       }
     } catch (e) { /* ignore */ }
     this.loadFilterLists();
-    // if an institute was auto-selected, load its departments/teams and fetch categories scoped
-    if (this.selectedInstitute) {
-      this.onInstituteChange(this.selectedInstitute);
-    }
-    this.fetchCategories();
+    this.applyGlobalInstituteScopeIfActive();
+    this.restoreCategoryReturnState();
   }
 
   @ViewChild(MatSort) sort!: MatSort;
@@ -104,7 +106,15 @@ export class CategoryComponent implements OnInit, AfterViewInit {
     this.dataSource.paginator = this.paginator;
   }
 
+  ngOnDestroy(): void {
+  this.saveCategoryReturnState();
+}
+
   refresh(){
+    if (!this.hasAppliedFilters) {
+      try { notify('Apply filters to fetch question banks', 'info'); } catch(e) {}
+      return;
+    }
     this.fetchCategories();
   }
 
@@ -147,10 +157,94 @@ export class CategoryComponent implements OnInit, AfterViewInit {
     // };
     this.dataSource.filter = q;
   }
+  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
+    if (!this.hasAppliedFilters) return [];
+    const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    const scopedInstitute = this.getScopedInstituteId();
+    const instituteName = this.getInstituteLabel(scopedInstitute);
+    if (instituteName) chips.push({ key: 'institute', label: `Institute: ${instituteName}`, removable: this.isSuperAdmin });
+    if (this.filterName) chips.push({ key: 'category', label: `Question Bank: ${this.filterName}`, removable: true });
+    (this.selectedDepartments || []).forEach(id => chips.push({ key: `department:${id}`, label: `Department: ${this.getSelectedName(this.departments, id)}`, removable: true }));
+    (this.selectedTeams || []).forEach(id => chips.push({ key: `team:${id}`, label: `Team: ${this.getSelectedName(this.teams, id)}`, removable: true }));
+    if (this.filterCreationDateAfter) chips.push({ key: 'created_after', label: `Created after: ${this.formatFilterDate(this.filterCreationDateAfter)}`, removable: true });
+    if (this.filterCreationDate) chips.push({ key: 'created_before', label: `Created before: ${this.formatFilterDate(this.filterCreationDate)}`, removable: true });
+    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') chips.push({ key: 'active_status', label: `Status: ${this.filterActiveStatus ? 'Active' : 'Inactive'}`, removable: true });
+    if (this.filterCreatedByMe) chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
+    if (this.filterPublicAccess !== null && typeof this.filterPublicAccess !== 'undefined') chips.push({ key: 'public_access', label: `Access: ${this.filterPublicAccess ? 'Public' : 'Restricted'}`, removable: true });
+    return chips;
+  }
+
+  removeAppliedFilter(key: string) {
+    if (!key) return;
+    if (key === 'institute' && this.isSuperAdmin) {
+      this.selectedInstitute = null;
+      this.instituteSearch = '';
+      this.selectedDepartments = [];
+      this.selectedTeams = [];
+      this.loadGlobalDepartmentTeamLists();
+      this.loadCategoryOptions();
+    } else if (key === 'category') this.filterName = '';
+    else if (key.startsWith('department:')) this.selectedDepartments = this.selectedDepartments.filter(id => String(id) !== key.split(':')[1]);
+    else if (key.startsWith('team:')) this.selectedTeams = this.selectedTeams.filter(id => String(id) !== key.split(':')[1]);
+    else if (key === 'created_after') this.filterCreationDateAfter = null;
+    else if (key === 'created_before') this.filterCreationDate = null;
+    else if (key === 'active_status') this.filterActiveStatus = null;
+    else if (key === 'created_by_me') this.filterCreatedByMe = false;
+    else if (key === 'public_access') this.filterPublicAccess = null;
+
+    if (this.appliedFilterChips.length) {
+      this.fetchCategories();
+    } else {
+      this.hasAppliedFilters = false;
+      this.categories = [];
+      this.dataSource.data = [];
+      if (this.paginator) this.paginator.length = 0;
+    }
+  }
+
+  clearAppliedFilters() {
+    this.onReset();
+  }
+
+  private getScopedInstituteId(): string | null {
+    if (this.isSuperAdmin) return this.selectedInstitute ? String(this.selectedInstitute) : null;
+    return this.loginInstituteId || this.selectedInstitute || null;
+  }
+
+  private getCategoryInstituteId(item: any): string {
+    return String(
+      item?.institute_id ??
+      item?.instituteId ??
+      item?.institute?.institute_id ??
+      item?.institute?.id ??
+      item?.institutes?.institute_id ??
+      item?.institutes?.id ??
+      ''
+    );
+  }
+
+  private isAllowedCategoryForInstitute(item: any, scopedInstitute: string | null): boolean {
+    if (this.isSuperAdmin || !scopedInstitute) return true;
+    const itemInstituteId = this.getCategoryInstituteId(item);
+    return itemInstituteId === String(scopedInstitute);
+  }
+  private getInstituteLabel(id: any): string {
+    if (!id) return '';
+    const found = this.institutes.find(i => String(i.institute_id) === String(id));
+    return found?.short_name || String(id);
+  }
+
+  private getSelectedName(list: Array<{ id: string; name: string }>, selectedId: string): string {
+    return list.find(item => String(item.id) === String(selectedId))?.name || String(selectedId);
+  }
+
+  private formatFilterDate(value: Date): string {
+    try { return value.toISOString().slice(0, 10); } catch(e) { return String(value || ''); }
+  }
   deleteCategory(c: any){
     const id = c.category_id || c.id;
     if (!id) return;
-    this.confirmService.confirm({ title: 'Delete Category', message: `Delete category ${c.name}? This action cannot be undone.`, confirmText: 'Delete', cancelText: 'Cancel' }).subscribe(ok => {
+    this.confirmService.confirm({ title: 'Delete Question Bank', message: `Delete question bank ${c.name}? This action cannot be undone.`, confirmText: 'Delete', cancelText: 'Cancel' }).subscribe(ok => {
       if (!ok) return;
       // optimistic remove
       const prev = [...this.categories];
@@ -160,8 +254,8 @@ export class CategoryComponent implements OnInit, AfterViewInit {
       const url = `${API_BASE}/delete/category/${encodeURIComponent(String(id))}?current_user=${encodeURIComponent(String(current_user))}`;
       // call backend generic manage route (category/delete)
       this.http.delete<any>(url , { }).subscribe({
-        next: (res) => { try { notify('Category deleted', 'success'); } catch(e) {} },
-        error: (err) => { console.error('Failed deleting category', err); try { notify('Failed to delete category', 'error'); } catch(e) {}; this.categories = prev; this.dataSource.data = this.categories; }
+        next: (res) => { try { notify('Question Bank deleted', 'success'); } catch(e) {} },
+        error: (err) => { console.error('Failed deleting question bank', err); try { notify('Failed to delete question bank', 'error'); } catch(e) {}; this.categories = prev; this.dataSource.data = this.categories; }
       });
     });
   }
@@ -171,24 +265,87 @@ export class CategoryComponent implements OnInit, AfterViewInit {
 
   // load initial lists for institute/department/team filters (best-effort endpoints)
   loadFilterLists(){
-    // try to load institutes, departments, teams if endpoints available
+    // Load institutes first, then load department/team lists according to the allowed institute scope.
     this.http.get<any>(`${API_BASE}/get-institute-list`).subscribe({ next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data || []);
         this.institutes = (data || []).map((i: any) => ({ institute_id: i.institute_id || i.id || i.instituteId || null, short_name: i.short_name || i.name || i.institute_name || '' }));
+        this.syncInstituteSearch();
+        if (this.selectedInstitute) {
+          this.onInstituteChange(this.selectedInstitute);
+        } else if (this.isSuperAdmin) {
+          this.loadGlobalDepartmentTeamLists();
+        }
       }, error: () => {} });
+  }
 
-    // load unscoped departments/teams as fallback
-    this.http.get<any>(`${API_BASE}/get-department-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.departments = (data || []).map((d:any)=> ({ id: d.department_id || d.dept_id || d.id || d.deptId, name: d.department_name || d.dept_name || d.name })); }, error: () => {} });
-    this.http.get<any>(`${API_BASE}/get-teams-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.teams = (data || []).map((t:any)=> ({ id: t.team_id || t.id || t.teamId, name: t.team_name || t.name })); }, error: () => {} });
+  private loadGlobalDepartmentTeamLists() {
+    if (!this.isSuperAdmin) return;
+    this.http.get<any>(`${API_BASE}/get-department-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.departments = (data || []).map((d:any)=> ({ id: d.department_id || d.dept_id || d.id || d.deptId, name: d.department_name || d.dept_name || d.name })); }, error: () => { this.departments = []; } });
+    this.http.get<any>(`${API_BASE}/get-teams-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.teams = (data || []).map((t:any)=> ({ id: t.team_id || t.id || t.teamId, name: t.team_name || t.name })); }, error: () => { this.teams = []; } });
+  }
+  loadCategoryOptions() {
+    const scopedInstitute = this.getScopedInstituteId();
+    let params = new HttpParams();
+    if (scopedInstitute) params = params.set('institute_id', scopedInstitute);
+    this.http.get<any>(`${API_BASE}/category-details`, { params }).subscribe({
+      next: (res) => {
+        const items = Array.isArray(res) ? res : (res?.data || []);
+        const scopedInstitute = this.getScopedInstituteId();
+        this.categoryOptions = (items || []).filter((it: any) => this.isAllowedCategoryForInstitute(it, scopedInstitute)).map((it: any, idx: number) => ({
+          id: it.category_id || it.id || it._id || String(idx),
+          name: it.name || it.category_name || ''
+        })).filter((c: any) => !!c.name);
+      },
+      error: () => { this.categoryOptions = []; }
+    });
+  }
+
+  displayInstitute = (value: string | null): string => {
+    if (!value) return '';
+    const found = this.institutes.find(i => String(i.institute_id) === String(value));
+    return found ? found.short_name : String(value);
+  };
+
+  filteredInstitutes() {
+    const q = (this.instituteSearch || '').trim().toLowerCase();
+    if (!q) return this.institutes;
+    return this.institutes.filter((i: any) => (i.short_name || '').toLowerCase().includes(q));
+  }
+
+  onInstituteAutocompleteSelected(id: string | null) {
+    if (!this.isSuperAdmin && this.loginInstituteId) {
+      id = this.loginInstituteId;
+    }
+    this.selectedInstitute = id;
+    this.syncInstituteSearch();
+    this.onInstituteChange(id);
+  }
+
+  private syncInstituteSearch() {
+    const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute || ''));
+    this.instituteSearch = found ? found.short_name : '';
   }
 
   onInstituteChange(iid: any) {
+    if (!this.isSuperAdmin && this.loginInstituteId) {
+      iid = this.loginInstituteId;
+      this.selectedInstitute = this.loginInstituteId;
+    }
+    this.selectedDepartments = [];
+    this.selectedTeams = [];
+    this.filterName = '';
+    this.categoryOptions = [];
     // called when institute selection changes; fetch departments and teams scoped to institute
     if (!iid) {
       this.departments = [];
       this.teams = [];
+      if (this.isSuperAdmin) {
+        this.loadGlobalDepartmentTeamLists();
+        this.loadCategoryOptions();
+      }
       return;
     }
+    this.loadCategoryOptions();
     // departments
     this.http.get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: iid } }).subscribe({
       next: (res) => {
@@ -209,8 +366,9 @@ export class CategoryComponent implements OnInit, AfterViewInit {
   fetchCategories(){
     this.loader.show();
     let params = new HttpParams();
+    const scopedInstitute = this.getScopedInstituteId();
     if (this.filterName) params = params.set('name', this.filterName);
-    if (this.selectedInstitute) params = params.set('institute', this.selectedInstitute);
+    if (scopedInstitute) params = params.set('institute_id', scopedInstitute);
     if (this.selectedDepartments && this.selectedDepartments.length) params = params.set('departments', this.selectedDepartments.join(','));
     if (this.selectedTeams && this.selectedTeams.length) params = params.set('teams', this.selectedTeams.join(','));
     // optional date filters
@@ -246,8 +404,9 @@ export class CategoryComponent implements OnInit, AfterViewInit {
       next: (res) => {
         // response may be array or {data: array}
         const items = Array.isArray(res) ? res : (res?.data || []);
+        const scopedInstitute = this.getScopedInstituteId();
         // normalize items
-        this.categories = items.map((it: any, idx: number) => ({
+        this.categories = items.filter((it: any) => this.isAllowedCategoryForInstitute(it, scopedInstitute)).map((it: any, idx: number) => ({
           category_id: it.category_id || it.id || it._id || String(idx),
           id: it.category_id || it.id || it._id || String(idx),
           name: it.name || it.category_name || '',
@@ -290,13 +449,33 @@ export class CategoryComponent implements OnInit, AfterViewInit {
 
     });
   }
+  private hasFilterValues(): boolean {
+    return !!(
+      this.filterName ||
+      this.selectedInstitute ||
+      this.selectedDepartments.length ||
+      this.selectedTeams.length ||
+      this.filterCreationDateAfter ||
+      this.filterCreationDate ||
+      this.filterActiveStatus !== null ||
+      this.filterCreatedByMe ||
+      this.filterPublicAccess !== null
+    );
+  }
 
   onApply(){
+    if (!this.hasFilterValues()) {
+      try { notify('Please add filters in the filter form.', 'info'); } catch(e) {}
+      return;
+    }
+    this.hasAppliedFilters = true;
     this.fetchCategories();
+    this.closeFiltersOverlay();
   }
 
   onReset(){
     this.filterName = '';
+    if (this.selectedInstitute || this.loginInstituteId || this.isSuperAdmin) this.loadCategoryOptions();
     // this.selectedInstitute = null;
     this.selectedDepartments = [];
     this.selectedTeams = [];
@@ -305,14 +484,18 @@ export class CategoryComponent implements OnInit, AfterViewInit {
     this.filterActiveStatus = null;
     this.filterCreatedByMe = false;
     this.filterPublicAccess = null;
-    this.fetchCategories();
+    this.filter = '';
+    this.dataSource.filter = '';
+    this.categories = [];
+    this.dataSource.data = [];
+    this.hasAppliedFilters = false;
   }
 
   // toggle active state locally and try to persist to server (best-effort)
   toggleActive(element: any){
     const newState = !element.active;
     const action = newState ? 'activate' : 'deactivate';
-    this.confirmService.confirm({ title: `${action[0].toUpperCase()+action.slice(1)} Category`, message: `${action[0].toUpperCase()+action.slice(1)} category ${element.name}?`, confirmText: action[0].toUpperCase()+action.slice(1), cancelText: 'Cancel' }).subscribe(ok => {
+    this.confirmService.confirm({ title: `${action[0].toUpperCase()+action.slice(1)} Question Bank`, message: `${action[0].toUpperCase()+action.slice(1)} question bank ${element.name}?`, confirmText: action[0].toUpperCase()+action.slice(1), cancelText: 'Cancel' }).subscribe(ok => {
       if (!ok) return;
       const prev = element.active;
       element.active = newState;
@@ -321,8 +504,8 @@ export class CategoryComponent implements OnInit, AfterViewInit {
       if (!id) { element.active = prev; return; }
       const url = `${API_BASE}/category/${action}/${encodeURIComponent(String(id))}`;
       this.http.put<any>(url, { current_user: sessionStorage.getItem('user_id') || sessionStorage.getItem('user') || '' }).subscribe({
-        next: () => { try { notify(`Category ${action}d`, 'success'); } catch(e) {} },
-        error: (err) => { console.error('Failed updating category state', err); try { notify('Failed to update category status', 'error'); } catch(e) {} ; element.active = prev; element.active_status = prev; }
+        next: () => { try { notify(`Question Bank ${action}d`, 'success'); } catch(e) {} },
+        error: (err) => { console.error('Failed updating category state', err); try { notify('Failed to update question bank status', 'error'); } catch(e) {} ; element.active = prev; element.active_status = prev; }
       });
     });
   }
@@ -334,9 +517,26 @@ export class CategoryComponent implements OnInit, AfterViewInit {
   }
 
   EditCategory(element: any){
-    try{ sessionStorage.setItem('edit_category', JSON.stringify(element)); }catch(e){}
-    // navigate to create page where the form will load edit data
-    this.router.navigate(['/category/create']);
+    const id = element?.category_id || element?.id;
+    if (!id) return;
+    this.loader.show();
+    this.http.get<any>(`${API_BASE}/category-details`, { params: { category_id: String(id) } }).subscribe({
+      next: (res) => {
+        const items = Array.isArray(res) ? res : (res?.data || []);
+        const category = items && items.length ? items[0] : element;
+        this.saveCategoryReturnState();
+        try{ sessionStorage.setItem('edit_category', JSON.stringify(category)); }catch(e){}
+        this.router.navigate(['/category/create']);
+      },
+      error: () => {
+        this.saveCategoryReturnState();
+        try{ sessionStorage.setItem('edit_category', JSON.stringify(element)); }catch(e){}
+        this.router.navigate(['/category/create']);
+      },
+      complete: () => {
+        this.loader.hide();
+      }
+    });
   }
 
   closeModal(){
@@ -359,4 +559,64 @@ export class CategoryComponent implements OnInit, AfterViewInit {
     if (typeof v === 'object') return Object.keys(v).map(k => v[k]);
     return [];
   }
+  openCreateCategory(): void {
+    this.saveCategoryReturnState();
+    this.router.navigate(['/category/create']);
+  }
+
+  saveCategoryReturnState(): void {
+    try {
+      sessionStorage.setItem('category_return_state', JSON.stringify({
+        filter: this.filter,
+        filterName: this.filterName,
+        selectedInstitute: this.selectedInstitute,
+        instituteSearch: this.instituteSearch,
+        selectedDepartments: this.selectedDepartments,
+        selectedTeams: this.selectedTeams,
+        filterCreationDateAfter: this.filterCreationDateAfter ? this.filterCreationDateAfter.toISOString() : null,
+        filterCreationDate: this.filterCreationDate ? this.filterCreationDate.toISOString() : null,
+        filterActiveStatus: this.filterActiveStatus,
+        filterCreatedByMe: this.filterCreatedByMe,
+        filterPublicAccess: this.filterPublicAccess,
+        hasAppliedFilters: this.hasAppliedFilters,
+        categories: this.categories
+      }));
+    } catch (e) { }
+  }
+
+  private restoreCategoryReturnState(): void {
+    try {
+      const raw = sessionStorage.getItem('category_return_state');
+      if (!raw) return;
+      sessionStorage.removeItem('category_return_state');
+      const state = JSON.parse(raw);
+      this.filter = state?.filter || '';
+      this.filterName = state?.filterName || '';
+      this.selectedInstitute = state?.selectedInstitute || this.selectedInstitute;
+      this.instituteSearch = state?.instituteSearch || '';
+      this.selectedDepartments = Array.isArray(state?.selectedDepartments) ? state.selectedDepartments : [];
+      this.selectedTeams = Array.isArray(state?.selectedTeams) ? state.selectedTeams : [];
+      this.filterCreationDateAfter = state?.filterCreationDateAfter ? new Date(state.filterCreationDateAfter) : null;
+      this.filterCreationDate = state?.filterCreationDate ? new Date(state.filterCreationDate) : null;
+      this.filterActiveStatus = typeof state?.filterActiveStatus === 'undefined' ? null : state.filterActiveStatus;
+      this.filterCreatedByMe = !!state?.filterCreatedByMe;
+      this.filterPublicAccess = typeof state?.filterPublicAccess === 'undefined' ? null : state.filterPublicAccess;
+      this.hasAppliedFilters = !!state?.hasAppliedFilters;
+      this.categories = Array.isArray(state?.categories) ? state.categories : [];
+      this.dataSource.data = this.categories;
+      this.applyFilter(this.filter || '');
+    } catch (e) {
+      try { sessionStorage.removeItem('category_return_state'); } catch (_) { }
+    }
+  }
+
+  private applyGlobalInstituteScopeIfActive(): void {
+    const iid = sessionStorage.getItem('global_institute_id') || '';
+    if (!iid) return;
+    this.selectedInstitute = iid;
+    this.hasAppliedFilters = false;
+    try { this.onInstituteChange(iid); } catch (e) {}
+    this.categories = []; this.dataSource.data = [];
+  }
 }
+

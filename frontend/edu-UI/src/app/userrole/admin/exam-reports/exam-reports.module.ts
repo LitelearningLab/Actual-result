@@ -14,7 +14,6 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { OverlayModule } from '@angular/cdk/overlay';
@@ -40,7 +39,6 @@ import { ExamReportsComponent } from './exam-reports.component';
     MatIconModule,
     MatAutocompleteModule,
     MatDatepickerModule,
-    MatNativeDateModule,
     FormsModule,
     HttpClientModule,
     OverlayModule,

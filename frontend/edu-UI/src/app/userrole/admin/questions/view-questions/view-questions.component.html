@@ -6,7 +6,7 @@
         <div class="search">
             <mat-form-field appearance="outline" class="search-field">
                 <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
-                <input matInput placeholder="Search by text or type" [(ngModel)]="filter"
+                <input matInput placeholder="Search within filtered results" [(ngModel)]="filter"
                     (ngModelChange)="applyFilter($event)" aria-label="Search questions" />
                 <button mat-icon-button matSuffix *ngIf="filter" (click)="filter = ''; applyFilter('')"
                     aria-label="Clear search">
@@ -19,17 +19,18 @@
         <div class="controls">
             <div class="action-row">
                 <button #filtersBtn mat-flat-button type="button"
-                    (click)="openFiltersOverlay(); $event.stopPropagation()" class="button-one">
+                    (click)="openFiltersOverlay(); $event.stopPropagation()" class="button-one" title="Open filters">
                     <mat-icon svgIcon="filter"></mat-icon>
-                    <span>Filters</span>
+                    <span>Filter Questions</span>
                 </button>
-                <button mat-flat-button color="primary" (click)="refresh()" class="button-one">
+                <button mat-flat-button color="primary" type="button" (click)="refresh(); $event.stopPropagation()"
+                    class="button-one" title="Refresh filtered results">
                     <mat-icon svgIcon="refresh"></mat-icon>
                     <span>Refresh</span>
                 </button>
 
                 <button *hasAccess="'Questions'; hasAccessAction: 'add'" mat-flat-button color="primary"
-                    routerLink="/questions">
+                    class="button-one" (click)="openAddQuestions()">
                     <mat-icon svgIcon="add"></mat-icon> Add Questions
                 </button>
             </div>
@@ -44,6 +45,15 @@
         </div>
     </div>
 
+    <div class="applied-filters" *ngIf="appliedFilterChips.length">
+        <span class="applied-filters-title">Applied filters</span>
+        <button type="button" class="applied-filter-chip" *ngFor="let chip of appliedFilterChips"
+            [class.applied-filter-chip--locked]="!chip.removable" (click)="chip.removable && removeAppliedFilter(chip.key)">
+            <span>{{ chip.label }}</span>
+            <mat-icon *ngIf="chip.removable">close</mat-icon>
+        </button>
+        <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">Clear all</button>
+    </div>
     <div class="list-card">
 
         <!-- Filters panel -->
@@ -53,26 +63,29 @@
                     <h4><mat-icon>tune</mat-icon> Filters</h4>
                 </div>
                 <div class="filter-block">
-                    <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
+                    <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
                         <mat-label>Institute</mat-label>
-                        <mat-select [(ngModel)]="selectedInstitute"
-                            (selectionChange)="onInstituteChange($event.value)">
+                        <input matInput placeholder="All Institutes" [(ngModel)]="instituteSearch"
+                            [matAutocomplete]="questionInstituteAuto" />
+                        <mat-autocomplete #questionInstituteAuto="matAutocomplete"
+                            [displayWith]="displayInstitute"
+                            (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
                             <mat-option value="">All Institutes</mat-option>
-                            <mat-option *ngFor="let inst of institutes"
+                            <mat-option *ngFor="let inst of filteredInstitutes()"
                                 [value]="inst.institute_id">{{inst.name}}</mat-option>
-                        </mat-select>
+                        </mat-autocomplete>
                     </mat-form-field>
 
                     <!-- <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Category</mat-label>
-                            <input matInput placeholder="Enter category" [(ngModel)]="categoryFilterName">
+                            <mat-label>Question Bank</mat-label>
+                            <input matInput placeholder="Enter question bank" [(ngModel)]="categoryFilterName">
                         </mat-form-field> -->
 
                     <mat-form-field appearance="outline" class="filter-item">
                         <mat-icon matPrefix>category</mat-icon>
-                        <mat-label>Category</mat-label>
+                        <mat-label>Question Bank</mat-label>
                         <input matInput [formControl]="categoryCtrl" [matAutocomplete]="categoryAuto"
-                            placeholder="Pick a category" />
+                            placeholder="Pick a question bank" />
                         <mat-autocomplete #categoryAuto="matAutocomplete" [displayWith]="displayCategory"
                             (optionSelected)="onCategorySelected($event.option.value)">
                             <mat-option *ngFor="let c of (filteredCategories$ | async)" [value]="c">{{ c.name ||
@@ -149,7 +162,7 @@
         <div class="list-wrapper">
             <div class="batch-actions" *ngIf="selectedQuestionIds.size > 0">
                 <mat-form-field appearance="outline" class="half">
-                    <mat-label>Target Category</mat-label>
+                    <mat-label>Target Question Bank</mat-label>
                     <mat-select [(value)]="selectedTargetCategory">
                         <mat-option *ngFor="let c of categories" [value]="c.category_id">{{c.name}}</mat-option>
                     </mat-select>
@@ -168,10 +181,9 @@
                 <colgroup>
                     <col style="width: 40px;" /> <!-- Selection Column -->
                     <col style="width: 460px " /> <!-- Question Text Column -->
-                    <col style="width: 150px;" /> <!-- Category Column -->
+                    <col style="width: 150px;" /> <!-- Question Bank Column -->
                     <col style="width: 100px;" /> <!-- Type Column -->
                     <col style="width: 80px;" /> <!-- Marks Column -->
-                    <col /> <!-- Options Column -->
                     <col style="width: 120px;" /> <!-- Actions Column -->
                 </colgroup>
                 <!-- Selection Column -->
@@ -190,7 +202,7 @@
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>Question</th>
                     <td mat-cell *matCellDef="let q">
                         <div class="item-cell">
-                            <div class="item-avatar item-avatar--question">{{ (q.question || '?').charAt(0).toUpperCase() }}</div>
+                            <!-- <div class="item-avatar item-avatar--question">{{ (q.question || '?').charAt(0).toUpperCase() }}</div> -->
                             <div class="item-info">
                                 <span class="item-name q-title">{{q.question}}</span>
                                 <!-- <span class="item-sub" *ngIf="q.category">{{ q.category }}</span> -->
@@ -199,9 +211,9 @@
                     </td>
                 </ng-container>
 
-                <!-- Category Column -->
+                <!-- Question Bank Column -->
                 <ng-container matColumnDef="category">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Category</th>
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Question Bank</th>
                     <td mat-cell *matCellDef="let q">{{ q.category || q.category_description || '—' }}</td>
                 </ng-container>
 
@@ -217,32 +229,6 @@
                     <td mat-cell *matCellDef="let q">{{ q.marks || 0 }}</td>
                 </ng-container>
 
-                <!-- Options Column -->
-                <ng-container matColumnDef="options">
-                    <th mat-header-cell *matHeaderCellDef>Options</th>
-                    <td mat-cell *matCellDef="let q">
-                        <div *ngIf="q.options && q.options.length">
-                            <div *ngFor="let o of q.options; let idx = index" class="opt-row">
-                                <div class="opt-left">
-                                    <span class="opt-label" *ngIf="q.type === 'multi' || q.type === 'choose'">{{
-                                        ('ABCDEFGHIJKLMNOPQRSTUVWXYZ')[idx] || idx+1
-                                        }}.</span>
-                                    <span class="opt-text">
-                                        <ng-container *ngIf="o?.text && o.text.length > 300; else fullText">
-                                            {{ o.text | slice:0:300 }}…
-                                            <a href="javascript:void(0)" class="more-link" (click)="viewDetails(q)">more</a>
-                                        </ng-container>
-                                        <ng-template #fullText>{{ o?.text }}</ng-template>
-                                    </span>
-                                </div>
-                                <div class="opt-right" *ngIf="q.type === 'multi' || q.type === 'choose'">
-                                    <span *ngIf="o?.is_correct === 1" class="correct-mark">✔</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div *ngIf="!q.options || !q.options.length" class="muted">{{ q.answer || '—' }}</div>
-                    </td>
-                </ng-container>
 
                 <!-- Actions Column -->
                 <ng-container matColumnDef="actions">
@@ -252,9 +238,6 @@
                             <button *hasAccess="'Questions'; hasAccessAction: 'view'" mat-icon-button color="primary"
                                 (click)="viewDetails(q)" title="View details"><mat-icon
                                     svgIcon="view"></mat-icon></button>
-                            <button *hasAccess="'Questions'; hasAccessAction: 'edit'" mat-icon-button color="accent"
-                                (click)="editQuestion(q)" title="Edit" class="edit-btn"><mat-icon
-                                    svgIcon="edit"></mat-icon></button>
                             <button *hasAccess="'Questions'; hasAccessAction: 'delete'" mat-icon-button color="warn"
                                 (click)="deleteQuestion(q)" title="Delete" class="delete-btn"><mat-icon
                                     svgIcon="delete"></mat-icon></button>
@@ -268,6 +251,11 @@
                 <!-- <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr> -->
                 <tbody>
                     <tr mat-row *matRowDef="let row; columns: displayedColumns" class="q-row"></tr> <!-- -->
+                    <tr class="mat-row" *matNoDataRow>
+                        <td class="mat-cell empty-table-cell" [attr.colspan]="displayedColumns.length">
+                            {{ hasAppliedFilters ? 'No questions found for the selected filters.' : 'Apply filters to view questions.' }}
+                        </td>
+                    </tr>
                 </tbody>
             </table>
             <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons
@@ -280,9 +268,9 @@
         <div class="modal">
             <div class="modal-header">
                 <div class="modal-header-left">
-                    <div class="modal-avatar modal-avatar--question">
+                    <!-- <div class="modal-avatar modal-avatar--question">
                         {{ (viewedQuestion?.question || '?').charAt(0).toUpperCase() }}
-                    </div>
+                    </div> -->
                     <div class="modal-header-text">
                         <h1 class="modal-item-name">{{ viewedQuestion?.question }}</h1>
                         <div class="modal-item-meta">
@@ -292,7 +280,6 @@
                         </div>
                     </div>
                 </div>
-                <button mat-icon-button (click)="closeViewModal()"><mat-icon>close</mat-icon></button>
             </div>
             <div class="modal-body">
                 <ng-container *ngIf="viewedQuestion">
@@ -310,11 +297,11 @@
                                     <div class="label">Marks</div>
                                     <div class="value">{{ viewedQuestion?.marks || 0 }}</div>
                                     <!-- category -->
-                                    <div class="label">Category</div>
+                                    <div class="label">Question Bank</div>
                                     <div class="value">{{ viewedQuestion?.category ||
                                         viewedQuestion?.category_description || '—' }}</div>
                                     <!-- options -->
-                                    <div class="label">Options</div>
+                                    <div class="label">{{ isAnswerType(viewedQuestion?.originalType || viewedQuestion?.type) ? 'Answer' : 'Options' }}</div>
                                     <div class="value">
                                         <div *ngIf="viewedQuestion?.options && viewedQuestion?.options.length">
                                             <div *ngFor="let o of viewedQuestion?.options; let idx = index"
@@ -356,5 +343,14 @@
                     </div>
                 </ng-container>
             </div>
+            <div class="modal-actions">
+                <button mat-button (click)="closeViewModal()">Close</button>
+                <button *hasAccess="'Questions'; hasAccessAction: 'edit'" mat-flat-button color="primary" (click)="editQuestion(viewedQuestion)" class="modal-btn-edit">
+                    <mat-icon>edit</mat-icon> Edit
+                </button>
+            </div>
         </div>
     </div>
+
+
+

@@ -1,4 +1,4 @@
-import { Component, ViewChild, AfterViewInit, ElementRef, TemplateRef, ViewContainerRef } from '@angular/core';
+import { Component, ViewChild, AfterViewInit,OnDestroy,OnInit, ElementRef, TemplateRef, ViewContainerRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
@@ -8,6 +8,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -40,6 +41,8 @@ export interface Institute {
   primary_contact_phone?: string;
   website?: string;
   max_users?: number;
+  admins_count?: number;
+  users_count?: number;
   industry_type?: string;
   industry_sector?: string;
   subscription_start?: string;
@@ -53,11 +56,11 @@ export interface Institute {
 @Component({
   selector: 'app-view-institutes',
   standalone: true,
-  imports: [CommonModule, MatTableModule, MatIconModule, SharedModule, MatButtonModule, MatSlideToggleModule, MatTabsModule, MatInputModule, MatFormFieldModule, MatSelectModule, FormsModule, ReactiveFormsModule, RouterModule, MatPaginatorModule, MatSortModule, OverlayModule, PortalModule],
+  imports: [CommonModule, MatTableModule, MatIconModule, SharedModule, MatButtonModule, MatSlideToggleModule, MatTabsModule, MatInputModule, MatFormFieldModule, MatSelectModule, MatAutocompleteModule, FormsModule, ReactiveFormsModule, RouterModule, MatPaginatorModule, MatSortModule, OverlayModule, PortalModule],
   templateUrl: './view-institutes.component.html',
   styleUrls: ['./view-institutes.component.scss']
 })
-export class ViewInstitutesComponent {
+export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy {
   // Show only requested columns in list-card table (include subscription dates and active)
   columns = ['name','industry_type','industry_sector', 'primary_contact_person','subscription_start','subscription_end','active','actions'];
 
@@ -71,11 +74,13 @@ export class ViewInstitutesComponent {
   countries: Array<{ code: string; name: string }> = [];
   states: Array<{ code: string; name: string }> = [];
   cities: Array<{ code: string; name: string }> = [];
+  instituteOptions: Array<{ id: string; name: string }> = [];
   // raw location hierarchy returned by API (countries -> states -> cities)
   private locationHierarchyRaw: any[] = [];
 
   institutes: Institute[] = [];
   dataSource = new MatTableDataSource<Institute>([]);
+  hasAppliedFilters = false;
   // keep raw response objects so detail modal can show full fields
   private rawRecords: any[] = [];
 
@@ -96,7 +101,7 @@ export class ViewInstitutesComponent {
   private filtersOverlayRef: OverlayRef | null = null;
   
   constructor(private http: HttpClient, private router: Router, private loader: LoaderService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private confirmService: ConfirmService) {
-    this.loadInstitutes();
+    this.loadInstituteOptions();
     this.loadCountries();
 
   }
@@ -190,10 +195,15 @@ export class ViewInstitutesComponent {
     try {
       this.pageMeta.setMeta('Institutes', 'View and manage registered institutes');
     } catch (e) { /* ignore if service not available */ }
+    this.restoreInstituteReturnState();
   }
   ngAfterViewInit(): void {
     try{ this.dataSource.paginator = this.paginator; this.dataSource.sort = this.sort; }catch(e){}
   }
+
+  ngOnDestroy(): void {
+  this.saveInstituteReturnState();
+}
 
   applyFilter(value: string){
     const q = (value || '').trim().toLowerCase();
@@ -201,6 +211,32 @@ export class ViewInstitutesComponent {
     if (this.dataSource.paginator) this.dataSource.paginator.firstPage();
   }
 
+  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
+    if (!this.hasAppliedFilters) return [];
+    const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    if (this.filters.name) chips.push({ key: 'name', label: `Institute: ${this.filters.name}`, removable: true });
+    if (this.filters.industry) chips.push({ key: 'industry', label: `Industry: ${this.filters.industry}`, removable: true });
+    if (this.filters.sector) chips.push({ key: 'sector', label: `Sector: ${this.filters.sector}`, removable: true });
+    if (this.filters.country) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`, removable: true });
+    if (this.filters.city) chips.push({ key: 'city', label: `City: ${this.getSelectedName(this.cities, this.filters.city, 'code')}`, removable: true });
+    if (this.filters.active_status !== '') chips.push({ key: 'active_status', label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`, removable: true });
+    return chips;
+  }
+
+  removeAppliedFilter(key: string) {
+    if (!key) return;
+    if (key === 'name') this.filters.name = '';
+    else if (key === 'industry') this.filters.industry = '';
+    else if (key === 'sector') this.filters.sector = '';
+    else if (key === 'country') { this.filters.country = ''; this.filters.city = ''; }
+    else if (key === 'city') this.filters.city = '';
+    else if (key === 'active_status') this.filters.active_status = '';
+    this.refreshAfterFilterChipChange();
+  }
+
+  clearAppliedFilters() { this.resetFilters(); }
+  private refreshAfterFilterChipChange() { if (this.appliedFilterChips.length) this.loadInstitutes(); else { this.hasAppliedFilters = false; this.institutes = []; this.rawRecords = []; this.dataSource.data = []; } }
+  private getSelectedName(list: any[], selectedId: any, idKey: string = 'id'): string { const found = (list || []).find(item => String(item?.[idKey]) === String(selectedId)); return found?.name || String(selectedId || ''); }
   loadInstitutes() {
     const params: any = {};
   if(this.filters.name) params.name = this.filters.name;
@@ -228,6 +264,8 @@ export class ViewInstitutesComponent {
             primary_contact_phone: r.primary_contact_phone || r.primary_contact_phone || r.primary_contact_phone || r.primary_contact_phone || '',
             website: r.website || '',
             max_users: r.max_users || null,
+            admins_count: this.getAdminCount(r),
+            users_count: this.getUserCount(r),
             subscription_start: r.subscription_start || r.subscriptionStart || '',
             subscription_end: r.subscription_end || r.subscriptionEnd || '',
             industry_type: r.industry_type || '',
@@ -264,9 +302,44 @@ export class ViewInstitutesComponent {
     });
   }
 
-  applyFilters(){ this.loadInstitutes(); }
+  private hasFilterValues(): boolean {
+    return !!(
+      this.filters.name ||
+      this.filters.industry ||
+      this.filters.sector ||
+      this.filters.country ||
+      this.filters.city ||
+      (this.filters.active_status !== '')
+    );
+  }
 
-  resetFilters(){ this.filters = { name: '', industry: '', sector: '', country: '', city: '', active_status: '' };  this.loadInstitutes(); }
+  applyFilters(){
+    if (!this.hasFilterValues()) {
+      try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
+      return;
+    }
+    this.hasAppliedFilters = true;
+    this.loadInstitutes();
+    this.closeFiltersOverlay();
+  }
+
+  resetFilters(){
+    this.filters = { name: '', industry: '', sector: '', country: '', city: '', active_status: '' };
+    this.filter = '';
+    this.dataSource.filter = '';
+    this.institutes = [];
+    this.rawRecords = [];
+    this.dataSource.data = [];
+    this.hasAppliedFilters = false;
+  }
+
+  refresh(){
+    if (!this.hasAppliedFilters) {
+      try { notify('Apply filters to fetch institutes', 'info'); } catch (e) {}
+      return;
+    }
+    this.loadInstitutes();
+  }
 
   toggleFilters(){ this.showFilters = !this.showFilters }
 
@@ -293,6 +366,30 @@ export class ViewInstitutesComponent {
   closeFiltersOverlay(){ if(this.filtersOverlayRef){ try{ this.filtersOverlayRef.dispose(); }catch(e){}; this.filtersOverlayRef = null; } }
 
   // country -> city filtering removed: we now load all cities in loadCountries()
+
+  loadInstituteOptions(){
+    const url = `${API_BASE}/get-institute-list`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        try {
+          const data = Array.isArray(res?.data) ? res.data : [];
+          this.instituteOptions = data.map((i: any) => ({
+            id: i.institute_id || i.id || i._id || i.name || i.institute_name || '',
+            name: i.name || i.institute_name || i.short_name || ''
+          })).filter((i: any) => !!i.name);
+        } catch (e) {
+          this.instituteOptions = [];
+        }
+      },
+      error: () => { this.instituteOptions = []; }
+    });
+  }
+
+  filteredInstituteOptions(){
+    const q = String(this.filters.name || '').trim().toLowerCase();
+    if (!q) return this.instituteOptions;
+    return this.instituteOptions.filter(i => String(i.name || '').toLowerCase().includes(q));
+  }
 
   loadCountries(){
     const url = `${API_BASE}/location-hierarchy`;
@@ -407,6 +504,41 @@ export class ViewInstitutesComponent {
     this.selectedInstitute = i.raw || i;
   }
 
+  getAdminCount(institute: any): number {
+    return this.resolveCount(
+      institute,
+      ['admins_count', 'admin_count', 'total_admins', 'totalAdmins', 'adminCount', 'adminsCount', 'number_of_admins', 'no_of_admins'],
+      ['admins', 'admin_users', 'adminUsers', 'institute_admins', 'instituteAdmins']
+    );
+  }
+
+  getUserCount(institute: any): number {
+    return this.resolveCount(
+      institute,
+      ['users_count', 'user_count', 'total_users', 'totalUsers', 'userCount', 'usersCount', 'number_of_users', 'no_of_users'],
+      ['users', 'institute_users', 'instituteUsers']
+    );
+  }
+
+  private resolveCount(institute: any, countKeys: string[], collectionKeys: string[]): number {
+    if (!institute) return 0;
+
+    for (const key of countKeys) {
+      const value = institute[key];
+      if (value !== undefined && value !== null && value !== '') {
+        const count = Number(value);
+        return Number.isFinite(count) ? count : 0;
+      }
+    }
+
+    for (const key of collectionKeys) {
+      const value = institute[key];
+      if (Array.isArray(value)) return value.length;
+    }
+
+    return 0;
+  }
+
   startEdit(i: Institute){
     // Redirect to the institute-register page and prefill the form from storage
     try {
@@ -438,6 +570,7 @@ export class ViewInstitutesComponent {
       try { payload.subscription_end = fmt(raw.subscription_end || raw.subscriptionEnd || ''); } catch(e) { payload.subscription_end = ''; }
       sessionStorage.setItem('edit_institute', JSON.stringify(payload));
     } catch(e) {}
+    this.saveInstituteReturnState();
     this.router.navigate(['/institute-register']);
     return;
     // build a reactive edit form mirroring the register form for consistent UX
@@ -472,7 +605,7 @@ export class ViewInstitutesComponent {
 
   confirmDelete(i: Institute){
     try {
-      this.confirmService.confirm({ title: 'Delete Institute', message: `Delete institute ${i.name}? This action cannot be undone.`, confirmText: 'Delete', cancelText: 'Cancel' }).subscribe((ok) => {
+      this.confirmService.confirm({ title: 'Confirm Delete', message: `Are you sure you want to delete institute "${i.name}"? This action cannot be undone.`, confirmText: 'Delete', cancelText: 'Cancel' }).subscribe((ok) => {
         if (!ok) return;
         const uuid = i.institute_id || (i.raw && (i.raw.institute_id || i.raw.id || i.raw._id));
         if(!uuid){
@@ -489,7 +622,7 @@ export class ViewInstitutesComponent {
             // remove from list
             this.institutes = this.institutes.filter(x => x.institute_id !== uuid && x.id !== i.id);
             try { notify('Institute deleted successfully', 'success'); } catch (e) {}
-            this.loadInstitutes();
+            if (this.hasAppliedFilters) this.loadInstitutes();
           },
           error: (err) => {
             try{ this.loader.hide(); }catch(e){}
@@ -565,5 +698,39 @@ export class ViewInstitutesComponent {
       } as Institute;
     }
     this.closeModal();
+  }
+  openInstituteRegister(): void {
+    this.saveInstituteReturnState();
+    this.router.navigate(['/institute-register']);
+  }
+
+  saveInstituteReturnState(): void {
+    try {
+      sessionStorage.setItem('institute_return_state', JSON.stringify({
+        filter: this.filter,
+        filters: this.filters,
+        hasAppliedFilters: this.hasAppliedFilters,
+        institutes: this.institutes,
+        rawRecords: this.rawRecords
+      }));
+    } catch (e) { }
+  }
+
+  private restoreInstituteReturnState(): void {
+    try {
+      const raw = sessionStorage.getItem('institute_return_state');
+      if (!raw) return;
+      sessionStorage.removeItem('institute_return_state');
+      const state = JSON.parse(raw);
+      this.filter = state?.filter || '';
+      this.filters = state?.filters || this.filters;
+      this.hasAppliedFilters = !!state?.hasAppliedFilters;
+      this.institutes = Array.isArray(state?.institutes) ? state.institutes : [];
+      this.rawRecords = Array.isArray(state?.rawRecords) ? state.rawRecords : [];
+      this.dataSource.data = this.institutes;
+      this.applyFilter(this.filter || '');
+    } catch (e) {
+      try { sessionStorage.removeItem('institute_return_state'); } catch (_) { }
+    }
   }
 }

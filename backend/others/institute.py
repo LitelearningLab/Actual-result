@@ -1,6 +1,7 @@
 from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City
 from db.db import SQLiteDB
 from datetime import datetime
+from sqlalchemy import func, or_
 # from sqlalchemy import text
 
 def get_pagination(request):
@@ -17,7 +18,8 @@ def insert_institute(data):
     primary_contact_phone = data.get("primary_contact_phone", None) 
     website = data.get("website", None)
     max_users = data.get("max_users", None)
-    active_status = data.get("active_status", 1)
+    active_status = data.get("active_status", data.get("active", 1))
+    active_status = 1 if active_status in (True, 1, "1", "true", "True", "active", "Active") else 0
 
     subscription_start_str = data.get("subscription_start", None)
     subscription_end_str = data.get("subscription_end", None)
@@ -42,6 +44,17 @@ def insert_institute(data):
     if not session:
         return None
 
+    existing_inst = session.query(Institute).filter(
+        Institute.is_deleted == 0,
+        func.lower(Institute.short_name) == func.lower(short_name)
+    ).first()
+    if existing_inst:
+        return {
+            "statusMessage": "Institute already exists",
+            "status": False,
+            "institute_id": existing_inst.institute_id
+        }, 409
+
     new_inst = Institute(
         name=name,
         short_name=short_name,
@@ -59,10 +72,10 @@ def insert_institute(data):
     )
     try:
         session.add(new_inst)
-        session.commit()
+        session.flush()
         institute_id = new_inst.institute_id
 
-        head_office_data = data.get('headOffice',None)
+        head_office_data = data.get('headOffice') or {}
         address = head_office_data.get('address', None)
         country_id = head_office_data.get('country', None)
         state_id = head_office_data.get('state', None)
@@ -72,7 +85,8 @@ def insert_institute(data):
         phone = head_office_data.get('phone', None)
         is_primary = 1
 
-        new_campus = InstituteCampus(
+        if any([address, country_id, state_id, city_id, pin_code, email, phone]):
+            new_campus = InstituteCampus(
                 institute_id=institute_id,
                 name=short_name,
                 address=address,
@@ -84,10 +98,9 @@ def insert_institute(data):
                 phone=phone,
                 is_primary=is_primary,
             )
-        session.add(new_campus)
-        session.commit()
+            session.add(new_campus)
 
-        campuses_list = data.get('campuses', None)
+        campuses_list = data.get('campuses') or []
         for campuses in campuses_list:
             name = campuses.get('name', None)
             address = campuses.get('address', None)
@@ -114,25 +127,27 @@ def insert_institute(data):
                     active_status=active_status
                 )
             session.add(new_campus)
-            session.commit()
 
-        for department in data.get('department'):
+        for department in data.get('department') or []:
+            if not department:
+                continue
             new_InstituteDepartment = InstituteDepartment(
                 institute_id=institute_id,
                 name=department,
                 created_by=created_by
             )
             session.add(new_InstituteDepartment)
-            session.commit()
 
-        for team in data.get('team'):
+        for team in data.get('team') or []:
+            if not team:
+                continue
             new_InstituteTeam = InstituteTeam(
                 institute_id=institute_id,
                 name=team,
                 created_by=created_by
             )
             session.add(new_InstituteTeam)
-            session.commit()
+        session.commit()
 
         json_data = {
             "statusMessage": "Institute registered successfully",
@@ -171,6 +186,9 @@ def update_institute(request):
             "status": False
         }
         return json_data, 404
+
+    if "active" in data and "active_status" not in data:
+        data["active_status"] = 1 if data.get("active") in (True, 1, "1", "true", "True", "active", "Active") else 0
 
     # Update fields
     date_fields = ["subscription_start", "subscription_end"]
@@ -219,6 +237,8 @@ def update_institute(request):
 
     # update campuses if provided
     campus_list = data.get('campuses', None)
+    # Debug update payloads so campus persistence issues can be traced from the backend terminal.
+    print("Received campuses:", campus_list)
     if campus_list is not None:
         # Fetch existing campuses for the institute
         existing_campuses = session.query(InstituteCampus).filter_by(institute_id=institute_id).all()
@@ -335,7 +355,8 @@ def get_institute_details(request):
     args = getattr(request, "args", {})
     filters.append(Institute.is_deleted == 0)
     if args.get("name"):
-        filters.append(Institute.name.ilike(f"%{args.get('name')}%"))
+        name_filter = f"%{args.get('name')}%"
+        filters.append(or_(Institute.name.ilike(name_filter), Institute.short_name.ilike(name_filter)))
     if args.get("industry"):
         filters.append(Institute.industry_type.ilike(f"%{args.get('industry')}%"))
     if args.get("sector"):
@@ -412,7 +433,7 @@ def get_institute_details(request):
 
             if campus.city_id:
                 city = session.query(City).filter_by(city_id=campus.city_id).first()
-                city_name = city.city_name if city else None
+                city_name = city.city_name if city else campus.city_id
 
             campus_list.append({
             "campus_id": campus.campus_id,
@@ -435,6 +456,16 @@ def get_institute_details(request):
         if inst.updated_by:
             updated_by = session.query(User).filter_by(user_id=inst.updated_by).first()
             updated_by = updated_by.full_name if updated_by else None
+        admins_count = session.query(User).filter(
+            User.institute_id == inst.institute_id,
+            User.user_role == 'admin',
+            User.is_deleted == 0
+        ).count()
+        users_count = session.query(User).filter(
+            User.institute_id == inst.institute_id,
+            User.user_role == 'user',
+            User.is_deleted == 0
+        ).count()
         result.append({
             "institute_id": inst.institute_id,
             "name": inst.name,
@@ -446,6 +477,8 @@ def get_institute_details(request):
             "industry_type": inst.industry_type,
             "industry_sector": inst.industry_sector,
             "max_users": inst.max_users,
+            "admins_count": admins_count,
+            "users_count": users_count,
             "subscription_start": inst.subscription_start,
             "subscription_end": inst.subscription_end,
             "active_status": True if inst.active_status else False,
@@ -466,14 +499,17 @@ def get_institute_details(request):
     }
     return json_data , 200
 
-def get_institute_list():
+def get_institute_list(current_user=None):
     db = SQLiteDB()
     session = db.connect()
     if not session:
         return None
 
     # get active institutes list
-    active_institutes = session.query(Institute).filter_by(active_status=1).all()
+    query = session.query(Institute).filter_by(active_status=1)
+    if current_user and getattr(current_user, "user_role", None) not in ("super_admin", "superadmin", "super-admin"):
+        query = query.filter(Institute.institute_id == current_user.institute_id)
+    active_institutes = query.all()
     result = []
     for inst in active_institutes:
         result.append({
@@ -505,9 +541,29 @@ def get_campus_list(request):
     campuses = session.query(InstituteCampus).filter_by(institute_id=institute_id).all()
     result = []
     for campus in campuses:
+        country_name = None
+        state_name = None
+        city_name = campus.city_id
+
+        if campus.country_id:
+            country = session.query(Country).filter_by(country_id=campus.country_id).first()
+            country_name = country.country_name if country else None
+        if campus.state_id:
+            state = session.query(State).filter_by(state_id=campus.state_id).first()
+            state_name = state.state_name if state else None
+        if campus.city_id:
+            city = session.query(City).filter_by(city_id=campus.city_id).first()
+            city_name = city.city_name if city else campus.city_id
+
         result.append({
             "campus_id": campus.campus_id,
-            "name": campus.name
+            "name": campus.name,
+            "address": campus.address,
+            # Include location fields so selecting a campus can immediately fill country/state/city in the UI.
+            "country": {"country_id": campus.country_id, "country_name": country_name},
+            "state": {"state_id": campus.state_id, "state_name": state_name},
+            "city": {"city_id": campus.city_id, "city_name": city_name},
+            "pin_code": campus.pin_code
         })
     json_data = {
         "statusMessage": "Campuses retrieved successfully",

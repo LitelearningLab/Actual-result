@@ -1,4 +1,4 @@
-import { Component, ViewChild, AfterViewInit, OnDestroy, ElementRef, TemplateRef,ViewContainerRef  } from '@angular/core';
+import { Component, ViewChild, AfterViewInit, OnDestroy, OnInit,ElementRef, TemplateRef,ViewContainerRef  } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { startWith, map } from 'rxjs/operators';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -11,7 +11,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -45,6 +44,9 @@ export interface QuestionRow {
   question: string;
   category: string;
   category_description: string;
+  category_id?: string | number;
+  institute_id?: string | number;
+  exam_id?: string | number;
   type: QuestionType | string;
   originalType?: string;
   options?: QuestionOption[]; // for MCQ
@@ -55,17 +57,18 @@ export interface QuestionRow {
 @Component({
   selector: 'app-view-questions',
   standalone: true,
-  imports: [CommonModule,SharedModule, MatCardModule,  MatIconModule, MatButtonModule, MatInputModule, MatFormFieldModule, MatSelectModule, MatTableModule, MatPaginatorModule, FormsModule, RouterModule, HttpClientModule, MatDatepickerModule, MatNativeDateModule, MatTabsModule, MatCheckboxModule, MatSortModule, OverlayModule, PortalModule, ReactiveFormsModule, MatAutocompleteModule],
+  imports: [CommonModule,SharedModule, MatCardModule,  MatIconModule, MatButtonModule, MatInputModule, MatFormFieldModule, MatSelectModule, MatTableModule, MatPaginatorModule, FormsModule, RouterModule, HttpClientModule, MatDatepickerModule, MatTabsModule, MatCheckboxModule, MatSortModule, OverlayModule, PortalModule, ReactiveFormsModule, MatAutocompleteModule],
   templateUrl: './view-questions.component.html',
   styleUrls: ['./view-questions.component.scss']
 })
-export class ViewQuestionsComponent implements OnDestroy {
+export class ViewQuestionsComponent implements OnDestroy,OnInit{
   // currently selected question for the details modal
   viewedQuestion: any = null;
   filter = '';
   institutes: Array<{ name: string; institute_id?: string }> = [];
   exams: Array<{ title: string; exam_id?: string }> = [];
   selectedInstitute = '';
+  instituteSearch = '';
   // multi-select categories with search
   selectedCategories: string[] = [];
   categoryFilterName = '';
@@ -73,8 +76,9 @@ export class ViewQuestionsComponent implements OnDestroy {
   // value used for the "select all" pseudo-option
   selectAllValue = '__SELECT_ALL_CATEGORIES__';
   questions: QuestionRow[] = [];
-  displayedColumns: string[] = ['select','question', 'category', 'type', 'marks', 'options', 'actions'];
+  displayedColumns: string[] = ['select','question', 'category', 'type', 'marks', 'actions'];
   dataSource = new MatTableDataSource<QuestionRow>([]);
+  hasAppliedFilters = false;
   // selection for batch operations
   selectedQuestionIds = new Set<string|number>();
   targetCategories: Array<{ name: string; category_id?: string }> = [];
@@ -93,8 +97,11 @@ export class ViewQuestionsComponent implements OnDestroy {
   private institutesUrl = `${API_BASE}/get-institute-list`;
   private examsUrl = `${API_BASE}/get-exams-list`;
   private questionsUrl = `${API_BASE}/get-questions-details`;
-  private categoriesUrl = `${API_BASE}/get-categories-list`;
+  private categoryDetailsUrl = `${API_BASE}/category-details`;
+  private readonly questionsReturnStateKey = 'questions_return_state';
   categories: Array<any> = [];
+  private questionBankMarksById = new Map<string, number>();
+  private questionBankMarksByName = new Map<string, number>();
   categoryCtrl = new FormControl('');
   filteredCategories$: Observable<any[]> = of([]);
   departments: Array<any> = [];
@@ -118,6 +125,7 @@ export class ViewQuestionsComponent implements OnDestroy {
 
   ngOnInit(): void {
     this.pageMeta.setMeta('Questions', 'Browse and review question bank');
+    this.restoreQuestionsReturnState();
   }
 
   ngAfterViewInit(): void {
@@ -125,25 +133,116 @@ export class ViewQuestionsComponent implements OnDestroy {
     // this.dataSource.paginator = this.paginator;
     try { this.dataSource.paginator = this.paginator; } catch (e) { /* ignore during tests */ }
   }
+ 
   isSuperAdmin = false;
+  private loginInstituteId: string | null = null;
   constructor(private http: HttpClient, private router: Router, private loading: LoaderService, private auth: AuthService, private overlay: Overlay, private vcr: ViewContainerRef,private pageMeta: PageMetaService, private confirmService: ConfirmService) {
     
+  this.initializeInstituteScopeFromSession();
+
   // subscribe to isSuperAdmin observable so UI stays reactive to role changes
   try {
     this._subs = this.auth.user$.subscribe((user: any) => {
       this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
+      if (!this.isSuperAdmin && user) {
+        const instId = sessionStorage.getItem('global_institute_id') || user?.institute_id || user?.instituteId || user?.institute?.institute_id || user?.institute?.id || (typeof user?.institute === 'string' ? user.institute : '');
+        if (instId) {
+          this.loginInstituteId = String(instId);
+          this.selectedInstitute = this.loginInstituteId;
+          this.syncInstituteSearch();
+        }
+      }
     });
   } catch (e) { /* ignore in tests */ }
 
   // http is optional for tests; if present, load institutes
     if (this.http) this.loadInstitutes();
-    // also load categories list (unfiltered) for the Category filter
-    if (this.http) this.loadCategories();
+    this.applyGlobalInstituteScopeIfActive();
+    // also load categories list for the Category filter, scoped for admins
+    if (this.http) this.loadCategories(this.getScopedInstituteId());
   }
 
   ngOnDestroy(): void {
     try { this._subs?.unsubscribe(); } catch (e) { /* ignore */ }
+     this.saveQuestionsReturnState();
   }
+  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
+    if (!this.hasAppliedFilters) return [];
+    const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    if (this.selectedInstitute) chips.push({ key: 'institute', label: `Institute: ${this.getInstituteLabel(this.selectedInstitute)}`, removable: this.isSuperAdmin });
+    if (this.categoryFilterName) chips.push({ key: 'category_name', label: `Category: ${this.categoryFilterName}`, removable: true });
+    (this.selectedCategories || []).forEach(id => chips.push({ key: `category:${id}`, label: `Category: ${this.getCategoryLabel(id)}`, removable: true }));
+    (this.selectedDepartments || []).forEach(id => chips.push({ key: `department:${id}`, label: `Department: ${this.getSelectedName(this.departments, id)}`, removable: true }));
+    (this.selectedTeams || []).forEach(id => chips.push({ key: `team:${id}`, label: `Team: ${this.getSelectedName(this.teams, id)}`, removable: true }));
+    if (this.filterCreationDateAfter) chips.push({ key: 'created_after', label: `Created after: ${this.formatFilterDate(this.filterCreationDateAfter)}`, removable: true });
+    if (this.filterCreationDate) chips.push({ key: 'created_before', label: `Created before: ${this.formatFilterDate(this.filterCreationDate)}`, removable: true });
+    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') chips.push({ key: 'active_status', label: `Status: ${this.filterActiveStatus ? 'Active' : 'Inactive'}`, removable: true });
+    if (this.filterCreatedByMe) chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
+    if (this.filterPublicAccess !== null && typeof this.filterPublicAccess !== 'undefined') chips.push({ key: 'public_access', label: `Access: ${this.filterPublicAccess ? 'Public' : 'Restricted'}`, removable: true });
+    return chips;
+  }
+
+  removeAppliedFilter(key: string) {
+    if (!key) return;
+    if (key === 'institute' && this.isSuperAdmin) { this.selectedInstitute = ''; this.instituteSearch = ''; this.selectedCategories = []; this.categoryFilterName = ''; this.categorySearch = ''; this.categoryCtrl.setValue(''); this.departments = []; this.teams = []; this.loadCategories(); }
+    else if (key === 'category_name') { this.categoryFilterName = ''; this.categorySearch = ''; this.categoryCtrl.setValue(''); }
+    else if (key.startsWith('category:')) this.selectedCategories = this.selectedCategories.filter(id => String(id) !== key.substring('category:'.length));
+    else if (key.startsWith('department:')) this.selectedDepartments = this.selectedDepartments.filter(id => String(id) !== key.substring('department:'.length));
+    else if (key.startsWith('team:')) this.selectedTeams = this.selectedTeams.filter(id => String(id) !== key.substring('team:'.length));
+    else if (key === 'created_after') this.filterCreationDateAfter = null;
+    else if (key === 'created_before') this.filterCreationDate = null;
+    else if (key === 'active_status') this.filterActiveStatus = null;
+    else if (key === 'created_by_me') this.filterCreatedByMe = false;
+    else if (key === 'public_access') this.filterPublicAccess = null;
+    this.refreshAfterFilterChipChange();
+  }
+
+  clearAppliedFilters() { this.onReset(); }
+
+  private refreshAfterFilterChipChange() {
+    if (this.appliedFilterChips.length) this.loadQuestions();
+    else { this.hasAppliedFilters = false; this.questions = []; this.dataSource.data = []; this.selectedQuestionIds.clear(); }
+  }
+
+  private initializeInstituteScopeFromSession(): void {
+    try {
+      const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+      const user = raw ? JSON.parse(raw) : null;
+      const role = String(user?.role || user?.user_role || user?.role_name || '').toLowerCase();
+      this.isSuperAdmin = ['super_admin', 'superadmin', 'super-admin'].includes(role) || user?.is_super_admin === true || !!user?.isSuperAdmin;
+      const instId = sessionStorage.getItem('global_institute_id') || user?.institute_id || user?.instituteId || user?.institute?.institute_id || user?.institute?.id || (typeof user?.institute === 'string' ? user.institute : '');
+      if (instId) {
+        this.loginInstituteId = String(instId);
+        if (!this.isSuperAdmin) this.selectedInstitute = this.loginInstituteId;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  private getScopedInstituteId(instId?: string): string {
+    if (!this.isSuperAdmin && this.loginInstituteId) return String(this.loginInstituteId);
+    return String(instId || this.selectedInstitute || '');
+  }
+
+  private getItemInstituteId(item: any): string {
+    return String(
+      item?.institute_id ??
+      item?.instituteId ??
+      item?.institute?.institute_id ??
+      item?.institute?.id ??
+      item?.institutes?.institute_id ??
+      item?.institutes?.id ??
+      ''
+    );
+  }
+
+  private isAllowedForInstitute(item: any, scopedInstitute: string): boolean {
+    if (this.isSuperAdmin || !scopedInstitute) return true;
+    return this.getItemInstituteId(item) === String(scopedInstitute);
+  }
+  private getInstituteLabel(id: any): string { const found = this.institutes.find(i => String(i.institute_id) === String(id)); return found?.name || String(id || ''); }
+  private getCategoryLabel(id: any): string { const found = (this.categories || []).find((c: any) => String(c.category_id || c.id || c._id) === String(id)); return found?.name || found?.category_name || String(id || ''); }
+  private getSelectedName(list: any[], selectedId: any): string { const found = (list || []).find(item => String(item?.id) === String(selectedId)); return found?.name || String(selectedId || ''); }
+  private formatFilterDate(value: Date): string { try { return value.toISOString().slice(0, 10); } catch (e) { return String(value || ''); } }
   openFiltersOverlay(){
     if(!this.filtersBtn) return;
     if(this.filtersOverlayRef){ try{ this.filtersOverlayRef.dispose(); }catch(e){}; this.filtersOverlayRef = null; }
@@ -167,6 +266,10 @@ export class ViewQuestionsComponent implements OnDestroy {
   closeFiltersOverlay(){ if(this.filtersOverlayRef){ try{ this.filtersOverlayRef.dispose(); }catch(e){}; this.filtersOverlayRef = null; } }
 
   refresh() {
+    if (!this.hasAppliedFilters) {
+      try { notify('Apply filters to fetch questions', 'info'); } catch(e) {}
+      return;
+    }
     this.loadQuestions();
   }
 
@@ -182,10 +285,10 @@ export class ViewQuestionsComponent implements OnDestroy {
               if (found) {
                 // ensure exact match type/value and load schedules
                 this.selectedInstitute = found.institute_id as any;
+                this.syncInstituteSearch();
                     // load dependent lists scoped to the institute
                     this.loadDepartments(this.selectedInstitute);
                     this.loadTeams(this.selectedInstitute);
-                    this.loadQuestions(this.selectedInstitute);
                 return;
               }
             }
@@ -196,11 +299,12 @@ export class ViewQuestionsComponent implements OnDestroy {
             const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
             if (raw) {
               const u = JSON.parse(raw);
-              const instId = u?.institute_id || u?.instituteId || u?.institute || '';
+              const instId = sessionStorage.getItem('global_institute_id') || u?.institute_id || u?.instituteId || u?.institute?.institute_id || u?.institute?.id || (typeof u?.institute === 'string' ? u.institute : '');
               if (instId) {
                 const found = this.institutes.find(i => String(i.institute_id) === String(instId));
                 if (found) {
                   this.selectedInstitute = found.institute_id as any;
+                  this.syncInstituteSearch();
                   // ensure departments/teams also load for this institute
                   this.loadDepartments(this.selectedInstitute);
                   this.loadTeams(this.selectedInstitute);
@@ -222,13 +326,14 @@ export class ViewQuestionsComponent implements OnDestroy {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
         this.exams = arr.map((e: any) => ({ title: e.title || e.name || '', exam_id: e.exam_id || e.id || e.examId }));
       },
-      error: (err) => { console.warn('Failed to load exams', err); this.exams = []; }
+      error: (err) => { console.warn('Failed to load tests', err); this.exams = []; }
     });
   }
 
   onInstituteChange(value: any) {
     const v = value !== undefined ? value : '';
     this.selectedInstitute = v;
+    this.syncInstituteSearch();
     // this.loadExams(v);
     // reload categories for the selected institute (optional)
     this.loadCategories(v);
@@ -300,9 +405,10 @@ export class ViewQuestionsComponent implements OnDestroy {
     }
     // build query params from selected filters; call API only when Apply/Reset triggers
     const params: string[] = [];
-  if (this.selectedInstitute) params.push(`institute_id=${encodeURIComponent(this.selectedInstitute)}`);
-  if (this.categoryFilterName) params.push(`category_name=${encodeURIComponent(this.categoryFilterName)}`);
+  const scopedInstitute = this.getScopedInstituteId();
+  if (scopedInstitute) params.push(`institute_id=${encodeURIComponent(scopedInstitute)}`);
   if (this.selectedCategories && this.selectedCategories.length) params.push(`category_id=${encodeURIComponent(this.selectedCategories.join(','))}`);
+  else if (this.categoryFilterName) params.push(`category_name=${encodeURIComponent(this.categoryFilterName)}`);
   if (this.selectedDepartments && this.selectedDepartments.length) params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
   if (this.selectedTeams && this.selectedTeams.length) params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
   if (this.filterCreationDateAfter) params.push(`created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0,10))}`);
@@ -327,21 +433,134 @@ export class ViewQuestionsComponent implements OnDestroy {
     this.http!.get<any>(url).subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        // map to QuestionRow shape conservatively
-        this.questions = arr.map((q: any, i: number) => ({ id: q.id || q.question_id || i + 1, question: q.question || q.text || q.title || '',  type: (q.type || 'Subjective') as QuestionType, originalType: q.type || q.original_type || q.question_type, options: q.options || q.choices || [], answer: q.answer || q.correct || '', marks: q.marks || q.points || 0, category: q.category || '', category_description: q.category_description || '' }));
-        this.dataSource.data = this.questions;
-        this.loading.hide();
+        const scopedInstitute = this.getScopedInstituteId();
+        const filteredArr = arr.filter((q: any) => {
+          const itemInstituteId = this.getItemInstituteId(q);
+          return !itemInstituteId || this.isAllowedForInstitute(q, scopedInstitute);
+        });
+        this.refreshQuestionBankMarkLookup(() => {
+          this.questions = filteredArr.map((q: any, i: number) => this.mapQuestionRow(q, i));
+          this.dataSource.data = this.questions;
+          this.loading.hide();
+        });
       },
-      error: (err) => { console.warn('Failed to load questions', err); this.questions = []; this.loading.hide(); }
+      error: (err) => { console.warn('Failed to load questions', err); this.questions = []; this.dataSource.data = []; this.loading.hide(); }
     });
   }
 
+  private mapQuestionRow(q: any, i: number): QuestionRow {
+    const row: QuestionRow = {
+      ...q,
+      id: q.id || q.question_id || q._id || i + 1,
+      question: q.question || q.text || q.title || '',
+      type: (q.type || q.question_type || q.original_type || 'Subjective') as QuestionType,
+      originalType: q.type || q.original_type || q.question_type,
+      options: q.options || q.choices || [],
+      answer: q.answer || q.answerText || q.correct || '',
+      category: q.category || q.category_name || '',
+      category_description: q.category_description || '',
+      category_id: q.category_id || q.categoryId || q.categoryID || q.category?.category_id || q.category?.id || q.category?._id || '',
+      institute_id: q.institute_id || q.instituteId || q.instituteID || q.institute?.institute_id || q.institute?.id || q.institute?._id || this.selectedInstitute || '',
+      exam_id: q.exam_id || q.examId || q.examID || q.exam?.exam_id || q.exam?.id || q.exam?._id || ''
+    };
+    const bankMark = this.resolveQuestionBankMark(row);
+    row.marks = bankMark ?? this.toNumber(q.marks ?? q.points) ?? 0;
+    return row;
+  }
+
+  private refreshQuestionBankMarkLookup(done: () => void): void {
+    const params: string[] = [];
+    const scopedInstitute = this.getScopedInstituteId();
+  if (scopedInstitute) params.push(`institute_id=${encodeURIComponent(scopedInstitute)}`);
+    if (this.categoryFilterName) params.push(`name=${encodeURIComponent(this.categoryFilterName)}`);
+    const url = params.length ? `${this.categoryDetailsUrl}?${params.join('&')}&_ts=${Date.now()}` : `${this.categoryDetailsUrl}?_ts=${Date.now()}`;
+    this.http!.get<any>(url).subscribe({
+      next: (res) => {
+        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        const scopedInstitute = this.getScopedInstituteId();
+        const normalized = arr.filter((c: any) => this.isAllowedForInstitute(c, scopedInstitute)).map((c: any) => ({
+          name: c.name || c.category_name || '',
+          category_id: c.category_id || c.id || c._id,
+          mark_each_question: (typeof c.mark_each_question !== 'undefined') ? c.mark_each_question : (c.mark_for_each_question ?? c.question_mark ?? c.marks ?? null),
+          mark_for_each_question: c.mark_for_each_question ?? c.mark_each_question ?? c.question_mark ?? c.marks ?? null,
+          institute: c.institute || { institute_id: c.institute_id || c.instituteId || null }
+        }));
+        this.rebuildQuestionBankMarkLookup(normalized);
+      },
+      error: (err) => { console.warn('Failed to load question bank marks', err); done(); },
+      complete: () => done()
+    });
+  }
+
+  private rebuildQuestionBankMarkLookup(categories: any[]): void {
+    this.questionBankMarksById.clear();
+    this.questionBankMarksByName.clear();
+    (categories || []).forEach((category: any) => {
+      const mark = this.getQuestionBankMark(category);
+      if (mark === null) return;
+      const id = category?.category_id || category?.id || category?._id;
+      const name = category?.name || category?.category_name;
+      if (id !== undefined && id !== null && id !== '') this.questionBankMarksById.set(String(id), mark);
+      if (name) this.questionBankMarksByName.set(String(name).trim().toLowerCase(), mark);
+    });
+  }
+
+  private resolveQuestionBankMark(q: any): number | null {
+    const direct = this.getQuestionBankMark(q);
+    if (direct !== null) return direct;
+    const id = q?.category_id || q?.categoryId || q?.categoryID || q?.category?.category_id || q?.category?.id || q?.category?._id;
+    if (id !== undefined && id !== null && this.questionBankMarksById.has(String(id))) return this.questionBankMarksById.get(String(id)) ?? null;
+    const name = q?.category || q?.category_name || q?.category?.name;
+    if (name) return this.questionBankMarksByName.get(String(name).trim().toLowerCase()) ?? null;
+    return null;
+  }
+
+  private getQuestionBankMark(value: any): number | null {
+    const raw = value?.mark_each_question ?? value?.mark_for_each_question ?? value?.question_mark ?? value?.category_mark ?? value?.category_marks ?? value?.marks_per_question ?? null;
+    return this.toNumber(raw);
+  }
+
+  private toNumber(value: any): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+  }
+  displayInstitute = (value: string | null): string => {
+    if (!value) return '';
+    const found = this.institutes.find(i => String(i.institute_id) === String(value));
+    return found ? found.name : String(value);
+  };
+  filteredInstitutes() {
+    const q = (this.instituteSearch || '').trim().toLowerCase();
+    if (!q) return this.institutes;
+    return this.institutes.filter((i: any) => (i.name || '').toLowerCase().includes(q));
+  }
+
+  onInstituteAutocompleteSelected(id: string) {
+    this.selectedInstitute = id || '';
+    this.syncInstituteSearch();
+    this.onInstituteChange(this.selectedInstitute);
+  }
+
+  private syncInstituteSearch() {
+    const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute || ''));
+    this.instituteSearch = found ? found.name : '';
+  }
+
   loadCategories(instId?: string) {
-    let url = this.categoriesUrl;
+    instId = this.getScopedInstituteId(instId);
+    let url = this.categoryDetailsUrl;
     if (instId) url += `?institute_id=${encodeURIComponent(instId)}`;
     this.http!.get<any>(url).subscribe({ next: (res) => {
       const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-      this.categories = arr.map((c: any) => ({ name: c.name || c.category_name || '', category_id: c.category_id || c.id || c._id }));
+      const scopedInstitute = this.getScopedInstituteId(instId);
+      this.categories = arr.filter((c: any) => this.isAllowedForInstitute(c, scopedInstitute)).map((c: any) => ({
+        name: c.name || c.category_name || '',
+        category_id: c.category_id || c.id || c._id,
+        mark_each_question: (typeof c.mark_each_question !== 'undefined') ? c.mark_each_question : (c.mark_for_each_question ?? c.question_mark ?? c.marks ?? null),
+        mark_for_each_question: c.mark_for_each_question ?? c.mark_each_question ?? c.question_mark ?? c.marks ?? null
+      }));
+      this.rebuildQuestionBankMarkLookup(this.categories);
       try{
         this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
           startWith(''),
@@ -402,11 +621,23 @@ export class ViewQuestionsComponent implements OnDestroy {
 
   displayCategory(c: any){ return c ? (c.name || c.category_name || '') : ''; }
 
-  onCategorySelected(c: any){ if(!c) return; this.categoryFilterName = c.name || c.category_name || ''; }
+  onCategorySelected(c: any){
+    if(!c) return;
+    const categoryId = c.category_id || c.id || c._id || '';
+    if (categoryId) {
+      this.selectedCategories = [String(categoryId)];
+      this.categoryFilterName = '';
+      return;
+    }
+    this.selectedCategories = [];
+    this.categoryFilterName = c.name || c.category_name || '';
+  }
 
   editQuestion(q: QuestionRow) {
     // store the question into session storage and navigate to the editor
+    this.saveQuestionsReturnState();
     try { sessionStorage.setItem('edit_question', JSON.stringify(q)); } catch (e) { /* ignore */ }
+    this.viewedQuestion = null;
     // navigate to the questions editor route - reuse same route as Insert Question
     if (this.router) {
       this.router.navigate(['/questions']);
@@ -434,14 +665,38 @@ export class ViewQuestionsComponent implements OnDestroy {
     });
   }
 
-  // Apply and Reset handlers: call get-questions-details on Apply (with filters) and Reset (clears filters and reloads)
+  // Apply fetches with filters; reset clears filters and leaves the table empty.
+  private hasFilterValues(): boolean {
+    return !!(
+      this.selectedInstitute ||
+      this.selectedCategories.length ||
+      this.categoryFilterName ||
+      this.categorySearch ||
+      this.selectedDepartments.length ||
+      this.selectedTeams.length ||
+      this.filterCreationDateAfter ||
+      this.filterCreationDate ||
+      this.filterActiveStatus !== null ||
+      this.filterCreatedByMe ||
+      this.filterPublicAccess !== null
+    );
+  }
+
   onApply() {
+    if (!this.hasFilterValues()) {
+      try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
+      return;
+    }
+    this.hasAppliedFilters = true;
     this.loadQuestions();
+    this.closeFiltersOverlay();
   }
 
   onReset() {
     this.selectedCategories = [];
+    this.categoryFilterName = '';
     this.categorySearch = '';
+    this.categoryCtrl.setValue('');
     this.selectedDepartments = [];
     this.selectedTeams = [];
     this.filterCreationDateAfter = null;
@@ -449,11 +704,12 @@ export class ViewQuestionsComponent implements OnDestroy {
     this.filterActiveStatus = null;
     this.filterCreatedByMe = false;
     this.filterPublicAccess = null;
-    // also clear table
+    this.filter = '';
+    this.dataSource.filter = '';
     this.questions = [];
     this.dataSource.data = this.questions;
-    // call API without filters to load default/unfiltered questions if backend supports it
-    this.loadQuestions();
+    this.selectedQuestionIds.clear();
+    this.hasAppliedFilters = false;
   }
 
   // keep existing constructor-less usage working for tests
@@ -495,7 +751,85 @@ export class ViewQuestionsComponent implements OnDestroy {
     return typeMap[lowerType] || this.toTitleCase(type);
   }
 
+  isAnswerType(type: string | undefined | null): boolean {
+    const normalized = String(type || '').toLowerCase();
+    return normalized === 'fill' || normalized === 'descriptive';
+  }
+
   private toTitleCase(str: string): string {
     return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
   }
+
+  openAddQuestions(): void {
+    this.saveQuestionsReturnState();
+    this.router.navigate(['/questions']);
+  }
+
+  saveQuestionsReturnState(): void {
+    try {
+      const state = {
+        filter: this.filter,
+        selectedInstitute: this.selectedInstitute,
+        selectedCategories: this.selectedCategories,
+        categoryFilterName: this.categoryFilterName,
+        categorySearch: this.categorySearch,
+        selectedDepartments: this.selectedDepartments,
+        selectedTeams: this.selectedTeams,
+        filterCreationDateAfter: this.filterCreationDateAfter ? this.filterCreationDateAfter.toISOString() : null,
+        filterCreationDate: this.filterCreationDate ? this.filterCreationDate.toISOString() : null,
+        filterActiveStatus: this.filterActiveStatus,
+        filterCreatedByMe: this.filterCreatedByMe,
+        filterPublicAccess: this.filterPublicAccess,
+        hasAppliedFilters: this.hasAppliedFilters,
+        questions: this.questions
+      };
+      sessionStorage.setItem(this.questionsReturnStateKey, JSON.stringify(state));
+    } catch (e) { /* ignore storage errors */ }
+  }
+
+  private restoreQuestionsReturnState(): void {
+    try {
+      const raw = sessionStorage.getItem(this.questionsReturnStateKey);
+      if (!raw) return;
+      const state = JSON.parse(raw);
+      sessionStorage.removeItem(this.questionsReturnStateKey);
+
+      this.selectedInstitute = state?.selectedInstitute || '';
+      this.selectedCategories = Array.isArray(state?.selectedCategories) ? state.selectedCategories : [];
+      this.categoryFilterName = state?.categoryFilterName || '';
+      this.categorySearch = state?.categorySearch || '';
+      this.categoryCtrl.setValue(this.categoryFilterName || '');
+      this.selectedDepartments = Array.isArray(state?.selectedDepartments) ? state.selectedDepartments : [];
+      this.selectedTeams = Array.isArray(state?.selectedTeams) ? state.selectedTeams : [];
+      this.filterCreationDateAfter = state?.filterCreationDateAfter ? new Date(state.filterCreationDateAfter) : null;
+      this.filterCreationDate = state?.filterCreationDate ? new Date(state.filterCreationDate) : null;
+      this.filterActiveStatus = typeof state?.filterActiveStatus === 'undefined' ? null : state.filterActiveStatus;
+      this.filterCreatedByMe = !!state?.filterCreatedByMe;
+      this.filterPublicAccess = typeof state?.filterPublicAccess === 'undefined' ? null : state.filterPublicAccess;
+      this.hasAppliedFilters = !!state?.hasAppliedFilters;
+      this.questions = Array.isArray(state?.questions) ? state.questions : [];
+      this.dataSource.data = this.questions;
+      this.selectedQuestionIds.clear();
+      if (this.selectedInstitute) {
+        this.loadDepartments(this.selectedInstitute);
+        this.loadTeams(this.selectedInstitute);
+      }
+      this.applyFilter(state?.filter || '');
+    } catch (e) {
+      try { sessionStorage.removeItem(this.questionsReturnStateKey); } catch (_) {}
+    }
+  }
+
+  private applyGlobalInstituteScopeIfActive(): void {
+    const iid = sessionStorage.getItem('global_institute_id') || '';
+    if (!iid) return;
+    this.selectedInstitute = iid;
+    this.hasAppliedFilters = false;
+    try { this.loadDepartments(iid); } catch (e) {}
+    try { this.loadTeams(iid); } catch (e) {}
+    try { this.loadCategories(iid); } catch (e) {}
+    this.questions = []; this.dataSource.data = [];
+  }
 }
+
+
