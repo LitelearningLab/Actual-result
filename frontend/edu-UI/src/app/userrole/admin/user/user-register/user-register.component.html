@@ -5,14 +5,14 @@
     <div class="form-actions">
       <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="back()">
         <mat-icon>arrow_back</mat-icon>
-        <span>View Users</span>
+        <span>Cancel</span>
       </button>
     </div>
   </div>
 
   <!-- ── Form Card ── -->
   <div class="form-card">
-    <form [formGroup]="form" (ngSubmit)="submit()" novalidate *ngIf="bulkMode">
+    <form [formGroup]="form" (ngSubmit)="submit(stepper)" novalidate *ngIf="bulkMode">
       <mat-horizontal-stepper linear #stepper>
 
         <!-- ═══ Step 0: Bulk Upload (optional) ═══ -->
@@ -34,7 +34,7 @@
               </div>
 
               <div class="field-row" *ngIf="bulkMode">
-                <mat-form-field appearance="outline" class="field-third">
+                <mat-form-field appearance="outline" class="field-third local-institute-field">
                   <mat-label>Institute</mat-label>
                   <mat-icon matPrefix>business</mat-icon>
                   <mat-select [(ngModel)]="bulkInstitute" [ngModelOptions]="{standalone: true}"
@@ -154,9 +154,11 @@
 
               <div class="field-row">
                 <mat-form-field appearance="outline" class="field-half">
-                  <mat-label>Email (optional)</mat-label>
+                  <mat-label>Email</mat-label>
                   <mat-icon matPrefix>email</mat-icon>
                   <input matInput id="user_email" formControlName="email" placeholder="email@example.com" aria-label="Email" />
+                  <mat-error *ngIf="form.get('email')?.touched && form.get('email')?.hasError('required')">Email is required</mat-error>
+                  <mat-error *ngIf="form.get('email')?.touched && form.get('email')?.hasError('email')">Enter a valid email</mat-error>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="field-half">
@@ -170,14 +172,20 @@
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Password</mat-label>
                   <mat-icon matPrefix>lock</mat-icon>
-                  <input matInput id="password" type="password" formControlName="password" aria-label="Password" />
+                  <input matInput id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password" aria-label="Password" />
+                  <button mat-icon-button matSuffix type="button" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" [matTooltip]="showPassword ? 'Hide password' : 'Show password'" (click)="showPassword = !showPassword">
+                    <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+                  </button>
                   <mat-error *ngIf="form.get('password')?.touched && form.get('password')?.invalid">Password (min 6 chars) is required</mat-error>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Confirm Password</mat-label>
                   <mat-icon matPrefix>lock_person</mat-icon>
-                  <input matInput id="confirmPassword" type="password" formControlName="confirmPassword" aria-label="Confirm password" />
+                  <input matInput id="confirmPassword" [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword" aria-label="Confirm password" />
+                  <button mat-icon-button matSuffix type="button" [attr.aria-label]="showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'" [matTooltip]="showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'" (click)="showConfirmPassword = !showConfirmPassword">
+                    <mat-icon>{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+                  </button>
                   <mat-error *ngIf="form.hasError('passwordMismatch') && (form.get('confirmPassword')?.touched)">Passwords do not match</mat-error>
                 </mat-form-field>
               </div>
@@ -227,7 +235,7 @@
               </div>
 
               <div class="field-row">
-                <mat-form-field appearance="outline" class="field-half">
+                <mat-form-field appearance="outline" class="field-half local-institute-field">
                   <mat-label>Institute</mat-label>
                   <mat-icon matPrefix>business</mat-icon>
                   <mat-select id="institute" formControlName="institute" aria-label="Institute" [disabled]="!isSuperAdmin">
@@ -291,10 +299,8 @@
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>City</mat-label>
                   <mat-icon matPrefix>location_on</mat-icon>
-                  <mat-select id="city" formControlName="city" aria-label="City">
-                    <mat-option value="">Select city</mat-option>
-                    <mat-option *ngFor="let c of filteredCities" [value]="c.code">{{c.name}}</mat-option>
-                  </mat-select>
+                  <!-- City is shown as a read-only input so users can see the campus city without editing it. -->
+                  <input matInput id="city" type="text" formControlName="city" placeholder="City" aria-label="City" readonly [attr.disabled]="true" />
                 </mat-form-field>
               </div>
 
@@ -529,3 +535,6 @@
     </form>
   </div>
 </div>
+
+
+

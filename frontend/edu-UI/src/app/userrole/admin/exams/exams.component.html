@@ -1,11 +1,11 @@
 <div class="page admin-exams">
     <!-- ─── Toolbar / Controls ─── -->
-    <div class="toolbar" role="toolbar" aria-label="Exams management controls">
+    <div class="toolbar" role="toolbar" aria-label="Tests management controls">
         <div class="search">
             <mat-form-field appearance="outline" class="search-field">
                 <mat-icon matPrefix aria-hidden="true">search</mat-icon>
                 <input matInput 
-                    placeholder="Search by text or type" 
+                    placeholder="Search within filtered results" 
                     [(ngModel)]="filter"
                     (ngModelChange)="applyFilter($event)" 
                     aria-label="Search exams by title or type" />
@@ -28,30 +28,41 @@
                     (click)="openFiltersOverlay(); $event.stopPropagation()" 
                     class="button-one"
                     aria-label="Open filters panel"
-                    title="Filter exams">
+                    title="Open filters">
                     <mat-icon svgIcon="filter"></mat-icon>
-                    <span>Filters</span>
+                    <span>Filter Tests</span>
                 </button>
                 <button mat-flat-button 
                     color="primary" 
-                    (click)="refresh()"
+                    type="button"
+                    (click)="refresh(); $event.stopPropagation()"
+                    class="button-one"
                     aria-label="Refresh exam list"
-                    title="Refresh data" >
+                    title="Refresh filtered results" >
                     <mat-icon svgIcon="refresh"></mat-icon>
                     <span>Refresh</span>
                 </button>
                 <button *hasAccess="'Exams'; hasAccessAction: 'add'" 
                     mat-flat-button 
-                    color="primary" type="button" routerLink="/create-exam"
-                    aria-label="Create new exam">
+                    color="primary" type="button" class="button-one" (click)="openCreateTest()"
+                    aria-label="Create new test">
                     <mat-icon svgIcon="add"></mat-icon>
-                    <span>Add Exam</span>
+                    <span>Add Test</span>
                 </button>
             </div>
         </div>
     </div>
 
     <!-- ─── Main Content Card ─── -->
+    <div class="applied-filters" *ngIf="appliedFilterChips.length">
+        <span class="applied-filters-title">Applied filters</span>
+        <button type="button" class="applied-filter-chip" *ngFor="let chip of appliedFilterChips"
+            [class.applied-filter-chip--locked]="!chip.removable" (click)="chip.removable && removeAppliedFilter(chip.key)">
+            <span>{{ chip.label }}</span>
+            <mat-icon *ngIf="chip.removable">close</mat-icon>
+        </button>
+        <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">Clear all</button>
+    </div>
     <div class="exams-card">
         <!-- Filters Panel Template -->
         <ng-template #filtersPanel>
@@ -60,23 +71,25 @@
                     <h4><mat-icon>tune</mat-icon> Filters</h4>
                 </div>
                 <div class="filter-block">
-                    <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
+                    <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
                         <mat-label>Institute</mat-label>
-                        <mat-select [(ngModel)]="selectedInstitute" 
-                            (selectionChange)="onInstituteChange($event.value)"
-                            aria-label="Filter by institute">
+                        <input matInput placeholder="All Institutes" [(ngModel)]="instituteSearch"
+                            [matAutocomplete]="examInstituteAuto" aria-label="Filter by institute" />
+                        <mat-autocomplete #examInstituteAuto="matAutocomplete"
+                            [displayWith]="displayInstitute"
+                            (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
                             <mat-option value="">All Institutes</mat-option>
-                            <mat-option *ngFor="let inst of institutes"
+                            <mat-option *ngFor="let inst of filteredInstitutes()"
                                 [value]="inst.institute_id">{{inst.short_name}}</mat-option>
-                        </mat-select>
+                        </mat-autocomplete>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="filter-item">
-                        <mat-label>Exam Name</mat-label>
+                        <mat-label>Test Name</mat-label>
                         <input matInput 
-                            placeholder="Exam name" 
+                            placeholder="Test name"
                             [(ngModel)]="filterName"
-                            aria-label="Filter by exam name" />
+                            aria-label="Filter by test name" />
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="filter-item">
@@ -131,21 +144,21 @@
             </div>
         </ng-template>
 
-        <!-- Exams List Table -->
+        <!-- Tests List Table -->
         <div class="list-wrapper">
             <table mat-table 
                 [dataSource]="dataSource" 
                 class="mat-elevation-z1 compact premium-table" 
                 matSort
                 role="grid"
-                aria-label="Exams list table">
+                aria-label="Tests list table">
 
                 <!-- Title Column -->
                 <ng-container matColumnDef="title">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
                     <td mat-cell *matCellDef="let e" class="cell-primary">
                         <div class="item-cell">
-                            <div class="item-avatar item-avatar--exam">{{ (e.title || '?').charAt(0).toUpperCase() }}</div>
+                            <!-- <div class="item-avatar item-avatar--exam">{{ (e.title || '?').charAt(0).toUpperCase() }}</div> -->
                             <div class="item-info">
                                 <span class="item-name">{{ e.title }}</span>
                                 <!-- <span class="item-sub" *ngIf="e.total_questions">{{ e.total_questions }} questions • {{ e.duration_mins }}min</span> -->
@@ -191,15 +204,6 @@
                                 title="View exam">
                                 <mat-icon svgIcon="view"></mat-icon>
                             </button>
-                            <button *hasAccess="'Exams'; hasAccessAction: 'edit'" 
-                                mat-icon-button 
-                                color="accent" 
-                                (click)="onEdit(e)"
-                                aria-label="Edit exam"
-                                title="Edit exam"
-                                class="edit-btn">
-                                <mat-icon svgIcon="edit"></mat-icon>
-                            </button>
                             <button *hasAccess="'Exams'; hasAccessAction: 'delete'" 
                                 mat-icon-button 
                                 color="warn" 
@@ -219,25 +223,30 @@
                 </thead>
                 <tbody>
                     <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+                    <tr class="mat-row" *matNoDataRow>
+                        <td class="mat-cell empty-table-cell" [attr.colspan]="displayedColumns.length">
+                            {{ hasAppliedFilters ? 'No exams found for the selected filters.' : 'Apply filters to view exams.' }}
+                        </td>
+                    </tr>
                 </tbody>
             </table>
             <mat-paginator [pageSizeOptions]="[25,50,100]" 
                 showFirstLastButtons
                 class="custom-paginator"
-                aria-label="Exam list pagination">
+                aria-label="Test list pagination">
             </mat-paginator>
         </div>
     </div>
 
-    <!-- ─── Modal for Viewing Exam Details ─── -->
+    <!-- ─── Modal for Viewing Test Details ─── -->
     <div *ngIf="showModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="examDetailsTitle">
         <div class="modal" tabindex="0">
             <!-- Modal Header -->
             <div class="modal-header">
                 <div class="modal-header-left">
-                    <div class="modal-avatar modal-avatar--exam">
+                    <!-- <div class="modal-avatar modal-avatar--exam">
                         {{ (selectedExam?.title || '?').charAt(0).toUpperCase() }}
-                    </div>
+                    </div> -->
                     <div class="modal-header-text">
                         <h1 id="examDetailsTitle" class="modal-item-name">{{ selectedExam?.title || '—' }}</h1>
                         <div class="modal-item-meta">
@@ -247,12 +256,6 @@
                         </div>
                     </div>
                 </div>
-                <button mat-icon-button 
-                    (click)="closeModal()" 
-                    aria-label="Close exam details modal"
-                    class="close-modal-btn">
-                    <mat-icon>close</mat-icon>
-                </button>
             </div>
 
             <!-- Modal Body with Tabs -->
@@ -263,7 +266,7 @@
                         <mat-tab label="Overview & Settings">
                             <div class="tab-panel">
                                 <div class="detail-grid">
-                                    <div class="label">Exam Name</div>
+                                    <div class="label">Test Name</div>
                                     <div class="value">{{ selectedExam.title || selectedExam.name || '—' }}</div>
 
                                     <div class="label">Description</div>
@@ -287,17 +290,17 @@
                             </div>
                         </mat-tab>
 
-                        <!-- Categories Tab -->
-                        <mat-tab label="Categories">
+                        <!-- Question Banks Tab -->
+                        <mat-tab label="Question Banks">
                             <div class="tab-panel">
                                 <div *ngIf="selectedExam.categories?.length; else noCats">
                                     <table mat-table 
                                         [dataSource]="selectedExam.categories" 
                                         class="mat-elevation-z1 compact premium-table"
                                         role="grid"
-                                        aria-label="Exam categories">
+                                        aria-label="Test question banks">
                                         <ng-container matColumnDef="category">
-                                            <th mat-header-cell *matHeaderCellDef>Category</th>
+                                            <th mat-header-cell *matHeaderCellDef>Question Bank</th>
                                             <td mat-cell *matCellDef="let c">{{ c.category?.category_name || c.category_name }}</td>
                                         </ng-container>
                                         <ng-container matColumnDef="description">
@@ -382,19 +385,20 @@
                     </mat-tab-group>
                 </ng-container>
                 <ng-template #noData>
-                    <div class="muted">No exam data available</div>
+                    <div class="muted">No test data available</div>
                 </ng-template>
             </div>
 
             <!-- Modal Footer -->
             <div class="modal-actions">
-                <button mat-stroked-button 
-                    color="primary" 
-                    (click)="closeModal()"
-                    aria-label="Close modal">
-                    Close
+                <button mat-stroked-button color="primary" (click)="closeModal()" aria-label="Close modal">Close</button>
+                <button mat-flat-button color="primary" (click)="onEdit(selectedExam)" aria-label="Edit exam">
+                    <mat-icon>edit</mat-icon> Edit
                 </button>
             </div>
         </div>
     </div>
 </div>
+
+
+

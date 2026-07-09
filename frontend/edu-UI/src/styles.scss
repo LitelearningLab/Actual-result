@@ -226,6 +226,33 @@ $search-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 .toolbar .controls button:hover { background: var(--button-2-hover) !important; color: var(--button-text-2) !important;  }
 .toolbar .controls button:not(.button-one) { background: var(--button-1) !important; color: var(--button-text-1) !important; border-radius: 0.75rem; height: 2.75rem; border: 2px solid var(--border-1); }
 .toolbar .controls button:not(.button-one):hover { background: var(--button-1-hover) !important; color: var(--button-text-1) !important; }
+.toolbar .controls .action-row button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  height: 2.75rem !important;
+  min-width: 0;
+  padding: 0 1rem !important;
+  border-radius: 0.75rem !important;
+  border: 2px solid var(--border-1) !important;
+  background: var(--button-1) !important;
+  color: var(--button-text-1) !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  box-shadow: 0px 10px 15px -3px rgb(126 129 131 / 50%) !important;
+  transition: background 0.2s $search-ease, color 0.2s $search-ease, box-shadow 0.2s $search-ease, transform 0.2s $search-ease !important;
+}
+.toolbar .controls .action-row button:hover {
+  background: var(--button-1-hover) !important;
+  color: var(--button-text-2) !important;
+  transform: translateY(-1px);
+}
+.toolbar .controls .action-row button mat-icon {
+  font-size: 1.125rem;
+  width: 1.125rem;
+  height: 1.125rem;
+}
 
 // ════════════════════════════════════════════════════════════════════════════════
 // FILTERS PANEL — Minimal Floating Card Design
@@ -469,3 +496,95 @@ $modal-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   .premium-table td.mat-cell { padding: 0.5rem 0.625rem; }
   .premium-table thead th.mat-header-cell, .premium-table thead th.mat-mdc-header-cell { font-size: var(--font-size-sm); }
 }
+// Global Institute Filter
+// This must live in the global stylesheet because Angular CDK overlays are rendered outside app component DOM.
+body.global-institute-active .local-institute-field {
+  display: none !important;
+}
+/* Global refresh control style for logged-in pages */
+.refresh-btn.mat-mdc-icon-button,
+button.refresh-btn.mat-mdc-icon-button {
+  width: 3rem !important;
+  height: 3rem !important;
+  border-radius: 1rem !important;
+  background: #ffffff !important;
+  border: 1px solid #dbe3ee !important;
+  color: #64748b !important;
+  box-shadow: 0 0.25rem 0.75rem rgba(15, 23, 42, 0.06) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease !important;
+}
+
+.refresh-btn.mat-mdc-icon-button mat-icon,
+button.refresh-btn.mat-mdc-icon-button mat-icon {
+  width: 1.375rem !important;
+  height: 1.375rem !important;
+  font-size: 1.375rem !important;
+  color: #64748b !important;
+  transition: color 0.2s ease, transform 0.25s ease !important;
+}
+
+.refresh-btn.mat-mdc-icon-button:hover,
+button.refresh-btn.mat-mdc-icon-button:hover {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+  box-shadow: 0 0.5rem 1rem rgba(15, 23, 42, 0.09) !important;
+  transform: translateY(-1px) !important;
+}
+
+.refresh-btn.mat-mdc-icon-button:hover mat-icon,
+button.refresh-btn.mat-mdc-icon-button:hover mat-icon {
+  color: #475569 !important;
+  transform: rotate(90deg) !important;
+}
+
+button.refresh-action-btn,
+button.button-one:has(mat-icon[svgIcon="refresh"]),
+button[mat-flat-button]:has(mat-icon[svgIcon="refresh"]),
+button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  height: 3rem !important;
+  min-width: 0 !important;
+  padding: 0 1rem !important;
+  border-radius: 1rem !important;
+  background: #ffffff !important;
+  border: 1px solid #dbe3ee !important;
+  color: #64748b !important;
+  box-shadow: 0 0.25rem 0.75rem rgba(15, 23, 42, 0.06) !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease !important;
+}
+
+button.refresh-action-btn:hover,
+button.button-one:has(mat-icon[svgIcon="refresh"]):hover,
+button[mat-flat-button]:has(mat-icon[svgIcon="refresh"]):hover,
+button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+  box-shadow: 0 0.5rem 1rem rgba(15, 23, 42, 0.09) !important;
+  transform: translateY(-1px) !important;
+}
+
+button.refresh-action-btn mat-icon,
+button.button-one:has(mat-icon[svgIcon="refresh"]) mat-icon,
+button[mat-flat-button]:has(mat-icon[svgIcon="refresh"]) mat-icon,
+button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]) mat-icon {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  color: #64748b !important;
+  transition: color 0.2s ease, transform 0.25s ease !important;
+}
+
+button.refresh-action-btn:hover mat-icon,
+button.button-one:has(mat-icon[svgIcon="refresh"]):hover mat-icon,
+button[mat-flat-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon,
+button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon {
+  color: #475569 !important;
+  transform: rotate(90deg) !important;
+}
+

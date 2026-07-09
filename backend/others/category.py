@@ -1,7 +1,18 @@
 from db.models import Categories, CategoriesDepartments, CategoriesTeams, Institute,User, InstituteDepartment, InstituteTeam
 from db.db import SQLiteDB
 from datetime import datetime
-from sqlalchemy import func
+from sqlalchemy import func, text
+from sqlalchemy.exc import IntegrityError
+import uuid
+
+def ensure_category_columns(session):
+    session.execute(text("""
+        IF COL_LENGTH('Categories', 'is_deleted') IS NULL
+        BEGIN
+            ALTER TABLE Categories ADD is_deleted BIT NULL
+        END
+    """))
+    session.commit()
 def get_categories_list(request):
     db = SQLiteDB()
     session = db.connect()
@@ -9,6 +20,7 @@ def get_categories_list(request):
         return None
     filter = []
     args = getattr(request, "args", {})
+    filter.append(func.coalesce(Categories.is_deleted, False) == False)
     if args.get("institute_id"):
         filter.append(Categories.institute_id == args.get("institute_id"))
     if args.get("created_after"):
@@ -32,7 +44,8 @@ def get_categories_list(request):
         categories_list.append({
             "id": category.category_id,
             "name": category.name,
-            "description": category.description
+            "description": category.description,
+            "type": category.type
         })
     json_data = {
         "statusMessage": "Categories retrieved successfully",
@@ -47,12 +60,16 @@ def get_category_details(request):
     session = db.connect()
     if not session:
         return None
+    ensure_category_columns(session)
 
     filter = []
     args = getattr(request, "args", {})
     filter.append(func.coalesce(Categories.is_deleted, False) == False)
-    if args.get("institute_id"):
-        filter.append(Categories.institute_id == args.get("institute_id"))
+    if args.get("category_id"):
+        filter.append(Categories.category_id == args.get("category_id"))
+    institute_id = args.get("institute_id") or args.get("institute")
+    if institute_id:
+        filter.append(Categories.institute_id == institute_id)
     if args.get("departments"):
         departments = args.get("departments").split(",")
         filter.append(CategoriesDepartments.department_id.in_(departments))
@@ -154,102 +171,178 @@ def get_category_details(request):
 def add_categories(request):
     db = SQLiteDB()
     session = db.connect()
-    category_data = request.get_json()
-    created_by = category_data.get("created_by", "")
-    created_date = datetime.utcnow()
-    new_category = Categories(
-        name=category_data.get("name"),
-        description=category_data.get("description"),
-        institute_id=category_data.get("institute_id"),
-        type=category_data.get("type"),
-        answer_by=category_data.get("who_inputs",""),
-        evaluation=category_data.get("evaluation",""),
-        active_status= 1 if category_data.get("status") == 'true' else 0,
-        mark_each_question=category_data.get("mark_for_each_question",1),
-        public_access= 1 if category_data.get("public_access") == True else 0,
-        created_by=created_by,
-        created_date=created_date
-    )
-    session.add(new_category)
-    session.commit()
-    category_id = new_category.category_id
-    department_ids = category_data.get("departments", [])
-    team_ids = category_data.get("teams", [])
-    for department_id in department_ids:
-        category_department = CategoriesDepartments(
-            category_id=category_id,
-            department_id=department_id,
+    if not session:
+        return {"statusMessage": "Database connection failed", "status": False}, 500
+
+    try:
+        category_data = request.get_json(silent=True) or {}
+        if not category_data.get("name"):
+            return {"statusMessage": "Category name is required", "status": False}, 400
+        if not category_data.get("institute_id"):
+            return {"statusMessage": "Institute is required", "status": False}, 400
+        if not category_data.get("type"):
+            return {"statusMessage": "Category type is required", "status": False}, 400
+
+        institute_id = str(category_data.get("institute_id"))
+        try:
+            uuid.UUID(institute_id)
+        except (TypeError, ValueError):
+            return {"statusMessage": "Please select a valid institute.", "status": False}, 400
+
+        institute = session.query(Institute).filter_by(institute_id=institute_id).first()
+        if not institute:
+            return {"statusMessage": "Selected institute was not found.", "status": False}, 400
+
+        department_ids = [str(d) for d in (category_data.get("departments", []) or []) if d]
+        team_ids = [str(t) for t in (category_data.get("teams", []) or []) if t]
+
+        if department_ids:
+            valid_departments = session.query(InstituteDepartment.department_id).filter(
+                InstituteDepartment.institute_id == institute_id,
+                InstituteDepartment.department_id.in_(department_ids)
+            ).all()
+            valid_department_ids = {row[0] for row in valid_departments}
+            if any(d not in valid_department_ids for d in department_ids):
+                return {"statusMessage": "One or more selected departments are invalid for this institute.", "status": False}, 400
+
+        if team_ids:
+            valid_teams = session.query(InstituteTeam.team_id).filter(
+                InstituteTeam.institute_id == institute_id,
+                InstituteTeam.team_id.in_(team_ids)
+            ).all()
+            valid_team_ids = {row[0] for row in valid_teams}
+            if any(t not in valid_team_ids for t in team_ids):
+                return {"statusMessage": "One or more selected teams are invalid for this institute.", "status": False}, 400
+
+        created_by = category_data.get("created_by", "")
+        created_date = datetime.utcnow()
+        new_category = Categories(
+            name=category_data.get("name"),
+            description=category_data.get("description"),
+            institute_id=institute_id,
+            type=category_data.get("type"),
+            answer_by=category_data.get("who_inputs",""),
+            evaluation=category_data.get("evaluation",""),
+            active_status= 1 if category_data.get("status") == 'true' else 0,
+            mark_each_question=category_data.get("mark_for_each_question",1),
+            public_access= 1 if category_data.get("public_access") == True else 0,
             created_by=created_by,
             created_date=created_date
         )
-        session.add(category_department)
-    for team_id in team_ids:
-        category_team = CategoriesTeams(
-            category_id=category_id,
-            team_id=team_id,
-            created_by=created_by,
-            created_date=created_date
-        )
-        session.add(category_team)
-    session.commit()
-    json_data = {
-        "statusMessage": "Category added successfully",
-        "status": True
-    }
-    return json_data, 201
+        session.add(new_category)
+        session.commit()
+        category_id = new_category.category_id
+        for department_id in department_ids:
+            category_department = CategoriesDepartments(
+                category_id=category_id,
+                department_id=department_id,
+                created_by=created_by,
+                created_date=created_date
+            )
+            session.add(category_department)
+        for team_id in team_ids:
+            category_team = CategoriesTeams(
+                category_id=category_id,
+                team_id=team_id,
+                created_by=created_by,
+                created_date=created_date
+            )
+            session.add(category_team)
+        session.commit()
+        json_data = {
+            "statusMessage": "Category added successfully",
+            "status": True
+        }
+        return json_data, 201
+    except IntegrityError as e:
+        session.rollback()
+        print(f"Integrity error adding category: {e}")
+        return {"statusMessage": "Category could not be saved because one of the selected values is invalid.", "status": False}, 400
+    except Exception as e:
+        session.rollback()
+        print(f"Error adding category: {e}")
+        return {"statusMessage": f"Failed to add category: {str(e)}", "status": False}, 500
 
 def update_category(category_id, request):
     db = SQLiteDB()
     session = db.connect()
     if not session:
-        return None
-    data = request.get_json()
-    category = session.query(Categories).filter_by(category_id=category_id).first()
-    if not category:
-        return {"statusMessage": "Category not found", "status": False}, 404
-    # update fields
-    category.name = data.get('name', category.name)
-    category.description = data.get('description', category.description)
-    category.type = data.get('type', category.type)
-    category.answer_by = data.get('who_inputs', category.answer_by)
-    category.evaluation = data.get('evaluation', category.evaluation)
-    category.updated_by = data.get('updated_by', category.updated_by)
-    category.updated_date = datetime.utcnow()
-    # status mapping
-    if 'status' in data:
-        try:
+        return {"statusMessage": "Database connection failed", "status": False}, 500
+
+    try:
+        data = request.get_json(silent=True) or {}
+        category = session.query(Categories).filter_by(category_id=category_id).first()
+        if not category:
+            return {"statusMessage": "Category not found", "status": False}, 404
+
+        institute_id = str(data.get('institute_id') or category.institute_id or '')
+        if institute_id:
+            try:
+                uuid.UUID(institute_id)
+            except (TypeError, ValueError):
+                return {"statusMessage": "Please select a valid institute.", "status": False}, 400
+
+            institute = session.query(Institute).filter_by(institute_id=institute_id).first()
+            if not institute:
+                return {"statusMessage": "Selected institute was not found.", "status": False}, 400
+
+        dept_ids = [str(d) for d in (data.get('departments', []) or []) if d]
+        team_ids = [str(t) for t in (data.get('teams', []) or []) if t]
+
+        if institute_id and dept_ids:
+            valid_departments = session.query(InstituteDepartment.department_id).filter(
+                InstituteDepartment.institute_id == institute_id,
+                InstituteDepartment.department_id.in_(dept_ids)
+            ).all()
+            valid_department_ids = {row[0] for row in valid_departments}
+            if any(d not in valid_department_ids for d in dept_ids):
+                return {"statusMessage": "One or more selected departments are invalid for this institute.", "status": False}, 400
+
+        if institute_id and team_ids:
+            valid_teams = session.query(InstituteTeam.team_id).filter(
+                InstituteTeam.institute_id == institute_id,
+                InstituteTeam.team_id.in_(team_ids)
+            ).all()
+            valid_team_ids = {row[0] for row in valid_teams}
+            if any(t not in valid_team_ids for t in team_ids):
+                return {"statusMessage": "One or more selected teams are invalid for this institute.", "status": False}, 400
+
+        # update fields
+        category.name = data.get('name', category.name)
+        category.description = data.get('description', category.description)
+        category.type = data.get('type', category.type)
+        category.answer_by = data.get('who_inputs', category.answer_by)
+        category.evaluation = data.get('evaluation', category.evaluation)
+        category.updated_by = data.get('updated_by', category.updated_by)
+        category.updated_date = datetime.utcnow()
+        # status mapping
+        if 'status' in data:
             category.active_status = 1 if str(data.get('status')).lower() in ['true','1','yes'] else 0
-        except Exception:
-            pass
-    if 'mark_for_each_question' in data:
-        try:
+        if 'mark_for_each_question' in data:
             category.mark_each_question = data.get('mark_for_each_question')
-        except Exception:
-            pass
-    if 'public_access' in data:
-        category.public_access = 1 if data.get('public_access') else 0
-    # update institute if provided
-    if 'institute_id' in data:
-        category.institute_id = data.get('institute_id')
-    # update departments and teams references: simplistic approach - delete old links and add new
-    try:
+        if 'public_access' in data:
+            category.public_access = 1 if data.get('public_access') else 0
+        if 'institute_id' in data:
+            category.institute_id = institute_id
+
         session.query(CategoriesDepartments).filter_by(category_id=category_id).delete()
-    except Exception:
-        pass
-    try:
         session.query(CategoriesTeams).filter_by(category_id=category_id).delete()
-    except Exception:
-        pass
-    dept_ids = data.get('departments', []) or []
-    team_ids = data.get('teams', []) or []
-    for d in dept_ids:
-        cd = CategoriesDepartments(category_id=category_id, department_id=d)
-        session.add(cd)
-    for t in team_ids:
-        ct = CategoriesTeams(category_id=category_id, team_id=t)
-        session.add(ct)
-    session.commit()
-    return {"statusMessage": "Category updated successfully", "status": True}, 200
+        for d in dept_ids:
+            cd = CategoriesDepartments(category_id=category_id, department_id=d)
+            session.add(cd)
+        for t in team_ids:
+            ct = CategoriesTeams(category_id=category_id, team_id=t)
+            session.add(ct)
+        session.commit()
+        return {"statusMessage": "Category updated successfully", "status": True}, 200
+    except IntegrityError as e:
+        session.rollback()
+        print(f"Integrity error updating category: {e}")
+        return {"statusMessage": "Category could not be updated because one of the selected values is invalid.", "status": False}, 400
+    except Exception as e:
+        session.rollback()
+        print(f"Error updating category: {e}")
+        return {"statusMessage": f"Failed to update category: {str(e)}", "status": False}, 500
 
 def delete_category(category_id, deleted_by):
     db = SQLiteDB()

@@ -2,12 +2,6 @@
    <!-- ── Top Toolbar ── -->
    <div class="toolbar">
       <div class="title"></div>
-      <div class="form-actions">
-         <button mat-flat-button color="accent" type="button" class="btn-cancel" routerLink="/view-questions">
-            <mat-icon>arrow_back</mat-icon>
-            <span>View Questions</span>
-         </button>
-      </div>
    </div>
 
    <!-- ── Form Card ── -->
@@ -28,36 +22,90 @@
 
          <!-- ═══ Global Fields Section ═══ -->
          <div class="section-block" *ngIf="!isEditing">
-            <div class="section-header">
+            <div class="section-header question-bank-header">
                <mat-icon class="section-icon">school</mat-icon>
                <div class="section-header-text">
-                  <h2 class="section-heading">Institute & Category</h2>
-                  <p class="section-desc">Select the institute and category for your questions.</p>
+                  <h2 class="section-heading">Institute & Question Bank</h2>
+                  <p class="section-desc">Select the institute and question bank for your questions.</p>
+               </div>
+               <div class="question-bank-filter-anchor" (click)="$event.stopPropagation()">
+                  <button mat-stroked-button color="primary" type="button" class="question-bank-filter-btn"
+                     (click)="toggleQuestionBankFilters()" [disabled]="!questions[0].institute_id">
+                     <mat-icon>filter_list</mat-icon>
+                     <span>Filters</span>
+                  </button>
+                  <div class="question-bank-filter-panel" *ngIf="questionBankFilterOpen" (click)="$event.stopPropagation()">
+                     <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Departments</mat-label>
+                        <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Departments">
+                           <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
+                        </mat-select>
+                     </mat-form-field>
+
+                     <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Teams</mat-label>
+                        <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Teams">
+                           <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
+                        </mat-select>
+                     </mat-form-field>
+
+                     <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Created After</mat-label>
+                        <input matInput [matDatepicker]="questionBankAfterPicker" [(ngModel)]="filterCreationDateAfter" placeholder="Created After">
+                        <mat-datepicker-toggle matSuffix [for]="questionBankAfterPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #questionBankAfterPicker></mat-datepicker>
+                     </mat-form-field>
+
+                     <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Created Before</mat-label>
+                        <input matInput [matDatepicker]="questionBankBeforePicker" [(ngModel)]="filterCreationDate" placeholder="Created Before">
+                        <mat-datepicker-toggle matSuffix [for]="questionBankBeforePicker"></mat-datepicker-toggle>
+                        <mat-datepicker #questionBankBeforePicker></mat-datepicker>
+                     </mat-form-field>
+
+                     <div class="filter-checks">
+                        <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by me</mat-checkbox>
+                        <mat-checkbox [(ngModel)]="filterPublicAccess">Public access</mat-checkbox>
+                     </div>
+
+                     <div class="filter-panel-actions">
+                        <button mat-flat-button type="button" class="filter-apply-btn" (click)="applyQuestionBankFilters()">
+                           <mat-icon>check</mat-icon>
+                           <span>Apply</span>
+                        </button>
+                        <button mat-flat-button type="button" class="filter-reset-btn" (click)="resetQuestionBankFilters()">
+                           <mat-icon>refresh</mat-icon>
+                           <span>Reset</span>
+                        </button>
+                     </div>
+                  </div>
                </div>
             </div>
 
             <div class="field-row">
-               <mat-form-field appearance="outline" class="field-half">
+               <mat-form-field appearance="outline" class="field-half local-institute-field">
                   <mat-icon matPrefix>school</mat-icon>
                   <mat-label>Institute</mat-label>
                   <mat-select id="institute-select" title="Institute" [disabled]="!isSuperAdmin"
-                     [(ngModel)]="questions[0].institute_id" (ngModelChange)="loadCategories($event)">
+                     [(ngModel)]="questions[0].institute_id" (ngModelChange)="onQuestionInstituteChange($event)">
                      <mat-option value="">Select institute</mat-option>
                      <mat-option *ngFor="let inst of institutes" [value]="inst.institute_id">{{inst.name}}</mat-option>
                   </mat-select>
                </mat-form-field>
 
-               <mat-form-field appearance="outline" class="field-half">
-                  <mat-icon matPrefix>assignment</mat-icon>
-                  <mat-label>Category</mat-label>
-                  <input type="text" matInput [formControl]="categoryCtrl" [matAutocomplete]="auto"
-                     placeholder="Pick a category" />
-                  <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayCategory.bind(this)"
-                     (optionSelected)="onCategoryAutocompleteSelected($event.option.value)">
-                     <mat-option *ngFor="let cat of (filteredCategories$ | async)"
-                        [value]="cat">{{cat.name}}</mat-option>
-                  </mat-autocomplete>
-               </mat-form-field>
+               <div class="question-bank-filter-wrap field-half">
+                  <mat-form-field appearance="outline" class="field-full">
+                     <mat-icon matPrefix>assignment</mat-icon>
+                     <mat-label>Question Bank</mat-label>
+                     <mat-select [value]="questions[0].category_id" [disabled]="!questions[0].institute_id || !categories.length"
+                        (openedChange)="refreshCategoriesOnCategoryOpen($event)"
+                        (selectionChange)="onCategorySelected($event.value)" required>
+                        <mat-option value="">Select question bank</mat-option>
+                        <mat-option *ngFor="let cat of categories" [value]="cat.category_id">{{cat.name}}</mat-option>
+                     </mat-select>
+                  </mat-form-field>
+
+               </div>
             </div>
 
             <div class="category-desc" *ngIf="selectedCategory">
@@ -73,10 +121,16 @@
                   <h2 class="section-heading">Bulk Upload</h2>
                   <p class="section-desc">Upload multiple questions via CSV or Excel file.</p>
                </div>
-               <button mat-stroked-button color="accent" type="button" (click)="downloadTemplate()">
-                  <mat-icon>file_download</mat-icon>
-                  <span>Download Template</span>
-               </button>
+               <div class="template-actions">
+                  <button mat-stroked-button color="accent" type="button" (click)="downloadTemplate('objective')">
+                     <mat-icon>file_download</mat-icon>
+                     <span>Objective Template</span>
+                  </button>
+                  <button mat-stroked-button color="accent" type="button" (click)="downloadTemplate('descriptive')">
+                     <mat-icon>file_download</mat-icon>
+                     <span>Descriptive Template</span>
+                  </button>
+               </div>
             </div>
 
             <div class="bulk-card">
@@ -92,7 +146,7 @@
                         <strong>.xlsx</strong>
                      </div>
                      <div class="dz-actions">
-                        <button mat-stroked-button color="primary" type="button" (click)="triggerFileSelect()">Choose
+                        <button mat-stroked-button color="primary" type="button" (click)="$event.stopPropagation(); triggerFileSelect()">Choose
                            file</button>
                      </div>
                   </div>
@@ -153,11 +207,11 @@
                      </mat-select>
                   </mat-form-field>
 
-                  <mat-form-field appearance="outline" class="field-half">
+                  <mat-form-field appearance="outline" class="field-half" *ngIf="hasCategorySettings()">
                      <mat-label>Quiz Type</mat-label>
                      <mat-select [(ngModel)]="aiQuestionType">
                         <mat-option value="">Select type</mat-option>
-                        <mat-option *ngFor="let t of questionTypes" [value]="t.value">{{t.label}}</mat-option>
+                        <mat-option *ngFor="let t of filteredQuestionTypes" [value]="t.value">{{t.label}}</mat-option>
                      </mat-select>
                   </mat-form-field>
                </div>
@@ -168,33 +222,31 @@
                      <input matInput type="number" [(ngModel)]="aiQuestionNumber" min="1" />
                   </mat-form-field>
 
-                  <mat-form-field appearance="outline" class="field-half">
+                  <mat-form-field appearance="outline" class="field-half" *ngIf="hasCategorySettings()">
                      <mat-label>Marks per Question</mat-label>
-                     <input matInput type="number" [(ngModel)]="aiMarksPerQuestion" min="1" />
+                     <input matInput type="number" [value]="getCategoryQuestionMark() ?? aiMarksPerQuestion" min="1" readonly />
                   </mat-form-field>
                </div>
 
-               <div class="field-row">
-                  <mat-form-field appearance="outline" class="field-half">
+               <div class="field-row ai-context-row">
+                  <mat-form-field appearance="outline" class="ai-context-field">
                      <mat-label>Industry</mat-label>
                      <input matInput type="text" [(ngModel)]="aiIndustry"
                         placeholder="Enter industry (e.g. Education, IT, Healthcare)" />
                   </mat-form-field>
 
-                  <mat-form-field appearance="outline" class="field-half">
+                  <mat-form-field appearance="outline" class="ai-context-field">
                      <mat-label>Target Users</mat-label>
                      <input matInput type="text" [(ngModel)]="aiTargetUsers"
                         placeholder="e.g. Students, Employees, Customers" />
                   </mat-form-field>
-               </div>
 
-               <div class="field-row">
-                  <mat-form-field appearance="outline" class="field-half">
+                  <mat-form-field appearance="outline" class="ai-context-field">
                      <mat-label>User Role</mat-label>
                      <input matInput type="text" [(ngModel)]="aiUserRole" placeholder="e.g. Restaurant Waiter, Nurse" />
                   </mat-form-field>
 
-                  <mat-form-field appearance="outline" class="field-half">
+                  <mat-form-field appearance="outline" class="ai-context-field">
                      <mat-label>Complexity</mat-label>
                      <mat-select [(ngModel)]="aiQuestionComplexity">
                         <mat-option value="">Select complexity</mat-option>
@@ -241,7 +293,7 @@
 
                <div class="editor-actions">
                   <button mat-stroked-button type="button" (click)="sourceText=''; aiPrompt='';activeMode = 'ai'; plaintextEditor = false">Clear</button>
-                  <button mat-flat-button color="primary" type="button" (click)="generateAIQuestions()" [disabled]="!aiQuestionType || aiQuestionNumber<1">Generate</button>
+                  <button mat-flat-button color="primary" type="button" (click)="generateAIQuestions()" [disabled]="!hasCategorySettings() || !aiQuestionType || aiQuestionNumber<1">Generate</button>
                </div>
             </div>
          </div>
@@ -260,6 +312,9 @@
                </button>
             </div>
 
+            <div class="pending-delete-message" *ngIf="isEditing && pendingDeletedQuestionId && (!questions || !questions.length)">
+               Question marked for deletion. Click Update to delete it permanently.
+            </div>
             <mat-accordion class="questions-accordion" multi>
                <mat-expansion-panel class="question-panel"
                   *ngFor="let q of questions; let qi = index; trackBy: trackByIndex" [expanded]="q._expanded"
@@ -275,13 +330,13 @@
                               (click)="openFineTuningDialog(qi)" title="AI Fine-tuning for this question" class="fine-tune-btn">
                               <mat-icon svgIcon="brain"></mat-icon>
                            </button>
-                           <span class="badge type-label">
+                           <span class="badge type-label" *ngIf="hasCategorySettings()">
                               {{ getQuestionTypeLabel(q.type) }}
                            </span>
-                           <div class="badge marks">{{ q.marks || 0 }} Marks</div>
+                           <div class="badge marks" *ngIf="hasCategorySettings()" title="Question Bank mark">{{ getCategoryQuestionMark() ?? q.marks ?? 0 }} Marks</div>
                            <div class="panel-actions">
                               <button type="button" mat-icon-button aria-label="Remove question"
-                                 (click)="removeQuestion(qi)" [disabled]="questions.length<=1">
+                                 (click)="removeQuestion(qi)" [disabled]="!isEditing && questions.length<=1">
                                  <mat-icon svgIcon="delete"></mat-icon>
                               </button>
                            </div>
@@ -290,21 +345,14 @@
                   </mat-expansion-panel-header>
 
                   <div class="panel-body">
-                     <div class="field-row" *ngIf="!aiMode">
-                        <mat-form-field appearance="outline" class="field-half">
+                     <div class="field-row" *ngIf="!aiMode && hasCategorySettings()">
+                        <mat-form-field appearance="outline" class="field-full">
                            <mat-icon matPrefix>category</mat-icon>
                            <mat-label>Type</mat-label>
                            <mat-select id="q-type-{{qi}}" title="Question type" [(ngModel)]="q.type">
                               <mat-option value="">Select type</mat-option>
-                              <mat-option *ngFor="let t of questionTypes" [value]="t.value">{{t.label}}</mat-option>
+                              <mat-option *ngFor="let t of getQuestionTypeOptions(q)" [value]="t.value">{{t.label}}</mat-option>
                            </mat-select>
-                        </mat-form-field>
-
-                        <mat-form-field appearance="outline" class="field-half">
-                           <mat-icon matPrefix>format_list_numbered</mat-icon>
-                           <mat-label>Marks</mat-label>
-                           <input matInput id="q-marks-{{qi}}" type="number" [(ngModel)]="q.marks" min="1"
-                              title="Marks" placeholder="Marks" />
                         </mat-form-field>
                      </div>
 
@@ -328,8 +376,7 @@
                                     <input matInput [(ngModel)]="q.options[i]" [ngModelOptions]="{standalone: true}"
                                        class="option-input" placeholder="Option {{i+1}}" />
                                  </mat-form-field>
-                                 <button type="button" class="btn small" (click)="removeOption(qi, i)"
-                                    [disabled]="q.options.length<=2"><mat-icon>delete</mat-icon></button>
+                                 <button type="button" class="btn small" (click)="removeOption(qi, i)"><mat-icon>delete</mat-icon></button>
                               </div>
                            </mat-radio-group>
 
@@ -343,8 +390,7 @@
                                     <input matInput [(ngModel)]="q.options[i]" [ngModelOptions]="{standalone: true}"
                                        placeholder="Option {{i+1}}" />
                                  </mat-form-field>
-                                 <button type="button" class="btn small" (click)="removeOption(qi, i)"
-                                    [disabled]="q.options.length<=2"><mat-icon color="warn">delete</mat-icon></button>
+                                 <button type="button" class="btn small" (click)="removeOption(qi, i)"><mat-icon color="warn">delete</mat-icon></button>
                               </div>
                            </div>
 
@@ -391,12 +437,12 @@
       <div class="form-actions">
          <span></span>
          <div class="action-buttons">
-            <button type="button" mat-stroked-button color="warn" (click)="resetAll()">
-               <mat-icon>refresh</mat-icon>
-               <span>Reset</span>
+            <button type="button" mat-stroked-button color="warn" (click)="goBackToQuestions()">
+               <mat-icon>close</mat-icon>
+               <span>Cancel</span>
             </button>
             <button type="button" mat-flat-button color="primary" class="submit-btn" (click)="submit()"
-               [disabled]="!questions || !questions.length">
+               [disabled]="((!questions || !questions.length) && !pendingDeletedQuestionId) || (!isEditing && !selectedCategory)">
                <mat-icon>save</mat-icon>
                <span *ngIf="!isEditing">Save All</span>
                <span *ngIf="isEditing">Update</span>

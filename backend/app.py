@@ -1,8 +1,9 @@
 from functools import wraps
-from flask import Blueprint, Flask, request, jsonify, Response
+from flask import Blueprint, Flask, request, jsonify, Response, g
 from flask_cors import CORS
 from auth.auth import JWTValidator
 from configparser import ConfigParser
+from werkzeug.datastructures import ImmutableMultiDict
 
 from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, delete_institute, manage_institute, update_institute
 from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details, delete_user
@@ -25,6 +26,8 @@ from dashboard.admin_dashboard import admin_dashboard_details
 from dashboard.user_dashboard import user_dashboard_details, dashboard_users_list
 
 from others.demo_request import submit_demo_request, get_demo_requests, get_demo_request_by_id, update_demo_request_status, delete_demo_request
+from db.db import SQLiteDB
+from db.models import User
 
 from dotenv import load_dotenv
 import os
@@ -38,6 +41,75 @@ else:
 # read jwt_secret
 jwt_secret = os.getenv('jwt_secret', 'your_jwt_secret')
 
+
+GLOBAL_SCOPE_EXCLUDED_PATHS = (
+    '/edu/api/login',
+    '/edu/api/refresh-token',
+    '/edu/api/logout',
+    '/edu/api/public',
+    '/edu/api/superadmin-dashboard',
+)
+
+GLOBAL_SCOPE_EXCLUDED_EXACT_PATHS = {
+    '/edu/api/get-institutes',
+    '/edu/api/get-institute-list',
+    '/edu/api/institutes/list',
+}
+
+
+def normalize_global_scope_request():
+    if request.method == 'OPTIONS':
+        return None
+    path = request.path or ''
+    if path in GLOBAL_SCOPE_EXCLUDED_EXACT_PATHS or any(path.startswith(p) for p in GLOBAL_SCOPE_EXCLUDED_PATHS):
+        return None
+
+    scoped_institute_id = request.headers.get('X-Institute-Id') or request.headers.get('X-Global-Institute-Id')
+    if not scoped_institute_id:
+        return None
+
+    current_user = get_current_user_from_request()
+    if not current_user or not is_super_admin(current_user):
+        return None
+
+    scoped_institute_id = str(scoped_institute_id).strip()
+    if not scoped_institute_id:
+        return None
+
+    g.global_institute_id = scoped_institute_id
+
+    query_values = request.args.to_dict(flat=False)
+    for key in ('institute_id', 'institute'):
+        existing_values = [str(v) for v in query_values.get(key, []) if str(v or '').strip()]
+        if existing_values and any(v != scoped_institute_id for v in existing_values):
+            return jsonify({
+                'status': False,
+                'statusMessage': 'Institute scope mismatch. Clear or change the Global Institute Filter.'
+            }), 403
+        query_values[key] = [scoped_institute_id]
+    try:
+        request.args = ImmutableMultiDict(query_values)
+    except Exception:
+        pass
+
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        if isinstance(data, dict):
+            for key in ('institute_id', 'institute'):
+                existing = str(data.get(key) or '').strip()
+                if existing and existing != scoped_institute_id:
+                    return jsonify({
+                        'status': False,
+                        'statusMessage': 'Institute scope mismatch. Clear or change the Global Institute Filter.'
+                    }), 403
+            data['institute_id'] = scoped_institute_id
+            data['institute'] = scoped_institute_id
+            try:
+                request._cached_json = (data, data)
+            except Exception:
+                pass
+
+    return None
 # Initialize JWT Validator
 def initialize_jwt_validator(request):
     jwt_validator = JWTValidator(jwt_secret)
@@ -46,13 +118,41 @@ def initialize_jwt_validator(request):
 def jwt_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            return jsonify({}), 200
         # return f(*args, **kwargs)
         validation_result = initialize_jwt_validator(request)
         if validation_result != "Access granted":
             return jsonify({"status": False, "statusMessage": validation_result}), 401
+        scope_result = normalize_global_scope_request()
+        if scope_result is not None:
+            return scope_result
    
         return f(*args, **kwargs)
     return decorated_function
+
+def get_current_user_from_request():
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.split(" ", 1)[1]
+    try:
+        decoded = JWTValidator(jwt_secret).validate_jwt(token)
+        email = decoded.get("sub")
+        if not email:
+            return None
+        db = SQLiteDB()
+        session = db.connect()
+        if not session:
+            return None
+        return session.query(User).filter_by(email=email).first()
+    except Exception:
+        return None
+
+def is_super_admin(user):
+    role = str(getattr(user, "user_role", "") or "").lower()
+    return role in ("super_admin", "superadmin", "super-admin")
+
 def get_pagination():
     return (request.args.get('pageNumber', 1, type=int),
             request.args.get('pageSize', 25, type=int))
@@ -81,7 +181,8 @@ def get_institutes():
 @edu_blueprint.route('/get-institute-list', methods=['GET'])
 @jwt_required
 def get_institute_list_route():
-    response_data, status_code = get_institute_list()
+    current_user = get_current_user_from_request()
+    response_data, status_code = get_institute_list(current_user)
     return jsonify(response_data), status_code
 
 
@@ -89,7 +190,8 @@ def get_institute_list_route():
 @jwt_required
 def institutes_list_route():
     # reuse existing get_institute_list function and normalize output
-    response_data, status_code = get_institute_list()
+    current_user = get_current_user_from_request()
+    response_data, status_code = get_institute_list(current_user)
     if not response_data:
         return jsonify([]), 200
     # if response_data contains a list under 'institutes' or similar, normalize
@@ -235,7 +337,8 @@ def get_users():
 @edu_blueprint.route('/get-users-list', methods=['GET'])
 @jwt_required
 def get_users_list():
-    response_data, status_code = get_user_list(request)
+    current_user = get_current_user_from_request()
+    response_data, status_code = get_user_list(request, current_user)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-user-limit', methods=['GET'])
@@ -289,6 +392,9 @@ def delete_exam_route():
     validation_result = initialize_jwt_validator(request)
     if validation_result != "Access granted":
         return jsonify({"status": False, "statusMessage": validation_result}), 401
+    scope_result = normalize_global_scope_request()
+    if scope_result is not None:
+        return scope_result
     
     exam_id = request.args.get('exam_id') or request.args.get('id')
     if not exam_id:
@@ -404,16 +510,30 @@ def get_questions_route():
 @edu_blueprint.route('/add-categories', methods=['POST'])
 @jwt_required
 def add_categories_route():
-    response_data, status_code = add_categories(request)
-    return jsonify(response_data), status_code
+    try:
+        response_data, status_code = add_categories(request)
+        return jsonify(response_data), status_code
+    except Exception as exc:
+        print(f"Unhandled add-categories error: {exc}", flush=True)
+        return jsonify({
+            "status": False,
+            "statusMessage": f"Failed to add category: {str(exc)}"
+        }), 500
 
 
-@edu_blueprint.route('/update-category/<category_id>', methods=['PUT'])
+@edu_blueprint.route('/update-category/<category_id>', methods=['PUT', 'OPTIONS'])
 @jwt_required
 def update_category_route(category_id):
-    from others.category import update_category
-    response_data, status_code = update_category(category_id, request)
-    return jsonify(response_data), status_code
+    try:
+        from others.category import update_category
+        response_data, status_code = update_category(category_id, request)
+        return jsonify(response_data), status_code
+    except Exception as exc:
+        print(f"Unhandled update-category error: {exc}", flush=True)
+        return jsonify({
+            "status": False,
+            "statusMessage": f"Failed to update category: {str(exc)}"
+        }), 500
 
 @edu_blueprint.route('/get-categories-list', methods=['GET'])
 @jwt_required
@@ -450,8 +570,13 @@ def get_team_details():
 @edu_blueprint.route('/superadmin-dashboard', methods=['GET'])
 @jwt_required
 def superadmin_dashboard_route():
-    response_data = superadmin_dashboard_details()
-    return jsonify(response_data), 200
+    # response_data = superadmin_dashboard_details()
+    # return jsonify(response_data), 200
+    try:
+        response_data = superadmin_dashboard_details()
+        return jsonify(response_data), 200
+    except Exception as exc:
+        return jsonify({"status": False, "statusMessage": str(exc)}), 500
 
 
 @edu_blueprint.route('/admin-dashboard', methods=['GET'])
@@ -465,7 +590,19 @@ def admin_dashboard_route():
 @edu_blueprint.route('/user-dashboard', methods=['GET'])
 @jwt_required
 def user_dashboard_route():
+    current_user = get_current_user_from_request()
     user_id = request.args.get('user_id')
+    if current_user and not is_super_admin(current_user):
+        if getattr(current_user, "user_role", None) == "admin":
+            db = SQLiteDB()
+            session = db.connect()
+            requested_user = session.query(User).filter_by(user_id=user_id).first() if session and user_id else None
+            if requested_user and requested_user.institute_id == current_user.institute_id:
+                user_id = requested_user.user_id
+            else:
+                user_id = current_user.user_id
+        else:
+            user_id = current_user.user_id
     response_data = user_dashboard_details(user_id)
     return jsonify(response_data), 200
 
@@ -542,10 +679,39 @@ def delete_demo_request_route(request_id):
 
 app = Flask(__name__)
 # CORS(app, resources={r"/edu/api/*": {"origins": ["http://localhost:4200","http://192.168.1.5:4200" ]}}, supports_credentials=True)
-CORS(app, resources={r"/edu/api/*": {"origins": "*" }}, supports_credentials=True)
+# CORS(app, resources={r"/edu/api/*": {"origins": "*" }}, supports_credentials=True)
+
+CORS(
+    app,
+    resources={
+        r"/edu/api/*": {
+            "origins": [
+                "http://localhost:4200",
+                "http://127.0.0.1:4200",
+                "http://192.168.1.5:4200",
+            ],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Institute-Id", "X-Global-Institute-Id", "X-Skip-Institute-Context"],
+        }
+    },
+    supports_credentials=True,
+)
+
+@app.after_request
+def add_local_cors_headers(response):
+    origin = request.headers.get("Origin")
+    if origin in ("http://localhost:4200", "http://127.0.0.1:4200", "http://192.168.1.5:4200"):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Institute-Id, X-Global-Institute-Id, X-Skip-Institute-Context"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    return response
 
 app.register_blueprint(edu_blueprint)
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
     # app.run(debug=False, host='0.0.0.0', port=5001) (venv) ubuntu@profluent--ar-webportal:/opt/ActualResults/backend$
  
+
+
+

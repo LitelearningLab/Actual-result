@@ -18,13 +18,30 @@ def add_question(request):
         institute_id = data.get("institute_id")
         category_id = data.get("category_id", None)
         created_by = data.get("created_by",'System')
+        if not institute_id or not category_id:
+            json_data = {
+                "statusMessage": "Please select an Institution and Category before saving.",
+                "status": False
+            }
+            return json_data, 400
+        questions = data.get("questions", [])
+        valid_questions = [
+            q for q in questions
+            if q and q.get("type") and str(q.get("text", "")).strip()
+        ]
+        if not valid_questions:
+            json_data = {
+                "statusMessage": "Please add at least one question before saving.",
+                "status": False
+            }
+            return json_data, 400
         # json_data = {
         #     "statusMessage": "Category ID is required",
         #     "status": False,
         # }
         # return json_data, 400
 
-        for data in request.json.get('questions', []):
+        for data in valid_questions:
             question_type = data.get("type")
             question_text = data.get("text")
             marks = data.get("marks")
@@ -96,18 +113,46 @@ def bulk_upload_questions(request):
     if not file:
         return {"statusMessage": "No file provided", "status": False}, 400
     # read file using pandas
-    df = pd.read_csv(file)
+    filename = (getattr(file, "filename", "") or "").lower()
+    df = pd.read_excel(file) if filename.endswith((".xlsx", ".xls")) else pd.read_csv(file)
+
+    def parse_correct_indices(value):
+        indices = []
+        for part in str(value or "").split(","):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                numeric_value = float(part)
+                if numeric_value.is_integer():
+                    indices.append(int(numeric_value))
+            except Exception:
+                pass
+        return indices
     
     for index, row in df.iterrows():
-        question_type = "fill"
+        uploaded_type = row.get("Type", "")
+        question_type = str(uploaded_type).strip().lower() if not pd.isna(uploaded_type) else ""
+        if question_type == "choice":
+            question_type = "choose"
+        if question_type not in ["choose", "multi", "fill", "descriptive"]:
+            question_type = "fill"
         question_text = row.get("Question")
         marks = row.get("marks", 1)
-        question_correct = row.get("Correct_answer")
+        question_correct_raw = row.get("Correct_answer", "")
+        question_correct = "" if pd.isna(question_correct_raw) else str(question_correct_raw).strip()
 
-        if ',' in question_correct or (len(question_correct) ==1 and question_correct in '1234567890'):
+        question_correct_indices = []
+        if question_type in ["choose", "multi"]:
+            question_correct_indices = parse_correct_indices(question_correct)
+            if len(question_correct_indices) > 1:
+                question_type = "multi"
+            elif len(question_correct_indices) == 1:
+                question_type = "choose"
+        elif question_type == "fill" and (',' in question_correct or (len(question_correct) == 1 and question_correct in '1234567890')):
             question_type = 'choose'
-            question_correct_indices = [int(i) for i in question_correct.split(',')]
-            if len(question_correct_indices) >1:
+            question_correct_indices = parse_correct_indices(question_correct)
+            if len(question_correct_indices) > 1:
                 question_type = 'multi'
         
         question_options_list = []
@@ -165,7 +210,8 @@ def get_questions_details(request):
     try:
         filter = []
         args = getattr(request, "args", {})
-        public_access = (1 if args.get("public_access", 'false') == 'true' else 0)
+        public_access_arg = args.get("public_access")
+        public_access = (1 if str(public_access_arg).lower() == "true" else 0)
 
         if args.get("institute_id"):
             Category_data = session.query(Categories).filter_by(institute_id=args.get("institute_id")).all()
@@ -175,7 +221,10 @@ def get_questions_details(request):
             filter.append(Question.question_id.in_(question_list))
         if args.get("category_name"):
             # category_data = session.query(Categories).filter(Categories.name.ilike(f"%{args.get('category_name')}%"), Categories.public_access==public_access).all()
-            category_data = session.query(Categories).filter(Categories.name == f"{args.get('category_name')}", Categories.public_access==public_access).all()
+            category_query = session.query(Categories).filter(Categories.name == f"{args.get('category_name')}")
+            if public_access_arg is not None:
+                category_query = category_query.filter(Categories.public_access==public_access)
+            category_data = category_query.all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
@@ -251,6 +300,7 @@ def get_questions_details(request):
             "marks": q.marks,
             "options": option_list,
             "category_id": mapping.category_id if mapping else None,
+            "institute_id": category.institute_id if category else None,
             "category": category.name if category else None,
             "category_description": category.description if category else None,
             "created_by": created_by_user.full_name if created_by_user else None,

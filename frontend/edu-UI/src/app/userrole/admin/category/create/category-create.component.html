@@ -5,7 +5,7 @@
         <div class="form-actions">
             <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="cancel()">
                 <mat-icon>arrow_back</mat-icon>
-                <span>View Categories</span>
+                <span>Cancel</span>
             </button>
         </div>
     </div>
@@ -22,8 +22,8 @@
                         <div class="section-header">
                             <mat-icon class="section-icon">category</mat-icon>
                             <div class="section-header-text">
-                                <h2 class="section-heading">Category Information</h2>
-                                <p class="section-desc">Basic details for this category.</p>
+                                <h2 class="section-heading">Question Bank Information</h2>
+                                <p class="section-desc">Basic details for this question bank.</p>
                             </div>
                         </div>
 
@@ -31,17 +31,19 @@
                             <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Name</mat-label>
                                 <mat-icon matPrefix>edit</mat-icon>
-                                <input matInput [value]="name" (input)="setName($any($event.target).value)"
-                                    placeholder="Category name" />
+                                <input matInput required [value]="name" (input)="setName($any($event.target).value)"
+                                    placeholder="Question Bank name" />
+                                <mat-hint class="field-error" *ngIf="(formSubmitted || categoryInfoSubmitted) && isNameInvalid()">Name is required.</mat-hint>
                             </mat-form-field>
 
-                            <mat-form-field appearance="outline" class="field-half">
+                            <mat-form-field appearance="outline" class="field-half local-institute-field">
                                 <mat-label>Institute</mat-label>
                                 <mat-icon matPrefix>school</mat-icon>
-                                <mat-select [value]="institute" [disabled]="!isSuperAdmin || isEditing"
+                                <mat-select required [value]="institute" [disabled]="!isSuperAdmin || isEditing"
                                     (selectionChange)="setInstitute($event.value)">
                                     <mat-option *ngFor="let i of institutesList" [value]="i.id">{{i.name}}</mat-option>
                                 </mat-select>
+                                <mat-hint class="field-error" *ngIf="formSubmitted && isInstituteInvalid()">Institute is required.</mat-hint>
                             </mat-form-field>
                         </div>
 
@@ -57,16 +59,17 @@
                             <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Type</mat-label>
                                 <mat-icon matPrefix>category</mat-icon>
-                                <mat-select [value]="type" (selectionChange)="setType($event.value)">
+                                <mat-select required [value]="type" (selectionChange)="setType($event.value)">
                                     <mat-option *ngFor="let t of typeOptions" [value]="t.id">{{t.name}}</mat-option>
                                 </mat-select>
+                                <mat-hint class="field-error" *ngIf="(formSubmitted || categoryInfoSubmitted) && isTypeInvalid()">Type is required.</mat-hint>
                             </mat-form-field>
                         </div>
                     </div>
 
                     <div class="form-actions">
                         <span></span>
-                        <button mat-button matStepperNext type="button" class="next-btn">
+                        <button mat-button type="button" class="next-btn" (click)="goToAccessStep(stepper)">
                             <span>Next</span>
                             <mat-icon>arrow_forward</mat-icon>
                         </button>
@@ -84,7 +87,7 @@
                             <mat-icon class="section-icon">apartment</mat-icon>
                             <div class="section-header-text">
                                 <h2 class="section-heading">Department & Team Access</h2>
-                                <p class="section-desc">Assign departments and teams for this category.</p>
+                                <p class="section-desc">Assign departments and teams for this question bank.</p>
                             </div>
                         </div>
 
@@ -92,18 +95,25 @@
                             <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Departments (required)</mat-label>
                                 <mat-icon matPrefix>apartment</mat-icon>
-                                <mat-select multiple [value]="selectedDepartments"
-                                    (selectionChange)="setDepartments($event.value)">
-                                    <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
+                                <mat-select required multiple [value]="departmentSelectValue">
+                                    <mat-option [value]="ALL_OPTION_VALUE"
+                                        (onSelectionChange)="toggleAllDepartments($event)">All</mat-option>
+                                    <mat-option *ngFor="let d of departments" [value]="d.id"
+                                        (onSelectionChange)="setDepartmentOption(d.id, $event)">{{d.name}}</mat-option>
                                 </mat-select>
+                                <mat-hint class="field-error" *ngIf="formSubmitted && isDepartmentsInvalid()">Please select at least one department.</mat-hint>
                             </mat-form-field>
 
                             <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Teams (required)</mat-label>
                                 <mat-icon matPrefix>group</mat-icon>
-                                <mat-select multiple [value]="selectedTeams" (selectionChange)="setTeams($event.value)">
-                                    <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
+                                <mat-select required multiple [value]="teamSelectValue">
+                                    <mat-option [value]="ALL_OPTION_VALUE"
+                                        (onSelectionChange)="toggleAllTeams($event)">All</mat-option>
+                                    <mat-option *ngFor="let t of teams" [value]="t.id"
+                                        (onSelectionChange)="setTeamOption(t.id, $event)">{{t.name}}</mat-option>
                                 </mat-select>
+                                <mat-hint class="field-error" *ngIf="formSubmitted && isTeamsInvalid()">Please select at least one team.</mat-hint>
                             </mat-form-field>
                         </div>
                     </div>
@@ -121,16 +131,18 @@
                             <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Mark for each question</mat-label>
                                 <mat-icon matPrefix>grade</mat-icon>
-                                <input matInput [value]="markForEachQuestion"
+                                <input matInput required [value]="markForEachQuestion"
                                     (input)="setMark($any($event.target).value)" placeholder="e.g. 1" />
+                                <mat-hint class="field-error" *ngIf="formSubmitted && isMarkInvalid()">Mark for each question is required and must be a number.</mat-hint>
                             </mat-form-field>
 
                             <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Status</mat-label>
                                 <mat-icon matPrefix>toggle_on</mat-icon>
-                                <mat-select [value]="status" (selectionChange)="setStatus($event.value)">
+                                <mat-select required [value]="status" (selectionChange)="setStatus($event.value)">
                                     <mat-option *ngFor="let s of statusOptions" [value]="s.id">{{s.name}}</mat-option>
                                 </mat-select>
+                                <mat-hint class="field-error" *ngIf="formSubmitted && isStatusInvalid()">Status is required.</mat-hint>
                             </mat-form-field>
                         </div>
 
@@ -236,7 +248,7 @@
                         </button>
                         <button mat-flat-button color="primary" (click)="save()" type="button" class="submit-btn">
                             <mat-icon>save</mat-icon>
-                            <span>{{ isEditing ? 'Update' : 'Create Category' }}</span>
+                            <span>{{ isEditing ? 'Update' : 'Create Question Bank' }}</span>
                         </button>
                     </div>
                 </div>
@@ -244,3 +256,6 @@
         </mat-horizontal-stepper>
     </div>
 </div>
+
+
+

@@ -8,7 +8,7 @@
     <div class="form-actions">
       <button mat-flat-button color="accent" type="button" class="btn-cancel" routerLink="/view-institutes">
         <mat-icon svgIcon="arrow_back"></mat-icon>
-        <span>View Institutes</span>
+        <span>Cancel</span>
       </button>
     </div>
   </div>
@@ -50,7 +50,7 @@
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Primary Contact Person (Admin)</mat-label>
                   <mat-icon matPrefix>person</mat-icon>
-                  <input matInput formControlName="primary_contact_person" placeholder="Full name" />
+                  <input matInput formControlName="primary_contact_person" placeholder="Enter your number" />
                   <mat-error *ngIf="form.controls['primary_contact_person'].hasError('required')">Contact person is required</mat-error>
                 </mat-form-field>
 
@@ -80,7 +80,7 @@
 
             <div class="form-actions">
               <span></span>
-              <button type="button" mat-button matStepperNext >
+              <button type="button" mat-button matStepperNext class="next-btn">
                 <span>Next</span>
                 <mat-icon svgIcon="arrow_forward"></mat-icon>
               </button>
@@ -114,9 +114,10 @@
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Industry Sector</mat-label>
                   <mat-icon matPrefix>category</mat-icon>
-                  <mat-select formControlName="industry_sector">
+                  <!-- Disabled until Industry Type provides valid sector options. -->
+                  <mat-select formControlName="industry_sector" [disabled]="!sectorOptions.length">
                     <mat-option *ngFor="let s of sectorOptions" [value]="s">{{s}}</mat-option>
-                    <mat-option *ngIf="!sectorOptions || sectorOptions.length === 0" value="">-- Select industry type first --</mat-option>
+                    <mat-option *ngIf="!sectorOptions.length" disabled>-- Select industry type first --</mat-option>
                   </mat-select>
                   <mat-error *ngIf="form.controls['industry_sector'].hasError('required')">Select industry sector</mat-error>
                 </mat-form-field>
@@ -176,7 +177,7 @@
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Max Users Limit</mat-label>
                   <mat-icon matPrefix>person_add</mat-icon>
-                  <input matInput type="number" formControlName="max_users" placeholder="e.g. 500" />
+                  <input matInput type="number" formControlName="max_users" placeholder="e.g. 500" (keydown.enter)="$event.preventDefault()" />
                   <mat-error *ngIf="form.controls['max_users'].hasError('min')">Value must be at least 1</mat-error>
                 </mat-form-field>
 
@@ -222,7 +223,8 @@
                 <mat-icon svgIcon="arrow_back"></mat-icon>
                 <span>Back</span>
               </button>
-              <button type="button" mat-button matStepperNext class="next-btn">
+              <!-- Custom handler prevents moving forward until Industry Type and Sector are valid. -->
+              <button type="button" mat-button class="next-btn" (click)="goToLocations(stepper)">
                 <span>Next</span>
                 <mat-icon svgIcon="arrow_forward"></mat-icon>
               </button>
@@ -236,7 +238,7 @@
           <div class="step-content">
 
             <!-- Head Office -->
-            <div class="section-block" *ngIf="!isEditing">
+            <div class="section-block">
               <div class="section-header">
                 <mat-icon class="section-icon">apartment</mat-icon>
                 <div>
@@ -248,7 +250,8 @@
               <div class="field-row">
                 <div class="field-half tall">
                   <div [formGroupName]="'headOffice'">
-                    <mat-form-field appearance="outline" class="field-full">
+                    <!-- Alignment fix: textarea uses a scoped class so the prefix icon sits at the top. -->
+                    <mat-form-field appearance="outline" class="field-full head-office-address">
                       <mat-label>Head Office Address</mat-label>
                       <mat-icon matPrefix>location_on</mat-icon>
                       <textarea matInput formControlName="address" rows="2" placeholder="Street, landmark, postal code"></textarea>
@@ -258,48 +261,68 @@
 
                 <div class="field-half">
                   <div [formGroupName]="'headOffice'">
-                    <div class="field-row compact-row">
-                      <mat-form-field appearance="outline" class="field-third">
+                    <div class="field-row compact-row head-office-location-row">
+                      <!-- Alignment fix: all right-side fields share the same control class. -->
+                      <mat-form-field appearance="outline" class="field-third head-office-control">
                         <mat-label>Country</mat-label>
                         <mat-icon matPrefix>public</mat-icon>
-                        <mat-select formControlName="country">
-                          <mat-option *ngFor="let c of countries" [value]="c.id">{{ c.name }}</mat-option>
+                        <mat-select formControlName="country" (openedChange)="onHeadOfficeCountryOpened($event)">
+                          <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                            <input matInput class="select-search-input" placeholder="Search country"
+                              [(ngModel)]="headOfficeCountrySearch"
+                              [ngModelOptions]="{standalone: true}"
+                              (click)="$event.stopPropagation()"
+                              (keydown)="stopLocationSearchEvent($event)"
+                              (keyup)="stopLocationSearchEvent($event)"
+                              (input)="stopLocationSearchEvent($event)" />
+                          </mat-option>
+                          <mat-option *ngFor="let c of filteredHeadOfficeCountries" [value]="c.id">{{ c.name }}</mat-option>
                         </mat-select>
                       </mat-form-field>
 
-                      <mat-form-field appearance="outline" class="field-third">
+                      <mat-form-field appearance="outline" class="field-third head-office-control">
                         <mat-label>State</mat-label>
                         <mat-icon matPrefix>map</mat-icon>
-                        <mat-select formControlName="state" [attr.aria-disabled]="!stateOptions.length || loadingStates">
-                          <mat-option *ngFor="let s of stateOptions" [value]="s.id">{{ s.name }}</mat-option>
+                        <mat-select formControlName="state"
+                          [disabled]="!form.get('headOffice.country')?.value || !stateOptions.length || loadingStates"
+                          (openedChange)="onHeadOfficeStateOpened($event)">
+                          <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                            <input matInput class="select-search-input" placeholder="Search state"
+                              [(ngModel)]="headOfficeStateSearch"
+                              [ngModelOptions]="{standalone: true}"
+                              (click)="$event.stopPropagation()"
+                              (keydown)="stopLocationSearchEvent($event)"
+                              (keyup)="stopLocationSearchEvent($event)"
+                              (input)="stopLocationSearchEvent($event)" />
+                          </mat-option>
+                          <mat-option *ngFor="let s of filteredHeadOfficeStates" [value]="s.id">{{ s.name }}</mat-option>
                         </mat-select>
-                        <mat-hint *ngIf="!loadingStates && !stateOptions.length">No states</mat-hint>
+                        <mat-hint *ngIf="!loadingStates && !form.get('headOffice.country')?.value">Select country first</mat-hint>
+                        <mat-hint *ngIf="!loadingStates && form.get('headOffice.country')?.value && !stateOptions.length">No states available</mat-hint>
                       </mat-form-field>
 
-                      <mat-form-field appearance="outline" class="field-third">
+                      <mat-form-field appearance="outline" class="field-third head-office-control head-office-city">
                         <mat-label>City</mat-label>
                         <mat-icon matPrefix>location_city</mat-icon>
-                        <mat-select formControlName="city" [attr.aria-disabled]="!cityOptions.length || loadingCities">
-                          <mat-option *ngFor="let city of cityOptions" [value]="city.id">{{ city.name }}</mat-option>
-                        </mat-select>
-                        <mat-hint *ngIf="!loadingCities && !cityOptions.length">No cities</mat-hint>
+                        <!-- Changed from dropdown to text input so users can type the city directly. -->
+                        <input matInput type="text" formControlName="city" placeholder="City" />
                       </mat-form-field>
                     </div>
 
                     <div class="field-row compact-row">
-                      <mat-form-field appearance="outline" class="field-third">
+                      <mat-form-field appearance="outline" class="field-third head-office-control">
                         <mat-label>Pincode</mat-label>
                         <mat-icon matPrefix>pin_drop</mat-icon>
                         <input matInput formControlName="pincode" placeholder="Pincode / ZIP" />
                       </mat-form-field>
 
-                      <mat-form-field appearance="outline" class="field-third">
+                      <mat-form-field appearance="outline" class="field-third head-office-control">
                         <mat-label>Head Office Email</mat-label>
                         <mat-icon matPrefix>email</mat-icon>
                         <input matInput formControlName="email" placeholder="info@example.com" />
                       </mat-form-field>
 
-                      <mat-form-field appearance="outline" class="field-third">
+                      <mat-form-field appearance="outline" class="field-third head-office-control">
                         <mat-label>Head Office Phone</mat-label>
                         <mat-icon matPrefix>phone</mat-icon>
                         <input matInput formControlName="phone" placeholder="Phone" />
@@ -385,8 +408,18 @@
                           <mat-form-field appearance="outline" class="field-full">
                             <mat-label>Country</mat-label>
                             <mat-icon matPrefix>public</mat-icon>
-                            <mat-select formControlName="country">
-                              <mat-option *ngFor="let cc of countries" [value]="cc.id">{{ cc.name }}</mat-option>
+                            <mat-select formControlName="country" (openedChange)="onCampusCountryOpened(c, $event)">
+                              <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <input matInput class="select-search-input" placeholder="Search country"
+                                  [ngModel]="getCampusCountrySearch(c)"
+                                  (ngModelChange)="setCampusCountrySearch(c, $event)"
+                                  [ngModelOptions]="{standalone: true}"
+                                  (click)="$event.stopPropagation()"
+                                  (keydown)="stopLocationSearchEvent($event)"
+                                  (keyup)="stopLocationSearchEvent($event)"
+                                  (input)="stopLocationSearchEvent($event)" />
+                              </mat-option>
+                              <mat-option *ngFor="let cc of getFilteredCampusCountries(c)" [value]="cc.id">{{ cc.name }}</mat-option>
                             </mat-select>
                           </mat-form-field>
 
@@ -394,20 +427,30 @@
                             <mat-label>State</mat-label>
                             <mat-icon matPrefix>map</mat-icon>
                             <mat-select formControlName="state"
-                              [attr.aria-disabled]="!campusStateOptions[(c.get('_cid')?.value)].length || campusLoadingStates[(c.get('_cid')?.value)]">
-                              <mat-option *ngFor="let s of campusStateOptions[(c.get('_cid')?.value)]" [value]="s.id">{{ s.name }}</mat-option>
+                              [disabled]="!c.get('country')?.value || !(campusStateOptions[(c.get('_cid')?.value)] || []).length || campusLoadingStates[(c.get('_cid')?.value)]"
+                              (openedChange)="onCampusStateOpened(c, $event)">
+                              <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <input matInput class="select-search-input" placeholder="Search state"
+                                  [ngModel]="getCampusStateSearch(c)"
+                                  (ngModelChange)="setCampusStateSearch(c, $event)"
+                                  [ngModelOptions]="{standalone: true}"
+                                  (click)="$event.stopPropagation()"
+                                  (keydown)="stopLocationSearchEvent($event)"
+                                  (keyup)="stopLocationSearchEvent($event)"
+                                  (input)="stopLocationSearchEvent($event)" />
+                              </mat-option>
+                              <mat-option *ngFor="let s of getFilteredCampusStates(c)" [value]="s.id">{{ s.name }}</mat-option>
                             </mat-select>
-                            <mat-hint *ngIf="!campusLoadingStates[(c.get('_cid')?.value)] && !campusStateOptions[(c.get('_cid')?.value)].length">No states found</mat-hint>
+                            <mat-hint *ngIf="!campusLoadingStates[(c.get('_cid')?.value)] && !c.get('country')?.value">Select country first</mat-hint>
+                            <mat-hint *ngIf="!campusLoadingStates[(c.get('_cid')?.value)] && c.get('country')?.value && !(campusStateOptions[(c.get('_cid')?.value)] || []).length">No states available</mat-hint>
                           </mat-form-field>
 
                           <mat-form-field appearance="outline" class="field-full">
                             <mat-label>City</mat-label>
                             <mat-icon matPrefix>location_city</mat-icon>
-                            <mat-select formControlName="city"
-                              [attr.aria-disabled]="!campusCityOptions[(c.get('_cid')?.value)].length || campusLoadingCities[(c.get('_cid')?.value)]">
-                              <mat-option *ngFor="let city of campusCityOptions[(c.get('_cid')?.value)]" [value]="city.id">{{ city.name }}</mat-option>
-                            </mat-select>
-                            <mat-hint *ngIf="!campusLoadingCities[(c.get('_cid')?.value)] && !campusCityOptions[(c.get('_cid')?.value)].length">No cities found</mat-hint>
+                           <input matInput type="text" formControlName="city" placeholder="City" />
+                            <mat-hint *ngIf="!campusLoadingCities[(c.get('_cid')?.value)] && !c.get('state')?.value">Select state first</mat-hint>
+                            <mat-hint *ngIf="!campusLoadingCities[(c.get('_cid')?.value)] && c.get('state')?.value && !(campusCityOptions[(c.get('_cid')?.value)] || []).length">No cities available</mat-hint>
                           </mat-form-field>
 
                           <mat-form-field appearance="outline" class="field-full">
@@ -596,10 +639,11 @@
                 <mat-icon svgIcon="arrow_back"></mat-icon>
                 <span>Back</span>
               </button>
-              <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid" class="submit-btn">
+              <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || isSubmitting" class="submit-btn">
                 <mat-icon svgIcon="save"></mat-icon>
-                <span *ngIf="!isEditing">Register</span>
-                <span *ngIf="isEditing">Save Changes</span>
+                <span *ngIf="isSubmitting">Saving...</span>
+                <span *ngIf="!isSubmitting && !isEditing">Register</span>
+                <span *ngIf="!isSubmitting && isEditing">Save Changes</span>
               </button>
             </div>
           </div>

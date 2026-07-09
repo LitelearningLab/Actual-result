@@ -1,5 +1,6 @@
 # from django import db
 from db.models import Institute, User, AppSession, Credential
+from sqlalchemy import or_
 
 import datetime
 import re
@@ -123,53 +124,63 @@ class JWTValidator:
             return str(e)
 
     def login(self,data):
-        db = SQLiteDB()
-        session = db.connect()
+        try:
+            db = SQLiteDB()
+            session = db.connect()
+            if not session:
+                return {"statusMessage": "Database connection failed", "status": False}, 500
 
-        email = data.get('email')
-        password = data.get('password')
+            identifier = (data.get('identifier') or data.get('email') or data.get('username') or '').strip()
+            password = data.get('password')
 
-        user = session.query(User).filter_by(email=email).first()
-        if not user:
-            json_data ={
-                "statusMessage": "User not found",
-                "status": False
-            }
+            user = session.query(User).filter(
+                or_(User.email == identifier, User.user_name == identifier)
+            ).first()
+            if not user:
+                json_data ={
+                    "statusMessage": "Invalid email/username or password",
+                    "status": False
+                }
 
-            return json_data, 404
-        cred = session.query(Credential).filter_by(user_id=user.user_id).first()
-        if not cred or not argon2.verify(password, cred.password_hash):
+                return json_data, 404
+            cred = session.query(Credential).filter_by(user_id=user.user_id).first()
+            if not cred or not argon2.verify(password, cred.password_hash):
+                json_data = {
+                    "statusMessage": "Invalid email/username or password",
+                    "status": False
+                }
+
+                return json_data, 401
+
+            institute = None
+            if user.institute_id:
+                institute = session.query(Institute).filter_by(institute_id=user.institute_id).first()
+
+            token = self.generate_jwt(user.email)
+            session_data = AppSession(user_id=user.user_id, token=token)
+            session.add(session_data)
+            session.commit()
+
             json_data = {
-                "statusMessage": "Invalid password",
-                "status": False
+                "statusMessage": "Login successful",
+                "user": {
+                    'user_id': user.user_id,
+                    'name': user.full_name,
+                    'username': user.user_name,
+                    'email':user.email,
+                    'institute': institute.name if institute else None,
+                    'institute_short_name': institute.short_name if institute else None,
+                    'institute_id': user.institute_id,
+                    'role': user.user_role
+                },
+                "status": True,
+                "token": token
             }
 
-            return json_data, 401
-
-        institute = session.query(Institute).filter_by(institute_id=user.institute_id).first()
-
-        token = self.generate_jwt(user.email)
-        session_data = AppSession(user_id=user.user_id, token=token)
-        session.add(session_data)
-        session.commit()
-
-        json_data = {
-            "statusMessage": "Login successful",
-            "user": {
-                'user_id': user.user_id,
-                'name': user.full_name,
-                'username': user.user_name,
-                'email':user.email,
-                'institute': institute.name,
-                'institute_short_name': institute.short_name,
-                'institute_id': user.institute_id,
-                'role': user.user_role
-            },
-            "status": True,
-            "token": token
-        }
-
-        return json_data, 200
+            return json_data, 200
+        except Exception as e:
+            print(f"Login error: {e}", flush=True)
+            return {"statusMessage": str(e), "status": False}, 500
 
     def refresh_token(self, request):
         try:

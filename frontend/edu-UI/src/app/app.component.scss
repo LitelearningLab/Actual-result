@@ -57,7 +57,6 @@ html, body { width:100%; margin:0; padding:0; min-height:100%; background-color:
   position: relative;
 }
 
-/* Side nav: left column, same height as app-main */
 // .app-sidenav {
 //   position: relative;
 //   flex: 0 0 auto;
@@ -209,3 +208,7 @@ html, body { width:100%; margin:0; padding:0; min-height:100%; background-color:
     background: #b2bacb;
     border-radius: 0.4375rem;
   }
+
+.global-institute-active .local-institute-field {
+  display: none !important;
+}

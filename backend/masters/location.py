@@ -10,7 +10,10 @@ def get_location_hierarchy_details(request):
         return None
 
     # Get filter arguments from request.args and apply filters
-    filters = []
+    countries = []
+    states = []
+    cities = []
+    extra_cities = []
     args = getattr(request, "args", {})
     if args:
         if "institute_id" in args:
@@ -35,6 +38,12 @@ def get_location_hierarchy_details(request):
                 city_ids = [institute_campus.city_id]
                 if city_ids:
                     cities = session.query(City).filter(City.city_id.in_(city_ids)).all()
+                    if not cities and institute_campus.city_id:
+                        extra_cities.append({
+                            "id": institute_campus.city_id,
+                            "name": institute_campus.city_id,
+                            "state_id": institute_campus.state_id
+                        })
                 else:
                     cities = session.query(City).filter(City.country_id.in_(country_ids)).all()
         elif "country_id" in args:
@@ -47,6 +56,9 @@ def get_location_hierarchy_details(request):
                 cities = session.query(City).filter(City.state_id.in_(state_ids)).all()
             else:
                 cities = session.query(City).filter(City.country_id.in_(country_ids)).all()
+        elif "state_id" in args:
+            states = session.query(State).filter(State.state_id == args["state_id"]).all()
+            cities = session.query(City).filter(City.state_id == args["state_id"]).all()
         elif "country" in args:
             countries = session.query(Country).filter(Country.country_id == args["country"]).all()
             # get state_ids from countries
@@ -66,7 +78,7 @@ def get_location_hierarchy_details(request):
     json_data = {
         "countries": [{"id": c.country_id, "name": c.country_name} for c in countries],
         "states": [{"id": s.state_id, "name": s.state_name, "country_id": s.country_id} for s in states],
-        "cities": [{"id": ct.city_id, "name": ct.city_name, "state_id": ct.state_id} for ct in cities],
+        "cities": [{"id": ct.city_id, "name": ct.city_name, "state_id": ct.state_id} for ct in cities] + extra_cities,
     }
 
     json_data = {

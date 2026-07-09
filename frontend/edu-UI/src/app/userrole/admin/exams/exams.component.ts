@@ -1,4 +1,4 @@
-import { Component, ViewChild, AfterViewInit, OnInit, ElementRef, TemplateRef, ViewContainerRef } from '@angular/core';
+import { Component, ViewChild, AfterViewInit, OnInit, OnDestroy ,ElementRef, TemplateRef, ViewContainerRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -6,10 +6,10 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTableModule } from '@angular/material/table';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSort } from '@angular/material/sort';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
@@ -33,14 +33,15 @@ import { DirectivesModule } from 'src/app/shared/directives/directives.module';
 @Component({
   selector: 'app-admin-exams',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, HttpClientModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatButtonModule, MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule, MatListModule, MatTabsModule, MatDatepickerModule, MatNativeDateModule, MatCheckboxModule, OverlayModule, PortalModule, DirectivesModule],
+  imports: [CommonModule, FormsModule, RouterModule, HttpClientModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatAutocompleteModule, MatButtonModule, MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule, MatListModule, MatTabsModule, MatDatepickerModule, MatCheckboxModule, OverlayModule, PortalModule, DirectivesModule],
 
   templateUrl: './exams.component.html',
   styleUrls: ['./exams.component.scss']
 })
-export class AdminExamsComponent implements AfterViewInit {
+export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   institutes: Array<{ short_name: string; institute_id?: string }> = [];
   selectedInstitute = '';
+  instituteSearch = '';
   filter = '';
   // new filter fields
   filterName: string = '';
@@ -59,10 +60,12 @@ export class AdminExamsComponent implements AfterViewInit {
   showModal = false;
   displayedColumns: string[] = ['title', 'description', 'total_questions', 'duration_mins', 'number_of_attempts', 'actions'];
   dataSource = new MatTableDataSource<any>([]);
+  hasAppliedFilters = false;
+  private shouldLoadTestsAfterInstitutes = false;
   private apiUrl = `${API_BASE}/get-institute-list`;
 
   isSuperAdmin = false;
-  constructor(private http: HttpClient, private auth: AuthService, private loader: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private confirmService: ConfirmService) {
+  constructor(private http: HttpClient, private auth: AuthService, private loader: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private confirmService: ConfirmService, private router: Router) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
       this.isSuperAdmin = !!this.auth.currentUserValue && ['super_admin', 'superadmin', 'super-admin'].includes((this.auth.currentUserValue.role || '').toLowerCase());
@@ -77,7 +80,7 @@ export class AdminExamsComponent implements AfterViewInit {
 
   clearEditAndCreate() {
     try { sessionStorage.removeItem('edit_exam'); } catch (e) { }
-    (window as any).location.href = '/create-exam';
+    this.openCreateTest();
   }
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -86,6 +89,10 @@ export class AdminExamsComponent implements AfterViewInit {
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
 
   refresh() {
+    if (!this.hasAppliedFilters) {
+      try { notify('Apply filters to fetch tests', 'info'); } catch (e) {}
+      return;
+    }
     this.loadExamsForInstitute(this.selectedInstitute || undefined);
   }
   applyFilter(filterValue: string) {
@@ -93,8 +100,17 @@ export class AdminExamsComponent implements AfterViewInit {
   }
   private filtersOverlayRef: OverlayRef | null = null;
   ngOnInit(): void {
-    this.pageMeta.setMeta('Exams', 'Browse and review exams');
+    this.pageMeta.setMeta('Tests', 'Browse and review tests');
+    const restoredReturnState = this.restoreTestsReturnState();
+    try {
+      if (!restoredReturnState && sessionStorage.getItem('exams_return_state') === 'true') {
+        sessionStorage.removeItem('exams_return_state');
+        this.hasAppliedFilters = false;
+        this.shouldLoadTestsAfterInstitutes = true;
+      }
+    } catch (e) { }
     this.loadInstitutes();
+    this.applyGlobalInstituteScopeIfActive();
   }
 
   openFiltersOverlay() {
@@ -123,6 +139,109 @@ export class AdminExamsComponent implements AfterViewInit {
   ngAfterViewInit(): void {
     this.dataSource.sort = this.sort;
   }
+
+  ngOnDestroy(): void {
+  this.saveTestsReturnState();
+}
+
+  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
+    if (!this.hasAppliedFilters) return [];
+    const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    if (this.selectedInstitute) chips.push({ key: 'institute', label: `Institute: ${this.getInstituteLabel(this.selectedInstitute)}`, removable: this.isSuperAdmin });
+    if (this.filterName) chips.push({ key: 'name', label: `Test: ${this.filterName}`, removable: true });
+    (this.selectedDepartments || []).forEach(id => chips.push({ key: `department:${id}`, label: `Department: ${this.getSelectedName(this.departments, id)}`, removable: true }));
+    (this.selectedTeams || []).forEach(id => chips.push({ key: `team:${id}`, label: `Team: ${this.getSelectedName(this.teams, id)}`, removable: true }));
+    if (this.filterCreationDateAfter) chips.push({ key: 'created_after', label: `Created after: ${this.formatFilterDate(this.filterCreationDateAfter)}`, removable: true });
+    if (this.filterCreationDate) chips.push({ key: 'created_before', label: `Created before: ${this.formatFilterDate(this.filterCreationDate)}`, removable: true });
+    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') chips.push({ key: 'active_status', label: `Status: ${this.filterActiveStatus ? 'Active' : 'Inactive'}`, removable: true });
+    if (this.filterCreatedByMe) chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
+    return chips;
+  }
+
+  removeAppliedFilter(key: string) {
+    if (!key) return;
+    if (key === 'institute' && this.isSuperAdmin) { this.selectedInstitute = ''; this.instituteSearch = ''; this.selectedDepartments = []; this.selectedTeams = []; this.departments = []; this.teams = []; }
+    else if (key === 'name') this.filterName = '';
+    else if (key.startsWith('department:')) this.selectedDepartments = this.selectedDepartments.filter(id => String(id) !== key.substring('department:'.length));
+    else if (key.startsWith('team:')) this.selectedTeams = this.selectedTeams.filter(id => String(id) !== key.substring('team:'.length));
+    else if (key === 'created_after') this.filterCreationDateAfter = null;
+    else if (key === 'created_before') this.filterCreationDate = null;
+    else if (key === 'active_status') this.filterActiveStatus = null;
+    else if (key === 'created_by_me') this.filterCreatedByMe = false;
+    this.refreshAfterFilterChipChange();
+  }
+
+  clearAppliedFilters() { this.onReset(); }
+  private refreshAfterFilterChipChange() { if (this.appliedFilterChips.length) this.loadExamsForInstitute(this.selectedInstitute || undefined); else { this.hasAppliedFilters = false; this.exams = []; this.dataSource.data = []; } }
+  private getInstituteLabel(id: any): string { const found = this.institutes.find(i => String(i.institute_id) === String(id)); return found?.short_name || String(id || ''); }
+  private getSelectedName(list: any[], selectedId: any): string { const found = (list || []).find(item => String(item?.id) === String(selectedId)); return found?.name || String(selectedId || ''); }
+  private formatFilterDate(value: Date): string { try { return value.toISOString().slice(0, 10); } catch (e) { return String(value || ''); } }
+  private toNumber(value: any): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return isNaN(n) ? null : n;
+  }
+
+  private getMarksPerQuestion(value: any): number | null {
+    return this.toNumber(
+      value?.marks_per_question ??
+      value?.marksPerQuestion ??
+      value?.mark_each_question ??
+      value?.markEachQuestion ??
+      value?.mark_for_each_question ??
+      value?.marks_for_each_question ??
+      value?.marksForEachQuestion ??
+      value?.question_mark ??
+      value?.question_marks ??
+      value?.category_mark ??
+      value?.category_marks ??
+      value?.marks ??
+      value?.mark ??
+      value?.points ??
+      value?.category?.marks_per_question ??
+      value?.category?.mark_each_question ??
+      value?.category?.mark_for_each_question ??
+      value?.category?.marks ??
+      value?.category?.mark
+    );
+  }
+
+  private getTotalMarks(value: any): number | null {
+    return this.toNumber(
+      value?.total_marks ??
+      value?.totalMarks ??
+      value?.total_mark ??
+      value?.marks_total ??
+      value?.total_score ??
+      value?.category?.total_marks
+    );
+  }
+
+  private getQuestionCount(value: any, questionArray: any[] = []): number {
+    const count = this.toNumber(
+      (Array.isArray(value?.questions) ? null : value?.questions) ??
+      value?.number_of_questions ??
+      value?.total_questions ??
+      value?.questions_count ??
+      value?.question_count ??
+      value?.count
+    );
+    if (count !== null) return count;
+    if (Array.isArray(value?.question_ids)) return value.question_ids.length;
+    if (Array.isArray(value?.questionIds)) return value.questionIds.length;
+    return questionArray.length;
+  }
+
+  private calculateTotalMarks(questions: any, marksPerQuestion: any): number | null {
+    const questionCount = this.toNumber(questions);
+    const marks = this.toNumber(marksPerQuestion);
+    return questionCount !== null && marks !== null ? questionCount * marks : null;
+  }
+
+  private deriveMarksFromQuestions(questions: any[]): number | null {
+    const marks = Array.from(new Set((questions || []).map((q: any) => this.getMarksPerQuestion(q)).filter((v: number | null) => v !== null))) as number[];
+    return marks.length === 1 ? marks[0] : null;
+  }
   onEdit(e: any) {
     // If we have an id for the exam, fetch the full exam details from the API
     const examId = e?.test_id || e?.exam_id || e?.id;
@@ -131,7 +250,7 @@ export class AdminExamsComponent implements AfterViewInit {
       this.http.get<any>(url).subscribe({
         next: (res) => {
           const item = Array.isArray(res?.data) && res.data.length ? res.data[0] : (res?.data || res?.item || e);
-          // normalize categories to the flat shape expected by CreateExamComponent.loadEditExam()
+          // normalize categories to the flat shape expected by CreateExamComponent.loadEditTest()
           const srcCats = Array.isArray(item.categories) ? item.categories : (Array.isArray(item.category_list) ? item.category_list : []);
           const mapped = srcCats.map((c: any) => {
             // if category is nested under c.category, prefer that
@@ -141,7 +260,8 @@ export class AdminExamsComponent implements AfterViewInit {
             const description = catObj.description || c.description || c.desc || '';
             const questionArray = Array.isArray(c.questions) ? c.questions : (Array.isArray(c.question_list) ? c.question_list : []);
             const question_ids = questionArray.map((q: any) => q.question_id || q.id || q._id || null).filter(Boolean);
-            const questionsCount = c.number_of_questions ?? c.total_questions ?? (questionArray.length || 0) ?? (c.questions_count || 0);
+            const questionsCount = this.getQuestionCount(c, questionArray);
+            const marksPerQuestion = this.getMarksPerQuestion(c) ?? this.deriveMarksFromQuestions(questionArray);
             const randomize = typeof c.randomize_questions === 'boolean' ? c.randomize_questions : (typeof c.randomize === 'boolean' ? c.randomize : false);
             return {
               category_id,
@@ -149,12 +269,16 @@ export class AdminExamsComponent implements AfterViewInit {
               description,
               questions: Number(questionsCount) || 0,
               question_ids,
-              randomize_questions: !!randomize
+              randomize_questions: !!randomize,
+              question_type: c.question_type || catObj.question_type || c.type || catObj.type || c.category_type || catObj.category_type || '',
+              marks_per_question: marksPerQuestion,
+              total_marks: this.getTotalMarks(c) ?? this.calculateTotalMarks(questionsCount, marksPerQuestion)
             };
           });
           const editPayload = { ...item, categories: mapped };
           try { sessionStorage.setItem('edit_exam', JSON.stringify(editPayload)); } catch (_) { }
-          (window as any).location.href = '/create-exam';
+          this.saveTestsReturnState();
+          this.router.navigate(['/create-exam']);
         }, error: () => {
           // fallback: store the row object we already have (try to normalize if possible)
           try {
@@ -164,39 +288,44 @@ export class AdminExamsComponent implements AfterViewInit {
               category_id: c.category_id || c.id || c._id || '',
               category_name: c.category_name || c.name || '',
               description: c.description || c.desc || '',
-              questions: Number(c.number_of_questions ?? c.total_questions ?? (Array.isArray(c.questions) ? c.questions.length : 0)) || 0,
+              questions: this.getQuestionCount(c, Array.isArray(c.questions) ? c.questions : (Array.isArray(c.question_list) ? c.question_list : [])),
               question_ids: Array.isArray(c.question_ids) ? c.question_ids : (Array.isArray(c.questionIds) ? c.questionIds : []),
-              randomize_questions: !!c.randomize_questions
+              randomize_questions: !!c.randomize_questions,
+              question_type: c.question_type || c.type || c.category_type || '',
+              marks_per_question: this.getMarksPerQuestion(c) ?? this.deriveMarksFromQuestions(Array.isArray(c.questions) ? c.questions : (Array.isArray(c.question_list) ? c.question_list : [])),
+              total_marks: this.getTotalMarks(c) ?? this.calculateTotalMarks(this.getQuestionCount(c, Array.isArray(c.questions) ? c.questions : (Array.isArray(c.question_list) ? c.question_list : [])), this.getMarksPerQuestion(c) ?? this.deriveMarksFromQuestions(Array.isArray(c.questions) ? c.questions : (Array.isArray(c.question_list) ? c.question_list : [])))
             }));
             const editPayloadFallback = { ...src, categories: mappedFallback };
             sessionStorage.setItem('edit_exam', JSON.stringify(editPayloadFallback));
           } catch (_) { try { sessionStorage.setItem('edit_exam', JSON.stringify(e)); } catch (_) { } }
-          (window as any).location.href = '/create-exam';
+          this.saveTestsReturnState();
+          this.router.navigate(['/create-exam']);
         }
       });
       return;
     }
     try { sessionStorage.setItem('edit_exam', JSON.stringify(e)); } catch (_) { }
-    (window as any).location.href = '/create-exam';
+    this.saveTestsReturnState();
+    this.router.navigate(['/create-exam']);
   }
 
   deleteSchedule(row: any) {
-    this.confirmService.confirm({ title: 'Delete Scheduled Exam', message: 'Delete this scheduled exam?', confirmText: 'Delete', cancelText: 'Cancel' }).subscribe(ok => {
+    this.confirmService.confirm({ title: 'Delete Scheduled Test', message: 'Delete this scheduled test?', confirmText: 'Delete', cancelText: 'Cancel' }).subscribe(ok => {
       if (!ok) return;
       const id = row.test_id || row.exam_id || row.id;
       if (!id) {
-        notify('Unable to delete: exam ID not found', 'error');
+        notify('Unable to delete: test ID not found', 'error');
         return;
       }
       const url = `${API_BASE}/delete-exam?exam_id=${encodeURIComponent(id)}`;
       this.http.delete<any>(url).subscribe({
         next: (res) => {
-          try { notify('Scheduled exam deleted successfully', 'success'); } catch (e) { }
+          try { notify('Scheduled test deleted successfully', 'success'); } catch (e) { }
           // reload exams
           this.loadExamsForInstitute(this.selectedInstitute || undefined);
         }, error: (err) => {
-          console.warn('Failed to delete scheduled exam', err);
-          try { notify('Failed to delete scheduled exam. Please try again later.', 'error'); } catch (e) { }
+          console.warn('Failed to delete scheduled test', err);
+          try { notify('Failed to delete scheduled test. Please try again later.', 'error'); } catch (e) { }
         }
       });
     });
@@ -307,10 +436,12 @@ export class AdminExamsComponent implements AfterViewInit {
               if (found) {
                 // ensure exact match type/value and load schedules
                 this.selectedInstitute = found.institute_id as any;
+                this.syncInstituteSearch();
                 // load dependent lists scoped to the institute
                 this.loadDepartments(this.selectedInstitute);
                 this.loadTeams(this.selectedInstitute);
-                this.loadExamsForInstitute(this.selectedInstitute);
+                this.loadExamsFromReturnState();
+                this.loader.hide();
                 return;
               }
             }
@@ -326,22 +457,69 @@ export class AdminExamsComponent implements AfterViewInit {
                 const found = this.institutes.find(i => String(i.institute_id) === String(instId));
                 if (found) {
                   this.selectedInstitute = found.institute_id as any;
+                  this.syncInstituteSearch();
                   // load dependent lists scoped to the institute
                   this.loadDepartments(this.selectedInstitute);
                   this.loadTeams(this.selectedInstitute);
-                  this.loadExamsForInstitute(this.selectedInstitute);
                 }
               }
             }
           } catch (e) { /* ignore malformed session data */ }
         }
+        this.loadExamsFromReturnState();
         this.loader.hide();
       },
       error: (err) => { console.warn('Failed to load institutes', err); this.loader.hide(); }
     });
   }
+
+  private loadExamsFromReturnState() {
+    if (!this.shouldLoadTestsAfterInstitutes) return;
+    this.shouldLoadTestsAfterInstitutes = false;
+  }
+
+  displayInstitute = (value: string | null): string => {
+    if (!value) return '';
+    const found = this.institutes.find(i => String(i.institute_id) === String(value));
+    return found ? found.short_name : String(value);
+  };
+  filteredInstitutes() {
+    const q = (this.instituteSearch || '').trim().toLowerCase();
+    if (!q) return this.institutes;
+    return this.institutes.filter((i: any) => (i.short_name || '').toLowerCase().includes(q));
+  }
+
+  onInstituteAutocompleteSelected(id: string) {
+    this.selectedInstitute = id || '';
+    this.syncInstituteSearch();
+    this.onInstituteChange(this.selectedInstitute);
+  }
+
+  private syncInstituteSearch() {
+    const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute || ''));
+    this.instituteSearch = found ? found.short_name : '';
+  }
+  private hasFilterValues(): boolean {
+    return !!(
+      this.filterName ||
+      this.selectedInstitute ||
+      this.selectedDepartments.length ||
+      this.selectedTeams.length ||
+      this.filterCreationDateAfter ||
+      this.filterCreationDate ||
+      this.filterActiveStatus !== null ||
+      this.filterCreatedByMe
+    );
+  }
+
   onApply() {
+    if (!this.hasFilterValues()) {
+      try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
+      return;
+    }
+    this.hasAppliedFilters = true;
     this.loadExamsForInstitute(this.selectedInstitute || undefined);
+    this.closeFiltersOverlay();
   }
   onReset() {
     // clear filter fields (preserve selectedInstitute unless you want to clear it)
@@ -352,8 +530,11 @@ export class AdminExamsComponent implements AfterViewInit {
     this.filterCreationDate = null;
     this.filterActiveStatus = null;
     this.filterCreatedByMe = false;
-    // reload with cleared filters
-    this.loadExamsForInstitute(this.selectedInstitute || undefined);
+    this.filter = '';
+    this.dataSource.filter = '';
+    this.exams = [];
+    this.dataSource.data = [];
+    this.hasAppliedFilters = false;
   }
   // ngAfterViewInit(): void {
   //   this.loadExamsForInstitute(this.selectedInstitute || undefined);
@@ -431,7 +612,10 @@ export class AdminExamsComponent implements AfterViewInit {
 
   onInstituteSelected(id: string) {
     this.selectedInstitute = id || '';
-    if (this.selectedInstitute) this.loadExamsForInstitute(this.selectedInstitute);
+    if (this.selectedInstitute) {
+      this.loadDepartments(this.selectedInstitute);
+      this.loadTeams(this.selectedInstitute);
+    }
   }
 
   onInstituteChange(value: any) {
@@ -440,12 +624,10 @@ export class AdminExamsComponent implements AfterViewInit {
     if (this.selectedInstitute) {
       this.loadDepartments(this.selectedInstitute);
       this.loadTeams(this.selectedInstitute);
-      this.loadExamsForInstitute(this.selectedInstitute);
     } else {
       // clear dependent lists
       this.departments = [];
       this.teams = [];
-      this.loadExamsForInstitute(undefined);
     }
   }
 
@@ -472,4 +654,66 @@ export class AdminExamsComponent implements AfterViewInit {
       }, error: (err) => { console.warn('Failed to load teams', err); this.teams = []; }
     });
   }
+  openCreateTest(): void {
+    this.saveTestsReturnState();
+    this.router.navigate(['/create-exam']);
+  }
+
+  saveTestsReturnState(): void {
+    try {
+      sessionStorage.setItem('exams_table_return_state', JSON.stringify({
+        filter: this.filter,
+        selectedInstitute: this.selectedInstitute,
+        instituteSearch: this.instituteSearch,
+        filterName: this.filterName,
+        selectedDepartments: this.selectedDepartments,
+        selectedTeams: this.selectedTeams,
+        filterCreationDateAfter: this.filterCreationDateAfter ? this.filterCreationDateAfter.toISOString() : null,
+        filterCreationDate: this.filterCreationDate ? this.filterCreationDate.toISOString() : null,
+        filterActiveStatus: this.filterActiveStatus,
+        filterCreatedByMe: this.filterCreatedByMe,
+        hasAppliedFilters: this.hasAppliedFilters,
+        exams: this.exams
+      }));
+    } catch (e) { }
+  }
+
+  private restoreTestsReturnState(): boolean {
+    try {
+      const raw = sessionStorage.getItem('exams_table_return_state');
+      if (!raw) return false;
+      sessionStorage.removeItem('exams_table_return_state');
+      sessionStorage.removeItem('exams_return_state');
+      const state = JSON.parse(raw);
+      this.filter = state?.filter || '';
+      this.selectedInstitute = state?.selectedInstitute || '';
+      this.instituteSearch = state?.instituteSearch || '';
+      this.filterName = state?.filterName || '';
+      this.selectedDepartments = Array.isArray(state?.selectedDepartments) ? state.selectedDepartments : [];
+      this.selectedTeams = Array.isArray(state?.selectedTeams) ? state.selectedTeams : [];
+      this.filterCreationDateAfter = state?.filterCreationDateAfter ? new Date(state.filterCreationDateAfter) : null;
+      this.filterCreationDate = state?.filterCreationDate ? new Date(state.filterCreationDate) : null;
+      this.filterActiveStatus = typeof state?.filterActiveStatus === 'undefined' ? null : state.filterActiveStatus;
+      this.filterCreatedByMe = !!state?.filterCreatedByMe;
+      this.hasAppliedFilters = !!state?.hasAppliedFilters;
+      this.exams = Array.isArray(state?.exams) ? state.exams : [];
+      this.dataSource.data = this.exams;
+      this.applyFilter(this.filter || '');
+      return true;
+    } catch (e) {
+      try { sessionStorage.removeItem('exams_table_return_state'); } catch (_) { }
+      return false;
+    }
+  }
+
+  private applyGlobalInstituteScopeIfActive(): void {
+    const iid = sessionStorage.getItem('global_institute_id') || '';
+    if (!iid) return;
+    this.selectedInstitute = iid;
+    this.hasAppliedFilters = false;
+    try { this.loadDepartments(iid); } catch (e) {}
+    try { this.loadTeams(iid); } catch (e) {}
+    this.exams = []; this.dataSource.data = [];
+  }
 }
+

@@ -23,13 +23,34 @@ export class UserDashboardComponent implements OnInit {
   selectedInstituteId: string | null = null;
   users: Array<any> = [];
   institutes: Array<any> = [];
+  isRegularUser = false;
+  lastUpdatedAt: Date | null = null;
 
   constructor(private pageMeta: PageMetaService, private svc: UserDashboardService,private loader: LoaderService){ }
 
   ngOnInit(): void {
     try{ this.pageMeta.setMeta('User Dashboard','Performance overview & analytics'); } catch(e){}
+    this.isRegularUser = this.getLoggedInRole() === 'user';
     // fetch institutes first, then users for the default institute
     this.svc.getInstitutes().subscribe({ next: (inst:any)=>{ this.institutes = inst || []; this.setDefaultInstitute(); }, error: ()=>{ this.setDefaultInstitute(); } });
+  }
+
+  private getLoggedInRole(): string {
+    try {
+      const raw = sessionStorage.getItem('user');
+      const u = raw ? JSON.parse(raw) : null;
+      return String(u?.role || u?.user_role || '').toLowerCase();
+    } catch(e) {
+      return '';
+    }
+  }
+
+  get lastUpdatedLabel(): string {
+    if (!this.lastUpdatedAt) return 'Updated just now';
+    const minutes = Math.floor((Date.now() - this.lastUpdatedAt.getTime()) / 60000);
+    if (minutes < 1) return 'Updated just now';
+    if (minutes === 1) return 'Updated 1 min ago';
+    return 'Updated ' + minutes + ' mins ago';
   }
 
   setDefaultUser(){
@@ -83,6 +104,8 @@ export class UserDashboardComponent implements OnInit {
 
     // charts mapping - reuse same mapping as superadmin when possible
     this.charts = res.charts || res.charts_list || [];
+    this.lastUpdatedAt = new Date();
   }
 
 }
+
