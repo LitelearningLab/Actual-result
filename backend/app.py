@@ -689,6 +689,7 @@ CORS(
                 "http://localhost:4200",
                 "http://127.0.0.1:4200",
                 "http://192.168.1.5:4200",
+                "http://34.100.213.250:4200"
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization", "X-Institute-Id", "X-Global-Institute-Id", "X-Skip-Institute-Context"],
@@ -700,7 +701,7 @@ CORS(
 @app.after_request
 def add_local_cors_headers(response):
     origin = request.headers.get("Origin")
-    if origin in ("http://localhost:4200", "http://127.0.0.1:4200", "http://192.168.1.5:4200"):
+    if origin in ("http://localhost:4200", "http://127.0.0.1:4200", "http://192.168.1.5:4200","http://34.100.213.250:4200"):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Institute-Id, X-Global-Institute-Id, X-Skip-Institute-Context"
