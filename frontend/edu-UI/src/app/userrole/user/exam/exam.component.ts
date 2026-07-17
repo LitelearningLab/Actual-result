@@ -25,6 +25,7 @@ export interface UserTestRow {
   start_time?: string;
   end_time?: string;
   scheduleTest?: string;
+  schedule_sort_time?: number;
   duration_mins?: number;
   total_questions?: number;
   total_marks?: number;
@@ -382,6 +383,14 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         // Prefix the weekday to match the compact schedule range used in the test list.
         return `${weekday} ${dd}-${mmm}-${yyyy} ${hh}:${mm}`;
       };
+      const dateTimestamp = (v: any): number => {
+        if (v === null || v === undefined || v === '') return 0;
+        const numericValue = typeof v === 'number' || /^\d+$/.test(String(v)) ? Number(v) : null;
+        const timestamp = numericValue !== null
+          ? (numericValue > 1e12 ? numericValue : numericValue * 1000)
+          : new Date(String(v)).getTime();
+        return Number.isFinite(timestamp) ? timestamp : 0;
+      };
 
       this.exams = arr.map((x: any) => {
         const normalizedType = (x.type || '').toString().toLowerCase();
@@ -393,7 +402,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           || reviewAvailable;
         // Expired (inactive) tests must show the configured schedule window, not attempt timestamps.
         const useAttemptTimes = isCompleted && !expired;
-        const startVal = fmtDate(useAttemptTimes ? x.user_start_time : (x.start_time || x.start));
+        const rawStartTime = useAttemptTimes ? x.user_start_time : (x.start_time || x.start);
+        const startVal = fmtDate(rawStartTime);
         const endVal = fmtDate(useAttemptTimes ? x.user_end_time : (x.end_time || x.end));
         const completedScheduleTest = startVal ? `${startVal} - ${endVal || '--'}` : '--';
         const scheduleTest = (startVal || endVal) ? `${startVal || '—'} - ${endVal || '—'}` : '—';
@@ -411,6 +421,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           expired,
           start_time: startVal,
           end_time: endVal,
+          // Keep the raw timestamp for reliable chronological ordering despite the formatted weekday label.
+          schedule_sort_time: dateTimestamp(rawStartTime),
           scheduleTest: isCompleted ? completedScheduleTest : scheduleTest,
           pass_mark: x.pass_mark || 0,
           number_of_attempts: x.number_of_attempts || 0,
@@ -479,8 +491,11 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
       || Boolean(exam.user_review || exam.review_available);
     const isUpcoming = (t?: string) => ['upcoming','scheduled','pending','upcomming'].includes(lc(t));
 
-    this.activeSource.data = this.exams.filter(e => isActive(e.type) || isUpcoming(e.type));
-    this.completeSource.data = this.exams.filter(isComplete);
+    const byScheduleDate = (a: UserTestRow, b: UserTestRow) =>
+      // Show the most recently dated tests first in both tabs.
+      (b.schedule_sort_time || 0) - (a.schedule_sort_time || 0);
+    this.activeSource.data = this.exams.filter(e => isActive(e.type) || isUpcoming(e.type)).sort(byScheduleDate);
+    this.completeSource.data = this.exams.filter(isComplete).sort(byScheduleDate);
   }
 
   isUpcomingTest(type?: string): boolean {
