@@ -434,6 +434,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
             start: formatDate(s.start_time || s.startDateTime || s.start || null),
             end: formatDate(s.end_time || s.endDateTime || s.end || null),
             publish: typeof s.publish !== 'undefined' ? s.publish : (typeof s.published !== 'undefined' ? !!s.published : false),
+            started_student_count: Number(s.started_student_count ?? 0),
             assigned_users: Array.isArray(s.assigned_users) ? s.assigned_users : [],
             raw: s
           };
@@ -631,7 +632,15 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
   togglePublish(row: any) {
     const newState = !row.publish;
-    this.confirmService.confirm({ title: (newState ? 'Publish' : 'Unpublish') + ' Schedule', message: `Are you sure you want to ${newState ? 'publish' : 'unpublish'} this schedule?`, confirmText: newState ? 'Publish' : 'Unpublish', cancelText: 'Cancel' }).subscribe(ok => {
+    const startedStudentCount = Number(row.started_student_count ?? row.raw?.started_student_count ?? 0);
+    // Only replace the existing dialog when unpublishing a schedule students have started.
+    const hasStartedStudents = !newState && startedStudentCount > 0;
+    const studentLabel = startedStudentCount === 1 ? 'student has' : 'students have';
+    const message = hasStartedStudents
+      ? `${startedStudentCount} ${studentLabel} already started this test.\n\nUnpublishing this schedule will stop their ongoing attempts. To make the test available again, you must create and publish a new test schedule.\n\nAre you sure you want to continue?`
+      : `Are you sure you want to ${newState ? 'publish' : 'unpublish'} this schedule?`;
+
+    this.confirmService.confirm({ title: (newState ? 'Publish' : 'Unpublish') + ' Schedule', message, confirmText: hasStartedStudents ? 'Confirm Unpublish' : (newState ? 'Publish' : 'Unpublish'), cancelText: 'Cancel' }).subscribe(ok => {
       if (!ok) return;
       // optimistic update
       const prev = row.publish;

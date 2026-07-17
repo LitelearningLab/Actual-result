@@ -2502,18 +2502,36 @@ class SessionService {
     this.http = http;
     this.router = router;
     this.ngZone = ngZone;
+    this.idleTimeoutMs = 10 * 60 * 1000;
+    this.activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
     this.listening = false;
+    this.lastActivityAt = Date.now();
+    this.idleTimer = null;
+    this.promptOpen = false;
+    this.refreshInProgress = false;
   }
   startListening() {
     if (this.listening) return;
     this.listening = true;
+    this.activityEvents.forEach(eventName => {
+      window.addEventListener(eventName, () => this.recordActivity(), {
+        passive: true
+      });
+    });
     window.addEventListener('sessionExpired', ev => {
       const msg = ev && ev.detail && ev.detail.message ? ev.detail.message : 'Your session has expired';
-      // run dialog open inside Angular zone
-      this.ngZone.run(() => this.promptExtendOrLogout(msg));
+      if (this.hasBeenIdleForTenMinutes()) {
+        this.ngZone.run(() => this.promptExtendOrLogout(msg));
+      } else {
+        // Active users should not be interrupted just because the current JWT expired.
+        this.tryRefreshToken();
+      }
     });
+    this.scheduleIdleCheck();
   }
   promptExtendOrLogout(message) {
+    if (this.promptOpen || !this.hasLoggedInSession()) return;
+    this.promptOpen = true;
     const ref = this.dialog.open(_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_1__.ConfirmDialogComponent, {
       data: {
         title: 'Session Expired',
@@ -2524,7 +2542,9 @@ class SessionService {
       disableClose: true
     });
     ref.afterClosed().pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.first)()).subscribe(ok => {
+      this.promptOpen = false;
       if (ok) {
+        this.recordActivity();
         this.tryRefreshToken();
       } else {
         this.doLogout();
@@ -2532,6 +2552,8 @@ class SessionService {
     });
   }
   tryRefreshToken() {
+    if (this.refreshInProgress || !this.hasLoggedInSession()) return;
+    this.refreshInProgress = true;
     const raw = sessionStorage.getItem('user');
     let userId = null;
     if (raw) {
@@ -2566,8 +2588,39 @@ class SessionService {
         } catch (e) {}
         ;
         this.doLogout();
+      },
+      complete: () => {
+        this.refreshInProgress = false;
       }
     });
+  }
+  recordActivity() {
+    if (this.promptOpen) return;
+    this.lastActivityAt = Date.now();
+    if (!this.idleTimer) this.scheduleIdleCheck();
+  }
+  scheduleIdleCheck() {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    const remainingMs = Math.max(0, this.idleTimeoutMs - (Date.now() - this.lastActivityAt));
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = null;
+      if (!this.hasBeenIdleForTenMinutes()) {
+        this.scheduleIdleCheck();
+        return;
+      }
+      // The warning is exclusively an inactivity warning after 10 uninterrupted minutes.
+      this.ngZone.run(() => this.promptExtendOrLogout('Your session has expired due to inactivity.'));
+    }, remainingMs);
+  }
+  hasBeenIdleForTenMinutes() {
+    return Date.now() - this.lastActivityAt >= this.idleTimeoutMs;
+  }
+  hasLoggedInSession() {
+    try {
+      return !!sessionStorage.getItem('token') && !!sessionStorage.getItem('user');
+    } catch (e) {
+      return false;
+    }
   }
   doLogout() {
     // Attempt to notify backend about logout. If it fails (e.g. expired token), still clear client state.
@@ -2602,6 +2655,10 @@ class SessionService {
     }
   }
   clearAndRedirect() {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = null;
+    this.promptOpen = false;
+    this.refreshInProgress = false;
     try {
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('user');

@@ -368,7 +368,10 @@ def get_exam_schedule_details(request):
         exam_list = []
         for schedule in schedules:
             # Existing attempts are the authoritative attendance signal.
-            has_attendance = session.query(Exam_Attempt.attempt_id).filter_by(schedule_id=schedule.schedule_id).first() is not None
+            started_student_count = session.query(
+                func.count(func.distinct(Exam_Attempt.user_id))
+            ).filter_by(schedule_id=schedule.schedule_id).scalar() or 0
+            has_attendance = started_student_count > 0
             #  get Exam details
             exam_title = None
             exam = session.query(Exam).filter_by(exam_id=schedule.exam_id).first()
@@ -420,6 +423,8 @@ def get_exam_schedule_details(request):
                 "show_student_answers": True if schedule.show_student_answers is None else bool(schedule.show_student_answers),
                 "show_explanations": True if schedule.show_explanations is None else bool(schedule.show_explanations),
                 "has_attendance": has_attendance,
+                # Count distinct students so retakes do not inflate the unpublish warning.
+                "started_student_count": started_student_count,
             })
     # institute_id	start_time	end_time	created_by	created_date	updated_by	updated_date	published
         json_data = {

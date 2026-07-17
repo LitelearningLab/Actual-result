@@ -66,6 +66,8 @@ export interface ConfirmDialogData {
           .dialog-message {
                color: var(--theme-3-text-3, #64748b);
                line-height: 1.5;
+               /* Preserve intentional paragraph breaks in longer confirmations. */
+               white-space: pre-line;
                margin: 0 0 1.5rem 0;
                font-size: 0.9375rem;
           }
