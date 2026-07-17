@@ -70,7 +70,7 @@
                         <td mat-cell *matCellDef="let row">
                            <div *ngIf="row.scheduleTest; else noActiveSchedule" class="schedule-range">
                               <div class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</div>
-                              <div class="schedule-separator">-</div>
+                              <div class="schedule-separator" aria-hidden="true"></div>
                               <div class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</div>
                            </div>
                            <ng-template #noActiveSchedule>—</ng-template>
@@ -150,7 +150,7 @@
                         <td mat-cell *matCellDef="let row">
                            <div *ngIf="row.scheduleTest; else noCompletedSchedule" class="schedule-range">
                               <div class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</div>
-                              <div class="schedule-separator">-</div>
+                              <div class="schedule-separator" aria-hidden="true"></div>
                               <div class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</div>
                            </div>
                            <ng-template #noCompletedSchedule>—</ng-template>
@@ -214,7 +214,7 @@
                      <div class="title">{{exam.title}}</div>
                      <div *ngIf="exam.scheduleTest; else noMobileSchedule" class="schedule-range schedule-range--mobile">
                         <div class="schedule-time schedule-time--start">{{ exam.scheduleTest.split(' - ')[0] }}</div>
-                        <div class="schedule-separator">-</div>
+                        <div class="schedule-separator" aria-hidden="true"></div>
                         <div class="schedule-time schedule-time--end">{{ exam.scheduleTest.split(' - ')[1] || '—' }}</div>
                      </div>
                      <ng-template #noMobileSchedule><div class="muted small">—</div></ng-template>
