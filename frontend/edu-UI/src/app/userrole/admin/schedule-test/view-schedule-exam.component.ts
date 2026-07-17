@@ -473,6 +473,39 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
   closeModal() { this.selectedSchedule = null; }
 
+  getReviewMode(schedule: any): string {
+    const configuredMode = (schedule?.review_mode || schedule?.reviewMode || '').toString().toLowerCase();
+    if (configuredMode) return configuredMode;
+    return schedule?.instant_review || schedule?.user_review ? 'instant' : 'no_review';
+  }
+
+  isReviewConfigured(schedule: any): boolean {
+    return this.getReviewMode(schedule) !== 'no_review';
+  }
+
+  getReviewModeLabel(schedule: any): string {
+    const labels: Record<string, string> = {
+      instant: 'Instant Review',
+      after_schedule_ends: 'After Schedule Ends',
+      after_everyone_finishes: 'After Everyone Finishes',
+      scheduled: 'Scheduled Review',
+      manual: 'Manual Review',
+      no_review: 'No Review'
+    };
+    const mode = this.getReviewMode(schedule);
+    return labels[mode] || mode.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+  }
+
+  getReviewDetailsLabel(schedule: any): string {
+    const details = [
+      schedule?.show_score ? 'Score' : '',
+      schedule?.show_correct_answers ? 'Correct answers' : '',
+      schedule?.show_student_answers ? 'Student answers' : '',
+      schedule?.show_explanations ? 'Explanations' : ''
+    ].filter(Boolean);
+    return details.length ? details.join(', ') : 'No result details selected';
+  }
+
   // localized formatter for various date inputs
   formatDate(v: any) {
     if (!v) return '';

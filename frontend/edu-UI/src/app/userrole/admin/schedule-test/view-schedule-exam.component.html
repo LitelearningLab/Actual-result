@@ -252,9 +252,27 @@
                                     <div class="label">Published</div>
                                     <div class="value">{{ (selectedSchedule.published != null ? selectedSchedule.published : (selectedSchedule.publish != null ? selectedSchedule.publish : '—')) }}</div>
 
-                                    <!-- user review -->
-                                    <div class="label">User Review</div>
-                                    <div class="value">{{ (selectedSchedule.user_review != null ? selectedSchedule.user_review : '—') }}</div>
+                                    <!-- Show the admin's review configuration instead of the legacy boolean flag. -->
+                                    <div class="label">Review Availability</div>
+                                    <div class="value">{{ getReviewModeLabel(selectedSchedule) }}</div>
+
+                                    <ng-container *ngIf="isReviewConfigured(selectedSchedule)">
+                                        <div class="label">Review Access</div>
+                                        <div class="value">{{ selectedSchedule.multiple_review ? 'Multiple times' : 'One time only' }}</div>
+
+                                        <ng-container *ngIf="getReviewMode(selectedSchedule) === 'scheduled'">
+                                            <div class="label">Review Available At</div>
+                                            <div class="value">{{ formatDate(selectedSchedule.review_at) || '—' }}</div>
+                                        </ng-container>
+
+                                        <ng-container *ngIf="getReviewMode(selectedSchedule) === 'manual'">
+                                            <div class="label">Manual Review Status</div>
+                                            <div class="value">{{ selectedSchedule.manual_review_enabled ? 'Open to users' : 'Closed to users' }}</div>
+                                        </ng-container>
+
+                                        <div class="label">Review Details</div>
+                                        <div class="value">{{ getReviewDetailsLabel(selectedSchedule) }}</div>
+                                    </ng-container>
                                 </div>
                             </div>
                         </mat-tab>
