@@ -5,9 +5,11 @@ BEGIN
         ADD manual_review_enabled BIT NOT NULL
             CONSTRAINT DF_ExamSchedules_manual_review_enabled DEFAULT (0) WITH VALUES;
 
-    -- Preserve the behavior of manual-review schedules created before this gate existed.
-    UPDATE dbo.ExamSchedules
-    SET manual_review_enabled = 1
-    WHERE review_mode = 'manual';
+    -- Compile the backfill after ALTER TABLE so SQL Server can resolve the new column.
+    EXEC sys.sp_executesql N'
+        UPDATE dbo.ExamSchedules
+        SET manual_review_enabled = 1
+        WHERE review_mode = ''manual'';
+    ';
 END;
 GO

@@ -653,6 +653,7 @@ def get_user_exam_details(request):
 
             scheduler_data.append({
                 'review_available': user_review,
+                'review_mode': review_mode,
                 'multiple_review': bool(schedule_obj.multiple_review),
                 'review_attempt_id': getattr(displayed_review_attempt, 'attempt_id', None),
                 'attempted': attempted,

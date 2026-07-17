@@ -35,6 +35,8 @@ export interface UserTestRow {
   user_review?: boolean;
   review_available?: boolean;
   review_attempt_id?: string;
+  review_mode?: string;
+  multiple_review?: boolean;
   attempted?: boolean;
   expired?: boolean;
 }
@@ -120,6 +122,39 @@ export interface UserTestRow {
 export class ConfirmStartTestDialogComponent {}
 
 @Component({
+  selector: 'app-confirm-instant-review-dialog',
+  standalone: true,
+  imports: [MatDialogModule, MatButtonModule, MatIconModule],
+  template: `
+    <div class="instant-review-dialog">
+      <div class="dialog-icon" aria-hidden="true"><mat-icon>visibility</mat-icon></div>
+      <h2>One-time Instant Review</h2>
+      <p>This test uses Instant Review.</p>
+      <p class="dialog-warning">You can view this review only once. After you close it, the Review button will no longer be available.</p>
+      <div class="dialog-actions">
+        <button mat-button class="cancel-button" [mat-dialog-close]="false">Cancel</button>
+        <button mat-flat-button class="review-button" [mat-dialog-close]="true">View Review</button>
+      </div>
+    </div>
+  `,
+  styles: [`
+    :host { display: block; }
+    .instant-review-dialog { box-sizing: border-box; padding: 1.5rem; text-align: center; color: #16293d; }
+    .dialog-icon { width: 4rem; height: 4rem; margin: 0 auto 0.8rem; border-radius: 50%; background: #e8fff7; color: #0b9f70; display: flex; align-items: center; justify-content: center; }
+    .dialog-icon mat-icon { width: 2rem; height: 2rem; font-size: 2rem; line-height: 2rem; }
+    h2 { margin: 0 0 0.55rem; font-size: 1.5rem; font-weight: 700; }
+    p { margin: 0; color: #657180; font-size: 1rem; line-height: 1.5; }
+    .dialog-warning { margin-top: 0.45rem; color: #9b5b00; font-weight: 600; }
+    .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-top: 1.25rem; }
+    .dialog-actions button { height: 2.85rem; border-radius: 0.7rem; font-weight: 700; }
+    .cancel-button { border: 0.0625rem solid #dfe4ea; color: #354252; }
+    .review-button { background: #20dca3; color: #073c2d; }
+    @media (max-width: 30rem) { .dialog-actions { grid-template-columns: 1fr; } }
+  `]
+})
+export class ConfirmInstantReviewDialogComponent {}
+
+@Component({
   selector: 'app-user-exams',
   standalone: true,
   imports: [CommonModule, HttpClientModule, RouterModule, FormsModule, MatTableModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSortModule, MatTabsModule, MatPaginatorModule, MatDialogModule],
@@ -192,6 +227,23 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
    * Response shape assumed: { data: { attempts: [ { attempt_no, items: [ { question, answer, user_answer, status } ] } ] } }
    */
   viewReview(row: UserTestRow){
+    // Warn before the API consumes a one-time Instant Review.
+    if ((row.review_mode || '').toLowerCase() === 'instant' && !row.multiple_review) {
+      this.dialog.open(ConfirmInstantReviewDialogComponent, {
+        width: '32.8rem',
+        maxWidth: 'calc(100vw - 2rem)',
+        autoFocus: false,
+        restoreFocus: true,
+        disableClose: true
+      }).afterClosed().subscribe((confirmed: boolean) => {
+        if (confirmed) this.openReview(row);
+      });
+      return;
+    }
+    this.openReview(row);
+  }
+
+  private openReview(row: UserTestRow){
     try{
       this.loader.show();
       const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
@@ -350,6 +402,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           user_review: reviewAvailable,
           review_available: reviewAvailable,
           review_attempt_id: x.review_attempt_id || '',
+          review_mode: x.review_mode || '',
+          multiple_review: Boolean(x.multiple_review),
           attempted,
           expired,
           start_time: startVal,
