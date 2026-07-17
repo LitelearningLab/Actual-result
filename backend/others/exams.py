@@ -1,11 +1,80 @@
 from db.models import Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamMapping, Categories, ExamScheduleMapping, QuestionMapping, ExamQuestionMapping
 from db.db import SQLiteDB
-from others.exam_review import validate_answers
+from others.exam_review import finalize_expired_attempts, is_after_everyone_finished_available, is_review_eligible_attempt, validate_answers
 import sys
 from datetime import datetime
 from db.models import Institute, User
 from sqlalchemy import or_
+from sqlalchemy.orm import load_only
 import random
+
+
+def safe_isoformat(val):
+    if val is None:
+        return None
+    if hasattr(val, 'isoformat'):
+        return val.isoformat()
+    return str(val)
+
+
+def safe_utc_isoformat(val):
+    value = safe_isoformat(val)
+    if value and not value.endswith(('Z', '+00:00')):
+        # Schedule datetimes are stored as UTC; retain that timezone when serializing them.
+        return f'{value}Z'
+    return value
+
+def _replace_attempt_answers(session, exam_attempt, answers):
+    """Persist the latest browser answer snapshot without creating duplicates."""
+    session.query(Answer).filter(Answer.attempt_id == exam_attempt.attempt_id).delete(synchronize_session=False)
+    for question_id, answer_value in (answers or {}).items():
+        values = answer_value if isinstance(answer_value, list) else [answer_value]
+        for value in values:
+            if value is None or value == '':
+                continue
+            is_option = isinstance(value, str) and len(value) == 36 and '-' in value
+            session.add(Answer(
+                user_id=exam_attempt.user_id,
+                schedule_id=exam_attempt.schedule_id,
+                question_id=question_id,
+                attempt_id=exam_attempt.attempt_id,
+                selected_option_id=value if is_option else None,
+                written_answer=None if is_option else str(value)
+            ))
+
+
+def _category_pool_question_ids(session, category_id):
+    rows = session.query(QuestionMapping.question_id).filter(
+        QuestionMapping.category_id == category_id
+    ).all()
+    return [r.question_id for r in rows]
+
+
+def _resolve_fixed_question_ids(session, category_id, number_of_questions, question_ids):
+    """Resolve the fixed (non-randomized) question set for a category.
+
+    Admin hand-picks (if any) are honored as-is. Any remaining slots up to
+    number_of_questions are filled with a one-time random pick from the
+    category's question bank, so every user is served the exact same set.
+    """
+    seen = set()
+    unique_ids = []
+    for qid in (question_ids or []):
+        key = str(qid)
+        if key not in seen:
+            seen.add(key)
+            unique_ids.append(qid)
+
+    if number_of_questions and len(unique_ids) < number_of_questions:
+        pool_ids = _category_pool_question_ids(session, category_id)
+        remaining_pool = [qid for qid in pool_ids if str(qid) not in seen]
+        needed = number_of_questions - len(unique_ids)
+        if needed >= len(remaining_pool):
+            unique_ids.extend(remaining_pool)
+        else:
+            unique_ids.extend(random.sample(remaining_pool, needed))
+
+    return unique_ids
 
 
 def add_exam(request):
@@ -66,6 +135,15 @@ def add_exam(request):
                 randomize_questions =1
             else:
                 randomize_questions = 0
+
+            pool_count = len(_category_pool_question_ids(session, category_id))
+            if number_of_questions and pool_count < number_of_questions:
+                session.rollback()
+                return {
+                    "statusMessage": f"Question bank does not have enough questions (requested {number_of_questions}, available {pool_count})",
+                    "status": False
+                }, 400
+
             new_mapping  =ExamMapping(
                 exam_id= exam_id,
                 category_id =category_id,
@@ -74,7 +152,7 @@ def add_exam(request):
             )
             session.add(new_mapping)
             if randomize_questions == 0:
-                questions_list = category.get("question_ids", [])
+                questions_list = _resolve_fixed_question_ids(session, category_id, number_of_questions, category.get("question_ids", []))
                 for question_id in questions_list:
                     add_exam_question_mapping = ExamQuestionMapping(
                         exam_id = exam_id,
@@ -157,6 +235,15 @@ def update_exam(request):
                 randomize_questions = 1
             else:
                 randomize_questions = 0
+
+            pool_count = len(_category_pool_question_ids(session, category_id))
+            if number_of_questions and pool_count < number_of_questions:
+                session.rollback()
+                return {
+                    "statusMessage": f"Question bank does not have enough questions (requested {number_of_questions}, available {pool_count})",
+                    "status": False
+                }, 400
+
             new_mapping = ExamMapping(
                 exam_id=exam_id,
                 category_id=category_id,
@@ -165,7 +252,7 @@ def update_exam(request):
             )
             session.add(new_mapping)
             if randomize_questions == 0:
-                questions_list = category.get('question_ids', [])
+                questions_list = _resolve_fixed_question_ids(session, category_id, number_of_questions, category.get('question_ids', []))
                 for question_id in questions_list:
                     add_exam_question_mapping = ExamQuestionMapping(
                         exam_id=exam_id,
@@ -312,8 +399,8 @@ def get_exam_details(request):
                 "pass_mark": exam.pass_mark,
                 "published": True if exam.published == 1 else False,
                 "public_access": True if exam.public_access == 1 else False,
-                # "start_time": exam.start_time,
-                # "end_time": exam.end_time,
+                "start_time": safe_isoformat(exam.start_time),
+                "end_time": safe_isoformat(exam.end_time),
                 "created_by": created_user_name,
                 "created_date": exam.created_date,
                 "updated_by": updated_user_name,
@@ -394,7 +481,78 @@ def get_user_exam_details(request):
             filter.append(or_(*conds))
 
         # join with Institute to fetch institute details as well
-        rows = session.query(ExamScheduleMapping, ExamSchedule, Exam).join(ExamSchedule, ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id).join(Exam, ExamSchedule.exam_id == Exam.exam_id).filter(*filter).all()
+        rows = session.query(ExamScheduleMapping, ExamSchedule, Exam).options(
+            load_only(
+                ExamSchedule.schedule_id,
+                ExamSchedule.exam_id,
+                ExamSchedule.title,
+                ExamSchedule.institute_id,
+                ExamSchedule.start_time,
+                ExamSchedule.end_time,
+                ExamSchedule.number_of_attempts,
+                ExamSchedule.user_review,
+                ExamSchedule.multiple_review,
+                ExamSchedule.review_mode,
+                ExamSchedule.review_at,
+                ExamSchedule.created_by,
+                ExamSchedule.created_date,
+                ExamSchedule.updated_by,
+                ExamSchedule.updated_date
+            )
+        ).join(
+            ExamSchedule,
+            ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id
+        ).join(
+            Exam,
+            ExamSchedule.exam_id == Exam.exam_id
+        ).filter(
+            ExamSchedule.published == 1,
+            *filter
+        ).all()
+
+        # Include completed history when the schedule still exists but its
+        # current user mapping was changed after this user submitted it.
+        user_id = args.get('user_id', None)
+        if user_id:
+            returned_schedule_ids = {str(item[1].schedule_id) for item in rows}
+            completed_schedule_ids = {
+                str(item[0]) for item in session.query(Exam_Attempt.schedule_id).filter(
+                    Exam_Attempt.user_id == user_id,
+                    or_(
+                        Exam_Attempt.submitted_date.isnot(None),
+                        Exam_Attempt.status.in_(('submitted', 'evaluated'))
+                    )
+                ).distinct().all()
+            }
+            missing_schedule_ids = completed_schedule_ids - returned_schedule_ids
+            if missing_schedule_ids:
+                history_rows = session.query(ExamSchedule, Exam).options(
+                    load_only(
+                        ExamSchedule.schedule_id,
+                        ExamSchedule.exam_id,
+                        ExamSchedule.title,
+                        ExamSchedule.institute_id,
+                        ExamSchedule.start_time,
+                        ExamSchedule.end_time,
+                        ExamSchedule.number_of_attempts,
+                        ExamSchedule.user_review,
+                        ExamSchedule.multiple_review,
+                        ExamSchedule.review_mode,
+                        ExamSchedule.review_at,
+                        ExamSchedule.created_by,
+                        ExamSchedule.created_date,
+                        ExamSchedule.updated_by,
+                        ExamSchedule.updated_date
+                    )
+                ).join(
+                    Exam,
+                    ExamSchedule.exam_id == Exam.exam_id
+                ).filter(
+                    ExamSchedule.published == 1,
+                    ExamSchedule.schedule_id.in_(missing_schedule_ids)
+                ).all()
+                rows.extend((None, schedule, exam) for schedule, exam in history_rows)
+
         # keep exams as list of Exam objects for existing usage
         Schedule_list = [row[0] for row in rows]
         schedules = [row[1] for row in rows]
@@ -403,16 +561,9 @@ def get_user_exam_details(request):
             return {"statusMessage": "No exams found", "status": False}, 404
 
         scheduler_data = []
-        for row in Schedule_list:
-            # find corresponding schedule and exam objects for this mapping
-            try:
-                idx = Schedule_list.index(row)
-                schedule_obj = schedules[idx]
-                exam_obj = exams[idx]
-            except ValueError:
-                # fallback if mapping not found in list
-                schedule_obj = None
-                exam_obj = None
+        for idx, row in enumerate(Schedule_list):
+            schedule_obj = schedules[idx]
+            exam_obj = exams[idx]
             # get attempt data for this user and schedule
             user_id = args.get("user_id", None)
             attempts = session.query(Exam_Attempt).filter(
@@ -424,6 +575,14 @@ def get_user_exam_details(request):
                 user_attempt = 0
             else:
                 user_attempt = len(attempts)
+
+            # Match the attempt represented by this user's list row. These are
+            # the same fields used by the Test Review dialog.
+            displayed_attempt = max(
+                attempts,
+                key=lambda attempt: getattr(attempt, 'attempt_number', 0) or 0,
+                default=None
+            )
             
             no_of_attempts = schedule_obj.number_of_attempts if schedule_obj else exam_obj.number_of_attempts if exam_obj else 0
 
@@ -432,27 +591,70 @@ def get_user_exam_details(request):
 
             # check scrore and feedback for last attempt
             attempts = sorted(attempts, key=lambda x: x.attempt_number)
-            attempts = attempts[-1] if attempts else None
-            feedback = attempts.feedback if attempts else ''
+            last_attempt = attempts[-1] if attempts else None
+            feedback = last_attempt.feedback if last_attempt else ''
 
             # if current time between start and end time, exam is active
             current_time = datetime.utcnow()
+            attempted = user_attempt > 0
+            expired = bool(schedule_obj.end_time and current_time > schedule_obj.end_time)
+            # Finalize expired browser-abandoned attempts before calculating review eligibility.
+            finalized_ids = finalize_expired_attempts(session, schedule_obj, attempts, current_time)
+            for finalized_id in finalized_ids:
+                validate_answers(finalized_id)
+            # Review eligibility follows persisted attempt status, never the frontend Completed label.
+            submitted_attempts = [attempt for attempt in attempts if is_review_eligible_attempt(attempt)]
+            review_mode = schedule_obj.review_mode or ('instant' if user_review_data == 1 else 'no_review')
+            if submitted_attempts:
+                if review_mode == 'instant':
+                    user_review = True
+                elif review_mode == 'after_schedule_ends':
+                    user_review = expired
+                elif review_mode == 'after_everyone_finishes':
+                    user_review = is_after_everyone_finished_available(session, schedule_obj, current_time)
+                elif review_mode == 'scheduled':
+                    user_review = bool(schedule_obj.review_at and current_time >= schedule_obj.review_at)
+                elif review_mode == 'manual':
+                    user_review = any(attempt.status == 'evaluated' for attempt in submitted_attempts)
+
+            # The review row represents one submitted attempt. With one-time
+            # review, select the newest eligible attempt that is still unseen.
+            review_candidates = submitted_attempts
+            if review_mode == 'manual':
+                review_candidates = [attempt for attempt in submitted_attempts if attempt.status == 'evaluated']
+            unreviewed_attempts = [
+                attempt for attempt in review_candidates
+                if not getattr(attempt, 'review_opened_at', None)
+            ]
+            displayed_review_attempt = max(
+                unreviewed_attempts if not bool(schedule_obj.multiple_review) and unreviewed_attempts else review_candidates,
+                key=lambda attempt: getattr(attempt, 'attempt_number', 0) or 0,
+                default=None
+            )
+            already_reviewed = bool(review_candidates) and not bool(unreviewed_attempts)
+            if already_reviewed and not bool(schedule_obj.multiple_review):
+                user_review = False
             if schedule_obj.start_time <= current_time <= schedule_obj.end_time:
                 type = 'active'
                 if str(feedback).lower() == 'pass':
                     type = 'completed'
             elif schedule_obj.end_time and current_time > schedule_obj.end_time:
                 type = 'completed'
-                # if user_review_data == 1:
-                user_review = True
             else:
                 type = 'upcoming'
             if no_of_attempts <= user_attempt:
                 type = 'completed' # if no of attempts exceeded, user cannot review
-                if user_review_data == 1:
-                    user_review = True
 
             scheduler_data.append({
+                'review_available': user_review,
+                'multiple_review': bool(schedule_obj.multiple_review),
+                'review_attempt_id': getattr(displayed_review_attempt, 'attempt_id', None),
+                'attempted': attempted,
+                'expired': expired,
+                # Return raw datetimes so Flask serializes them exactly like
+                # the Started/Submitted values in the Test Review API.
+                'user_start_time': getattr(displayed_attempt, 'started_date', None),
+                'user_end_time': getattr(displayed_attempt, 'submitted_date', None),
                 "mapping_id": getattr(row, "mapping_id", None),
                 "schedule_id": getattr(schedule_obj, "schedule_id", None),
                 "schedule_title": getattr(schedule_obj, "title", None),
@@ -463,8 +665,8 @@ def get_user_exam_details(request):
                 "pass_mark": getattr(exam_obj, "pass_mark", None),
                 "number_of_attempts": getattr(schedule_obj, "number_of_attempts", None),
                 "user_review" :user_review,
-                "start_time": getattr(schedule_obj, "start_time", getattr(exam_obj, "start_time", None)),
-                "end_time": getattr(schedule_obj, "end_time", getattr(exam_obj, "end_time", None)),
+                "start_time": safe_utc_isoformat(getattr(schedule_obj, "start_time", getattr(exam_obj, "start_time", None))),
+                "end_time": safe_utc_isoformat(getattr(schedule_obj, "end_time", getattr(exam_obj, "end_time", None))),
                 "created_by": getattr(schedule_obj, "created_by", getattr(exam_obj, "created_by", None)),
                 "created_date": getattr(schedule_obj, "created_date", getattr(exam_obj, "created_date", None)),
                 "updated_by": getattr(schedule_obj, "updated_by", None),
@@ -550,6 +752,15 @@ def launch_exam_details(schedule_id, user_id):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     try:
+        # An unpublished schedule must behave like a missing schedule for all
+        # student-facing access, including direct launch requests.
+        exam_schedule = session.query(ExamSchedule).filter(
+            ExamSchedule.schedule_id == schedule_id,
+            ExamSchedule.published == 1
+        ).first()
+        if not exam_schedule:
+            return {"statusMessage": "Schedule not found", "status": False}, 404
+
         # add Exam_Attempts 
         # Check if an attempt already exists for this user and exam
         existing_attempt = session.query(Exam_Attempt).filter_by(schedule_id=schedule_id, user_id=user_id).order_by(Exam_Attempt.attempt_number.desc()).first()
@@ -567,9 +778,6 @@ def launch_exam_details(schedule_id, user_id):
         )
         session.add(new_attempt)
         session.commit()
-
-        # get ExamSchedule details
-        exam_schedule = session.query(ExamSchedule).filter_by(schedule_id=schedule_id).first()
 
         # get Exam details
         exam_data = session.query(Exam).filter_by(exam_id=exam_schedule.exam_id).first()
@@ -676,7 +884,64 @@ def launch_exam_details(schedule_id, user_id):
         }
         return json_data, 500
 
-def submit_exam_answers(data):
+def get_active_exam_status(attempt_id, user_id):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    try:
+        # Bind the lightweight publication check to the JWT-authenticated attempt owner.
+        exam_attempt = session.query(Exam_Attempt).filter(
+            Exam_Attempt.attempt_id == attempt_id,
+            Exam_Attempt.user_id == user_id
+        ).first()
+        if not exam_attempt:
+            return {"statusMessage": "Attempt not found", "status": False}, 404
+
+        exam_schedule = session.query(ExamSchedule).filter_by(schedule_id=exam_attempt.schedule_id).first()
+        if not exam_schedule:
+            return {"statusMessage": "Schedule not found", "status": False}, 404
+
+        finalized_ids = finalize_expired_attempts(session, exam_schedule, [exam_attempt])
+        for finalized_id in finalized_ids:
+            validate_answers(finalized_id)
+
+        return {
+            "statusMessage": "Exam status retrieved successfully",
+            "status": True,
+            "published": bool(exam_schedule.published),
+            "attempt_status": exam_attempt.status
+        }, 200
+    except Exception as e:
+        print(f"{e} occurred while retrieving active exam status at line {sys.exc_info()[-1].tb_lineno}")
+        return {"statusMessage": "Error retrieving exam status", "status": False}, 500
+    finally:
+        session.close()
+
+
+def autosave_exam_answers(data, authenticated_user_id=None):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+    try:
+        attempt = session.query(Exam_Attempt).filter_by(attempt_id=data.get("attempt_id")).first()
+        if not attempt or (authenticated_user_id and str(attempt.user_id) != str(authenticated_user_id)):
+            return {"statusMessage": "Attempt not found", "status": False}, 404
+        if attempt.status != 'in_progress':
+            return {"statusMessage": "Attempt is already finalized", "status": False}, 409
+        _replace_attempt_answers(session, attempt, data.get("answers", {}))
+        session.commit()
+        return {"statusMessage": "Answers saved", "status": True}, 200
+    except Exception as e:
+        session.rollback()
+        print(f"{e} occurred while autosaving exam answers at line {sys.exc_info()[-1].tb_lineno}")
+        return {"statusMessage": "Error saving answers", "status": False}, 500
+    finally:
+        session.close()
+
+def submit_exam_answers(data, authenticated_user_id=None):
     db = SQLiteDB()
     session = db.connect()
     if not session:
@@ -686,63 +951,40 @@ def submit_exam_answers(data):
         user_id = data.get("user_id")
         schedule_id = data.get("schedule_id")
         answers = data.get("answers", {})
-        submitted_date = data.get("submitted_at")
         time_taken_mins = data.get("time_taken_mins")
         attempt_id = data.get("attempt_id")
-        
-        submitted_date = datetime.fromisoformat(submitted_date.replace("Z", "+00:00"))
 
-        # update records in Exam_Attempt
-        # Update the Exam_Attempt record for the given attempt_id
+        # Re-check publication at submission time because a schedule may have
+        # been unpublished after the student launched it. When an attempt
+        # exists, bind this check to its actual schedule as well as the
+        # request's schedule_id so a different published ID cannot bypass it.
         exam_attempt = session.query(Exam_Attempt).filter_by(attempt_id=attempt_id).first()
-        if exam_attempt:
-            exam_attempt.submitted_date = submitted_date
-            exam_attempt.status = "submitted"
-            session.commit()
+        if not exam_attempt or (authenticated_user_id and str(exam_attempt.user_id) != str(authenticated_user_id)):
+            session.close()
+            return {"statusMessage": "Attempt not found", "status": False}, 404
+        # The authenticated attempt is authoritative; client identifiers are compatibility hints only.
+        user_id = exam_attempt.user_id
+        attempt_schedule_id = exam_attempt.schedule_id
+        exam_schedule = session.query(ExamSchedule).filter(
+            ExamSchedule.schedule_id == attempt_schedule_id,
+            ExamSchedule.published == 1
+        ).first()
+        if not exam_schedule:
+            session.close()
+            return {
+                "statusMessage": "This test has been stopped by the administrator.",
+                "status": False,
+                "errorCode": "EXAM_UNPUBLISHED"
+            }, 409
+        
+        # Store server UTC so malformed or timezone-aware client dates cannot block submission.
+        submitted_date = datetime.utcnow()
+        schedule_id = attempt_schedule_id
 
-        for question_id, answer_value in answers.items():
-            if isinstance(answer_value, list):
-                # Multiple choice (multi-select)
-                for option_id in answer_value:
-                    new_answer = Answer(
-                    user_id=user_id,
-                    schedule_id=schedule_id,
-                    question_id=question_id,
-                    attempt_id=attempt_id,
-                    selected_option_id=option_id,
-                    written_answer=None,
-                    # submitted_at=submitted_at,
-                    # time_taken_mins=time_taken_mins
-                    )
-                    session.add(new_answer)
-            elif isinstance(answer_value, str):
-                if len(answer_value) == 36 and '-' in answer_value:
-                    # Single choice (option id)
-                    new_answer = Answer(
-                    user_id=user_id,
-                    schedule_id=schedule_id,
-                    question_id=question_id,
-                    attempt_id=attempt_id,
-                    selected_option_id=answer_value,
-                    written_answer=None,
-                    # submitted_at=submitted_at,
-                    # time_taken_mins=time_taken_mins
-                    )
-                    session.add(new_answer)
-                else:
-                    # Written answer
-                    new_answer = Answer(
-                    user_id=user_id,
-                    schedule_id=schedule_id,
-                    question_id=question_id,
-                    attempt_id=attempt_id,
-                    selected_option_id=None,
-                    written_answer=answer_value,
-                    # submitted_at=submitted_at,
-                    # time_taken_mins=time_taken_mins
-                    )
-                    session.add(new_answer)
-
+        # Save the final snapshot and status atomically so retries cannot duplicate answers.
+        _replace_attempt_answers(session, exam_attempt, answers)
+        exam_attempt.submitted_date = submitted_date
+        exam_attempt.status = "submitted"
         session.commit()
         session.close()
         validate_answers(attempt_id)

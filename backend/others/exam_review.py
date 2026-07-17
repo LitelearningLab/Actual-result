@@ -1,9 +1,58 @@
+import datetime
 from sqlalchemy import func
 from db.db import SQLiteDB
 from db.models import User, Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments,ExamReviewCommentsHistory, MarksHistory
 from others.llm import descriptive_evaluation, openai_client
 
-def review_user_exam(request):
+def is_review_eligible_attempt(attempt):
+    """Only finalized attempts can participate in student review flows."""
+    return getattr(attempt, 'status', None) in ('submitted', 'evaluated')
+
+def finalize_expired_attempts(session, exam_schedule, attempts, now=None):
+    """Finalize timed-out attempts even when the student's browser never submitted."""
+    now = now or datetime.datetime.utcnow()
+    exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
+    duration_mins = int(getattr(exam, 'duration_mins', 0) or 0)
+    finalized_ids = []
+    for attempt in attempts:
+        if attempt.status != 'in_progress' or not attempt.started_date:
+            continue
+        duration_deadline = attempt.started_date + datetime.timedelta(minutes=duration_mins) if duration_mins > 0 else None
+        deadlines = [value for value in (duration_deadline, exam_schedule.end_time) if value]
+        if not deadlines:
+            continue
+        deadline = min(deadlines)
+        if now >= deadline:
+            # The effective deadline is authoritative when a browser closes or loses connectivity.
+            attempt.status = 'submitted'
+            attempt.submitted_date = deadline
+            session.add(attempt)
+            finalized_ids.append(attempt.attempt_id)
+    if finalized_ids:
+        session.commit()
+    return finalized_ids
+
+def is_after_everyone_finished_available(session, exam_schedule, now=None):
+    """Unlock when all currently assigned students submitted, or time expired."""
+    now = now or datetime.datetime.utcnow()
+    if exam_schedule.end_time and now >= exam_schedule.end_time:
+        return True
+
+    assigned_user_ids = session.query(ExamScheduleMapping.user_id).filter(
+        ExamScheduleMapping.schedule_id == exam_schedule.schedule_id
+    ).distinct().all()
+    assigned_user_ids = [row[0] for row in assigned_user_ids]
+    if not assigned_user_ids:
+        return False
+
+    completed_count = session.query(func.count(func.distinct(Exam_Attempt.user_id))).filter(
+        Exam_Attempt.schedule_id == exam_schedule.schedule_id,
+        Exam_Attempt.user_id.in_(assigned_user_ids),
+        (Exam_Attempt.submitted_date.isnot(None) | Exam_Attempt.status.in_(('submitted', 'evaluated')))
+    ).scalar() or 0
+    return completed_count == len(assigned_user_ids)
+
+def review_user_exam(request, current_user=None):
 
     db = SQLiteDB()
     session = db.connect()
@@ -14,6 +63,16 @@ def review_user_exam(request):
 
     user_id: str = args.get("user_id", "")
     schedule_id: str = args.get("scheduler_id", "")
+    attempt_id: str = args.get("attempt_id", "")
+
+    current_user_role = str(getattr(current_user, "user_role", "") or "").lower()
+    is_student_request = current_user_role in ("user", "student", "learner")
+
+    # A student review allowance belongs to the authenticated student. Never
+    # let one student consume another student's per-attempt allowance.
+    if is_student_request and str(getattr(current_user, "user_id", "")) != str(user_id):
+        session.close()
+        return {"statusMessage": "Access denied", "status": False}, 403
 
     try:
         # Fetch exam attempt records for the user and exam schedule
@@ -22,12 +81,83 @@ def review_user_exam(request):
             Exam_Attempt.schedule_id == schedule_id
         ).all()
         # get total questions in the exam
-        exam_schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == schedule_id ).first()
+        # Treat unpublished schedules as missing so students cannot bypass the
+        # schedule list and open a review directly.
+        exam_schedule = session.query(ExamSchedule).filter(
+            ExamSchedule.schedule_id == schedule_id,
+            ExamSchedule.published == 1
+        ).first()
+        if not exam_schedule:
+            return {"statusMessage": "Schedule not found", "status": False}, 404
+
+        finalized_ids = finalize_expired_attempts(session, exam_schedule, attempts)
+        for finalized_id in finalized_ids:
+            validate_answers(finalized_id)
+        completed_attempts = [attempt for attempt in attempts if is_review_eligible_attempt(attempt)]
+        completed_attempts.sort(key=lambda attempt: attempt.attempt_number or 0)
+        review_mode = exam_schedule.review_mode or ('instant' if exam_schedule.user_review == 1 else 'no_review')
+
+        requested_attempt = None
+        if attempt_id:
+            requested_attempt = next(
+                (attempt for attempt in completed_attempts if str(attempt.attempt_id) == str(attempt_id)),
+                None
+            )
+            if not requested_attempt:
+                return {"statusMessage": "Submitted attempt not found", "status": False}, 404
+        elif is_student_request and completed_attempts:
+            # Older student clients do not send attempt_id. Select one eligible
+            # attempt so another attempt in the schedule remains independent.
+            eligible_attempts = completed_attempts
+            if review_mode == 'manual':
+                eligible_attempts = [attempt for attempt in completed_attempts if attempt.status == 'evaluated']
+            unreviewed_attempts = [
+                attempt for attempt in eligible_attempts
+                if not getattr(attempt, 'review_opened_at', None)
+            ]
+            fallback_attempts = (
+                unreviewed_attempts
+                if not bool(exam_schedule.multiple_review) and unreviewed_attempts
+                else eligible_attempts
+            )
+            requested_attempt = fallback_attempts[-1] if fallback_attempts else None
+
+        review_attempts = [requested_attempt] if requested_attempt else completed_attempts
+        now = datetime.datetime.utcnow()
+        review_available = bool(review_attempts) and (
+            review_mode == 'instant'
+            or (review_mode == 'after_schedule_ends' and exam_schedule.end_time and now >= exam_schedule.end_time)
+            or (review_mode == 'after_everyone_finishes' and is_after_everyone_finished_available(session, exam_schedule, now))
+            or (review_mode == 'scheduled' and exam_schedule.review_at and now >= exam_schedule.review_at)
+            or (review_mode == 'manual' and any(attempt.status == 'evaluated' for attempt in review_attempts))
+        )
+        if not review_available:
+            return {"statusMessage": "Review is not available for this test", "status": False}, 403
+
+        # Multiple Review is a student-only, per-attempt allowance. Admins use
+        # the same public endpoint but must never check or consume it.
+        if (is_student_request and not bool(exam_schedule.multiple_review)
+                and requested_attempt.review_opened_at):
+            return {"statusMessage": "This test review has already been viewed", "status": False}, 403
+
+        if is_student_request:
+            if not bool(exam_schedule.multiple_review):
+                claimed = session.query(Exam_Attempt).filter(
+                    Exam_Attempt.attempt_id == requested_attempt.attempt_id,
+                    Exam_Attempt.review_opened_at.is_(None)
+                ).update({Exam_Attempt.review_opened_at: now}, synchronize_session=False)
+                if not claimed:
+                    return {"statusMessage": "This test review has already been viewed", "status": False}, 403
+                requested_attempt.review_opened_at = now
+            elif requested_attempt.review_opened_at is None:
+                requested_attempt.review_opened_at = now
+                session.add(requested_attempt)
+
         exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
         total_questions = exam.total_questions if exam else 0
 
         attempt_reviews = []
-        for attempt in attempts:
+        for attempt in review_attempts:
             review_data = {}
             review_data["attempt_id"] = attempt.attempt_id
             review_data["attempt_number"] = attempt.attempt_number
@@ -36,10 +166,10 @@ def review_user_exam(request):
             time_delta = attempt.submitted_date - attempt.started_date if attempt.submitted_date and attempt.started_date else None
             review_data["time_taken"] = str(time_delta) if time_delta else None
             review_data["status"] = attempt.status
-            review_data["score"] = attempt.score
+            review_data["score"] = attempt.score if exam_schedule.show_score else None
             review_data["total_questions"] = total_questions
-            review_data["percentage"] = round(attempt.percentage, 2) if attempt.percentage is not None else None
-            review_data["result"] = attempt.feedback if hasattr(attempt, 'feedback') else ""
+            review_data["percentage"] = round(attempt.percentage, 2) if exam_schedule.show_score and attempt.percentage is not None else None
+            review_data["result"] = attempt.feedback if exam_schedule.show_score and hasattr(attempt, 'feedback') else ""
             review_data["review"] = []
             
             # get question, selected option, and correct answer
@@ -125,36 +255,38 @@ def review_user_exam(request):
                     "question_id": question_answer.question_id,
                     "question_text": question.question_text  if question else "",
                     "question_type": question_type,
-                    "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct} for opt in options_list],
-                    "selected_option": [selected_option] if isinstance(selected_option, str) else selected_option,
-                    "correct_option": correct_answer_data,
-                    "review_comment": review_comment_dict,
-                    "is_correct": True if question_answer.is_correct == 1 else False,
-                    "marks_awarded": question_answer.marks_awarded if question_answer.marks_awarded is not None else 0,
+                    "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct if exam_schedule.show_correct_answers else 0} for opt in options_list],
+                    "selected_option": ([selected_option] if isinstance(selected_option, str) else selected_option) if exam_schedule.show_student_answers else [],
+                    "correct_option": correct_answer_data if exam_schedule.show_correct_answers else None,
+                    "review_comment": review_comment_dict if exam_schedule.show_explanations else {},
+                    "is_correct": (True if question_answer.is_correct == 1 else False) if exam_schedule.show_correct_answers else None,
+                    "marks_awarded": (question_answer.marks_awarded if question_answer.marks_awarded is not None else 0) if exam_schedule.show_score else None,
                     "updated_by": updated_by.full_name if updated_by else question_answer.created_by,
                     "updated_date": question_answer.created_date,
-                    "question_marks": question_marks,
-                    "ai_marks": question_answer.ai_marks if question_answer.ai_marks is not None else 0,
-                    "ai_confidence": question_answer.ai_confidence if question_answer.ai_confidence is not None else 0,
-                    "manual_review_required": True if question_answer.manual_review_required == 1 else False,
-                    "manual_marks": question_answer.manual_marks if question_answer.manual_marks is not None else 0,
-                    "feedback": question_answer.feedback if hasattr(question_answer, 'feedback') else ""
+                    "question_marks": question_marks if exam_schedule.show_score else None,
+                    "ai_marks": (question_answer.ai_marks if question_answer.ai_marks is not None else 0) if exam_schedule.show_explanations else None,
+                    "ai_confidence": (question_answer.ai_confidence if question_answer.ai_confidence is not None else 0) if exam_schedule.show_explanations else None,
+                    "manual_review_required": (True if question_answer.manual_review_required == 1 else False) if exam_schedule.show_explanations else None,
+                    "manual_marks": (question_answer.manual_marks if question_answer.manual_marks is not None else 0) if exam_schedule.show_explanations else None,
+                    "feedback": question_answer.feedback if exam_schedule.show_explanations and hasattr(question_answer, 'feedback') else ""
                 })
                 # marks history can also be added here if needed by fetching from MarksHistory table
                 marks_history = session.query(MarksHistory).filter(MarksHistory.answer_id == question_answer.answer_id).all()
-                if marks_history:
+                if marks_history and exam_schedule.show_score:
                     review_data["review"][-1]["marks_history"] = [{"marks_awarded": mh.marks_awarded, "updated_by": session.query(User).filter(User.user_id == mh.updated_by).first().full_name , "updated_date": mh.updated_date} for mh in marks_history]
                 
-            review_data["total_marks"] = total_marks   
+            review_data["total_marks"] = total_marks if exam_schedule.show_score else None
             attempt_reviews.append(review_data)
+
+        if is_student_request:
+            session.commit()
 
     except Exception as e:
         print(f"Error in review_user_exam: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
         return {"statusMessage": f"Error fetching exam review: {str(e)}", "status": False}, 500
     finally:
         session.close()
-        json_data = {"statusMessage": "Success", "status": True, "data": attempt_reviews}
-        return json_data, 200
+    return {"statusMessage": "Success", "status": True, "data": attempt_reviews}, 200
 def validate_answers(attempt_id):
     db = SQLiteDB()
     session = db.connect()

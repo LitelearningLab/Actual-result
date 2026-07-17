@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, ViewChild, OnInit } from '@angular/core';
+import { Component, AfterViewInit, ViewChild, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
@@ -16,6 +16,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 export interface UserTestRow {
   test_id?: string;
@@ -23,6 +24,7 @@ export interface UserTestRow {
   title?: string;
   start_time?: string;
   end_time?: string;
+  scheduleTest?: string;
   duration_mins?: number;
   total_questions?: number;
   total_marks?: number;
@@ -30,26 +32,110 @@ export interface UserTestRow {
   pass_mark?: number;
   number_of_attempts?: number;
   type?: string;
+  user_review?: boolean;
+  review_available?: boolean;
+  review_attempt_id?: string;
+  attempted?: boolean;
+  expired?: boolean;
 }
+
+@Component({
+  selector: 'app-confirm-start-test-dialog',
+  standalone: true,
+  imports: [MatDialogModule, MatButtonModule, MatIconModule],
+  template: `
+    <div class='start-confirm-dialog'>
+      <div class='dialog-icon' aria-hidden='true'>
+        <mat-icon>rocket_launch</mat-icon>
+      </div>
+      <h2>Start Test</h2>
+      <p class='dialog-message'>Are you sure you want to start this test?</p>
+      <p class='dialog-warning'>Once you start, the test timer will begin and cannot be paused.</p>
+      <div class='dialog-actions'>
+        <button mat-button class='cancel-button' [mat-dialog-close]='false'>Cancel</button>
+        <button mat-flat-button class='start-button' [mat-dialog-close]='true'>Start Test</button>
+      </div>
+    </div>
+  `,
+  styles: [`
+    :host { display: block; }
+    .start-confirm-dialog {
+      box-sizing: border-box;
+      height: 18.4rem;
+      padding: 1.35rem 1.25rem 0.9rem;
+      text-align: center;
+      color: #16293d;
+    }
+    .dialog-icon {
+      width: 4rem;
+      height: 4rem;
+      margin: 0 auto 0.8rem;
+      border-radius: 50%;
+      background: #f0edff;
+      color: #287cff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .dialog-icon mat-icon {
+      width: 2rem;
+      height: 2rem;
+      font-size: 2rem;
+      line-height: 2rem;
+    }
+    h2 {
+      margin: 0 0 0.45rem;
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    p { margin: 0; color: #657180; }
+    .dialog-message { font-size: 1.15rem; }
+    .dialog-warning {
+      margin-top: 0.3rem;
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+    .dialog-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.9rem;
+      margin-top: 1rem;
+    }
+    .dialog-actions button {
+      height: 2.85rem;
+      border-radius: 0.7rem;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    .cancel-button { border: 0.0625rem solid #dfe4ea; color: #354252; }
+    .start-button { background: #287cff; color: #fff; }
+    @media (max-width: 30rem) {
+      .start-confirm-dialog { height: auto; }
+      .dialog-actions { grid-template-columns: 1fr; }
+    }
+  `]
+})
+export class ConfirmStartTestDialogComponent {}
 
 @Component({
   selector: 'app-user-exams',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, RouterModule, FormsModule, MatTableModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSortModule, MatTabsModule, MatPaginatorModule],
+  imports: [CommonModule, HttpClientModule, RouterModule, FormsModule, MatTableModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSortModule, MatTabsModule, MatPaginatorModule, MatDialogModule],
   templateUrl: './exam.component.html',
   styleUrls: ['./exam.component.scss']
 })
-export class UserExamComponent{
+export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   exams: UserTestRow[] = [];
   loading = false;
   instituteId = '';
   // table and filters
-  displayedColumns: string[] = ['title','start','end','duration','questions','pass_mark','number_of_attempts','status','actions'];
+  displayedColumns: string[] = ['title','scheduleTest','duration','questions','pass_mark','number_of_attempts','status','actions'];
   dataSource = new MatTableDataSource<UserTestRow>([]);
   // Per-tab filtered tables
   activeSource = new MatTableDataSource<UserTestRow>([]);
   completeSource = new MatTableDataSource<UserTestRow>([]);
-  upcomingSource = new MatTableDataSource<UserTestRow>([]);
   search = '';
   filterPublished: string = '';
 
@@ -57,8 +143,9 @@ export class UserExamComponent{
 
   private examsUrl = `${API_BASE}/get-user-exams-details`;
   private launchUrl = `${API_BASE}/launch-exam`;
+  private reviewRefreshTimer?: ReturnType<typeof setInterval>;
 
-  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService, private router: Router ){
+  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService, private router: Router, private dialog: MatDialog ){
     // try to read institute id from sessionStorage
     try{
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
@@ -111,7 +198,9 @@ export class UserExamComponent{
       const userId = userRaw ? (JSON.parse(userRaw)?.user_id || JSON.parse(userRaw)?.id || '') : '';
       const schedulerId = row.schedule_id || row.test_id || '';
       if(!userId || !schedulerId) { try { notify('Missing user or test identifiers for review', 'error'); } catch(e){}; return; }
-      const url = `${API_BASE}/review-user-exam?user_id=${encodeURIComponent(String(userId))}&scheduler_id=${encodeURIComponent(String(schedulerId))}`;
+      const attemptId = (row as any).review_attempt_id || (row as any).attempt_id || '';
+      const attemptParam = attemptId ? `&attempt_id=${encodeURIComponent(String(attemptId))}` : '';
+      const url = `${API_BASE}/review-user-exam?user_id=${encodeURIComponent(String(userId))}&scheduler_id=${encodeURIComponent(String(schedulerId))}${attemptParam}`;
       this.reviewLoading = true; this.reviewAttempts = []; this.reviewOpen = true; this.reviewSelectedAttempt = 0;
       this.http.get<any>(url).subscribe({ next: (res) => {
         try{
@@ -160,11 +249,20 @@ export class UserExamComponent{
         }catch(e){ this.reviewAttempts = []; }
         this.reviewLoading = false;
         this.loader.hide();
-      }, error: (err) => { console.warn('Failed to load review', err); this.reviewLoading = false; this.reviewAttempts = []; this.loader.hide();  } });
+      }, error: (err) => {
+        console.warn('Failed to load review', err);
+        try { notify(err?.error?.statusMessage || 'This review is not available.', 'error'); } catch (e) {}
+        this.reviewLoading = false; this.reviewAttempts = []; this.reviewOpen = false; this.loader.hide();
+      } });
     }catch(e){ try { notify('Failed to request review', 'error'); } catch(e){} }
   }
 
-  closeReview(){ this.reviewOpen = false; this.reviewAttempts = []; this.reviewSelectedAttempt = 0; }
+  closeReview(){
+    this.reviewOpen = false;
+    this.reviewAttempts = [];
+    this.reviewSelectedAttempt = 0;
+    this.loadExams();
+  }
 
   /** Filter review comments by category (missing / incorrect / incomplete) */
   reviewComments(q: any, categories: string | string[]): any[] {
@@ -188,11 +286,15 @@ export class UserExamComponent{
   ngOnInit(): void{
 
     this.pageMeta.setMeta('User Tests', 'Explore and manage your tests');
+    // Refresh server-calculated review availability without interrupting the student UI.
+    this.reviewRefreshTimer = setInterval(() => this.loadExams(false), 60000);
     
   }
-  loadExams(){
-    this.loader.show();
+  loadExams(showLoader = true){
     if(!this.instituteId) return;
+    // Skip a polling cycle while another exam-list request is still active.
+    if(this.loading) return;
+    if(showLoader) this.loader.show();
     this.loading = true;
     // include session user data as a payload in the query string
     const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
@@ -226,34 +328,87 @@ export class UserExamComponent{
         return `${dd}-${mmm}-${yyyy} ${hh}:${mm}`;
       };
 
-      this.exams = arr.map((x: any) => ({
-        test_id: x.test_id || x.id || x.exam_id,
-        schedule_id: x.schedule_id || '',
-        title: x.schedule_title || x.name || '', //exam_title
-        // whether review is available for this user on this exam
-        user_review: x.user_review || x.review_available || x.review || false,
-        start_time: fmtDate(x.start_time || x.start),
-        end_time: fmtDate(x.end_time || x.end),
-        pass_mark: x.pass_mark || 0,
-        number_of_attempts: x.number_of_attempts || 0,
-        duration_mins: x.duration_mins || x.duration || 0,
-        total_questions: x.total_questions || x.questions_count || 0,
-        total_marks: x.total_marks || x.marks || 0,
-        type: x.type
-      }));
+      this.exams = arr.map((x: any) => {
+        const normalizedType = (x.type || '').toString().toLowerCase();
+        const reviewAvailable = Boolean(x.user_review || x.review_available || x.review);
+        const attempted = Boolean(x.attempted);
+        const expired = Boolean(x.expired);
+        const isCompleted = ['complete', 'completed', 'done'].includes(normalizedType)
+          || (expired && attempted)
+          || reviewAvailable;
+        // Expired (inactive) tests must show the configured schedule window, not attempt timestamps.
+        const useAttemptTimes = isCompleted && !expired;
+        const startVal = fmtDate(useAttemptTimes ? x.user_start_time : (x.start_time || x.start));
+        const endVal = fmtDate(useAttemptTimes ? x.user_end_time : (x.end_time || x.end));
+        const completedScheduleTest = startVal ? `${startVal} - ${endVal || '--'}` : '--';
+        const scheduleTest = (startVal || endVal) ? `${startVal || '—'} - ${endVal || '—'}` : '—';
+        return {
+          test_id: x.test_id || x.id || x.exam_id,
+          schedule_id: x.schedule_id || '',
+          title: x.schedule_title || x.name || '', //exam_title
+          // whether review is available for this user on this exam
+          user_review: reviewAvailable,
+          review_available: reviewAvailable,
+          review_attempt_id: x.review_attempt_id || '',
+          attempted,
+          expired,
+          start_time: startVal,
+          end_time: endVal,
+          scheduleTest: isCompleted ? completedScheduleTest : scheduleTest,
+          pass_mark: x.pass_mark || 0,
+          number_of_attempts: x.number_of_attempts || 0,
+          duration_mins: x.duration_mins || x.duration || 0,
+          total_questions: x.total_questions || x.questions_count || 0,
+          total_marks: x.total_marks || x.marks || 0,
+          type: x.type
+        };
+      });
       this.loading = false;
       this.dataSource.data = this.exams;
       // populate per-tab sources
       this.updateTabDataSources();
       try{ 
-        this.dataSource.sort = this.sort; 
-        this.activeSource.sort = this.sort;
-        this.completeSource.sort = this.sort;
-        this.upcomingSource.sort = this.sort;
+        const configureSorting = (src: MatTableDataSource<UserTestRow>) => {
+          src.sort = this.sort;
+          src.sortingDataAccessor = (item: UserTestRow, property: string) => {
+            if (property === 'scheduleTest') {
+              const rawStart = item.start_time;
+              if (!rawStart) return 0;
+              const parts = rawStart.split(' ');
+              if (parts.length >= 2) {
+                const dateParts = parts[0].split('-');
+                if (dateParts.length === 3) {
+                  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                  const month = months.indexOf(dateParts[1]);
+                  if (month >= 0) {
+                    const timeParts = parts[1].split(':');
+                    const d = new Date(Number(dateParts[2]), month, Number(dateParts[0]), Number(timeParts[0] || 0), Number(timeParts[1] || 0));
+                    return d.getTime();
+                  }
+                }
+              }
+              const fallback = Date.parse(rawStart);
+              return isNaN(fallback) ? 0 : fallback;
+            }
+            return (item as any)[property];
+          };
+        };
+
+        configureSorting(this.dataSource);
+        configureSorting(this.activeSource);
+        configureSorting(this.completeSource);
       }catch(e){}
-      this.loader.hide();
+      if(showLoader) this.loader.hide();
       },
-      error: (err) => { console.warn('Failed to load tests', err); this.loading = false; this.exams = []; this.loader.hide(); }
+      error: (err) => {
+        console.warn('Failed to load tests', err);
+        this.loading = false;
+        // Preserve the current table if only the background availability refresh fails.
+        if(showLoader) {
+          this.exams = [];
+          this.loader.hide();
+        }
+      }
     });
 
   }
@@ -261,12 +416,18 @@ export class UserExamComponent{
   private updateTabDataSources(){
     const lc = (s?: string) => (s || '').toString().toLowerCase();
     const isActive = (t?: string) => ['active','live'].includes(lc(t));
-    const isComplete = (t?: string) => ['complete','completed','done'].includes(lc(t));
+    const isComplete = (exam: UserTestRow) =>
+      ['complete','completed','done'].includes(lc(exam.type))
+      || Boolean(exam.expired && exam.attempted)
+      || Boolean(exam.user_review || exam.review_available);
     const isUpcoming = (t?: string) => ['upcoming','scheduled','pending','upcomming'].includes(lc(t));
 
-    this.activeSource.data = this.exams.filter(e => isActive(e.type));
-    this.completeSource.data = this.exams.filter(e => isComplete(e.type));
-    this.upcomingSource.data = this.exams.filter(e => isUpcoming(e.type));
+    this.activeSource.data = this.exams.filter(e => isActive(e.type) || isUpcoming(e.type));
+    this.completeSource.data = this.exams.filter(isComplete);
+  }
+
+  isUpcomingTest(type?: string): boolean {
+    return ['upcoming','scheduled','pending','upcomming'].includes((type || '').toString().toLowerCase());
   }
 
   // Helpers used by the template to safely check selected options
@@ -322,6 +483,17 @@ export class UserExamComponent{
     }catch(e){ return false; }
   }
 
+  confirmStartTest(ex: UserTestRow): void {
+    this.dialog.open(ConfirmStartTestDialogComponent, {
+      width: '32.8rem',
+      maxWidth: 'calc(100vw - 2rem)',
+      autoFocus: false,
+      restoreFocus: true
+    }).afterClosed().subscribe((confirmed: boolean) => {
+      if (confirmed) this.launchTest(ex);
+    });
+  }
+
   launchTest(ex: UserTestRow){
     if (!ex?.schedule_id) { try { notify('Schedule id missing', 'error'); } catch(e){}; return; }
     const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
@@ -347,7 +519,7 @@ export class UserExamComponent{
       const byPublished = this.filterPublished === '' ? true : ((this.filterPublished === 'live') ? !!row.published : !row.published);
       return byText && byPublished;
     };
-    [this.dataSource, this.activeSource, this.completeSource, this.upcomingSource].forEach(ds => {
+    [this.dataSource, this.activeSource, this.completeSource].forEach(ds => {
       ds.filterPredicate = predicate;
       ds.filter = q;
     });
@@ -356,6 +528,8 @@ export class UserExamComponent{
   ngAfterViewInit(): void {
     try{ this.dataSource.sort = this.sort; }catch(e){}
   }
+
+  ngOnDestroy(): void {
+    if(this.reviewRefreshTimer) clearInterval(this.reviewRefreshTimer);
+  }
 }
-
-

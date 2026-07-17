@@ -7,7 +7,7 @@ from werkzeug.datastructures import ImmutableMultiDict
 
 from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, delete_institute, manage_institute, update_institute
 from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details, delete_user
-from others.exams import add_exam, get_exam_details, get_exam_list, launch_exam_details, submit_exam_answers,get_user_exam_details
+from others.exams import add_exam, autosave_exam_answers, get_active_exam_status, get_exam_details, get_exam_list, launch_exam_details, submit_exam_answers,get_user_exam_details
 from others.examschedule import add_exam_schedule, get_exam_schedule_details, delete_exam_schedule
 from others.examschedule import update_exam_schedule
 from others.category import add_categories, get_categories_list, get_category_details
@@ -206,8 +206,9 @@ def institutes_list_route():
     for i in arr:
         try:
             iid = i.get('institute_id') or i.get('id') or i.get('institute_id') or i.get('instituteId')
-            name = i.get('name') or i.get('institute') or i.get('short_name')
-            out.append({'id': iid, 'name': name})
+            # Prefer the full institute name while retaining the short name for older consumers.
+            name = i.get('institute_name') or i.get('name') or i.get('institute') or i.get('short_name')
+            out.append({'id': iid, 'name': name, 'short_name': i.get('short_name')})
         except Exception:
             continue
     return jsonify(out), 200
@@ -362,7 +363,8 @@ def get_user_exams():
 @edu_blueprint.route('/review-user-exam', methods=['GET'])
 @jwt_required
 def review_user_exam_route():
-    response_data, status_code = review_user_exam(request)
+    current_user = get_current_user_from_request()
+    response_data, status_code = review_user_exam(request, current_user)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/validate-answers/<attempt_id>', methods=['POST'])
@@ -419,11 +421,34 @@ def launch_exam_route():
     response_data, status_code = launch_exam_details(schedule_id, user_id)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/autosave-exam', methods=['POST'])
+@jwt_required
+def autosave_exam_route():
+    current_user = get_current_user_from_request()
+    if not current_user:
+        return jsonify({"statusMessage": "Authenticated user not found", "status": False}), 401
+    response_data, status_code = autosave_exam_answers(request.json or {}, current_user.user_id)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/submit-exam', methods=['POST'])
 @jwt_required
 def submit_exam_route():
     data = request.json
-    response_data, status_code = submit_exam_answers(data)
+    current_user = get_current_user_from_request()
+    if not current_user:
+        return jsonify({"statusMessage": "Authenticated user not found", "status": False}), 401
+    response_data, status_code = submit_exam_answers(data, current_user.user_id)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/active-exam-status', methods=['GET'])
+@jwt_required
+def active_exam_status_route():
+    current_user = get_current_user_from_request()
+    if not current_user:
+        return jsonify({"statusMessage": "Authenticated user not found", "status": False}), 401
+    response_data, status_code = get_active_exam_status(
+        request.args.get('attempt_id'), current_user.user_id
+    )
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/register-exam', methods=['POST'])
@@ -689,7 +714,6 @@ CORS(
                 "http://localhost:4200",
                 "http://127.0.0.1:4200",
                 "http://192.168.1.5:4200",
-                "http://34.100.213.250:4200"
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization", "X-Institute-Id", "X-Global-Institute-Id", "X-Skip-Institute-Context"],
@@ -701,7 +725,7 @@ CORS(
 @app.after_request
 def add_local_cors_headers(response):
     origin = request.headers.get("Origin")
-    if origin in ("http://localhost:4200", "http://127.0.0.1:4200", "http://192.168.1.5:4200","http://34.100.213.250:4200"):
+    if origin in ("http://localhost:4200", "http://127.0.0.1:4200", "http://192.168.1.5:4200"):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Institute-Id, X-Global-Institute-Id, X-Skip-Institute-Context"

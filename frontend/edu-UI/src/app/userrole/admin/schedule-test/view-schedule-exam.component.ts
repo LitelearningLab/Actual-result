@@ -28,6 +28,8 @@ import { TemplatePortal } from '@angular/cdk/portal';
 import { MatTabsModule } from '@angular/material/tabs';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
+import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-view-schedule-exam',
@@ -55,11 +57,13 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   schedules: any[] = [];
   dataSource = new MatTableDataSource<any>([]);
   hasAppliedFilters = false;
-  columns: string[] = ['title', 'institute', 'start', 'end', 'publish', 'actions'];
+  columns: string[] = ['title', 'institute', 'schedule', 'publish', 'actions'];
   selectedSchedule: any = null;
 
   private baseUrl = API_BASE;
   private apiUrl = `${API_BASE}/get-institutes`;
+  private activeInstituteId = '';
+  private globalInstituteSub: Subscription | null = null;
 
   @ViewChild(MatSort) sort!: MatSort;
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -68,7 +72,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
   isSuperAdmin = false;
 
-  constructor(private http: HttpClient, private router: Router, private auth: AuthService, private loader: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private confirmService: ConfirmService) {
+  constructor(private http: HttpClient, private router: Router, private auth: AuthService, private loader: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private confirmService: ConfirmService, private globalInstituteContext: GlobalInstituteContextService) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
       this.isSuperAdmin = !!this.auth.currentUserValue && ['super_admin', 'superadmin', 'super-admin'].includes((this.auth.currentUserValue.role || '').toLowerCase());
@@ -84,7 +88,15 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   ngOnInit(): void {
     this.pageMeta.setMeta('Scheduled Tests', 'Browse and review scheduled tests');
     this.loadInstitutes();
-    this.applyGlobalInstituteScopeIfActive();
+    this.globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe(context => {
+      const instituteId = context?.institute_id || '';
+      if (instituteId) {
+        if (instituteId === this.activeInstituteId) return;
+        this.resetForInstituteChange(instituteId);
+        return;
+      }
+      if (this.activeInstituteId) this.resetAfterGlobalInstituteClear();
+    });
     this.restoreScheduleReturnState();
   }
 
@@ -149,7 +161,12 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   private refreshAfterFilterChipChange() { if (this.appliedFilterChips.length) this.loadSchedules(this.selectedInstitute || undefined); else { this.hasAppliedFilters = false; this.schedules = []; this.dataSource.data = []; } }
   private getInstituteLabel(id: any): string { const found = this.institutes.find(i => String(i.institute_id) === String(id)); return found?.name || String(id || ''); }
   private getSelectedName(list: any[], selectedId: any): string { const found = (list || []).find(item => String(item?.id) === String(selectedId)); return found?.name || String(selectedId || ''); }
-  private formatFilterDate(value: Date): string { try { return value.toISOString().slice(0, 10); } catch (e) { return String(value || ''); } }
+  // Format using local date parts (not toISOString) so the picked calendar day survives the UTC offset (e.g. IST midnight would otherwise roll back a day).
+  private toApiDateString(value: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  }
+  private formatFilterDate(value: Date): string { try { return this.toApiDateString(value); } catch (e) { return String(value || ''); } }
   loadInstitutes() {
 
     this.http.get<any>(this.apiUrl).subscribe({
@@ -176,7 +193,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
           // Fallback: try reading user's institute from sessionStorage and apply it
           try {
             const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
-            if (raw) {
+            if (!this.isSuperAdmin && raw) {
               const u = JSON.parse(raw);
               const instId = u?.institute_id || u?.instituteId || u?.institute || '';
               if (instId) {
@@ -199,6 +216,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   private hasFilterValues(): boolean {
     return !!(
       this.selectedInstitute ||
+      this.instituteSearch.trim() ||
       this.filterName ||
       this.selectedDepartments.length ||
       this.selectedTeams.length ||
@@ -210,6 +228,21 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   onApply() {
+    if (this.isSuperAdmin && this.instituteSearch.trim()) {
+      const typedInstitute = this.instituteSearch.trim().toLowerCase();
+      const matchedInstitute = this.institutes.find(institute =>
+        (institute.name || '').trim().toLowerCase() === typedInstitute
+      );
+
+      if (!matchedInstitute?.institute_id) {
+        try { notify('Please select a valid institute from the list.', 'info'); } catch (e) {}
+        return;
+      }
+
+      // Convert the displayed institute name to the ID required by the schedule API.
+      this.selectedInstitute = matchedInstitute.institute_id;
+      this.syncInstituteSearch();
+    }
     if (!this.hasFilterValues()) {
       try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
       return;
@@ -306,10 +339,13 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   //   }, error: (err) => { console.warn('Failed to load categories', err); this.categories = []; } });
   // }
   ngAfterViewInit(): void {
+    this.dataSource.sortingDataAccessor = (item: any, property: string) =>
+      property === 'schedule' ? item.start : item[property];
     this.dataSource.sort = this.sort;
   }
 
   ngOnDestroy(): void {
+  this.globalInstituteSub?.unsubscribe();
   this.saveScheduleReturnState();
 }
 
@@ -330,15 +366,22 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     if (this.filterName) params.push(`name=${encodeURIComponent(this.filterName)}`);
     if (this.selectedDepartments && this.selectedDepartments.length) params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
     if (this.selectedTeams && this.selectedTeams.length) params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
-    if (this.filterCreationDateAfter) params.push(`created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`);
-    if (this.filterCreationDate) params.push(`created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`);
-    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') params.push(`active=${encodeURIComponent(String(this.filterActiveStatus))}`);
+    if (this.filterCreationDateAfter) params.push(`created_after=${encodeURIComponent(this.toApiDateString(this.filterCreationDateAfter as Date))}`);
+    if (this.filterCreationDate) params.push(`created_before=${encodeURIComponent(this.toApiDateString(this.filterCreationDate as Date))}`);
+    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') {
+      // The existing API maps active=true to published=0, so invert the UI value at this boundary.
+      params.push(`active=${encodeURIComponent(String(!this.filterActiveStatus))}`);
+    }
     if (this.filterCreatedByMe) {
       try {
+        // Support the direct user_id session value as well as the existing profile objects.
+        const storedUserId = sessionStorage.getItem('user_id');
         const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
-        if (raw) {
+        if (storedUserId) {
+          params.push(`created_by=${encodeURIComponent(storedUserId)}`);
+        } else if (raw) {
           const obj = JSON.parse(raw);
-          const userId = obj?.user_id || obj?.id || obj?._id;
+          const userId = obj?.user_id || obj?.userId || obj?.id || obj?._id;
           if (userId) {
             params.push(`created_by=${encodeURIComponent(String(userId))}`);
           }
@@ -409,6 +452,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
         this.schedules = [];
         this.dataSource.data = this.schedules;
         this.dataSource.paginator = this.paginator;
+        // 404 just means no schedules matched the filters; anything else (e.g. a Global Institute Filter scope mismatch) should be surfaced.
+        if (err?.status !== 404) {
+          const msg = err?.error?.statusMessage || err?.message || 'Failed to load scheduled tests';
+          try { notify(msg, 'error'); } catch (e) {}
+        }
         try { this.loader.hide(); } catch (e) { /* ignore */ }
       }
     });
@@ -484,9 +532,14 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
         };
         // gather potential fields and set canonical keys
         const pub = payload.publish ?? payload.published ?? payload.is_published ?? payload.isPublished ?? payload.published_flag;
-        const rev = payload.user_review ?? payload.userreview ?? payload.review_available ?? payload.review ?? payload.allow_review;
+        const rev = payload.instant_review ?? payload.user_review ?? payload.userreview ?? payload.review_available ?? payload.review ?? payload.allow_review;
+        const multipleReview = payload.multiple_review ?? payload.multiplereview ?? payload.multipleReview ?? payload.is_multiple_review ?? payload.settings?.multiple_review;
         if (typeof pub !== 'undefined') payload.publish = normalizeBool(pub);
-        if (typeof rev !== 'undefined') payload.user_review = normalizeBool(rev);
+        if (typeof rev !== 'undefined') {
+          payload.instant_review = normalizeBool(rev);
+          payload.user_review = normalizeBool(rev);
+        }
+        if (typeof multipleReview !== 'undefined') payload.multiple_review = normalizeBool(multipleReview);
 
         // Normalize assigned_users to array of ids so the edit form can preselect assigned users
         try {
@@ -572,6 +625,8 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   saveScheduleReturnState(): void {
     try {
       sessionStorage.setItem('schedule_return_state', JSON.stringify({
+        instituteId: this.globalInstituteContext.activeInstituteId || this.selectedInstitute || '',
+        globalInstituteActive: this.globalInstituteContext.isGlobalFilterActive(),
         search: this.search,
         selectedInstitute: this.selectedInstitute,
         instituteSearch: this.instituteSearch,
@@ -594,6 +649,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       if (!raw) return;
       sessionStorage.removeItem('schedule_return_state');
       const state = JSON.parse(raw);
+      const activeInstituteId = this.globalInstituteContext.activeInstituteId;
+      if (activeInstituteId && String(state?.instituteId || '') !== String(activeInstituteId)) return;
+      if (activeInstituteId && state?.globalInstituteActive !== true) return;
+      if (!activeInstituteId && state?.globalInstituteActive === true) return;
+      if (!activeInstituteId && typeof state?.globalInstituteActive === 'undefined' && state?.instituteId) return;
       this.search = state?.search || '';
       this.selectedInstitute = state?.selectedInstitute || '';
       this.instituteSearch = state?.instituteSearch || '';
@@ -613,14 +673,38 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     }
   }
 
-  private applyGlobalInstituteScopeIfActive(): void {
-    const iid = sessionStorage.getItem('global_institute_id') || '';
-    if (!iid) return;
-    this.selectedInstitute = iid;
-    this.hasAppliedFilters = false;
-    try { this.loadDepartments(iid); } catch (e) {}
-    try { this.loadTeams(iid); } catch (e) {}
-    this.schedules = []; this.dataSource.data = [];
+  private resetForInstituteChange(instituteId: string): void {
+    this.activeInstituteId = instituteId;
+    this.selectedInstitute = instituteId;
+    this.instituteSearch = '';
+    // Clear institute-specific UI immediately so the previous institute cannot remain visible.
+    this.schedules = []; this.dataSource.data = []; this.departments = []; this.teams = []; this.categories = [];
+    this.selectedDepartments = []; this.selectedTeams = []; this.search = ''; this.dataSource.filter = '';
+    this.filterName = ''; this.filterCreationDateAfter = null; this.filterCreationDate = null;
+    this.filterActiveStatus = null; this.filterCreatedByMe = false; this.hasAppliedFilters = false;
+    this.selectedSchedule = null;
+    if (this.paginator) { this.paginator.firstPage(); this.paginator.length = 0; }
+    this.closeFiltersOverlay();
+    try { sessionStorage.removeItem('schedule_return_state'); } catch (e) {}
+    this.loadDepartments(instituteId);
+    this.loadTeams(instituteId);
+    this.syncInstituteSearch();
+  }
+
+  private resetAfterGlobalInstituteClear(): void {
+    this.activeInstituteId = '';
+    this.selectedInstitute = '';
+    this.instituteSearch = '';
+    // Clear all global-scope UI data; normal filters remain available for a fresh Apply.
+    this.schedules = []; this.dataSource.data = []; this.departments = []; this.teams = []; this.categories = [];
+    this.selectedDepartments = []; this.selectedTeams = []; this.search = ''; this.dataSource.filter = '';
+    this.filterName = ''; this.filterCreationDateAfter = null; this.filterCreationDate = null;
+    this.filterActiveStatus = null; this.filterCreatedByMe = false; this.hasAppliedFilters = false;
+    this.selectedSchedule = null;
+    if (this.paginator) { this.paginator.firstPage(); this.paginator.length = 0; }
+    this.closeFiltersOverlay();
+    try { sessionStorage.removeItem('schedule_return_state'); } catch (e) {}
+    this.loadInstitutes();
   }
 }
 

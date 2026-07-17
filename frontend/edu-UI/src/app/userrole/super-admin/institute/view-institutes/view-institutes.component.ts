@@ -68,7 +68,16 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
 
   industryTypes = ['School', 'College', 'BPO', 'Bank', 'IT'];
   industrySectors = ['School', 'Engineering', 'Arts', 'Healthcare', 'Finance', 'Banking', 'IT'];
-  
+
+  // Industry -> Sector dependency map (mirrors institute-register.component.ts)
+  private sectorMap: Record<string, string[]> = {
+    'School': ['School'],
+    'College': ['Engineering', 'Arts'],
+    'BPO': ['Healthcare', 'Finance'],
+    'Bank': ['Bank'],
+    'IT': ['IT']
+  };
+
   // filters
   filters: any = { name: '', industry: '', sector: '', country: '', city: '', active_status: '' };
   countries: Array<{ code: string; name: string }> = [];
@@ -77,6 +86,14 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   instituteOptions: Array<{ id: string; name: string }> = [];
   // raw location hierarchy returned by API (countries -> states -> cities)
   private locationHierarchyRaw: any[] = [];
+  // City options for the filter dropdown, scoped to the selected country via a server-side
+  // location-hierarchy?country_id=... call (mirrors LocationService.getStatesForCountry).
+  filterCityOptions: Array<{ code: string; name: string }> = [];
+
+  // search terms for the searchable filter dropdowns
+  countrySearch = '';
+  industrySearch = '';
+  sectorSearch = '';
 
   institutes: Institute[] = [];
   dataSource = new MatTableDataSource<Institute>([]);
@@ -218,7 +235,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     if (this.filters.industry) chips.push({ key: 'industry', label: `Industry: ${this.filters.industry}`, removable: true });
     if (this.filters.sector) chips.push({ key: 'sector', label: `Sector: ${this.filters.sector}`, removable: true });
     if (this.filters.country) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`, removable: true });
-    if (this.filters.city) chips.push({ key: 'city', label: `City: ${this.getSelectedName(this.cities, this.filters.city, 'code')}`, removable: true });
+    if (this.filters.city) chips.push({ key: 'city', label: `City: ${this.filters.city}`, removable: true });
     if (this.filters.active_status !== '') chips.push({ key: 'active_status', label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`, removable: true });
     return chips;
   }
@@ -226,24 +243,38 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   removeAppliedFilter(key: string) {
     if (!key) return;
     if (key === 'name') this.filters.name = '';
-    else if (key === 'industry') this.filters.industry = '';
+    else if (key === 'industry') { this.filters.industry = ''; this.filters.sector = ''; }
     else if (key === 'sector') this.filters.sector = '';
-    else if (key === 'country') { this.filters.country = ''; this.filters.city = ''; }
+    else if (key === 'country') { this.filters.country = ''; this.filters.city = ''; this.filterCityOptions = []; }
     else if (key === 'city') this.filters.city = '';
     else if (key === 'active_status') this.filters.active_status = '';
+    if (!this.filters.country && !this.filters.industry) this.filters.name = '';
+    this.refreshInstituteScope();
     this.refreshAfterFilterChipChange();
   }
 
   clearAppliedFilters() { this.resetFilters(); }
   private refreshAfterFilterChipChange() { if (this.appliedFilterChips.length) this.loadInstitutes(); else { this.hasAppliedFilters = false; this.institutes = []; this.rawRecords = []; this.dataSource.data = []; } }
   private getSelectedName(list: any[], selectedId: any, idKey: string = 'id'): string { const found = (list || []).find(item => String(item?.[idKey]) === String(selectedId)); return found?.name || String(selectedId || ''); }
+
+  // City is now a free-text/autocomplete field holding the display name; the backend's city
+  // filter expects an id, so resolve the typed/selected name back to its code here.
+  private resolveCityId(cityName: string): string {
+    const name = String(cityName || '').trim().toLowerCase();
+    if (!name) return '';
+    const pool = this.filterCityOptions.length ? this.filterCityOptions : this.cities;
+    const found = pool.find(c => String(c.name || '').trim().toLowerCase() === name);
+    return found ? String(found.code) : '';
+  }
+
   loadInstitutes() {
     const params: any = {};
   if(this.filters.name) params.name = this.filters.name;
   if(this.filters.industry) params.industry = this.filters.industry;
   if(this.filters.sector) params.sector = this.filters.sector;
   if(this.filters.country) params.country = this.filters.country;
-  if(this.filters.city) params.city = this.filters.city;
+  const cityId = this.resolveCityId(this.filters.city);
+  if(cityId) params.city = cityId;
     if(this.filters.active_status !== '') params.active_status = this.filters.active_status;
 
     this.loader.show();
@@ -331,6 +362,11 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     this.rawRecords = [];
     this.dataSource.data = [];
     this.hasAppliedFilters = false;
+    this.countrySearch = '';
+    this.industrySearch = '';
+    this.sectorSearch = '';
+    this.filterCityOptions = [];
+    this.loadInstituteOptions();
   }
 
   refresh(){
@@ -373,9 +409,10 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
       next: (res) => {
         try {
           const data = Array.isArray(res?.data) ? res.data : [];
+          // Use the full name in the filter and fall back to the abbreviation only if needed.
           this.instituteOptions = data.map((i: any) => ({
             id: i.institute_id || i.id || i._id || i.name || i.institute_name || '',
-            name: i.name || i.institute_name || i.short_name || ''
+            name: i.institute_name || i.name || i.short_name || ''
           })).filter((i: any) => !!i.name);
         } catch (e) {
           this.instituteOptions = [];
@@ -386,9 +423,172 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   filteredInstituteOptions(){
+    // Institute options become available when either parent scope is selected.
+    if (!this.filters.country && !this.filters.industry) return [];
     const q = String(this.filters.name || '').trim().toLowerCase();
     if (!q) return this.instituteOptions;
     return this.instituteOptions.filter(i => String(i.name || '').toLowerCase().includes(q));
+  }
+
+  // ---- Searchable dropdown helpers + dependent filtering ----
+
+  get filteredCountries(): Array<{ code: string; name: string }> {
+    const term = (this.countrySearch || '').trim().toLowerCase();
+    if (!term) return this.countries;
+    return this.countries.filter(c => (c.name || '').toLowerCase().includes(term));
+  }
+
+  // Load canonical cities for the selected country, then keep only cities used by
+  // registered institutes/campuses in that country.
+  private loadCitiesForCountry(countryCode: string) {
+    if (!countryCode) { this.filterCityOptions = []; return; }
+    this.filterCityOptions = [];
+    const selectedCountry = this.countries.find(country => String(country.code) === String(countryCode));
+    const countryName = selectedCountry?.name || '';
+    if (!countryName) return;
+    const url = `${API_BASE}/location-hierarchy`;
+    this.http.get<any>(url, { params: { country_id: countryCode } }).subscribe({
+      next: (res) => {
+        try {
+          const data = Array.isArray(res?.data?.cities) ? res.data.cities : [];
+          const hierarchyCities = data.map((city: any) => ({
+            code: city.id ?? city.city_id ?? city.city_code ?? city.code,
+            name: city.name ?? city.city_name ?? city.city
+          })).filter((city: any) => city.code && city.name);
+
+          this.http.get<any>(this.apiUrl, { params: { country: countryName } }).subscribe({
+            next: (instituteRes) => {
+              try {
+                const institutes = Array.isArray(instituteRes?.data) ? instituteRes.data : [];
+                const registeredCities: Array<{ code: string; name: string }> = [];
+                institutes.forEach((institute: any) => {
+                  const locations = [institute, ...(Array.isArray(institute?.campuses) ? institute.campuses : [])];
+                  locations.forEach((location: any) => {
+                    const rawCity = location?.city;
+                    const cityCode = location?.city_id || location?.city_code
+                      || (typeof rawCity === 'object' ? rawCity?.city_id || rawCity?.id || rawCity?.city_code || rawCity?.code : rawCity);
+                    const cityName = location?.city_name
+                      || (typeof rawCity === 'object' ? rawCity?.city_name || rawCity?.name || rawCity?.city : rawCity);
+                    const hierarchyMatch = hierarchyCities.find((city: any) =>
+                      (cityCode && String(city.code).toLowerCase() === String(cityCode).toLowerCase())
+                      || (cityName && String(city.name).trim().toLowerCase() === String(cityName).trim().toLowerCase())
+                    );
+                    const resolved = hierarchyMatch || (cityCode && cityName ? { code: cityCode, name: cityName } : null);
+                    if (resolved) registeredCities.push({ code: String(resolved.code), name: String(resolved.name).trim() });
+                  });
+                });
+                const uniqueByName = new Map<string, { code: string; name: string }>();
+                registeredCities.forEach(city => {
+                  const key = city.name.toLowerCase();
+                  if (!uniqueByName.has(key)) uniqueByName.set(key, city);
+                });
+                this.filterCityOptions = Array.from(uniqueByName.values()).sort((a, b) => a.name.localeCompare(b.name));
+              } catch (e) {
+                this.filterCityOptions = [];
+              }
+            },
+            error: () => { this.filterCityOptions = []; }
+          });
+        } catch (e) {
+          this.filterCityOptions = [];
+        }
+      },
+      error: () => { this.filterCityOptions = []; }
+    });
+  }
+  get filteredIndustryTypes(): string[] {
+    const term = (this.industrySearch || '').trim().toLowerCase();
+    if (!term) return this.industryTypes;
+    return this.industryTypes.filter(t => t.toLowerCase().includes(term));
+  }
+
+  // Sectors scoped to the selected industry; empty until an industry is selected.
+  private get scopedSectors(): string[] {
+    const industry = this.filters.industry;
+    if (!industry) return [];
+    return this.sectorMap[industry] || [];
+  }
+
+  get filteredSectors(): string[] {
+    const scoped = this.scopedSectors;
+    const term = (this.sectorSearch || '').trim().toLowerCase();
+    if (!term) return scoped;
+    return scoped.filter(s => s.toLowerCase().includes(term));
+  }
+
+  onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector') {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { /* ignore non-browser environments */ }
+      });
+      return;
+    }
+    if (field === 'country') this.countrySearch = '';
+    else if (field === 'industry') this.industrySearch = '';
+    else if (field === 'sector') this.sectorSearch = '';
+  }
+
+  stopFilterSearchEvent(event: Event) {
+    event.stopPropagation();
+  }
+
+  onCountryFilterChange() {
+    this.filters.city = '';
+    if (!this.filters.country && !this.filters.industry) this.filters.name = '';
+    this.loadCitiesForCountry(this.filters.country);
+    this.refreshInstituteScope();
+  }
+
+  onCityFilterChange() {
+    this.refreshInstituteScope();
+  }
+
+  onIndustryFilterChange() {
+    this.filters.sector = '';
+    if (!this.filters.country && !this.filters.industry) this.filters.name = '';
+    this.refreshInstituteScope();
+  }
+
+  onSectorFilterChange() {
+    if (!this.filters.country && !this.filters.industry) this.filters.name = '';
+    this.refreshInstituteScope();
+  }
+
+  // Reload Institute options scoped to the currently selected Country/City/Industry/Sector.
+  // Falls back to the full institute list (get-institute-list) when none of those are selected.
+  private refreshInstituteScope() {
+    const params: any = {};
+    if (this.filters.country) params.country = this.filters.country;
+    const cityId = this.resolveCityId(this.filters.city);
+    if (cityId) params.city = cityId;
+    if (this.filters.industry) params.industry = this.filters.industry;
+    if (this.filters.sector) params.sector = this.filters.sector;
+
+    if (!Object.keys(params).length) {
+      this.loadInstituteOptions();
+      return;
+    }
+
+    this.http.get<any>(this.apiUrl, { params }).subscribe({
+      next: (res) => {
+        try {
+          const data = Array.isArray(res?.data) ? res.data : [];
+          this.instituteOptions = data.map((r: any) => ({
+            id: r.institute_id || r.id || r._id || r.name || '',
+            name: r.institute_name || r.name || r.short_name || ''
+          })).filter((i: any) => !!i.name);
+        } catch (e) {
+          this.instituteOptions = [];
+        }
+        if (this.filters.name && !this.instituteOptions.some(i => i.name === this.filters.name)) {
+          this.filters.name = '';
+        }
+      },
+      error: () => { this.instituteOptions = []; }
+    });
   }
 
   loadCountries(){
@@ -400,7 +600,9 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
         const countries = res?.data?.countries || res?.countries || res?.data || [];
         // store raw hierarchy for recursive lookups
         this.locationHierarchyRaw = Array.isArray(countries) ? countries : [];
-        this.countries = countries.map((c:any)=> ({ code: c.country_code || c.code || c.id, name: c.country_name || c.name || c.country }));
+        // The hierarchy contains the complete world list. Keep it only for resolving
+        // names/ids and populate the filter from countries used by registered institutes.
+        this.loadRegisteredInstituteCountries(Array.isArray(countries) ? countries : []);
         // try to aggregate all cities from the countries payload (if present)
         let allCities: any[] = [];
         if(Array.isArray(countries)){
@@ -431,6 +633,46 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   });
   }
 
+  private loadRegisteredInstituteCountries(locationCountries: any[]) {
+    this.countries = [];
+    this.http.get<any>(this.apiUrl).subscribe({
+      next: (res) => {
+        try {
+          const institutes = Array.isArray(res?.data) ? res.data : [];
+          const hierarchyCountries = locationCountries.map((country: any) => ({
+            code: country.country_code || country.code || country.id,
+            name: country.country_name || country.name || country.country
+          })).filter((country: any) => country.code && country.name);
+          const registeredCountries: Array<{ code: string; name: string }> = [];
+          institutes.forEach((institute: any) => {
+            const locations = [institute, ...(Array.isArray(institute?.campuses) ? institute.campuses : [])];
+            locations.forEach((location: any) => {
+              const rawCountry = location?.country;
+              const countryCode = location?.country_id || location?.country_code
+                || (typeof rawCountry === 'object' ? rawCountry?.country_id || rawCountry?.id || rawCountry?.country_code || rawCountry?.code : rawCountry);
+              const countryName = location?.country_name
+                || (typeof rawCountry === 'object' ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country : rawCountry);
+              const hierarchyMatch = hierarchyCountries.find((country: any) =>
+                (countryCode && String(country.code).toLowerCase() === String(countryCode).toLowerCase())
+                || (countryName && String(country.name).trim().toLowerCase() === String(countryName).trim().toLowerCase())
+              );
+              const resolved = hierarchyMatch || (countryCode && countryName ? { code: countryCode, name: countryName } : null);
+              if (resolved) registeredCountries.push({ code: String(resolved.code), name: String(resolved.name).trim() });
+            });
+          });
+          const uniqueByName = new Map<string, { code: string; name: string }>();
+          registeredCountries.forEach(country => {
+            const key = country.name.toLowerCase();
+            if (!uniqueByName.has(key)) uniqueByName.set(key, country);
+          });
+          this.countries = Array.from(uniqueByName.values()).sort((a, b) => a.name.localeCompare(b.name));
+        } catch (e) {
+          this.countries = [];
+        }
+      },
+      error: () => { this.countries = []; }
+    });
+  }
   // country/state/city filters removed for Institutes view; helpers left intentionally blank
 
   get filtered() {

@@ -259,10 +259,16 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const randomizeQuestions = isDraft ? !!this.newCategory.randomize_questions : !!existing?.randomize_questions;
 
     if (isDraft && !this.validateNewCategoryQuestionCount(true)) return;
-    if (!randomizeQuestions && !this.selectedQuestionIds.length) return;
+    // Fixed (non-randomized) categories can either be hand-picked via the checkbox list,
+    // or left to a plain count — in which case the backend randomly selects that many
+    // questions once at save time and the same fixed set is served to every user.
+    const manualSelection = !randomizeQuestions && this.selectedQuestionIds.length > 0;
+    if (!randomizeQuestions && !manualSelection && !((Number(this.newCategory.questions) || 0) >= 1)) return;
 
-    const selectedIds = randomizeQuestions ? [] : [...this.selectedQuestionIds];
-    const requestedQuestions = randomizeQuestions ? (Number(this.newCategory.questions) || 0) : selectedIds.length;
+    const selectedIds = manualSelection ? [...this.selectedQuestionIds] : [];
+    const requestedQuestions = randomizeQuestions
+      ? (Number(this.newCategory.questions) || 0)
+      : (manualSelection ? selectedIds.length : (Number(this.newCategory.questions) || 0));
     const selectionKey = this.getQuestionSelectionKey(selectedIds);
     const draftName = this.getQuestionBankDraftName();
     const item = {
@@ -963,13 +969,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onNewCategoryRandomizeChange(checked: boolean) {
     this.newCategory.randomize_questions = !!checked;
-    if (!this.newCategory.randomize_questions) {
-      const available = this.selectedQuestionBankQuestionCount || this.questionsForCategory.length;
-      if (available > 0) this.newCategory.questions = available;
-      this.questionCountError = '';
-    } else {
-      this.validateNewCategoryQuestionCount(false);
-    }
+    this.questionCountError = '';
+    this.validateNewCategoryQuestionCount(false);
   }
 
   get selectedQuestionBankQuestionCount(): number {
@@ -985,8 +986,16 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get canAddSelectedQuestionBankQuestions(): boolean {
     if (!this.activeQuestionCategoryId) return false;
-    if (String(this.activeQuestionCategoryId) === String(this.selectedCategory) && this.newCategory.randomize_questions) {
-      return this.canAddSelectedQuestionBank && !this.shouldBlockRandomAllQuestionSelection();
+    const isFocused = String(this.activeQuestionCategoryId) === String(this.selectedCategory);
+    if (isFocused) {
+      if (!this.canAddSelectedQuestionBank) return false;
+      if (this.newCategory.randomize_questions) return !this.shouldBlockRandomAllQuestionSelection();
+      // Fixed (non-randomized) mode: a valid count alone is enough — the system will
+      // randomly pick that many questions once. Manual picks are still supported and,
+      // when present, must differ from what was last added to re-enable the button.
+      if (!this.selectedQuestionIds.length) return true;
+      const categoryId = String(this.activeQuestionCategoryId);
+      return this.getQuestionSelectionKey(this.selectedQuestionIds) !== this.lastAddedQuestionSelectionByCategory[categoryId];
     }
     if (!this.questionsForCategory.length || !this.selectedQuestionIds.length) return false;
     const categoryId = String(this.activeQuestionCategoryId);
@@ -1006,7 +1015,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const requested = Number(this.newCategory.questions) || 0;
     const maxMessage = `The selected Question Bank contains only ${available} questions. Please enter a number between 1 and ${available}.`;
     const minMessage = available > 0 ? `Please enter a number between 1 and ${available}.` : 'The selected Question Bank does not contain any questions.';
-    const allRandomMessage = `⚠️ You've selected all available questions (${requested}/${available}). Random selection has no effect because every student will receive the same questions.`;
+    const allRandomMessage = `You have selected all available questions. Random selection has no effect because every student will receive the same questions.`;
     let message = '';
 
     if (!this.selectedCategory) message = '';
@@ -1021,9 +1030,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private shouldBlockRandomAllQuestionSelection(): boolean {
-    const available = this.selectedQuestionBankQuestionCount;
-    const requested = Number(this.newCategory.questions) || 0;
-    return !!this.selectedCategory && !!this.newCategory.randomize_questions && available > 0 && requested === available;
+    return false;
   }
 
 
@@ -1126,6 +1133,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.title || !this.title.trim()) { notify('Title is required', 'error'); return; }
     if (!this.institute) { notify('Institute is required', 'error'); return; }
     if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) { notify('Duration is required', 'error'); return; }
+    if (this.passMark !== null && this.passMark !== undefined && (Number(this.passMark) < 0 || Number(this.passMark) > 100)) { notify('Pass Percentage must be between 0 and 100', 'error'); return; }
 
     const currentUser = this.getCurrentUserId();
     const payload: any = {

@@ -5,6 +5,57 @@ import datetime
 from others.exam_review import validate_answers
 from sqlalchemy import func
 
+VALID_REVIEW_MODES = {'no_review', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled', 'manual'}
+
+def _as_bool(value, default=False):
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value.strip().lower() in ('1', 'true', 'yes', 'on')
+    return bool(value)
+
+def _parse_iso_datetime(value, field_name):
+    if not value:
+        return None
+    try:
+        parsed = datetime.datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+        # SQL Server DateTime is timezone-naive; normalize incoming ISO values to naive UTC.
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        return parsed
+    except (TypeError, ValueError):
+        raise ValueError(f'{field_name} must be a valid ISO 8601 datetime')
+
+def _schedule_times(data, current_start=None, current_end=None):
+    start_time = _parse_iso_datetime(data.get('start_time'), 'start_time') if 'start_time' in data else current_start
+    end_time = _parse_iso_datetime(data.get('end_time'), 'end_time') if 'end_time' in data else current_end
+    if start_time and end_time and end_time < start_time:
+        raise ValueError('end_time must be after or equal to start_time')
+    return start_time, end_time
+
+def _review_settings(data, defaults=None):
+    defaults = defaults or {}
+    instant_review = _as_bool(data.get('instant_review', data.get('userreview', data.get('user_review'))), defaults.get('instant_review', False))
+    review_mode = 'instant' if instant_review else data.get('review_mode', defaults.get('review_mode', 'no_review'))
+    if not instant_review and review_mode not in VALID_REVIEW_MODES:
+        raise ValueError('review_mode must be no_review, after_schedule_ends, after_everyone_finishes, scheduled, or manual')
+
+    review_at = _parse_iso_datetime(data.get('review_at'), 'review_at') if 'review_at' in data else defaults.get('review_at')
+    if review_mode == 'scheduled' and review_at is None:
+        raise ValueError('review_at is required when review_mode is scheduled')
+    if review_mode != 'scheduled':
+        review_at = None
+
+    return {
+        'instant_review': instant_review,
+        'review_mode': review_mode,
+        'review_at': review_at,
+        'show_score': _as_bool(data.get('show_score'), defaults.get('show_score', True)),
+        'show_correct_answers': _as_bool(data.get('show_correct_answers'), defaults.get('show_correct_answers', True)),
+        'show_student_answers': _as_bool(data.get('show_student_answers'), defaults.get('show_student_answers', True)),
+        'show_explanations': _as_bool(data.get('show_explanations'), defaults.get('show_explanations', True)),
+    }
+
 def add_exam_schedule(request):
     # get exam details from the request
     data = request.json
@@ -16,15 +67,18 @@ def add_exam_schedule(request):
     total_questions = data.get("total_questions")
     number_of_attempts = data.get("number_of_attempts")
     published = data.get("published", False)
-    user_review = data.get("userreview", False)
-
-    start_time_str = data.get("start_time")
-    end_time_str = data.get("end_time")
+    try:
+        review_settings = _review_settings(data)
+        start_time, end_time = _schedule_times(data)
+    except ValueError as error:
+        return {"statusMessage": str(error), "status": False}, 400
+    # Multiple Review only applies to Manual Review; reject it for every other
+    # mode (including No Review) so a stale or tampered request can't enable it.
+    multiple_review = (
+        review_settings['review_mode'] == 'manual'
+        and _as_bool(data.get('multiple_review', data.get('multiplereview')), False)
+    )
     created_by = data.get("created_by")
-
-    # Convert ISO 8601 string to datetime object
-    start_time = datetime.datetime.fromisoformat(start_time_str.replace("Z", "+00:00")) if start_time_str else None
-    end_time = datetime.datetime.fromisoformat(end_time_str.replace("Z", "+00:00")) if end_time_str else None
 
     db = SQLiteDB()
     session = db.connect()
@@ -32,6 +86,10 @@ def add_exam_schedule(request):
         return None
 
     try:
+        exam = session.query(Exam).filter_by(exam_id=exam_id).first()
+        number_of_attempts_val = exam.number_of_attempts if exam else 1
+        pass_mark_val = exam.pass_mark if exam else 0
+
         add_schedule = ExamSchedule(
             title=title,
             exam_id=exam_id,
@@ -39,8 +97,19 @@ def add_exam_schedule(request):
             start_time=start_time,
             end_time=end_time,
             published=1 if published else 0,
-            user_review=1 if user_review else 0,
-            created_by=created_by
+            multiple_review=multiple_review,
+            user_review=1 if review_settings['instant_review'] else 0,
+            review_mode=review_settings['review_mode'],
+            review_at=review_settings['review_at'],
+            show_score=review_settings['show_score'],
+            show_correct_answers=review_settings['show_correct_answers'],
+            show_student_answers=review_settings['show_student_answers'],
+            show_explanations=review_settings['show_explanations'],
+            duration_mins=duration_mins,
+            total_questions=total_questions,
+            created_by=created_by,
+            number_of_attempts=number_of_attempts_val,
+            pass_mark=pass_mark_val
         )
         session.add(add_schedule)
         session.flush()
@@ -111,50 +180,108 @@ def update_exam_schedule(request):
         if not sched:
             return {"statusMessage": "Schedule not found", "status": False}, 404
 
+        previous_review_mode = sched.review_mode
+        previous_review_at = sched.review_at
+
+        # An attempt row is created when a student launches the schedule. Once
+        # present, preserve schedule identity/timing/assignments server-side.
+        has_attendance = session.query(Exam_Attempt.attempt_id).filter_by(schedule_id=schedule_id).first() is not None
+
         # Update basic fields if provided
-        if 'title' in data:
+        if 'title' in data and not has_attendance:
             sched.title = data.get('title')
-        if 'exam_id' in data:
+        if 'exam_id' in data and not has_attendance:
             sched.exam_id = data.get('exam_id')
-        if 'institute_id' in data:
+        if 'institute_id' in data and not has_attendance:
             sched.institute_id = data.get('institute_id')
-        if 'duration_mins' in data:
+        if 'duration_mins' in data and not has_attendance:
             try:
                 sched.duration_mins = int(data.get('duration_mins') or 0)
             except Exception:
                 pass
-        if 'number_of_attempts' in data:
-            try:
-                sched.number_of_attempts = int(data.get('number_of_attempts') or 0)
-            except Exception:
-                pass
-        if 'total_questions' in data:
+        
+        # Automatically update attempts and pass_mark from selected Test, ignoring any attempts field in request payload
+        if sched.exam_id and not has_attendance:
+            exam = session.query(Exam).filter_by(exam_id=sched.exam_id).first()
+            if exam:
+                sched.number_of_attempts = exam.number_of_attempts
+                sched.pass_mark = exam.pass_mark
+
+        if 'total_questions' in data and not has_attendance:
             try:
                 sched.total_questions = int(data.get('total_questions') or 0)
             except Exception:
                 pass
 
-        # published / user_review
+        # published / review settings
         if 'published' in data:
             sched.published = 1 if data.get('published') else 0
+        multiple_review_requested = None
+        if 'multiple_review' in data or 'multiplereview' in data:
+            multiple_review_requested = _as_bool(data.get('multiple_review', data.get('multiplereview')), False)
         if 'userreview' in data:
             sched.user_review = 1 if data.get('userreview') else 0
         if 'user_review' in data:
             sched.user_review = 1 if data.get('user_review') else 0
 
-        # times
-        start_time_str = data.get('start_time')
-        end_time_str = data.get('end_time')
-        if start_time_str:
+        review_keys = {'instant_review', 'userreview', 'user_review', 'review_mode', 'review_at', 'show_score', 'show_correct_answers', 'show_student_answers', 'show_explanations'}
+        if review_keys.intersection(data):
             try:
-                sched.start_time = datetime.datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
-            except Exception:
-                pass
-        if end_time_str:
+                settings = _review_settings(data, {
+                    'instant_review': sched.user_review == 1,
+                    'review_mode': sched.review_mode or 'no_review',
+                    'review_at': sched.review_at,
+                    'show_score': sched.show_score,
+                    'show_correct_answers': sched.show_correct_answers,
+                    'show_student_answers': sched.show_student_answers,
+                    'show_explanations': sched.show_explanations,
+                })
+            except ValueError as error:
+                return {"statusMessage": str(error), "status": False}, 400
+            sched.user_review = 1 if settings['instant_review'] else 0
+            sched.review_mode = settings['review_mode']
+            sched.review_at = settings['review_at']
+            sched.show_score = settings['show_score']
+            sched.show_correct_answers = settings['show_correct_answers']
+            sched.show_student_answers = settings['show_student_answers']
+            sched.show_explanations = settings['show_explanations']
+
+            # Multiple Review only applies to Manual Review; force it off for
+            # every other mode so a stale or tampered request can't enable it
+            # elsewhere. Must run before scheduled_review_changed below so that
+            # switching away from Manual Review also resets any stale opening.
+            if multiple_review_requested is not None:
+                sched.multiple_review = multiple_review_requested and sched.review_mode == 'manual'
+            elif sched.review_mode != 'manual':
+                sched.multiple_review = False
+
+            scheduled_review_changed = (
+                settings['review_mode'] == 'scheduled'
+                and not bool(sched.multiple_review)
+                and (
+                    previous_review_mode != 'scheduled'
+                    or previous_review_at != settings['review_at']
+                )
+            )
+            if scheduled_review_changed:
+                # A newly scheduled review window grants each submitted attempt one fresh opening.
+                session.query(Exam_Attempt).filter(
+                    Exam_Attempt.schedule_id == schedule_id
+                ).update(
+                    {Exam_Attempt.review_opened_at: None},
+                    synchronize_session=False
+                )
+        elif multiple_review_requested is not None:
+            # review_mode wasn't part of this request; gate against the schedule's
+            # existing mode so Multiple Review still can't be enabled outside Manual Review.
+            sched.multiple_review = multiple_review_requested and (sched.review_mode == 'manual')
+
+        # Timing remains editable until the first attempt exists.
+        if not has_attendance:
             try:
-                sched.end_time = datetime.datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
-            except Exception:
-                pass
+                sched.start_time, sched.end_time = _schedule_times(data, sched.start_time, sched.end_time)
+            except ValueError as error:
+                return {"statusMessage": str(error), "status": False}, 400
 
         # updated_by
         if data.get('updated_by'):
@@ -163,7 +290,7 @@ def update_exam_schedule(request):
             sched.updated_by = data.get('current_user')
 
         # Rebuild assigned user mappings if provided
-        if 'assigned_user_ids' in data:
+        if 'assigned_user_ids' in data and not has_attendance:
             try:
                 # Delete existing mappings for this schedule
                 session.query(ExamScheduleMapping).filter_by(schedule_id=schedule_id).delete()
@@ -197,6 +324,8 @@ def get_exam_schedule_details(request):
         filter = []
         args = getattr(request, "args", {})
         filter.append(func.coalesce(ExamSchedule.is_deleted, False) == False)
+        if args.get('schedule_id'):
+            filter.append(ExamSchedule.schedule_id == args.get('schedule_id'))
         if args.get("institute_id"):
             filter.append(ExamSchedule.institute_id == args.get("institute_id"))
         if args.get("name"):
@@ -219,11 +348,15 @@ def get_exam_schedule_details(request):
 
         exam_list = []
         for schedule in schedules:
+            # Existing attempts are the authoritative attendance signal.
+            has_attendance = session.query(Exam_Attempt.attempt_id).filter_by(schedule_id=schedule.schedule_id).first() is not None
             #  get Exam details
+            exam_title = None
             exam = session.query(Exam).filter_by(exam_id=schedule.exam_id).first()
             if exam:
                 exam_title = exam.title
             # get institute details
+            institute_name = None
             institute = session.query(Institute).filter_by(institute_id=schedule.institute_id).first()
             if institute:
                 institute_name = institute.name
@@ -258,6 +391,15 @@ def get_exam_schedule_details(request):
                 "updated_date": schedule.updated_date,
                 "published": True if schedule.published == 1 else False,
                 "user_review": True if schedule.user_review == 1 else False,
+                "instant_review": True if schedule.user_review == 1 else False,
+                "multiple_review": bool(schedule.multiple_review),
+                "review_mode": schedule.review_mode or ('instant' if schedule.user_review == 1 else 'no_review'),
+                "review_at": schedule.review_at,
+                "show_score": True if schedule.show_score is None else bool(schedule.show_score),
+                "show_correct_answers": True if schedule.show_correct_answers is None else bool(schedule.show_correct_answers),
+                "show_student_answers": True if schedule.show_student_answers is None else bool(schedule.show_student_answers),
+                "show_explanations": True if schedule.show_explanations is None else bool(schedule.show_explanations),
+                "has_attendance": has_attendance,
             })
     # institute_id	start_time	end_time	created_by	created_date	updated_by	updated_date	published
         json_data = {
