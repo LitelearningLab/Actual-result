@@ -371,13 +371,16 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           d = new Date(String(v));
         }
         if (isNaN(d.getTime())) return String(v);
+        const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
         const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const weekday = weekdays[d.getDay()];
         const dd = String(d.getDate()).padStart(2, '0');
         const mmm = months[d.getMonth()];
         const yyyy = d.getFullYear();
         const hh = String(d.getHours()).padStart(2, '0');
         const mm = String(d.getMinutes()).padStart(2, '0');
-        return `${dd}-${mmm}-${yyyy} ${hh}:${mm}`;
+        // Prefix the weekday to match the compact schedule range used in the test list.
+        return `${weekday} ${dd}-${mmm}-${yyyy} ${hh}:${mm}`;
       };
 
       this.exams = arr.map((x: any) => {

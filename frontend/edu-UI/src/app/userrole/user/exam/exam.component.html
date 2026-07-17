@@ -6,7 +6,7 @@
          <div class="search">
             <mat-form-field appearance="outline" class="search-field">
                <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
-               <input matInput placeholder="Name, Institute, Department" [(ngModel)]="search"
+               <input matInput placeholder="Title" [(ngModel)]="search"
                   (ngModelChange)="applyFilter()" aria-label="Search institutes" />
                <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter()"
                   aria-label="Clear search">
