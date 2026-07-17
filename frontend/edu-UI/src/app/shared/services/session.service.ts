@@ -10,20 +10,40 @@ import { ConfirmDialogComponent } from '../components/confirm-dialog/confirm-dia
 
 @Injectable({ providedIn: 'root' })
 export class SessionService {
+  private readonly idleTimeoutMs = 10 * 60 * 1000;
+  private readonly activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
   private listening = false;
+  private lastActivityAt = Date.now();
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private promptOpen = false;
+  private refreshInProgress = false;
   constructor(private dialog: MatDialog, private http: HttpClient, private router: Router, private ngZone: NgZone) {}
 
   startListening() {
     if (this.listening) return;
     this.listening = true;
+
+    this.activityEvents.forEach(eventName => {
+      window.addEventListener(eventName, () => this.recordActivity(), { passive: true });
+    });
+
     window.addEventListener('sessionExpired', (ev: any) => {
       const msg = ev && ev.detail && ev.detail.message ? ev.detail.message : 'Your session has expired';
-      // run dialog open inside Angular zone
-      this.ngZone.run(() => this.promptExtendOrLogout(msg));
+      if (this.hasBeenIdleForTenMinutes()) {
+        this.ngZone.run(() => this.promptExtendOrLogout(msg));
+      } else {
+        // Active users should not be interrupted just because the current JWT expired.
+        this.tryRefreshToken();
+      }
     });
+
+    this.scheduleIdleCheck();
   }
 
   private promptExtendOrLogout(message: string) {
+    if (this.promptOpen || !this.hasLoggedInSession()) return;
+    this.promptOpen = true;
+
     const ref = this.dialog.open(ConfirmDialogComponent, {
       data: {
         title: 'Session Expired',
@@ -35,7 +55,9 @@ export class SessionService {
     });
 
     ref.afterClosed().pipe(first()).subscribe((ok: boolean) => {
+      this.promptOpen = false;
       if (ok) {
+        this.recordActivity();
         this.tryRefreshToken();
       } else {
         this.doLogout();
@@ -44,6 +66,8 @@ export class SessionService {
   }
 
   private tryRefreshToken() {
+     if (this.refreshInProgress || !this.hasLoggedInSession()) return;
+     this.refreshInProgress = true;
      const raw = sessionStorage.getItem('user');
      let userId = null;
      if (raw) {
@@ -64,7 +88,43 @@ export class SessionService {
       } catch (e) {}
       // Close any session-expired dialogs now that token was refreshed
       try { this.dialog.closeAll(); } catch (e) {}
-      }, error: () => { try { this.dialog.closeAll(); } catch (e) {} ; this.doLogout(); } });
+      }, error: () => { try { this.dialog.closeAll(); } catch (e) {} ; this.doLogout(); }, complete: () => {
+        this.refreshInProgress = false;
+      } });
+  }
+
+  private recordActivity(): void {
+    if (this.promptOpen) return;
+    this.lastActivityAt = Date.now();
+    if (!this.idleTimer) this.scheduleIdleCheck();
+  }
+
+  private scheduleIdleCheck(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+
+    const remainingMs = Math.max(0, this.idleTimeoutMs - (Date.now() - this.lastActivityAt));
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = null;
+      if (!this.hasBeenIdleForTenMinutes()) {
+        this.scheduleIdleCheck();
+        return;
+      }
+
+      // The warning is exclusively an inactivity warning after 10 uninterrupted minutes.
+      this.ngZone.run(() => this.promptExtendOrLogout('Your session has expired due to inactivity.'));
+    }, remainingMs);
+  }
+
+  private hasBeenIdleForTenMinutes(): boolean {
+    return Date.now() - this.lastActivityAt >= this.idleTimeoutMs;
+  }
+
+  private hasLoggedInSession(): boolean {
+    try {
+      return !!sessionStorage.getItem('token') && !!sessionStorage.getItem('user');
+    } catch (e) {
+      return false;
+    }
   }
 
   private doLogout() {
@@ -93,6 +153,10 @@ export class SessionService {
   }
 
   private clearAndRedirect() {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = null;
+    this.promptOpen = false;
+    this.refreshInProgress = false;
     try {
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('user');
