@@ -49,10 +49,11 @@ const routes: Routes = [
   , { path: 'category/create', component: CategoryCreateComponent, canActivate: [PermissionGuard], data: { pageName: 'Categories', action: 'add' } }
   , { path: 'admin/exam-reports', loadChildren: () => import('../userrole/admin/exam-reports/exam-reports.module').then(m => m.ExamReportsModule), canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'admin-dashboard', component: AdminResultsComponent, canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
-  , { path: 'user/exam', component: UserExamComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','super_admin','superadmin','super-admin'] } }
-  , { path: 'user-dashboard', component: UserDashboardComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','super_admin','superadmin','super-admin'] } }
-  , { path: 'user/test-result', component: UserTestResultComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','super_admin','superadmin','super-admin'] } }
-  , { path: 'user-exam', component: UserExamRunnerComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','super_admin','superadmin','super-admin'] } }
+  // Admins can also use the complete candidate flow for tests assigned to their own account.
+  , { path: 'user/exam', component: UserExamComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'user-dashboard', component: UserDashboardComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'user/test-result', component: UserTestResultComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'user-exam', component: UserExamRunnerComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
 ];
 
 @NgModule({

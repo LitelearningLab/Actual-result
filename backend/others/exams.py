@@ -606,6 +606,8 @@ def get_user_exam_details(request):
                 validate_answers(finalized_id)
             # Review eligibility follows persisted attempt status, never the frontend Completed label.
             submitted_attempts = [attempt for attempt in attempts if is_review_eligible_attempt(attempt)]
+            # Keep user completion separate from the schedule becoming expired.
+            completed_by_user = bool(submitted_attempts)
             review_mode = schedule_obj.review_mode or ('instant' if user_review_data == 1 else 'no_review')
             if submitted_attempts:
                 if review_mode == 'instant':
@@ -657,6 +659,7 @@ def get_user_exam_details(request):
                 'multiple_review': bool(schedule_obj.multiple_review),
                 'review_attempt_id': getattr(displayed_review_attempt, 'attempt_id', None),
                 'attempted': attempted,
+                'completed_by_user': completed_by_user,
                 'expired': expired,
                 # Return raw datetimes so Flask serializes them exactly like
                 # the Started/Submitted values in the Test Review API.

@@ -39,6 +39,7 @@ export interface UserTestRow {
   review_mode?: string;
   multiple_review?: boolean;
   attempted?: boolean;
+  completed_by_user?: boolean;
   expired?: boolean;
 }
 
@@ -396,10 +397,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         const normalizedType = (x.type || '').toString().toLowerCase();
         const reviewAvailable = Boolean(x.user_review || x.review_available || x.review);
         const attempted = Boolean(x.attempted);
+        const completedByUser = Boolean(x.completed_by_user);
         const expired = Boolean(x.expired);
-        const isCompleted = ['complete', 'completed', 'done'].includes(normalizedType)
-          || (expired && attempted)
-          || reviewAvailable;
+        const isCompleted = completedByUser;
         // Expired (inactive) tests must show the configured schedule window, not attempt timestamps.
         const useAttemptTimes = isCompleted && !expired;
         const rawStartTime = useAttemptTimes ? x.user_start_time : (x.start_time || x.start);
@@ -418,6 +418,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           review_mode: x.review_mode || '',
           multiple_review: Boolean(x.multiple_review),
           attempted,
+          completed_by_user: completedByUser,
           expired,
           start_time: startVal,
           end_time: endVal,
@@ -485,10 +486,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   private updateTabDataSources(){
     const lc = (s?: string) => (s || '').toString().toLowerCase();
     const isActive = (t?: string) => ['active','live'].includes(lc(t));
-    const isComplete = (exam: UserTestRow) =>
-      ['complete','completed','done'].includes(lc(exam.type))
-      || Boolean(exam.expired && exam.attempted)
-      || Boolean(exam.user_review || exam.review_available);
+    // Only this user's persisted submitted/evaluated attempts belong in Completed.
+    const isComplete = (exam: UserTestRow) => Boolean(exam.completed_by_user);
     const isUpcoming = (t?: string) => ['upcoming','scheduled','pending','upcomming'].includes(lc(t));
 
     const byScheduleDate = (a: UserTestRow, b: UserTestRow) =>
