@@ -696,7 +696,8 @@ export class InstituteRegisterComponent {
         } catch (e) { /* ignore navigation errors */ }
       },
       error: (err) => {
-        console.error('Update institute failed:', err);
+        // Keep registration failures distinguishable from edit failures in browser diagnostics.
+        console.error(this.isEditing ? 'Update institute failed:' : 'Register institute failed:', err);
         // fallback: store locally and notify
         try { sessionStorage.setItem('institute_new', JSON.stringify(payload)); } catch (e) { }
         const serverMsg = err?.error?.statusMessage || err?.error?.message || err?.message || (this.isEditing ? 'Update failed. Please check server logs.' : 'Register failed. Please check server logs.');

@@ -556,6 +556,8 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     try {
       const source = row && row.raw ? row.raw : row;
       const payload = { ...source, schedule_id: source.schedule_id || id };
+      // Prefer the live list toggle value over the nested API snapshot used to open the editor.
+      if (typeof row?.publish !== 'undefined') payload.publish = !!row.publish;
       // normalize publish/review keys to common names to help the editor prefill toggles
       try {
         const normalizeBool = (v: any) => {
@@ -645,6 +647,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       // optimistic update
       const prev = row.publish;
       row.publish = newState;
+      // Keep the editor payload synchronized with the publish toggle shown in the list.
+      if (row.raw) {
+        row.raw.publish = newState;
+        row.raw.published = newState;
+      }
       const id = row.id || row.schedule_id;
       const action = newState ? 'activate' : 'deactivate';
       const url = `${this.baseUrl}/exam-schedule/${action}/${encodeURIComponent(String(id))}`;
@@ -654,6 +661,10 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       }, error: (err) => {
         console.error('Failed to update publish', err);
         row.publish = prev;
+        if (row.raw) {
+          row.raw.publish = prev;
+          row.raw.published = prev;
+        }
         const msg = err?.error?.statusMessage || err?.message || 'Failed to update schedule';
         try { notify(msg, 'error'); } catch(e) {}
       } });
