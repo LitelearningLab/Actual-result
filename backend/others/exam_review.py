@@ -109,7 +109,7 @@ def review_user_exam(request, current_user=None):
             # Older student clients do not send attempt_id. Select one eligible
             # attempt so another attempt in the schedule remains independent.
             eligible_attempts = completed_attempts
-            if review_mode == 'manual':
+            if review_mode in ('manual', 'no_review'):
                 eligible_attempts = [attempt for attempt in completed_attempts if attempt.status == 'evaluated']
             unreviewed_attempts = [
                 attempt for attempt in eligible_attempts
@@ -129,7 +129,11 @@ def review_user_exam(request, current_user=None):
             or (review_mode == 'after_schedule_ends' and exam_schedule.end_time and now >= exam_schedule.end_time)
             or (review_mode == 'after_everyone_finishes' and is_after_everyone_finished_available(session, exam_schedule, now))
             or (review_mode == 'scheduled' and exam_schedule.review_at and now >= exam_schedule.review_at)
-            or (review_mode == 'manual' and any(attempt.status == 'evaluated' for attempt in review_attempts))
+            or (
+                review_mode in ('manual', 'no_review')
+                and bool(exam_schedule.manual_review_enabled)
+                and any(attempt.status == 'evaluated' for attempt in review_attempts)
+            )
         )
         if not review_available:
             return {"statusMessage": "Review is not available for this test", "status": False}, 403

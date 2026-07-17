@@ -272,6 +272,8 @@ class ExamSchedule(Base):
      # Controls repeat viewing of one submitted attempt; this is not a retake/attempt setting.
      multiple_review = Column(Boolean, nullable=False, default=False)
      review_mode = Column(String(32), default='no_review')
+     # Admin-controlled student access gate used only by Manual Review.
+     manual_review_enabled = Column(Boolean, nullable=False, default=False)
      review_at = Column(DateTime)
      show_score = Column(Boolean, default=True)
      show_correct_answers = Column(Boolean, default=True)

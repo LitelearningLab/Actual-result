@@ -75,6 +75,7 @@ export class AdminScheduleTestComponent {
     multiplereview: false,
     userreview: true,
     reviewMode: 'no_review',
+    manualReviewEnabled: false,
     reviewDate: '',
     reviewTime: '',
     showScore: true,
@@ -301,7 +302,8 @@ export class AdminScheduleTestComponent {
     }, { validators: this.reviewScheduleValidator });
     this.reviewBehaviorForm = this.fb.group({
       multipleReview: [this.normalizeBoolean(this.model.multiplereview)],
-      instantReview: [this.normalizeBoolean(this.model.userreview)]
+      instantReview: [this.normalizeBoolean(this.model.userreview)],
+      manualReviewEnabled: [this.normalizeBoolean(this.model.manualReviewEnabled)]
     });
 
     this.scheduleTimingForm.valueChanges.subscribe(value => {
@@ -318,6 +320,7 @@ export class AdminScheduleTestComponent {
       // compatibility. The reactive controls remain the toggle source of truth.
       this.model.multiplereview = this.normalizeBoolean(value.multipleReview);
       this.model.userreview = this.normalizeBoolean(value.instantReview);
+      this.model.manualReviewEnabled = this.normalizeBoolean(value.manualReviewEnabled);
       this.markDirty();
     });
     if (this.readOnly) {
@@ -346,6 +349,10 @@ export class AdminScheduleTestComponent {
 
   get instantReviewControl(): FormControl {
     return this.reviewBehaviorForm.get('instantReview') as FormControl;
+  }
+
+  get manualReviewEnabledControl(): FormControl {
+    return this.reviewBehaviorForm.get('manualReviewEnabled') as FormControl;
   }
 
   // No Review is a stricter form of Manual Review. Deriving both checkbox
@@ -389,20 +396,12 @@ export class AdminScheduleTestComponent {
     this.markDirty();
   }
 
-  // Multiple Review only applies to Manual Review: it lets a student reopen a
-  // manually evaluated attempt more than once. Every other mode (including No
-  // Review) must keep it off and disabled so stale toggles can't leak through.
+  // Multiple Review is independent of review timing; it only controls whether
+  // an available review can be reopened after its first successful view.
   private syncMultipleReviewAvailability(): void {
     const control = this.multipleReviewControl;
     if (!control) return;
-    const allowed = this.model.reviewMode === 'manual';
-    if (!allowed) {
-      if (control.value) {
-        control.setValue(false, { emitEvent: false });
-      }
-      this.model.multiplereview = false;
-      if (!control.disabled) control.disable({ emitEvent: false });
-    } else if (!this.readOnly && control.disabled) {
+    if (!this.readOnly && control.disabled) {
       control.enable({ emitEvent: false });
     }
   }
@@ -430,12 +429,14 @@ export class AdminScheduleTestComponent {
         const multipleReview = this.normalizeBoolean(
           persisted.multiple_review ?? persisted.multiplereview ?? persisted.multipleReview
         );
+        const manualReviewEnabled = this.normalizeBoolean(persisted.manual_review_enabled);
 
         this.model.userreview = instantReview;
         this.model.multiplereview = multipleReview;
+        this.model.manualReviewEnabled = manualReviewEnabled;
         this.applyReviewSettings(persisted, value => this.normalizeBoolean(value));
         this.reviewBehaviorForm.patchValue(
-          { instantReview, multipleReview },
+          { instantReview, multipleReview, manualReviewEnabled },
           { emitEvent: false }
         );
         this.reviewScheduleForm.patchValue({
@@ -1141,6 +1142,7 @@ export class AdminScheduleTestComponent {
       userreview: any;
       instant_review: boolean;
       multiple_review: boolean;
+      manual_review_enabled: boolean;
       review_mode: string;
       review_at: string | null;
       show_score: boolean;
@@ -1163,11 +1165,11 @@ export class AdminScheduleTestComponent {
       published: this.model.publish || false,
       userreview: this.normalizeBoolean(this.reviewBehaviorForm.get('instantReview')?.value),
       instant_review: this.normalizeBoolean(this.reviewBehaviorForm.get('instantReview')?.value),
-      // Multiple Review only ever applies to Manual Review; every other mode
-      // (including No Review) must be sent as false regardless of toggle state.
-      multiple_review: !this.model.userreview
-        && this.model.reviewMode === 'manual'
-        && this.normalizeBoolean(this.reviewBehaviorForm.get('multipleReview')?.value),
+      // Persist independently from review_mode; availability timing is enforced separately.
+      multiple_review: this.normalizeBoolean(this.reviewBehaviorForm.get('multipleReview')?.value),
+      manual_review_enabled: !this.model.userreview
+        && ['manual', 'no_review'].includes(this.model.reviewMode)
+        && this.normalizeBoolean(this.reviewBehaviorForm.get('manualReviewEnabled')?.value),
       review_mode: this.model.userreview ? 'instant' : (this.model.reviewMode || 'no_review'),
       review_at: reviewAtIso,
       show_score: !!this.model.showScore,
@@ -1363,6 +1365,10 @@ export class AdminScheduleTestComponent {
     const persistedReviewMode = value.review_mode || value.reviewMode;
     if (['no_review', 'manual', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled', 'instant'].includes(persistedReviewMode)) {
       this.model.reviewMode = persistedReviewMode === 'instant' ? 'no_review' : persistedReviewMode;
+    }
+    if (typeof value.manual_review_enabled !== 'undefined') {
+      this.model.manualReviewEnabled = toBool(value.manual_review_enabled);
+      this.manualReviewEnabledControl?.setValue(this.model.manualReviewEnabled, { emitEvent: false });
     }
     const reviewAtValue = value.review_at || value.reviewAt;
     if (reviewAtValue) {

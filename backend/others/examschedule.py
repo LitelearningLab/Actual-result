@@ -72,12 +72,8 @@ def add_exam_schedule(request):
         start_time, end_time = _schedule_times(data)
     except ValueError as error:
         return {"statusMessage": str(error), "status": False}, 400
-    # Multiple Review only applies to Manual Review; reject it for every other
-    # mode (including No Review) so a stale or tampered request can't enable it.
-    multiple_review = (
-        review_settings['review_mode'] == 'manual'
-        and _as_bool(data.get('multiple_review', data.get('multiplereview')), False)
-    )
+    # This is independent of review timing and only controls repeat opening.
+    multiple_review = _as_bool(data.get('multiple_review', data.get('multiplereview')), False)
     created_by = data.get("created_by")
 
     db = SQLiteDB()
@@ -100,6 +96,10 @@ def add_exam_schedule(request):
             multiple_review=multiple_review,
             user_review=1 if review_settings['instant_review'] else 0,
             review_mode=review_settings['review_mode'],
+            manual_review_enabled=(
+                review_settings['review_mode'] in ('manual', 'no_review')
+                and _as_bool(data.get('manual_review_enabled'), False)
+            ),
             review_at=review_settings['review_at'],
             show_score=review_settings['show_score'],
             show_correct_answers=review_settings['show_correct_answers'],
@@ -182,6 +182,7 @@ def update_exam_schedule(request):
 
         previous_review_mode = sched.review_mode
         previous_review_at = sched.review_at
+        previous_manual_review_enabled = bool(sched.manual_review_enabled)
 
         # An attempt row is created when a student launches the schedule. Once
         # present, preserve schedule identity/timing/assignments server-side.
@@ -223,8 +224,15 @@ def update_exam_schedule(request):
             sched.user_review = 1 if data.get('userreview') else 0
         if 'user_review' in data:
             sched.user_review = 1 if data.get('user_review') else 0
+        if 'manual_review_enabled' in data:
+            # Keep the stored gate false outside admin-controlled review modes so stale clients
+            # cannot accidentally grant access when the mode changes later.
+            sched.manual_review_enabled = (
+                _as_bool(data.get('manual_review_enabled'), False)
+                and (data.get('review_mode', sched.review_mode) in ('manual', 'no_review'))
+            )
 
-        review_keys = {'instant_review', 'userreview', 'user_review', 'review_mode', 'review_at', 'show_score', 'show_correct_answers', 'show_student_answers', 'show_explanations'}
+        review_keys = {'instant_review', 'userreview', 'user_review', 'review_mode', 'review_at', 'manual_review_enabled', 'show_score', 'show_correct_answers', 'show_student_answers', 'show_explanations'}
         if review_keys.intersection(data):
             try:
                 settings = _review_settings(data, {
@@ -240,20 +248,33 @@ def update_exam_schedule(request):
                 return {"statusMessage": str(error), "status": False}, 400
             sched.user_review = 1 if settings['instant_review'] else 0
             sched.review_mode = settings['review_mode']
+            if sched.review_mode not in ('manual', 'no_review'):
+                sched.manual_review_enabled = False
             sched.review_at = settings['review_at']
             sched.show_score = settings['show_score']
             sched.show_correct_answers = settings['show_correct_answers']
             sched.show_student_answers = settings['show_student_answers']
             sched.show_explanations = settings['show_explanations']
 
-            # Multiple Review only applies to Manual Review; force it off for
-            # every other mode so a stale or tampered request can't enable it
-            # elsewhere. Must run before scheduled_review_changed below so that
-            # switching away from Manual Review also resets any stale opening.
             if multiple_review_requested is not None:
-                sched.multiple_review = multiple_review_requested and sched.review_mode == 'manual'
-            elif sched.review_mode != 'manual':
-                sched.multiple_review = False
+                # Do not derive this value from review_mode; the admin owns it.
+                sched.multiple_review = multiple_review_requested
+
+            access_just_enabled = (
+                sched.review_mode in ('manual', 'no_review')
+                and bool(sched.manual_review_enabled)
+                and not previous_manual_review_enabled
+                and not bool(sched.multiple_review)
+            )
+            if access_just_enabled:
+                # Each explicit OFF -> ON grant provides evaluated attempts one fresh opening.
+                session.query(Exam_Attempt).filter(
+                    Exam_Attempt.schedule_id == schedule_id,
+                    Exam_Attempt.status == 'evaluated'
+                ).update(
+                    {Exam_Attempt.review_opened_at: None},
+                    synchronize_session=False
+                )
 
             scheduled_review_changed = (
                 settings['review_mode'] == 'scheduled'
@@ -272,9 +293,7 @@ def update_exam_schedule(request):
                     synchronize_session=False
                 )
         elif multiple_review_requested is not None:
-            # review_mode wasn't part of this request; gate against the schedule's
-            # existing mode so Multiple Review still can't be enabled outside Manual Review.
-            sched.multiple_review = multiple_review_requested and (sched.review_mode == 'manual')
+            sched.multiple_review = multiple_review_requested
 
         # Timing remains editable until the first attempt exists.
         if not has_attendance:
@@ -394,6 +413,7 @@ def get_exam_schedule_details(request):
                 "instant_review": True if schedule.user_review == 1 else False,
                 "multiple_review": bool(schedule.multiple_review),
                 "review_mode": schedule.review_mode or ('instant' if schedule.user_review == 1 else 'no_review'),
+                "manual_review_enabled": bool(schedule.manual_review_enabled),
                 "review_at": schedule.review_at,
                 "show_score": True if schedule.show_score is None else bool(schedule.show_score),
                 "show_correct_answers": True if schedule.show_correct_answers is None else bool(schedule.show_correct_answers),

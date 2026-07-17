@@ -493,6 +493,7 @@ def get_user_exam_details(request):
                 ExamSchedule.user_review,
                 ExamSchedule.multiple_review,
                 ExamSchedule.review_mode,
+                ExamSchedule.manual_review_enabled,
                 ExamSchedule.review_at,
                 ExamSchedule.created_by,
                 ExamSchedule.created_date,
@@ -538,6 +539,7 @@ def get_user_exam_details(request):
                         ExamSchedule.user_review,
                         ExamSchedule.multiple_review,
                         ExamSchedule.review_mode,
+                        ExamSchedule.manual_review_enabled,
                         ExamSchedule.review_at,
                         ExamSchedule.created_by,
                         ExamSchedule.created_date,
@@ -614,13 +616,17 @@ def get_user_exam_details(request):
                     user_review = is_after_everyone_finished_available(session, schedule_obj, current_time)
                 elif review_mode == 'scheduled':
                     user_review = bool(schedule_obj.review_at and current_time >= schedule_obj.review_at)
-                elif review_mode == 'manual':
-                    user_review = any(attempt.status == 'evaluated' for attempt in submitted_attempts)
+                elif review_mode in ('manual', 'no_review'):
+                    # Admin-controlled review requires both completed evaluation and the
+                    # admin-controlled access gate to be enabled.
+                    user_review = bool(schedule_obj.manual_review_enabled) and any(
+                        attempt.status == 'evaluated' for attempt in submitted_attempts
+                    )
 
             # The review row represents one submitted attempt. With one-time
             # review, select the newest eligible attempt that is still unseen.
             review_candidates = submitted_attempts
-            if review_mode == 'manual':
+            if review_mode in ('manual', 'no_review'):
                 review_candidates = [attempt for attempt in submitted_attempts if attempt.status == 'evaluated']
             unreviewed_attempts = [
                 attempt for attempt in review_candidates
