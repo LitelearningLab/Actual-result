@@ -2,6 +2,7 @@ from db.models import Institute, InstituteCampus, InstituteDepartment, Institute
 from db.db import SQLiteDB
 from datetime import datetime
 from sqlalchemy import func, or_
+from sqlalchemy.exc import DBAPIError, IntegrityError
 # from sqlalchemy import text
 
 def get_pagination(request):
@@ -9,6 +10,7 @@ def get_pagination(request):
             request.args.get('pageSize', 25, type=int))
 
 def insert_institute(data):
+    data = data or {}
     name = data.get("name", None)
     short_name = data.get("short_name", None)
     industry_sector = data.get("industry_sector", None)
@@ -24,6 +26,14 @@ def insert_institute(data):
     subscription_start_str = data.get("subscription_start", None)
     subscription_end_str = data.get("subscription_end", None)
     created_by = data.get("current_user", 'system')
+
+    missing_fields = [field for field, value in (("name", name), ("short_name", short_name))
+                      if value is None or not str(value).strip()]
+    if missing_fields:
+        return {
+            "statusMessage": f"Missing required fields: {', '.join(missing_fields)}",
+            "status": False,
+        }, 400
 
     subscription_start = None
     subscription_end = None
@@ -42,35 +52,35 @@ def insert_institute(data):
     db = SQLiteDB()
     session = db.connect()
     if not session:
-        return None
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
 
-    existing_inst = session.query(Institute).filter(
-        Institute.is_deleted == 0,
-        func.lower(Institute.short_name) == func.lower(short_name)
-    ).first()
-    if existing_inst:
-        return {
-            "statusMessage": "Institute already exists",
-            "status": False,
-            "institute_id": existing_inst.institute_id
-        }, 409
-
-    new_inst = Institute(
-        name=name,
-        short_name=short_name,
-        industry_sector = industry_sector,
-        industry_type = industry_type,
-        primary_contact_person = primary_contact_person,
-        primary_contact_email = primary_contact_email,
-        primary_contact_phone = primary_contact_phone,
-        website = website,
-        max_users = max_users,
-        subscription_start = subscription_start,
-        subscription_end = subscription_end,
-        active_status=active_status,
-        created_by=created_by,
-    )
     try:
+        existing_inst = session.query(Institute).filter(
+            Institute.is_deleted == 0,
+            func.lower(Institute.short_name) == func.lower(short_name)
+        ).first()
+        if existing_inst:
+            return {
+                "statusMessage": "Institute already exists",
+                "status": False,
+                "institute_id": existing_inst.institute_id
+            }, 409
+
+        new_inst = Institute(
+            name=name,
+            short_name=short_name,
+            industry_sector=industry_sector,
+            industry_type=industry_type,
+            primary_contact_person=primary_contact_person,
+            primary_contact_email=primary_contact_email,
+            primary_contact_phone=primary_contact_phone,
+            website=website,
+            max_users=max_users,
+            subscription_start=subscription_start,
+            subscription_end=subscription_end,
+            active_status=active_status,
+            created_by=created_by,
+        )
         session.add(new_inst)
         session.flush()
         institute_id = new_inst.institute_id
@@ -156,13 +166,24 @@ def insert_institute(data):
         }
         return json_data, 201
     except Exception as e:
-        print(f"Error inserting institute: {e}")
         session.rollback()
+        print(f"Error inserting institute: {e!r}")
+        error_text = str(getattr(e, "orig", e)).lower()
+        if isinstance(e, DBAPIError) and "invalid column name" in error_text:
+            status_message = "Database schema is out of date. Apply the institute registration migration."
+        elif "string or binary data would be truncated" in error_text:
+            status_message = "An institute field exceeds the database column size. Apply the institute registration migration."
+        elif isinstance(e, IntegrityError):
+            status_message = "Institute data conflicts with an existing record or location reference."
+        else:
+            status_message = "Failed to register institute"
         json_data = {
-            "statusMessage": "Failed to register institute",
+            "statusMessage": status_message,
             "status": False
         }
         return json_data, 500
+    finally:
+        session.close()
 
 def update_institute(request):
     data = request.json

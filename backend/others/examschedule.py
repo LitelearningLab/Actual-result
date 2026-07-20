@@ -4,6 +4,7 @@ import sys
 import datetime
 from others.exam_review import validate_answers
 from sqlalchemy import func
+from sqlalchemy.exc import DBAPIError
 
 VALID_REVIEW_MODES = {'no_review', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled', 'manual'}
 
@@ -58,7 +59,7 @@ def _review_settings(data, defaults=None):
 
 def add_exam_schedule(request):
     # get exam details from the request
-    data = request.json
+    data = request.get_json(silent=True) or {}
 
     title = data.get("title")
     exam_id = data.get("exam_id")
@@ -76,15 +77,32 @@ def add_exam_schedule(request):
     multiple_review = _as_bool(data.get('multiple_review', data.get('multiplereview')), False)
     created_by = data.get("created_by")
 
+    missing_fields = [
+        field for field, value in (
+            ("title", title),
+            ("exam_id", exam_id),
+            ("start_time", start_time),
+            ("end_time", end_time),
+        )
+        if value is None or (isinstance(value, str) and not value.strip())
+    ]
+    if missing_fields:
+        return {
+            "statusMessage": f"Missing required fields: {', '.join(missing_fields)}",
+            "status": False,
+        }, 400
+
     db = SQLiteDB()
     session = db.connect()
     if not session:
-        return None
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     try:
         exam = session.query(Exam).filter_by(exam_id=exam_id).first()
-        number_of_attempts_val = exam.number_of_attempts if exam else 1
-        pass_mark_val = exam.pass_mark if exam else 0
+        if not exam:
+            return {"statusMessage": "Selected exam does not exist", "status": False}, 400
+        number_of_attempts_val = exam.number_of_attempts
+        pass_mark_val = exam.pass_mark
 
         add_schedule = ExamSchedule(
             title=title,
@@ -129,12 +147,22 @@ def add_exam_schedule(request):
         }
         return json_data, 200
     except Exception as e:
-        print(f"{e} occurred while inserting exam at line {sys.exc_info()[-1].tb_lineno}")
+        session.rollback()
+        print(f"{e!r} occurred while inserting exam at line {sys.exc_info()[-1].tb_lineno}")
+        error_text = str(getattr(e, "orig", e)).lower()
+        if isinstance(e, DBAPIError) and "invalid column name" in error_text:
+            status_message = (
+                "Database schema is out of date. Apply the ExamSchedules review-setting migrations."
+            )
+        else:
+            status_message = "Error inserting exam"
         json_data = {
-            "statusMessage": "Error inserting exam",
+            "statusMessage": status_message,
             "status": False,
         }
         return json_data, 500
+    finally:
+        session.close()
 
 # delete-scheduled-exam
 def delete_exam_schedule(schedule_id, deleted_by):
