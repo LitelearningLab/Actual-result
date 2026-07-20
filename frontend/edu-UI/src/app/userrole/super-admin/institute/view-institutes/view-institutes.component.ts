@@ -273,8 +273,8 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   if(this.filters.industry) params.industry = this.filters.industry;
   if(this.filters.sector) params.sector = this.filters.sector;
   if(this.filters.country) params.country = this.filters.country;
-  const cityId = this.resolveCityId(this.filters.city);
-  if(cityId) params.city = cityId;
+  const cityName = String(this.filters.city || '').trim();
+  if (cityName) params.city = cityName;
     if(this.filters.active_status !== '') params.active_status = this.filters.active_status;
 
     this.loader.show();
@@ -562,8 +562,8 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   private refreshInstituteScope() {
     const params: any = {};
     if (this.filters.country) params.country = this.filters.country;
-    const cityId = this.resolveCityId(this.filters.city);
-    if (cityId) params.city = cityId;
+    const cityName = String(this.filters.city || '').trim();
+    if (cityName) params.city = cityName;
     if (this.filters.industry) params.industry = this.filters.industry;
     if (this.filters.sector) params.sector = this.filters.sector;
 

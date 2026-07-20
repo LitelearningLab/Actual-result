@@ -53,13 +53,10 @@ def _ensure_institute_registration_schema(session):
 
 
 def _campus_city_values(session, value):
-    """Return a valid optional city FK plus display text for ID or free-text input."""
+    """Store city as normalized free text; it is not master data or a foreign key."""
     city_value = str(value or '').strip()
     if not city_value:
         return None, None
-    city = session.query(City).filter_by(city_id=city_value).first()
-    if city:
-        return city.city_id, city.city_name
     return None, city_value
 
 def get_pagination(request):
@@ -482,18 +479,9 @@ def get_institute_details(request):
             else:
                 filters.append(InstituteCampus.country_id.in_([country_val]))
     if args.get("city"):
-        city_val = args.get("city")
-        if city_val is not None:
-            if isinstance(city_val, (list, tuple)):
-                filters.append(or_(
-                    InstituteCampus.city_id.in_(city_val),
-                    InstituteCampus.city_name.in_(city_val),
-                ))
-            else:
-                filters.append(or_(
-                    InstituteCampus.city_id.in_([city_val]),
-                    InstituteCampus.city_name.in_([city_val]),
-                ))
+        city_val = str(args.get("city") or '').strip()
+        if city_val:
+            filters.append(InstituteCampus.city_name.ilike(f"%{city_val}%"))
 
     # If country or city filters are present, join with InstituteCampus
     if any(arg in args for arg in ["country", "city"]):

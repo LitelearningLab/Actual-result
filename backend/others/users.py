@@ -365,11 +365,16 @@ def get_user_details(request):
         filter.append(User.campus_id == args.get("campus"))
     if args.get("country"):
         filter.append(User.country_id == args.get("country"))
-    if args.get("city"):
-        filter.append(User.city_id == args.get("city"))
+    city_filter = str(args.get("city") or '').strip()
+    if city_filter:
+        filter.append(InstituteCampus.city_name.ilike(f"%{city_filter}%"))
 
-    user_details = session.query(User).filter(*filter).order_by(User.created_date).offset((page_number - 1) * page_size).limit(page_size).all()
-    total_count = session.query(User).filter(*filter).count()
+    query = session.query(User)
+    if city_filter:
+        query = query.outerjoin(InstituteCampus, User.campus_id == InstituteCampus.campus_id)
+    filtered_query = query.filter(*filter)
+    user_details = filtered_query.order_by(User.created_date).offset((page_number - 1) * page_size).limit(page_size).all()
+    total_count = filtered_query.count()
     
     result = []
     for user in user_details:
@@ -393,6 +398,7 @@ def get_user_details(request):
                 team_name = team.name
         # get campus 
         campus_name = None
+        campus = None
         if user.campus_id:
             campus = session.query(InstituteCampus).filter_by(campus_id=user.campus_id).first()
             if campus:
@@ -410,7 +416,7 @@ def get_user_details(request):
             if state:
                 state_name = state.state_name
 
-        city_name = None
+        city_name = campus.city_name if campus else None
         if user.city_id:
             city = session.query(City).filter_by(city_id=user.city_id).first()
             if city:

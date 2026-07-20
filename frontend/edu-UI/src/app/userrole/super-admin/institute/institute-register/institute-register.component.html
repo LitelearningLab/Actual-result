@@ -450,8 +450,6 @@
                             <mat-label>City</mat-label>
                             <mat-icon matPrefix>location_city</mat-icon>
                            <input matInput type="text" formControlName="city" placeholder="City" />
-                            <mat-hint *ngIf="!campusLoadingCities[(c.get('_cid')?.value)] && !c.get('state')?.value">Select state first</mat-hint>
-                            <mat-hint *ngIf="!campusLoadingCities[(c.get('_cid')?.value)] && c.get('state')?.value && !(campusCityOptions[(c.get('_cid')?.value)] || []).length">No cities available</mat-hint>
                           </mat-form-field>
 
                           <mat-form-field appearance="outline" class="field-full">

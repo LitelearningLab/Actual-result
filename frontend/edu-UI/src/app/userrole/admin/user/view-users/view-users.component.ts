@@ -381,8 +381,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.filters.department) params.department = this.filters.department;
     if (this.filters.team) params.team = this.filters.team;
     if (this.filters.country) params.country = this.filters.country;
-    const cityId = this.resolveCityId(this.filters.city);
-    if (cityId) params.city = cityId;
+    const cityName = String(this.filters.city || '').trim();
+    if (cityName) params.city = cityName;
     if (this.filters.campus) params.campus = this.filters.campus;
     if (this.filters.joining_from) params.joining_from = this.filters.joining_from;
     if (this.filters.joining_to) params.joining_to = this.filters.joining_to;
@@ -759,8 +759,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   private refreshInstituteScope() {
     const params: any = {};
     if (this.filters.country) params.country = this.filters.country;
-    const cityId = this.resolveCityId(this.filters.city);
-    if (cityId) params.city = cityId;
+    const cityName = String(this.filters.city || '').trim();
+    if (cityName) params.city = cityName;
     if (this.filters.industry) params.industry = this.filters.industry;
     if (this.filters.sector) params.sector = this.filters.sector;
 
@@ -1119,4 +1119,3 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.loadCountries();
   }
 }
-
