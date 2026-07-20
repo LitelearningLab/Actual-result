@@ -331,12 +331,30 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
 
     this.http.post<any>(this.submitUrl, payload).subscribe({
       next: (res) => {
-        // optional: clear session storage
-        try{ sessionStorage.removeItem('launched_exam'); sessionStorage.setItem('last_submission', JSON.stringify(res)); }catch(e){}
+        const completedAt = new Date().toISOString();
+        const result = {
+          ...(res?.data || res || {}),
+          test_id: this.examId,
+          title: this.examTitle,
+          user: userId,
+          total_questions: this.questions.length,
+          time_taken_mins: timeTakenMins,
+          completed_at: completedAt,
+          questions: this.questions.map((question, index) => ({
+            id: question.id,
+            question: question.question || question.text,
+            answer: this.answers[String(question.id ?? index)] ?? '',
+            marks: question.marks
+          }))
+        };
+        try {
+          sessionStorage.removeItem('launched_exam');
+          sessionStorage.setItem('last_submission', JSON.stringify(result));
+          sessionStorage.setItem('test_result', JSON.stringify(result));
+        } catch(e) {}
         this.submitting = false;
         this.stopTimer();
-        // redirect to user dashboard
-        this.ngZone.run(() => this.router.navigate(['/user-dashboard']));
+        this.ngZone.run(() => this.router.navigate(['/user/test-result']));
       },
       error: (err) => {
         console.warn('Submit failed', err);

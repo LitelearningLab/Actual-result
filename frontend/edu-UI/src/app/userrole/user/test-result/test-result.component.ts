@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { notify } from 'src/app/shared/global-notify';
 
 @Component({
@@ -14,24 +15,15 @@ export class UserTestResultComponent implements OnInit {
   percent = 0;
   accuracy = 0;
 
+  constructor(private router: Router) {}
+
   ngOnInit(): void {
     try{
-      const raw = sessionStorage.getItem('test_result');
+      const raw = sessionStorage.getItem('test_result') || sessionStorage.getItem('last_submission');
       if (raw){
         this.result = JSON.parse(raw) as TestResult;
       }
     }catch(e){ /* ignore parse errors */ }
-
-    if (!this.result){
-      // fallback sample
-      this.result = {
-        test_id: 'sample-1', title: 'Sample Test', user: 'student@example.com', total_marks: 40, score: 28, total_questions: 10, correct: 7, incorrect: 3, time_taken_mins: 42,
-        started_at: new Date().toUTCString(), completed_at: new Date().toUTCString(), questions: [
-          { id: 'q1', question: 'What is 2+2?', answer: '4', correct_answer: '4', marks_awarded: 4, marks:4 },
-          { id: 'q2', question: 'Capital of France?', answer: 'Paris', correct_answer: 'Paris', marks_awarded: 4, marks:4 }
-        ]
-      };
-    }
 
     const r = this.result;
     this.percent = r && r.total_marks ? Math.round(((r.score||0) / (r.total_marks||1)) * 100) : 0;
@@ -49,8 +41,11 @@ export class UserTestResultComponent implements OnInit {
   }
 
   backToDashboard(){
-    // simple navigation using location for now
-    window.location.href = '/';
+    this.router.navigate(['/user-dashboard']);
+  }
+
+  viewAvailableTests(){
+    this.router.navigate(['/user/exam']);
   }
 }
 
@@ -76,6 +71,7 @@ export interface TestResult {
   started_at?: string;
   completed_at?: string;
   questions?: QuestionResult[];
+  statusMessage?: string;
 }
 
 // ...existing code...
