@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, ViewChild, OnInit, OnDestroy } from '@angular/core';
+import { Component, AfterViewInit, ViewChild, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
@@ -247,6 +247,16 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     this.filterCreatedBefore = null;
     this.filterCreatedByMe = false;
     this.applyFilter();
+  }
+
+  toggleFilters(event: MouseEvent): void {
+    event.stopPropagation();
+    this.filtersOpen = !this.filtersOpen;
+  }
+
+  @HostListener('document:click')
+  closeFiltersOnOutsideClick(): void {
+    if (this.filtersOpen) this.filtersOpen = false;
   }
 
   // Review modal state

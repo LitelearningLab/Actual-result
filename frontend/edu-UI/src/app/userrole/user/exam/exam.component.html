@@ -22,7 +22,7 @@
          </button>
 
          <div class="action-row">
-             <button mat-flat-button type="button" class="button-one" (click)="filtersOpen = !filtersOpen">
+             <button mat-flat-button type="button" class="button-one" (click)="toggleFilters($event)">
                 <mat-icon svgIcon="filter"></mat-icon>
                 <span>Filter Tests</span>
              </button>
@@ -30,7 +30,7 @@
       </div>
    </div>
 
-   <div class="filters-panel card" *ngIf="filtersOpen">
+   <div class="filters-panel card" *ngIf="filtersOpen" (click)="$event.stopPropagation()">
       <div class="filters-header"><div class="filters-title"><mat-icon>tune</mat-icon><strong>Filters</strong></div><span class="filters-header-mark" aria-hidden="true"></span></div>
       <div class="filter-row">
          <mat-form-field *ngIf="isSuperAdmin" appearance="outline">
