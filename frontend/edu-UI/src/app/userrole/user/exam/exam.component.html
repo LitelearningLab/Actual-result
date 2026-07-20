@@ -247,7 +247,10 @@
                   <h1 class="review-exam-title">{{ selectedReviewTitle }}</h1>
                </div>
             </div>
-            <button mat-icon-button (click)="closeReview()"><mat-icon>close</mat-icon></button>
+            <button type="button" mat-icon-button class="review-close-btn" aria-label="Close test review"
+               title="Close" (click)="closeReview()">
+               <mat-icon aria-hidden="true">close</mat-icon>
+            </button>
          </div>
 
          <div *ngIf="reviewLoading" class="muted">Loading review...</div>

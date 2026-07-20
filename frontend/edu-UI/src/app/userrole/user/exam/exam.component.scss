@@ -158,8 +158,10 @@ $shadow-panel: 0 1.5rem 3.75rem rgba(5,18,40,0.22), 0 0.375rem 1rem rgba(5,18,40
 .review-header h3 { margin:0; font-size:0.75rem; font-weight:700; color:var(--theme-3-text-3); letter-spacing:0.06em; text-transform:uppercase; display:flex; align-items:center; gap:0.5rem; }
 .review-header h3::before { content:'📊'; font-size:1.25rem; }
 .review-header .exam-title h2 { margin:0; font-size:1.25rem; font-weight:800; color:var(--button-1); letter-spacing:-0.02em; }
-.review-header button { background:var(--bg-1); border:0.0625rem solid var(--theme-3-border); border-radius:0.75rem; width:2.375rem; height:2.375rem; transition:background 0.2s $ease, transform 0.2s $ease-bounce, border-color 0.2s $ease; }
-.review-header button:hover { background:var(--bg-2); border-color:var(--button-1); transform:scale(1.04); }
+.review-close-btn { display:inline-flex; align-items:center; justify-content:center; flex:0 0 2.5rem; width:2.5rem; height:2.5rem; padding:0; color:var(--theme-3-text-2); background:var(--bg-1); border:0.0625rem solid var(--theme-3-border); border-radius:0.75rem; cursor:pointer; transition:background 0.2s $ease, transform 0.2s $ease-bounce, border-color 0.2s $ease, color 0.2s $ease; }
+.review-close-btn mat-icon { width:1.5rem; height:1.5rem; font-size:1.5rem; line-height:1.5rem; }
+.review-close-btn:hover { color:var(--button-1); background:var(--bg-2); border-color:var(--button-1); transform:scale(1.04); }
+.review-close-btn:focus-visible { outline:0.125rem solid var(--button-1); outline-offset:0.125rem; }
 .review-header-text { display:flex; flex-direction:column; gap:0.25rem; }
 .review-header-text h3 { margin:0; font-size:0.75rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--theme-3-text-3); }
 .review-exam-title { margin:0; font-size:1.25rem; font-weight:800; color:var(--theme-3-text-1); letter-spacing:-0.02em; }
