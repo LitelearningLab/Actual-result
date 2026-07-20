@@ -419,7 +419,9 @@
                               <span class="result" [ngClass]="{ 'pass': (selectedUserResult || '').toLowerCase() === 'pass', 'fail': (selectedUserResult || '').toLowerCase() === 'fail' }">{{ selectedUserResult || '-' }}</span>
                          </h3>
                     </div>
-                    <button mat-icon-button aria-label="Close" type="button" (click)="closeUserReview()"><mat-icon>close</mat-icon></button>
+                     <button mat-icon-button class="review-close-btn" aria-label="Close answer sheet" type="button" (click)="closeUserReview()">
+                          <mat-icon aria-hidden="true">close</mat-icon>
+                     </button>
                </div>
                <div class="panel-body">
                     <div *ngIf="userReviewLoading" class="muted">Loading review...</div>

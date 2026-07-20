@@ -585,8 +585,39 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 .user-review-panel .panel-header .result { font-weight:700; padding:0.25rem 0.75rem; border-radius:62.5rem; font-size:0.75rem; letter-spacing:0.04em; text-transform:uppercase; box-shadow:0 0.125rem 0.5rem rgba(15,23,42,0.08); }
 .user-review-panel .panel-header .result.pass { color: var(--button-text-1); background: var(--button-1); }
 .user-review-panel .panel-header .result.fail { color: #fff; background: var(--theme-3-text-3); }
-.user-review-panel .panel-header button[mat-icon-button] { width:2.5rem; height:2.5rem; border-radius:0.75rem; background:var(--bg-1); border:0.0625rem solid var(--theme-3-border); transition:background 0.2s $ease, border-color 0.2s $ease, transform 0.2s $ease-bounce, color 0.2s $ease; flex-shrink:0; }
-.user-review-panel .panel-header button[mat-icon-button]:hover { background:var(--theme-2-hanover-bg); border-color:var(--button-1); color:var(--button-1); transform:rotate(90deg); }
+.user-review-panel .panel-header .review-close-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: var(--bg-1);
+  border: 0.0625rem solid var(--theme-3-border);
+  color: var(--theme-3-text-2);
+  line-height: 1;
+  transition: background 0.2s $ease, border-color 0.2s $ease, color 0.2s $ease, box-shadow 0.2s $ease;
+  flex: 0 0 2.75rem;
+}
+.user-review-panel .panel-header .review-close-btn mat-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.25rem;
+}
+.user-review-panel .panel-header .review-close-btn:hover {
+  background: var(--theme-2-hanover-bg);
+  border-color: var(--button-1);
+  color: var(--button-1);
+  box-shadow: 0 0.375rem 0.875rem var(--theme-3-hanover-bg);
+}
+.user-review-panel .panel-header .review-close-btn:focus-visible {
+  outline: 0.125rem solid var(--button-1);
+  outline-offset: 0.125rem;
+}
 .user-review-panel .panel-sub { color: var(--theme-3-text-3); font-size: 0.875rem; }
 .user-review-panel .panel-body { flex:1; overflow:auto; max-height: calc(90vh - 10rem); padding: 1.5rem; }
 
