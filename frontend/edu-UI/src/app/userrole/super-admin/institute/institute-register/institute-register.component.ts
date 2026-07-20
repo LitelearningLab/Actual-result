@@ -62,7 +62,7 @@ export class InstituteRegisterComponent {
     primary_contact_email: ['', [Validators.required, Validators.email]],
     // Use null for empty select values so Material does not treat a blank option as selected.
     industry_type: [null as string | null, Validators.required],
-    industry_sector: [null as string | null, Validators.required],
+    industry_sector: [{ value: null as string | null, disabled: true }, Validators.required],
     department: [''],
     branch: [''],
     team: [''],
@@ -346,7 +346,7 @@ export class InstituteRegisterComponent {
     return this.fb.group({
       campus_id: [data?.campus_id || data?.id || data?._id || null],
       _cid: [cid],
-      name: [data?.name || ''],
+      name: [data?.name || '', Validators.required],
       address: [data?.address || ''],
       pincode: [data?.pincode || ''],
       country: [data?.country || ''],
@@ -586,6 +586,12 @@ export class InstituteRegisterComponent {
     // Reset selected sector only when it is not valid for the selected industry.
     const sectorCtrl = this.form.get('industry_sector');
     if (sectorCtrl) {
+      if (this.sectorOptions.length) {
+        sectorCtrl.enable({ emitEvent: false });
+      } else {
+        sectorCtrl.disable({ emitEvent: false });
+      }
+
       const selectedSector = sectorCtrl.value;
       if (selectedSector && this.sectorOptions.includes(selectedSector)) {
         return;
@@ -649,6 +655,14 @@ export class InstituteRegisterComponent {
         campus.name || campus.address || campus.country || campus.state || campus.city || campus.pincode || campus.email || campus.phone
       );
     } catch(e) { payload.campuses = []; }
+    const unnamedCampusIndex = payload.campuses.findIndex((campus: any) => !String(campus?.name || '').trim());
+    if (unnamedCampusIndex >= 0) {
+      this.campuses.at(unnamedCampusIndex)?.get('name')?.markAsTouched();
+      this.expandedIndex = unnamedCampusIndex;
+      this._snack.open(`Campus ${unnamedCampusIndex + 1} requires a name.`, 'Close', { duration: 5000 });
+      this.isSubmitting = false;
+      return;
+    }
     if (this.isEditing) {
       const headOffice: any = base.headOffice || {};
       const hasHeadOffice = Object.values(headOffice).some((value) => !!value);
@@ -697,7 +711,16 @@ export class InstituteRegisterComponent {
       },
       error: (err) => {
         // Keep registration failures distinguishable from edit failures in browser diagnostics.
-        console.error(this.isEditing ? 'Update institute failed:' : 'Register institute failed:', err);
+        const responseBody = err?.error;
+        const responseText = typeof responseBody === 'string'
+          ? responseBody
+          : JSON.stringify(responseBody || {});
+        console.error(
+          this.isEditing ? 'Update institute failed:' : 'Register institute failed:',
+          `HTTP ${err?.status || 0}`,
+          responseBody?.statusMessage || responseBody?.message || 'No server error message',
+          responseText
+        );
         // fallback: store locally and notify
         try { sessionStorage.setItem('institute_new', JSON.stringify(payload)); } catch (e) { }
         const serverMsg = err?.error?.statusMessage || err?.error?.message || err?.message || (this.isEditing ? 'Update failed. Please check server logs.' : 'Register failed. Please check server logs.');

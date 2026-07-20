@@ -115,7 +115,7 @@
                   <mat-label>Industry Sector</mat-label>
                   <mat-icon matPrefix>category</mat-icon>
                   <!-- Disabled until Industry Type provides valid sector options. -->
-                  <mat-select formControlName="industry_sector" [disabled]="!sectorOptions.length">
+                  <mat-select formControlName="industry_sector">
                     <mat-option *ngFor="let s of sectorOptions" [value]="s">{{s}}</mat-option>
                     <mat-option *ngIf="!sectorOptions.length" disabled>-- Select industry type first --</mat-option>
                   </mat-select>
@@ -373,6 +373,7 @@
                             <mat-label>Campus Name</mat-label>
                             <mat-icon matPrefix>location_city</mat-icon>
                             <input matInput formControlName="name" placeholder="Campus name" />
+                            <mat-error *ngIf="c.get('name')?.hasError('required')">Campus name is required</mat-error>
                           </mat-form-field>
 
                           <mat-form-field appearance="outline" class="field-full">

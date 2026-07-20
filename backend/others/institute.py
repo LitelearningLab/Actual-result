@@ -3,7 +3,46 @@ from db.db import SQLiteDB
 from datetime import datetime
 from sqlalchemy import func, or_
 from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy import text
+import threading
 # from sqlalchemy import text
+
+_institute_schema_ready = False
+_institute_schema_lock = threading.Lock()
+
+
+def _ensure_institute_registration_schema(session):
+    """Add missing institute columns once per backend process."""
+    global _institute_schema_ready
+    if _institute_schema_ready:
+        return
+
+    with _institute_schema_lock:
+        if _institute_schema_ready:
+            return
+
+        required_columns = {
+            "primary_contact_person": "NVARCHAR(255) NULL",
+            "primary_contact_email": "NVARCHAR(255) NULL",
+            "primary_contact_phone": "NVARCHAR(50) NULL",
+            "website": "NVARCHAR(500) NULL",
+            "industry_type": "NVARCHAR(255) NULL",
+            "industry_sector": "NVARCHAR(255) NULL",
+            "max_users": "INT NULL",
+            "subscription_start": "DATE NULL",
+            "subscription_end": "DATE NULL",
+        }
+        for column_name, definition in required_columns.items():
+            exists = session.execute(
+                text("SELECT COL_LENGTH('dbo.Institutes', :column_name)"),
+                {"column_name": column_name},
+            ).scalar()
+            if exists is None:
+                session.execute(text(
+                    f"ALTER TABLE dbo.Institutes ADD [{column_name}] {definition}"
+                ))
+        session.commit()
+        _institute_schema_ready = True
 
 def get_pagination(request):
     return (request.args.get('pageNumber', 1, type=int),
@@ -11,6 +50,7 @@ def get_pagination(request):
 
 def insert_institute(data):
     data = data or {}
+    operation = "validate_payload"
     name = data.get("name", None)
     short_name = data.get("short_name", None)
     industry_sector = data.get("industry_sector", None)
@@ -20,6 +60,15 @@ def insert_institute(data):
     primary_contact_phone = data.get("primary_contact_phone", None) 
     website = data.get("website", None)
     max_users = data.get("max_users", None)
+    if max_users in ("", None):
+        max_users = None
+    else:
+        try:
+            max_users = int(max_users)
+        except (TypeError, ValueError):
+            return {"statusMessage": "max_users must be a whole number", "status": False}, 400
+        if max_users < 1:
+            return {"statusMessage": "max_users must be at least 1", "status": False}, 400
     active_status = data.get("active_status", data.get("active", 1))
     active_status = 1 if active_status in (True, 1, "1", "true", "True", "active", "Active") else 0
 
@@ -55,6 +104,10 @@ def insert_institute(data):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     try:
+        operation = "ensure_schema"
+        _ensure_institute_registration_schema(session)
+
+        operation = "check_duplicate"
         existing_inst = session.query(Institute).filter(
             Institute.is_deleted == 0,
             func.lower(Institute.short_name) == func.lower(short_name)
@@ -66,6 +119,7 @@ def insert_institute(data):
                 "institute_id": existing_inst.institute_id
             }, 409
 
+        operation = "insert_institute"
         new_inst = Institute(
             name=name,
             short_name=short_name,
@@ -85,6 +139,7 @@ def insert_institute(data):
         session.flush()
         institute_id = new_inst.institute_id
 
+        operation = "insert_locations"
         head_office_data = data.get('headOffice') or {}
         address = head_office_data.get('address', None)
         country_id = head_office_data.get('country', None)
@@ -111,8 +166,13 @@ def insert_institute(data):
             session.add(new_campus)
 
         campuses_list = data.get('campuses') or []
-        for campuses in campuses_list:
-            name = campuses.get('name', None)
+        for index, campuses in enumerate(campuses_list, start=1):
+            name = str(campuses.get('name') or '').strip()
+            if not name:
+                return {
+                    "statusMessage": f"Campus {index} requires a name",
+                    "status": False,
+                }, 400
             address = campuses.get('address', None)
             country_id = campuses.get('country', None)
             state_id = campuses.get('state', None)
@@ -138,6 +198,7 @@ def insert_institute(data):
                 )
             session.add(new_campus)
 
+        operation = "insert_departments_and_teams"
         for department in data.get('department') or []:
             if not department:
                 continue
@@ -157,6 +218,7 @@ def insert_institute(data):
                 created_by=created_by
             )
             session.add(new_InstituteTeam)
+        operation = "commit"
         session.commit()
 
         json_data = {
@@ -167,9 +229,12 @@ def insert_institute(data):
         return json_data, 201
     except Exception as e:
         session.rollback()
-        print(f"Error inserting institute: {e!r}")
+        print(f"Error inserting institute during {operation}: {e!r}", flush=True)
         error_text = str(getattr(e, "orig", e)).lower()
-        if isinstance(e, DBAPIError) and "invalid column name" in error_text:
+        if isinstance(e, DBAPIError) and (
+            "invalid column name" in error_text
+            or "alter permission was denied" in error_text
+        ):
             status_message = "Database schema is out of date. Apply the institute registration migration."
         elif "string or binary data would be truncated" in error_text:
             status_message = "An institute field exceeds the database column size. Apply the institute registration migration."
@@ -179,7 +244,8 @@ def insert_institute(data):
             status_message = "Failed to register institute"
         json_data = {
             "statusMessage": status_message,
-            "status": False
+            "status": False,
+            "errorCode": f"INSTITUTE_REGISTRATION_{operation.upper()}_FAILED",
         }
         return json_data, 500
     finally:
