@@ -53,7 +53,9 @@ const routes: Routes = [
   , { path: 'user/exam', component: UserExamComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
   , { path: 'user-dashboard', component: UserDashboardComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
   , { path: 'user/test-result', component: UserTestResultComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
-  , { path: 'user-exam', component: UserExamRunnerComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'user/exam/run', component: UserExamRunnerComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
+  // Preserve old bookmarked links while keeping all candidate routes under /user.
+  , { path: 'user-exam', redirectTo: 'user/exam/run', pathMatch: 'full' }
 ];
 
 @NgModule({

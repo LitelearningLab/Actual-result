@@ -21,7 +21,16 @@ export class UserTestResultComponent implements OnInit {
     try{
       const raw = sessionStorage.getItem('test_result') || sessionStorage.getItem('last_submission');
       if (raw){
-        this.result = JSON.parse(raw) as TestResult;
+        const storedResult = JSON.parse(raw) as TestResult;
+        const currentUserId = this.getCurrentUserId();
+        const resultOwnerId = storedResult.owner_user_id || storedResult.user_id || storedResult.user;
+
+        // Never render a result left in this tab by a different login.
+        if (currentUserId && resultOwnerId && this.sameUser(currentUserId, resultOwnerId)) {
+          this.result = storedResult;
+        } else {
+          this.clearStoredResult();
+        }
       }
     }catch(e){ /* ignore parse errors */ }
 
@@ -47,6 +56,25 @@ export class UserTestResultComponent implements OnInit {
   viewAvailableTests(){
     this.router.navigate(['/user/exam']);
   }
+
+  private getCurrentUserId(): string {
+    try {
+      const raw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile') || sessionStorage.getItem('user_info');
+      const user = raw ? JSON.parse(raw) : null;
+      return String(user?.user_id || user?.id || user?.userId || user?.email || '');
+    } catch (e) {
+      return '';
+    }
+  }
+
+  private sameUser(currentUserId: string, resultOwnerId: string): boolean {
+    return String(currentUserId).trim().toLowerCase() === String(resultOwnerId).trim().toLowerCase();
+  }
+
+  private clearStoredResult(): void {
+    this.result = null;
+    ['test_result', 'last_submission', 'review_questions'].forEach(key => sessionStorage.removeItem(key));
+  }
 }
 
 export interface QuestionResult {
@@ -59,6 +87,8 @@ export interface QuestionResult {
 }
 
 export interface TestResult {
+  owner_user_id?: string;
+  user_id?: string;
   test_id?: string;
   title?: string;
   user?: string;

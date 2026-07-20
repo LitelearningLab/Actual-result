@@ -334,6 +334,8 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
         const completedAt = new Date().toISOString();
         const result = {
           ...(res?.data || res || {}),
+          // Bind browser-stored result data to the authenticated user that submitted it.
+          owner_user_id: userId,
           test_id: this.examId,
           title: this.examTitle,
           user: userId,

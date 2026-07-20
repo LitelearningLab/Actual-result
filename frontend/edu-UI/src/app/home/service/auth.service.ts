@@ -107,6 +107,8 @@ export class AuthService {
   }
 
   logout() {
+    // Capture the user before removing it so its permission cache can be cleared.
+    const currentUser = this._user.value;
     this._logged.next(false);
     this._user.next(null);
     try {
@@ -116,14 +118,16 @@ export class AuthService {
       sessionStorage.removeItem('username');
       sessionStorage.removeItem('userRole');
       sessionStorage.removeItem('institute');
+      sessionStorage.removeItem('user_id');
+      sessionStorage.removeItem('institute_id');
+      sessionStorage.removeItem('launched_exam');
+      sessionStorage.removeItem('test_result');
+      sessionStorage.removeItem('last_submission');
+      sessionStorage.removeItem('review_questions');
       // clear page access cache for current user
       try {
-        const raw = sessionStorage.getItem('user');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          const uid = parsed && (parsed.id || parsed.user_id || parsed.userId);
-          if (uid) this.pageAccess.clearCache(uid.toString());
-        }
+        const uid = currentUser && (currentUser.id || currentUser.user_id || currentUser.userId);
+        if (uid) this.pageAccess.clearCache(uid.toString());
       } catch (e) {}
     } catch (e) {}
   }

@@ -577,7 +577,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         try{ sessionStorage.setItem('launched_exam', JSON.stringify(res?.data || res)); }catch(e){}
         // navigate to user exam page
         // window.location.href = '/user-exam';
-        this.router.navigate(['/user-exam'])
+        this.router.navigate(['/user/exam/run'])
       },
       error: (err) => { console.warn('Failed to launch exam', err); try { notify('Could not launch test', 'error'); } catch(e){} }
     });

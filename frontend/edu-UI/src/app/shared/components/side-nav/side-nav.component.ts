@@ -85,6 +85,8 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/view-institutes': 'Institutes',
     '/institute-register': 'Institutes',
     '/admin/exam-reports': 'Test Reports',
+    '/user/test-result': 'Test Results',
+    '/user/exam/run': 'Test',
   };
 
   /** Updates selectedMenu by finding which menu path matches the current URL */
@@ -171,6 +173,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
       // Admins retain their management menus and also receive the candidate entry points.
       this.menus.push({ label: 'User Dashboard', path: '/user-dashboard', icon: 'user' });
       this.menus.push({ label: 'Test', path: '/user/exam', icon: 'assignment' });
+      this.menus.push({ label: 'Test Results', path: '/user/test-result', icon: 'report' });
     }
 
     // After menus are set, update selected menu based on current URL

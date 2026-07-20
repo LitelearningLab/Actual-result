@@ -165,6 +165,11 @@ export class SessionService {
       sessionStorage.removeItem('userRole');
       sessionStorage.removeItem('institute');
       sessionStorage.removeItem('institute_id');
+      sessionStorage.removeItem('user_id');
+      sessionStorage.removeItem('launched_exam');
+      sessionStorage.removeItem('test_result');
+      sessionStorage.removeItem('last_submission');
+      sessionStorage.removeItem('review_questions');
     } catch (e) {}
     try { this.router.navigate(['/login']); } catch (e) { try { window.location.href = '/login'; } catch (e) {} }
   }
