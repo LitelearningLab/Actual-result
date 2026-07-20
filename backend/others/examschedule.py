@@ -150,9 +150,15 @@ def add_exam_schedule(request):
         session.rollback()
         print(f"{e!r} occurred while inserting exam at line {sys.exc_info()[-1].tb_lineno}")
         error_text = str(getattr(e, "orig", e)).lower()
-        if isinstance(e, DBAPIError) and "invalid column name" in error_text:
+        schema_error_markers = (
+            "invalid column name",
+            "no such column",
+            "undefined column",
+            "does not exist",
+        )
+        if isinstance(e, DBAPIError) and any(marker in error_text for marker in schema_error_markers):
             status_message = (
-                "Database schema is out of date. Apply the ExamSchedules review-setting migrations."
+                "Database schema is out of date. Apply the migrations in backend/db/migrations."
             )
         else:
             status_message = "Error inserting exam"
