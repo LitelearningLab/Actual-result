@@ -17,6 +17,10 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { AuthService } from 'src/app/home/service/auth.service';
 
 export interface UserTestRow {
   test_id?: string;
@@ -41,6 +45,9 @@ export interface UserTestRow {
   attempted?: boolean;
   completed_by_user?: boolean;
   expired?: boolean;
+  institute_id?: string;
+  created_by?: string;
+  created_date?: string;
 }
 
 @Component({
@@ -159,7 +166,7 @@ export class ConfirmInstantReviewDialogComponent {}
 @Component({
   selector: 'app-user-exams',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, RouterModule, FormsModule, MatTableModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSortModule, MatTabsModule, MatPaginatorModule, MatDialogModule],
+  imports: [CommonModule, HttpClientModule, RouterModule, FormsModule, MatTableModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSortModule, MatTabsModule, MatPaginatorModule, MatDialogModule, MatDatepickerModule, MatCheckboxModule, MatAutocompleteModule],
   templateUrl: './exam.component.html',
   styleUrls: ['./exam.component.scss']
 })
@@ -175,6 +182,16 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   completeSource = new MatTableDataSource<UserTestRow>([]);
   search = '';
   filterPublished: string = '';
+  filtersOpen = false;
+  isSuperAdmin = false;
+  institutes: Array<{ name: string; institute_id: string }> = [];
+  filterInstitute = '';
+  instituteSearch = '';
+  filterScheduleName = '';
+  filterCreatedAfter: Date | null = null;
+  filterCreatedBefore: Date | null = null;
+  filterCreatedByMe = false;
+  private currentUserId = '';
 
   @ViewChild(MatSort) sort!: MatSort;
 
@@ -182,17 +199,54 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   private launchUrl = `${API_BASE}/launch-exam`;
   private reviewRefreshTimer?: ReturnType<typeof setInterval>;
 
-  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService, private router: Router, private dialog: MatDialog ){
+  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService, private router: Router, private dialog: MatDialog, private auth: AuthService ){
     // try to read institute id from sessionStorage
     try{
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       if (raw){
         const obj = JSON.parse(raw);
         this.instituteId = obj?.institute_id || obj?.instituteId || obj?.institute || '';
+        this.currentUserId = String(obj?.user_id || obj?.id || '');
+        this.isSuperAdmin = ['super_admin', 'superadmin', 'super-admin'].includes(String(obj?.role || '').toLowerCase());
       }
     }catch(e){}
 
-    if (this.instituteId) this.loadExams();
+    this.currentUserId = this.currentUserId || String(sessionStorage.getItem('user_id') || '');
+    const currentAuthUser = this.auth.currentUserValue;
+    this.isSuperAdmin = this.isSuperAdmin || ['super_admin', 'superadmin', 'super-admin'].includes(String(currentAuthUser?.role || '').toLowerCase());
+
+    if (this.isSuperAdmin) this.loadInstitutes();
+    if (this.instituteId || this.isSuperAdmin) this.loadExams();
+  }
+
+  loadInstitutes(): void {
+    this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
+      next: res => this.institutes = (Array.isArray(res?.data) ? res.data : []).map((item: any) => ({
+        name: item.name || item.institute_name || item.short_name || '',
+        institute_id: String(item.institute_id || item.id || '')
+      })),
+      error: () => this.institutes = []
+    });
+  }
+
+  filteredInstitutes() {
+    const query = this.instituteSearch.trim().toLowerCase();
+    return query ? this.institutes.filter(item => item.name.toLowerCase().includes(query)) : this.institutes;
+  }
+
+  selectInstitute(institute: { name: string; institute_id: string }): void {
+    this.filterInstitute = institute.institute_id;
+    this.instituteSearch = institute.name;
+  }
+
+  resetFilters(): void {
+    this.filterInstitute = '';
+    this.instituteSearch = '';
+    this.filterScheduleName = '';
+    this.filterCreatedAfter = null;
+    this.filterCreatedBefore = null;
+    this.filterCreatedByMe = false;
+    this.applyFilter();
   }
 
   // Review modal state
@@ -410,7 +464,10 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         return {
           test_id: x.test_id || x.id || x.exam_id,
           schedule_id: x.schedule_id || '',
+          institute_id: x.institute_id || '',
           title: x.schedule_title || x.name || '', //exam_title
+          created_by: x.created_by || '',
+          created_date: x.created_date || '',
           // whether review is available for this user on this exam
           user_review: reviewAvailable,
           review_available: reviewAvailable,
@@ -585,14 +642,23 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
 
   applyFilter(){
     const q = (this.search || '').trim().toLowerCase();
-    const predicate = (row: UserTestRow, filter: string) => {
-      const byText = (row.title || '').toLowerCase().includes(filter) || (row.test_id || '').toLowerCase().includes(filter);
+    const predicate = (row: UserTestRow) => {
+      const byText = (row.title || '').toLowerCase().includes(q) || (row.test_id || '').toLowerCase().includes(q);
       const byPublished = this.filterPublished === '' ? true : ((this.filterPublished === 'live') ? !!row.published : !row.published);
-      return byText && byPublished;
+      const byInstitute = !this.isSuperAdmin || !this.filterInstitute || String(row.institute_id || '') === String(this.filterInstitute);
+      const byScheduleName = !this.filterScheduleName || (row.title || '').toLowerCase().includes(this.filterScheduleName.trim().toLowerCase());
+      const createdTime = row.created_date ? new Date(row.created_date).getTime() : NaN;
+      const afterTime = this.filterCreatedAfter ? new Date(this.filterCreatedAfter).setHours(0, 0, 0, 0) : null;
+      const beforeTime = this.filterCreatedBefore ? new Date(this.filterCreatedBefore).setHours(23, 59, 59, 999) : null;
+      const byCreatedAfter = afterTime === null || (!isNaN(createdTime) && createdTime >= afterTime);
+      const byCreatedBefore = beforeTime === null || (!isNaN(createdTime) && createdTime <= beforeTime);
+      const byCreator = !this.filterCreatedByMe || String(row.created_by || '').toLowerCase() === this.currentUserId.toLowerCase();
+      return byText && byPublished && byInstitute && byScheduleName && byCreatedAfter && byCreatedBefore && byCreator;
     };
     [this.dataSource, this.activeSource, this.completeSource].forEach(ds => {
       ds.filterPredicate = predicate;
-      ds.filter = q;
+      // MatTableDataSource skips its predicate for an empty filter string.
+      ds.filter = q || '__structured_filters__';
     });
   }
 

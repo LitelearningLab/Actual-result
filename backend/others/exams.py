@@ -668,6 +668,7 @@ def get_user_exam_details(request):
                 "mapping_id": getattr(row, "mapping_id", None),
                 "schedule_id": getattr(schedule_obj, "schedule_id", None),
                 "schedule_title": getattr(schedule_obj, "title", None),
+                "institute_id": getattr(schedule_obj, "institute_id", None),
                 "exam_id": getattr(exam_obj, "exam_id", None),
                 "exam_title": getattr(exam_obj, "title", None),
                 "duration_mins": getattr(exam_obj, "duration_mins", None),

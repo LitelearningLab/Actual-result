@@ -22,28 +22,31 @@
          </button>
 
          <div class="action-row">
-            <!-- (click)="openFiltersOverlay(); $event.stopPropagation()" -->
-            <!-- <button #filtersBtn mat-flat-button type="button" class="button-one">
-               <mat-icon svgIcon="filter"></mat-icon>
-               <span>Filter Tests</span>
-            </button> -->
-         </div>
+             <button mat-flat-button type="button" class="button-one" (click)="filtersOpen = !filtersOpen">
+                <mat-icon svgIcon="filter"></mat-icon>
+                <span>Filter Tests</span>
+             </button>
+          </div>
       </div>
    </div>
 
-   <!-- <div class="filters-panel card">
+   <div class="filters-panel card" *ngIf="filtersOpen">
+      <div class="filters-header"><div class="filters-title"><mat-icon>tune</mat-icon><strong>Filters</strong></div><span class="filters-header-mark" aria-hidden="true"></span></div>
       <div class="filter-row">
-
-         <mat-form-field appearance="outline" class="status-filter">
-            <mat-label>Status</mat-label>
-            <mat-select [(ngModel)]="filterPublished" (selectionChange)="applyFilter()">
-               <mat-option value="">All</mat-option>
-               <mat-option value="live">Live</mat-option>
-               <mat-option value="scheduled">Scheduled</mat-option>
-            </mat-select>
+         <mat-form-field *ngIf="isSuperAdmin" appearance="outline">
+            <mat-label>Institute</mat-label>
+            <input matInput [(ngModel)]="instituteSearch" [matAutocomplete]="instituteAuto" placeholder="Institute">
+            <mat-autocomplete #instituteAuto="matAutocomplete">
+               <mat-option *ngFor="let institute of filteredInstitutes()" [value]="institute.name" (onSelectionChange)="$event.isUserInput && selectInstitute(institute)">{{ institute.name }}</mat-option>
+            </mat-autocomplete>
          </mat-form-field>
+         <mat-form-field appearance="outline"><mat-label>Schedule Name</mat-label><input matInput [(ngModel)]="filterScheduleName"></mat-form-field>
+         <mat-form-field appearance="outline"><mat-label>Created After</mat-label><input matInput [matDatepicker]="createdAfterPicker" [(ngModel)]="filterCreatedAfter"><mat-datepicker-toggle matSuffix [for]="createdAfterPicker"></mat-datepicker-toggle><mat-datepicker #createdAfterPicker></mat-datepicker></mat-form-field>
+         <mat-form-field appearance="outline"><mat-label>Created Before</mat-label><input matInput [matDatepicker]="createdBeforePicker" [(ngModel)]="filterCreatedBefore"><mat-datepicker-toggle matSuffix [for]="createdBeforePicker"></mat-datepicker-toggle><mat-datepicker #createdBeforePicker></mat-datepicker></mat-form-field>
+         <div class="created-by-filter"><mat-checkbox [(ngModel)]="filterCreatedByMe">Created by me</mat-checkbox></div>
       </div>
-   </div> -->
+      <div class="filter-actions"><button mat-flat-button class="filter-reset-btn" (click)="resetFilters()"><mat-icon svgIcon="reset_settings"></mat-icon>Reset</button><button mat-flat-button class="filter-apply-btn" (click)="applyFilter(); filtersOpen = false"><mat-icon svgIcon="apply"></mat-icon>Apply</button></div>
+   </div>
 
    <div class="list-card">
       <div class="list-wrapper">
