@@ -646,7 +646,16 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         // window.location.href = '/user-exam';
         this.router.navigate(['/user/exam/run'])
       },
-      error: (err) => { console.warn('Failed to launch exam', err); try { notify('Could not launch test', 'error'); } catch(e){} }
+      error: (err) => {
+        console.warn('Failed to launch exam', err);
+        const message = err?.error?.statusMessage || err?.error?.message || 'Could not launch test';
+        try { notify(message, 'error'); } catch(e){}
+        // If an administrator unpublished this schedule after the last list
+        // refresh, immediately remove the stale Active row from the screen.
+        if (err?.status === 404 && message === 'Schedule not found') {
+          this.loadExams(false);
+        }
+      }
     });
   }
 

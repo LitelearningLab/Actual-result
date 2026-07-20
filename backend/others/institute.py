@@ -41,8 +41,26 @@ def _ensure_institute_registration_schema(session):
                 session.execute(text(
                     f"ALTER TABLE dbo.Institutes ADD [{column_name}] {definition}"
                 ))
+        city_name_exists = session.execute(
+            text("SELECT COL_LENGTH('dbo.InstituteCampuses', 'city_name')")
+        ).scalar()
+        if city_name_exists is None:
+            session.execute(text(
+                "ALTER TABLE dbo.InstituteCampuses ADD city_name NVARCHAR(255) NULL"
+            ))
         session.commit()
         _institute_schema_ready = True
+
+
+def _campus_city_values(session, value):
+    """Return a valid optional city FK plus display text for ID or free-text input."""
+    city_value = str(value or '').strip()
+    if not city_value:
+        return None, None
+    city = session.query(City).filter_by(city_id=city_value).first()
+    if city:
+        return city.city_id, city.city_name
+    return None, city_value
 
 def get_pagination(request):
     return (request.args.get('pageNumber', 1, type=int),
@@ -144,13 +162,13 @@ def insert_institute(data):
         address = head_office_data.get('address', None)
         country_id = head_office_data.get('country', None)
         state_id = head_office_data.get('state', None)
-        city_id = head_office_data.get('city', None)
+        city_id, city_name = _campus_city_values(session, head_office_data.get('city'))
         pin_code = head_office_data.get('pincode', None)
         email = head_office_data.get('email', None)
         phone = head_office_data.get('phone', None)
         is_primary = 1
 
-        if any([address, country_id, state_id, city_id, pin_code, email, phone]):
+        if any([address, country_id, state_id, city_name, pin_code, email, phone]):
             new_campus = InstituteCampus(
                 institute_id=institute_id,
                 name=short_name,
@@ -158,6 +176,7 @@ def insert_institute(data):
                 country_id=country_id,
                 state_id=state_id,
                 city_id=city_id,
+                city_name=city_name,
                 pin_code=pin_code,
                 email=email,
                 phone=phone,
@@ -176,7 +195,7 @@ def insert_institute(data):
             address = campuses.get('address', None)
             country_id = campuses.get('country', None)
             state_id = campuses.get('state', None)
-            city_id = campuses.get('city', None)
+            city_id, city_name = _campus_city_values(session, campuses.get('city'))
             pin_code = campuses.get('pincode', None)
             email = campuses.get('email', None)
             phone = campuses.get('phone', None)
@@ -190,6 +209,7 @@ def insert_institute(data):
                     country_id=country_id,
                     state_id=state_id,
                     city_id=city_id,
+                    city_name=city_name,
                     pin_code=pin_code,
                     email=email,
                     phone=phone,
@@ -353,7 +373,9 @@ def update_institute(request):
                     existing_campus.address = campus.get('address')
                     existing_campus.country_id = campus.get('country')
                     existing_campus.state_id = campus.get('state')
-                    existing_campus.city_id = campus.get('city')
+                    existing_campus.city_id, existing_campus.city_name = _campus_city_values(
+                        session, campus.get('city')
+                    )
                     existing_campus.pin_code = campus.get('pincode')
                     existing_campus.email = campus.get('email')
                     existing_campus.phone = campus.get('phone')
@@ -363,13 +385,15 @@ def update_institute(request):
                     existing_campus.updated_date = datetime.utcnow()
             else:
                 # Insert new campus
+                city_id, city_name = _campus_city_values(session, campus.get('city'))
                 new_InstituteCampus = InstituteCampus(
                     institute_id=institute_id,
                     name=campus.get('name'),
                     address=campus.get('address'),
                     country_id=campus.get('country'),
                     state_id=campus.get('state'),
-                    city_id=campus.get('city'),
+                    city_id=city_id,
+                    city_name=city_name,
                     pin_code=campus.get('pincode'),
                     email=campus.get('email'),
                     phone=campus.get('phone'),
@@ -461,9 +485,15 @@ def get_institute_details(request):
         city_val = args.get("city")
         if city_val is not None:
             if isinstance(city_val, (list, tuple)):
-                filters.append(InstituteCampus.city_id.in_(city_val))
+                filters.append(or_(
+                    InstituteCampus.city_id.in_(city_val),
+                    InstituteCampus.city_name.in_(city_val),
+                ))
             else:
-                filters.append(InstituteCampus.city_id.in_([city_val]))
+                filters.append(or_(
+                    InstituteCampus.city_id.in_([city_val]),
+                    InstituteCampus.city_name.in_([city_val]),
+                ))
 
     # If country or city filters are present, join with InstituteCampus
     if any(arg in args for arg in ["country", "city"]):
@@ -508,7 +538,7 @@ def get_institute_details(request):
             # Fetch country, state, and city names if possible
             country_name = None
             state_name = None
-            city_name = None
+            city_name = campus.city_name
 
             if campus.country_id:
                 country = session.query(Country).filter_by(country_id=campus.country_id).first()
@@ -520,7 +550,7 @@ def get_institute_details(request):
 
             if campus.city_id:
                 city = session.query(City).filter_by(city_id=campus.city_id).first()
-                city_name = city.city_name if city else campus.city_id
+                city_name = city.city_name if city else city_name
 
             campus_list.append({
             "campus_id": campus.campus_id,
@@ -632,7 +662,7 @@ def get_campus_list(request):
     for campus in campuses:
         country_name = None
         state_name = None
-        city_name = campus.city_id
+        city_name = campus.city_name
 
         if campus.country_id:
             country = session.query(Country).filter_by(country_id=campus.country_id).first()
@@ -642,7 +672,7 @@ def get_campus_list(request):
             state_name = state.state_name if state else None
         if campus.city_id:
             city = session.query(City).filter_by(city_id=campus.city_id).first()
-            city_name = city.city_name if city else campus.city_id
+            city_name = city.city_name if city else city_name
 
         result.append({
             "campus_id": campus.campus_id,

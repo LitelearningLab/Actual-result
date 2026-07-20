@@ -32,6 +32,7 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
   styleUrls: ['./institute-register.component.scss']
 })
 export class InstituteRegisterComponent {
+  private explicitSubmitRequested = false;
   // keep the original institute id when editing so we can send it in update payload
   editingInstituteId: string | null = null;
   headOfficeCampusId: string | null = null;
@@ -279,7 +280,7 @@ export class InstituteRegisterComponent {
             this.headOfficeCampusId = ho.campus_id || ho.id || ho._id || null;
             const countryId = ho.country?.country_id || ho.country?.countryId || ho.country || ho.country_id || ho.country_code || '';
             const stateId = ho.state?.state_id || ho.state?.stateId || ho.state || ho.state_id || '';
-            const cityId = ho.city?.city_id || ho.city?.cityId || ho.city || ho.city_id || '';
+            const cityId = ho.city?.city_name || ho.city_name || ho.city?.city_id || ho.city?.cityId || ho.city || ho.city_id || '';
             this.form.get('headOffice')?.patchValue({
               address: ho.address || ho.addr || '',
               pincode: ho.pin_code || ho.pincode || ho.postal_code || '',
@@ -502,7 +503,9 @@ export class InstituteRegisterComponent {
 
     // ------- location cascading wiring -------
     // load countries once
-    this.locationService.getCountries().subscribe(list => {
+    // Always reload location masters when this form opens. Country/state data may
+    // be synchronized while the Angular session is still holding a cached hierarchy.
+    this.locationService.getCountries(true).subscribe(list => {
       this.countries = list;
       if (list.length === 1) this.form.get('headOffice.country')?.setValue(list[0].id);
     });
@@ -621,7 +624,20 @@ export class InstituteRegisterComponent {
     stepper.next();
   }
 
+  preventEnterSubmit(event: Event) {
+    // Enter in a regular input must never submit this multi-step form. Preserve
+    // normal newlines in textareas; final registration requires a button click.
+    const target = event.target as HTMLElement | null;
+    if (target?.tagName !== 'TEXTAREA') event.preventDefault();
+  }
+
+  requestExplicitSubmit() {
+    this.explicitSubmitRequested = true;
+  }
+
   onSubmit() {
+    if (!this.explicitSubmitRequested) return;
+    this.explicitSubmitRequested = false;
     if (this.form.invalid || this.isSubmitting) return;
     this.isSubmitting = true;
     // prepare payload: include current user and arrays for department/team/branch

@@ -550,7 +550,8 @@ def get_user_exam_details(request):
                     Exam,
                     ExamSchedule.exam_id == Exam.exam_id
                 ).filter(
-                    ExamSchedule.published == 1,
+                    # Completed attempts are student history and must remain
+                    # visible even if the admin later unpublishes the schedule.
                     ExamSchedule.schedule_id.in_(missing_schedule_ids)
                 ).all()
                 rows.extend((None, schedule, exam) for schedule, exam in history_rows)
@@ -560,7 +561,14 @@ def get_user_exam_details(request):
         schedules = [row[1] for row in rows]
         exams = [row[2] for row in rows]
         if exams is None or len(exams) == 0:
-            return {"statusMessage": "No exams found", "status": False}, 404
+            # An empty student list is a valid result. Returning 404 makes the
+            # UI preserve its previous data, leaving an unpublished Active test
+            # visible until the page is recreated.
+            return {
+                "statusMessage": "No exams found",
+                "status": True,
+                "data": []
+            }, 200
 
         scheduler_data = []
         for idx, row in enumerate(Schedule_list):
@@ -772,24 +780,6 @@ def launch_exam_details(schedule_id, user_id):
         if not exam_schedule:
             return {"statusMessage": "Schedule not found", "status": False}, 404
 
-        # add Exam_Attempts 
-        # Check if an attempt already exists for this user and exam
-        existing_attempt = session.query(Exam_Attempt).filter_by(schedule_id=schedule_id, user_id=user_id).order_by(Exam_Attempt.attempt_number.desc()).first()
-        if existing_attempt:
-            attempt_number = existing_attempt.attempt_number + 1
-        else:
-            attempt_number = 1
-
-        new_attempt = Exam_Attempt(
-            schedule_id=schedule_id,
-            user_id=user_id,
-            attempt_number=attempt_number,
-            started_date= datetime.utcnow(),
-            status="in_progress"
-        )
-        session.add(new_attempt)
-        session.commit()
-
         # get Exam details
         exam_data = session.query(Exam).filter_by(exam_id=exam_schedule.exam_id).first()
 
@@ -817,15 +807,45 @@ def launch_exam_details(schedule_id, user_id):
                     selected_questions = question_ids_for_category  # Take all if not enough
                 randomized_question_ids.extend(selected_questions)
             else:
-            # Get pre-selected questions from ExamQuestionMapping
+                # Prefer the fixed questions saved with the test. Legacy tests
+                # may have the category mapping but no ExamQuestionMapping rows;
+                # fill those from the same category pool used when tests are
+                # created so a valid test does not fail launch with a 404.
                 predefined_questions = session.query(ExamQuestionMapping.question_id).filter(
                     ExamQuestionMapping.exam_id == exam_schedule.exam_id,
                     ExamQuestionMapping.category_id == mapping.category_id
                 ).all()
-                non_randomized_question_ids.extend([q.question_id for q in predefined_questions])
+                fixed_question_ids = [q.question_id for q in predefined_questions]
+                non_randomized_question_ids.extend(_resolve_fixed_question_ids(
+                    session,
+                    mapping.category_id,
+                    mapping.number_of_questions or len(fixed_question_ids),
+                    fixed_question_ids
+                ))
         
         # Combine both randomized and non-randomized questions
         question_ids = randomized_question_ids + non_randomized_question_ids
+
+        questions = session.query(Question).filter(Question.question_id.in_(question_ids)).all()
+        if not questions:
+            return {"statusMessage": "No questions found for this test", "status": False}, 404
+
+        # Only consume an attempt after the schedule and its questions have
+        # passed validation. A failed launch must not increment attempt count.
+        existing_attempt = session.query(Exam_Attempt).filter_by(
+            schedule_id=schedule_id,
+            user_id=user_id
+        ).order_by(Exam_Attempt.attempt_number.desc()).first()
+        attempt_number = existing_attempt.attempt_number + 1 if existing_attempt else 1
+        new_attempt = Exam_Attempt(
+            schedule_id=schedule_id,
+            user_id=user_id,
+            attempt_number=attempt_number,
+            started_date=datetime.utcnow(),
+            status="in_progress"
+        )
+        session.add(new_attempt)
+        session.commit()
         # get list of question ids from question mapping
         # question_ids = []
         # for qm in question_mapping:
@@ -863,10 +883,6 @@ def launch_exam_details(schedule_id, user_id):
 
 
         # get all the Questions and options for exam id
-        questions = session.query(Question).filter(Question.question_id.in_(question_ids)).all()
-        if not questions:
-            return {"statusMessage": "No questions found", "status": False}, 404
-
         question_list = []
         for question in questions:
             options = session.query(Option).filter_by(question_id=question.question_id).all()

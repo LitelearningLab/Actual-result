@@ -15,7 +15,7 @@
 
   <!-- ── Form Card ── -->
   <div class="form-card">
-    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" (keydown.enter)="preventEnterSubmit($event)">
       <mat-horizontal-stepper linear #stepper>
 
         <!-- ═══ Step 1: Basic Info ═══ -->
@@ -640,7 +640,7 @@
                 <mat-icon svgIcon="arrow_back"></mat-icon>
                 <span>Back</span>
               </button>
-              <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || isSubmitting" class="submit-btn">
+              <button mat-flat-button color="primary" type="submit" (click)="requestExplicitSubmit()" [disabled]="form.invalid || isSubmitting" class="submit-btn">
                 <mat-icon svgIcon="save"></mat-icon>
                 <span *ngIf="isSubmitting">Saving...</span>
                 <span *ngIf="!isSubmitting && !isEditing">Register</span>

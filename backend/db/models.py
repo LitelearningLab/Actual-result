@@ -91,6 +91,8 @@ class InstituteCampus(Base):
      country_id = Column(String, ForeignKey('Countries.country_id'))
      state_id = Column(String, ForeignKey('States.state_id'))
      city_id = Column(String)
+     # User-entered city text. city_id remains available for master-data references.
+     city_name = Column(String(255))
      email = Column(String(255))
      phone = Column(String(50))
      pin_code = Column(String(20))
