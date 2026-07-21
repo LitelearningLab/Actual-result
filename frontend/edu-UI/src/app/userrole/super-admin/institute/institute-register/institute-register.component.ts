@@ -75,8 +75,8 @@ export class InstituteRegisterComponent {
     branch: [''],
     team: [''],
     max_users: [null, [Validators.min(1)]],
-    subscription_start: [null],
-    subscription_end: [null],
+    subscription_start: [null, Validators.required],
+    subscription_end: [null, Validators.required],
     active: [true],
     campuses: this.fb.array([])
   }, { validators: subscriptionDateRangeValidator });
