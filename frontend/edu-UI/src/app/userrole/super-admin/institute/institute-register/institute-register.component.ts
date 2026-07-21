@@ -31,6 +31,20 @@ const subscriptionDateRangeValidator: ValidatorFn = (control: AbstractControl): 
   return end.getTime() > start.getTime() ? null : { subscriptionDateRange: true };
 };
 
+const headOfficeOrCampusRequiredValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+  const headOffice = control.get('headOffice')?.value || {};
+  const campuses = control.get('campuses')?.value || [];
+  // Country/state can be auto-selected when only one option exists, so they do
+  // not by themselves count as location details entered by the user.
+  const locationFields = ['name', 'address', 'pincode', 'city', 'email', 'phone'];
+  const hasHeadOffice = locationFields.some(field => String(headOffice[field] ?? '').trim());
+  const hasCampus = campuses.some((campus: any) =>
+    locationFields.some(field => String(campus?.[field] ?? '').trim())
+  );
+
+  return hasHeadOffice || hasCampus ? null : { headOfficeOrCampusRequired: true };
+};
+
 @Component({
   selector: 'app-institute-register',
   standalone: true,
@@ -55,7 +69,7 @@ export class InstituteRegisterComponent {
       city: [''],
       state: [''],
       country: [''],
-      email: [''],
+      email: ['', Validators.email],
       phone: ['', [Validators.pattern(/^\d{0,15}$/)]],
       website: ['']
     }),
@@ -79,7 +93,7 @@ export class InstituteRegisterComponent {
     subscription_end: [null, Validators.required],
     active: [true],
     campuses: this.fb.array([])
-  }, { validators: subscriptionDateRangeValidator });
+  }, { validators: [subscriptionDateRangeValidator, headOfficeOrCampusRequiredValidator] });
 
   get minimumSubscriptionEndDate(): Date | null {
     const value: unknown = this.form.get('subscription_start')?.value;
@@ -438,13 +452,13 @@ export class InstituteRegisterComponent {
     return this.fb.group({
       campus_id: [data?.campus_id || data?.id || data?._id || null],
       _cid: [cid],
-      name: [data?.name || '', Validators.required],
+      name: [data?.name || ''],
       address: [data?.address || ''],
       pincode: [data?.pincode || ''],
       country: [data?.country || ''],
       state: [data?.state || ''],
       city: [data?.city || ''],
-      email: [data?.email || ''],
+      email: [data?.email || '', Validators.email],
       phone: [data?.phone || '', [Validators.pattern(/^\d{0,15}$/)]],
       isPrimary: [!!data?.isPrimary],
       isActive: [data?.isActive ?? true]
@@ -716,6 +730,21 @@ export class InstituteRegisterComponent {
 
     this.form.updateValueAndValidity();
     if (industryTypeCtrl?.invalid || industrySectorCtrl?.invalid || subscriptionStartCtrl?.invalid || subscriptionEndCtrl?.invalid || this.form.hasError('subscriptionDateRange')) return;
+
+    stepper.next();
+  }
+
+  goToReview(stepper: MatStepper) {
+    const headOffice = this.form.get('headOffice');
+    const campuses = this.form.get('campuses');
+
+    headOffice?.markAllAsTouched();
+    campuses?.markAllAsTouched();
+    headOffice?.updateValueAndValidity();
+    campuses?.updateValueAndValidity();
+    this.form.updateValueAndValidity();
+
+    if (headOffice?.invalid || campuses?.invalid || this.form.hasError('headOfficeOrCampusRequired')) return;
 
     stepper.next();
   }

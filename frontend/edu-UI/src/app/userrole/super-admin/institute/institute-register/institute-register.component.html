@@ -339,6 +339,7 @@
                         <mat-label>Head Office Email</mat-label>
                         <mat-icon matPrefix>email</mat-icon>
                         <input matInput formControlName="email" placeholder="info@example.com" />
+                        <mat-error *ngIf="form.get('headOffice.email')?.hasError('email')">Enter a valid email</mat-error>
                       </mat-form-field>
 
                       <mat-form-field appearance="outline" class="field-third head-office-control">
@@ -395,7 +396,6 @@
                             <mat-label>Campus Name</mat-label>
                             <mat-icon matPrefix>location_city</mat-icon>
                             <input matInput formControlName="name" placeholder="Campus name" />
-                            <mat-error *ngIf="c.get('name')?.hasError('required')">Campus name is required</mat-error>
                           </mat-form-field>
 
                           <mat-form-field appearance="outline" class="field-full">
@@ -409,6 +409,7 @@
                               <mat-label>Contact Email</mat-label>
                               <mat-icon matPrefix>email</mat-icon>
                               <input matInput formControlName="email" placeholder="email@example.com" />
+                              <mat-error *ngIf="c.get('email')?.hasError('email')">Enter a valid email</mat-error>
                             </mat-form-field>
                             <mat-form-field appearance="outline" class="field-half">
                               <mat-label>Contact Phone</mat-label>
@@ -488,6 +489,9 @@
                   </mat-expansion-panel>
                 </mat-accordion>
               </div>
+              <mat-error *ngIf="form.hasError('headOfficeOrCampusRequired') && (form.get('headOffice')?.touched || campuses.touched)">
+                Enter head office details or add at least one campus
+              </mat-error>
             </div>
 
             <div class="form-actions">
@@ -495,7 +499,7 @@
                 <mat-icon svgIcon="arrow_back"></mat-icon>
                 <span>Back</span>
               </button>
-              <button type="button" mat-button matStepperNext class="next-btn">
+              <button type="button" mat-button class="next-btn" (click)="goToReview(stepper)">
                 <span>Next</span>
                 <mat-icon svgIcon="arrow_forward"></mat-icon>
               </button>
