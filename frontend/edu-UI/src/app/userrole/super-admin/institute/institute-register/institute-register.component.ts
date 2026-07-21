@@ -57,7 +57,7 @@ export class InstituteRegisterComponent {
     country: [''],
     contact_email: ['', [Validators.email]],
     contact_phone: ['', [Validators.pattern(/^\+?[0-9\s\-()]{7,20}$/)]],
-    primary_contact_phone: ['', [Validators.pattern(/^\+?[0-9\s\-()]{7,20}$/)]],
+    primary_contact_phone: ['', [Validators.pattern(/^\d{7,15}$/)]],
     website: ['', [Validators.pattern('.+')]], //['', [Validators.pattern('https?://.+')]],
     primary_contact_person: ['', Validators.required],
     primary_contact_email: ['', [Validators.required, Validators.email]],
@@ -119,6 +119,59 @@ export class InstituteRegisterComponent {
   };
 
   constructor(private fb: FormBuilder, private _snack: MatSnackBar, private http: HttpClient, private cd: ChangeDetectorRef, private locationService: LocationService, private pageMetaService: PageMetaService, private router: Router) { }
+
+  onPrimaryPhoneInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const containsInvalidCharacter = /\D/.test(input.value);
+    const numericValue = input.value.replace(/\D/g, '').slice(0, 15);
+
+    if (input.value !== numericValue) {
+      input.value = numericValue;
+      this.form.controls.primary_contact_phone.setValue(numericValue);
+    }
+
+    if (containsInvalidCharacter) {
+      this.form.controls.primary_contact_phone.setErrors({
+        ...this.form.controls.primary_contact_phone.errors,
+        invalidCharacter: true
+      });
+    }
+  }
+
+  onPrimaryPhoneKeydown(event: KeyboardEvent) {
+    const allowedKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    const isShortcut = event.ctrlKey || event.metaKey;
+    const isDigit = /^\d$/.test(event.key);
+
+    if (!isDigit && !allowedKeys.includes(event.key) && !isShortcut) {
+      event.preventDefault();
+      this.form.controls.primary_contact_phone.setErrors({
+        ...this.form.controls.primary_contact_phone.errors,
+        invalidCharacter: true
+      });
+      this.form.controls.primary_contact_phone.markAsTouched();
+      return;
+    }
+
+    if (this.form.controls.primary_contact_phone.hasError('invalidCharacter')) {
+      this.form.controls.primary_contact_phone.updateValueAndValidity();
+    }
+  }
+
+  goToIndustry(stepper: MatStepper) {
+    const stepOneControls = [
+      this.form.controls.name,
+      this.form.controls.short_name,
+      this.form.controls.primary_contact_person,
+      this.form.controls.primary_contact_email,
+      this.form.controls.primary_contact_phone
+    ];
+
+    stepOneControls.forEach(control => control.markAsTouched());
+    if (stepOneControls.some(control => control.invalid)) return;
+
+    stepper.next();
+  }
 
   isEditing = false;
   isSubmitting = false;

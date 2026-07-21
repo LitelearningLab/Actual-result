@@ -67,7 +67,15 @@
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Primary Contact Phone</mat-label>
                   <mat-icon matPrefix>phone</mat-icon>
-                  <input matInput formControlName="primary_contact_phone" placeholder="+1 555 555 5555" />
+                  <input matInput formControlName="primary_contact_phone" placeholder="Enter phone number"
+                    inputmode="numeric" pattern="[0-9]*" maxlength="15" (input)="onPrimaryPhoneInput($event)"
+                    (keydown)="onPrimaryPhoneKeydown($event)" />
+                  <mat-error *ngIf="form.controls['primary_contact_phone'].hasError('invalidCharacter')">
+                    Only numbers are allowed
+                  </mat-error>
+                  <mat-error *ngIf="!form.controls['primary_contact_phone'].hasError('invalidCharacter') && form.controls['primary_contact_phone'].hasError('pattern')">
+                    Enter a valid phone number using 7 to 15 digits
+                  </mat-error>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="field-half">
@@ -80,7 +88,7 @@
 
             <div class="form-actions">
               <span></span>
-              <button type="button" mat-button matStepperNext class="next-btn">
+              <button type="button" mat-button class="next-btn" (click)="goToIndustry(stepper)">
                 <span>Next</span>
                 <mat-icon svgIcon="arrow_forward"></mat-icon>
               </button>
