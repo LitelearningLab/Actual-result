@@ -56,7 +56,7 @@ export class InstituteRegisterComponent {
       state: [''],
       country: [''],
       email: [''],
-      phone: [''],
+      phone: ['', [Validators.pattern(/^\d{0,15}$/)]],
       website: ['']
     }),
     // pincode: ['', [Validators.required, Validators.pattern('^[0-9A-Za-z -]{3,10}$')]],
@@ -176,6 +176,23 @@ export class InstituteRegisterComponent {
 
     if (this.form.controls.primary_contact_phone.hasError('invalidCharacter')) {
       this.form.controls.primary_contact_phone.updateValueAndValidity();
+    }
+  }
+
+  onNumericPhoneInput(event: Event, control: AbstractControl | null): void {
+    const input = event.target as HTMLInputElement;
+    const numericValue = input.value.replace(/\D/g, '').slice(0, 15);
+
+    if (input.value !== numericValue) input.value = numericValue;
+    control?.setValue(numericValue, { emitEvent: false });
+  }
+
+  preventNonNumericPhoneInput(event: KeyboardEvent): void {
+    const allowedKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    const isShortcut = event.ctrlKey || event.metaKey;
+
+    if (!/^\d$/.test(event.key) && !allowedKeys.includes(event.key) && !isShortcut) {
+      event.preventDefault();
     }
   }
 
@@ -428,7 +445,7 @@ export class InstituteRegisterComponent {
       state: [data?.state || ''],
       city: [data?.city || ''],
       email: [data?.email || ''],
-      phone: [data?.phone || ''],
+      phone: [data?.phone || '', [Validators.pattern(/^\d{0,15}$/)]],
       isPrimary: [!!data?.isPrimary],
       isActive: [data?.isActive ?? true]
     });

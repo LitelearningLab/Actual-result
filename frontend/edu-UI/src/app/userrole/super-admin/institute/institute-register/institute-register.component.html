@@ -344,7 +344,10 @@
                       <mat-form-field appearance="outline" class="field-third head-office-control">
                         <mat-label>Head Office Phone</mat-label>
                         <mat-icon matPrefix>phone</mat-icon>
-                        <input matInput formControlName="phone" placeholder="Phone" />
+                        <input matInput type="text" inputmode="numeric" maxlength="15" formControlName="phone"
+                          placeholder="Phone" (keydown)="preventNonNumericPhoneInput($event)"
+                          (input)="onNumericPhoneInput($event, form.get('headOffice.phone'))" />
+                        <mat-error *ngIf="form.get('headOffice.phone')?.hasError('pattern')">Only numbers are allowed</mat-error>
                       </mat-form-field>
                     </div>
                   </div>
@@ -410,7 +413,10 @@
                             <mat-form-field appearance="outline" class="field-half">
                               <mat-label>Contact Phone</mat-label>
                               <mat-icon matPrefix>phone</mat-icon>
-                              <input matInput formControlName="phone" placeholder="Phone number" />
+                              <input matInput type="text" inputmode="numeric" maxlength="15" formControlName="phone"
+                                placeholder="Phone number" (keydown)="preventNonNumericPhoneInput($event)"
+                                (input)="onNumericPhoneInput($event, c.get('phone'))" />
+                              <mat-error *ngIf="c.get('phone')?.hasError('pattern')">Only numbers are allowed</mat-error>
                             </mat-form-field>
                           </div>
 
