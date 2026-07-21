@@ -4,6 +4,7 @@ from db.models import Credential, UserPageAccess, Page, Country, State,City
 from db.db import SQLiteDB
 from datetime import datetime
 from passlib.hash import argon2
+from sqlalchemy import or_
 def get_pagination(request):
     return (request.args.get('pageNumber', 1, type=int),
             request.args.get('pageSize', 25, type=int))
@@ -363,14 +364,35 @@ def get_user_details(request):
         filter.append(User.active_status == (1 if args.get("active_status") == 'true' else 0))
     if args.get("campus"):
         filter.append(User.campus_id == args.get("campus"))
-    if args.get("country"):
-        filter.append(User.country_id == args.get("country"))
+    country_filter = str(args.get("country") or '').strip()
+    if country_filter:
+        # Country selectors now send Countries.country_id, but older user rows
+        # may contain an ISO code from the previous registration UI. Accept
+        # both forms and also use the user's campus country when the redundant
+        # User.country_id value is missing.
+        country = session.query(Country).filter(or_(
+            Country.country_id == country_filter,
+            Country.iso2 == country_filter,
+            Country.iso3 == country_filter,
+            Country.country_name == country_filter
+        )).first()
+        country_values = [country_filter]
+        canonical_country_id = country_filter
+        if country:
+            canonical_country_id = country.country_id
+            country_values = list(filter(None, [
+                country.country_id, country.iso2, country.iso3, country.country_name
+            ]))
+        filter.append(or_(
+            User.country_id.in_(country_values),
+            InstituteCampus.country_id == canonical_country_id
+        ))
     city_filter = str(args.get("city") or '').strip()
     if city_filter:
         filter.append(InstituteCampus.city_name.ilike(f"%{city_filter}%"))
 
     query = session.query(User)
-    if city_filter:
+    if city_filter or country_filter:
         query = query.outerjoin(InstituteCampus, User.campus_id == InstituteCampus.campus_id)
     filtered_query = query.filter(*filter)
     user_details = filtered_query.order_by(User.created_date).offset((page_number - 1) * page_size).limit(page_size).all()

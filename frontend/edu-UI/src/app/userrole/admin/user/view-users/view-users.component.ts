@@ -72,7 +72,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   filters: any = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', city: '', industry: '', sector: '' };
   // institutes: Array<{ id: string; name: string }> = [];
   institutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
-  countries: Array<{ code: string; name: string }> = [];
+  // `code` is the Country table primary key used by /get-users. `countryCode`
+  // keeps the ISO/code value only for matching location/institute responses.
+  countries: Array<{ code: string; name: string; countryCode?: string }> = [];
   states: Array<{ code: string; name: string }> = [];
   cities: Array<{ code: string; name: string }> = [];
   departments: Array<{ id: string; name: string }> = [];
@@ -396,10 +398,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
         try{
-          // support different shapes: top-level data array or res.data
-          const data = res?.data || res?.users || res || [];
+          // Support both the current flat response and paginated envelopes.
+          const dataCandidate = res?.data?.users ?? res?.users ?? res?.data ?? res;
+          const data = Array.isArray(dataCandidate) ? dataCandidate : [];
           // total count may be provided as totalCount or total_count
-          this.totalCount = Number(res?.totalCount ?? res?.total_count ?? res?.data?.totalCount ?? res?.data?.total_count ?? res?.total ?? 0) || 0;
+          this.totalCount = Number(res?.totalCount ?? res?.total_count ?? res?.data?.totalCount ?? res?.data?.total_count ?? res?.total ?? data.length) || 0;
           // map API user shape to UserRow expected by the table
           this.rawRecords = data;
           this.users = data.map((u: any) => ({
@@ -621,29 +624,39 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         try {
           const locationCountries = hierarchyRes?.data?.countries || hierarchyRes?.countries || hierarchyRes?.data || [];
           const hierarchyCountries = (Array.isArray(locationCountries) ? locationCountries : []).map((country: any) => ({
-            code: country.country_code || country.code || country.id,
+            // /get-users compares the selected value with User.country_id, so
+            // never replace the database id with an ISO country code.
+            id: country.country_id || country.id,
+            countryCode: country.country_code || country.code,
             name: country.country_name || country.name || country.country
-          })).filter((country: any) => country.code && country.name);
+          })).filter((country: any) => country.id && country.name);
 
           this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
             next: (instituteRes) => {
               try {
                 const institutes = Array.isArray(instituteRes?.data) ? instituteRes.data : [];
-                const registeredCountries: Array<{ code: string; name: string }> = [];
+                const registeredCountries: Array<{ code: string; name: string; countryCode?: string }> = [];
                 institutes.forEach((institute: any) => {
                   const locations = [institute, ...(Array.isArray(institute?.campuses) ? institute.campuses : [])];
                   locations.forEach((location: any) => {
                     const rawCountry = location?.country;
-                    const countryCode = location?.country_id || location?.country_code
-                      || (typeof rawCountry === 'object' ? rawCountry?.country_id || rawCountry?.id || rawCountry?.country_code || rawCountry?.code : rawCountry);
+                    const countryId = location?.country_id
+                      || (typeof rawCountry === 'object' ? rawCountry?.country_id || rawCountry?.id : null);
+                    const countryCode = location?.country_code
+                      || (typeof rawCountry === 'object' ? rawCountry?.country_code || rawCountry?.code : rawCountry);
                     const countryName = location?.country_name
                       || (typeof rawCountry === 'object' ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country : rawCountry);
                     const hierarchyMatch = hierarchyCountries.find((country: any) =>
-                      (countryCode && String(country.code).toLowerCase() === String(countryCode).toLowerCase())
+                      (countryId && String(country.id).toLowerCase() === String(countryId).toLowerCase())
+                      || (countryCode && String(country.countryCode).toLowerCase() === String(countryCode).toLowerCase())
                       || (countryName && String(country.name).trim().toLowerCase() === String(countryName).trim().toLowerCase())
                     );
-                    const resolved = hierarchyMatch || (countryCode && countryName ? { code: countryCode, name: countryName } : null);
-                    if (resolved) registeredCountries.push({ code: String(resolved.code), name: String(resolved.name).trim() });
+                    const resolved = hierarchyMatch || (countryId && countryName ? { id: countryId, countryCode, name: countryName } : null);
+                    if (resolved) registeredCountries.push({
+                      code: String(resolved.id),
+                      name: String(resolved.name).trim(),
+                      countryCode: resolved.countryCode ? String(resolved.countryCode) : undefined
+                    });
                   });
                 });
                 const uniqueByName = new Map<string, { code: string; name: string }>();
@@ -652,6 +665,17 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                   if (!uniqueByName.has(key)) uniqueByName.set(key, country);
                 });
                 this.countries = Array.from(uniqueByName.values()).sort((a, b) => a.name.localeCompare(b.name));
+                // Return-state from older builds may contain an ISO code. Remap
+                // it to the Country primary key instead of issuing an empty query.
+                if (this.filters.country) {
+                  const selected = String(this.filters.country).trim().toLowerCase();
+                  const canonical = this.countries.find(country =>
+                    country.code.toLowerCase() === selected
+                    || String(country.countryCode || '').toLowerCase() === selected
+                    || country.name.toLowerCase() === selected
+                  );
+                  this.filters.country = canonical?.code || '';
+                }
               } catch (e) {
                 this.countries = [];
               }

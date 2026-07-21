@@ -511,7 +511,7 @@ export class AdminUserRegisterComponent implements OnInit {
         try {
           // Prefer structured countries list
           const countries = res?.data?.countries || res?.countries || [];
-          this.countries = (countries || []).map((c: any) => ({ code: String(c.country_code || c.code || c.id || ''), name: c.country_name || c.name || c.country || '' }));
+          this.countries = (countries || []).map((c: any) => ({ code: String(c.country_id || c.id || c.country_code || c.code || ''), name: c.country_name || c.name || c.country || '' }));
 
           // Collect states and cities from the structured payload, being defensive about shapes
           const allCities: any[] = [];
@@ -519,10 +519,10 @@ export class AdminUserRegisterComponent implements OnInit {
 
           if (Array.isArray(countries)) {
             countries.forEach((country: any) => {
-              const countryId = country?.country_code || country?.code || country?.id || '';
+              const countryId = country?.country_id || country?.id || country?.country_code || country?.code || '';
               if (Array.isArray(country.states)) {
                 country.states.forEach((s: any) => {
-                  const stateCode = s?.state_code || s?.code || s?.id || '';
+                  const stateCode = s?.state_id || s?.id || s?.state_code || s?.code || '';
                   statesAcc.push({ code: stateCode, name: s?.state_name || s?.name || s?.state || '', country_id: String(s?.country_id || s?.countryId || countryId || '') });
                   if (Array.isArray(s.cities)) {
                     s.cities.forEach((city: any) => allCities.push(Object.assign({}, city, { __state_code: stateCode })));
@@ -541,11 +541,11 @@ export class AdminUserRegisterComponent implements OnInit {
           }
 
           // Normalize cities and states
-          this.cities = allCities.map((c: any) => ({ code: String(c.city_code || c.code || c.id || ''), name: c.city_name || c.name || c.city || '', state_id: String(c.__state_code || c.state_id || c.stateId || c.state || '') }));
+          this.cities = allCities.map((c: any) => ({ code: String(c.city_id || c.id || c.city_code || c.code || ''), name: c.city_name || c.name || c.city || '', state_id: String(c.__state_code || c.state_id || c.stateId || c.state || '') }));
 
           // include any top-level states from response
-          if (Array.isArray(res?.data?.states)) res.data.states.forEach((s: any) => statesAcc.push({ code: String(s.state_code || s.code || s.id || ''), name: s.state_name || s.name || s.state || '', country_id: String(s.country_id || s.countryId || '') }));
-          else if (Array.isArray(res?.states)) res.states.forEach((s: any) => statesAcc.push({ code: String(s.state_code || s.code || s.id || ''), name: s.state_name || s.name || s.state || '', country_id: String(s.country_id || s.countryId || '') }));
+          if (Array.isArray(res?.data?.states)) res.data.states.forEach((s: any) => statesAcc.push({ code: String(s.state_id || s.id || s.state_code || s.code || ''), name: s.state_name || s.name || s.state || '', country_id: String(s.country_id || s.countryId || '') }));
+          else if (Array.isArray(res?.states)) res.states.forEach((s: any) => statesAcc.push({ code: String(s.state_id || s.id || s.state_code || s.code || ''), name: s.state_name || s.name || s.state || '', country_id: String(s.country_id || s.countryId || '') }));
 
           this.states = statesAcc.filter((x: any, i: number, a: any[]) => x.code && a.findIndex(y => y.code === x.code) === i).map((s: any) => ({ code: String(s.code), name: s.name, country_id: String(s.country_id || '') }));
 
