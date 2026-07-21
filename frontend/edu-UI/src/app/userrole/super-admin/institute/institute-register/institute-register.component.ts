@@ -120,6 +120,12 @@ export class InstituteRegisterComponent {
 
   constructor(private fb: FormBuilder, private _snack: MatSnackBar, private http: HttpClient, private cd: ChangeDetectorRef, private locationService: LocationService, private pageMetaService: PageMetaService, private router: Router) { }
 
+  preventSignedMaxUsersInput(event: KeyboardEvent): void {
+    if (['-', '+', 'e', 'E'].includes(event.key)) {
+      event.preventDefault();
+    }
+  }
+
   onPrimaryPhoneInput(event: Event) {
     const input = event.target as HTMLInputElement;
     const containsInvalidCharacter = /\D/.test(input.value);

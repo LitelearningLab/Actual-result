@@ -185,7 +185,9 @@
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Max Users Limit</mat-label>
                   <mat-icon matPrefix>person_add</mat-icon>
-                  <input matInput type="number" formControlName="max_users" placeholder="e.g. 500" (keydown.enter)="$event.preventDefault()" />
+                  <input matInput class="max-users-input" type="number" min="1" step="1"
+                    formControlName="max_users" placeholder="e.g. 500"
+                    (keydown)="preventSignedMaxUsersInput($event)" />
                   <mat-error *ngIf="form.controls['max_users'].hasError('min')">Value must be at least 1</mat-error>
                 </mat-form-field>
 
