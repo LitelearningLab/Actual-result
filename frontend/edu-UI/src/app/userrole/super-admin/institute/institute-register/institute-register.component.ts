@@ -4,7 +4,7 @@ import { of, Subscription } from 'rxjs';
 import { finalize, switchMap, tap } from 'rxjs/operators';
 import { LocationService, Country, State, City } from '../../../../services/location.service';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators, FormGroup, FormArray, AbstractControl } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators, FormGroup, FormArray, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -23,6 +23,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
+
+const subscriptionDateRangeValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+  const start = control.get('subscription_start')?.value;
+  const end = control.get('subscription_end')?.value;
+  if (!(start instanceof Date) || !(end instanceof Date) || isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+  return end.getTime() > start.getTime() ? null : { subscriptionDateRange: true };
+};
 
 @Component({
   selector: 'app-institute-register',
@@ -72,7 +79,15 @@ export class InstituteRegisterComponent {
     subscription_end: [null],
     active: [true],
     campuses: this.fb.array([])
-  });
+  }, { validators: subscriptionDateRangeValidator });
+
+  get minimumSubscriptionEndDate(): Date | null {
+    const value: unknown = this.form.get('subscription_start')?.value;
+    if (!(value instanceof Date) || isNaN(value.getTime())) return null;
+    const nextDay = new Date(value);
+    nextDay.setDate(nextDay.getDate() + 1);
+    return nextDay;
+  }
 
   // static fallback list is removed; we'll use the location service
   countries: Country[] = [];
@@ -671,14 +686,19 @@ export class InstituteRegisterComponent {
   goToLocations(stepper: MatStepper) {
     const industryTypeCtrl = this.form.get('industry_type');
     const industrySectorCtrl = this.form.get('industry_sector');
+    const subscriptionStartCtrl = this.form.get('subscription_start');
+    const subscriptionEndCtrl = this.form.get('subscription_end');
 
     // Step 2 has custom validation because only these industry fields should block this Next button.
     industryTypeCtrl?.markAsTouched();
     industrySectorCtrl?.markAsTouched();
+    subscriptionStartCtrl?.markAsTouched();
+    subscriptionEndCtrl?.markAsTouched();
     industryTypeCtrl?.updateValueAndValidity();
     industrySectorCtrl?.updateValueAndValidity();
 
-    if (industryTypeCtrl?.invalid || industrySectorCtrl?.invalid) return;
+    this.form.updateValueAndValidity();
+    if (industryTypeCtrl?.invalid || industrySectorCtrl?.invalid || subscriptionStartCtrl?.invalid || subscriptionEndCtrl?.invalid || this.form.hasError('subscriptionDateRange')) return;
 
     stepper.next();
   }

@@ -105,13 +105,16 @@ def insert_institute(data):
     if subscription_start_str:
         try:
             subscription_start = datetime.strptime(subscription_start_str, date_format).date()
-        except Exception:
-            subscription_start = None
+        except (TypeError, ValueError):
+            return {"statusMessage": "subscription_start must use YYYY-MM-DD format", "status": False}, 400
     if subscription_end_str:
         try:
             subscription_end = datetime.strptime(subscription_end_str, date_format).date()
-        except Exception:
-            subscription_end = None
+        except (TypeError, ValueError):
+            return {"statusMessage": "subscription_end must use YYYY-MM-DD format", "status": False}, 400
+
+    if subscription_start and subscription_end and subscription_end <= subscription_start:
+        return {"statusMessage": "Subscription end date must be after the start date", "status": False}, 400
 
     db = SQLiteDB()
     session = db.connect()
@@ -297,13 +300,33 @@ def update_institute(request):
     # Update fields
     date_fields = ["subscription_start", "subscription_end"]
     date_format = "%Y-%m-%d"
+    parsed_dates = {}
+    for key in date_fields:
+        if key not in data:
+            continue
+        value = data.get(key)
+        if value in (None, ""):
+            parsed_dates[key] = None
+            continue
+        if not isinstance(value, str):
+            session.close()
+            return {"statusMessage": f"{key} must use YYYY-MM-DD format", "status": False}, 400
+        try:
+            parsed_dates[key] = datetime.strptime(value, date_format).date()
+        except ValueError:
+            session.close()
+            return {"statusMessage": f"{key} must use YYYY-MM-DD format", "status": False}, 400
+
+    effective_start = parsed_dates.get("subscription_start", institute.subscription_start)
+    effective_end = parsed_dates.get("subscription_end", institute.subscription_end)
+    if effective_start and effective_end and effective_end <= effective_start:
+        session.close()
+        return {"statusMessage": "Subscription end date must be after the start date", "status": False}, 400
+
     for key, value in data.items():
         if hasattr(institute, key) and key != "institute_id":
-            if key in date_fields and isinstance(value, str) and value:
-                try:
-                    value = datetime.strptime(value, date_format).date()
-                except Exception:
-                    value = None
+            if key in parsed_dates:
+                value = parsed_dates[key]
             setattr(institute, key, value)
 
     institute.updated_by = data.get("current_user", 'system')

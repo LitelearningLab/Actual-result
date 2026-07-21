@@ -32,7 +32,8 @@ export class IndianDateAdapter extends NativeDateAdapter {
       const trimmed = value.trim();
       if (!trimmed) return null;
 
-      const match = trimmed.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+      // Date inputs use one unambiguous format throughout the UI.
+      const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
       if (match) {
         const day = Number(match[1]);
         const month = Number(match[2]) - 1;
@@ -50,6 +51,9 @@ export class IndianDateAdapter extends NativeDateAdapter {
         return null;
       }
     }
+
+    // Do not let the browser interpret free-form date strings differently by locale.
+    if (typeof value === 'string') return null;
 
     const timestamp = typeof value === 'number' ? value : Date.parse(String(value));
     const date = new Date(timestamp);
