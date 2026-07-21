@@ -378,7 +378,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.loading.show();
     const url = `${API_BASE}/get-users`;
     // build query params from filters (prefer explicit institute param, then filter model, then selectedInstitute)
-    const params: any = {};
+    const params: any = { _ts: Date.now() };
     const instituteParam = (typeof instituteId !== 'undefined' && instituteId !== null) ? instituteId : (this.filters.institute || this.selectedInstitute);
     if (instituteParam) params.institute_id = instituteParam;
     if (this.filters.name) params.name = this.filters.name;
@@ -450,7 +450,15 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         }catch(e){ console.error('Error mapping users', e); this.users = []; }
         this.loading.hide();
       },
-      error: (err) => { console.error('Failed loading users', err); this.loading.hide(); this.users = []; }
+      error: (err) => {
+        console.error('Failed loading users', err);
+        this.loading.hide();
+        this.users = [];
+        this.rawRecords = [];
+        this.dataSource.data = [];
+        this.totalCount = 0;
+        try { notify(err?.error?.statusMessage || 'Failed to load users. Please try again.', 'error'); } catch (e) {}
+      }
     });
   }
   private hasFilterValues(): boolean {
@@ -786,8 +794,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   // Falls back to the full institute list (get-institute-list, via loadInstitutes) when none
   // of those are selected. Reuses the same get-institutes endpoint view-institutes uses.
   private refreshInstituteScope() {
-    // Local location filters must never replace or clear the institute selected
-    // by the application-wide Global Filter.
+    // A globally selected institute owns the institute scope. Local location
+    // filters must not clear or replace it. When no global scope is active,
+    // Super Admins continue to use the normal page-level institute filters.
     if (this.isGlobalInstituteActive && this.activeInstituteId) return;
     const params: any = { _ts: Date.now() };
     if (this.filters.country) params.country = this.filters.country;
@@ -1146,9 +1155,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.selectedUser = null; this.editing = false; this.editableUser = null;
     try { sessionStorage.removeItem('users_return_state'); } catch (e) {}
     this.loadDepartments(instituteId); this.loadTeams(instituteId); this.loadCountries(instituteId);
-    // Selecting an institute in the Global Filter is itself an applied scope.
-    // Fetch its users immediately instead of leaving an apparently empty table
-    // until the user opens this page's local filter panel and clicks Apply.
+    // The global institute is already an applied scope, so fetch its users
+    // immediately. Page-level filters can still narrow these results afterward.
     this.hasAppliedFilters = true;
     this.loadUsers(instituteId);
   }

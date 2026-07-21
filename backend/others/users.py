@@ -442,9 +442,18 @@ def get_user_details(request):
             country_values = [value for value in (
                 country.country_id, country.iso2, country.iso3, country.country_name
             ) if value]
+
+        # Keep country-only filtering independent of the campus outer join.  A
+        # user matches when either its own country value is compatible with the
+        # selected country, or its assigned campus belongs to that country.
+        # Using a campus-id subquery also avoids multiplying user rows when the
+        # request is filtered by country only.
+        campus_ids_for_country = session.query(InstituteCampus.campus_id).filter(
+            InstituteCampus.country_id == canonical_country_id
+        )
         filter.append(or_(
             User.country_id.in_(country_values),
-            InstituteCampus.country_id == canonical_country_id
+            User.campus_id.in_(campus_ids_for_country)
         ))
     state_filter = str(args.get("state") or '').strip()
     if state_filter:
@@ -466,7 +475,7 @@ def get_user_details(request):
         ))
 
     query = session.query(User)
-    if city_filter or state_filter or country_filter:
+    if city_filter or state_filter:
         query = query.outerjoin(InstituteCampus, User.campus_id == InstituteCampus.campus_id)
     filtered_query = query.filter(*filter)
     user_details = filtered_query.order_by(User.created_date).offset((page_number - 1) * page_size).limit(page_size).all()
