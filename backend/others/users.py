@@ -5,6 +5,39 @@ from db.db import SQLiteDB
 from datetime import datetime
 from passlib.hash import argon2
 from sqlalchemy import or_
+
+def _validate_user_institute_scope(session, institute_id, department_id=None, team_id=None, campus_id=None):
+    """Ensure every institute-owned selection belongs to the submitted institute."""
+    if not institute_id:
+        return "Institute is required"
+    if not session.query(Institute).filter(Institute.institute_id == institute_id).first():
+        return "Selected institute does not exist"
+
+    checks = (
+        ("department", InstituteDepartment, InstituteDepartment.department_id, department_id),
+        ("team", InstituteTeam, InstituteTeam.team_id, team_id),
+        ("campus", InstituteCampus, InstituteCampus.campus_id, campus_id),
+    )
+    for label, model, id_column, selected_id in checks:
+        if not selected_id:
+            continue
+        record = session.query(model).filter(id_column == selected_id).first()
+        if not record:
+            return f"Selected {label} does not exist"
+        if str(record.institute_id) != str(institute_id):
+            return f"Selected {label} does not belong to the selected institute"
+    return None
+
+def _apply_campus_location(session, data, campus_id):
+    """Use the campus as the canonical source for a user's location fields."""
+    if not campus_id:
+        return
+    campus = session.query(InstituteCampus).filter(InstituteCampus.campus_id == campus_id).first()
+    if campus:
+        data["country_id"] = campus.country_id
+        data["state_id"] = campus.state_id
+        data["city_id"] = campus.city_id
+
 def get_pagination(request):
     return (request.args.get('pageNumber', 1, type=int),
             request.args.get('pageSize', 25, type=int))
@@ -51,6 +84,22 @@ def insert_user(data):
         }
         return json_data, 400
 
+    validation_error = _validate_user_institute_scope(
+        session, institute_id, department_id, team_id, campus_id
+    )
+    if validation_error:
+        return {"statusMessage": validation_error, "status": False}, 400
+
+    normalized_data = {
+        "country_id": country_id,
+        "state_id": state_id,
+        "city_id": city_id,
+    }
+    _apply_campus_location(session, normalized_data, campus_id)
+    country_id = normalized_data["country_id"]
+    state_id = normalized_data["state_id"]
+    city_id = normalized_data["city_id"]
+
     new_user = User(
         full_name = full_name,
         user_name=user_name,
@@ -71,7 +120,7 @@ def insert_user(data):
     )
     try:
         session.add(new_user)
-        session.commit()
+        session.flush()
         user_id = new_user.user_id
 
         # add data in UserPageAccess for user-management
@@ -86,8 +135,6 @@ def insert_user(data):
                 can_delete=page_access.get('delete', False)
             )
             session.add(user_page_access)
-        session.commit()
-
         password_hash = argon2.hash(password)
         # insert credentials
         cred_data = Credential(
@@ -292,6 +339,17 @@ def update_user_details(user_id, request):
             "status": False
         }
         return json_data, 404
+
+    institute_id = data.get("institute_id", user.institute_id)
+    department_id = data.get("department_id", user.department_id)
+    team_id = data.get("team_id", user.team_id)
+    campus_id = data.get("campus_id", user.campus_id)
+    validation_error = _validate_user_institute_scope(
+        session, institute_id, department_id, team_id, campus_id
+    )
+    if validation_error:
+        return {"statusMessage": validation_error, "status": False}, 400
+    _apply_campus_location(session, data, campus_id)
     
     # Update user details based on the provided data
     date_fields = ['joining_date']
@@ -351,7 +409,8 @@ def get_user_details(request):
     page_number, page_size = get_pagination(request)
     filter = []
     args = getattr(request, "args", {})
-    filter.append(User.is_deleted == 0)
+    # Legacy users may have NULL here; only an explicit true/1 is deleted.
+    filter.append(or_(User.is_deleted == 0, User.is_deleted.is_(None)))
     if args.get("institute_id"):
         filter.append(User.institute_id == args.get("institute_id"))
     if args.get("department"):
@@ -380,19 +439,34 @@ def get_user_details(request):
         canonical_country_id = country_filter
         if country:
             canonical_country_id = country.country_id
-            country_values = list(filter(None, [
+            country_values = [value for value in (
                 country.country_id, country.iso2, country.iso3, country.country_name
-            ]))
+            ) if value]
         filter.append(or_(
             User.country_id.in_(country_values),
             InstituteCampus.country_id == canonical_country_id
         ))
+    state_filter = str(args.get("state") or '').strip()
+    if state_filter:
+        filter.append(or_(
+            User.state_id == state_filter,
+            InstituteCampus.state_id == state_filter
+        ))
     city_filter = str(args.get("city") or '').strip()
     if city_filter:
-        filter.append(InstituteCampus.city_name.ilike(f"%{city_filter}%"))
+        city = session.query(City).filter(or_(
+            City.city_id == city_filter,
+            City.city_name == city_filter
+        )).first()
+        city_id = city.city_id if city else city_filter
+        filter.append(or_(
+            User.city_id == city_id,
+            InstituteCampus.city_id == city_id,
+            InstituteCampus.city_name.ilike(f"%{city_filter}%")
+        ))
 
     query = session.query(User)
-    if city_filter or country_filter:
+    if city_filter or state_filter or country_filter:
         query = query.outerjoin(InstituteCampus, User.campus_id == InstituteCampus.campus_id)
     filtered_query = query.filter(*filter)
     user_details = filtered_query.order_by(User.created_date).offset((page_number - 1) * page_size).limit(page_size).all()
@@ -514,7 +588,8 @@ def get_user_list(request, current_user=None):
 
     filter = []
     args = getattr(request, "args", {})
-    filter.append(User.is_deleted == 0)
+    # Legacy users may have NULL here; only an explicit true/1 is deleted.
+    filter.append(or_(User.is_deleted == 0, User.is_deleted.is_(None)))
 
     current_role = getattr(current_user, "user_role", None) if current_user else None
     if current_user and current_role not in ("super_admin", "superadmin", "super-admin"):

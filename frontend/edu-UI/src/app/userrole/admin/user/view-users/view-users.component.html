@@ -60,6 +60,15 @@
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>State</mat-label>
+            <mat-select [(ngModel)]="filters.state" [disabled]="!filters.country"
+              (selectionChange)="onStateChange()">
+              <mat-option value="">Any</mat-option>
+              <mat-option *ngFor="let s of states" [value]="s.code">{{s.name}}</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="filter-item">
             <mat-label>City</mat-label>
             <input matInput placeholder="Any" [disabled]="!filters.country" [(ngModel)]="filters.city"
               [matAutocomplete]="cityAuto" (blur)="onCityFilterChange()" />

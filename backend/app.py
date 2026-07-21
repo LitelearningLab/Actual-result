@@ -727,6 +727,11 @@ CORS(
 
 @app.after_request
 def add_local_cors_headers(response):
+    # Authenticated API data must not be reused across user or institute scopes.
+    if (request.path or '').startswith('/edu/api/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
     origin = request.headers.get("Origin")
     if origin in ALLOWED_ORIGINS:
         response.headers["Access-Control-Allow-Origin"] = origin

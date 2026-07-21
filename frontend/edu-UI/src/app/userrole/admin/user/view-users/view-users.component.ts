@@ -69,7 +69,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   totalCount = 0; // total records from API
 
   // filter model and lists (match fields in the filters panel)
-  filters: any = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', city: '', industry: '', sector: '' };
+  filters: any = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
   // institutes: Array<{ id: string; name: string }> = [];
   institutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
   // `code` is the Country table primary key used by /get-users. `countryCode`
@@ -298,6 +298,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.filters.department) chips.push({ key: 'department', label: `Department: ${this.getSelectedName(this.departments, this.filters.department)}`, removable: true });
     if (this.filters.team) chips.push({ key: 'team', label: `Team: ${this.getSelectedName(this.teams, this.filters.team)}`, removable: true });
     if (this.filters.country) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`, removable: true });
+    if (this.filters.state) chips.push({ key: 'state', label: `State: ${this.getSelectedName(this.states, this.filters.state, 'code')}`, removable: true });
     if (this.filters.city) chips.push({ key: 'city', label: `City: ${this.filters.city}`, removable: true });
     if (this.filters.active_status !== '') chips.push({ key: 'active_status', label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`, removable: true });
     return chips;
@@ -318,7 +319,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     } else if (key === 'name') this.filters.name = '';
     else if (key === 'department') { this.filters.department = ''; this.filters.team = ''; }
     else if (key === 'team') this.filters.team = '';
-    else if (key === 'country') { this.filters.country = ''; this.filters.city = ''; }
+    else if (key === 'country') { this.filters.country = ''; this.filters.state = ''; this.filters.city = ''; this.states = []; this.cities = []; }
+    else if (key === 'state') { this.filters.state = ''; this.filters.city = ''; this.cities = []; }
     else if (key === 'city') this.filters.city = '';
     else if (key === 'active_status') this.filters.active_status = '';
     this.pageIndex = 0;
@@ -383,6 +385,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.filters.department) params.department = this.filters.department;
     if (this.filters.team) params.team = this.filters.team;
     if (this.filters.country) params.country = this.filters.country;
+    if (this.filters.state) params.state = this.filters.state;
     const cityName = String(this.filters.city || '').trim();
     if (cityName) params.city = cityName;
     if (this.filters.campus) params.campus = this.filters.campus;
@@ -460,6 +463,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.filters.joining_to ||
       this.filters.active_status !== '' ||
       this.filters.country ||
+      this.filters.state ||
       this.filters.city
     );
   }
@@ -477,7 +481,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   resetFilters(){
     this.pageIndex = 0;
-    this.filters = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', city: '', industry: '', sector: '' };
+    this.filters = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
     this.selectedInstitute = '';
     this.instituteSearch = '';
     this.departmentSearch = '';
@@ -693,6 +697,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   onCountryChange(){
     this.states = [];
     this.cities = [];
+    this.filters.state = '';
     this.filters.city = '';
     if(!this.filters.country) { this.refreshInstituteScope(); return; }
     const url = `${API_BASE}/location-hierarchy`;
@@ -781,7 +786,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   // Falls back to the full institute list (get-institute-list, via loadInstitutes) when none
   // of those are selected. Reuses the same get-institutes endpoint view-institutes uses.
   private refreshInstituteScope() {
-    const params: any = {};
+    // Local location filters must never replace or clear the institute selected
+    // by the application-wide Global Filter.
+    if (this.isGlobalInstituteActive && this.activeInstituteId) return;
+    const params: any = { _ts: Date.now() };
     if (this.filters.country) params.country = this.filters.country;
     const cityName = String(this.filters.city || '').trim();
     if (cityName) params.city = cityName;
@@ -813,7 +821,22 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     });
   }
 
-  onStateChange(){ this.cities = []; if(!this.filters.state) return; const url = `${API_BASE}/location-hierarchy`; this.http.get<any>(url, { params: { country: this.filters.country, state: this.filters.state } }).subscribe({ next: (res) => { try{ const cities = res?.data?.cities || res?.cities || res?.data || []; this.cities = cities.map((c:any)=> ({ code: c.city_code || c.code || c.id, name: c.city_name || c.name || c.city })); }catch(e){ this.cities = []; } }, error: () => { this.cities = []; } }); }
+  onStateChange(){
+    this.cities = [];
+    this.filters.city = '';
+    if (!this.filters.state) { this.refreshInstituteScope(); return; }
+    const url = `${API_BASE}/location-hierarchy`;
+    this.http.get<any>(url, { params: { state_id: this.filters.state } }).subscribe({
+      next: (res) => {
+        try {
+          const cities = res?.data?.cities || res?.cities || [];
+          this.cities = (Array.isArray(cities) ? cities : []).map((c:any) => ({ code: c.city_code || c.code || c.id, name: c.city_name || c.name || c.city }));
+        } catch(e) { this.cities = []; }
+        this.refreshInstituteScope();
+      },
+      error: () => { this.cities = []; this.refreshInstituteScope(); }
+    });
+  }
 
   openFiltersOverlay(){
     if(!this.filtersBtn) return;
@@ -1115,7 +1138,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   private resetForInstituteChange(instituteId: string): void {
     this.activeInstituteId = instituteId;
     this.selectedInstitute = instituteId;
-    this.filters = { ...this.filters, institute: instituteId, name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', city: '', industry: '', sector: '' };
+    this.filters = { ...this.filters, institute: instituteId, name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
     // Clear institute-specific state immediately to prevent cross-institute data leakage.
     this.users = []; this.rawRecords = []; this.dataSource.data = []; this.totalCount = 0;
     this.departments = []; this.teams = []; this.departmentSearch = ''; this.teamSearch = '';
@@ -1123,7 +1146,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.selectedUser = null; this.editing = false; this.editableUser = null;
     try { sessionStorage.removeItem('users_return_state'); } catch (e) {}
     this.loadDepartments(instituteId); this.loadTeams(instituteId); this.loadCountries(instituteId);
-    // Primary records remain empty until the user applies filters.
+    // Selecting an institute in the Global Filter is itself an applied scope.
+    // Fetch its users immediately instead of leaving an apparently empty table
+    // until the user opens this page's local filter panel and clicks Apply.
+    this.hasAppliedFilters = true;
+    this.loadUsers(instituteId);
   }
 
   private resetAfterGlobalInstituteClear(): void {
@@ -1132,7 +1159,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.instituteSearch = '';
     // Clear all global-scope UI data while preserving the normal filter workflow.
     this.users = []; this.rawRecords = []; this.dataSource.data = []; this.totalCount = 0;
-    this.filters = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', city: '', industry: '', sector: '' };
+    this.filters = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
     this.departments = []; this.teams = []; this.countries = []; this.states = []; this.cities = [];
     this.departmentSearch = ''; this.teamSearch = ''; this.filter = ''; this.dataSource.filter = '';
     this.pageIndex = 0; this.hasAppliedFilters = false; this.selectedUser = null; this.editing = false; this.editableUser = null;

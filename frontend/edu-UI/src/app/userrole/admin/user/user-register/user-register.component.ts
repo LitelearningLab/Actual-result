@@ -185,6 +185,19 @@ export class AdminUserRegisterComponent implements OnInit {
 
     // institute changes
     this.form.get('institute')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((iid) => {
+      // Institute-owned selections cannot be carried across institutes. Clear
+      // them before loading the newly selected institute's valid options.
+      this.form.patchValue({
+        campus: '', department: '', team: '', country: '', state: '', city: ''
+      }, { emitEvent: false });
+      this.departments = [];
+      this.teams = [];
+      this.campuses = [];
+      this.countries = [];
+      this.states = [];
+      this.cities = [];
+      this.filteredStates = [];
+      this.filteredCities = [];
       if (!this.isProfluentInstituteSelected() && this.form.get('role')?.value === 'super_admin') {
         // Super Admin users can only be created under Profluent Lab/Labs.
         this.form.patchValue({ role: '' }, { emitEvent: false });
@@ -195,12 +208,7 @@ export class AdminUserRegisterComponent implements OnInit {
         this.loadCampusList(iid);
         this.loadLocationHierarchy(iid);
       } else {
-        this.departments = [];
-        this.teams = [];
-        this.campuses = [];
-        this.countries = [];
-        this.states = [];
-        this.cities = [];
+        // Lists and dependent values were cleared above.
       }
     });
 
