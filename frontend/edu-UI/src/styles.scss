@@ -186,6 +186,14 @@ $form-ease: cubic-bezier(0.4, 0, 0.2, 1);
 .mat-mdc-form-field input,.mat-mdc-form-field textarea { color:var(--theme-3-text-1); }
 .mat-mdc-form-field input::placeholder,.mat-mdc-form-field textarea::placeholder { color:var(--theme-3-text-3); }
 
+// Read-only controls are display/picker controls, so do not show an editing caret.
+// Editable inputs retain the native caret so keyboard users can see the insertion point.
+.mat-mdc-form-field input[readonly],
+.mat-mdc-form-field textarea[readonly] {
+  caret-color:transparent;
+  cursor:default;
+}
+
 // ════════════════════════════════════════════════════════════════════════════════
 // TOOLBAR STYLES
 // ════════════════════════════════════════════════════════════════════════════════

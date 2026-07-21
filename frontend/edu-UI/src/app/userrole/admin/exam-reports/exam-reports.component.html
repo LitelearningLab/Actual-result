@@ -3,9 +3,8 @@
           <div class="selections">
                <mat-form-field appearance="outline" class="local-institute-field">
                     <mat-icon matPrefix svgIcon="institute"></mat-icon>
-                    <mat-label>Institute</mat-label>
                     <input matInput [formControl]="instituteCtrl" [matAutocomplete]="instAuto"
-                         placeholder="Pick an institute" />
+                         placeholder="Pick an institute" aria-label="Institute" />
                     <mat-autocomplete #instAuto="matAutocomplete" [displayWith]="displayInstitute"
                          (optionSelected)="onInstituteSelected($event.option.value)">
                          <mat-option *ngFor="let inst of (filteredInstitutes$ | async)"
@@ -15,9 +14,8 @@
 
                <mat-form-field appearance="outline">
                     <mat-icon matPrefix svgIcon="exam"></mat-icon>
-                    <mat-label>Scheduled Tests</mat-label>
                     <input type="text" matInput [formControl]="examCtrl" [matAutocomplete]="auto"
-                         placeholder="Pick a test" />
+                         placeholder="Pick a scheduled test" aria-label="Scheduled test" />
                     <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayTest.bind(this)"
                          (optionSelected)="onTestAutocompleteSelected($event.option.value)">
                          <mat-option *ngFor="let exam of (filteredTests$ | async)" [value]="exam">
@@ -170,8 +168,8 @@
                          <div class="tab-actions">
                               <div class="search">
                                    <mat-form-field appearance="outline" class="search-field"><mat-icon matPrefix>search</mat-icon>
-                                        <mat-label>Search student</mat-label>
-                                        <input matInput [(ngModel)]="searchQuery" placeholder="Student Name " />
+                                        <input matInput [(ngModel)]="searchQuery" placeholder="Search by student name"
+                                             aria-label="Search by student name" />
                                    </mat-form-field>
                               </div>
                               <div class="controls">
