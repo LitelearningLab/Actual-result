@@ -38,6 +38,7 @@ export class CategoryCreateComponent {
   editId: string | null = null;
   formSubmitted = false;
   categoryInfoSubmitted = false;
+  accessInfoSubmitted = false;
 
   institutesList: Array<{ id: string; name: string }> = [];
   typeOptions = [ { id: 'objective', name: 'Objective' }, { id: 'descriptive', name: 'Descriptive' } ];
@@ -237,6 +238,7 @@ export class CategoryCreateComponent {
         this.publicAccess = false;
         this.formSubmitted = false;
         this.categoryInfoSubmitted = false;
+        this.accessInfoSubmitted = false;
      }
   cancel(){ this.router.navigate(['/category']); }
   setName(v: string){ this.name = v || ''; }
@@ -258,6 +260,14 @@ export class CategoryCreateComponent {
     }
     if (this.isTypeInvalid()) {
       this.snack.open('Type is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' });
+      return;
+    }
+    stepper.next();
+  }
+
+  goToReviewStep(stepper: any): void {
+    this.accessInfoSubmitted = true;
+    if (this.isDepartmentsInvalid() || this.isTeamsInvalid() || this.isMarkInvalid() || this.isStatusInvalid()) {
       return;
     }
     stepper.next();
