@@ -54,16 +54,6 @@ export class LoginComponent {
       console.debug('[LoginComponent] login resolved', ok);
       if (ok) {
         try { console.debug('[LoginComponent] sessionStorage user after login', sessionStorage.getItem('user')); } catch(e) {}
-        // persist login state for components that read sessionStorage
-        try {
-          // if backend returns full user info and token in sessionStorage from AuthService or other, preserve it
-          sessionStorage.setItem('isLogin', 'true');
-          sessionStorage.setItem('username', username);
-          // attempt to read full response saved by AuthService (some backends may set it); otherwise leave it for future
-          // nothing to do here if AuthService doesn't return user object. If you later update AuthService to return user, write it here.
-        } catch (e) {
-          // ignore storage errors
-        }
         // route based on role if available
         let role = '';
         try{ const raw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile'); const u = raw ? JSON.parse(raw) : null; role = u?.role || sessionStorage.getItem('userRole') || ''; }catch(e){}

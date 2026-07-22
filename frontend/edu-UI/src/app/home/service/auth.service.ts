@@ -27,30 +27,26 @@ export class AuthService {
   constructor(private http: HttpClient, private pageAccess: PageAccessService) {
     // Initialize from sessionStorage if available
     try {
+      const token = sessionStorage.getItem('token');
       const raw = sessionStorage.getItem('user');
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          // normalize user shape so other code can rely on `id`
-          if (parsed && !parsed.id && parsed.user_id) parsed.id = parsed.user_id;
-          this._user.next(parsed);
-          this._logged.next(sessionStorage.getItem('isLogin') === 'true');
-          // preload page access for persisted user (use normalized id)
-          try {
-            const uid = parsed && (parsed.id || parsed.user_id || parsed.userId);
-            if (uid) {
-              console.debug('[AuthService] constructor preloading page access for userId:', uid);
-              this.pageAccess.fetchForUser(uid.toString()).subscribe(rows => console.debug('[AuthService] constructor fetched page access rows:', rows));
-            }
-          } catch (e) {}
-        } catch (e) {
-          // if parsing fails, fallback to raw user value
-          this._user.next(JSON.parse(raw));
-          this._logged.next(sessionStorage.getItem('isLogin') === 'true');
+      if (token && raw) {
+        const parsed = JSON.parse(raw);
+        // normalize user shape so other code can rely on `id`
+        if (parsed && !parsed.id && parsed.user_id) parsed.id = parsed.user_id;
+        this._user.next(parsed);
+        this._logged.next(true);
+        sessionStorage.setItem('isLogin', 'true');
+        // preload page access for persisted user (use normalized id)
+        const uid = parsed && (parsed.id || parsed.user_id || parsed.userId);
+        if (uid) {
+          console.debug('[AuthService] constructor preloading page access for userId:', uid);
+          this.pageAccess.fetchForUser(uid.toString()).subscribe(rows => console.debug('[AuthService] constructor fetched page access rows:', rows));
         }
       }
     } catch (e) {
-      // ignore
+      // Invalid persisted data is treated as unauthenticated without deleting it.
+      this._user.next(null);
+      this._logged.next(false);
     }
   }
 
@@ -64,6 +60,7 @@ export class AuthService {
       if (ok) {
         try {
             if (resp.token) sessionStorage.setItem('token', resp.token);
+            sessionStorage.setItem('isLogin', 'true');
             if (resp.user) {
             // normalize incoming user object: ensure `id` exists for compatibility
             try {

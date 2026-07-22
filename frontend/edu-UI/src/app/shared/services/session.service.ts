@@ -88,7 +88,17 @@ export class SessionService {
       } catch (e) {}
       // Close any session-expired dialogs now that token was refreshed
       try { this.dialog.closeAll(); } catch (e) {}
-      }, error: () => { try { this.dialog.closeAll(); } catch (e) {} ; this.doLogout(); }, complete: () => {
+      }, error: (err) => {
+        this.refreshInProgress = false;
+        // Only an explicit authentication rejection proves the session is no
+        // longer valid. Keep browser state during outages and network errors.
+        if (err && (err.status === 401 || err.status === 403)) {
+          try { this.dialog.closeAll(); } catch (e) {}
+          this.doLogout();
+        } else {
+          console.warn('Unable to refresh the session; keeping the existing login state.', err);
+        }
+      }, complete: () => {
         this.refreshInProgress = false;
       } });
   }
