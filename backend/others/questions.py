@@ -563,11 +563,13 @@ def create_question_using_llm(request):
         #         def json(self):
         #             return self._json
         #     response = MockResponse(response_json)
-        response_tracker(response_json, institute_id, user_id)
         if response.status_code != 200:
             print(f"Error response from LLM: {response_json}")
-            result = {"status": False, "error": response_json.get("error", "Unknown error")}
-            return result
+            error = response_json.get("error", "Unknown error")
+            if isinstance(error, dict):
+                error = error.get("message", str(error))
+            return {"status": False, "error": error}, response.status_code
+        response_tracker(response_json, institute_id, user_id)
         result_text = response_json['choices'][0]['message']['content'].strip()
         # Remove markdown code blocks if present
         if result_text.startswith('```'):
@@ -589,7 +591,7 @@ def create_question_using_llm(request):
     
     except Exception as e:
         print(f"Error in create_question_using_llm: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
-        result = {
+        return {
             "status": False,
             "error": str(e)
         }, 500

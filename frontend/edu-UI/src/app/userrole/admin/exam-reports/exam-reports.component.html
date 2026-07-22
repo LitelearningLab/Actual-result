@@ -485,19 +485,19 @@
                                                        <div class="fill-correct" *ngIf="q.marks_awarded === 0">Correct Answer: {{ q.options[0].option_text || q.options[0] }}</div>
                                                   </div>
                                              </div>
-                                             <!-- descriptive -->
-                                             <div *ngIf="(q.question_type || q.type) === 'descriptive'" class="q-descriptive">
-                                                  <!-- <div class="desc-header">
-                                                       <div class="desc-question">
-                                                            <div class="question-label">Descriptive Question</div>
-                                                            <div class="question-value">{{ q.question_text || '-' }}</div>
-                                                       </div>
-                                                       <div class="desc-score">
-                                                            <div class="score-label">Student Score</div>
-                                                            <div class="score-value">{{ q.marks_awarded != null ? (q.marks_awarded + ' / ' + (q.question_marks || q.marks || '-')) : '-' }}</div>
-                                                       </div>
-                                                  </div> 
-                                                  -->
+                                                  <!-- Descriptive answer details -->
+                                                  <div *ngIf="(q.question_type || q.type) === 'descriptive'" class="q-descriptive">
+                                                   <div class="descriptive-answers">
+                                                        <div class="desc-student">
+                                                             <div class="student-label">Student's Answer</div>
+                                                             <div class="answer-text">{{ (q.selected_option || []).join(' ') || 'No answer provided' }}</div>
+                                                        </div>
+
+                                                        <div class="desc-model">
+                                                             <div class="model-label">Model Answer</div>
+                                                             <div class="model-text">{{ q.correct_option || (q.options && q.options[0] && (q.options[0].option_text || q.options[0])) || q.correct_answer || 'No model answer provided' }}</div>
+                                                        </div>
+                                                   </div>
 
                                                   <div class="q-feedback" *ngIf="q.feedback">
                                                        <strong>High-level Feedback</strong>
@@ -669,17 +669,7 @@
                                                                  </div>
                                                             </div>
                                                        </div>
-                                                  <div class="desc-student">
-                                                       <div class="student-label">Student's Answer</div>
-                                                       <div class="answer-text">{{ (q.selected_option || []).join(' ') || '-' }}</div>
-                                                  </div>
-                                                  
-                                                  <div class="desc-model">
-                                                       <div class="model-label">Model Answer</div>
-                                                       <div class="model-text">{{ q.correct_option || (q.options && q.options[0] && q.options[0].option_text) || q.correct_answer || '-' }}</div>
-                                                  </div>
-
-                                                  <!-- Marks History Section -->
+                                                   <!-- Marks History Section -->
                                                   <div class="marks-history-section" *ngIf="(q.marks_history && q.marks_history.length)">
                                                        <div class="marks-history-header">
                                                             <mat-icon>history</mat-icon>

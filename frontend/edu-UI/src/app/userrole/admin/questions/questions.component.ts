@@ -466,6 +466,7 @@ export class AdminQuestionsComponent {
     this.loader.show();
     if (!this.aiQuestionType || !this.aiQuestionNumber || this.aiQuestionNumber < 1){
       try { notify('Select a question type and set number of questions', 'error'); } catch(e){}
+      this.loader.hide();
       return;
     }
 
@@ -530,13 +531,13 @@ export class AdminQuestionsComponent {
             this.showPreview = true;
             notify('AI generated questions received', 'success');
           } else {
-            notify(res?.statusMessage || res?.message || 'Failed to generate questions', 'error');
+            notify(res?.error || res?.statusMessage || res?.message || 'Failed to generate questions', 'error');
           }
         }catch(e){ console.error('Failed to process AI response', e); notify('Failed to generate questions', 'error'); }
         this.loader.hide();
       },
       complete: () => { this.loader.hide(); },
-      error: (err) => { console.error('AI generation failed', err); try { notify(err?.error?.statusMessage || err?.error?.message || 'AI generation failed', 'error'); } catch(e){} this.loader.hide(); }
+      error: (err) => { console.error('AI generation failed', err); try { notify(err?.error?.error || err?.error?.statusMessage || err?.error?.message || 'AI generation failed', 'error'); } catch(e){} this.loader.hide(); }
     });
   }
 
