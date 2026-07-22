@@ -783,6 +783,27 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     const id = element.category_id || element.id;
     if (!id) return;
     this.selectedCategory = element;
+    // The list can be restored from session storage after returning from the edit
+    // page. Read the current record before displaying its details so recently
+    // updated fields (notably the question-bank type) cannot remain stale.
+    this.http.get<any>(`${API_BASE}/category-details`, { params: { category_id: String(id) } }).subscribe({
+      next: (res) => {
+        const items = Array.isArray(res) ? res : (res?.data || []);
+        const selectedId = this.selectedCategory?.category_id || this.selectedCategory?.id;
+        if (!items.length || String(selectedId || '') !== String(id)) return;
+        const current = items[0];
+        this.selectedCategory = {
+          ...element,
+          ...current,
+          category_id: current.category_id || current.id || id,
+          id: current.category_id || current.id || id,
+          departments: this.iterableList(current.departments || current.department_ids),
+          teams: this.iterableList(current.teams || current.team_ids),
+          active: typeof current.active_status !== 'undefined' ? current.active_status : element.active
+        };
+      },
+      error: (err) => console.warn('Failed to refresh question bank details', err)
+    });
   }
 
   EditCategory(element: any){
@@ -891,6 +912,9 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
       if (this.filterCountry) this.loadCitiesForCountry(this.filterCountry);
       if (this.filterCountry || this.filterCity || this.filterIndustry || this.filterSector) this.refreshInstituteScope();
       this.applyFilter(this.filter || '');
+      // The saved rows predate any changes made on the edit page. Refresh them so
+      // the details modal and status toggle reflect the values persisted by the API.
+      if (this.hasAppliedFilters) this.fetchCategories();
     } catch (e) {
       try { sessionStorage.removeItem('category_return_state'); } catch (_) { }
     }
