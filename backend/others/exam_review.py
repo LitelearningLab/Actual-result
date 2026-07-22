@@ -263,6 +263,15 @@ def review_user_exam(request, current_user=None):
                 options_list = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.active_status == 1).all()
                 updated_by = session.query(User).filter(User.user_id == question_answer.created_by).first()
 
+                evaluation_failed = (
+                    question_type == "descriptive"
+                    and not bool(question_answer.is_validated)
+                    and bool(question_answer.feedback)
+                )
+                evaluation_status = None
+                if question_type == "descriptive":
+                    evaluation_status = "failed" if evaluation_failed else ("success" if question_answer.is_validated else "pending")
+
                 review_data["review"].append({
                     "answer_id": question_answer.answer_id,
                     "question_id": question_answer.question_id,
@@ -278,16 +287,26 @@ def review_user_exam(request, current_user=None):
                     "updated_date": question_answer.created_date,
                     "question_marks": question_marks if exam_schedule.show_score else None,
                     "ai_marks": (question_answer.ai_marks if question_answer.ai_marks is not None else 0) if exam_schedule.show_explanations else None,
-                    "ai_confidence": (question_answer.ai_confidence if question_answer.ai_confidence is not None else 0) if exam_schedule.show_explanations else None,
-                    "needs_manual_review": ((question_answer.ai_confidence if question_answer.ai_confidence is not None else 0) < ai_confidence_threshold) if exam_schedule.show_explanations and question_type == 'descriptive' else False,
+                    "ai_confidence": question_answer.ai_confidence if exam_schedule.show_explanations else None,
+                    "needs_manual_review": (question_answer.ai_confidence is not None and question_answer.ai_confidence < ai_confidence_threshold) if exam_schedule.show_explanations and question_type == 'descriptive' else False,
+                    "ai_confidence_threshold": ai_confidence_threshold if exam_schedule.show_explanations and question_type == 'descriptive' else None,
                     "manual_review_required": (True if question_answer.manual_review_required == 1 else False) if exam_schedule.show_explanations else None,
                     "manual_marks": (question_answer.manual_marks if question_answer.manual_marks is not None else 0) if exam_schedule.show_explanations else None,
-                    "feedback": question_answer.feedback if exam_schedule.show_explanations and hasattr(question_answer, 'feedback') else ""
+                    "feedback": question_answer.feedback if exam_schedule.show_explanations and not evaluation_failed and hasattr(question_answer, 'feedback') else "",
+                    "evaluation_status": evaluation_status if exam_schedule.show_explanations else None,
+                    "evaluation_error": question_answer.feedback if exam_schedule.show_explanations and evaluation_failed else None
                 })
                 # marks history can also be added here if needed by fetching from MarksHistory table
                 marks_history = session.query(MarksHistory).filter(MarksHistory.answer_id == question_answer.answer_id).all()
                 if marks_history and exam_schedule.show_score:
-                    review_data["review"][-1]["marks_history"] = [{"marks_awarded": mh.marks_awarded, "updated_by": session.query(User).filter(User.user_id == mh.updated_by).first().full_name , "updated_date": mh.updated_date} for mh in marks_history]
+                    review_data["review"][-1]["marks_history"] = [{
+                        "marks_awarded": mh.marks_awarded,
+                        "updated_by": (lambda user: user.full_name if user else (mh.updated_by or "System"))(
+                            session.query(User).filter(User.user_id == mh.updated_by).first()
+                        ),
+                        "updated_date": mh.updated_date,
+                        "edit_reason": mh.source
+                    } for mh in marks_history]
                 
             review_data["total_marks"] = total_marks if exam_schedule.show_score else None
             attempt_reviews.append(review_data)
@@ -311,6 +330,8 @@ def validate_answers(attempt_id):
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
     
+    evaluation_failures = 0
+
     # get answer records
     answers = session.query(Answer).filter_by(attempt_id=attempt_id, is_validated=0).all()
 
@@ -353,12 +374,28 @@ def validate_answers(attempt_id):
                 question_mark = question.marks
                 evaluation = descriptive_evaluation(openai_client_instance, question_mark, expected_answer, student_answer)
                 if not evaluation.get("status", False):
-                    continue  # Skip if evaluation failed
+                    # Keep the answer retryable, but persist a visible diagnostic instead
+                    # of silently returning an empty feedback section.
+                    evaluation_failures += 1
+                    error_detail = evaluation.get("error") or "The AI evaluation service did not return a valid result."
+                    print(f"AI evaluation failed for answer {ans.answer_id}: {error_detail}")
+                    ans.feedback = "AI evaluation could not be completed. Please retry the evaluation."
+                    ans.ai_confidence = None
+                    ans.is_validated = 0
+                    session.add(ans)
+                    continue
                 score = evaluation.get("score", 0)
                 max_marks = question.marks
                 marks_awarded = (score / question_mark) * max_marks if question_mark > 0 else 0
                 ans.is_correct = 1 if marks_awarded == max_marks else 0
-                ans.marks_awarded = marks_awarded
+                ans.ai_marks = marks_awarded
+                # A retry must not overwrite marks that an instructor already
+                # assigned while the AI evaluation was unavailable.
+                has_manual_marks = session.query(MarksHistory).filter(
+                    MarksHistory.answer_id == ans.answer_id
+                ).first() is not None
+                if not has_manual_marks:
+                    ans.marks_awarded = marks_awarded
                 ans.is_validated = 1
                 feedback_part = evaluation.get("feedback", "")
                 ans.feedback = feedback_part
@@ -367,11 +404,12 @@ def validate_answers(attempt_id):
                 session.add(ans)
 
                 # update ExamReviewComments table category wise comments
-                for key in ["missing", "incomplete", "incorrect",'feedback']:
-                    if evaluation.get(key) and evaluation.get(key) != "None":
-                        comment = f"{evaluation.get(key)}"
-
-                        for commt in comment.split('|'):
+                for key in ["missing", "incomplete", "incorrect"]:
+                    comment = str(evaluation.get(key) or "").strip()
+                    if comment and comment.lower() not in {"none", "null", "n/a"}:
+                        for commt in (part.strip() for part in comment.split('|')):
+                            if not commt:
+                                continue
                             review_comment = ExamReviewComments(
                                 attempt_id=attempt_id,
                                 question_id=question_id,
@@ -440,7 +478,13 @@ def validate_answers(attempt_id):
     finally:
         session.close()
 
-    return {"statusMessage": "Answers validated successfully", "status": True}, 200
+    if evaluation_failures:
+        return {
+            "statusMessage": f"{evaluation_failures} descriptive answer(s) could not be evaluated.",
+            "status": False,
+            "evaluation_failures": evaluation_failures
+        }, 200
+    return {"statusMessage": "Answers validated successfully", "status": True, "evaluation_failures": 0}, 200
 
 # update review comments function can be added here
 def update_review_comments(request, action_type="edit"):
@@ -574,9 +618,12 @@ def update_descriptive_marks(request):
         answer_id = data.get("answer_id", "")
         marks_awarded = data.get("marks_awarded", 0)
         updated_by = data.get("updated_by", "")
+        edit_reason = str(data.get("edit_reason", "") or "").strip()
 
         if not answer_id or updated_by is None:
             return {"statusMessage": "answer_id and updated_by are required", "status": False}, 400
+        if not edit_reason:
+            return {"statusMessage": "A reason for changing the marks is required", "status": False}, 400
         answer_record = session.query(Answer).filter(Answer.answer_id == answer_id).first()
         if not answer_record:
             return {"statusMessage": "Answer record not found", "status": False}, 404
@@ -585,6 +632,7 @@ def update_descriptive_marks(request):
         answer_history_record = MarksHistory(
             answer_id=answer_id,
             marks_awarded=answer_record.marks_awarded,
+            source=edit_reason,
             updated_by= answer_record.created_by,
             updated_date= answer_record.created_date
         )

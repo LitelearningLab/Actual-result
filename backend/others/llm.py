@@ -1,23 +1,35 @@
 
 import json
+import os
+from pathlib import Path
+
 import httpx
+from dotenv import dotenv_values
+
+
+class _ErrorResponse:
+    def __init__(self, status_code, message):
+        self.status_code = status_code
+        self._message = message
+
+    def json(self):
+        return {"error": self._message}
 
 class openai_client:
     def __init__(self,api_key=None,  model=None):
-        from dotenv import dotenv_values
-        def get_config():
-            return dotenv_values(".env") or dotenv_values("./backend/.env")
-        config = get_config()
+        # Resolve the file relative to this module so configuration does not
+        # depend on the directory from which Flask was started. Environment
+        # variables take precedence in deployed environments.
+        env_file = Path(__file__).resolve().parents[1] / ".env"
+        config = dotenv_values(env_file)
 
-        if api_key:
-            self.api_key = api_key
-        else:
-            self.api_key = config.get('api_key', '')
-        if model:
-            self.model = model
-        else:
-            self.model1 = config.get('model1', '')
-            self.model2 = config.get('model2', '')
+        self.api_key = (api_key or os.getenv("OPENAI_API_KEY") or
+                        os.getenv("api_key") or config.get("OPENAI_API_KEY") or
+                        config.get("api_key") or "").strip()
+        configured_model1 = os.getenv("OPENAI_MODEL_1") or os.getenv("model1") or config.get("model1") or ""
+        configured_model2 = os.getenv("OPENAI_MODEL_2") or os.getenv("model2") or config.get("model2") or configured_model1
+        self.model1 = (model or configured_model1).strip()
+        self.model2 = (model or configured_model2).strip()
 
         self.url = "https://api.openai.com/v1/chat/completions"
         self.headers = {
@@ -26,11 +38,22 @@ class openai_client:
         }
 
     def chat_completion(self, system_message, InputData, aimodel =1, max_tokens: int = 5200, temperature: float = 0.2):
+        if not self.api_key:
+            return _ErrorResponse(
+                503,
+                "OpenAI API key is not configured. Set OPENAI_API_KEY on the backend service."
+            )
+
         messages = []
         if system_message:
             messages.append({"role": "system", "content": system_message})
         messages.append({"role": "user", "content": InputData})
         model = self.model1 if aimodel == 1 else self.model2
+        if not model:
+            return _ErrorResponse(
+                503,
+                "OpenAI model is not configured. Set OPENAI_MODEL_1 and OPENAI_MODEL_2 on the backend service."
+            )
         payload = {
             "model": model,
             "messages": messages,
@@ -41,20 +64,9 @@ class openai_client:
         try:
             response = httpx.post(self.url, headers=self.headers, json=payload, verify=False, timeout=30.0)
         except httpx.ReadTimeout:
-            class _Resp:
-                def __init__(self):
-                    self.status_code = 504
-                def json(self):
-                    return {"error": "Read timeout"}
-            response = _Resp()
+            response = _ErrorResponse(504, "OpenAI request timed out")
         except httpx.RequestError as exc:
-            class _Resp:
-                def __init__(self, msg):
-                    self.status_code = 502
-                    self._msg = msg
-                def json(self):
-                    return {"error": str(self._msg)}
-            response = _Resp(exc)
+            response = _ErrorResponse(502, str(exc))
         return response
 def descriptive_evaluation(api_client, question_mark, expected_answer, student_answer):
     system_message = '''You are an automated, impartial answer evaluator. Always respond ONLY with a single, valid JSON object (no markdown, no surrounding text). Follow these rules:

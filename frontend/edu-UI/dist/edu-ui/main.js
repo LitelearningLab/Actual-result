@@ -282,30 +282,26 @@ class AuthService {
     this.user$ = this._user.asObservable();
     // Initialize from sessionStorage if available
     try {
+      const token = sessionStorage.getItem('token');
       const raw = sessionStorage.getItem('user');
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          // normalize user shape so other code can rely on `id`
-          if (parsed && !parsed.id && parsed.user_id) parsed.id = parsed.user_id;
-          this._user.next(parsed);
-          this._logged.next(sessionStorage.getItem('isLogin') === 'true');
-          // preload page access for persisted user (use normalized id)
-          try {
-            const uid = parsed && (parsed.id || parsed.user_id || parsed.userId);
-            if (uid) {
-              console.debug('[AuthService] constructor preloading page access for userId:', uid);
-              this.pageAccess.fetchForUser(uid.toString()).subscribe(rows => console.debug('[AuthService] constructor fetched page access rows:', rows));
-            }
-          } catch (e) {}
-        } catch (e) {
-          // if parsing fails, fallback to raw user value
-          this._user.next(JSON.parse(raw));
-          this._logged.next(sessionStorage.getItem('isLogin') === 'true');
+      if (token && raw) {
+        const parsed = JSON.parse(raw);
+        // normalize user shape so other code can rely on `id`
+        if (parsed && !parsed.id && parsed.user_id) parsed.id = parsed.user_id;
+        this._user.next(parsed);
+        this._logged.next(true);
+        sessionStorage.setItem('isLogin', 'true');
+        // preload page access for persisted user (use normalized id)
+        const uid = parsed && (parsed.id || parsed.user_id || parsed.userId);
+        if (uid) {
+          console.debug('[AuthService] constructor preloading page access for userId:', uid);
+          this.pageAccess.fetchForUser(uid.toString()).subscribe(rows => console.debug('[AuthService] constructor fetched page access rows:', rows));
         }
       }
     } catch (e) {
-      // ignore
+      // Invalid persisted data is treated as unauthenticated without deleting it.
+      this._user.next(null);
+      this._logged.next(false);
     }
   }
   login(identifier, password) {
@@ -324,6 +320,7 @@ class AuthService {
         if (ok) {
           try {
             if (resp.token) sessionStorage.setItem('token', resp.token);
+            sessionStorage.setItem('isLogin', 'true');
             if (resp.user) {
               // normalize incoming user object: ensure `id` exists for compatibility
               try {
@@ -419,10 +416,16 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   API_BASE: () => (/* binding */ API_BASE)
 /* harmony export */ });
-// Central API base used across the frontend
-const API_BASE = 'http://127.0.0.1:5001/edu/api'; // Local 
-// export const API_BASE = 'http://34.100.213.250:5001/edu/api';
-// export const API_BASE = 'http://127.0.0.1:5001/edu/api'; //test
+const LOCAL_API_BASE = 'http://127.0.0.1:5001/edu/api';
+const LIVE_API_BASE = 'http://34.100.213.250:5001/edu/api';
+// Change only this value while developing:
+// true  = localhost frontend uses the local backend
+// false = localhost frontend uses the live backend
+const USE_LOCAL_BACKEND = false;
+const frontendIsLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+// The deployed frontend always uses the live backend. The switch above only
+// affects a frontend opened from localhost.
+const API_BASE = frontendIsLocal && USE_LOCAL_BACKEND ? LOCAL_API_BASE : LIVE_API_BASE;
 
 /***/ }),
 
@@ -2595,12 +2598,18 @@ class SessionService {
           this.dialog.closeAll();
         } catch (e) {}
       },
-      error: () => {
-        try {
-          this.dialog.closeAll();
-        } catch (e) {}
-        ;
-        this.doLogout();
+      error: err => {
+        this.refreshInProgress = false;
+        // Only an explicit authentication rejection proves the session is no
+        // longer valid. Keep browser state during outages and network errors.
+        if (err && (err.status === 401 || err.status === 403)) {
+          try {
+            this.dialog.closeAll();
+          } catch (e) {}
+          this.doLogout();
+        } else {
+          console.warn('Unable to refresh the session; keeping the existing login state.', err);
+        }
       },
       complete: () => {
         this.refreshInProgress = false;

@@ -15,6 +15,7 @@
                <mat-form-field appearance="outline">
                     <mat-icon matPrefix svgIcon="exam"></mat-icon>
                     <input type="text" matInput [formControl]="examCtrl" [matAutocomplete]="auto"
+                         [disabled]="!selectedInstituteId || scheduledTestsLoading"
                          placeholder="Pick a scheduled test" aria-label="Scheduled test" />
                     <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayTest.bind(this)"
                          (optionSelected)="onTestAutocompleteSelected($event.option.value)">
@@ -23,13 +24,15 @@
                               <!-- <div class="option-sub muted">{{ exam.schedule_id || exam.id || '' }}</div> -->
                          </mat-option>
                     </mat-autocomplete>
+                    <mat-hint *ngIf="scheduledTestsMessage">{{ scheduledTestsMessage }}</mat-hint>
                </mat-form-field>
           </div>
 
           <div class="controls">
 
                <div class="action-row">
-                    <button mat-stroked-button color="primary" type="button" (click)="loadAnalytics()" class="button-one">
+                    <button mat-stroked-button color="primary" type="button" (click)="refreshTestReports()"
+                         [disabled]="!selectedInstituteId || scheduledTestsLoading" class="button-one">
                          <mat-icon svgIcon="refresh"></mat-icon>Refresh</button>
                     <button #filtersBtn mat-flat-button type="button" class="button-one"
                               (click)="$event.stopPropagation(); openFiltersOverlay()">
@@ -444,9 +447,10 @@
                                                                   <mat-icon svgIcon="brain"></mat-icon>  {{'AI Confidence: ' + (q.ai_confidence != null ? (q.ai_confidence + '%') : 'N/A')}}
                                                                   <button *ngIf="q.needs_manual_review" type="button" class="manual-check-chip"
                                                                        [class.selected]="q.manual_review_required" [attr.aria-pressed]="!!q.manual_review_required"
-                                                                       (click)="$event.stopPropagation(); toggleManualReview(q)">
+                                                                       (click)="$event.stopPropagation(); toggleManualReview(q)"
+                                                                       [title]="'AI confidence is below the configured ' + q.ai_confidence_threshold + '% threshold'">
                                                                        <mat-icon>{{ q.manual_review_required ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
-                                                                       Manual Check
+                                                                       Manual Check Required
                                                                   </button>
                                                             </div>
                                                             </div>
@@ -462,15 +466,20 @@
                                                                       <mat-icon>edit</mat-icon>
                                                                  </button>
                                                             </div>
-                                                            <div *ngIf="q._editingMarks" class="marks-edit">
-                                                                 <input type="number" class="marks-input" [(ngModel)]="q._editedMarks" [min]="0" [max]="q.question_marks || 100" step="0.5" />
-                                                                 <span class="marks-max">/ {{ q.question_marks || '-' }}</span>
-                                                                 <button mat-icon-button class="save-marks-btn" type="button" (click)="$event.stopPropagation(); saveMarks(q)" title="Save marks">
-                                                                      <mat-icon>check</mat-icon>
-                                                                 </button>
-                                                                 <button mat-icon-button class="cancel-marks-btn" type="button" (click)="$event.stopPropagation(); cancelEditMarks(q)" title="Cancel">
-                                                                      <mat-icon>close</mat-icon>
-                                                                 </button>
+                                                             <div *ngIf="q._editingMarks" class="marks-edit">
+                                                                  <div class="marks-edit-row">
+                                                                       <input type="number" class="marks-input" [(ngModel)]="q._editedMarks" [min]="0" [max]="q.question_marks || 100" step="0.5" />
+                                                                       <span class="marks-max">/ {{ q.question_marks || '-' }}</span>
+                                                                  </div>
+                                                                  <textarea class="marks-reason-input" [(ngModel)]="q._marksEditReason" rows="3" maxlength="1000" placeholder="Describe why you are changing the marks *"></textarea>
+                                                                  <div class="marks-edit-actions">
+                                                                       <button mat-icon-button class="save-marks-btn" type="button" [disabled]="!q._marksEditReason?.trim()" (click)="$event.stopPropagation(); saveMarks(q)" title="Save marks">
+                                                                            <mat-icon>check</mat-icon>
+                                                                       </button>
+                                                                       <button mat-icon-button class="cancel-marks-btn" type="button" (click)="$event.stopPropagation(); cancelEditMarks(q)" title="Cancel">
+                                                                            <mat-icon>close</mat-icon>
+                                                                       </button>
+                                                                  </div>
                                                             </div>
                                                        </div>
                                                        <!-- Compact marks badge for non-descriptive questions -->
@@ -499,16 +508,35 @@
                                                         </div>
                                                    </div>
 
-                                                  <div class="q-feedback" *ngIf="q.feedback">
+                                                  <div class="q-evaluation-state failed" *ngIf="q.evaluation_status === 'failed'">
+                                                       <div>
+                                                            <strong>AI evaluation could not be completed</strong>
+                                                            <div class="feedback-text">{{ q.evaluation_error }}</div>
+                                                       </div>
+                                                       <button type="button" class="retry-evaluation-btn" [disabled]="q._retryingEvaluation"
+                                                            (click)="$event.stopPropagation(); retryEvaluation(q, att)">
+                                                            {{ q._retryingEvaluation ? 'Retrying…' : 'Retry evaluation' }}
+                                                       </button>
+                                                  </div>
+                                                  <div class="q-evaluation-state pending" *ngIf="q.evaluation_status === 'pending'">
+                                                       <div><strong>AI evaluation is not available for this answer.</strong></div>
+                                                       <button type="button" class="retry-evaluation-btn" [disabled]="q._retryingEvaluation"
+                                                            (click)="$event.stopPropagation(); retryEvaluation(q, att)">
+                                                            {{ q._retryingEvaluation ? 'Evaluating…' : 'Run evaluation' }}
+                                                       </button>
+                                                  </div>
+
+                                                  <div class="q-feedback" *ngIf="(q.question_type || q.type) === 'descriptive' && q.evaluation_status !== 'failed'">
                                                        <strong>High-level Feedback</strong>
-                                                       <div class="feedback-text">{{ q.feedback }}</div>
+                                                       <div class="feedback-text">{{ q.feedback || 'No high-level feedback was returned for this answer.' }}</div>
                                                   </div>
 
                                                   <!-- Review Comments summary: split into three columns -->
-                                                       <div class="q-review-comments" *ngIf="q.review_comment && q.review_comment.comments && q.review_comment.comments.length">
+                                                       <div class="q-review-comments" *ngIf="(q.question_type || q.type) === 'descriptive' && q.evaluation_status !== 'failed'">
                                                             <div class="review-columns">
-                                                                 <div class="col missed">
-                                                                      <div class="col-header"><span class="dot red"></span><h4>Points Missed</h4></div>
+                                                                  <div class="col missed">
+                                                                       <div class="col-header"><span class="dot red"></span><h4>Points Missed</h4></div>
+                                                                            <div class="review-empty" *ngIf="reviewComments(q, 'missing').length === 0">No missed points.</div>
                                                                            <div *ngFor="let rc of reviewComments(q, 'missing'); let rci = index">
                                                                                 <div class="review-item">
                                                                                      <div class="ri-body">
@@ -559,8 +587,9 @@
                                                                                 </div>
                                                                       </div>
                                                                  </div>
-                                                                 <div class="col incorrect">
-                                                                      <div class="col-header"><span class="dot orange"></span><h4>Points Incorrect</h4></div>
+                                                                  <div class="col incorrect">
+                                                                       <div class="col-header"><span class="dot orange"></span><h4>Points Incorrect</h4></div>
+                                                                            <div class="review-empty" *ngIf="reviewComments(q, ['incorrct','incorrect','incor']).length === 0">No incorrect points.</div>
                                                                            <div *ngFor="let rc of reviewComments(q, ['incorrct','incorrect','incor']); let rci = index">
                                                                                 <div class="review-item">
                                                                                      <div class="ri-body">
@@ -613,8 +642,9 @@
                                                                                 </div>
                                                                       </div>
                                                                  </div>
-                                                                 <div class="col incomplete">
-                                                                      <div class="col-header"><span class="dot yellow"></span><h4>Points Incomplete</h4></div>
+                                                                  <div class="col incomplete">
+                                                                       <div class="col-header"><span class="dot yellow"></span><h4>Points Incomplete</h4></div>
+                                                                            <div class="review-empty" *ngIf="reviewComments(q, 'incomplete').length === 0">No incomplete points.</div>
                                                                            <div *ngFor="let rc of reviewComments(q, 'incomplete'); let rci = index">
                                                                                 <div class="review-item">
                                                                                      <div class="ri-body">
@@ -686,10 +716,10 @@
                                                                       <div class="history-card current">
                                                                            <div class="history-badge">Current</div>
                                                                            <div class="history-marks">{{ q.marks_awarded }} <span class="marks-total">/ {{ q.question_marks || '-' }}</span></div>
-                                                                           <div class="history-meta">
+                                                                            <div class="history-meta">
                                                                                  <span class="updated-by"><mat-icon>person</mat-icon>{{ q.updated_by || 'System' }}</span>
                                                                                  <span class="updated-date" *ngIf="q.updated_date"><mat-icon>schedule</mat-icon>{{ q.updated_date }}</span>
-                                                                           </div>
+                                                                            </div>
                                                                       </div>
                                                                  </div>
                                                             </div>
@@ -702,10 +732,11 @@
                                                                  <div class="history-content">
                                                                       <div class="history-card past">
                                                                            <div class="history-marks">{{ mh.marks_awarded }} <span class="marks-total">/ {{ q.question_marks || '-' }}</span></div>
-                                                                           <div class="history-meta">
+                                                                            <div class="history-meta">
                                                                                 <span class="updated-by"><mat-icon>person</mat-icon>{{ mh.updated_by || 'System' }}</span>
                                                                                 <span class="updated-date"><mat-icon>schedule</mat-icon>{{ mh.updated_date }}</span>
-                                                                           </div>
+                                                                            </div>
+                                                                            <div class="history-reason" *ngIf="mh.edit_reason"><strong>Reason:</strong> {{ mh.edit_reason }}</div>
                                                                       </div>
                                                                  </div>
                                                             </div>

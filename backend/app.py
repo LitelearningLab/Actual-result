@@ -388,6 +388,9 @@ def review_user_exam_route():
 @edu_blueprint.route('/validate-answers/<attempt_id>', methods=['POST'])
 @jwt_required
 def validate_answers_route(attempt_id):
+    current_user = get_current_user_from_request()
+    if not current_user or not is_admin(current_user):
+        return jsonify({"status": False, "statusMessage": "Admin access required"}), 403
     response_data, status_code = validate_answers(attempt_id)
     return jsonify(response_data), status_code
 

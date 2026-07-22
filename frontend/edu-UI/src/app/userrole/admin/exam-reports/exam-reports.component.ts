@@ -42,6 +42,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   selectedUserName: string | null = null;
   selectedUserScore: string | number | null = null;
   selectedUserResult: string | null = null;
+  private currentReviewParams: any = null;
   totalQuestions: number | null = null;
   totalMarks: string | number | null = null;
   pageSize = 25;
@@ -68,6 +69,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   teamList: any[] = [];
   institutes: Array<{ id: string; name: string }> = [];
   selectedInstituteId: string | null = null;
+  scheduledTestsLoading = false;
+  scheduledTestsMessage = '';
+  private scheduledTestsRequestId = 0;
 
   @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
@@ -210,6 +214,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const scheduleId = String(this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || '');
     if(!userId || !scheduleId) return;
     const params: any = { user_id: String(userId), scheduler_id: scheduleId };
+    this.currentReviewParams = params;
     // if browser is offline, show a retry snackbar instead of firing the request
     if(typeof navigator !== 'undefined' && !navigator.onLine){
       const snack = this._snack.open('You appear to be offline. Retry?', 'Retry', { duration: 10000 });
@@ -217,6 +222,26 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       return;
     }
     this.fetchUserReview(params);
+  }
+
+  retryEvaluation(q: any, attempt: any): void {
+    const attemptId = attempt?.attempt_id;
+    if (!attemptId || q?._retryingEvaluation) return;
+    q._retryingEvaluation = true;
+    this.http.post<any>(`${API_BASE}/validate-answers/${attemptId}`, {}).subscribe({
+      next: (res) => {
+        const message = res?.status === false
+          ? (res?.statusMessage || 'AI evaluation could not be completed.')
+          : 'AI evaluation completed.';
+        this._snack.open(message, 'Close', { duration: res?.status === false ? 5000 : 3000 });
+        if (this.currentReviewParams) this.fetchUserReview(this.currentReviewParams);
+      },
+      error: (err) => {
+        q._retryingEvaluation = false;
+        const message = err?.error?.statusMessage || 'AI evaluation could not be completed.';
+        this._snack.open(message, 'Close', { duration: 5000 });
+      }
+    });
   }
 
   private fetchUserReview(params: any){
@@ -312,12 +337,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if(!q) return;
     q._editingMarks = true;
     q._editedMarks = q.marks_awarded ?? 0;
+    q._marksEditReason = '';
   }
 
   cancelEditMarks(q: any){
     if(!q) return;
     q._editingMarks = false;
     q._editedMarks = undefined;
+    q._marksEditReason = undefined;
   }
 
   saveMarks(q: any, row?: any){
@@ -330,6 +357,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const maxMarks = q.question_marks || q.marks || 0;
     if(newMarks > maxMarks){
       this._snack.open(`Marks cannot exceed ${maxMarks}`, 'Close', { duration: 3000 });
+      return;
+    }
+    const editReason = String(q._marksEditReason || '').trim();
+    if(!editReason){
+      this._snack.open('Please enter a reason for changing the marks', 'Close', { duration: 3000 });
       return;
     }
 
@@ -355,7 +387,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const payload = {
       answer_id: String(answerID),
       marks_awarded: newMarks,
-      updated_by: updatedBy
+      updated_by: updatedBy,
+      edit_reason: editReason
     };
 
     this.loading.show();
@@ -368,13 +401,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         q.marks_history.unshift({
           marks_awarded: oldMarks,
           updated_by: q.updated_by || 'System',
-          updated_date: q.updated_date
+          updated_date: q.updated_date,
+          edit_reason: editReason
         });
         q.marks_awarded = newMarks;
         q.updated_by = updatedByName;
         q.updated_date = new Date().toUTCString();
         q._editingMarks = false;
         q._editedMarks = undefined;
+        q._marksEditReason = undefined;
         
         // Update total score if available
         if(this.selectedUserScore !== null && typeof this.selectedUserScore === 'number'){
@@ -555,6 +590,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   onInstituteSelected(inst: any){
     if(!inst) return;
     this.selectedInstituteId = inst.id;
+    this.resetSelectedExam();
     // populate dependent filter lists then load exams
     try{ this.loadDepartmentList(this.selectedInstituteId); }catch(e){}
     try{ this.loadTeamsList(this.selectedInstituteId); }catch(e){}
@@ -566,6 +602,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   displayInstitute(i: any){ return i ? i.name : ''; }
   onInstituteChange(id: string|null){
     this.selectedInstituteId = id;
+    this.resetSelectedExam();
     try{ this.loadDepartmentList(this.selectedInstituteId); }catch(e){}
     try{ this.loadTeamsList(this.selectedInstituteId); }catch(e){}
     try{ this.loadCampusList(this.selectedInstituteId); }catch(e){}
@@ -637,14 +674,37 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       }, error: (err) => { console.warn('Failed to load campus list', err); this.campusList = []; }
     });
   }
+  private resetSelectedExam(): void {
+    this.selectedExam = null;
+    this.examCtrl.setValue('');
+    this.allTests = [];
+    this.filteredTests$ = of([]);
+    this.userReportData = [];
+    this.userReportTotal = 0;
+    this.categoryAnalytics = [];
+    this.questionSummary = [];
+    this.wrongDistribution = [];
+  }
+
   loadScheduledTest() {
-    // call API (use API_BASE) and populate filteredTests$
+    const instituteId = String(this.selectedInstituteId || '').trim();
+    if (!instituteId) {
+      this.resetSelectedExam();
+      this.scheduledTestsMessage = 'Select an institute to load scheduled tests.';
+      return;
+    }
+
+    const requestId = ++this.scheduledTestsRequestId;
     const url = `${API_BASE}/get-exam-schedule-details`;
+    this.scheduledTestsLoading = true;
+    this.scheduledTestsMessage = '';
     this.loading.show();
-    this.http.get<any>(url, { params: { institute_id: this.selectedInstituteId || '', country_id: this.userFilters.country_id || '', city_id: this.userFilters.city_id || '', campus_id: this.userFilters.campus_id || '' } }).subscribe({
+    this.http.get<any>(url, { params: { institute_id: instituteId, country_id: this.userFilters.country_id || '', city_id: this.userFilters.city_id || '', campus_id: this.userFilters.campus_id || '' } }).subscribe({
       next: (res) => {
+        if (requestId !== this.scheduledTestsRequestId || instituteId !== this.selectedInstituteId) return;
         try{ const items = Array.isArray(res) ? res : (res?.data || res?.schedules || []);
           this.allTests = items || [];
+          this.scheduledTestsMessage = this.allTests.length ? '' : 'No scheduled tests found for this institute.';
           // set up filtered observable to react to user typing
           try{
             this.filteredTests$ = this.examCtrl.valueChanges.pipe(
@@ -655,11 +715,30 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
               })
             );
           }catch(e){ this.filteredTests$ = of(this.allTests || []); }
-        }catch(e){ this.filteredTests$ = of([]); console.warn('Failed to load schedules', e); }
+        }catch(e){ this.allTests = []; this.filteredTests$ = of([]); this.scheduledTestsMessage = 'Unable to read the scheduled tests response.'; console.warn('Failed to load schedules', e); }
+        this.scheduledTestsLoading = false;
         try { this.loading.hide(); } catch(e){}
       },
-      error: (err) => { this.filteredTests$ = of([]); console.warn('Failed to load schedules', err); try { this.loading.hide(); } catch(e){} }
+      error: (err) => {
+        if (requestId !== this.scheduledTestsRequestId || instituteId !== this.selectedInstituteId) return;
+        this.allTests = [];
+        this.filteredTests$ = of([]);
+        this.scheduledTestsLoading = false;
+        this.scheduledTestsMessage = err?.status === 404
+          ? 'No scheduled tests found for this institute.'
+          : (err?.error?.statusMessage || 'Scheduled tests could not be loaded. Use Refresh to try again.');
+        if (err?.status !== 404) this._snack.open(this.scheduledTestsMessage, 'Close', { duration: 5000 });
+        console.warn('Failed to load schedules', err);
+        try { this.loading.hide(); } catch(e){}
+      }
     });
+  }
+
+  refreshTestReports(): void {
+    this.loadScheduledTest();
+    if (!this.selectedExam) return;
+    if (this.activeMainTabIndex === 0) this.loadUserReport(this.currentPage || 1);
+    else this.loadAnalytics();
   }
 
   ngOnInit(): void {
