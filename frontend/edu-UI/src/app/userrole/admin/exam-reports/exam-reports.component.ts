@@ -339,9 +339,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     // Get user ID from current context
     const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
     let updatedBy = '';
+    let updatedByName = 'System';
     if (raw) {
       const u = JSON.parse(raw);
       updatedBy = u.user_id || u.id || u.userId || u._id || '';
+      updatedByName = u.full_name || u.fullName || u.name || u.user_name || updatedBy || 'System';
     }
 
     if(!answerID){
@@ -362,7 +364,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.loading.hide();
         // Update local state
         const oldMarks = q.marks_awarded || 0;
+        q.marks_history = Array.isArray(q.marks_history) ? q.marks_history : [];
+        q.marks_history.unshift({
+          marks_awarded: oldMarks,
+          updated_by: q.updated_by || 'System',
+          updated_date: q.updated_date
+        });
         q.marks_awarded = newMarks;
+        q.updated_by = updatedByName;
+        q.updated_date = new Date().toUTCString();
         q._editingMarks = false;
         q._editedMarks = undefined;
         

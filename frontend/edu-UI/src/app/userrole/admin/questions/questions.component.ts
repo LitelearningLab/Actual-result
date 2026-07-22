@@ -414,6 +414,30 @@ export class AdminQuestionsComponent {
     return null;
   }
 
+  private extractGeneratedQuestions(value: any, depth = 0): any[] {
+    if (value == null || depth > 6) return [];
+    if (typeof value === 'string') {
+      const cleaned = value.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) return [];
+      try { return this.extractGeneratedQuestions(JSON.parse(cleaned), depth + 1); } catch { return []; }
+    }
+    if (Array.isArray(value)) {
+      const questionItems = value.filter((item: any) => item && typeof item === 'object' &&
+        (typeof item.question_text === 'string' || typeof item.questionText === 'string' ||
+         typeof item.question === 'string' || typeof item.text === 'string'));
+      if (questionItems.length) return questionItems;
+      return value.flatMap((item: any) => this.extractGeneratedQuestions(item, depth + 1));
+    }
+    if (typeof value !== 'object') return [];
+    if (typeof value.question_text === 'string' || typeof value.questionText === 'string' ||
+        typeof value.question === 'string' || typeof value.text === 'string') return [value];
+    for (const key of ['questions', 'data', 'result', 'results', 'output', 'question', 'content', 'message', 'choices']) {
+      const found = this.extractGeneratedQuestions(value[key], depth + 1);
+      if (found.length) return found;
+    }
+    return [];
+  }
+
   private resolveGeneratedCorrectValue(qtype: string, options: any[], correctValue: any): number | number[] | null {
     if (qtype === 'choose') {
       if (typeof correctValue === 'number') return correctValue;
@@ -503,11 +527,11 @@ export class AdminQuestionsComponent {
     this.http.post<any>(url, fd).subscribe({
       next: (res) => {
         try{
-          if (res && res.status === true) {
+          const rawQuestions = this.extractGeneratedQuestions(res);
+          if (rawQuestions.length) {
             // backend returns a single question object or an array — normalize
-            const arr = Array.isArray(res) ? res : (res.data ? res.data : (res.question ? [res.question] : []));
             // if response includes question_text/options etc, map to our internal shape
-            const normalized = (Array.isArray(arr) ? arr : [arr]).map((r:any) => ({ type: r.type || r.question_type || 'descriptive', text: r.question_text || r.question || r.text || '', marks: this.getCategoryQuestionMark() || r.mark || r.marks || 1, options: Array.isArray(r.options) ? r.options.slice() : (r.options && typeof r.options === 'string' ? r.options.split('|').map((s:string)=>s.trim()) : []), correct: r.correct_answer ?? r.correct ?? this.getCorrectFromGeneratedOptions(r.options), answerText: r.explanation || r.answer || '' }));
+            const normalized = rawQuestions.map((r:any) => ({ type: r.type || r.question_type || r.questionType || 'descriptive', text: r.question_text || r.questionText || r.question || r.text || '', marks: this.getCategoryQuestionMark() || r.mark || r.marks || 1, options: Array.isArray(r.options) ? r.options.slice() : (r.options && typeof r.options === 'string' ? r.options.split('|').map((s:string)=>s.trim()) : []), correct: r.correct_answer ?? r.correctAnswer ?? r.correct ?? this.getCorrectFromGeneratedOptions(r.options), answerText: r.explanation || r.answer_text || r.answerText || r.answer || '' }));
             this.generatedQuestions = normalized;
             // Also immediately load generated questions into the editable questions list so they appear in the questions-list
             try{

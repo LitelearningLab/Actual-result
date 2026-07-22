@@ -19,7 +19,6 @@ import { ViewQuestionsComponent } from '../userrole/admin/questions/view-questio
 import { CategoryComponent } from '../userrole/admin/category/category.component';
 import { CategoryCreateComponent } from '../userrole/admin/category/create/category-create.component';
 import { UserExamComponent } from '../userrole/user/exam/exam.component';
-import { UserTestResultComponent } from '../userrole/user/test-result/test-result.component';
 import { UserExamRunnerComponent } from '../userrole/user/user-exam/user-exam.component';
 import { UnauthorizedComponent } from '../shared/components/unauthorized/unauthorized.component';
 import { PermissionGuard } from '../shared/guards/permission.guard';
@@ -54,7 +53,6 @@ const routes: Routes = [
   // Admins can also use the complete candidate flow for tests assigned to their own account.
   , { path: 'user/exam', component: UserExamComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
   , { path: 'user-dashboard', component: UserDashboardComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
-  , { path: 'user/test-result', component: UserTestResultComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
   , { path: 'user/exam/run', component: UserExamRunnerComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
   // Preserve old bookmarked links while keeping all candidate routes under /user.
   , { path: 'user-exam', redirectTo: 'user/exam/run', pathMatch: 'full' }

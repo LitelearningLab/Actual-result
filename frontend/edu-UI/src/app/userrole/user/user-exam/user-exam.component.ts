@@ -356,7 +356,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
         } catch(e) {}
         this.submitting = false;
         this.stopTimer();
-        this.ngZone.run(() => this.router.navigate(['/user/test-result']));
+        this.ngZone.run(() => this.router.navigate(['/user-dashboard']));
       },
       error: (err) => {
         console.warn('Submit failed', err);
