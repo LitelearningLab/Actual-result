@@ -1092,3 +1092,22 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
   .wrong-summary-panel .summary-table tbody td::before { content: attr(data-label); font-weight: 700; color: var(--theme-3-text-2); margin-right: 0.5rem; }
   .selections { flex-direction: column; }
 }
+.manual-check-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 3px 9px;
+  border: 1px solid #d97706;
+  border-radius: 16px;
+  background: #fff7ed;
+  color: #9a3412;
+  cursor: pointer;
+  font: inherit;
+}
+
+.manual-check-chip.selected { background: #ffedd5; font-weight: 600; }
+.manual-check-chip mat-icon { width: 16px; height: 16px; font-size: 16px; }
+.edit-comment-reason { display: block; width: 100%; margin-top: 8px; }
+.review-meta .edit-reason { display: block; margin-top: 2px; }
+.save-link.disabled { opacity: .45; cursor: not-allowed; }

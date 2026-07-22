@@ -141,7 +141,12 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
 
   openSettings(): void {
     this.closeUserPanel();
-    this._snackBar.open('Settings option selected', 'Close', { duration: 2000 });
+    const role = String(this.userObj?.user_role || this.userObj?.role || sessionStorage.getItem('userRole') || '').toLowerCase();
+    if (['admin', 'super_admin', 'superadmin', 'super-admin'].includes(role)) {
+      this.router.navigate(['/admin/settings']);
+    } else {
+      this._snackBar.open('Settings are available to administrators only', 'Close', { duration: 3000 });
+    }
   }
 
   confirmLogout() {

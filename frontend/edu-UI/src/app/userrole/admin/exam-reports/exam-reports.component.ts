@@ -388,6 +388,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     // mark this comment as being edited and store original text
     rc._editing = true;
     rc._editedText = rc.comment_text || rc.comment || '';
+    rc._editReason = '';
     this.commentEdit = true;
   }
 
@@ -395,6 +396,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if(!rc) return;
     rc._editing = false;
     rc._editedText = undefined;
+    rc._editReason = undefined;
     // if no other comment is being edited, clear global flag
     this.commentEdit = !!this.userReviewAttempts?.some((att:any) => (att.review || []).some((q:any) => (q.review_comment?.comments || []).some((c:any)=>c._editing)));
   }
@@ -403,7 +405,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if(!rc) return;
     const newText = (rc._editedText || '').toString().trim();
     if(newText.length === 0){ this._snack.open('Comment cannot be empty', 'Close', { duration: 3000 }); return; }
-    this.updateReviewComment('edit', rc, newText);
+    const reason = (rc._editReason || '').toString().trim();
+    if(this.requiresEditReason(rc) && !reason){ this._snack.open('Reason for change is required', 'Close', { duration: 3000 }); return; }
+    this.updateReviewComment('edit', rc, newText, reason);
+  }
+
+  requiresEditReason(rc: any): boolean {
+    const category = String(rc?.category || '').toLowerCase();
+    return ['incorrct', 'incorrect', 'incor', 'incomplete'].includes(category);
   }
 
   confirmDeleteComment(rc: any){
@@ -413,7 +422,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     });
   }
 
-  private updateReviewComment(action: 'edit' | 'delete', rc: any, text: string){
+  private updateReviewComment(action: 'edit' | 'delete', rc: any, text: string, editReason: string = ''){
     if(!rc) return;
     const commentId = rc.comment_id || rc.id || rc._id || rc.commentId || rc.cid || null;
     if(!commentId) { this._snack.open('Comment id not found', 'Close', { duration: 3000 }); return; }
@@ -424,7 +433,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       const u = JSON.parse(raw);
       this.updatedBy = u.user_id || u.id || u.userId || u._id || '';
     }
-    const payload: any = { comment_id: String(commentId), history_id: String(historyId),  text: text || '', updated_by: this.updatedBy };
+    const payload: any = { comment_id: String(commentId), history_id: historyId ? String(historyId) : '', text: text || '', updated_by: this.updatedBy, edit_reason: editReason };
     this.loading.show();
     this.http.post<any>(`${API_BASE}/update-review-comments/${action}`, payload).subscribe({
       next: (res)=>{
@@ -433,8 +442,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         if(action === 'edit'){
           rc.comment_text = text;
           rc.updated_by = this.updatedBy;
+          rc.edited_by = this.updatedBy;
+          rc.edited_at = new Date().toISOString();
+          rc.edit_reason = editReason;
           rc._editing = false;
           rc._editedText = undefined;
+          rc._editReason = undefined;
           this._snack.open('Comment updated', 'Close', { duration: 3000 });
         } else if(action === 'delete'){
           rc.is_deleted = 1;
@@ -449,6 +462,21 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         console.error('Failed to update review comment', err);
         const msg = (err && err.error && err.error.statusMessage) ? err.error.statusMessage : (err && err.message) ? err.message : 'Failed to update comment.';
         this._snack.open(msg, 'Close', { duration: 5000 });
+      }
+    });
+  }
+
+  toggleManualReview(q: any): void {
+    if(!q?.answer_id) return;
+    const previous = !!q.manual_review_required;
+    q.manual_review_required = !previous;
+    this.http.put<any>(`${API_BASE}/update-manual-review-status`, {
+      answer_id: q.answer_id,
+      manual_review_required: q.manual_review_required
+    }).subscribe({
+      error: (err) => {
+        q.manual_review_required = previous;
+        this._snack.open(err?.error?.statusMessage || 'Failed to update manual check', 'Close', { duration: 4000 });
       }
     });
   }

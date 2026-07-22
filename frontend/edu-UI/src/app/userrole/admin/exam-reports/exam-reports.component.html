@@ -441,7 +441,13 @@
                                                             <!-- <div class="q-info" *ngIf="q.question_type  != 'descriptive'" >{{ q.marks_awarded + '/' + q.question_marks + ' Marks (' + (q.marks_awarded/(q.question_marks || 1) * 100) + '%)' }} </div> -->
                                                             <div class="q-info" *ngIf="q.question_type != 'descriptive'">{{ q.marks_awarded }}/{{ q.question_marks }} Marks({{ (q.marks_awarded / (q.question_marks || 1) * 100) | number:'1.2-2' }}%)</div>
                                                             <div class="q-info" *ngIf="q.question_type  === 'descriptive'" >  {{ q.marks_awarded }}/{{ q.question_marks }} Marks({{ (q.marks_awarded / (q.question_marks || 1) * 100) | number:'1.2-2' }}%)
-                                                                 <mat-icon svgIcon="brain"></mat-icon>  {{'AI Confidence: ' + (q.ai_confidence != null ? (q.ai_confidence + '%') : 'N/A')}}
+                                                                  <mat-icon svgIcon="brain"></mat-icon>  {{'AI Confidence: ' + (q.ai_confidence != null ? (q.ai_confidence + '%') : 'N/A')}}
+                                                                  <button *ngIf="q.needs_manual_review" type="button" class="manual-check-chip"
+                                                                       [class.selected]="q.manual_review_required" [attr.aria-pressed]="!!q.manual_review_required"
+                                                                       (click)="$event.stopPropagation(); toggleManualReview(q)">
+                                                                       <mat-icon>{{ q.manual_review_required ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                                                                       Manual Check
+                                                                  </button>
                                                             </div>
                                                             </div>
                                                             <div class="q-text"><strong>{{ q.question_text || q.text || q.title || 'Question' }}</strong></div>
@@ -537,7 +543,7 @@
                                                                                                </div>
                                                                                                <div *ngIf="rc._editing" class="review-text-missed editing">
                                                                                                     <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
-                                                                                                    <textarea [(ngModel)]="rc._editedText" class="edit-comment-text" rows="2"></textarea>
+                                                                                                 <textarea [(ngModel)]="rc._editedText" class="edit-comment-text" rows="2"></textarea>
                                                                                                </div>
                                                                                           <div class="review-meta small-muted">
                                                                                                <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.created_by || rc.reviewer_id || 'System' }}</span>
@@ -587,18 +593,20 @@
                                                                                           <div class="ri-left"><span class="ri-icon incorrect">{{ rci + 1 }}</span></div>
                                                                                           <span class="review-text" [class.deleted]="rc.is_deleted == 1 || rc.updated_by">{{ toTitleCase(rc.comment_text || rc.comment || '') }}</span>
                                                                                      </div>
-                                                                                          <div *ngIf="rc._editing" class="review-text-incorrect editing">
-                                                                                               <div class="ri-left"><span class="ri-icon incorrect">{{ rci + 1 }}</span></div>
-                                                                                               <textarea [(ngModel)]="rc._editedText" class="edit-comment-text" rows="2"></textarea>
-                                                                                          </div>
+                                                                                           <div *ngIf="rc._editing" class="review-text-incorrect editing">
+                                                                                                <div class="ri-left"><span class="ri-icon incorrect">{{ rci + 1 }}</span></div>
+                                                                                                <textarea [(ngModel)]="rc._editedText" class="edit-comment-text" rows="2"></textarea>
+                                                                                                <textarea [(ngModel)]="rc._editReason" class="edit-comment-reason" rows="2" placeholder="Reason for change" required></textarea>
+                                                                                           </div>
                                                                                           <div class="review-meta small-muted">
                                                                                                     <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
-                                                                                                    <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
+                                                                                                     <span *ngIf="rc.is_deleted != 1 && (rc.edited_by || rc.updated_by)">Edited by {{ rc.edited_by || rc.updated_by }} {{ formatDate(rc.edited_at || rc.updated_date) }}</span>
+                                                                                                     <span *ngIf="rc.edit_reason" class="edit-reason">Reason: {{ rc.edit_reason }}</span>
                                                                                           </div>
                                                                                           <div class="review-actions" *ngIf="!rc.updated_by">
                                                                                                <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
                                                                                                <a class="delete-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); confirmDeleteComment(rc)"><mat-icon>delete</mat-icon> Delete</a>
-                                                                                               <a class="save-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); saveReviewComment(rc)"><mat-icon>save</mat-icon> Save</a>
+                                                                                                <a class="save-link" href="javascript:void(0)" *ngIf="rc._editing" [class.disabled]="requiresEditReason(rc) && !rc._editReason?.trim()" (click)="$event.stopPropagation(); saveReviewComment(rc)"><mat-icon>save</mat-icon> Save</a>
                                                                                                <a class="cancel-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); cancelEditComment(rc)"><mat-icon>close</mat-icon> Cancel</a>
                                                                                           </div>
                                                                                      </div>
@@ -642,15 +650,17 @@
                                                                                           <div *ngIf="rc._editing" class="review-text-incomplete editing">
                                                                                                <div class="ri-left"><span class="ri-icon incomplete">{{ rci + 1 }}</span></div>
                                                                                                <textarea [(ngModel)]="rc._editedText" class="edit-comment-text" rows="2"></textarea>
+                                                                                               <textarea *ngIf="requiresEditReason(rc)" [(ngModel)]="rc._editReason" class="edit-comment-reason" rows="2" placeholder="Reason for change" required></textarea>
                                                                                           </div>
                                                                                           <div class="review-meta small-muted">
                                                                                                     <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
-                                                                                                    <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.edited_by }}</span>
+                                                                                                     <span *ngIf="rc.is_deleted != 1 && (rc.edited_by || rc.updated_by)">Edited by {{ rc.edited_by || rc.updated_by }} {{ formatDate(rc.edited_at || rc.updated_date) }}</span>
+                                                                                                     <span *ngIf="rc.edit_reason" class="edit-reason">Reason: {{ rc.edit_reason }}</span>
                                                                                           </div>
                                                                                           <div class="review-actions" *ngIf="!rc.updated_by">
                                                                                                <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
                                                                                                <a class="delete-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); confirmDeleteComment(rc)"><mat-icon>delete</mat-icon> Delete</a>
-                                                                                               <a class="save-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); saveReviewComment(rc)"><mat-icon>save</mat-icon> Save</a>
+                                                                                                <a class="save-link" href="javascript:void(0)" *ngIf="rc._editing" [class.disabled]="requiresEditReason(rc) && !rc._editReason?.trim()" (click)="$event.stopPropagation(); saveReviewComment(rc)"><mat-icon>save</mat-icon> Save</a>
                                                                                                <a class="cancel-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); cancelEditComment(rc)"><mat-icon>close</mat-icon> Cancel</a>
                                                                                           </div>
                                                                                      </div>

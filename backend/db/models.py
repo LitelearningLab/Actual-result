@@ -373,6 +373,13 @@ class Answer(Base):
      question = relationship("Question", back_populates="answers")
      selected_option = relationship("Option", back_populates="answers")
 
+class Setting(Base):
+     __tablename__ = 'Settings'
+     setting_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+     ai_confidence_threshold = Column(Float, nullable=False, default=70.0)
+     updated_by = Column(String, ForeignKey('Users.user_id'))
+     updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 class MarksHistory(Base):
      __tablename__ = 'MarksHistory'
      history_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
@@ -411,6 +418,9 @@ class ExamReviewComments(Base):
     created_date = Column(DateTime, default=datetime.datetime.utcnow)
     updated_date = Column(DateTime)
     updated_by = Column(String, ForeignKey('Users.user_id'))
+    edit_reason = Column(Text)
+    edited_by = Column(String, ForeignKey('Users.user_id'))
+    edited_at = Column(DateTime)
 
 class ExamReviewCommentsHistory(Base):
      __tablename__ = 'ExamReviewCommentsHistory'
@@ -426,6 +436,9 @@ class ExamReviewCommentsHistory(Base):
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
      updated_by = Column(String, ForeignKey('Users.user_id'))
      updated_date = Column(DateTime)
+     edit_reason = Column(Text)
+     edited_by = Column(String, ForeignKey('Users.user_id'))
+     edited_at = Column(DateTime)
 
 class Categories(Base):
     __tablename__ = 'Categories'

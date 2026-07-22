@@ -2,6 +2,7 @@ import datetime
 from sqlalchemy import func
 from db.db import SQLiteDB
 from db.models import User, Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments,ExamReviewCommentsHistory, MarksHistory
+from others.settings import get_ai_confidence_threshold
 from others.llm import descriptive_evaluation, openai_client
 
 def is_review_eligible_attempt(attempt):
@@ -75,6 +76,7 @@ def review_user_exam(request, current_user=None):
         return {"statusMessage": "Access denied", "status": False}, 403
 
     try:
+        ai_confidence_threshold = get_ai_confidence_threshold(session)
         # Fetch exam attempt records for the user and exam schedule
         attempts = session.query(Exam_Attempt).filter(
             Exam_Attempt.user_id == user_id,
@@ -217,7 +219,7 @@ def review_user_exam(request, current_user=None):
                             review_history_dict_item = {}
                             review_history_dict_item['history_id'] = history.history_id
                             review_history_dict_item['comment_id'] = history.comment_id
-                            review_history_dict_item['category'] = history.category
+                            review_history_dict_item['category'] = history.category or comment.category
                             review_history_dict_item['comment_text'] = history.comment_text
                             review_history_dict_item['action'] = history.action
                             review_history_dict_item['is_deleted'] = history.is_deleted
@@ -225,6 +227,9 @@ def review_user_exam(request, current_user=None):
                             review_history_dict_item['created_date'] = history.created_date
                             review_history_dict_item['updated_date'] = history.updated_date
                             review_history_dict_item['updated_by'] =  history_updated_by.full_name if history_updated_by else history.updated_by
+                            review_history_dict_item['edit_reason'] = history.edit_reason
+                            review_history_dict_item['edited_by'] = history_updated_by.full_name if history_updated_by else history.edited_by
+                            review_history_dict_item['edited_at'] = history.edited_at
                             review_comment_dict_item['history'].append(review_history_dict_item)
                             # add current comment
                         created_by = session.query(User).filter(User.user_id == comment.created_by).first()
@@ -238,6 +243,10 @@ def review_user_exam(request, current_user=None):
                         review_comment_dict_item['created_date'] = comment.created_date
                         review_comment_dict_item['updated_date'] = comment.updated_date
                         review_comment_dict_item['updated_by'] = updated_by.full_name if updated_by else comment.updated_by
+                        edited_by = session.query(User).filter(User.user_id == comment.edited_by).first()
+                        review_comment_dict_item['edit_reason'] = comment.edit_reason
+                        review_comment_dict_item['edited_by'] = edited_by.full_name if edited_by else comment.edited_by
+                        review_comment_dict_item['edited_at'] = comment.edited_at
                         review_comment_dict['comments'].append(review_comment_dict_item)
 
                 else:
@@ -270,6 +279,7 @@ def review_user_exam(request, current_user=None):
                     "question_marks": question_marks if exam_schedule.show_score else None,
                     "ai_marks": (question_answer.ai_marks if question_answer.ai_marks is not None else 0) if exam_schedule.show_explanations else None,
                     "ai_confidence": (question_answer.ai_confidence if question_answer.ai_confidence is not None else 0) if exam_schedule.show_explanations else None,
+                    "needs_manual_review": ((question_answer.ai_confidence if question_answer.ai_confidence is not None else 0) < ai_confidence_threshold) if exam_schedule.show_explanations and question_type == 'descriptive' else False,
                     "manual_review_required": (True if question_answer.manual_review_required == 1 else False) if exam_schedule.show_explanations else None,
                     "manual_marks": (question_answer.manual_marks if question_answer.manual_marks is not None else 0) if exam_schedule.show_explanations else None,
                     "feedback": question_answer.feedback if exam_schedule.show_explanations and hasattr(question_answer, 'feedback') else ""
@@ -445,8 +455,9 @@ def update_review_comments(request, action_type="edit"):
     history_id: str = args.get("history_id", "")
     comment_text: str = args.get("text", "")
     updated_by: str = args.get("updated_by", "")
-    if not comment_id or not history_id:
-        return {"statusMessage": "comment_id or history_id is required", "status": False}, 400
+    edit_reason: str = str(args.get("edit_reason", "") or "").strip()
+    if not comment_id:
+        return {"statusMessage": "comment_id is required", "status": False}, 400
 
     try:
         if action_type == "delete":
@@ -467,37 +478,44 @@ def update_review_comments(request, action_type="edit"):
                     comment_record.updated_date = func.now()
                     session.add(comment_record)
         elif action_type == "edit":
+            comment_record = session.query(ExamReviewComments).filter(ExamReviewComments.comment_id == comment_id).first()
+            if not comment_record:
+                return {"statusMessage": "Review comment not found", "status": False}, 404
+            category = str(comment_record.category or "").strip().lower()
+            reason_required = category in ("incorrct", "incorrect", "incor", "incomplete")
+            if reason_required and not edit_reason:
+                return {"statusMessage": "Reason for change is required", "status": False}, 400
             if history_id:
-                # edit in history table
                 history_record = session.query(ExamReviewCommentsHistory).filter(ExamReviewCommentsHistory.history_id == history_id).first()
                 if history_record:
+                    history_record.comment_text = comment_text
                     history_record.updated_by = updated_by
                     history_record.updated_date = func.now()
+                    history_record.edit_reason = edit_reason or None
+                    history_record.edited_by = updated_by
+                    history_record.edited_at = func.now()
                     session.add(history_record)
-                # add new entry in history table
-                new_history_record = ExamReviewCommentsHistory(
-                    comment_id=comment_id,
-                    comment_text=comment_text,
-                    is_deleted=0,
-                    created_by=updated_by
-                )
-                session.add(new_history_record)
             else:
-                # edit in comments table
-                comment_record = session.query(ExamReviewComments).filter(ExamReviewComments.comment_id == comment_id).first()
-                if comment_record:
-                    comment_record.action = action_type
-                    comment_record.updated_by = updated_by
-                    comment_record.updated_date = func.now()
-                    session.add(comment_record)
-                # add new entry in history table
-                    new_history_record = ExamReviewCommentsHistory(
-                        comment_id=comment_id,
-                        comment_text=comment_text,
-                        is_deleted=0,
-                        created_by=updated_by
-                    )
-                    session.add(new_history_record)
+                # Preserve the prior value, then update the current entry.
+                session.add(ExamReviewCommentsHistory(
+                    comment_id=comment_id,
+                    attempt_id=comment_record.attempt_id,
+                    question_id=comment_record.question_id,
+                    comment_text=comment_record.comment_text,
+                    category=comment_record.category,
+                    action=comment_record.action,
+                    is_deleted=comment_record.is_deleted,
+                    created_by=comment_record.created_by,
+                    created_date=comment_record.created_date
+                ))
+                comment_record.comment_text = comment_text
+                comment_record.action = action_type
+                comment_record.updated_by = updated_by
+                comment_record.updated_date = func.now()
+                comment_record.edit_reason = edit_reason or None
+                comment_record.edited_by = updated_by
+                comment_record.edited_at = func.now()
+                session.add(comment_record)
         session.commit()
 
     except Exception as e:
@@ -506,7 +524,32 @@ def update_review_comments(request, action_type="edit"):
         return {"statusMessage": f"Error updating review comment: {str(e)}", "status": False}, 500
     finally:
         session.close()
-        return {"statusMessage": "Comment updated successfully", "status": True}, 200
+    return {"statusMessage": "Comment updated successfully", "status": True}, 200
+
+
+def update_manual_review_status(request):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+    try:
+        data = request.json or {}
+        answer_id = data.get("answer_id")
+        if not answer_id or "manual_review_required" not in data:
+            return {"statusMessage": "answer_id and manual_review_required are required", "status": False}, 400
+        answer = session.query(Answer).filter(Answer.answer_id == answer_id).first()
+        if not answer:
+            return {"statusMessage": "Answer record not found", "status": False}, 404
+        answer.manual_review_required = 1 if bool(data.get("manual_review_required")) else 0
+        session.add(answer)
+        session.commit()
+        return {"statusMessage": "Manual review status updated", "status": True,
+                "data": {"manual_review_required": bool(answer.manual_review_required)}}, 200
+    except Exception as exc:
+        session.rollback()
+        return {"statusMessage": f"Error updating manual review status: {exc}", "status": False}, 500
+    finally:
+        session.close()
 
 
 def update_descriptive_marks(request):

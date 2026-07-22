@@ -12,7 +12,7 @@ from others.examschedule import add_exam_schedule, get_exam_schedule_details, de
 from others.examschedule import update_exam_schedule
 from others.category import add_categories, get_categories_list, get_category_details
 from others.questions import add_question, get_questions_details, bulk_upload_questions, create_question_using_llm, fine_tune_questions_using_llm
-from others.exam_review import review_user_exam, validate_answers, update_review_comments
+from others.exam_review import review_user_exam, validate_answers, update_review_comments, update_manual_review_status
 from others.exam_reports import get_user_wise_report, get_exam_analytics
 from others.exam_reports import get_question_wrong_answers
 from others.exam_reports import get_resources_for_answer
@@ -28,6 +28,7 @@ from dashboard.user_dashboard import user_dashboard_details, dashboard_users_lis
 from others.demo_request import submit_demo_request, get_demo_requests, get_demo_request_by_id, update_demo_request_status, delete_demo_request
 from db.db import SQLiteDB
 from db.models import User
+from others.settings import get_ai_confidence_threshold_response, update_ai_confidence_threshold
 
 from dotenv import load_dotenv
 import os
@@ -153,11 +154,28 @@ def is_super_admin(user):
     role = str(getattr(user, "user_role", "") or "").lower()
     return role in ("super_admin", "superadmin", "super-admin")
 
+def is_admin(user):
+    role = str(getattr(user, "user_role", "") or "").lower()
+    return role in ("admin", "super_admin", "superadmin", "super-admin")
+
 def get_pagination():
     return (request.args.get('pageNumber', 1, type=int),
             request.args.get('pageSize', 25, type=int))
 
 edu_blueprint = Blueprint('edu', __name__, url_prefix='/edu/api')
+
+@edu_blueprint.route('/settings/ai-confidence-threshold', methods=['GET', 'PUT'])
+@jwt_required
+def ai_confidence_threshold_route():
+    current_user = get_current_user_from_request()
+    if not current_user or not is_admin(current_user):
+        return jsonify({"status": False, "statusMessage": "Admin access required"}), 403
+    if request.method == 'GET':
+        response_data, status_code = get_ai_confidence_threshold_response()
+    else:
+        response_data, status_code = update_ai_confidence_threshold(request.get_json(silent=True) or {}, current_user)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/register-institute', methods=['POST'])
 @jwt_required
 def register_institute():
@@ -377,6 +395,15 @@ def validate_answers_route(attempt_id):
 @jwt_required
 def update_review_comments_route(action):
     response_data, status_code = update_review_comments(request, action)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/update-manual-review-status', methods=['PUT'])
+@jwt_required
+def update_manual_review_status_route():
+    current_user = get_current_user_from_request()
+    if not current_user or not is_admin(current_user):
+        return jsonify({"status": False, "statusMessage": "Admin access required"}), 403
+    response_data, status_code = update_manual_review_status(request)
     return jsonify(response_data), status_code
 @edu_blueprint.route('/update-descriptive-marks', methods=['POST'])
 @jwt_required
