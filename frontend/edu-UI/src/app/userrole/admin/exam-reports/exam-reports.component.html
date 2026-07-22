@@ -460,9 +460,13 @@
                                                   <div class="q-right">
                                                        <!-- Mark display with edit option for descriptive questions -->
                                                        <div class="marks-container" *ngIf="(q.question_type || q.type) === 'descriptive'">
-                                                            <div *ngIf="!q._editingMarks" class="marks-display">
-                                                                 <div class="q-marks small-muted" [ngClass]="{ 'mark-positive': (q.marks_awarded || 0) == (q.question_marks || 0), 'mark-negative': (q.marks_awarded || 0) == 0, 'mark-mid': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.question_marks || 0) }">{{ q.marks_awarded != null ? q.marks_awarded : 0 }}/{{ q.question_marks != null ? q.question_marks : 0 }}</div>
-                                                                 <button mat-icon-button class="edit-marks-btn" type="button" (click)="$event.stopPropagation(); startEditMarks(q)" title="Edit marks">
+                                                            <div *ngIf="!q._editingMarks" class="marks-display" aria-label="Marks awarded">
+                                                                 <div class="q-marks small-muted" [ngClass]="{ 'mark-positive': (q.marks_awarded || 0) == (q.question_marks || 0), 'mark-negative': (q.marks_awarded || 0) == 0, 'mark-mid': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.question_marks || 0) }">
+                                                                      <span>{{ q.marks_awarded != null ? q.marks_awarded : 0 }}</span>
+                                                                      <span class="marks-divider">/</span>
+                                                                      <span>{{ q.question_marks != null ? q.question_marks : 0 }}</span>
+                                                                 </div>
+                                                                 <button mat-icon-button class="edit-marks-btn" type="button" (click)="$event.stopPropagation(); startEditMarks(q)" aria-label="Edit marks" title="Edit marks">
                                                                       <mat-icon>edit</mat-icon>
                                                                  </button>
                                                             </div>
