@@ -297,7 +297,9 @@ def review_user_exam(request, current_user=None):
                     "evaluation_error": question_answer.feedback if exam_schedule.show_explanations and evaluation_failed else None
                 })
                 # marks history can also be added here if needed by fetching from MarksHistory table
-                marks_history = session.query(MarksHistory).filter(MarksHistory.answer_id == question_answer.answer_id).all()
+                marks_history = session.query(MarksHistory).filter(
+                    MarksHistory.answer_id == question_answer.answer_id
+                ).order_by(MarksHistory.updated_date.desc()).all()
                 if marks_history and exam_schedule.show_score:
                     review_data["review"][-1]["marks_history"] = [{
                         "marks_awarded": mh.marks_awarded,
@@ -605,7 +607,8 @@ def update_descriptive_marks(request):
         "schedule_id": "...",
         "attempt_id": "...",
         "marks_awarded": 5.0,
-        "updated_by": "user_id"
+        "updated_by": "user_id",
+        "edit_reason": "Required explanation for the change"
     }
     """
     db = SQLiteDB()

@@ -338,6 +338,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     q._editingMarks = true;
     q._editedMarks = q.marks_awarded ?? 0;
     q._marksEditReason = '';
+    q._marksReasonTouched = false;
   }
 
   cancelEditMarks(q: any){
@@ -345,6 +346,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     q._editingMarks = false;
     q._editedMarks = undefined;
     q._marksEditReason = undefined;
+    q._marksReasonTouched = undefined;
   }
 
   saveMarks(q: any, row?: any){
@@ -361,7 +363,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
     const editReason = String(q._marksEditReason || '').trim();
     if(!editReason){
-      this._snack.open('Please enter a reason for changing the marks', 'Close', { duration: 3000 });
+      q._marksReasonTouched = true;
+      this._snack.open('A change comment is required before saving', 'Close', { duration: 3000 });
       return;
     }
 
@@ -410,6 +413,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         q._editingMarks = false;
         q._editedMarks = undefined;
         q._marksEditReason = undefined;
+        q._marksReasonTouched = undefined;
         
         // Update total score if available
         if(this.selectedUserScore !== null && typeof this.selectedUserScore === 'number'){

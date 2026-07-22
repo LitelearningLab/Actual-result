@@ -475,7 +475,16 @@
                                                                        <input type="number" class="marks-input" [(ngModel)]="q._editedMarks" [min]="0" [max]="q.question_marks || 100" step="0.5" />
                                                                        <span class="marks-max">/ {{ q.question_marks || '-' }}</span>
                                                                   </div>
-                                                                  <textarea class="marks-reason-input" [(ngModel)]="q._marksEditReason" rows="3" maxlength="1000" placeholder="Describe why you are changing the marks *"></textarea>
+                                                                  <label class="marks-reason-label" [for]="'marks-reason-' + (q.answer_id || qi)">Change comment <span aria-hidden="true">*</span></label>
+                                                                  <textarea class="marks-reason-input" [(ngModel)]="q._marksEditReason" (blur)="q._marksReasonTouched = true"
+                                                                       [id]="'marks-reason-' + (q.answer_id || qi)" rows="3" maxlength="1000" required
+                                                                       [attr.aria-invalid]="q._marksReasonTouched && !q._marksEditReason?.trim()"
+                                                                       [attr.aria-describedby]="'marks-reason-error-' + (q.answer_id || qi)"
+                                                                       placeholder="Explain why the marks are being changed"></textarea>
+                                                                  <div class="marks-reason-error" [id]="'marks-reason-error-' + (q.answer_id || qi)"
+                                                                       *ngIf="q._marksReasonTouched && !q._marksEditReason?.trim()">
+                                                                       A change comment is required before saving.
+                                                                  </div>
                                                                   <div class="marks-edit-actions">
                                                                        <button mat-icon-button class="save-marks-btn" type="button" [disabled]="!q._marksEditReason?.trim()" (click)="$event.stopPropagation(); saveMarks(q)" title="Save marks">
                                                                             <mat-icon>check</mat-icon>
@@ -740,7 +749,7 @@
                                                                                 <span class="updated-by"><mat-icon>person</mat-icon>{{ mh.updated_by || 'System' }}</span>
                                                                                 <span class="updated-date"><mat-icon>schedule</mat-icon>{{ mh.updated_date }}</span>
                                                                             </div>
-                                                                            <div class="history-reason" *ngIf="mh.edit_reason"><strong>Reason:</strong> {{ mh.edit_reason }}</div>
+                                                                            <div class="history-reason" *ngIf="mh.edit_reason"><strong>Change comment:</strong> {{ mh.edit_reason }}</div>
                                                                       </div>
                                                                  </div>
                                                             </div>
