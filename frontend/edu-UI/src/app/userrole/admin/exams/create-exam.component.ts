@@ -967,6 +967,14 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.validateNewCategoryQuestionCount(false);
   }
 
+  stripLeadingZeros(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const raw = input.value;
+    if (raw.length > 1 && raw.startsWith('0')) {
+      input.value = String(parseInt(raw, 10) || '');
+    }
+  }
+
   onNewCategoryRandomizeChange(checked: boolean) {
     this.newCategory.randomize_questions = !!checked;
     this.questionCountError = '';

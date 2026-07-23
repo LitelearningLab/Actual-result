@@ -244,6 +244,7 @@
                                             <mat-label>Count of questions to be included from this bank</mat-label>
                                             <input matInput type="number" [(ngModel)]="newCategory.questions"
     (ngModelChange)="onNewCategoryQuestionCountChange($event)"
+    (input)="stripLeadingZeros($event)"
     name="newCategoryQuestions" placeholder="" min="1"
     [max]="selectedQuestionBankQuestionCount || null" [disabled]="!selectedCategory || readOnly" />
                                         </mat-form-field>
