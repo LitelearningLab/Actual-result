@@ -77,6 +77,7 @@ $shadow-md: 0 4px 12px rgba(0,0,0,0.06);
 .attached-bank-cell--actions { display:flex; justify-content:center; align-items:center; gap:0.5rem; overflow:visible; }
 .attached-bank-name { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font:800 0.875rem/1.25 inherit; color:#344054; }
 .attached-bank-randomize { display:inline-flex; align-items:center; width:max-content; max-width:100%; margin-top:0.25rem; padding:0.25rem 0.5rem; border-radius:999px; background:#dbeafe; color:#1f7bff; font:800 0.68rem/1 inherit; }
+.attached-bank-fixed { display:inline-flex; align-items:center; width:max-content; max-width:100%; margin-top:0.25rem; padding:0.25rem 0.5rem; border-radius:999px; background:#dcfce7; color:#16a34a; font:800 0.68rem/1 inherit; }
 .attached-bank-summary { display:flex; justify-content:flex-end; margin-top:0.5rem; color:#344054; font:700 0.8125rem/1.25 inherit; }
 .attached-bank-action-btn { min-width:2.25rem!important; width:2.25rem!important; height:2.25rem!important; padding:0!important; border-radius:0.5rem; display:inline-flex!important; align-items:center; justify-content:center; flex:0 0 2.25rem; transition:background-color 0.2s $ease, color 0.2s $ease, transform 0.2s $ease; }
 .attached-bank-action-btn mat-icon { margin:0; font-size:1.125rem; width:1.125rem; height:1.125rem; line-height:1.125rem; display:block; }

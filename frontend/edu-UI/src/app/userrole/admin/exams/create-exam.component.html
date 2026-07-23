@@ -292,6 +292,7 @@
                                                 <div class="attached-bank-cell attached-bank-cell--name" data-label="Question Bank Name">
                                                     <span class="attached-bank-name">{{ c.name }}</span>
                                                     <span class="attached-bank-randomize" *ngIf="c.randomize_questions">Randomized</span>
+                                                    <span class="attached-bank-fixed" *ngIf="!c.randomize_questions && (!c.question_ids || c.question_ids.length === 0) && c.questions > 0">Fixed</span>
                                                 </div>
                                                 <div class="attached-bank-cell attached-bank-cell--type" data-label="Question Type">{{ formatQuestionBankType(c.question_type) }}</div>
                                                 <div class="attached-bank-cell attached-bank-cell--count" data-label="No. of Questions Selected">{{ c.questions || 0 }}</div>
