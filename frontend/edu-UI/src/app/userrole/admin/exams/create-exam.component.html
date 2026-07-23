@@ -339,13 +339,13 @@
                                     </button> -->
                                 </div>
                                 <div class="question-controls">
-                                    <mat-checkbox class="question-select-all" [(ngModel)]="selectAllQuestions" [disabled]="readOnly || isActiveQuestionBankRandomized()" (change)="toggleSelectAllQuestions($event.checked)">Select All ({{questionsForCategory.length}})</mat-checkbox><span class="question-count question-count--selected"><span>Selected</span><strong>{{selectedQuestionIds.length}}</strong></span>
+                                    <mat-checkbox class="question-select-all" [(ngModel)]="selectAllQuestions" [disabled]="readOnly || isActiveQuestionBankRandomized() || isActiveQuestionBankFixed()" (change)="toggleSelectAllQuestions($event.checked)">Select All ({{questionsForCategory.length}})</mat-checkbox><span class="question-count question-count--selected"><span>Selected</span><strong>{{selectedQuestionIds.length}}</strong></span>
                                 </div>
                                 <div class="question-list">
                                     <mat-list *ngIf="questionsForCategory.length">
                                         <mat-list-item *ngFor="let q of questionsForCategory" class="question-row">
                                             <mat-checkbox [checked]="selectedQuestionIds.indexOf(q.id+'')>=0"
-                                                [disabled]="readOnly || isActiveQuestionBankRandomized()"
+                                                [disabled]="readOnly || isActiveQuestionBankRandomized() || isActiveQuestionBankFixed()"
                                                 (change)="toggleQuestionSelection(q.id, $event.checked)">{{q.question}}</mat-checkbox>
                                         </mat-list-item>
                                     </mat-list>
