@@ -978,6 +978,17 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   onNewCategoryRandomizeChange(checked: boolean) {
     this.newCategory.randomize_questions = !!checked;
     this.questionCountError = '';
+    // When checking "Include Questions Randomly", deselect all manually selected questions
+    // before random selection mode is activated
+    if (checked) {
+      this.selectedQuestionIds = [];
+      this.selectAllQuestions = false;
+    }
+    // When unchecking "Include Questions Randomly", deselect all previously selected questions
+    if (!checked) {
+      this.selectedQuestionIds = [];
+      this.selectAllQuestions = false;
+    }
     this.validateNewCategoryQuestionCount(false);
   }
 
