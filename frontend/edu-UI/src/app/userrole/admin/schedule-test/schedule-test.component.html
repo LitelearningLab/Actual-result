@@ -45,13 +45,34 @@
 
                         <!-- Institute + Filters toggle -->
                         <div class="field-row">
-                           <mat-form-field *ngIf="isSuperAdmin" appearance="outline" class="field-half local-institute-field"
+                           <mat-form-field *ngIf="isSuperAdmin" appearance="outline" class="field-half schedule-institute-field"
                               [class.institute-disabled]="instituteDisabled">
                               <mat-icon matPrefix>apartment</mat-icon>
                               <mat-label>Institute*</mat-label>
-                              <input matInput [formControl]="instituteCtrl" [matAutocomplete]="instAuto" placeholder="Pick an institute" [readonly]="instituteDisabled" [matAutocompleteDisabled]="instituteDisabled" />
-                              <mat-autocomplete #instAuto="matAutocomplete" [displayWith]="displayInstitute.bind(this)" (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
-                                 <mat-option *ngFor="let inst of (filteredInstitutes$ | async)" [value]="inst">{{ inst.name }}</mat-option>
+                              <input matInput [formControl]="instituteCtrl" [matAutocomplete]="instAuto"
+                                 #instTrigger="matAutocompleteTrigger"
+                                 placeholder="Pick an institute" [readonly]="instituteDisabled"
+                                 [matAutocompleteDisabled]="instituteDisabled" />
+                              <button mat-icon-button matSuffix type="button" aria-label="Open institute list"
+                                 [disabled]="instituteDisabled"
+                                 (click)="instTrigger.openPanel(); $event.stopPropagation()">
+                                 <mat-icon>arrow_drop_down</mat-icon>
+                              </button>
+                              <mat-autocomplete #instAuto="matAutocomplete"
+                                 [displayWith]="displayInstitute.bind(this)"
+                                 (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
+                                 <mat-option *ngIf="institutesLoading" disabled>
+                                    Loading institutions...
+                                 </mat-option>
+                                 <mat-option *ngFor="let inst of (filteredInstitutes$ | async)" [value]="inst">
+                                    {{ inst.name }}
+                                 </mat-option>
+                                 <mat-option *ngIf="!institutesLoading && institutesLoadFailed" disabled>
+                                    Unable to load institutions. Please try again.
+                                 </mat-option>
+                                 <mat-option *ngIf="!institutesLoading && !institutesLoadFailed && institutes.length === 0" disabled>
+                                    No institutions available
+                                 </mat-option>
                               </mat-autocomplete>
                               <mat-hint align="start">Required</mat-hint>
                               <mat-error *ngIf="!model.institute">Institute is required.</mat-error>
@@ -60,10 +81,22 @@
                            <mat-form-field appearance="outline" [ngClass]="isSuperAdmin ? 'field-half' : 'field-full'">
                               <mat-icon matPrefix>assignment</mat-icon>
                               <mat-label>Test*</mat-label>
-                              <input #testInput matInput [formControl]="examCtrl" [matAutocomplete]="examAuto" placeholder="Pick a test" required
-                                 [readonly]="readOnly || scheduleFieldsLocked" [matAutocompleteDisabled]="readOnly || scheduleFieldsLocked" />
-                              <mat-autocomplete #examAuto="matAutocomplete" [displayWith]="displayExam.bind(this)" (optionSelected)="onExamAutocompleteSelected($event.option.value)">
-                                 <mat-option *ngFor="let ex of (filteredExams$ | async)" [value]="ex">{{ ex.title }}</mat-option>
+                              <input #testInput matInput [formControl]="examCtrl" [matAutocomplete]="examAuto"
+                                 #examTrigger="matAutocompleteTrigger"
+                                 placeholder="Pick a test" required
+                                 [readonly]="readOnly || scheduleFieldsLocked"
+                                 [matAutocompleteDisabled]="readOnly || scheduleFieldsLocked" />
+                              <button mat-icon-button matSuffix type="button" aria-label="Open test list"
+                                 [disabled]="readOnly || scheduleFieldsLocked || !model.institute"
+                                 (click)="examTrigger.openPanel(); $event.stopPropagation()">
+                                 <mat-icon>arrow_drop_down</mat-icon>
+                              </button>
+                              <mat-autocomplete #examAuto="matAutocomplete"
+                                 [displayWith]="displayExam.bind(this)"
+                                 (optionSelected)="onExamAutocompleteSelected($event.option.value)">
+                                 <mat-option *ngFor="let ex of (filteredExams$ | async)" [value]="ex">
+                                    {{ ex.title }}
+                                 </mat-option>
                               </mat-autocomplete>
                               <mat-hint align="start">Required</mat-hint>
                               <mat-error *ngIf="examCtrl.touched && examCtrl.invalid">Test is required.</mat-error>

@@ -18,8 +18,8 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { Overlay, OverlayRef, OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
 import { API_BASE } from 'src/app/shared/api.config';
-import { Observable, of } from 'rxjs';
-import { startWith, map } from 'rxjs/operators';
+import { BehaviorSubject, combineLatest, Observable, of } from 'rxjs';
+import { startWith, map, retry } from 'rxjs/operators';
 import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
@@ -37,7 +37,22 @@ export class AdminScheduleTestComponent {
   institutes: Array<{ name: string; institute_id?: string; short_name?: string }> = [];
   // autocomplete controls for institute/exam
   instituteCtrl: FormControl = new FormControl('');
-  filteredInstitutes$: Observable<any[]> = of([]);
+  private institutesSubject = new BehaviorSubject<Array<{ name: string; institute_id?: string; short_name?: string }>>([]);
+  institutesLoading = false;
+  institutesLoadFailed = false;
+  filteredInstitutes$: Observable<any[]> = combineLatest([
+    this.institutesSubject,
+    this.instituteCtrl.valueChanges.pipe(startWith(this.instituteCtrl.value))
+  ]).pipe(
+    map(([institutes, value]) => {
+      // An object value represents an existing selection. Only free text should
+      // filter the panel; reopening a selected control must show every option.
+      const query = typeof value === 'string' ? value.trim().toLowerCase() : '';
+      return query
+        ? institutes.filter(institute => (institute.name || '').toLowerCase().includes(query))
+        : institutes;
+    })
+  );
   examCtrl: FormControl = new FormControl('', Validators.required);
   filteredExams$: Observable<any[]> = of([]);
   batches = ['Batch A', 'Batch B', 'Batch C'];
@@ -137,7 +152,7 @@ export class AdminScheduleTestComponent {
     if (!params.city_id && (this.userFilters.city || this.userFilters.city_id)) params.city_id = this.userFilters.city || this.userFilters.city_id;
     if (!params.campus_id && (this.userFilters.campus || this.userFilters.campus_id)) params.campus_id = this.userFilters.campus || this.userFilters.campus_id;
     if (this.model.institute) params.institute_id = this.model.institute;
-    this.http.get<any>(url, { params }).subscribe({
+    this.http.get<any>(url, { params, ...this.explicitInstituteRequestOptions() }).subscribe({
       next: (res) => {
         const data = res?.data || [];
         this.users = Array.isArray(data) ? data.map((u: any) => ({ id: String(u.user_id || u.id || ''), name: u.full_name || u.user_name || u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim(), email: u.email, institute: u.institute_name || (u.institute && u.institute.institute_name) || '', department: u.department_name || (u.department && (u.department.name || u.department.department_name)) || '', team: u.team_name || (u.team && (u.team.name || u.team.team_name)) || '' })) : [];
@@ -259,7 +274,10 @@ export class AdminScheduleTestComponent {
   }
 
 
-  private apiUrl = `${API_BASE}/get-institutes`;
+  // Use the lightweight selector endpoint. `/get-institutes` builds the full
+  // management view (departments, teams, campuses and user counts per row),
+  // which can be slow enough to leave an autocomplete with no options.
+  private apiUrl = `${API_BASE}/get-institute-list`;
 
   constructor(private http: HttpClient, private router: Router, private loader: LoaderService,private cd: ChangeDetectorRef, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private fb: FormBuilder) {
     this.loadInstitutes();
@@ -271,7 +289,9 @@ export class AdminScheduleTestComponent {
     this.initializeValidationForms();
     this.refreshPersistedReviewSettings();
     this.examCtrl.valueChanges.subscribe(value => {
-      const selectedId = value && typeof value === 'object' ? (value.id || value.exam_id || value.test_id || value._id) : '';
+      const selectedId = value && typeof value === 'object'
+        ? (value.id || value.exam_id || value.test_id || value._id)
+        : '';
       if (!selectedId || String(selectedId) !== String(this.model.exam_id || '')) {
         // Typed, cleared, or otherwise invalid text is not a selected Test.
         this.model.exam_id = '';
@@ -564,21 +584,21 @@ export class AdminScheduleTestComponent {
   }
 
   loadInstitutes() {
-    this.http.get<any>(this.apiUrl).subscribe({
+    // Always load the complete list here; this selector is the source of the
+    // institute scope for the schedule being created.
+    this.institutesLoading = true;
+    this.institutesLoadFailed = false;
+    this.http.get<any>(this.apiUrl, {
+      headers: { 'X-Skip-Institute-Context': 'true' }
+    }).pipe(retry(2)).subscribe({
       next: (res) => {
+        this.institutesLoading = false;
         if (res && res.data && Array.isArray(res.data)) {
           this.institutes = res.data.map((r: any) => ({ name: r.name || r.institute_name || r.short_name || '', short_name: r.short_name || r.name || r.institute_name || '', institute_id: r.institute_id }));
-
-          // setup filtered institutes observable for autocomplete (must happen before early returns)
-          try{
-            this.filteredInstitutes$ = this.instituteCtrl.valueChanges.pipe(
-              startWith(''),
-              map((val:any) => {
-                const q = (typeof val === 'string' ? val : (val?.name || '')).toLowerCase();
-                return (this.institutes || []).filter((it:any) => (it.name || '').toLowerCase().includes(q));
-              })
-            );
-          }catch(e){ this.filteredInstitutes$ = of(this.institutes || []); }
+          // Update an already-open autocomplete panel as soon as the API result
+          // arrives. The previous valueChanges-only stream could remain empty
+          // until the user typed or reopened the field.
+          this.institutesSubject.next(this.institutes);
 
           // If the model already has an institute (for example when applying edit/view), prefer it
           try {
@@ -621,6 +641,10 @@ export class AdminScheduleTestComponent {
         }
       },
       error: (err) => {
+        this.institutesLoading = false;
+        this.institutesLoadFailed = true;
+        this.institutes = [];
+        this.institutesSubject.next([]);
         console.warn('Failed to load institutes', err);
       }
     });
@@ -652,41 +676,60 @@ export class AdminScheduleTestComponent {
   // when the institute select changes in the template, call this helper to load exams
   onInstituteChange(value: string) {
     this.model.institute = value || '';
-    this.loadExams(this.model.institute);
-    // load department/team/campus lists for the selected institute
+    // Prioritize the test list. Loading every institute dependency at the same
+    // time makes the local backend compete for database connections and delays
+    // the dropdown the user is waiting for.
+    this.loadExams(this.model.institute, true);
+  }
+
+  private loadInstituteDependencies(): void {
     this.loadDepartmentList(this.model.institute);
     this.loadTeamsList(this.model.institute);
-    this.loadCampusList(this.model.institute);                                   
+    this.loadCampusList(this.model.institute);
     this.loadUsers();
   }
 
   // Autocomplete display / selection helpers
   displayInstitute(i: any) { return i ? (i.name || '') : ''; }
-  onInstituteAutocompleteSelected(inst: any) {
-    if (!inst) return;
-    // mat-option value is the object; ensure model.institute stores the id
-    const id = inst.institute_id || inst.id || inst.instituteId || '';
+  onInstituteAutocompleteSelected(value: any) {
+    const id = value && typeof value === 'object'
+      ? (value.institute_id || value.id || value.instituteId || '')
+      : '';
+    if (!id) return;
+    const instituteChanged = String(this.model.institute || '') !== String(id);
     this.model.institute = id;
-    // keep control display as the selected object
-    try{ this.instituteCtrl.setValue(inst); }catch(e){}
+    if (instituteChanged) {
+      this.model.exam_id = '';
+      this.selectedExam = null;
+      this.examCtrl.setValue('', { emitEvent: false });
+    }
     this.onInstituteChange(this.model.institute);
     this.applyDefaultSchedulerName();
   }
 
   displayExam(e: any) { return e ? (e.title || e.name || '') : ''; }
-  onExamAutocompleteSelected(exam: any) {
-    if (!exam) return;
-    const id = exam.id || exam.exam_id || exam._id || '';
+  onExamAutocompleteSelected(value: any) {
+    const id = value && typeof value === 'object'
+      ? (value.id || value.exam_id || value._id || '')
+      : '';
+    if (!id) return;
     this.model.exam_id = id;
-    try{ this.examCtrl.setValue(exam); }catch(e){}
     this.onExamChange(this.model.exam_id);
     this.examCtrl.setErrors(null);
     this.applyDefaultSchedulerName();
   }
 
+  private explicitInstituteRequestOptions(): { headers?: { [name: string]: string } } {
+    return this.isSuperAdmin
+      ? { headers: { 'X-Skip-Institute-Context': 'true' } }
+      : {};
+  }
+
   goToNextStep(stepper: any): void {
     const value = this.examCtrl.value;
-    const selectedId = value && typeof value === 'object' ? (value.id || value.exam_id || value.test_id || value._id) : '';
+    const selectedId = value && typeof value === 'object'
+      ? (value.id || value.exam_id || value.test_id || value._id)
+      : '';
     const validSelection = !!selectedId && String(selectedId) === String(this.model.exam_id || '') &&
       (this.examsList || []).some(exam => String(exam.id) === String(selectedId));
 
@@ -793,6 +836,7 @@ export class AdminScheduleTestComponent {
 
   // load exams for a selected institute (populate the exam dropdown)
   examsList: Array<{ id: string; title: string }> = [];
+  examsLoading = false;
   // raw exams array with extra metadata (description, etc.)
   examsRaw: any[] = [];
   selectedExam: any = null;
@@ -809,10 +853,15 @@ export class AdminScheduleTestComponent {
   // controls the Select Users filter modal
   userFilterOpen = false;
 
-  loadExams(instituteId: string) {
+  loadExams(instituteId: string, loadDependenciesAfter = false) {
     this.loader.show();
+    this.examsLoading = true;
     this.examsList = [];
-    if (!instituteId) { return; }
+    if (!instituteId) {
+      this.examsLoading = false;
+      this.loader.hide();
+      return;
+    }
     let url = `${API_BASE}/get-exams-list`;
     const params: string[] = [];
     params.push(`institute_id=${encodeURIComponent(instituteId)}`);
@@ -837,7 +886,9 @@ export class AdminScheduleTestComponent {
     }
     if (params.length) url += `?${params.join('&')}`;
 
-    this.http.get<any>(url).subscribe({
+    // This page has its own institute selector. Prevent the global institute
+    // interceptor from replacing the explicitly selected institute.
+    this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.examsRaw = Array.isArray(arr) ? arr : [];
@@ -861,7 +912,12 @@ export class AdminScheduleTestComponent {
         this.examsRaw = [];
         this.selectedExam = null;
       },
-      complete: () => { this.loader.hide(); }
+      complete: () => {
+        this.examsLoading = false;
+        this.loader.hide();
+        try { this.cd.detectChanges(); } catch (e) { /* noop */ }
+        if (loadDependenciesAfter) this.loadInstituteDependencies();
+      }
     });
   }
   private hasExamFilterValues(): boolean {
@@ -905,7 +961,7 @@ export class AdminScheduleTestComponent {
     }
     if (params.length) url += `?${params.join('&')}`;
 
-    this.http.get<any>(url).subscribe({
+    this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.examsRaw = Array.isArray(arr) ? arr : [];
@@ -960,7 +1016,7 @@ export class AdminScheduleTestComponent {
     this.departmentList = [];
     if (!instituteId) return;
     const url = `${API_BASE}/get-department-list?institute_id=${encodeURIComponent(instituteId)}`;
-    this.http.get<any>(url).subscribe({
+    this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         // normalize to strings
@@ -974,7 +1030,7 @@ export class AdminScheduleTestComponent {
     this.teamList = [];
     if (!instituteId) return;
     const url = `${API_BASE}/get-teams-list?institute_id=${encodeURIComponent(instituteId)}`;
-    this.http.get<any>(url).subscribe({
+    this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.teamList = arr.map((t: any) => (t.name || t.team_name || t.team || t).toString()).filter((s: any) => !!s);
@@ -987,7 +1043,7 @@ export class AdminScheduleTestComponent {
     this.campusList = [];
     if (!instituteId) return;
     const url = `${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instituteId)}`;
-    this.http.get<any>(url).subscribe({
+    this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.campusList = arr.map((c: any) => (c.name || c.campus_name || c.campus || c).toString()).filter((s: any) => !!s);
