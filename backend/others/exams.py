@@ -788,8 +788,6 @@ def launch_exam_details(schedule_id, user_id):
 
         category_ids = [m.category_id for m in exam_mapping if getattr(m, "category_id", None)]
 
-        if not exam_mapping:
-            return {"statusMessage": "No question banks are attached to this test. Please edit the test and add at least one question bank.", "status": False}, 404
 
         randomized_question_ids = []
         non_randomized_question_ids = []

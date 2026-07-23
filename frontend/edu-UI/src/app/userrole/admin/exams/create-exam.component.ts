@@ -1080,14 +1080,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const activeCategory = (this.model.categories || []).find((c: any) => String(c.category_id) === String(this.activeQuestionCategoryId));
     return !!activeCategory?.randomize_questions;
   }
-
-  isActiveQuestionBankFixed(): boolean {
-    const activeCategory = (this.model.categories || []).find((c: any) => String(c.category_id) === String(this.activeQuestionCategoryId));
-    if (!activeCategory) return false;
-    return !activeCategory.randomize_questions
-      && (!activeCategory.question_ids || activeCategory.question_ids.length === 0)
-      && (activeCategory.questions > 0);
-  }
   toggleSelectAllQuestions(checked: boolean) {
     this.selectAllQuestions = !!checked;
     if (this.selectAllQuestions) this.selectedQuestionIds = this.questionsForCategory.map(q => String(q.id));
