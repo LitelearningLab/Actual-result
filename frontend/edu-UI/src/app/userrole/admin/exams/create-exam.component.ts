@@ -1042,6 +1042,17 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     else if (requested < 1) message = minMessage;
     else if (requested > available) message = maxMessage;
     else if (this.newCategory.randomize_questions && requested === available) message = allRandomMessage;
+    // Validate that manually selected questions match the specified count
+    // (only when not randomized and the user has started selecting questions)
+    else if (!this.newCategory.randomize_questions && this.selectedQuestionIds.length > 0 && this.selectedQuestionIds.length !== requested) {
+      const remaining = requested - this.selectedQuestionIds.length;
+      if (remaining > 0) {
+        message = `You have specified ${requested} questions to be included. Please select ${remaining} more question${remaining !== 1 ? 's' : ''} to continue.`;
+      } else {
+        const excess = this.selectedQuestionIds.length - requested;
+        message = `You have specified ${requested} questions to be included, but selected ${this.selectedQuestionIds.length}. Please deselect ${excess} question${excess !== 1 ? 's' : ''} to continue.`;
+      }
+    }
 
     if (updateMessage) this.questionCountError = message;
     if (message && showNotification && message !== allRandomMessage) notify(message, 'error');
@@ -1074,6 +1085,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.selectAllQuestions) this.selectedQuestionIds = this.questionsForCategory.map(q => String(q.id));
     else this.selectedQuestionIds = [];
     this.syncActiveCategoryQuestionSelection();
+    this.validateNewCategoryQuestionCount(false);
   }
 
   toggleQuestionSelection(id: string, checked: boolean) {
@@ -1086,6 +1098,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     if (checked) this.selectAllQuestions = this.questionsForCategory.length > 0 && this.questionsForCategory.every(q => this.selectedQuestionIds.includes(String(q.id)));
     this.syncActiveCategoryQuestionSelection();
+    this.validateNewCategoryQuestionCount(false);
   }
 
   private syncActiveCategoryQuestionSelection() {
