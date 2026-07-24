@@ -82,19 +82,30 @@
                                         <mat-icon matPrefix>check_circle</mat-icon>
                                         <mat-label>Pass Percentage</mat-label>
                                         <input matInput id="passMark" type="number" [(ngModel)]="passMark"
+                                            (input)="onPassMarkInput($event)" (ngModelChange)="onPassMarkChange($event)"
                                             name="passMark" placeholder="e.g. 50" min="0" max="100" />
                                         <span matSuffix>%</span>
                                     </mat-form-field>
                                 </div>
 
                                 <div class="field-row">
-                                    <mat-form-field appearance="outline" class="field-half">
-                                        <mat-icon matPrefix>repeat</mat-icon>
-                                        <mat-label>Number of attempts</mat-label>
-                                        <input matInput id="numberOfAttempts" type="number"
-                                            [(ngModel)]="numberOfAttempts" name="numberOfAttempts"
-                                            placeholder="e.g. 1" min="1" />
-                                    </mat-form-field>
+                                    <div class="field-half attempts-field-container">
+                                        <label class="attempts-label">
+                                            <mat-icon class="attempts-icon">repeat</mat-icon>
+                                            <span>Number of attempts</span>
+                                        </label>
+                                        <div class="attempts-btn-group">
+                                            <button type="button" class="attempt-btn"
+                                                [class.active]="numberOfAttempts === 1"
+                                                (click)="setAttempts(1)">1</button>
+                                            <button type="button" class="attempt-btn"
+                                                [class.active]="numberOfAttempts === 2"
+                                                (click)="setAttempts(2)">2</button>
+                                            <button type="button" class="attempt-btn"
+                                                [class.active]="numberOfAttempts === 3"
+                                                (click)="setAttempts(3)">3</button>
+                                        </div>
+                                    </div>
                                     <div class="field-half"></div>
                                 </div>
                             </div>

@@ -1160,6 +1160,35 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     return serverMessage || fallback;
   }
 
+  onPassMarkInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input && input.value !== '') {
+      let val = Number(input.value);
+      if (val > 100) {
+        input.value = '100';
+        this.passMark = 100;
+      } else if (val < 0) {
+        input.value = '0';
+        this.passMark = 0;
+      }
+    }
+  }
+
+  onPassMarkChange(value: any): void {
+    if (value !== null && value !== undefined && value !== '') {
+      const num = Number(value);
+      if (num > 100) {
+        this.passMark = 100;
+      } else if (num < 0) {
+        this.passMark = 0;
+      }
+    }
+  }
+
+  setAttempts(attempts: number): void {
+    this.numberOfAttempts = attempts;
+  }
+
   save() {
     // basic validation
     if (!this.title || !this.title.trim()) { notify('Title is required', 'error'); return; }
