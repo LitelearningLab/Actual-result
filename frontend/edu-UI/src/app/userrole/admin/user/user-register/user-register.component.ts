@@ -16,15 +16,35 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatStepperModule } from '@angular/material/stepper';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTableModule } from '@angular/material/table';
+import { MatPaginatorModule } from '@angular/material/paginator';
 import { RouterModule } from '@angular/router';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
+import * as XLSX from 'xlsx';
 
 @Component({
   selector: 'app-admin-user-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, HttpClientModule, MatButtonModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatSlideToggleModule, MatIconModule, MatStepperModule, MatDatepickerModule, MatTooltipModule, RouterModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    FormsModule,
+    HttpClientModule,
+    MatButtonModule,
+    MatInputModule,
+    MatSelectModule,
+    MatCheckboxModule,
+    MatSlideToggleModule,
+    MatIconModule,
+    MatStepperModule,
+    MatDatepickerModule,
+    MatTooltipModule,
+    MatTableModule,
+    MatPaginatorModule,
+    RouterModule
+  ],
   providers: [
     DatePipe
   ],
@@ -67,13 +87,25 @@ export class AdminUserRegisterComponent implements OnInit {
   bulkUploadResult: string | null = null;
   bulkFileError: string | null = null;
   bulkPreviewRows: Array<any> = [];
+  bulkInvalidRows: Array<any> = [];
+  bulkValidRows: Array<any> = [];
+  existingUsers: Array<any> = [];
   bulkValidated: boolean = false;
   bulkValidationReport: any = null;
   uploadProgress: number = 0;
   // toggle for bulk upload mode (bound by template)
   bulkMode: boolean = true;
+  showTemplateInstructions: boolean = false;
   bulkInstitute: string = '';
+
+  toggleTemplateInstructions(): void {
+    this.showTemplateInstructions = !this.showTemplateInstructions;
+  }
   isDragOver = false;
+  // mat-table columns
+  previewDisplayedColumns: string[] = ['sno', 'full_name', 'username', 'email', 'contact_no', 'role', 'department', 'team', 'campus', 'joining_date', 'status'];
+  alertDisplayedColumns: string[] = ['sno', 'full_name', 'username', 'email', 'contact_no', 'role', 'department', 'team', 'campus', 'joining_date', 'reason'];
+
   // bulk institute user limit info
   bulkUserLimit: { max_user_limit?: number | null; available_licenses?: number | null; already_assigned?: number | null } = { max_user_limit: null, available_licenses: null, already_assigned: null };
   bulkLimitLoading = false;
@@ -87,6 +119,7 @@ export class AdminUserRegisterComponent implements OnInit {
   get hasBulkFileError(): boolean {
     if (!this.bulkFile) return false;
     if (this.bulkFileError) return true;
+    if (this.bulkInvalidRows && this.bulkInvalidRows.length > 0) return true;
     if (this.bulkUploadResult && (
       this.bulkUploadResult.toLowerCase().includes('fail') ||
       this.bulkUploadResult.toLowerCase().includes('error') ||
@@ -101,6 +134,8 @@ export class AdminUserRegisterComponent implements OnInit {
     if (!this.bulkUploadAllowed) return true;
     if (this.bulkUploading) return true;
     if (this.hasBulkFileError) return true;
+    if (!this.bulkPreviewRows || this.bulkPreviewRows.length === 0) return true;
+    if (this.bulkInvalidRows && this.bulkInvalidRows.length > 0) return true;
     return false;
   }
   departmentsLoading = false;
@@ -224,12 +259,15 @@ export class AdminUserRegisterComponent implements OnInit {
         this.form.patchValue({ role: '' }, { emitEvent: false });
       }
       if (iid) {
+        this.bulkInstitute = iid;
         this.loadDepartments(iid);
         this.loadTeams(iid);
         this.loadCampusList(iid);
         this.loadLocationHierarchy(iid);
+        this.fetchBulkUserLimit(iid);
       } else {
-        // Lists and dependent values were cleared above.
+        this.bulkInstitute = '';
+        this.fetchBulkUserLimit('');
       }
     });
 
@@ -482,6 +520,9 @@ export class AdminUserRegisterComponent implements OnInit {
               return;
             }
             this.departments = data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name }));
+            if (this.bulkMode && this.bulkFile) {
+              this.parseAndValidateExcelFile(this.bulkFile);
+            }
           } catch (e) { this.departments = []; }
           finally { this.departmentsLoading = false; this.loader.hide(); }
         },
@@ -525,6 +566,9 @@ export class AdminUserRegisterComponent implements OnInit {
             city_id: c.city?.city_id || c.city_id || '',
             city_name: c.city?.city_name || c.city_name || ''
           }));
+          if (this.bulkMode && this.bulkFile) {
+            this.parseAndValidateExcelFile(this.bulkFile);
+          }
         } catch (e) { this.campuses = []; }
         finally { this.loader.hide(); }
       }, error: (err) => { console.warn('Failed to load campus-list', err); this.campuses = []; this.loader.hide(); }
@@ -910,12 +954,34 @@ export class AdminUserRegisterComponent implements OnInit {
     window.URL.revokeObjectURL(url);
   }
 
+  loadExistingUsers(instituteId?: string) {
+    const iid = instituteId || this.bulkInstitute || this.loggedInstitute;
+    const url = `${API_BASE}/get-users-list`;
+    const params: any = {};
+    if (iid) params.institute_id = iid;
+    this.http.get<any>(url, { params }).subscribe({
+      next: (res) => {
+        this.existingUsers = res?.data || res?.users || (Array.isArray(res) ? res : []);
+        // Re-validate if file is attached
+        if (this.bulkFile && this.bulkPreviewRows.length > 0) {
+          this.parseAndValidateExcelFile(this.bulkFile);
+        }
+      },
+      error: (err) => {
+        console.warn('Failed to load existing users for validation', err);
+        this.existingUsers = [];
+      }
+    });
+  }
+
   setBulkFile(file: File | null) {
     this.bulkFile = file;
     this.bulkUploadResult = null;
     this.bulkValidated = false;
     this.bulkValidationReport = null;
     this.bulkPreviewRows = [];
+    this.bulkInvalidRows = [];
+    this.bulkValidRows = [];
     this.bulkFileError = null;
 
     if (file) {
@@ -931,7 +997,251 @@ export class AdminUserRegisterComponent implements OnInit {
         this.notify.error(this.bulkFileError);
         return;
       }
+
+      // Pre-fetch existing users if not fetched, then parse & validate
+      if (!this.existingUsers || this.existingUsers.length === 0) {
+        const iid = this.bulkInstitute || this.loggedInstitute;
+        const url = `${API_BASE}/get-users-list`;
+        const params: any = {};
+        if (iid) params.institute_id = iid;
+        this.http.get<any>(url, { params }).subscribe({
+          next: (res) => {
+            this.existingUsers = res?.data || res?.users || (Array.isArray(res) ? res : []);
+            this.parseAndValidateExcelFile(file);
+          },
+          error: () => {
+            this.existingUsers = [];
+            this.parseAndValidateExcelFile(file);
+          }
+        });
+      } else {
+        this.parseAndValidateExcelFile(file);
+      }
     }
+  }
+
+  parseAndValidateExcelFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF: 'yyyy-mm-dd' });
+        const firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) {
+          this.bulkFileError = 'No sheets found in the uploaded file.';
+          this.notify.error(this.bulkFileError);
+          return;
+        }
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: false });
+
+        if (!rawRows || rawRows.length === 0) {
+          this.bulkFileError = 'The uploaded file is empty or contains no data rows.';
+          this.notify.error(this.bulkFileError);
+          return;
+        }
+
+        // Column Alias Mapping Definitions
+        const columnAliases: { [key: string]: string[] } = {
+          full_name: ['full_name', 'fullname', 'name', 'display_name', 'full name'],
+          username: ['username', 'user_name', 'user name', 'user'],
+          email: ['email', 'email_address', 'email address', 'mail'],
+          role: ['role', 'user_role', 'user role'],
+          contact_no: ['contact_no', 'contact', 'phone', 'phone_number', 'phone number', 'mobile'],
+          department: ['department', 'dept'],
+          team: ['team'],
+          campus: ['campus'],
+          joining_date: ['joining_date', 'joining date', 'join_date', 'date_of_joining'],
+          password: ['password', 'pwd']
+        };
+
+        const firstRowKeys = Object.keys(rawRows[0] || {});
+        const keyMap: { [canonical: string]: string } = {};
+
+        for (const canonicalKey of Object.keys(columnAliases)) {
+          const aliases = columnAliases[canonicalKey];
+          const matched = firstRowKeys.find(k => aliases.includes(k.trim().toLowerCase()));
+          if (matched) {
+            keyMap[canonicalKey] = matched;
+          }
+        }
+
+        // Context sets for in-file duplicate checks
+        const seenFileEmails = new Set<string>();
+        const seenFileUsernames = new Set<string>();
+        const seenFilePhones = new Set<string>();
+
+        // DB sets for existing user duplicate checks
+        const dbEmails = new Set((this.existingUsers || []).map((u: any) => (u.email || '').toLowerCase().trim()).filter(Boolean));
+        const dbUsernames = new Set((this.existingUsers || []).map((u: any) => (u.user_name || u.username || '').toLowerCase().trim()).filter(Boolean));
+        const dbPhones = new Set((this.existingUsers || []).map((u: any) => (u.contact_no || u.phone || '').toString().trim()).filter(Boolean));
+
+        // Institute Metadata sets (normalized lowercase for lookup)
+        const validDepts = (this.departments || []).map(d => (d.name || '').toLowerCase().trim());
+        const validTeams = (this.teams || []).map(t => (t.name || '').toLowerCase().trim());
+        const validCampuses = (this.campuses || []).map(c => (c.name || '').toLowerCase().trim());
+        const validRoleValues = ['admin', 'user', 'super_admin', 'superadmin'];
+
+        const parsedRows: any[] = [];
+        const invalidRows: any[] = [];
+        const validRows: any[] = [];
+
+        rawRows.forEach((rawRow: any, index: number) => {
+          const rowNum = index + 2; // Row 1 is header
+          const getVal = (key: string): string => {
+            const actualCol = keyMap[key];
+            if (actualCol && rawRow[actualCol] !== undefined && rawRow[actualCol] !== null) {
+              return String(rawRow[actualCol]).trim();
+            }
+            return '';
+          };
+
+          const fullName = getVal('full_name');
+          const username = getVal('username');
+          const email = getVal('email');
+          const contactNo = getVal('contact_no');
+          const role = getVal('role');
+          const department = getVal('department');
+          const team = getVal('team');
+          const campus = getVal('campus');
+          const joiningDate = getVal('joining_date');
+          const password = getVal('password');
+
+          const errors: string[] = [];
+
+          // 1. Mandatory Fields Check
+          if (!fullName) errors.push('Missing Full Name');
+          if (!username) errors.push('Missing Username');
+          if (!email) errors.push('Missing Email');
+          if (!role) errors.push('Missing Role');
+
+          // 2. Email Validation
+          if (email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+              errors.push('Invalid email format');
+            } else {
+              const lowerEmail = email.toLowerCase();
+              if (seenFileEmails.has(lowerEmail)) {
+                errors.push(`Duplicate email '${email}' in file`);
+              } else {
+                seenFileEmails.add(lowerEmail);
+              }
+              if (dbEmails.has(lowerEmail)) {
+                errors.push(`Email '${email}' already exists in database`);
+              }
+            }
+          }
+
+          // 3. Username Validation
+          if (username) {
+            const lowerUser = username.toLowerCase();
+            if (seenFileUsernames.has(lowerUser)) {
+              errors.push(`Duplicate username '${username}' in file`);
+            } else {
+              seenFileUsernames.add(lowerUser);
+            }
+            if (dbUsernames.has(lowerUser)) {
+              errors.push(`Username '${username}' already exists in database`);
+            }
+          }
+
+          // 4. Contact Number Validation
+          if (contactNo) {
+            const phoneRegex = /^\+?[0-9\s\-]{7,15}$/;
+            if (!phoneRegex.test(contactNo)) {
+              errors.push('Invalid contact number format');
+            } else {
+              if (seenFilePhones.has(contactNo)) {
+                errors.push(`Duplicate contact number '${contactNo}' in file`);
+              } else {
+                seenFilePhones.add(contactNo);
+              }
+              if (dbPhones.has(contactNo)) {
+                errors.push(`Contact number '${contactNo}' already exists in database`);
+              }
+            }
+          }
+
+          // 5. Role Validation
+          if (role && !validRoleValues.includes(role.toLowerCase())) {
+            errors.push(`Invalid Role '${role}'`);
+          }
+
+          // 6. Department Validation
+          if (department && validDepts.length > 0) {
+            if (!validDepts.includes(department.toLowerCase())) {
+              errors.push(`Invalid Department '${department}'`);
+            }
+          }
+
+          // 7. Team Validation
+          if (team && validTeams.length > 0) {
+            if (!validTeams.includes(team.toLowerCase())) {
+              errors.push(`Invalid Team '${team}'`);
+            }
+          }
+
+          // 8. Campus Validation
+          if (campus && validCampuses.length > 0) {
+            if (!validCampuses.includes(campus.toLowerCase())) {
+              errors.push(`Invalid Campus '${campus}'`);
+            }
+          }
+
+          // 9. Date Format Validation
+          if (joiningDate) {
+            const isValidDate = !isNaN(Date.parse(joiningDate)) || /^\d{2}[-/]\d{2}[-/]\d{4}$/.test(joiningDate) || /^\d{4}[-/]\d{2}[-/]\d{2}$/.test(joiningDate);
+            if (!isValidDate) {
+              errors.push(`Incorrect date format '${joiningDate}'`);
+            }
+          }
+
+          const isValid = errors.length === 0;
+          const processedRow = {
+            sno: index + 1,
+            rowNum,
+            full_name: fullName || '—',
+            username: username || '—',
+            email: email || '—',
+            contact_no: contactNo || '—',
+            role: role || '—',
+            department: department || '—',
+            team: team || '—',
+            campus: campus || '—',
+            joining_date: joiningDate || '—',
+            password: password || 'User@12321',
+            isValid,
+            errors,
+            reason: errors.join('; ')
+          };
+
+          parsedRows.push(processedRow);
+          if (isValid) {
+            validRows.push(processedRow);
+          } else {
+            invalidRows.push(processedRow);
+          }
+        });
+
+        this.bulkPreviewRows = parsedRows;
+        this.bulkValidRows = validRows;
+        this.bulkInvalidRows = invalidRows;
+        this.bulkValidated = true;
+
+        if (invalidRows.length > 0) {
+          this.bulkFileError = `${invalidRows.length} record(s) failed validation. Please fix errors before submitting.`;
+        } else {
+          this.bulkFileError = null;
+          this.bulkUploadResult = `All ${validRows.length} record(s) validated successfully! Ready for submission.`;
+        }
+      } catch (err: any) {
+        console.error('Failed to parse Excel file', err);
+        this.bulkFileError = 'Failed to parse Excel file. Please ensure it is a valid .xlsx, .xls, or .csv file.';
+        this.notify.error(this.bulkFileError);
+      }
+    };
+    reader.readAsArrayBuffer(file);
   }
 
   onBulkFileChange(ev: any) {
@@ -948,6 +1258,8 @@ export class AdminUserRegisterComponent implements OnInit {
     this.bulkValidated = false;
     this.bulkValidationReport = null;
     this.bulkPreviewRows = [];
+    this.bulkInvalidRows = [];
+    this.bulkValidRows = [];
     this.bulkFileError = null;
     const el = document.getElementById('bulkFileInput') as HTMLInputElement | null;
     if (el) {
@@ -1214,8 +1526,25 @@ export class AdminUserRegisterComponent implements OnInit {
       },
       error: (err) => { console.warn('Failed to load user limits', err); this.bulkLimitLoading = false; this.bulkUserLimit = { max_user_limit: null, available_licenses: null, already_assigned: null }; this.loader.hide(); },
       complete: () => { this.loader.hide(); }
-
     });
+  }
+
+  onBulkInstituteChange(instituteId: string) {
+    this.bulkInstitute = instituteId;
+    try { this.form.patchValue({ institute: instituteId }, { emitEvent: false }); } catch (e) { }
+    this.fetchBulkUserLimit(instituteId);
+    if (instituteId) {
+      this.loadDepartments(instituteId);
+      this.loadTeams(instituteId);
+      this.loadCampusList(instituteId);
+      this.loadLocationHierarchy(instituteId);
+      this.loadExistingUsers(instituteId);
+    } else {
+      this.departments = [];
+      this.teams = [];
+      this.campuses = [];
+      this.loadExistingUsers('');
+    }
   }
 
   // Helpers to render preview rows in template

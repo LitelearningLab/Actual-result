@@ -15,6 +15,37 @@
   <!-- ── Main Container ── -->
   <div class="form-card">
     
+    <!-- ── License Summary Card (Positioned BEFORE Manual / Bulk Tabs) ── -->
+    <div class="section-block license-summary-card" *ngIf="!isEditing">
+      <div class="license-summary-left">
+        <div class="license-icon-badge">
+          <mat-icon>badge</mat-icon>
+        </div>
+        <div class="license-summary-text">
+          <h2 class="section-heading">License Summary</h2>
+          <p class="section-desc">User limits for the selected institute.</p>
+        </div>
+      </div>
+      <div class="license-summary-right">
+        <table class="limit-table">
+          <thead>
+            <tr>
+              <th>MAX USERS</th>
+              <th>ASSIGNED</th>
+              <th>AVAILABLE</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{{ bulkUserLimit.max_user_limit !== null ? bulkUserLimit.max_user_limit : '—' }}</td>
+              <td>{{ bulkUserLimit.already_assigned !== null ? bulkUserLimit.already_assigned : '—' }}</td>
+              <td class="available-val">{{ bulkUserLimit.available_licenses !== null ? bulkUserLimit.available_licenses : '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- ── Two-Tab Toggle Section (Manual / Bulk) ── -->
     <div class="tab-toggle-container" *ngIf="!isEditing">
       <button type="button" 
@@ -45,10 +76,121 @@
             <h2 class="section-heading">Bulk Upload</h2>
             <p class="section-desc">Upload multiple users at once via CSV or Excel file.</p>
           </div>
-          <button mat-stroked-button type="button" (click)="downloadTemplate()" class="download-template-btn">
-            <mat-icon>file_download</mat-icon>
-            <span>Download Template</span>
-          </button>
+          <div class="section-header-actions">
+            <button mat-stroked-button type="button" (click)="downloadTemplate()" class="download-template-btn">
+              <mat-icon>file_download</mat-icon>
+              <span>Download Template</span>
+            </button>
+            <button mat-icon-button type="button" (click)="toggleTemplateInstructions()" class="info-instructions-btn"
+              matTooltip="Template Guidelines & Excel Help" aria-label="Template instructions">
+              <mat-icon class="info-icon">info</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Excel Template Guidelines Modal Backdrop ── -->
+        <div class="instructions-modal-backdrop" *ngIf="showTemplateInstructions" (click)="toggleTemplateInstructions()">
+          <div class="instructions-modal-card" (click)="$event.stopPropagation()">
+            <div class="instructions-modal-header">
+              <div class="title-with-icon">
+                <mat-icon class="header-info-icon">info</mat-icon>
+                <div>
+                  <h3 class="modal-title">Bulk Excel Template Guidelines</h3>
+                  <p class="modal-subtitle">Follow these guidelines to prevent validation errors</p>
+                </div>
+              </div>
+              <button mat-icon-button type="button" (click)="toggleTemplateInstructions()" aria-label="Close instructions" class="close-btn">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+
+            <div class="instructions-modal-body">
+              <div class="template-instructions-wrapper">
+                <table class="template-instructions-table">
+                  <thead>
+                    <tr>
+                      <th>Header Column Name</th>
+                      <th>Mandatory?</th>
+                      <th>Format / Accepted Values</th>
+                      <th>Description & Important Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code class="col-code">full_name</code></td>
+                      <td><span class="badge-req">Required</span></td>
+                      <td>Text (e.g. Ravi Kumar)</td>
+                      <td>Full display name of the user.</td>
+                    </tr>
+                    <tr>
+                      <td><code class="col-code">username</code></td>
+                      <td><span class="badge-req">Required</span></td>
+                      <td>Text (e.g. ravi_k)</td>
+                      <td>Unique login username. Must not exist already in the database.</td>
+                    </tr>
+                    <tr>
+                      <td><code class="col-code">email</code></td>
+                      <td><span class="badge-req">Required</span></td>
+                      <td>Valid Email (e.g. ravi@gmail.com)</td>
+                      <td>Unique email address. Must not exist already in the database.</td>
+                    </tr>
+                    <tr>
+                      <td><code class="col-code">role</code></td>
+                      <td><span class="badge-req">Required</span></td>
+                      <td><code>user</code> or <code>admin</code></td>
+                      <td>User permission role.</td>
+                    </tr>
+                    <tr>
+                      <td><code class="col-code">contact_no</code></td>
+                      <td><span class="badge-opt">Optional</span></td>
+                      <td>Text / Digits (e.g. '9860000000)</td>
+                      <td>
+                        <div class="note-warning">
+                          <span>⚠️ <strong>Important:</strong> Format cell as Text in Excel (or type ' before the number) to prevent scientific notation (9.86E+09).</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code class="col-code">department</code></td>
+                      <td><span class="badge-opt">Optional</span></td>
+                      <td>Text (e.g. BBA, BCA)</td>
+                      <td>Must match the exact Department name created under your Institute in the system.</td>
+                    </tr>
+                    <tr>
+                      <td><code class="col-code">team</code></td>
+                      <td><span class="badge-opt">Optional</span></td>
+                      <td>Text (e.g. 2025, Batch A)</td>
+                      <td>Must match the exact Team/Batch name created under your Institute.</td>
+                    </tr>
+                    <tr>
+                      <td><code class="col-code">campus</code></td>
+                      <td><span class="badge-opt">Optional</span></td>
+                      <td>Text (e.g. Main Branch)</td>
+                      <td>Must match an existing Campus in your Institute, or leave empty if no campus setup exists.</td>
+                    </tr>
+                    <tr>
+                      <td><code class="col-code">joining_date</code></td>
+                      <td><span class="badge-opt">Optional</span></td>
+                      <td><code>YYYY-MM-DD</code> or <code>DD-MM-YYYY</code></td>
+                      <td>Joining date (e.g., 2024-07-25 or 25-07-2024).</td>
+                    </tr>
+                    <tr>
+                      <td><code class="col-code">password</code></td>
+                      <td><span class="badge-opt">Optional</span></td>
+                      <td>Text (e.g. User@12321)</td>
+                      <td>Initial login password. If left empty, defaults to User@12321.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="instructions-modal-footer">
+              <button mat-flat-button color="primary" (click)="toggleTemplateInstructions()" class="got-it-btn">
+                <span>Got it</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="field-row bulk-inputs-row">
@@ -57,7 +199,7 @@
             <mat-label>Institute</mat-label>
             <mat-icon matPrefix>business</mat-icon>
             <mat-select [(ngModel)]="bulkInstitute" [ngModelOptions]="{standalone: true}"
-              (selectionChange)="fetchBulkUserLimit($event.value)" [disabled]="!isSuperAdmin">
+              (selectionChange)="onBulkInstituteChange($event.value)" [disabled]="!isSuperAdmin">
               <mat-option value="">Select institute</mat-option>
               <mat-option *ngFor="let i of institutes" [value]="i.id">{{ i.name }}</mat-option>
             </mat-select>
@@ -95,23 +237,23 @@
           <!-- Bulk Upload Button -->
           <div class="field-third upload-btn-col">
             <button mat-flat-button color="primary" type="button" (click)="uploadBulk()"
-              [disabled]="!bulkFile || bulkUploading || !bulkUploadAllowed"
-              class="upload-btn" [class.ready-to-upload]="bulkFile && !bulkUploading">
+              [disabled]="!bulkFile || bulkUploading || !bulkUploadAllowed || bulkInvalidRows.length > 0 || bulkValidRows.length === 0"
+              class="upload-btn" [class.ready-to-upload]="bulkFile && !bulkUploading && bulkInvalidRows.length === 0 && bulkValidRows.length > 0">
               <mat-icon *ngIf="!bulkUploading">cloud_upload</mat-icon>
               <mat-icon *ngIf="bulkUploading">autorenew</mat-icon>
-              <span>{{ bulkUploading ? 'Uploading...' : 'Bulk Upload' }}</span>
+              <span>{{ bulkUploading ? 'Uploading...' : (bulkValidRows.length > 0 && bulkInvalidRows.length === 0 ? 'Bulk Upload (' + bulkValidRows.length + ' Users)' : 'Bulk Upload') }}</span>
             </button>
           </div>
         </div>
 
-        <div class="upload-hint-banner" *ngIf="bulkFile && !bulkUploading && !hasBulkFileError">
+        <div class="upload-hint-banner" *ngIf="bulkFile && !bulkUploading && !hasBulkFileError && bulkInvalidRows.length === 0">
           <mat-icon class="hint-icon">lightbulb</mat-icon>
-          <span>File selected! Please click <strong>Bulk Upload</strong> to process user registration.</span>
+          <span>All {{ bulkValidRows.length }} records validated! Click <strong>Bulk Upload</strong> to create users in the database.</span>
         </div>
 
         <div class="upload-error-banner" *ngIf="bulkFile && hasBulkFileError">
           <mat-icon class="error-icon" color="warn">error</mat-icon>
-          <span><strong>File Error:</strong> {{ bulkFileError || bulkUploadResult || 'The selected file has errors. Please fix or remove the file before proceeding.' }}</span>
+          <span><strong>Validation Failed:</strong> {{ bulkFileError || bulkUploadResult || 'The selected file contains invalid records. Please fix all errors in the Alert table to proceed.' }}</span>
         </div>
 
         <div class="bulk-status" *ngIf="bulkUploadResult && !hasBulkFileError">
@@ -120,31 +262,188 @@
         </div>
       </div>
 
-      <!-- Section 2: License Summary Card -->
-      <div class="section-block license-section">
-        <div class="section-header">
-          <mat-icon class="section-icon">badge</mat-icon>
-          <div>
-            <h2 class="section-heading">License Summary</h2>
-            <p class="section-desc">User limits for the selected institute.</p>
+      <!-- ═══ Section 3: Alert / Error Section (Displayed when invalid records exist) ═══ -->
+      <div class="section-block alert-section" *ngIf="bulkInvalidRows && bulkInvalidRows.length > 0">
+        <div class="section-header alert-header">
+          <mat-icon class="section-icon alert-icon">error_outline</mat-icon>
+          <div class="section-header-text">
+            <h2 class="section-heading alert-title">Alert: {{ bulkInvalidRows.length }} Invalid Record(s) Found</h2>
+            <p class="section-desc alert-desc">Submission is blocked until all validation errors listed below are resolved.</p>
           </div>
+          <span class="error-count-chip">{{ bulkInvalidRows.length }} Error(s)</span>
         </div>
-        <table class="limit-table">
-          <thead>
-            <tr>
-              <th>MAX USERS</th>
-              <th>ASSIGNED</th>
-              <th>AVAILABLE</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{{ bulkUserLimit.max_user_limit !== null ? bulkUserLimit.max_user_limit : '—' }}</td>
-              <td>{{ bulkUserLimit.already_assigned !== null ? bulkUserLimit.already_assigned : '—' }}</td>
-              <td class="available-val">{{ bulkUserLimit.available_licenses !== null ? bulkUserLimit.available_licenses : '—' }}</td>
-            </tr>
-          </tbody>
-        </table>
+
+        <div class="table-responsive mat-elevation-z1 alert-table-wrapper">
+          <table mat-table [dataSource]="bulkInvalidRows" class="bulk-mat-table alert-mat-table">
+
+            <!-- S.No Column -->
+            <ng-container matColumnDef="sno">
+              <th mat-header-cell *matHeaderCellDef class="sno-header">S.No.</th>
+              <td mat-cell *matCellDef="let row" class="sno-cell">{{ row.sno }}</td>
+            </ng-container>
+
+            <!-- Full Name Column -->
+            <ng-container matColumnDef="full_name">
+              <th mat-header-cell *matHeaderCellDef>Full Name</th>
+              <td mat-cell *matCellDef="let row">{{ row.full_name }}</td>
+            </ng-container>
+
+            <!-- Username Column -->
+            <ng-container matColumnDef="username">
+              <th mat-header-cell *matHeaderCellDef>Username</th>
+              <td mat-cell *matCellDef="let row">{{ row.username }}</td>
+            </ng-container>
+
+            <!-- Email Column -->
+            <ng-container matColumnDef="email">
+              <th mat-header-cell *matHeaderCellDef>Email</th>
+              <td mat-cell *matCellDef="let row">{{ row.email }}</td>
+            </ng-container>
+
+            <!-- Contact Number Column -->
+            <ng-container matColumnDef="contact_no">
+              <th mat-header-cell *matHeaderCellDef>Contact Number</th>
+              <td mat-cell *matCellDef="let row">{{ row.contact_no }}</td>
+            </ng-container>
+
+            <!-- Role Column -->
+            <ng-container matColumnDef="role">
+              <th mat-header-cell *matHeaderCellDef>Role</th>
+              <td mat-cell *matCellDef="let row">{{ row.role }}</td>
+            </ng-container>
+
+            <!-- Department Column -->
+            <ng-container matColumnDef="department">
+              <th mat-header-cell *matHeaderCellDef>Department</th>
+              <td mat-cell *matCellDef="let row">{{ row.department }}</td>
+            </ng-container>
+
+            <!-- Team Column -->
+            <ng-container matColumnDef="team">
+              <th mat-header-cell *matHeaderCellDef>Team</th>
+              <td mat-cell *matCellDef="let row">{{ row.team }}</td>
+            </ng-container>
+
+            <!-- Campus Column -->
+            <ng-container matColumnDef="campus">
+              <th mat-header-cell *matHeaderCellDef>Campus</th>
+              <td mat-cell *matCellDef="let row">{{ row.campus }}</td>
+            </ng-container>
+
+            <!-- Joining Date Column -->
+            <ng-container matColumnDef="joining_date">
+              <th mat-header-cell *matHeaderCellDef>Joining Date</th>
+              <td mat-cell *matCellDef="let row">{{ row.joining_date }}</td>
+            </ng-container>
+
+            <!-- Reason Column -->
+            <ng-container matColumnDef="reason">
+              <th mat-header-cell *matHeaderCellDef class="reason-header">Reason</th>
+              <td mat-cell *matCellDef="let row" class="reason-cell">
+                <span class="reason-badge" *ngFor="let err of row.errors">
+                  <mat-icon class="reason-icon">warning</mat-icon>
+                  {{ err }}
+                </span>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="alertDisplayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: alertDisplayedColumns;" class="invalid-row"></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- ═══ Section 4: Preview Users Section (Displayed when file is parsed) ═══ -->
+      <div class="section-block preview-section" *ngIf="bulkPreviewRows && bulkPreviewRows.length > 0">
+        <div class="section-header">
+          <mat-icon class="section-icon">preview</mat-icon>
+          <div class="section-header-text">
+            <h2 class="section-heading">Preview Users ({{ bulkPreviewRows.length }} Records)</h2>
+            <p class="section-desc">User details extracted from the uploaded Excel file.</p>
+          </div>
+          <span class="total-count-chip">Total: {{ bulkPreviewRows.length }}</span>
+        </div>
+
+        <div class="table-responsive mat-elevation-z1 preview-table-wrapper">
+          <table mat-table [dataSource]="bulkPreviewRows" class="bulk-mat-table preview-mat-table">
+
+            <!-- S.No Column -->
+            <ng-container matColumnDef="sno">
+              <th mat-header-cell *matHeaderCellDef class="sno-header">S.No.</th>
+              <td mat-cell *matCellDef="let row" class="sno-cell">{{ row.sno }}</td>
+            </ng-container>
+
+            <!-- Full Name Column -->
+            <ng-container matColumnDef="full_name">
+              <th mat-header-cell *matHeaderCellDef>Full Name</th>
+              <td mat-cell *matCellDef="let row" class="fw-semibold">{{ row.full_name }}</td>
+            </ng-container>
+
+            <!-- Username Column -->
+            <ng-container matColumnDef="username">
+              <th mat-header-cell *matHeaderCellDef>Username</th>
+              <td mat-cell *matCellDef="let row">{{ row.username }}</td>
+            </ng-container>
+
+            <!-- Email Column -->
+            <ng-container matColumnDef="email">
+              <th mat-header-cell *matHeaderCellDef>Email</th>
+              <td mat-cell *matCellDef="let row">{{ row.email }}</td>
+            </ng-container>
+
+            <!-- Contact Number Column -->
+            <ng-container matColumnDef="contact_no">
+              <th mat-header-cell *matHeaderCellDef>Contact Number</th>
+              <td mat-cell *matCellDef="let row">{{ row.contact_no }}</td>
+            </ng-container>
+
+            <!-- Role Column -->
+            <ng-container matColumnDef="role">
+              <th mat-header-cell *matHeaderCellDef>Role</th>
+              <td mat-cell *matCellDef="let row">
+                <span class="role-badge">{{ row.role }}</span>
+              </td>
+            </ng-container>
+
+            <!-- Department Column -->
+            <ng-container matColumnDef="department">
+              <th mat-header-cell *matHeaderCellDef>Department</th>
+              <td mat-cell *matCellDef="let row">{{ row.department }}</td>
+            </ng-container>
+
+            <!-- Team Column -->
+            <ng-container matColumnDef="team">
+              <th mat-header-cell *matHeaderCellDef>Team</th>
+              <td mat-cell *matCellDef="let row">{{ row.team }}</td>
+            </ng-container>
+
+            <!-- Campus Column -->
+            <ng-container matColumnDef="campus">
+              <th mat-header-cell *matHeaderCellDef>Campus</th>
+              <td mat-cell *matCellDef="let row">{{ row.campus }}</td>
+            </ng-container>
+
+            <!-- Joining Date Column -->
+            <ng-container matColumnDef="joining_date">
+              <th mat-header-cell *matHeaderCellDef>Joining Date</th>
+              <td mat-cell *matCellDef="let row">{{ row.joining_date }}</td>
+            </ng-container>
+
+            <!-- Status Column -->
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let row">
+                <span class="status-pill" [class.active]="row.isValid" [class.invalid]="!row.isValid">
+                  <mat-icon class="status-pill-icon">{{ row.isValid ? 'check_circle' : 'error' }}</mat-icon>
+                  {{ row.isValid ? 'Valid' : 'Invalid' }}
+                </span>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="previewDisplayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: previewDisplayedColumns;" [class.invalid-row-highlight]="!row.isValid"></tr>
+          </table>
+        </div>
       </div>
 
       <!-- Bulk Tab Footer Action Buttons -->
