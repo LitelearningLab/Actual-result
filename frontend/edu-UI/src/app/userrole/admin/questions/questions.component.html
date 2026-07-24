@@ -223,6 +223,10 @@
                         </div>
                      </div>
                      <div class="file-actions">
+                        <button mat-flat-button color="primary" type="button" class="upload-btn ready-to-upload" (click)="submit()">
+                           <mat-icon>cloud_upload</mat-icon>
+                           <span>Upload File</span>
+                        </button>
                         <button mat-button (click)="clearSelectedBulkFile()">Remove</button>
                      </div>
                   </div>
@@ -230,6 +234,10 @@
                      <div class="no-file">No file selected yet. Use the drop zone to upload.</div>
                   </ng-template>
                </div>
+            </div>
+            <div class="upload-hint-banner" *ngIf="selectedBulkFile">
+               <mat-icon class="hint-icon">lightbulb</mat-icon>
+               <span>File selected! Please click <strong>Upload File</strong> to import questions.</span>
             </div>
             <input #hiddenFileInput type="file" class="hidden-file"
                title="Select questions file Or drag & drop file here" (change)="onBulkFileSelected($event)"

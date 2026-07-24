@@ -74,12 +74,18 @@
 
                 <div class="field-third upload-btn-col">
                   <button mat-flat-button color="primary" type="button" (click)="uploadBulk()"
-                    [disabled]="!bulkFile || bulkUploading || !bulkUploadAllowed" class="upload-btn">
+                    [disabled]="!bulkFile || bulkUploading || !bulkUploadAllowed"
+                    class="upload-btn" [class.ready-to-upload]="bulkFile && !bulkUploading">
                     <mat-icon *ngIf="!bulkUploading">cloud_upload</mat-icon>
                     <mat-icon *ngIf="bulkUploading">autorenew</mat-icon>
-                    <span>{{ bulkUploading ? 'Uploading...' : 'Upload' }}</span>
+                    <span>{{ bulkUploading ? 'Uploading...' : 'Bulk Upload' }}</span>
                   </button>
                 </div>
+              </div>
+
+              <div class="upload-hint-banner" *ngIf="bulkFile && !bulkUploading">
+                <mat-icon class="hint-icon">lightbulb</mat-icon>
+                <span>File selected! Please click <strong>Bulk Upload</strong> to process user registration.</span>
               </div>
 
               <div class="bulk-status" *ngIf="bulkUploadResult">
