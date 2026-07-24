@@ -31,7 +31,7 @@
                             <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Name</mat-label>
                                 <mat-icon matPrefix>edit</mat-icon>
-                                <input matInput required [value]="name" (input)="setName($any($event.target).value)"
+                                <input matInput required [value]="name" [disabled]="isEditing" (input)="setName($any($event.target).value)"
                                     placeholder="Question Bank name" />
                                 <mat-hint class="field-error" *ngIf="(formSubmitted || categoryInfoSubmitted) && isNameInvalid()">Name is required.</mat-hint>
                             </mat-form-field>
@@ -59,7 +59,7 @@
                             <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Type</mat-label>
                                 <mat-icon matPrefix>category</mat-icon>
-                                <mat-select required [value]="type" (selectionChange)="setType($event.value)">
+                                <mat-select required [value]="type" [disabled]="isEditing" (selectionChange)="setType($event.value)">
                                     <mat-option *ngFor="let t of typeOptions" [value]="t.id">{{t.name}}</mat-option>
                                 </mat-select>
                                 <mat-hint class="field-error" *ngIf="(formSubmitted || categoryInfoSubmitted) && isTypeInvalid()">Type is required.</mat-hint>
@@ -134,7 +134,7 @@
                                 [class.field-invalid]="accessInfoSubmitted && isMarkInvalid()">
                                 <mat-label>Mark for each question</mat-label>
                                 <mat-icon matPrefix>grade</mat-icon>
-                                <input matInput required [value]="markForEachQuestion"
+                                <input matInput required [value]="markForEachQuestion" [disabled]="isEditing"
                                     (input)="setMark($any($event.target).value)" placeholder="e.g. 1" />
                                 <mat-hint class="field-error" *ngIf="(formSubmitted || accessInfoSubmitted) && isMarkInvalid()">Mark for each question is required and must be a number.</mat-hint>
                             </mat-form-field>
@@ -260,6 +260,3 @@
         </mat-horizontal-stepper>
     </div>
 </div>
-
-
-
