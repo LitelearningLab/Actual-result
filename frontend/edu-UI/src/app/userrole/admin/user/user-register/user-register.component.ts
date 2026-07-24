@@ -942,9 +942,15 @@ export class AdminUserRegisterComponent implements OnInit {
         this.bulkValidationReport = res?.data || res?.report || null;
         this.bulkPreviewRows = (this.bulkValidationReport?.preview || []).slice(0,5);
         this.bulkValidated = true;
-        this.bulkUploadResult = res?.statusMessage || 'Validation finished';
+        this.bulkUploadResult = res?.statusMessage || 'Validation completed successfully.';
       },
-      error: (err) => { console.error('Bulk validation failed', err); this.bulkUploading = false; this.bulkUploadResult = 'Validation failed. See console.'; }
+      error: (err) => {
+        console.error('Bulk validation failed', err);
+        this.bulkUploading = false;
+        const msg = err?.error?.statusMessage || err?.error?.message || 'Validation failed. Please check your file and try again.';
+        this.bulkUploadResult = msg;
+        this.notify.error(msg);
+      }
     });
   }
 
@@ -972,46 +978,90 @@ export class AdminUserRegisterComponent implements OnInit {
           if (contentType.includes('application/json')) {
             if (ev.body) {
               this.readBlobAsJson(ev.body).then((data) => {
-                this.bulkUploadResult = data?.statusMessage || 'Upload finished';
+                this.bulkUploadResult = data?.statusMessage || 'Upload completed successfully.';
+                this.notify.success(this.bulkUploadResult || 'Upload completed');
               }).catch(() => {
-                this.bulkUploadResult = 'Upload finished';
+                this.bulkUploadResult = 'Upload completed successfully.';
+                this.notify.success('Upload completed successfully.');
               });
             } else {
-              this.bulkUploadResult = 'Upload finished';
+              this.bulkUploadResult = 'Upload completed successfully.';
+              this.notify.success('Upload completed successfully.');
             }
           } else if (contentType.includes('text/csv') || disposition.includes('attachment')) {
             if (ev.body) {
               const filename = this.getFileNameFromContentDisposition(disposition) || 'bulk_upload_errors.csv';
               this.downloadBlob(ev.body, filename);
-              this.bulkUploadResult = 'Upload failed. Error report downloaded.';
+              const headerMsg = ev.headers?.get('X-Status-Message') || ev.headers?.get('x-status-message');
+              if (headerMsg) {
+                this.bulkUploadResult = headerMsg;
+                this.notify.error(headerMsg);
+              } else {
+                this.bulkUploadResult = 'Upload failed. Error report downloaded.';
+                this.notify.error('Upload failed. Error report downloaded.');
+              }
             } else {
-              this.bulkUploadResult = 'Upload failed. Error report returned without body.';
+              this.bulkUploadResult = 'Upload failed. Please check your file and try again.';
+              this.notify.error('Upload failed. Please check your file and try again.');
             }
           } else {
-            this.bulkUploadResult = 'Upload finished';
+            this.bulkUploadResult = 'Upload completed successfully.';
+            this.notify.success('Upload completed successfully.');
           }
         }
       },
       error: (err: HttpErrorResponse) => {
         this.bulkUploading = false;
         this.loader.hide();
+        const headerMsg = err.headers?.get('X-Status-Message') || err.headers?.get('x-status-message');
+
         if (err.error instanceof Blob) {
           const contentType = err.error.type || '';
           const disposition = err.headers?.get('Content-Disposition') || '';
           if (contentType.includes('text/csv') || disposition.includes('attachment')) {
             const filename = this.getFileNameFromContentDisposition(disposition) || 'bulk_upload_errors.csv';
             this.downloadBlob(err.error, filename);
-            this.bulkUploadResult = 'Upload failed. Error report downloaded.';
+            if (headerMsg) {
+              this.bulkUploadResult = headerMsg;
+              this.notify.error(headerMsg);
+            } else {
+              err.error.text().then(text => {
+                const lines = text.split('\n');
+                let foundMsg = '';
+                for (const line of lines) {
+                  if (line.includes('Failed:')) {
+                    const parts = line.split('Failed:');
+                    if (parts[1]) {
+                      foundMsg = parts[1].replace(/"/g, '').trim();
+                      break;
+                    }
+                  }
+                }
+                const finalMsg = foundMsg || 'Upload failed. An error report has been downloaded.';
+                this.bulkUploadResult = finalMsg;
+                this.notify.error(finalMsg);
+              }).catch(() => {
+                const fallback = 'Upload failed. An error report has been downloaded.';
+                this.bulkUploadResult = fallback;
+                this.notify.error(fallback);
+              });
+            }
             return;
           }
           this.readBlobAsJson(err.error).then((data) => {
-            this.bulkUploadResult = data?.statusMessage || 'Upload failed. See console for details.';
+            const msg = data?.statusMessage || headerMsg || 'Upload failed. Please check your file format and try again.';
+            this.bulkUploadResult = msg;
+            this.notify.error(msg);
           }).catch(() => {
-            this.bulkUploadResult = 'Upload failed. See console for details.';
+            const msg = headerMsg || 'Upload failed. Please check your file format and try again.';
+            this.bulkUploadResult = msg;
+            this.notify.error(msg);
           });
         } else {
           console.error('Bulk upload failed', err);
-          this.bulkUploadResult = 'Upload failed. See console for details.';
+          const msg = headerMsg || err?.error?.statusMessage || err?.error?.message || 'Upload failed. Please check your file format and try again.';
+          this.bulkUploadResult = msg;
+          this.notify.error(msg);
         }
       },
       complete: () => { this.loader.hide(); }

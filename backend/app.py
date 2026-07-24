@@ -313,7 +313,7 @@ def get_user_page_access_route(user_id):
 def bulk_upload_users():
     response_data, status_code = user_bulk_upload(request)
     if status_code == 400:
-        # auto-download the error report as CSV        df = response_data.get('data')
+        # auto-download the error report as CSV
         df = response_data.get('data', [])
         if df:
             import pandas as pd
@@ -321,10 +321,15 @@ def bulk_upload_users():
             csv_data = StringIO()
             pd.DataFrame(df).to_csv(csv_data, index=False)
             csv_data.seek(0)
+            status_msg = response_data.get('statusMessage', '')
             return Response(
                 csv_data,
                 mimetype='text/csv',
-                headers={'Content-Disposition': 'attachment; filename=error_report.csv'}
+                headers={
+                    'Content-Disposition': 'attachment; filename=error_report.csv',
+                    'X-Status-Message': status_msg,
+                    'Access-Control-Expose-Headers': 'Content-Disposition, X-Status-Message'
+                }
             )
             
     return jsonify(response_data), status_code
