@@ -65,6 +65,7 @@ export class AdminUserRegisterComponent implements OnInit {
   bulkFile: File | null = null;
   bulkUploading = false;
   bulkUploadResult: string | null = null;
+  bulkFileError: string | null = null;
   bulkPreviewRows: Array<any> = [];
   bulkValidated: boolean = false;
   bulkValidationReport: any = null;
@@ -81,6 +82,26 @@ export class AdminUserRegisterComponent implements OnInit {
 
   get bulkUploadAllowed(): boolean {
     return (this.bulkUserLimit.available_licenses ?? 0) > 0 && !this.bulkLimitLoading;
+  }
+
+  get hasBulkFileError(): boolean {
+    if (!this.bulkFile) return false;
+    if (this.bulkFileError) return true;
+    if (this.bulkUploadResult && (
+      this.bulkUploadResult.toLowerCase().includes('fail') ||
+      this.bulkUploadResult.toLowerCase().includes('error') ||
+      this.bulkUploadResult.toLowerCase().includes('invalid')
+    )) {
+      return true;
+    }
+    return false;
+  }
+
+  get bulkNextDisabled(): boolean {
+    if (!this.bulkUploadAllowed) return true;
+    if (this.bulkUploading) return true;
+    if (this.hasBulkFileError) return true;
+    return false;
   }
   departmentsLoading = false;
   isEditing = false;
@@ -889,13 +910,33 @@ export class AdminUserRegisterComponent implements OnInit {
     window.URL.revokeObjectURL(url);
   }
 
-  onBulkFileChange(ev: any) {
-    const f = ev?.target?.files?.[0] || null;
-    this.bulkFile = f;
+  setBulkFile(file: File | null) {
+    this.bulkFile = file;
     this.bulkUploadResult = null;
     this.bulkValidated = false;
     this.bulkValidationReport = null;
     this.bulkPreviewRows = [];
+    this.bulkFileError = null;
+
+    if (file) {
+      const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+      const validExtensions = ['.csv', '.xlsx', '.xls'];
+      if (!validExtensions.includes(ext)) {
+        this.bulkFileError = 'Invalid file format. Please upload a .csv, .xlsx, or .xls file.';
+        this.notify.error(this.bulkFileError);
+        return;
+      }
+      if (file.size === 0) {
+        this.bulkFileError = 'The selected file is empty. Please choose a valid file with data.';
+        this.notify.error(this.bulkFileError);
+        return;
+      }
+    }
+  }
+
+  onBulkFileChange(ev: any) {
+    const f = ev?.target?.files?.[0] || null;
+    this.setBulkFile(f);
   }
 
   clearBulkFile(ev?: MouseEvent) {
@@ -907,6 +948,7 @@ export class AdminUserRegisterComponent implements OnInit {
     this.bulkValidated = false;
     this.bulkValidationReport = null;
     this.bulkPreviewRows = [];
+    this.bulkFileError = null;
     const el = document.getElementById('bulkFileInput') as HTMLInputElement | null;
     if (el) {
       el.value = '';
@@ -923,25 +965,42 @@ export class AdminUserRegisterComponent implements OnInit {
   onDrop(ev: DragEvent) {
     ev.preventDefault(); this.isDragOver = false;
     const f = ev.dataTransfer?.files?.[0] || null;
-    if (f) { this.bulkFile = f; this.bulkUploadResult = null; }
+    if (f) { this.setBulkFile(f); }
+  }
+
+  nextStep0(stepper: any) {
+    if (this.bulkNextDisabled) {
+      if (this.hasBulkFileError) {
+        const msg = this.bulkFileError || this.bulkUploadResult || 'The selected bulk file has errors. Please fix or remove the file to proceed.';
+        this.notify.error(msg);
+      } else if (!this.bulkUploadAllowed) {
+        this.notify.error('User creation limit reached for the selected institute.');
+      }
+      return;
+    }
+    if (stepper) {
+      stepper.next();
+    }
   }
 
   // Validate file on server without committing (dry-run)
   validateBulk() {
     if (!this.bulkFile) { this.notify.error('Please select a file to validate'); return; }
+    if (this.bulkFileError) { this.notify.error(this.bulkFileError); return; }
     const url = `${API_BASE}/bulk-register-users`;
     const fd = new FormData();
     fd.append('file', this.bulkFile, this.bulkFile.name);
     if (this.bulkInstitute) fd.append('institute_id', this.bulkInstitute);
     fd.append('current_user', this.getCurrentUserId() || 'admin');
     fd.append('validateOnly', 'true');
-    this.bulkUploading = true; this.bulkUploadResult = null; this.bulkValidated = false; this.bulkPreviewRows = [];
+    this.bulkUploading = true; this.bulkUploadResult = null; this.bulkFileError = null; this.bulkValidated = false; this.bulkPreviewRows = [];
     this.http.post<any>(url, fd).subscribe({
       next: (res) => {
         this.bulkUploading = false;
         this.bulkValidationReport = res?.data || res?.report || null;
         this.bulkPreviewRows = (this.bulkValidationReport?.preview || []).slice(0,5);
         this.bulkValidated = true;
+        this.bulkFileError = null;
         this.bulkUploadResult = res?.statusMessage || 'Validation completed successfully.';
       },
       error: (err) => {
@@ -949,6 +1008,7 @@ export class AdminUserRegisterComponent implements OnInit {
         this.bulkUploading = false;
         const msg = err?.error?.statusMessage || err?.error?.message || 'Validation failed. Please check your file and try again.';
         this.bulkUploadResult = msg;
+        this.bulkFileError = msg;
         this.notify.error(msg);
       }
     });
@@ -958,12 +1018,13 @@ export class AdminUserRegisterComponent implements OnInit {
   confirmUpload() {
     this.loader.show();
     if (!this.bulkFile) { this.notify.error('Please select a file to upload'); this.loader.hide(); return; }
+    if (this.bulkFileError) { this.notify.error(this.bulkFileError); this.loader.hide(); return; }
     const url = `${API_BASE}/bulk-register-users`;
     const fd = new FormData();
     fd.append('file', this.bulkFile, this.bulkFile.name);
     if (this.bulkInstitute) fd.append('institute_id', this.bulkInstitute);
     fd.append('current_user', this.getCurrentUserId() || 'admin');
-    this.bulkUploading = true; this.bulkUploadResult = null; this.uploadProgress = 0;
+    this.bulkUploading = true; this.bulkUploadResult = null; this.bulkFileError = null; this.uploadProgress = 0;
     this.http.post(url, fd, { reportProgress: true, observe: 'events', responseType: 'blob' }).subscribe({
       next: (ev: HttpEvent<Blob>) => {
         if (ev.type === HttpEventType.UploadProgress && ev.total) {
@@ -978,13 +1039,16 @@ export class AdminUserRegisterComponent implements OnInit {
           if (contentType.includes('application/json')) {
             if (ev.body) {
               this.readBlobAsJson(ev.body).then((data) => {
+                this.bulkFileError = null;
                 this.bulkUploadResult = data?.statusMessage || 'Upload completed successfully.';
                 this.notify.success(this.bulkUploadResult || 'Upload completed');
               }).catch(() => {
+                this.bulkFileError = null;
                 this.bulkUploadResult = 'Upload completed successfully.';
                 this.notify.success('Upload completed successfully.');
               });
             } else {
+              this.bulkFileError = null;
               this.bulkUploadResult = 'Upload completed successfully.';
               this.notify.success('Upload completed successfully.');
             }
@@ -995,16 +1059,22 @@ export class AdminUserRegisterComponent implements OnInit {
               const headerMsg = ev.headers?.get('X-Status-Message') || ev.headers?.get('x-status-message');
               if (headerMsg) {
                 this.bulkUploadResult = headerMsg;
+                this.bulkFileError = headerMsg;
                 this.notify.error(headerMsg);
               } else {
-                this.bulkUploadResult = 'Upload failed. Error report downloaded.';
-                this.notify.error('Upload failed. Error report downloaded.');
+                const failMsg = 'Upload failed. Error report downloaded.';
+                this.bulkUploadResult = failMsg;
+                this.bulkFileError = failMsg;
+                this.notify.error(failMsg);
               }
             } else {
-              this.bulkUploadResult = 'Upload failed. Please check your file and try again.';
-              this.notify.error('Upload failed. Please check your file and try again.');
+              const failMsg = 'Upload failed. Please check your file and try again.';
+              this.bulkUploadResult = failMsg;
+              this.bulkFileError = failMsg;
+              this.notify.error(failMsg);
             }
           } else {
+            this.bulkFileError = null;
             this.bulkUploadResult = 'Upload completed successfully.';
             this.notify.success('Upload completed successfully.');
           }
@@ -1023,6 +1093,7 @@ export class AdminUserRegisterComponent implements OnInit {
             this.downloadBlob(err.error, filename);
             if (headerMsg) {
               this.bulkUploadResult = headerMsg;
+              this.bulkFileError = headerMsg;
               this.notify.error(headerMsg);
             } else {
               err.error.text().then(text => {
@@ -1039,10 +1110,12 @@ export class AdminUserRegisterComponent implements OnInit {
                 }
                 const finalMsg = foundMsg || 'Upload failed. An error report has been downloaded.';
                 this.bulkUploadResult = finalMsg;
+                this.bulkFileError = finalMsg;
                 this.notify.error(finalMsg);
               }).catch(() => {
                 const fallback = 'Upload failed. An error report has been downloaded.';
                 this.bulkUploadResult = fallback;
+                this.bulkFileError = fallback;
                 this.notify.error(fallback);
               });
             }
@@ -1051,16 +1124,19 @@ export class AdminUserRegisterComponent implements OnInit {
           this.readBlobAsJson(err.error).then((data) => {
             const msg = data?.statusMessage || headerMsg || 'Upload failed. Please check your file format and try again.';
             this.bulkUploadResult = msg;
+            this.bulkFileError = msg;
             this.notify.error(msg);
           }).catch(() => {
             const msg = headerMsg || 'Upload failed. Please check your file format and try again.';
             this.bulkUploadResult = msg;
+            this.bulkFileError = msg;
             this.notify.error(msg);
           });
         } else {
           console.error('Bulk upload failed', err);
           const msg = headerMsg || err?.error?.statusMessage || err?.error?.message || 'Upload failed. Please check your file format and try again.';
           this.bulkUploadResult = msg;
+          this.bulkFileError = msg;
           this.notify.error(msg);
         }
       },

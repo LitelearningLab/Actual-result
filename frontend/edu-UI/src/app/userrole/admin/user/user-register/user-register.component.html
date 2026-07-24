@@ -83,12 +83,17 @@
                 </div>
               </div>
 
-              <div class="upload-hint-banner" *ngIf="bulkFile && !bulkUploading">
+              <div class="upload-hint-banner" *ngIf="bulkFile && !bulkUploading && !hasBulkFileError">
                 <mat-icon class="hint-icon">lightbulb</mat-icon>
                 <span>File selected! Please click <strong>Bulk Upload</strong> to process user registration.</span>
               </div>
 
-              <div class="bulk-status" *ngIf="bulkUploadResult">
+              <div class="upload-error-banner" *ngIf="bulkFile && hasBulkFileError">
+                <mat-icon class="error-icon" color="warn">error</mat-icon>
+                <span><strong>File Error:</strong> {{ bulkFileError || bulkUploadResult || 'The selected file has errors. Please fix or remove the file before proceeding.' }}</span>
+              </div>
+
+              <div class="bulk-status" *ngIf="bulkUploadResult && !hasBulkFileError">
                 <mat-icon color="primary">info</mat-icon>
                 <span>{{ bulkUploadResult }}</span>
               </div>
@@ -122,8 +127,8 @@
             </div>
 
             <div class="form-actions">
-              <button mat-button type="button" (click)="stepper.next()" [disabled]="!bulkUploadAllowed">Skip</button>
-              <button mat-button type="button" (click)="stepper.next()" class="next-btn" [disabled]="!bulkUploadAllowed">
+              <button mat-button type="button" (click)="nextStep0(stepper)" [disabled]="bulkNextDisabled">Skip</button>
+              <button mat-button type="button" (click)="nextStep0(stepper)" class="next-btn" [disabled]="bulkNextDisabled">
                 <span>Next</span>
                 <mat-icon>arrow_forward</mat-icon>
               </button>

@@ -61,6 +61,8 @@ $shadow-md: 0 4px 12px rgba(0,0,0,0.06);
 .upload-btn.ready-to-upload { animation: uploadPulse 2s infinite; font-weight: 700; transform: scale(1.02); }
 .upload-hint-banner { display:flex; align-items:center; gap:0.5rem; padding:0.625rem 1rem; font:500 0.84rem/1.4 inherit; color:var(--button-1); background:rgba(31,123,255,0.08); border:1px solid rgba(31,123,255,0.25); border-radius:$radius; margin-top:0.75rem; }
 .upload-hint-banner .hint-icon { font-size:1.125rem; width:1.125rem; height:1.125rem; color:var(--button-1); flex-shrink:0; }
+.upload-error-banner { display:flex; align-items:center; gap:0.5rem; padding:0.625rem 1rem; font:500 0.84rem/1.4 inherit; color:#9b1c1c; background:#fde8e8; border:1px solid #f8b4b4; border-radius:$radius; margin-top:0.75rem; }
+.upload-error-banner .error-icon { font-size:1.125rem; width:1.125rem; height:1.125rem; color:#e02424; flex-shrink:0; }
 .bulk-status { display:flex; align-items:center; gap:0.625rem; padding:0.625rem 1rem; font:500 0.875rem/1.4 inherit; color:var(--theme-3-text-2); background:rgba(31,123,255,0.06); border:1px solid var(--theme-3-border); border-radius:$radius; margin-top:0.75rem; }
 .hidden-file { display:none; }
 .clear-file-btn { color:var(--theme-3-text-3); transition:color 0.2s $ease; &:hover { color:#ef4444; } }
