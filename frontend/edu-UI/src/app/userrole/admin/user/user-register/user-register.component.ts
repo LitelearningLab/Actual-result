@@ -156,6 +156,10 @@ export class AdminUserRegisterComponent implements OnInit {
   // header select-all checkbox state for pages permissions
   selectAll: boolean = false;
 
+  // Step submission tracking flags for showing mandatory errors only when Next is clicked
+  step1Submitted: boolean = false;
+  step2Submitted: boolean = false;
+
   constructor(private fb: FormBuilder, private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private notify: NotificationService, private loader: LoaderService) {
     this.form = this.fb.group({
       institute: ['', Validators.required],
@@ -166,16 +170,168 @@ export class AdminUserRegisterComponent implements OnInit {
       city: [''],
       username: ['', [Validators.required, Validators.minLength(3)]],
       name: ['', [Validators.required, Validators.minLength(3)]],
-      email: ['', [Validators.required, Validators.email]],
+      email: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
       joining_date: [''],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required],
       department: [''],
       team: [''],
-      phone: ['', []],
+      phone: ['', [Validators.pattern(/^\d{0,15}$/)]],
       active: [true],
       note: ['']
     }, { validators: this.passwordsMatch });
+  }
+
+  onNextStep1(stepper: any): void {
+    this.step1Submitted = true;
+    const step1Controls = ['name', 'username', 'email'];
+    if (!this.isEditing) {
+      step1Controls.push('password', 'confirmPassword');
+    } else {
+      const pwd = this.form.get('password')?.value;
+      const cpwd = this.form.get('confirmPassword')?.value;
+      if (pwd || cpwd) {
+        step1Controls.push('password', 'confirmPassword');
+      }
+    }
+
+    step1Controls.forEach(c => this.form.get(c)?.markAsTouched());
+    this.form.get('joining_date')?.markAsTouched();
+
+    const isInvalid = step1Controls.some(c => this.form.get(c)?.invalid) ||
+                      this.form.hasError('passwordMismatch') ||
+                      !!this.form.get('joining_date')?.invalid;
+    if (isInvalid) {
+      return;
+    }
+    stepper.next();
+  }
+
+  onNextStep2(stepper: any): void {
+    this.step2Submitted = true;
+    const step2Controls = ['institute', 'role'];
+    if (this.form.get('role')?.value === 'user') {
+      step2Controls.push('department', 'team');
+    }
+    step2Controls.forEach(c => this.form.get(c)?.markAsTouched());
+    if (step2Controls.some(c => this.form.get(c)?.invalid)) {
+      return;
+    }
+    stepper.next();
+  }
+
+  preventNonNumericInput(event: KeyboardEvent): void {
+    const allowedKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    const isShortcut = event.ctrlKey || event.metaKey;
+    if (!/^\d$/.test(event.key) && !allowedKeys.includes(event.key) && !isShortcut) {
+      event.preventDefault();
+    }
+  }
+
+  onPhoneInput(event: Event, controlName: string): void {
+    const input = event.target as HTMLInputElement;
+    const numericValue = input.value.replace(/\D/g, '');
+    if (input.value !== numericValue) {
+      input.value = numericValue;
+    }
+    this.form.get(controlName)?.setValue(numericValue, { emitEvent: false });
+  }
+
+  preventNonDateInput(event: KeyboardEvent): void {
+    const allowedKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    const isShortcut = event.ctrlKey || event.metaKey;
+    if (!/^\d$/.test(event.key) && event.key !== '/' && !allowedKeys.includes(event.key) && !isShortcut) {
+      event.preventDefault();
+    }
+  }
+
+  onJoiningDateInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    let val = input.value;
+
+    // Auto-format only if 8 continuous digits are typed without slashes (e.g. 24072026 -> 24/07/2026)
+    const digitsOnly = val.replace(/[^\d]/g, '');
+    if (digitsOnly.length === 8 && !val.includes('/')) {
+      val = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4, 8)}`;
+      input.value = val;
+    }
+
+    this.form.get('joining_date')?.setValue(val, { emitEvent: true });
+  }
+
+  private validateJoiningDate(val: any): void {
+    const ctrl = this.form.get('joining_date');
+    if (!ctrl) return;
+    if (!val) {
+      if (ctrl.hasError('invalidDate')) {
+        const errors = { ...ctrl.errors };
+        delete errors['invalidDate'];
+        ctrl.setErrors(Object.keys(errors).length ? errors : null);
+      }
+      return;
+    }
+    const currentYear = new Date().getFullYear();
+    const minYear = 1950;
+    const maxYear = currentYear + 10;
+
+    if (val instanceof Date) {
+      const year = val.getFullYear();
+      if (isNaN(val.getTime()) || year < minYear || year > maxYear) {
+        ctrl.setErrors({ ...ctrl.errors, invalidDate: true });
+      } else if (ctrl.hasError('invalidDate')) {
+        const errors = { ...ctrl.errors };
+        delete errors['invalidDate'];
+        ctrl.setErrors(Object.keys(errors).length ? errors : null);
+      }
+      return;
+    }
+
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (!trimmed) {
+        if (ctrl.hasError('invalidDate')) {
+          const errors = { ...ctrl.errors };
+          delete errors['invalidDate'];
+          ctrl.setErrors(Object.keys(errors).length ? errors : null);
+        }
+        return;
+      }
+      const ddMmYyyy = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+      const yyyyMmDd = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
+
+      if (ddMmYyyy.test(trimmed)) {
+        const parts = trimmed.split('/');
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+
+        if (year < minYear || year > maxYear) {
+          ctrl.setErrors({ ...ctrl.errors, invalidDate: true });
+          return;
+        }
+
+        const d = new Date(year, month, day);
+        if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day) {
+          ctrl.setErrors({ ...ctrl.errors, invalidDate: true });
+        } else if (ctrl.hasError('invalidDate')) {
+          const errors = { ...ctrl.errors };
+          delete errors['invalidDate'];
+          ctrl.setErrors(Object.keys(errors).length ? errors : null);
+        }
+      } else if (yyyyMmDd.test(trimmed)) {
+        const parts = trimmed.split('-');
+        const year = parseInt(parts[0], 10);
+        if (year < minYear || year > maxYear) {
+          ctrl.setErrors({ ...ctrl.errors, invalidDate: true });
+        } else if (ctrl.hasError('invalidDate')) {
+          const errors = { ...ctrl.errors };
+          delete errors['invalidDate'];
+          ctrl.setErrors(Object.keys(errors).length ? errors : null);
+        }
+      } else {
+        ctrl.setErrors({ ...ctrl.errors, invalidDate: true });
+      }
+    }
   }
 
   ngOnInit(): void {
@@ -312,6 +468,18 @@ export class AdminUserRegisterComponent implements OnInit {
         return;
       }
       this.loadCampusLocation(cid);
+    });
+
+    this.form.get('password')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.form.updateValueAndValidity({ emitEvent: false });
+    });
+
+    this.form.get('confirmPassword')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.form.updateValueAndValidity({ emitEvent: false });
+    });
+
+    this.form.get('joining_date')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((val) => {
+      this.validateJoiningDate(val);
     });
   }
 
@@ -832,9 +1000,35 @@ export class AdminUserRegisterComponent implements OnInit {
 
 
   passwordsMatch(group: FormGroup) {
-    const p = group.get('password')?.value;
-    const c = group.get('confirmPassword')?.value;
-    return p === c ? null : { passwordMismatch: true };
+    const pwd = group.get('password');
+    const confirmPwd = group.get('confirmPassword');
+    if (!pwd || !confirmPwd) return null;
+
+    const p = pwd.value || '';
+    const c = confirmPwd.value || '';
+
+    if (!p && !c) {
+      if (confirmPwd.hasError('passwordMismatch')) {
+        const errors = { ...confirmPwd.errors };
+        delete errors['passwordMismatch'];
+        confirmPwd.setErrors(Object.keys(errors).length ? errors : null);
+      }
+      return null;
+    }
+
+    if (p !== c) {
+      if (!confirmPwd.hasError('passwordMismatch')) {
+        confirmPwd.setErrors({ ...confirmPwd.errors, passwordMismatch: true });
+      }
+      return { passwordMismatch: true };
+    } else {
+      if (confirmPwd.hasError('passwordMismatch')) {
+        const errors = { ...confirmPwd.errors };
+        delete errors['passwordMismatch'];
+        confirmPwd.setErrors(Object.keys(errors).length ? errors : null);
+      }
+      return null;
+    }
   }
 
   back() {

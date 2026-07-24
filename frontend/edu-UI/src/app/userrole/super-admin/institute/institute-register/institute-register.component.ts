@@ -55,6 +55,7 @@ const headOfficeOrCampusRequiredValidator: ValidatorFn = (control: AbstractContr
 export class InstituteRegisterComponent {
   private explicitSubmitRequested = false;
   // keep the original institute id when editing so we can send it in update payload
+  step1Submitted: boolean = false;
   editingInstituteId: string | null = null;
   headOfficeCampusId: string | null = null;
   // index of the expansion panel that should be expanded (helps open newly added campus)
@@ -69,28 +70,27 @@ export class InstituteRegisterComponent {
       city: [''],
       state: [''],
       country: [''],
-      email: ['', Validators.email],
+      email: ['', [Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
       phone: ['', [Validators.pattern(/^\d{0,15}$/)]],
       website: ['']
     }),
     // pincode: ['', [Validators.required, Validators.pattern('^[0-9A-Za-z -]{3,10}$')]],
     // kept for backwards compatibility but not required (headOffice.country is used in the form)
     country: [''],
-    contact_email: ['', [Validators.email]],
+    contact_email: ['', [Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
     contact_phone: ['', [Validators.pattern(/^\+?[0-9\s\-()]{7,20}$/)]],
     primary_contact_phone: ['', [Validators.pattern(/^\d{7,15}$/)]],
-    website: ['', [Validators.pattern('.+')]], //['', [Validators.pattern('https?://.+')]],
+    website: ['', [Validators.pattern('.+')]],
     primary_contact_person: ['', Validators.required],
-    primary_contact_email: ['', [Validators.required, Validators.email]],
-    // Use null for empty select values so Material does not treat a blank option as selected.
+    primary_contact_email: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
     industry_type: [null as string | null, Validators.required],
     industry_sector: [{ value: null as string | null, disabled: true }, Validators.required],
-    department: [''],
-    branch: [''],
-    team: [''],
-    max_users: [null, [Validators.min(1)]],
-    subscription_start: [null, Validators.required],
-    subscription_end: [null, Validators.required],
+    department: ['' as string | null],
+    branch: ['' as string | null],
+    team: ['' as string | null],
+    max_users: [null as number | null, [Validators.min(1)]],
+    subscription_start: [null as Date | null, Validators.required],
+    subscription_end: [null as Date | null, Validators.required],
     active: [true],
     campuses: this.fb.array([])
   }, { validators: [subscriptionDateRangeValidator, headOfficeOrCampusRequiredValidator] });
@@ -211,6 +211,7 @@ export class InstituteRegisterComponent {
   }
 
   goToIndustry(stepper: MatStepper) {
+    this.step1Submitted = true;
     const stepOneControls = [
       this.form.controls.name,
       this.form.controls.short_name,

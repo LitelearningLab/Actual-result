@@ -36,13 +36,14 @@
                   <mat-label>Name</mat-label>
                   <mat-icon matPrefix>domain</mat-icon>
                   <input matInput formControlName="name" placeholder="Full institute name" />
+                  <mat-error *ngIf="(form.controls['name'].touched || step1Submitted) && form.controls['name'].hasError('required')">Name is required</mat-error>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Short Name</mat-label>
                   <mat-icon matPrefix>badge</mat-icon>
                   <input matInput formControlName="short_name" placeholder="Short name / code" />
-                  <mat-error *ngIf="form.controls['short_name'].hasError('required')">Short name is required</mat-error>
+                  <mat-error *ngIf="(form.controls['short_name'].touched || step1Submitted) && form.controls['short_name'].hasError('required')">Short name is required</mat-error>
                 </mat-form-field>
               </div>
 
@@ -50,16 +51,16 @@
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Primary Contact Person (Admin)</mat-label>
                   <mat-icon matPrefix>person</mat-icon>
-                  <input matInput formControlName="primary_contact_person" placeholder="Enter your number" />
-                  <mat-error *ngIf="form.controls['primary_contact_person'].hasError('required')">Contact person is required</mat-error>
+                  <input matInput formControlName="primary_contact_person" placeholder="Enter name" />
+                  <mat-error *ngIf="(form.controls['primary_contact_person'].touched || step1Submitted) && form.controls['primary_contact_person'].hasError('required')">Contact person is required</mat-error>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="field-half">
                   <mat-label>Primary Contact Email (Admin)</mat-label>
                   <mat-icon matPrefix>email</mat-icon>
-                  <input matInput formControlName="primary_contact_email" placeholder="admin@example.com" />
-                  <mat-error *ngIf="form.controls['primary_contact_email'].hasError('required')">Email is required</mat-error>
-                  <mat-error *ngIf="form.controls['primary_contact_email'].hasError('email')">Enter a valid email</mat-error>
+                  <input matInput formControlName="primary_contact_email" placeholder="text@safd.com" />
+                  <mat-error *ngIf="(form.controls['primary_contact_email'].touched || step1Submitted) && form.controls['primary_contact_email'].hasError('required')">Email is required</mat-error>
+                  <mat-error *ngIf="(form.controls['primary_contact_email'].touched || step1Submitted) && (form.controls['primary_contact_email'].hasError('email') || form.controls['primary_contact_email'].hasError('pattern'))">Enter a valid email (e.g. text@safd.com)</mat-error>
                 </mat-form-field>
               </div>
 
@@ -68,13 +69,10 @@
                   <mat-label>Primary Contact Phone</mat-label>
                   <mat-icon matPrefix>phone</mat-icon>
                   <input matInput formControlName="primary_contact_phone" placeholder="Enter phone number"
-                    inputmode="numeric" pattern="[0-9]*" maxlength="15" (input)="onPrimaryPhoneInput($event)"
-                    (keydown)="onPrimaryPhoneKeydown($event)" />
-                  <mat-error *ngIf="form.controls['primary_contact_phone'].hasError('invalidCharacter')">
-                    Only numbers are allowed
-                  </mat-error>
-                  <mat-error *ngIf="!form.controls['primary_contact_phone'].hasError('invalidCharacter') && form.controls['primary_contact_phone'].hasError('pattern')">
-                    Enter a valid phone number using 7 to 15 digits
+                    inputmode="numeric" pattern="[0-9]*" maxlength="15" (input)="onNumericPhoneInput($event, form.controls['primary_contact_phone'])"
+                    (keydown)="preventNonNumericPhoneInput($event)" />
+                  <mat-error *ngIf="(form.controls['primary_contact_phone'].touched || step1Submitted) && (form.controls['primary_contact_phone'].hasError('invalidCharacter') || form.controls['primary_contact_phone'].hasError('pattern'))">
+                    Only numbers are allowed (7 to 15 digits)
                   </mat-error>
                 </mat-form-field>
 
@@ -330,7 +328,7 @@
 
                     <div class="field-row compact-row">
                       <mat-form-field appearance="outline" class="field-third head-office-control">
-                        <mat-label>Pincode</mat-label>
+                    <mat-label>Pincode</mat-label>
                         <mat-icon matPrefix>pin_drop</mat-icon>
                         <input matInput formControlName="pincode" placeholder="Pincode / ZIP" />
                       </mat-form-field>
@@ -338,8 +336,8 @@
                       <mat-form-field appearance="outline" class="field-third head-office-control">
                         <mat-label>Head Office Email</mat-label>
                         <mat-icon matPrefix>email</mat-icon>
-                        <input matInput formControlName="email" placeholder="info@example.com" />
-                        <mat-error *ngIf="form.get('headOffice.email')?.hasError('email')">Enter a valid email</mat-error>
+                        <input matInput formControlName="email" placeholder="text@safd.com" />
+                        <mat-error *ngIf="form.get('headOffice.email')?.hasError('email') || form.get('headOffice.email')?.hasError('pattern')">Enter a valid email (e.g. text@safd.com)</mat-error>
                       </mat-form-field>
 
                       <mat-form-field appearance="outline" class="field-third head-office-control">
@@ -408,8 +406,8 @@
                             <mat-form-field appearance="outline" class="field-half">
                               <mat-label>Contact Email</mat-label>
                               <mat-icon matPrefix>email</mat-icon>
-                              <input matInput formControlName="email" placeholder="email@example.com" />
-                              <mat-error *ngIf="c.get('email')?.hasError('email')">Enter a valid email</mat-error>
+                              <input matInput formControlName="email" placeholder="text@safd.com" />
+                              <mat-error *ngIf="c.get('email')?.hasError('email') || c.get('email')?.hasError('pattern')">Enter a valid email (e.g. text@safd.com)</mat-error>
                             </mat-form-field>
                             <mat-form-field appearance="outline" class="field-half">
                               <mat-label>Contact Phone</mat-label>

@@ -480,7 +480,7 @@
                     <mat-label>Full Name*</mat-label>
                     <mat-icon matPrefix>person</mat-icon>
                     <input matInput id="user_name" formControlName="name" placeholder="Full name" aria-label="Full Name" />
-                    <mat-error *ngIf="form.get('name')?.touched && form.get('name')?.invalid">Full name is required</mat-error>
+                    <mat-error *ngIf="(form.get('name')?.touched || step1Submitted) && form.get('name')?.invalid">Full name is required</mat-error>
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="field-half">
@@ -490,7 +490,7 @@
                     </mat-label>
                     <mat-icon matPrefix>badge</mat-icon>
                     <input matInput id="user_username" formControlName="username" placeholder="username" aria-label="User Name" />
-                    <mat-error *ngIf="form.get('username')?.touched && form.get('username')?.invalid">User name is required</mat-error>
+                    <mat-error *ngIf="(form.get('username')?.touched || step1Submitted) && form.get('username')?.invalid">User name is required</mat-error>
                   </mat-form-field>
                 </div>
 
@@ -498,15 +498,16 @@
                   <mat-form-field appearance="outline" class="field-half">
                     <mat-label>Email*</mat-label>
                     <mat-icon matPrefix>email</mat-icon>
-                    <input matInput id="user_email" formControlName="email" placeholder="email@example.com" aria-label="Email" />
-                    <mat-error *ngIf="form.get('email')?.touched && form.get('email')?.hasError('required')">Email is required</mat-error>
-                    <mat-error *ngIf="form.get('email')?.touched && form.get('email')?.hasError('email')">Enter a valid email</mat-error>
+                    <input matInput id="user_email" formControlName="email" placeholder="text@safd.com" aria-label="Email" />
+                    <mat-error *ngIf="(form.get('email')?.touched || step1Submitted) && form.get('email')?.hasError('required')">Email is required</mat-error>
+                    <mat-error *ngIf="(form.get('email')?.touched || step1Submitted) && (form.get('email')?.hasError('email') || form.get('email')?.hasError('pattern'))">Enter a valid email (e.g. text@safd.com)</mat-error>
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="field-half">
                     <mat-label>Phone (optional)</mat-label>
                     <mat-icon matPrefix>phone</mat-icon>
-                    <input matInput id="user_phone" formControlName="phone" aria-label="Phone" />
+                    <input matInput id="user_phone" formControlName="phone" aria-label="Phone" inputmode="numeric" pattern="[0-9]*" maxlength="15" (keydown)="preventNonNumericInput($event)" (input)="onPhoneInput($event, 'phone')" placeholder="Enter phone number" />
+                    <mat-error *ngIf="(form.get('phone')?.touched || step1Submitted) && form.get('phone')?.hasError('pattern')">Only numbers are allowed</mat-error>
                   </mat-form-field>
                 </div>
 
@@ -518,7 +519,8 @@
                     <button mat-icon-button matSuffix type="button" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" [matTooltip]="showPassword ? 'Hide password' : 'Show password'" (click)="showPassword = !showPassword">
                       <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
                     </button>
-                    <mat-error *ngIf="form.get('password')?.touched && form.get('password')?.invalid">Password (min 6 chars) is required</mat-error>
+                    <mat-error *ngIf="(form.get('password')?.touched || step1Submitted) && form.get('password')?.hasError('required')">Password is required</mat-error>
+                    <mat-error *ngIf="(form.get('password')?.touched || step1Submitted) && form.get('password')?.hasError('minlength') && !form.get('password')?.hasError('required')">Password must be at least 6 characters</mat-error>
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="field-half">
@@ -528,7 +530,8 @@
                     <button mat-icon-button matSuffix type="button" [attr.aria-label]="showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'" [matTooltip]="showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'" (click)="showConfirmPassword = !showConfirmPassword">
                       <mat-icon>{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
                     </button>
-                    <mat-error *ngIf="form.hasError('passwordMismatch') && (form.get('confirmPassword')?.touched)">Passwords do not match</mat-error>
+                    <mat-error *ngIf="(form.get('confirmPassword')?.touched || step1Submitted) && form.get('confirmPassword')?.hasError('required')">Confirm password is required</mat-error>
+                    <mat-error *ngIf="(form.get('confirmPassword')?.touched || step1Submitted) && !form.get('confirmPassword')?.hasError('required') && (form.hasError('passwordMismatch') || form.get('confirmPassword')?.hasError('passwordMismatch'))">Passwords do not match</mat-error>
                   </mat-form-field>
                 </div>
 
@@ -536,9 +539,10 @@
                   <mat-form-field appearance="outline" class="field-half">
                     <mat-label>Joining date</mat-label>
                     <mat-icon matPrefix>calendar_today</mat-icon>
-                    <input matInput [matDatepicker]="joiningDatePicker" type="text" id="joining_date" formControlName="joining_date" placeholder="dd/mm/yyyy" aria-label="Joining date" />
+                    <input matInput [matDatepicker]="joiningDatePicker" type="text" id="joining_date" formControlName="joining_date" placeholder="DD/MM/YYYY" aria-label="Joining date" maxlength="10" (keydown)="preventNonDateInput($event)" (input)="onJoiningDateInput($event)" />
                     <mat-datepicker-toggle matSuffix [for]="joiningDatePicker"></mat-datepicker-toggle>
                     <mat-datepicker #joiningDatePicker></mat-datepicker>
+                    <mat-error *ngIf="(form.get('joining_date')?.touched || step1Submitted) && (form.get('joining_date')?.hasError('matDatepickerParse') || form.get('joining_date')?.hasError('invalidDate'))">Enter a valid date in DD/MM/YYYY format</mat-error>
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="field-half">
@@ -554,7 +558,7 @@
 
               <div class="form-actions right-only">
                 <span></span>
-                <button mat-flat-button color="primary" matStepperNext type="button" class="next-btn">
+                <button mat-flat-button color="primary" type="button" class="next-btn" (click)="onNextStep1(stepper)">
                   <span>Next</span>
                   <mat-icon>arrow_forward</mat-icon>
                 </button>
@@ -584,7 +588,7 @@
                       <mat-option value="">Select institute</mat-option>
                       <mat-option *ngFor="let i of institutes" [value]="i.id">{{i.name}}</mat-option>
                     </mat-select>
-                    <mat-error *ngIf="form.get('institute')?.touched && form.get('institute')?.invalid">Institute is required</mat-error>
+                    <mat-error *ngIf="(form.get('institute')?.touched || step2Submitted) && form.get('institute')?.invalid">Institute is required</mat-error>
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="field-half">
@@ -594,7 +598,7 @@
                       <mat-option value="">Select role</mat-option>
                       <mat-option *ngFor="let r of availableRoles" [value]="r.value">{{r.label}}</mat-option>
                     </mat-select>
-                    <mat-error *ngIf="form.get('role')?.touched && form.get('role')?.invalid">Role is required</mat-error>
+                    <mat-error *ngIf="(form.get('role')?.touched || step2Submitted) && form.get('role')?.invalid">Role is required</mat-error>
                   </mat-form-field>
                 </div>
               </div>
@@ -655,7 +659,7 @@
                       <mat-option *ngIf="!departmentsLoading && (!departments || departments.length === 0)" disabled>No departments</mat-option>
                     </mat-select>
                     <mat-hint *ngIf="departmentsLoading">Loading departments…</mat-hint>
-                    <mat-error *ngIf="form.get('department')?.touched && form.get('department')?.invalid">Department is required for students</mat-error>
+                    <mat-error *ngIf="(form.get('department')?.touched || step2Submitted) && form.get('department')?.invalid">Department is required for students</mat-error>
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="field-half">
@@ -665,7 +669,7 @@
                       <mat-option value="">Select team</mat-option>
                       <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
                     </mat-select>
-                    <mat-error *ngIf="form.get('team')?.touched && form.get('team')?.invalid">Team is required for students</mat-error>
+                    <mat-error *ngIf="(form.get('team')?.touched || step2Submitted) && form.get('team')?.invalid">Team is required for students</mat-error>
                   </mat-form-field>
                 </div>
               </div>
@@ -675,7 +679,7 @@
                   <mat-icon>arrow_back</mat-icon>
                   <span>Back</span>
                 </button>
-                <button mat-flat-button color="primary" matStepperNext type="button" class="next-btn">
+                <button mat-flat-button color="primary" type="button" class="next-btn" (click)="onNextStep2(stepper)">
                   <span>Next</span>
                   <mat-icon>arrow_forward</mat-icon>
                 </button>
