@@ -3,7 +3,7 @@
     <div class="search">
       <mat-form-field appearance="outline" class="search-field">
         <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
-        <input matInput placeholder="Search within filtered results" [(ngModel)]="filter"
+        <input matInput placeholder="First filter users, then search within results for name" [(ngModel)]="filter"
           (ngModelChange)="applyFilter($event)" aria-label="Search users" />
         <button mat-icon-button matSuffix *ngIf="filter" (click)="filter = ''; applyFilter('')"
           aria-label="Clear search">
