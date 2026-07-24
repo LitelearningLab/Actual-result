@@ -448,12 +448,13 @@
 
       <!-- Bulk Tab Footer Action Buttons -->
       <div class="bulk-footer-actions">
-        <button mat-flat-button color="primary" type="button" class="btn-skip" (click)="bulkMode = false" [disabled]="bulkNextDisabled">
+        <button mat-flat-button color="primary" type="button" class="btn-skip" (click)="bulkMode = false">
           Skip
         </button>
-        <button mat-flat-button color="primary" type="button" class="btn-next" (click)="bulkMode = false" [disabled]="bulkNextDisabled">
-          <span>Next</span>
-          <mat-icon>arrow_forward</mat-icon>
+        <button mat-flat-button color="primary" type="button" class="btn-register" (click)="uploadBulk()" [disabled]="bulkNextDisabled">
+          <mat-icon *ngIf="!bulkUploading">how_to_reg</mat-icon>
+          <mat-icon *ngIf="bulkUploading">autorenew</mat-icon>
+          <span>{{ bulkUploading ? 'Registering...' : (bulkValidRows.length > 0 && bulkInvalidRows.length === 0 ? 'Register (' + bulkValidRows.length + ' Users)' : 'Register') }}</span>
         </button>
       </div>
     </div>
