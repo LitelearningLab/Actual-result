@@ -2,11 +2,65 @@ from db.models import Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt,
 from db.db import SQLiteDB
 from others.exam_review import finalize_expired_attempts, is_after_everyone_finished_available, is_review_eligible_attempt, validate_answers
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from db.models import Institute, User
 from sqlalchemy import or_
 from sqlalchemy.orm import load_only
 import random
+
+
+def _to_naive_utc_datetime(val):
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        if val.tzinfo is not None:
+            return val.astimezone(timezone.utc).replace(tzinfo=None)
+        return val
+    if isinstance(val, str):
+        try:
+            parsed = datetime.fromisoformat(val.replace('Z', '+00:00'))
+            if parsed.tzinfo is not None:
+                parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+            return parsed
+        except Exception:
+            return None
+    return None
+
+
+def is_exam_active_or_attended(session, exam_id):
+    """
+    Checks if an exam has already been scheduled and is currently active or is being attended by one or more users.
+    Returns True if active or attended, False otherwise.
+    """
+    now = datetime.utcnow()
+    
+    schedules = session.query(ExamSchedule).filter(
+        ExamSchedule.exam_id == exam_id,
+        or_(ExamSchedule.is_deleted == False, ExamSchedule.is_deleted == None, ExamSchedule.is_deleted == 0)
+    ).all()
+    
+    if not schedules:
+        return False
+        
+    schedule_ids = [s.schedule_id for s in schedules if s.schedule_id]
+    
+    # 1. Check if currently active (start_time <= now <= end_time)
+    for s in schedules:
+        st = _to_naive_utc_datetime(s.start_time)
+        et = _to_naive_utc_datetime(s.end_time)
+        if st and et and st <= now <= et:
+            return True
+            
+    # 2. Check if attended by one or more users
+    if schedule_ids:
+        attempt_count = session.query(Exam_Attempt).filter(
+            Exam_Attempt.schedule_id.in_(schedule_ids)
+        ).count()
+        if attempt_count > 0:
+            return True
+            
+    return False
+
 
 
 def safe_isoformat(val):
@@ -192,6 +246,12 @@ def update_exam(request):
         exam = session.query(Exam).filter(Exam.exam_id == exam_id).first()
         if not exam:
             return {"statusMessage": "Exam not found", "status": False}, 404
+
+        if is_exam_active_or_attended(session, exam_id):
+            return {
+                "statusMessage": "This test cannot be edited because it is currently active or is being attended by users.",
+                "status": False
+            }, 400
 
         # update scalar fields
         exam.title = data.get('title', exam.title)
@@ -384,12 +444,15 @@ def get_exam_details(request):
                 if updated_user:
                     updated_user_name = updated_user.full_name
 
+            active_or_attended = is_exam_active_or_attended(session, exam.exam_id)
+            is_editable = not active_or_attended
+
             exam_list.append({
                 "exam_id": exam.exam_id,
                 "title": exam.title,
                 "institute": {
                     "institute_id": exam.institute_id,
-                    "institute_name": Institute_data.name,
+                    "institute_name": Institute_data.name if Institute_data else "",
                 },
                 "categories": category_list,
                 "description": exam.description,
@@ -404,7 +467,8 @@ def get_exam_details(request):
                 "created_by": created_user_name,
                 "created_date": exam.created_date,
                 "updated_by": updated_user_name,
-                "updated_date": exam.updated_date
+                "updated_date": exam.updated_date,
+                "is_editable": is_editable
             })
     # institute_id	start_time	end_time	created_by	created_date	updated_by	updated_date	published
         json_data = {

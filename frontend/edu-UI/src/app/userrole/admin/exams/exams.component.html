@@ -204,6 +204,15 @@
                                 title="View exam">
                                 <mat-icon svgIcon="view"></mat-icon>
                             </button>
+                            <button *hasAccess="'Exams'; hasAccessAction: 'edit'" 
+                                mat-icon-button 
+                                color="accent" 
+                                (click)="onEdit(e)"
+                                aria-label="Edit exam"
+                                title="Edit exam"
+                                class="edit-btn">
+                                <mat-icon svgIcon="edit"></mat-icon>
+                            </button>
                             <button *hasAccess="'Exams'; hasAccessAction: 'delete'" 
                                 mat-icon-button 
                                 color="warn" 

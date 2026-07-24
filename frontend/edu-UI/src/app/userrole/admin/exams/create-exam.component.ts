@@ -217,6 +217,13 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       if (!raw) return;
       const e = JSON.parse(raw);
       if (!e) return;
+      if (e.is_editable === false || e.editable === false) {
+        const msg = "This test cannot be edited because it is currently active or is being attended by users.";
+        try { notify(msg, 'error'); } catch (_) {}
+        try { sessionStorage.removeItem('edit_exam'); } catch (_) {}
+        this.router.navigate(['/exams']);
+        return;
+      }
       this.editMode = true;
       this.editExamId = e.exam_id || e.test_id || e.id || null;
       this.title = e.title || e.name || '';

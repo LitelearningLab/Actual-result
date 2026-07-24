@@ -255,7 +255,23 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     const marks = Array.from(new Set((questions || []).map((q: any) => this.getMarksPerQuestion(q)).filter((v: number | null) => v !== null))) as number[];
     return marks.length === 1 ? marks[0] : null;
   }
+
+  showNotEditablePopup() {
+    const message = "This test cannot be edited because it is currently active or is being attended by users.";
+    this.confirmService.confirm({
+      title: 'Cannot Edit Test',
+      message: message,
+      confirmText: 'OK',
+      cancelText: ''
+    }).subscribe();
+    try { notify(message, 'error'); } catch (e) {}
+  }
+
   onEdit(e: any) {
+    if (e && (e.is_editable === false || e.editable === false)) {
+      this.showNotEditablePopup();
+      return;
+    }
     // If we have an id for the exam, fetch the full exam details from the API
     const examId = e?.test_id || e?.exam_id || e?.id;
     if (examId) {
@@ -263,6 +279,10 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       this.http.get<any>(url).subscribe({
         next: (res) => {
           const item = Array.isArray(res?.data) && res.data.length ? res.data[0] : (res?.data || res?.item || e);
+          if (item && (item.is_editable === false || item.editable === false)) {
+            this.showNotEditablePopup();
+            return;
+          }
           // normalize categories to the flat shape expected by CreateExamComponent.loadEditTest()
           const srcCats = Array.isArray(item.categories) ? item.categories : (Array.isArray(item.category_list) ? item.category_list : []);
           const mapped = srcCats.map((c: any) => {
