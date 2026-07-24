@@ -893,6 +893,24 @@ export class AdminUserRegisterComponent implements OnInit {
     const f = ev?.target?.files?.[0] || null;
     this.bulkFile = f;
     this.bulkUploadResult = null;
+    this.bulkValidated = false;
+    this.bulkValidationReport = null;
+    this.bulkPreviewRows = [];
+  }
+
+  clearBulkFile(ev?: MouseEvent) {
+    if (ev) {
+      ev.stopPropagation();
+    }
+    this.bulkFile = null;
+    this.bulkUploadResult = null;
+    this.bulkValidated = false;
+    this.bulkValidationReport = null;
+    this.bulkPreviewRows = [];
+    const el = document.getElementById('bulkFileInput') as HTMLInputElement | null;
+    if (el) {
+      el.value = '';
+    }
   }
 
   triggerBulkFileSelect() {

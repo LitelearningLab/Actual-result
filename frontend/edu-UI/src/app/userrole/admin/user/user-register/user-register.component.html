@@ -56,8 +56,14 @@
                     <input matInput readonly [value]="bulkFile?.name || ''"
                       placeholder="Select or drop a .csv/.xlsx/.xls file"
                       (click)="$event.stopPropagation(); triggerBulkFileSelect()" />
-                    <button mat-icon-button matSuffix type="button"
-                      (click)="$event.stopPropagation(); triggerBulkFileSelect()">
+                    <button mat-icon-button matSuffix type="button" *ngIf="bulkFile"
+                      (click)="$event.stopPropagation(); clearBulkFile($event)"
+                      matTooltip="Remove selected file" aria-label="Remove selected file" class="clear-file-btn">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                    <button mat-icon-button matSuffix type="button" *ngIf="!bulkFile"
+                      (click)="$event.stopPropagation(); triggerBulkFileSelect()"
+                      matTooltip="Attach file" aria-label="Attach file">
                       <mat-icon>attach_file</mat-icon>
                     </button>
                   </mat-form-field>
