@@ -526,18 +526,19 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 .table-wrap {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: max(32rem, calc(100vh - 280px));
+  max-height: calc(100vh - 430px);
+  min-height: 16rem;
   padding: 0 1rem 1rem;
   scrollbar-width: thin;
-  scrollbar-color: rgba(99,102,241,0.35) transparent;
+  scrollbar-color: rgba(99, 102, 241, 0.45) rgba(0, 0, 0, 0.03);
   
   &::-webkit-scrollbar {
     width: 0.5rem;
     height: 0.5rem;
   }
-  &::-webkit-scrollbar-track { background: rgba(0,0,0,0.02); }
-  &::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.35); border-radius: 0.25rem; }
-  &::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.6); }
+  &::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); border-radius: 0.25rem; }
+  &::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.45); border-radius: 0.25rem; }
+  &::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.7); }
 }
 
 .analytics-table-footer {
@@ -584,7 +585,7 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 
 // ── Analytics section ──
 .analytics-section { padding:1.25rem; display:flex; flex-direction:column; gap:1.125rem; }
-.analytics-section .table-wrap { max-height: max(32rem, calc(100vh - 280px)); overflow-x:auto; overflow-y:auto; border-radius:0.625rem; box-shadow:$shadow-sm; border:0.0625rem solid var(--theme-3-border); }
+.analytics-section .table-wrap { max-height: calc(100vh - 430px); min-height: 16rem; overflow-x:auto; overflow-y:auto; border-radius:0.625rem; box-shadow:$shadow-sm; border:0.0625rem solid var(--theme-3-border); }
 
 // ── Pager ──
 .pager { display:flex; align-items:center; justify-content:center; gap:1rem; padding:0.875rem 1.25rem; border-top:0.0625rem solid var(--theme-3-border); font-size:0.8125rem; font-weight:600; letter-spacing:0.01em; background:linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%); color:var(--theme-3-text-2); }
