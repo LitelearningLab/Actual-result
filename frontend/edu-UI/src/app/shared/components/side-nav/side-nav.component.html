@@ -8,7 +8,12 @@
         </div>
         <button class="collapse-toggle" (click)="toggleCollapse()"
             [attr.aria-expanded]="!collapsed"
-            [attr.aria-label]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+            [attr.aria-label]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+            [matTooltip]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+            [matTooltipDisabled]="!collapsed"
+            matTooltipPosition="right"
+            matTooltipClass="sidenav-stylish-tooltip"
+            matTooltipShowDelay="100">
             <mat-icon class="collapse-icon">{{ collapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
         </button>
     </div>
@@ -26,7 +31,12 @@
                     (click)="onMenuClick(m)"
                     [ngClass]="{ 'active': selectedMenu === m.label }"
                     [attr.aria-current]="selectedMenu === m.label ? 'page' : null"
-                    [attr.data-tooltip]="m.label">
+                    [attr.data-tooltip]="m.label"
+                    [matTooltip]="m.label"
+                    [matTooltipDisabled]="!collapsed"
+                    matTooltipPosition="right"
+                    matTooltipClass="sidenav-stylish-tooltip"
+                    matTooltipShowDelay="100">
                     <span class="menu-icon-wrap">
                         <mat-icon class="menu-icon" svgIcon="{{ m.icon }}"></mat-icon>
                     </span>
@@ -42,7 +52,12 @@
                     (click)="onMenuClick(m)"
                     [ngClass]="{ 'active': selectedMenu === m.label }"
                     [attr.aria-current]="selectedMenu === m.label ? 'page' : null"
-                    [attr.data-tooltip]="m.label">
+                    [attr.data-tooltip]="m.label"
+                    [matTooltip]="m.label"
+                    [matTooltipDisabled]="!collapsed"
+                    matTooltipPosition="right"
+                    matTooltipClass="sidenav-stylish-tooltip"
+                    matTooltipShowDelay="100">
                     <span class="menu-icon-wrap">
                         <mat-icon class="menu-icon" svgIcon="{{ m.icon || 'menu' }}"></mat-icon>
                     </span>

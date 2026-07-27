@@ -5,13 +5,14 @@ import { filter, Subscription } from 'rxjs';
 import { AuthService } from '../../../home/service/auth.service';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { DirectivesModule } from 'src/app/shared/directives/directives.module';
 import { IconModule } from '../../icons/icon.module';
 
 @Component({
   selector: 'app-side-nav',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatIconModule, DirectivesModule, IconModule, MatButtonModule],
+  imports: [CommonModule, RouterModule, MatIconModule, DirectivesModule, IconModule, MatButtonModule, MatTooltipModule],
   templateUrl: './side-nav.component.html',
   styleUrls: ['./side-nav.component.scss']
 })

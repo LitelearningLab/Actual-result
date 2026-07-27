@@ -601,3 +601,33 @@ button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon {
   transform: rotate(90deg) !important;
 }
 
+/* -------------------------------------
+ * STYLISH SIDE NAV TOOLTIP
+ * -----------------------------------*/
+.cdk-overlay-pane:has(.sidenav-stylish-tooltip) {
+  pointer-events: none !important;
+}
+
+.mat-mdc-tooltip.sidenav-stylish-tooltip,
+.sidenav-stylish-tooltip {
+  --mdc-plain-tooltip-container-shape: 6px;
+  --mdc-plain-tooltip-container-background-color: transparent;
+  
+  .mdc-tooltip__surface,
+  &.mdc-tooltip__surface {
+    background: var(--theme-1, #374151) !important;
+    color: var(--theme-1-text-1, #ffffff) !important;
+    font-family: inherit !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.015em !important;
+    padding: 0.375rem 0.75rem !important;
+    border-radius: 0.375rem !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.08) inset !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    white-space: nowrap !important;
+    position: relative !important;
+    overflow: visible !important;
+    line-height: 1.4 !important;
+  }
+}
