@@ -413,6 +413,9 @@
                                                   </tr>
                                              </table>
                                              </div>
+                                             <div class="analytics-table-footer" *ngIf="questionSummary && questionSummary.length">
+                                                  <span>Total {{ activeQuestionCount }} {{ activeQuestionCount === 1 ? 'question' : 'questions' }} loaded</span>
+                                             </div>
                                         </div>
                                    </mat-tab>
                               </mat-tab-group>

@@ -222,14 +222,29 @@ def get_exam_analytics(request):
 
         # question summary
         question_summary = []
-        # gather all question ids from Answer table for this schedule
-        question_ids = session.query(Answer.question_id).filter(Answer.schedule_id == schedule_id).distinct().all()
-        question_ids = [qid[0] for qid in question_ids]
+        
+        # 1. Questions mapped directly to this exam (fixed questions)
+        eqm_qids = [qm.question_id for qm in session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == exam_id).all()]
 
-        # qmap = session.query(ExamQuestionMapping).filter(ExamQuestionMapping.exam_id == exam_id).all()
-        # question_ids = [qm.question_id for qm in qmap]
+        # 2. Questions from categories mapped to this exam (category pool)
+        cat_ids = [m.category_id for m in mappings if m.category_id]
+        cat_qids = []
+        if cat_ids:
+            cat_qids = [qm.question_id for qm in session.query(QuestionMapping.question_id).filter(QuestionMapping.category_id.in_(cat_ids)).all()]
 
-        # include mapping number_of_questions for randomize cases by pulling questions from QuestionMapping if necessary
+        # 3. Questions answered for this schedule
+        ans_qids = [qid[0] for qid in session.query(Answer.question_id).filter(Answer.schedule_id == schedule_id).distinct().all()]
+
+        # Combine all question IDs while preserving uniqueness and order
+        combined_qids = []
+        seen_qids = set()
+        for qid in eqm_qids + cat_qids + ans_qids:
+            if qid and qid not in seen_qids:
+                seen_qids.add(qid)
+                combined_qids.append(qid)
+
+        question_ids = combined_qids
+
         for idx, qid in enumerate(question_ids, start=1):
             qobj = session.query(Question).filter(Question.question_id == qid).first()
             if not qobj:
@@ -237,12 +252,10 @@ def get_exam_analytics(request):
             # fetch category name (single query) for this question within the exam
             try:
                 category_data = session.query(Categories).join(
-                    ExamMapping, ExamMapping.category_id == Categories.category_id
-                ).join(
-                    QuestionMapping, QuestionMapping.category_id == Categories.category_id).filter(
-                    ExamMapping.exam_id == exam_id,
+                    QuestionMapping, QuestionMapping.category_id == Categories.category_id
+                ).filter(
                     QuestionMapping.question_id == qid
-                ).scalar()
+                ).first()
                 category_name = category_data.name if category_data else None
                 category_id = category_data.category_id if category_data else None
             except Exception:
