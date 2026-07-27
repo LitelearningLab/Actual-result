@@ -106,6 +106,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return (this.filteredQuestionSummary && this.filteredQuestionSummary.length ? this.filteredQuestionSummary : this.questionSummary || []).length;
   }
 
+  selectedCategoryFilterName: string = '';
+
   /**
    * Open question summary filtered to a specific category. If analytics data isn't loaded yet,
    * request it first and apply a pending filter.
@@ -114,6 +116,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if(!category) return;
     const cid = String(category.category_id || category.id || category._id || category.categoryId || '');
     if(!cid) return;
+    this.selectedCategoryFilterName = category.category_name || category.name || 'Selected Category';
     // ensure main tab is analytics
     this.activeMainTabIndex = 1;
     // if question summary already loaded, filter immediately
@@ -125,6 +128,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     // otherwise, request analytics and apply filter after load
     this._pendingCategoryFilter = cid;
     this.loadAnalytics();
+  }
+
+  clearCategoryFilter(){
+    this.filteredQuestionSummary = [];
+    this.selectedCategoryFilterName = '';
+    this._pendingCategoryFilter = null;
   }
 
   private filtersOverlayRef: OverlayRef | null = null;
