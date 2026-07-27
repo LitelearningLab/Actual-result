@@ -226,10 +226,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   retryEvaluation(q: any, attempt: any): void {
     const attemptId = attempt?.attempt_id;
-    if (!attemptId || q?._retryingEvaluation) return;
-    q._retryingEvaluation = true;
+    if (!attemptId || q?._retryingEvaluation || attempt?._retryingEvaluation) return;
+    attempt._retryingEvaluation = true;
+    if (q) q._retryingEvaluation = true;
     this.http.post<any>(`${API_BASE}/validate-answers/${attemptId}`, {}).subscribe({
       next: (res) => {
+        attempt._retryingEvaluation = false;
+        if (q) q._retryingEvaluation = false;
         const message = res?.status === false
           ? (res?.statusMessage || 'AI evaluation could not be completed.')
           : 'AI evaluation completed.';
@@ -237,11 +240,20 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         if (this.currentReviewParams) this.fetchUserReview(this.currentReviewParams);
       },
       error: (err) => {
-        q._retryingEvaluation = false;
+        attempt._retryingEvaluation = false;
+        if (q) q._retryingEvaluation = false;
         const message = err?.error?.statusMessage || 'AI evaluation could not be completed.';
         this._snack.open(message, 'Close', { duration: 5000 });
       }
     });
+  }
+
+  hasPendingEvaluation(attempt: any): boolean {
+    const questions = attempt?.review || attempt?.questions || [];
+    return questions.some((q: any) =>
+      (q.question_type || q.type) === 'descriptive' &&
+      (q.evaluation_status === 'pending' || q.evaluation_status === 'failed')
+    );
   }
 
   private fetchUserReview(params: any){

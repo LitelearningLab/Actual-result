@@ -429,10 +429,15 @@
                     <div *ngIf="!userReviewLoading">
                          <div *ngIf="userReviewAttempts && userReviewAttempts.length; else noUserReview">
                               <div *ngFor="let att of userReviewAttempts">
-                                   <!-- <div class="attempt-header">
-                                        <h5>Attempt {{ att.attempt_number || att.attempt || 1 }} — Score: {{ att.score || att.marks || (att.percentage ? (att.percentage + '%') : '-') }} — {{ att.result || att.status || '' }}</h5>
-                                        <div class="muted">Started: {{ att.started_date || att.started_at || '' }} • Submitted: {{ att.submitted_date || att.submitted_at || '' }} • Time: {{ att.time_taken || '' }}</div>
-                                   </div> -->
+                                   <div class="q-evaluation-state pending attempt-level-banner" *ngIf="hasPendingEvaluation(att)" style="margin-bottom: 16px; border-radius: 8px;">
+                                        <div>
+                                             <strong>AI evaluation is pending for answers in this answer sheet.</strong>
+                                        </div>
+                                        <button type="button" class="retry-evaluation-btn" [disabled]="att._retryingEvaluation"
+                                             (click)="$event.stopPropagation(); retryEvaluation(null, att)">
+                                             {{ att._retryingEvaluation ? 'Evaluating…' : 'Run evaluation' }}
+                                        </button>
+                                   </div>
                                    <div class="questions-list">
                                         <div *ngFor="let q of att.review || att.questions || []; let qi = index" class="question-review-card">
                                              <div class="q-head-row">
@@ -515,7 +520,7 @@
                                                              <div class="answer-text">{{ (q.selected_option || []).join(' ') || 'No answer provided' }}</div>
                                                         </div>
 
-                                                        <div class="desc-model">
+                                                       <div class="desc-model">
                                                              <div class="model-label">Model Answer</div>
                                                              <div class="model-text">{{ q.correct_option || (q.options && q.options[0] && (q.options[0].option_text || q.options[0])) || q.correct_answer || 'No model answer provided' }}</div>
                                                         </div>
@@ -526,17 +531,9 @@
                                                             <strong>AI evaluation could not be completed</strong>
                                                             <div class="feedback-text">{{ q.evaluation_error }}</div>
                                                        </div>
-                                                       <button type="button" class="retry-evaluation-btn" [disabled]="q._retryingEvaluation"
-                                                            (click)="$event.stopPropagation(); retryEvaluation(q, att)">
-                                                            {{ q._retryingEvaluation ? 'Retrying…' : 'Retry evaluation' }}
-                                                       </button>
                                                   </div>
                                                   <div class="q-evaluation-state pending" *ngIf="q.evaluation_status === 'pending'">
-                                                       <div><strong>AI evaluation is not available for this answer.</strong></div>
-                                                       <button type="button" class="retry-evaluation-btn" [disabled]="q._retryingEvaluation"
-                                                            (click)="$event.stopPropagation(); retryEvaluation(q, att)">
-                                                            {{ q._retryingEvaluation ? 'Evaluating…' : 'Run evaluation' }}
-                                                       </button>
+                                                       <div><strong>AI evaluation is pending for this answer.</strong></div>
                                                   </div>
 
                                                   <div class="q-feedback" *ngIf="(q.question_type || q.type) === 'descriptive' && q.evaluation_status !== 'failed'">
