@@ -302,13 +302,17 @@ $table-ease: cubic-bezier(0.4, 0, 0.2, 1);
 $table-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 $table-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
-.premium-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.premium-table thead th.mat-header-cell,
-.premium-table thead th.mat-mdc-header-cell { background: linear-gradient(135deg, var(--table-header-bg) 0%, #334155 100%) !important; color: var(--table-header-text) !important; font-weight: 600 !important; font-size: 0.75rem !important; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.875rem 1rem !important; border-bottom: none !important; position: sticky !important; top: 0 !important; z-index: 60 !important; white-space: nowrap; }
-.premium-table thead th.mat-header-cell:first-child,
-.premium-table thead th.mat-mdc-header-cell:first-child { border-radius: 0.625rem 0 0 0; }
-.premium-table thead th.mat-header-cell:last-child,
-.premium-table thead th.mat-mdc-header-cell:last-child { border-radius: 0 0.625rem 0 0; }
+.premium-table { width: 100%; border-collapse: separate !important; border-spacing: 0 !important; }
+.premium-table th.mat-header-cell,
+.premium-table th.mat-mdc-header-cell,
+.premium-table .mat-mdc-header-cell,
+.premium-table .mat-header-cell { background: linear-gradient(135deg, var(--table-header-bg) 0%, #334155 100%) !important; color: var(--table-header-text) !important; font-weight: 600 !important; font-size: 0.75rem !important; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.875rem 1rem !important; border-bottom: none !important; position: sticky !important; top: 0 !important; z-index: 60 !important; white-space: nowrap; }
+.premium-table th.mat-header-cell:first-child,
+.premium-table th.mat-mdc-header-cell:first-child,
+.premium-table .mat-mdc-header-cell:first-child { border-radius: 0.625rem 0 0 0; }
+.premium-table th.mat-header-cell:last-child,
+.premium-table th.mat-mdc-header-cell:last-child,
+.premium-table .mat-mdc-header-cell:last-child { border-radius: 0 0.625rem 0 0; }
 .premium-table .mat-sort-header-arrow { color: var(--table-header-icon) !important; }
 
 .premium-table tbody tr.mat-row,
