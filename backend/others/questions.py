@@ -3,6 +3,7 @@ from db.db import SQLiteDB
 import sys
 import pandas as pd
 import json
+import datetime
 from others.llm import descriptive_evaluation, openai_client
 
 def add_question(request):
@@ -312,8 +313,10 @@ def get_questions_details(request):
             "institute_id": category.institute_id if category else None,
             "category": category.name if category else None,
             "category_description": category.description if category else None,
+            "created_date": q.created_date.isoformat() if getattr(q, 'created_date', None) else None,
             "created_by": created_by_user.full_name if created_by_user else None,
             "created_by_id": created_by_user.user_id if created_by_user else None,
+            "updated_date": q.updated_date.isoformat() if getattr(q, 'updated_date', None) else None,
             "updated_by": updated_by_user.full_name if updated_by_user else None,
             "updated_by_id": updated_by_user.user_id if updated_by_user else None,
             })
@@ -410,6 +413,7 @@ def update_question(question_id, request):
                 newmap = QuestionMapping(question_id=question_id, category_id=data.get('category_id'))
                 session.add(newmap)
         q.updated_by = updated_by
+        q.updated_date = datetime.datetime.utcnow()
         session.commit()
         return {"statusMessage": "Question updated", "status": True}, 200
     except Exception as e:

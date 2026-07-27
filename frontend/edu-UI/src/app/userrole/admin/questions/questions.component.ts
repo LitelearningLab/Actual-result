@@ -1384,6 +1384,8 @@ export class AdminQuestionsComponent {
       if (q.type === 'fill' || q.type === 'descriptive') {
         p.options = [q.answerText || ''];
         p.answerText = q.answerText || '';
+        p.correct_indices = [0];
+        p.correct_values = [q.answerText || ''];
       } else {
         p.options = Array.isArray(q.options) ? q.options.slice() : [];
       }
