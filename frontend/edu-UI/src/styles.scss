@@ -265,7 +265,7 @@ $search-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 // ════════════════════════════════════════════════════════════════════════════════
 // FILTERS PANEL — Minimal Floating Card Design
 // ════════════════════════════════════════════════════════════════════════════════
-.filters-panel { min-width: 22rem; max-width: 26rem; border-radius: 1rem; background: #fff; border: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.03); overflow: hidden; animation: filterDrop 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.filters-panel { min-width: 32rem; max-width: min(38rem, calc(100vw - 2rem)); width: min(36rem, calc(100vw - 2rem)); border-radius: 1rem; background: #fff; border: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.03); overflow: hidden; animation: filterDrop 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes filterDrop { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
 
 .filters-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 1.125rem 1.25rem; border-bottom: 1px solid #f1f5f9;  background: linear-gradient(180deg, var(--theme-2) 0%, var(--theme-2) 100%); }
@@ -273,13 +273,18 @@ $search-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 .filters-panel-header h4 mat-icon { font-size: 1.25rem; width: 1.25rem; height: 1.25rem; color: var(--button-1); }
 .filters-panel-header::after { content: ''; width: 2.5rem; height: 0.25rem; background: linear-gradient(90deg, var(--button-1) 0%, var(--button-1-hover) 100%); border-radius: 2px; }
 
-.filters-panel .filter-block { display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem 1.25rem; }
-.filters-panel .filter-item { width: 100%; background: #f8fafc; border-radius: 0.625rem; transition: all 0.2s ease; border: 2px solid transparent; }
+.filters-panel .filter-block { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 1rem; padding: 1rem 1.25rem; }
+.filters-panel .filter-item { width: 100%; min-width: 0; background: #f8fafc; border-radius: 0.625rem; transition: all 0.2s ease; border: 2px solid transparent; }
 .filters-panel .filter-item:hover { background: #f1f5f9; }
 .filters-panel .filter-item:focus-within { background: #fff; border-color: var(--button-1); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
 .filters-panel .filter-item .mat-mdc-form-field-flex { height: 2.75rem; }
 .filters-panel .filter-item .mat-mdc-text-field-wrapper { padding: 0 0.75rem; }
 .filters-panel .mat-mdc-form-field-subscript-wrapper { display: none !important; }
+
+@media (max-width: 600px) {
+  .filters-panel { min-width: unset; max-width: calc(100vw - 1rem); width: calc(100vw - 1rem); }
+  .filters-panel .filter-block { grid-template-columns: 1fr; }
+}
 
 .filter-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; padding: 1rem 1.25rem 1.25rem; background: linear-gradient(180deg, var(--theme-2) 0%, var(--theme-2) 100%); }
 .filter-actions button { height: 2.75rem; padding: 0 1rem; font-size: 0.875rem; font-weight: 600; border-radius: 0.625rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s ease; cursor: pointer; }
