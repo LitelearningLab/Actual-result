@@ -1381,7 +1381,12 @@ export class AdminQuestionsComponent {
 
     const payload = validQuestions.map((q:any) => {
       const p = JSON.parse(JSON.stringify(q));
-      p.options = Array.isArray(q.options) ? q.options.slice() : [];
+      if (q.type === 'fill' || q.type === 'descriptive') {
+        p.options = [q.answerText || ''];
+        p.answerText = q.answerText || '';
+      } else {
+        p.options = Array.isArray(q.options) ? q.options.slice() : [];
+      }
       if (q.type === 'choose' && typeof q.correct === 'number' && p.options[q.correct] !== undefined){
         p.correct_indices = [q.correct];
         p.correct_values = [p.options[q.correct]];

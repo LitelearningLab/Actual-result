@@ -260,7 +260,7 @@
                             <!-- <div class="item-avatar item-avatar--question">{{ (q.question || '?').charAt(0).toUpperCase() }}</div> -->
                             <div class="item-info">
                                 <span class="item-name q-title">{{q.question}}</span>
-                                <!-- <span class="item-sub" *ngIf="q.category">{{ q.category }}</span> -->
+                                <span class="item-sub" *ngIf="getAnswerText(q) && getAnswerText(q) !== '—'"><strong>Ans:</strong> {{ getAnswerText(q) }}</span>
                             </div>
                         </div>
                     </td>
@@ -355,27 +355,28 @@
                                     <div class="label">Question Bank</div>
                                     <div class="value">{{ viewedQuestion?.category ||
                                         viewedQuestion?.category_description || '—' }}</div>
-                                    <!-- options -->
+                                    <!-- options / answer -->
                                     <div class="label">{{ isAnswerType(viewedQuestion?.originalType || viewedQuestion?.type) ? 'Answer' : 'Options' }}</div>
                                     <div class="value">
-                                        <div *ngIf="viewedQuestion?.options && viewedQuestion?.options.length">
-                                            <div *ngFor="let o of viewedQuestion?.options; let idx = index"
-                                                class="opt-row">
-                                                <div class="opt-left">
-                                                    <span class="opt-label"
-                                                        *ngIf="viewedQuestion?.type === 'multi' || viewedQuestion?.type === 'choose'">{{
-                                                        ('ABCDEFGHIJKLMNOPQRSTUVWXYZ')[idx] || idx+1
-                                                        }}.</span>
-                                                    <span class="opt-text">{{ o?.text }}</span>
-                                                </div>
-                                                <div class="opt-right"
-                                                    *ngIf="viewedQuestion?.type === 'multi' || viewedQuestion?.type === 'choose'">
-                                                    <span *ngIf="o?.is_correct === 1" class="correct-mark">✔</span>
+                                        <div *ngIf="isAnswerType(viewedQuestion?.originalType || viewedQuestion?.type)">
+                                            {{ getAnswerText(viewedQuestion) }}
+                                        </div>
+                                        <div *ngIf="!isAnswerType(viewedQuestion?.originalType || viewedQuestion?.type)">
+                                            <div *ngIf="viewedQuestion?.options && viewedQuestion?.options.length">
+                                                <div *ngFor="let o of viewedQuestion?.options; let idx = index"
+                                                    class="opt-row">
+                                                    <div class="opt-left">
+                                                        <span class="opt-label">{{ ('ABCDEFGHIJKLMNOPQRSTUVWXYZ')[idx] || idx+1 }}.</span>
+                                                        <span class="opt-text">{{ getOptionText(o) }}</span>
+                                                    </div>
+                                                    <div class="opt-right">
+                                                        <span *ngIf="o?.is_correct === 1 || o?.is_correct === true || o?.is_correct === '1'" class="correct-mark">✔</span>
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <div *ngIf="!viewedQuestion?.options || !viewedQuestion?.options.length"
+                                                class="muted">—</div>
                                         </div>
-                                        <div *ngIf="!viewedQuestion?.options || !viewedQuestion?.options.length"
-                                            class="muted">{{ viewedQuestion?.answer || '—' }}</div>
                                     </div>
                                 </div>
                             </mat-tab>

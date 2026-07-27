@@ -293,12 +293,21 @@ def get_questions_details(request):
             if q.updated_by is not None:
                 updated_by_user = session.query(User).filter_by(user_id=q.updated_by).first()
             
+            ans = ""
+            if q.question_type in ['fill', 'descriptive', 'description', 'subjective', 'essay', 'long_answer']:
+                ans_opt = next((opt.option_text for opt in options if opt.is_correct == 1), None)
+                if ans_opt is None and options:
+                    ans_opt = options[0].option_text
+                ans = ans_opt or ""
+
             question_list.append({
             "id": q.question_id,
             "text": q.question_text,
             "type": q.question_type,
             "marks": q.marks,
             "options": option_list,
+            "answer": ans,
+            "answerText": ans,
             "category_id": mapping.category_id if mapping else None,
             "institute_id": category.institute_id if category else None,
             "category": category.name if category else None,
@@ -336,39 +345,60 @@ def update_question(question_id, request):
             except Exception:
                 pass
 
-        # Update options: update overlapping options by index, append new ones, delete surplus
-        if 'options' in data:
-            new_options = data.get('options') or []
-            correct_indices = set(data.get('correct_indices') or [])
+        qtype = (q.question_type or data.get('type') or '').lower()
+        ans_text = data.get("answerText") if data.get("answerText") is not None else (data.get("answer_text") if data.get("answer_text") is not None else data.get("answer"))
+
+        if qtype in ['fill', 'descriptive', 'description', 'subjective', 'essay', 'long_answer']:
+            if ans_text is None and 'options' in data and data.get('options'):
+                opts = data.get('options')
+                ans_text = opts[0] if len(opts) > 0 else ''
+            
+            val = str(ans_text if ans_text is not None else '')
             existing_opts = session.query(Option).filter_by(question_id=question_id).all()
-
-            # Update overlapping options
-            min_len = min(len(existing_opts), len(new_options))
-            for idx in range(min_len):
-                opt = existing_opts[idx]
-                try:
-                    opt.option_text = new_options[idx]
-                except Exception:
-                    opt.option_text = str(new_options[idx])
-                opt.is_correct = 1 if idx in correct_indices else 0
-
-            # Append new options if provided
-            for idx in range(min_len, len(new_options)):
-                otext = new_options[idx]
-                try:
-                    otext = str(otext)
-                except Exception:
-                    pass
-                is_correct = 1 if idx in correct_indices else 0
-                new_opt = Option(question_id=question_id, option_text=otext, is_correct=is_correct)
+            if existing_opts:
+                existing_opts[0].option_text = val
+                existing_opts[0].is_correct = 1
+                existing_opts[0].active_status = 1
+                for extra in existing_opts[1:]:
+                    extra.active_status = 0
+            else:
+                new_opt = Option(question_id=question_id, option_text=val, is_correct=1, active_status=1)
                 session.add(new_opt)
+        else:
+            # Update options: update overlapping options by index, append new ones, delete surplus
+            if 'options' in data:
+                new_options = data.get('options') or []
+                correct_indices = set(data.get('correct_indices') or [])
+                existing_opts = session.query(Option).filter_by(question_id=question_id).all()
 
-            # inactivate surplus existing options not present in new list
-            for idx in range(len(new_options), len(existing_opts)):
-                try:
-                    existing_opts[idx].active_status = 0
-                except Exception:
-                    pass
+                # Update overlapping options
+                min_len = min(len(existing_opts), len(new_options))
+                for idx in range(min_len):
+                    opt = existing_opts[idx]
+                    try:
+                        opt.option_text = new_options[idx]
+                    except Exception:
+                        opt.option_text = str(new_options[idx])
+                    opt.is_correct = 1 if idx in correct_indices else 0
+                    opt.active_status = 1
+
+                # Append new options if provided
+                for idx in range(min_len, len(new_options)):
+                    otext = new_options[idx]
+                    try:
+                        otext = str(otext)
+                    except Exception:
+                        pass
+                    is_correct = 1 if idx in correct_indices else 0
+                    new_opt = Option(question_id=question_id, option_text=otext, is_correct=is_correct, active_status=1)
+                    session.add(new_opt)
+
+                # inactivate surplus existing options not present in new list
+                for idx in range(len(new_options), len(existing_opts)):
+                    try:
+                        existing_opts[idx].active_status = 0
+                    except Exception:
+                        pass
 
         # Update mapping (category)
         if 'category_id' in data and data.get('category_id'):

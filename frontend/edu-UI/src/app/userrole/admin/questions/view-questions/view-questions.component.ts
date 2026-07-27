@@ -670,8 +670,9 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
     } catch (e) {}
   }
   
-  if (this.filterPublicAccess !== null && typeof this.filterPublicAccess !== 'undefined') params.push(`public_access=${encodeURIComponent(String(this.filterPublicAccess))}`);
-    const url = params.length ? `${this.questionsUrl}?${params.join('&')}` : this.questionsUrl;
+    if (this.filterPublicAccess !== null && typeof this.filterPublicAccess !== 'undefined') params.push(`public_access=${encodeURIComponent(String(this.filterPublicAccess))}`);
+    params.push(`_ts=${Date.now()}`);
+    const url = `${this.questionsUrl}?${params.join('&')}`;
     this.http!.get<any>(url).subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
@@ -698,7 +699,7 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
       type: (q.type || q.question_type || q.original_type || 'Subjective') as QuestionType,
       originalType: q.type || q.original_type || q.question_type,
       options: q.options || q.choices || [],
-      answer: q.answer || q.answerText || q.correct || '',
+      answer: this.getAnswerText(q),
       category: q.category || q.category_name || '',
       category_description: q.category_description || '',
       category_id: q.category_id || q.categoryId || q.categoryID || q.category?.category_id || q.category?.id || q.category?._id || '',
@@ -1020,7 +1021,29 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
 
   isAnswerType(type: string | undefined | null): boolean {
     const normalized = String(type || '').toLowerCase();
-    return normalized === 'fill' || normalized === 'descriptive';
+    return normalized === 'fill' || normalized === 'descriptive' || normalized === 'subjective' || normalized === 'essay';
+  }
+
+  getAnswerText(q: any): string {
+    if (!q) return '—';
+    if (q.answer) return q.answer;
+    if (q.answerText) return q.answerText;
+    if (typeof q.correct === 'string' && q.correct) return q.correct;
+    if (Array.isArray(q.options) && q.options.length) {
+      const first = q.options[0];
+      if (typeof first === 'string') return first;
+      if (first && typeof first === 'object') {
+        const correctOpt = q.options.find((o: any) => o && typeof o === 'object' && (o.is_correct === 1 || o.is_correct === true || o.is_correct === '1'));
+        return (correctOpt ? (correctOpt.text || correctOpt.option_text || correctOpt.option || correctOpt.value || '') : '') || (first.text || first.option_text || first.option || first.value || '');
+      }
+    }
+    return '—';
+  }
+
+  getOptionText(o: any): string {
+    if (!o) return '';
+    if (typeof o === 'string') return o;
+    return o.text || o.option_text || o.option || o.value || '';
   }
 
   private toTitleCase(str: string): string {
