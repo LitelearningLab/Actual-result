@@ -563,7 +563,7 @@
                                                                                                               </div>
                                                                                                               <div class="review-meta small-muted">
                                                                                                                         <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted by {{ h.updated_by || h.created_by || h.reviewer_id || 'System' }}</span>
-                                                                                                                        <span *ngIf="h.is_deleted != 1 && (h.updated_by || h.edited_by)">Edited by {{ h.updated_by || h.created_by }} On {{ h.updated_date }} </span>
+                                                                                                                        <span *ngIf="h.is_deleted != 1 && (h.updated_by || h.edited_by)">Edited by {{ h.updated_by || h.created_by }} {{ formatDate(h.updated_date) }} </span>
                                                                                                               </div>
                                                                                                               <div class="review-actions" *ngIf="!h.updated_by">
                                                                                                                    <a class="edit-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); startEditComment(h)"><mat-icon>edit</mat-icon> Edit</a>
@@ -585,7 +585,7 @@
                                                                                                </div>
                                                                                           <div class="review-meta small-muted">
                                                                                                <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.created_by || rc.reviewer_id || 'System' }}</span>
-                                                                                               <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.created_by }} On {{ rc.updated_date }} </span>
+                                                                                               <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.created_by }} {{ formatDate(rc.updated_date) }} </span>
                                                                                           </div>
                                                                                           <div class="review-actions" *ngIf="!rc.updated_by">
                                                                                                <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
@@ -616,7 +616,7 @@
                                                                                                               </div>
                                                                                                               <div class="review-meta small-muted">
                                                                                                                         <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted by {{ h.updated_by || h.created_by || h.reviewer_id || 'System' }}</span>
-                                                                                                                        <span *ngIf="h.is_deleted != 1 && (h.updated_by || h.edited_by)">Edited by {{ h.updated_by || h.created_by }} On {{ h.updated_date }} </span>
+                                                                                                                        <span *ngIf="h.is_deleted != 1 && (h.updated_by || h.edited_by)">Edited by {{ h.updated_by || h.created_by }} {{ formatDate(h.updated_date) }} </span>
                                                                                                               </div>
                                                                                                               <div class="review-actions" *ngIf="!h.updated_by">
                                                                                                                    <a class="edit-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); startEditComment(h)"><mat-icon>edit</mat-icon> Edit</a>
@@ -671,7 +671,7 @@
                                                                                                               </div>
                                                                                                               <div class="review-meta small-muted">
                                                                                                                         <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted by {{ h.updated_by || h.created_by || h.reviewer_id || 'System' }}</span>
-                                                                                                                        <span *ngIf="h.is_deleted != 1 && (h.updated_by || h.edited_by)">Edited by {{ h.updated_by || h.created_by }} On {{ h.updated_date }} </span>
+                                                                                                                        <span *ngIf="h.is_deleted != 1 && (h.updated_by || h.edited_by)">Edited by {{ h.updated_by || h.created_by }} {{ formatDate(h.updated_date) }} </span>
                                                                                                               </div>
                                                                                                               <div class="review-actions" *ngIf="!h.updated_by">
                                                                                                                    <a class="edit-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); startEditComment(h)"><mat-icon>edit</mat-icon> Edit</a>
@@ -728,7 +728,7 @@
                                                                            <div class="history-marks">{{ q.marks_awarded }} <span class="marks-total">/ {{ q.question_marks || '-' }}</span></div>
                                                                             <div class="history-meta">
                                                                                  <span class="updated-by"><mat-icon>person</mat-icon>{{ q.updated_by || 'System' }}</span>
-                                                                                 <span class="updated-date" *ngIf="q.updated_date"><mat-icon>schedule</mat-icon>{{ q.updated_date }}</span>
+                                                                                  <span class="updated-date" *ngIf="q.updated_date"><mat-icon>schedule</mat-icon>{{ formatDate(q.updated_date) }}</span>
                                                                             </div>
                                                                       </div>
                                                                  </div>
@@ -744,7 +744,7 @@
                                                                            <div class="history-marks">{{ mh.marks_awarded }} <span class="marks-total">/ {{ q.question_marks || '-' }}</span></div>
                                                                             <div class="history-meta">
                                                                                 <span class="updated-by"><mat-icon>person</mat-icon>{{ mh.updated_by || 'System' }}</span>
-                                                                                <span class="updated-date"><mat-icon>schedule</mat-icon>{{ mh.updated_date }}</span>
+                                                                                 <span class="updated-date" *ngIf="mh.updated_date"><mat-icon>schedule</mat-icon>{{ formatDate(mh.updated_date) }}</span>
                                                                             </div>
                                                                             <div class="history-reason" *ngIf="mh.edit_reason"><strong>Change comment:</strong> {{ mh.edit_reason }}</div>
                                                                       </div>

@@ -421,7 +421,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         });
         q.marks_awarded = newMarks;
         q.updated_by = updatedByName;
-        q.updated_date = new Date().toUTCString();
+        q.updated_date = new Date().toISOString();
         q._editingMarks = false;
         q._editedMarks = undefined;
         q._marksEditReason = undefined;
@@ -1012,20 +1012,51 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   closeResourcePanel(){ this.showResourcePanel = false; this.selectedResources = []; this.selectedResourceContext = null; }
 
-  // Format a date like 'On DD-MMM-YYYY HH:MM'
+  // Format a date dynamically converting GMT/UTC timezone offsets to IST
   formatDate(dateLike: any): string {
-    if(!dateLike) return '';
-    try{
-      const d = new Date(dateLike);
-      if(isNaN(d.getTime())) return '';
-      const dd = String(d.getDate()).padStart(2,'0');
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const m = months[d.getMonth()] || '';
-      const yyyy = d.getFullYear();
-      const hh = String(d.getHours()).padStart(2,'0');
-      const min = String(d.getMinutes()).padStart(2,'0');
-      return `On ${dd}-${m}-${yyyy} ${hh}:${min}`;
-    }catch(e){ return ''; }
+    if (!dateLike) return '';
+    try {
+      const dateStr = String(dateLike);
+
+      // If dateLike is a pre-formatted string containing GMT or UTC or timezone offsets
+      if (typeof dateLike === 'string' && (dateLike.includes('GMT') || dateLike.includes('UTC'))) {
+        return dateLike.replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
+      }
+
+      const d = (dateLike instanceof Date) ? dateLike : new Date(dateLike);
+      if (isNaN(d.getTime())) {
+        return dateStr.replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
+      }
+
+      const formatter = new Intl.DateTimeFormat(undefined, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZoneName: 'short'
+      });
+      const parts = formatter.formatToParts(d);
+      const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+
+      const day = getPart('day');
+      const month = getPart('month');
+      const year = getPart('year');
+      const hour = getPart('hour');
+      const min = getPart('minute');
+      let tzName = getPart('timeZoneName');
+
+      if (tzName) {
+        tzName = tzName.replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
+      } else {
+        tzName = 'IST';
+      }
+
+      return `On ${day}-${month}-${year} ${hour}:${min}${tzName ? ' ' + tzName : ''}`;
+    } catch (e) {
+      return String(dateLike || '').replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
+    }
   }
 
   // Convert string to Title Case
