@@ -829,7 +829,7 @@
                               <div class="panel-sub">Details for selected question</div>
                          </div>
                     </div>
-                    <button mat-icon-button aria-label="Close" type="button" (click)="closeWrongAnswerSummary()"><mat-icon>close</mat-icon></button>
+                    <button mat-icon-button class="panel-close-btn" aria-label="Close wrong answer summary" type="button" (click)="closeWrongAnswerSummary()"><mat-icon aria-hidden="true">close</mat-icon></button>
                </div>
                <div class="panel-body">
                     <div *ngIf="selectedQuestionForWrongSummary">
@@ -849,10 +849,10 @@
                               </tbody>
                          </table>
                          <div *ngIf="!selectedWrongAnswers || !selectedWrongAnswers.length" class="muted">No wrong answer data available for this question.</div>
-                         <div class="summary-actions">
-                              <button mat-stroked-button color="primary" (click)="closeWrongAnswerSummary()">Close</button>
-                         </div>
                     </div>
+               </div>
+               <div class="summary-actions">
+                    <button mat-stroked-button color="primary" (click)="closeWrongAnswerSummary()">Close</button>
                </div>
           </div>
      </div>
@@ -870,7 +870,7 @@
                               <div class="panel-sub small-muted">Resources related to the selected wrong answer</div>
                          </div>
                     </div>
-                    <button mat-icon-button aria-label="Close resources" type="button" (click)="closeResourcePanel()"><mat-icon>close</mat-icon></button>
+                    <button mat-icon-button class="panel-close-btn" aria-label="Close resources" type="button" (click)="closeResourcePanel()"><mat-icon aria-hidden="true">close</mat-icon></button>
                </div>
                <div class="panel-body">
                     <div *ngIf="selectedResources && selectedResources.length">
