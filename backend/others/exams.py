@@ -153,9 +153,9 @@ def add_exam(request):
 
     # Convert ISO 8601 string to datetime object
     try:
-        start_time = datetime.fromisoformat(start_time_str.replace("Z", "+00:00")) if start_time_str else None
-        end_time = datetime.fromisoformat(end_time_str.replace("Z", "+00:00")) if end_time_str else None
-    except ValueError:
+        start_time = _to_naive_utc_datetime(start_time_str) if start_time_str else None
+        end_time = _to_naive_utc_datetime(end_time_str) if end_time_str else None
+    except Exception:
         return {"statusMessage": "Invalid exam date/time", "status": False}, 400
 
     db = SQLiteDB()
@@ -179,14 +179,16 @@ def add_exam(request):
         session.add(add_exam)
         session.flush()
 
-        exam_id = add_exam.exam_id
+        exam_id = str(add_exam.exam_id) if add_exam.exam_id else None
         categories_list = data.get("categories",[])
         for category in categories_list:
             category_id = category.get("category_id")
+            if not category_id:
+                continue
             number_of_questions = category.get("questions", 0)
             randomize_questions = category.get("randomize_questions", 0)
             if randomize_questions == True:
-                randomize_questions =1
+                randomize_questions = 1
             else:
                 randomize_questions = 0
 
@@ -198,34 +200,37 @@ def add_exam(request):
                     "status": False
                 }, 400
 
-            new_mapping  =ExamMapping(
-                exam_id= exam_id,
-                category_id =category_id,
+            new_mapping = ExamMapping(
+                exam_id=exam_id,
+                category_id=category_id,
                 number_of_questions=number_of_questions,
-                randomize_questions=randomize_questions
+                randomize_questions=randomize_questions,
+                created_by=created_by
             )
             session.add(new_mapping)
             if randomize_questions == 0:
                 questions_list = _resolve_fixed_question_ids(session, category_id, number_of_questions, category.get("question_ids", []))
                 for question_id in questions_list:
                     add_exam_question_mapping = ExamQuestionMapping(
-                        exam_id = exam_id,
-                        category_id = category_id,
-                        question_id = question_id
+                        exam_id=exam_id,
+                        category_id=category_id,
+                        question_id=question_id
                     )
                     session.add(add_exam_question_mapping)
 
         session.commit()
-        json_data ={
+        json_data = {
             "statusMessage": "Exam inserted successfully",
             "status": True
         }
         return json_data, 200
     except Exception as e:
         session.rollback()
+        import traceback
+        traceback.print_exc()
         print(f"{e} occurred while inserting exam at line {sys.exc_info()[-1].tb_lineno}")
         json_data = {
-            "statusMessage": "Error inserting exam",
+            "statusMessage": f"Error inserting exam: {str(e)}",
             "status": False,
         }
         return json_data, 500
@@ -272,12 +277,12 @@ def update_exam(request):
         
         if start_time_str:
             try:
-                exam.start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                exam.start_time = _to_naive_utc_datetime(start_time_str)
             except Exception:
                 pass
         if end_time_str:
             try:
-                exam.end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
+                exam.end_time = _to_naive_utc_datetime(end_time_str)
             except Exception:
                 pass
 

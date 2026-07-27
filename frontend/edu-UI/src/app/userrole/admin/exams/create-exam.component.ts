@@ -1161,7 +1161,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const serverMessage = err?.error?.statusMessage || err?.error?.message || err?.message || '';
     const raw = typeof err?.error === 'string' ? err.error : JSON.stringify(err?.error || {});
     const combined = `${serverMessage} ${raw}`.toLowerCase();
-    if (combined.includes('string or binary data would be truncated') || combined.includes('error inserting exam')) {
+    if (combined.includes('string or binary data would be truncated')) {
       return 'Could not save test. One of the fields is longer than the database allows. Please shorten the description and try again.';
     }
     return serverMessage || fallback;
