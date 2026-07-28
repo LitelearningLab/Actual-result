@@ -572,16 +572,44 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
   }
 
   onInstituteChange(value: any) {
-    const v = value !== undefined ? value : '';
+    const v = value !== undefined && value !== null ? String(value) : '';
     this.selectedInstitute = v;
     this.syncInstituteSearch();
-    if (v) this.categoryCtrl.enable({ emitEvent: false }); else this.categoryCtrl.disable({ emitEvent: false });
-    // this.loadExams(v);
-    // reload categories for the selected institute (optional)
-    this.loadCategories(v);
-    // also load departments and teams scoped to this institute
-    this.loadDepartments(v);
-    this.loadTeams(v);
+    this.selectedCategories = [];
+    this.categoryFilterName = '';
+    this.categorySearch = '';
+    this.categoryCtrl.setValue('', { emitEvent: false });
+    if (v) {
+      this.categoryCtrl.enable({ emitEvent: false });
+      this.loadCategories(v);
+      this.loadDepartments(v);
+      this.loadTeams(v);
+    } else {
+      this.categoryCtrl.disable({ emitEvent: false });
+      this.categories = [];
+      this.filteredCategories$ = of([]);
+      this.departments = [];
+      this.teams = [];
+      this.selectedDepartments = [];
+      this.selectedTeams = [];
+      this.loadCategories();
+    }
+  }
+
+  onInstituteSearchChange(val: string) {
+    const trimmed = (val || '').trim();
+    if (!trimmed) {
+      if (this.selectedInstitute) {
+        this.selectedInstitute = '';
+        this.onInstituteChange('');
+      }
+      return;
+    }
+    const found = this.institutes.find(i => (i.name || '').toLowerCase() === trimmed.toLowerCase());
+    if (found && String(found.institute_id) !== String(this.selectedInstitute)) {
+      this.selectedInstitute = String(found.institute_id || '');
+      this.onInstituteChange(this.selectedInstitute);
+    }
   }
 
   loadDepartments(instId?: string) {
@@ -791,12 +819,19 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
   }
 
   loadCategories(instId?: string) {
-    instId = this.getScopedInstituteId(instId);
+    const scopedInstitute = this.getScopedInstituteId(instId);
+    if (this.isSuperAdmin && !scopedInstitute) {
+      this.categories = [];
+      this.rebuildQuestionBankMarkLookup([]);
+      this.categoryCtrl.setValue('', { emitEvent: false });
+      this.categoryCtrl.disable({ emitEvent: false });
+      this.filteredCategories$ = of([]);
+      return;
+    }
     let url = this.categoryDetailsUrl;
-    if (instId) url += `?institute_id=${encodeURIComponent(instId)}`;
+    if (scopedInstitute) url += `?institute_id=${encodeURIComponent(scopedInstitute)}`;
     this.http!.get<any>(url).subscribe({ next: (res) => {
       const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-      const scopedInstitute = this.getScopedInstituteId(instId);
       this.categories = arr.filter((c: any) => this.isAllowedForInstitute(c, scopedInstitute)).map((c: any) => ({
         name: c.name || c.category_name || '',
         category_id: c.category_id || c.id || c._id,
@@ -804,6 +839,7 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
         mark_for_each_question: c.mark_for_each_question ?? c.mark_each_question ?? c.question_mark ?? c.marks ?? null
       }));
       this.rebuildQuestionBankMarkLookup(this.categories);
+      this.categoryCtrl.enable({ emitEvent: false });
       try{
         this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
           startWith(''),
@@ -813,7 +849,7 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
           })
         );
       }catch(e){ this.filteredCategories$ = of(this.categories || []); }
-    }, error: (err) => { console.warn('Failed to load categories', err); this.categories = []; } });
+    }, error: (err) => { console.warn('Failed to load categories', err); this.categories = []; this.filteredCategories$ = of([]); } });
   }
 
   toggleQuestionSelection(q: QuestionRow, checked: boolean){

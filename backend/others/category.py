@@ -1,18 +1,71 @@
 from db.models import Categories, CategoriesDepartments, CategoriesTeams, Institute,User, InstituteDepartment, InstituteTeam
 from db.db import SQLiteDB
 from datetime import datetime
+# pyrefly: ignore [missing-import]
 from sqlalchemy import func, text
+# pyrefly: ignore [missing-import]
 from sqlalchemy.exc import IntegrityError
 import uuid
 
 def ensure_category_columns(session):
-    session.execute(text("""
-        IF COL_LENGTH('Categories', 'is_deleted') IS NULL
-        BEGIN
-            ALTER TABLE Categories ADD is_deleted BIT NULL
-        END
-    """))
-    session.commit()
+    try:
+        session.execute(text("""
+            IF COL_LENGTH('Categories', 'is_deleted') IS NULL
+            BEGIN
+                ALTER TABLE Categories ADD is_deleted BIT NULL;
+            END;
+
+            IF COL_LENGTH('Categories', 'name') IS NOT NULL
+            BEGIN
+                ALTER TABLE Categories ALTER COLUMN name NVARCHAR(255) NULL;
+            END;
+
+            IF COL_LENGTH('Categories', 'description') IS NOT NULL
+            BEGIN
+                ALTER TABLE Categories ALTER COLUMN description NVARCHAR(MAX) NULL;
+            END;
+
+            IF COL_LENGTH('Categories', 'type') IS NOT NULL
+            BEGIN
+                ALTER TABLE Categories ALTER COLUMN type NVARCHAR(100) NULL;
+            END;
+
+            IF COL_LENGTH('Categories', 'answer_by') IS NOT NULL
+            BEGIN
+                ALTER TABLE Categories ALTER COLUMN answer_by NVARCHAR(100) NULL;
+            END;
+
+            IF COL_LENGTH('Categories', 'evaluation') IS NOT NULL
+            BEGIN
+                ALTER TABLE Categories ALTER COLUMN evaluation NVARCHAR(100) NULL;
+            END;
+
+            IF COL_LENGTH('Categories', 'created_by') IS NOT NULL
+            BEGIN
+                ALTER TABLE Categories ALTER COLUMN created_by NVARCHAR(255) NULL;
+            END;
+
+            IF COL_LENGTH('Categories', 'updated_by') IS NOT NULL
+            BEGIN
+                ALTER TABLE Categories ALTER COLUMN updated_by NVARCHAR(255) NULL;
+            END;
+
+            IF COL_LENGTH('CategoriesDepartments', 'name') IS NOT NULL
+            BEGIN
+                ALTER TABLE CategoriesDepartments ALTER COLUMN name NVARCHAR(255) NULL;
+            END;
+
+            IF COL_LENGTH('CategoriesTeams', 'name') IS NOT NULL
+            BEGIN
+                ALTER TABLE CategoriesTeams ALTER COLUMN name NVARCHAR(255) NULL;
+            END;
+        """))
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        print(f"Error expanding category table columns: {e}", flush=True)
+
+
 def get_categories_list(request):
     db = SQLiteDB()
     session = db.connect()
@@ -175,6 +228,7 @@ def add_categories(request):
         return {"statusMessage": "Database connection failed", "status": False}, 500
 
     try:
+        ensure_category_columns(session)
         category_data = request.get_json(silent=True) or {}
         if not category_data.get("name"):
             return {"statusMessage": "Category name is required", "status": False}, 400
@@ -270,6 +324,7 @@ def update_category(category_id, request):
         return {"statusMessage": "Database connection failed", "status": False}, 500
 
     try:
+        ensure_category_columns(session)
         data = request.get_json(silent=True) or {}
         category = session.query(Categories).filter_by(category_id=category_id).first()
         if not category:
