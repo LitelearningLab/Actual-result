@@ -11,12 +11,21 @@ import { notify } from 'src/app/shared/global-notify';
 // Web Speech API typings
 declare var webkitSpeechRecognition: any;
 
+interface QuestionOption {
+  id?: string;
+  options_id?: string;
+  option_id?: string;
+  text?: string;
+  option_text?: string;
+  [key: string]: any;
+}
+
 interface Question {
   id?: string;
   question?: string;
   text?: string;
   type?: string; // 'choose' | 'multi' | 'fill' | 'paragraph'
-  options?: Array<{ id?: string; text?: string }>;
+  options?: QuestionOption[];
   marks?: number;
 }
 
@@ -27,7 +36,7 @@ interface Question {
   templateUrl: './user-exam.component.html',
   styleUrls: ['./user-exam.component.scss']
 })
-export class UserExamRunnerComponent implements OnInit, OnDestroy{
+export class UserExamRunnerComponent implements OnInit, OnDestroy {
   exam: any = null;
   questions: Question[] = [];
   answers: { [key: string]: any } = {};
@@ -66,7 +75,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
   private autosaveTimer: any = null;
   private statusUrl = `${API_BASE}/active-exam-status`;
 
-  constructor(private http: HttpClient, private confirmService: ConfirmService, private ngZone: NgZone, private router: Router){
+  constructor(private http: HttpClient, private confirmService: ConfirmService, private ngZone: NgZone, private router: Router) {
     // Initialize speech recognition
     this.initSpeechRecognition();
   }
@@ -144,7 +153,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
         // Recognition might already be running
         this.recognition.stop();
         setTimeout(() => {
-          this.recognition.start();
+          try { this.recognition.start(); } catch(err){}
         }, 100);
       }
     }
@@ -154,21 +163,29 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
     return this.recordingQuestionId === questionId;
   }
 
-  ngOnInit(){
-    try{ const raw = sessionStorage.getItem('launched_exam'); this.exam = raw ? JSON.parse(raw) : null; }catch(e){}
-    if (this.exam){
-      // handle payloads that may be either { exam_detail: {...}, questions: [...] } or { data: { exam_detail:..., questions: [...] } }
+  ngOnInit() {
+    try { const raw = sessionStorage.getItem('launched_exam'); this.exam = raw ? JSON.parse(raw) : null; } catch(e){}
+    if (this.exam) {
       const wrapper = this.exam?.data ? this.exam.data : this.exam;
-      // schedule_id
       this.schedule_id = this.exam.schedule_id || wrapper?.exam_detail?.schedule_id || wrapper?.schedule_id || this.exam.id || this.exam?.schedule_id || '';
-      // normalize title and id from payload
       this.examTitle = this.exam.title || this.exam.name || wrapper?.exam_detail?.title || wrapper?.title || wrapper?.exam_id || '';
       this.examId = this.exam.exam_id || wrapper?.exam_detail?.exam_id || wrapper?.exam_id || this.exam.id || this.exam?.exam_id || '';
-      // attempt_id
       this.attempt_id = this.exam.attempt_id || wrapper?.exam_detail?.attempt_id || wrapper?.attempt_id || this.exam.id || this.exam?.attempt_id || '';
       const rawQs = Array.isArray(wrapper?.questions) ? wrapper.questions : (Array.isArray(this.exam.questions) ? this.exam.questions : []);
-      this.questions = rawQs.map((q:any) => ({ id: q.question_id || q.id, question: q.question_text || q.question || '', text: q.question_text || q.question || '', type: q.question_type || q.type, options: Array.isArray(q.options) ? q.options : [], marks: q.marks || q.points || 0 }));
-      // set timer
+      this.questions = rawQs.map((q: any) => ({
+        id: q.question_id || q.id,
+        question: q.question_text || q.question || '',
+        text: q.question_text || q.question || '',
+        type: q.question_type || q.type,
+        options: (Array.isArray(q.options) ? q.options : []).map((o: any) => {
+          if (typeof o === 'string') return { id: o, text: o };
+          return {
+            id: o.id || o.options_id || o.option_id || o.text || o.option_text || '',
+            text: o.text || o.option_text || o.id || o.options_id || ''
+          };
+        }),
+        marks: q.marks || q.points || 0
+      }));
       const mins = this.exam.duration_mins || wrapper?.exam_detail?.duration_mins || wrapper?.duration_mins || this.exam?.duration || 30;
       this.totalSeconds = mins * 60;
       this.remaining = this.totalSeconds;
@@ -177,14 +194,13 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
     }
   }
 
-  ngOnDestroy(){ this.stopTimer(); this.stopStatusPolling(); this.stopSpeechRecognition(); if (this.autosaveTimer) clearTimeout(this.autosaveTimer); }
+  ngOnDestroy() { this.stopTimer(); this.stopStatusPolling(); this.stopSpeechRecognition(); if (this.autosaveTimer) clearTimeout(this.autosaveTimer); }
 
-  startTimer(){
+  startTimer() {
     this.stopTimer();
-    this.intervalRef = setInterval(()=>{
+    this.intervalRef = setInterval(() => {
       if (this.remaining > 0) {
         this.remaining--;
-        // Timer warning: could add sound or toast here if needed
       } else {
         this.autoSubmit();
       }
@@ -196,13 +212,13 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
     try { notify('Time is up! Your test will be submitted automatically.', 'info'); } catch(e){}
     this.submit();
   }
-  stopTimer(){ if (this.intervalRef){ clearInterval(this.intervalRef); this.intervalRef = null; } }
+
+  stopTimer() { if (this.intervalRef) { clearInterval(this.intervalRef); this.intervalRef = null; } }
 
   startStatusPolling() {
     this.stopStatusPolling();
     if (!this.attempt_id) return;
     this.checkActiveExamStatus();
-    // Four seconds keeps administrator stop detection inside the required 3-5 second window.
     this.statusIntervalRef = setInterval(() => this.checkActiveExamStatus(), 4000);
   }
 
@@ -248,15 +264,46 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
     this.ngZone.run(() => this.router.navigate(['/user-dashboard']));
   }
 
-  formatTime(sec:number){ const m = Math.floor(sec/60); const s = sec%60; return `${m}:${s.toString().padStart(2,'0')}`; }
+  formatTime(sec: number) { const m = Math.floor(sec / 60); const s = sec % 60; return `${m}:${s.toString().padStart(2, '0')}`; }
 
-  toggleMulti(qid: any, optId: any){ if (this.testStopped) return; const key = String(qid); const set = Array.isArray(this.answers[key]) ? this.answers[key] : []; const idx = set.indexOf(String(optId)); if (idx>=0) set.splice(idx,1); else set.push(String(optId)); this.answers[key]=set; this.scheduleAutosave(); }
-  selectOne(qid: any, optId: any){ if (this.testStopped) return; this.answers[String(qid)]=String(optId); this.scheduleAutosave(); }
+  getOptVal(o: any): string {
+    if (!o) return '';
+    if (typeof o === 'string') return o;
+    return o.id || o.options_id || o.option_id || o.text || o.option_text || String(o);
+  }
+
+  getOptText(o: any): string {
+    if (!o) return '';
+    if (typeof o === 'string') return o;
+    return o.text || o.option_text || o.id || o.options_id || o.option_id || String(o);
+  }
+
+  isMultiSelected(qid: any, optVal: any): boolean {
+    const key = String(qid);
+    const answers = this.answers[key] || [];
+    return Array.isArray(answers) && answers.indexOf(optVal) !== -1;
+  }
+
+  toggleMulti(qid: any, optId: any) {
+    if (this.testStopped) return;
+    const key = String(qid);
+    const set = Array.isArray(this.answers[key]) ? this.answers[key] : [];
+    const idx = set.indexOf(String(optId));
+    if (idx >= 0) set.splice(idx, 1);
+    else set.push(String(optId));
+    this.answers[key] = set;
+    this.scheduleAutosave();
+  }
+
+  selectOne(qid: any, optId: any) {
+    if (this.testStopped) return;
+    this.answers[String(qid)] = String(optId);
+    this.scheduleAutosave();
+  }
 
   scheduleAutosave() {
     if (this.testStopped || !this.attempt_id) return;
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
-    // Debounce snapshots so typing does not create one request per keystroke.
     this.autosaveTimer = setTimeout(() => {
       this.http.post<any>(this.autosaveUrl, { attempt_id: this.attempt_id, answers: this.answers }).subscribe({
         error: (err) => { if (err?.status !== 409) console.warn('Answer autosave failed', err); }
@@ -264,37 +311,33 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
     }, 500);
   }
 
-  // scroll to a specific question card by index
-  scrollToQuestion(index: number){
-    try{
+  scrollToQuestion(index: number) {
+    try {
       const el = document.getElementById('q-' + index);
-      if(el) {
-        // Find the scroll container (.app-content)
+      if (el) {
         const scrollContainer = document.querySelector('.app-content');
-        if(scrollContainer) {
-          // Calculate offset for sticky headers (header + progress + nav ~200px)
+        if (scrollContainer) {
           const stickyOffset = 200;
           const containerRect = scrollContainer.getBoundingClientRect();
           const elementRect = el.getBoundingClientRect();
           const scrollTop = scrollContainer.scrollTop + elementRect.top - containerRect.top - stickyOffset;
           scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
         } else {
-          // Fallback to scrollIntoView
           el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }
       this.currentIndex = index;
-    }catch(e){ console.warn('scrollToQuestion failed', e); }
+    } catch (e) { console.warn('scrollToQuestion failed', e); }
   }
 
-  prevQuestion(){
-    if(this.currentIndex <= 0) return;
+  prevQuestion() {
+    if (this.currentIndex <= 0) return;
     this.currentIndex--;
     this.scrollToQuestion(this.currentIndex);
   }
 
-  nextQuestion(){
-    if(this.currentIndex >= (this.questions.length - 1)) return;
+  nextQuestion() {
+    if (this.currentIndex >= (this.questions.length - 1)) return;
     this.currentIndex++;
     this.scrollToQuestion(this.currentIndex);
   }
@@ -312,17 +355,15 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
     this.submitting = true;
     const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || sessionStorage.getItem('user_info');
     let userId = '';
-    try{ const u = userRaw ? JSON.parse(userRaw) : null; userId = u?.user_id || u?.id || u?.email || ''; }catch(e){}
+    try { const u = userRaw ? JSON.parse(userRaw) : null; userId = u?.user_id || u?.id || u?.email || ''; } catch (e) {}
 
-    const timeTakenMins = Math.round((this.totalSeconds - this.remaining)/60);
-    // resolve schedule_id from multiple possible shapes
+    const timeTakenMins = Math.round((this.totalSeconds - this.remaining) / 60);
     const resolvedScheduleId = this.schedule_id || this.exam?.schedule_id || this.exam?.data?.exam_detail?.schedule_id || this.exam?.data?.schedule_id || this.exam?.id || this.exam?.exam_id || '';
 
     const payload: any = {
       exam_id: this.examId || this.exam?.exam_id || this.exam?.data?.exam_detail?.exam_id,
       schedule_id: resolvedScheduleId,
       user_id: userId,
-      // Prefer the normalized launch response ID used by status polling.
       attempt_id: this.attempt_id || this.exam?.attempt_id,
       answers: this.answers,
       submitted_at: new Date().toISOString(),
@@ -334,39 +375,34 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy{
         const completedAt = new Date().toISOString();
         const result = {
           ...(res?.data || res || {}),
-          // Bind browser-stored result data to the authenticated user that submitted it.
           owner_user_id: userId,
           test_id: this.examId,
           title: this.examTitle,
           user: userId,
-          total_questions: this.questions.length,
-          time_taken_mins: timeTakenMins,
-          completed_at: completedAt,
-          questions: this.questions.map((question, index) => ({
-            id: question.id,
-            question: question.question || question.text,
-            answer: this.answers[String(question.id ?? index)] ?? '',
-            marks: question.marks
-          }))
+          date: completedAt,
+          score: res?.score || 0,
+          total_marks: res?.total_marks || 0,
+          status: 'Submitted'
         };
         try {
           sessionStorage.removeItem('launched_exam');
-          sessionStorage.setItem('last_submission', JSON.stringify(result));
-          sessionStorage.setItem('test_result', JSON.stringify(result));
-        } catch(e) {}
-        this.submitting = false;
+          const existing = JSON.parse(sessionStorage.getItem('user_completed_exams') || '[]');
+          existing.push(result);
+          sessionStorage.setItem('user_completed_exams', JSON.stringify(existing));
+        } catch (e) {}
+
         this.stopTimer();
+        this.stopStatusPolling();
+        this.stopSpeechRecognition();
         this.ngZone.run(() => this.router.navigate(['/user-dashboard']));
       },
       error: (err) => {
-        console.warn('Submit failed', err);
         this.submitting = false;
-        if (err?.error?.errorCode === 'EXAM_UNPUBLISHED') {
+        if (err?.status === 409 && err?.error?.errorCode === 'EXAM_UNPUBLISHED') {
           this.stopActiveTest();
           return;
         }
-        const message = err?.error?.statusMessage || 'Failed to submit test. Please try again.';
-        try { notify(message, 'error'); } catch(e) { console.warn(message); }
+        notify(err?.error?.statusMessage || 'Failed to submit exam. Please try again.', 'error');
       }
     });
   }

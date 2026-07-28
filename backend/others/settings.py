@@ -13,8 +13,11 @@ def get_ai_confidence_threshold(session=None):
     if owns_session:
         session = SQLiteDB().connect()
     try:
-        setting = session.query(Setting).order_by(Setting.updated_at.desc()).first()
-        return float(setting.ai_confidence_threshold) if setting else DEFAULT_AI_CONFIDENCE_THRESHOLD
+        try:
+            setting = session.query(Setting).order_by(Setting.updated_at.desc()).first()
+            return float(setting.ai_confidence_threshold) if setting and setting.ai_confidence_threshold is not None else DEFAULT_AI_CONFIDENCE_THRESHOLD
+        except Exception:
+            return DEFAULT_AI_CONFIDENCE_THRESHOLD
     finally:
         if owns_session and session:
             session.close()

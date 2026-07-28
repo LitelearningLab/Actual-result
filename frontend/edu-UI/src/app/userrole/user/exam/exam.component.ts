@@ -586,8 +586,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   isOptionSelected(item: any, opt: any): boolean {
     try {
       const arr = this.normalizeSelectedOptions(item);
-      const optText = (opt && opt.option_text) ? String(opt.option_text) : '';
-      return arr.indexOf(optText) >= 0;
+      const optText = (opt && opt.option_text) ? String(opt.option_text) : (typeof opt === 'string' ? opt : '');
+      const optId = (opt && opt.options_id) ? String(opt.options_id) : (opt && opt.id ? String(opt.id) : '');
+      return arr.indexOf(optText) >= 0 || (optId !== '' && arr.indexOf(optId) >= 0);
     } catch (e) { return false; }
   }
 

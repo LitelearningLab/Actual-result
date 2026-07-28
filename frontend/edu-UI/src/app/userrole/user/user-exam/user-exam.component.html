@@ -123,12 +123,12 @@
           <fieldset *ngIf="q.type === 'choose' || q.type === 'Choose' || q.type === 'MCQ'" class="q-options">
             <legend class="sr-only">Select one answer</legend>
             <label class="opt" *ngFor="let o of q.options; let oi = index" 
-              [class.selected]="answers[q.id || i] === (o.id || o.text)">
+              [class.selected]="answers[q.id || i] === getOptVal(o)">
               <span class="opt-letter">{{ 'ABCDEFGH'[oi] }}</span>
-              <input type="radio" name="q-{{q.id || i}}" [value]="o.id || o.text" [(ngModel)]="answers[q.id || i]" [disabled]="testStopped"
-                (change)="selectOne(q.id || i, o.id || o.text)" />
-              <span class="opt-text">{{ o.text }}</span>
-              <mat-icon class="opt-check" *ngIf="answers[q.id || i] === (o.id || o.text)">check_circle</mat-icon>
+              <input type="radio" name="q-{{q.id || i}}" [value]="getOptVal(o)" [(ngModel)]="answers[q.id || i]" [disabled]="testStopped"
+                (change)="selectOne(q.id || i, getOptVal(o))" />
+              <span class="opt-text">{{ getOptText(o) }}</span>
+              <mat-icon class="opt-check" *ngIf="answers[q.id || i] === getOptVal(o)">check_circle</mat-icon>
             </label>
           </fieldset>
 
@@ -136,12 +136,12 @@
           <fieldset *ngIf="q.type === 'multi' || q.type === 'Multi'" class="q-options">
             <legend class="sr-only">Select all that apply</legend>
             <label class="opt" *ngFor="let o of q.options; let oi = index"
-              [class.selected]="(answers[q.id || i] || []).indexOf(o.id || o.text) !== -1">
+              [class.selected]="isMultiSelected(q.id || i, getOptVal(o))">
               <span class="opt-letter">{{ 'ABCDEFGH'[oi] }}</span>
-              <input type="checkbox" [value]="o.id || o.text" (change)="toggleMulti(q.id || i, o.id || o.text)" [disabled]="testStopped"
-                [checked]="(answers[q.id || i] || []).indexOf(o.id || o.text) !== -1" />
-              <span class="opt-text">{{ o.text }}</span>
-              <mat-icon class="opt-check" *ngIf="(answers[q.id || i] || []).indexOf(o.id || o.text) !== -1">check_circle</mat-icon>
+              <input type="checkbox" [value]="getOptVal(o)" (change)="toggleMulti(q.id || i, getOptVal(o))" [disabled]="testStopped"
+                [checked]="isMultiSelected(q.id || i, getOptVal(o))" />
+              <span class="opt-text">{{ getOptText(o) }}</span>
+              <mat-icon class="opt-check" *ngIf="isMultiSelected(q.id || i, getOptVal(o))">check_circle</mat-icon>
             </label>
           </fieldset>
 

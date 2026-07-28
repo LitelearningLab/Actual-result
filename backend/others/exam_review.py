@@ -335,7 +335,7 @@ def validate_answers(attempt_id):
     evaluation_failures = 0
 
     # get answer records
-    answers = session.query(Answer).filter_by(attempt_id=attempt_id, is_validated=0).all()
+    answers = session.query(Answer).filter_by(attempt_id=attempt_id).all()
 
     # Group answers by question_id
     answers_by_question = {}
@@ -352,10 +352,8 @@ def validate_answers(attempt_id):
             # For text or code questions, manual validation is required
             for ans in question_answers:
                 written_answer = ans.written_answer.strip().lower() if ans.written_answer else ""
-                correct_answers = correct_options[0].option_text.strip().lower()
-                written_answer = ans.written_answer.strip().lower() if ans.written_answer else ""
-                correct_answers = correct_options[0].option_text.strip().lower()
-                if written_answer == correct_answers:
+                correct_answers = correct_options[0].option_text.strip().lower() if correct_options else ""
+                if written_answer and written_answer == correct_answers:
                     is_correct = 1
                     marks_awarded = question.marks
                     feedback_part = None
@@ -371,6 +369,8 @@ def validate_answers(attempt_id):
         elif question.question_type == 'descriptive':
             # For descriptive questions, use LLM to evaluate
             for ans in question_answers:
+                if ans.is_validated == 1:
+                    continue
                 student_answer = ans.written_answer
                 expected_answer = correct_options[0].option_text if correct_options else ""
                 question_mark = question.marks
@@ -424,15 +424,17 @@ def validate_answers(attempt_id):
 
             # get the correct options for the question
             correct_option_ids = set(
-                    opt.options_id for opt in session.query(Option).filter_by(question_id=question_id, is_correct=1).all()
-                )
+                str(opt.options_id).lower() for opt in session.query(Option).filter_by(question_id=question_id, is_correct=1).all()
+            )
 
-            selected_option_ids = set(ans.selected_option_id for ans in question_answers)
+            selected_option_ids = set(
+                str(ans.selected_option_id).lower() for ans in question_answers if ans.selected_option_id
+            )
 
             missing_options = correct_option_ids - selected_option_ids
             incorrect_options = selected_option_ids - correct_option_ids
 
-            is_fully_correct = len(missing_options) == 0 and len(incorrect_options) == 0
+            is_fully_correct = len(correct_option_ids) > 0 and len(missing_options) == 0 and len(incorrect_options) == 0
             awarded_marks = question.marks if is_fully_correct else 0
             if is_fully_correct:
                 feedback = None
@@ -469,13 +471,12 @@ def validate_answers(attempt_id):
             if total_possible_marks > 0 and (total_score / total_possible_marks * 100) >= passing_score:
                 attempt.feedback = 'Pass'
             else:
-                attempt.feedback = 'Faile'
+                attempt.feedback = 'Failed'
             attempt.percentage = (total_score / total_possible_marks * 100) if total_possible_marks > 0 else 0
             attempt.status = 'evaluated'
             session.add(attempt)
             session.commit()
     except Exception as e:
-        session.rollback()
         return {"statusMessage": f"Error updating exam attempt score: {str(e)}", "status": False}, 500
     finally:
         session.close()
