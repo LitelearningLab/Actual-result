@@ -1036,15 +1036,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   formatDate(dateLike: any): string {
     if (!dateLike) return '';
     try {
-      const dateStr = String(dateLike);
+      const dateStr = String(dateLike).replace(/^On\s+/i, '').trim();
 
       if (typeof dateLike === 'string' && (dateLike.includes('GMT') || dateLike.includes('UTC'))) {
-        return dateLike.replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
+        return dateLike.replace(/^On\s+/i, '').replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
       }
 
       const d = (dateLike instanceof Date) ? dateLike : new Date(dateLike);
       if (isNaN(d.getTime())) {
-        return dateStr.replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
+        return dateStr.replace(/^On\s+/i, '').replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
       }
 
       const formatter = new Intl.DateTimeFormat('en-IN', {
@@ -1065,9 +1065,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       const hour = getPart('hour');
       const min = getPart('minute');
 
-      return `On ${day}-${month}-${year} ${hour}:${min} IST`;
+      return `${day}-${month}-${year} ${hour}:${min} IST`;
     } catch (e) {
-      return String(dateLike || '').replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
+      return String(dateLike || '').replace(/^On\s+/i, '').replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
     }
   }
 

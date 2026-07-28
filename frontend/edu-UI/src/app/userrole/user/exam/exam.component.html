@@ -350,7 +350,7 @@
                                                                               </div>
                                                                               <div class="review-meta small-muted">
                                                                                     <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by">Edited on {{ h.updated_date }}</span>
+                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(h.updated_date) || h.updated_date }}</span>
                                                                               </div>
                                                                         </div>
                                                                   </div>
@@ -361,7 +361,7 @@
                                                             </div>
                                                             <div class="review-meta small-muted">
                                                                   <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by">Edited on {{ rc.updated_date }}</span>
+                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(rc.updated_date) || rc.updated_date }}</span>
                                                             </div>
                                                       </div>
                                                 </div>
@@ -381,7 +381,7 @@
                                                                               </div>
                                                                               <div class="review-meta small-muted">
                                                                                     <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by">Edited on {{ h.updated_date }}</span>
+                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(h.updated_date) || h.updated_date }}</span>
                                                                               </div>
                                                                         </div>
                                                                   </div>
@@ -392,7 +392,7 @@
                                                             </div>
                                                             <div class="review-meta small-muted">
                                                                   <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by">Edited on {{ rc.updated_date }}</span>
+                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(rc.updated_date) || rc.updated_date }}</span>
                                                             </div>
                                                       </div>
                                                 </div>
@@ -412,7 +412,7 @@
                                                                               </div>
                                                                               <div class="review-meta small-muted">
                                                                                     <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by">Edited on {{ h.updated_date }}</span>
+                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(h.updated_date) || h.updated_date }}</span>
                                                                               </div>
                                                                         </div>
                                                                   </div>
@@ -423,7 +423,7 @@
                                                             </div>
                                                             <div class="review-meta small-muted">
                                                                   <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by">Edited on {{ rc.updated_date }}</span>
+                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(rc.updated_date) || rc.updated_date }}</span>
                                                             </div>
                                                       </div>
                                                 </div>

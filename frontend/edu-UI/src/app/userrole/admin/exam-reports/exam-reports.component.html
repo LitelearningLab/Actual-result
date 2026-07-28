@@ -583,7 +583,14 @@
                                                                                                                         
                                                                                                               </div>
                                                                                                               <div class="review-actions" *ngIf="h.is_deleted != 1">
-                                                                                                                    <span *ngIf="isCommentEdited(h)" class="edited-info"><mat-icon style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle; margin-right: 2px;">edit</mat-icon>Edited by {{ h.updated_by || h.edited_by || 'Admin User' }} {{ formatDate(h.updated_date || h.edited_at) }}</span>
+                                                                                                                    <div *ngIf="isCommentEdited(h)" class="edited-info">
+                                                                                                                        <mat-icon>edit_note</mat-icon>
+                                                                                                                        <span class="edited-text">
+                                                                                                                            Edited by <strong class="editor-name">{{ h.updated_by || h.edited_by || 'Admin User' }}</strong>
+                                                                                                                            <span class="edited-date-sep">•</span>
+                                                                                                                            <span class="edited-date">{{ formatDate(h.updated_date || h.edited_at) }}</span>
+                                                                                                                        </span>
+                                                                                                                    </div>
                                                                                                                    <a class="edit-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); startEditComment(h)"><mat-icon>edit</mat-icon> Edit</a>
                                                                                                                    <a class="delete-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); confirmDeleteComment(h)"><mat-icon>delete</mat-icon> Delete</a>
                                                                                                                    <a class="save-link" href="javascript:void(0)" *ngIf="h._editing" (click)="$event.stopPropagation(); saveReviewComment(h)"><mat-icon>save</mat-icon> Save</a>
@@ -605,7 +612,14 @@
                                                                                                     <span class="deleted-by">Deleted by {{ rc.updated_by || rc.created_by || rc.reviewer_id || 'System' }}</span>
                                                                                                </div>
                                                                                                <div class="review-actions" *ngIf="rc.is_deleted != 1">
-                                                                                                    <span *ngIf="isCommentEdited(rc)" class="edited-info"><mat-icon style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle; margin-right: 2px;">edit</mat-icon>Edited by {{ rc.updated_by || rc.edited_by || 'Admin User' }} {{ formatDate(rc.updated_date || rc.edited_at) }}</span>
+                                                                                                    <div *ngIf="isCommentEdited(rc)" class="edited-info">
+                                                                                                        <mat-icon>edit_note</mat-icon>
+                                                                                                        <span class="edited-text">
+                                                                                                            Edited by <strong class="editor-name">{{ rc.updated_by || rc.edited_by || 'Admin User' }}</strong>
+                                                                                                            <span class="edited-date-sep">•</span>
+                                                                                                            <span class="edited-date">{{ formatDate(rc.updated_date || rc.edited_at) }}</span>
+                                                                                                        </span>
+                                                                                                    </div>
                                                                                                     <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
                                                                                                     <a class="delete-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); confirmDeleteComment(rc)"><mat-icon>delete</mat-icon> Delete</a>
                                                                                                     <a class="save-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); saveReviewComment(rc)"><mat-icon>save</mat-icon> Save</a>
@@ -637,7 +651,14 @@
                                                                                                                         
                                                                                                               </div>
                                                                                                               <div class="review-actions" *ngIf="h.is_deleted != 1">
-                                                                                                                    <span *ngIf="isCommentEdited(h)" class="edited-info"><mat-icon style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle; margin-right: 2px;">edit</mat-icon>Edited by {{ h.updated_by || h.edited_by || 'Admin User' }} {{ formatDate(h.updated_date || h.edited_at) }}</span>
+                                                                                                                    <div *ngIf="isCommentEdited(h)" class="edited-info">
+                                                                                                                        <mat-icon>edit_note</mat-icon>
+                                                                                                                        <span class="edited-text">
+                                                                                                                            Edited by <strong class="editor-name">{{ h.updated_by || h.edited_by || 'Admin User' }}</strong>
+                                                                                                                            <span class="edited-date-sep">•</span>
+                                                                                                                            <span class="edited-date">{{ formatDate(h.updated_date || h.edited_at) }}</span>
+                                                                                                                        </span>
+                                                                                                                    </div>
                                                                                                                    <a class="edit-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); startEditComment(h)"><mat-icon>edit</mat-icon> Edit</a>
                                                                                                                    <a class="delete-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); confirmDeleteComment(h)"><mat-icon>delete</mat-icon> Delete</a>
                                                                                                                    <a class="save-link" href="javascript:void(0)" *ngIf="h._editing" (click)="$event.stopPropagation(); saveReviewComment(h)"><mat-icon>save</mat-icon> Save</a>
@@ -660,7 +681,14 @@
                                                                                                      
                                                                                           </div>
                                                                                           <div class="review-actions" *ngIf="rc.is_deleted != 1">
-                                                                                                <span *ngIf="isCommentEdited(rc)" class="edited-info"><mat-icon style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle; margin-right: 2px;">edit</mat-icon>Edited by {{ rc.edited_by || rc.updated_by || 'Admin User' }} {{ formatDate(rc.edited_at || rc.updated_date) }}</span>
+                                                                                                <div *ngIf="isCommentEdited(rc)" class="edited-info">
+                                                                                                    <mat-icon>edit_note</mat-icon>
+                                                                                                    <span class="edited-text">
+                                                                                                        Edited by <strong class="editor-name">{{ rc.edited_by || rc.updated_by || 'Admin User' }}</strong>
+                                                                                                        <span class="edited-date-sep">•</span>
+                                                                                                        <span class="edited-date">{{ formatDate(rc.edited_at || rc.updated_date) }}</span>
+                                                                                                    </span>
+                                                                                                </div>
                                                                                                <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
                                                                                                <a class="delete-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); confirmDeleteComment(rc)"><mat-icon>delete</mat-icon> Delete</a>
                                                                                                 <a class="save-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); saveReviewComment(rc)"><mat-icon>save</mat-icon> Save</a>
@@ -692,7 +720,14 @@
                                                                                                                         
                                                                                                               </div>
                                                                                                               <div class="review-actions" *ngIf="h.is_deleted != 1">
-                                                                                                                    <span *ngIf="isCommentEdited(h)" class="edited-info"><mat-icon style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle; margin-right: 2px;">edit</mat-icon>Edited by {{ h.updated_by || h.edited_by || 'Admin User' }} {{ formatDate(h.updated_date || h.edited_at) }}</span>
+                                                                                                                    <div *ngIf="isCommentEdited(h)" class="edited-info">
+                                                                                                                        <mat-icon>edit_note</mat-icon>
+                                                                                                                        <span class="edited-text">
+                                                                                                                            Edited by <strong class="editor-name">{{ h.updated_by || h.edited_by || 'Admin User' }}</strong>
+                                                                                                                            <span class="edited-date-sep">•</span>
+                                                                                                                            <span class="edited-date">{{ formatDate(h.updated_date || h.edited_at) }}</span>
+                                                                                                                        </span>
+                                                                                                                    </div>
                                                                                                                    <a class="edit-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); startEditComment(h)"><mat-icon>edit</mat-icon> Edit</a>
                                                                                                                    <a class="delete-link" href="javascript:void(0)" *ngIf="!h._editing" (click)="$event.stopPropagation(); confirmDeleteComment(h)"><mat-icon>delete</mat-icon> Delete</a>
                                                                                                                    <a class="save-link" href="javascript:void(0)" *ngIf="h._editing" (click)="$event.stopPropagation(); saveReviewComment(h)"><mat-icon>save</mat-icon> Save</a>
@@ -715,7 +750,14 @@
                                                                                                      
                                                                                           </div>
                                                                                           <div class="review-actions" *ngIf="rc.is_deleted != 1">
-                                                                                                <span *ngIf="isCommentEdited(rc)" class="edited-info"><mat-icon style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle; margin-right: 2px;">edit</mat-icon>Edited by {{ rc.edited_by || rc.updated_by || 'Admin User' }} {{ formatDate(rc.edited_at || rc.updated_date) }}</span>
+                                                                                                <div *ngIf="isCommentEdited(rc)" class="edited-info">
+                                                                                                    <mat-icon>edit_note</mat-icon>
+                                                                                                    <span class="edited-text">
+                                                                                                        Edited by <strong class="editor-name">{{ rc.edited_by || rc.updated_by || 'Admin User' }}</strong>
+                                                                                                        <span class="edited-date-sep">•</span>
+                                                                                                        <span class="edited-date">{{ formatDate(rc.edited_at || rc.updated_date) }}</span>
+                                                                                                    </span>
+                                                                                                </div>
                                                                                                <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
                                                                                                <a class="delete-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); confirmDeleteComment(rc)"><mat-icon>delete</mat-icon> Delete</a>
                                                                                                 <a class="save-link" href="javascript:void(0)" *ngIf="rc._editing" (click)="$event.stopPropagation(); saveReviewComment(rc)"><mat-icon>save</mat-icon> Save</a>
