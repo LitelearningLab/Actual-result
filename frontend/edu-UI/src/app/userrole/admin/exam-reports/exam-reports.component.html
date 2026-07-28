@@ -602,7 +602,7 @@
                                                                                                </div>
                                                                                           <div class="review-meta small-muted">
                                                                                                <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.created_by || rc.reviewer_id || 'System' }}</span>
-                                                                                               <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)">Edited by {{ rc.updated_by || rc.created_by }} {{ formatDate(rc.updated_date) }} </span>
+                                                                                               <span *ngIf="rc.is_deleted != 1 && (rc.updated_by || rc.edited_by)"><mat-icon style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle; margin-right: 2px;">edit</mat-icon>Edited by {{ rc.updated_by || rc.edited_by || rc.created_by || 'Admin User' }} {{ formatDate(rc.updated_date || rc.edited_at) }}</span>
                                                                                           </div>
                                                                                           <div class="review-actions" *ngIf="rc.is_deleted != 1">
                                                                                                <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
@@ -655,7 +655,7 @@
                                                                                            </div>
                                                                                           <div class="review-meta small-muted">
                                                                                                     <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
-                                                                                                     <span *ngIf="rc.is_deleted != 1 && (rc.edited_by || rc.updated_by)">Edited by {{ rc.edited_by || rc.updated_by }} {{ formatDate(rc.edited_at || rc.updated_date) }}</span>
+                                                                                                     <span *ngIf="rc.is_deleted != 1 && (rc.edited_by || rc.updated_by)"><mat-icon style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle; margin-right: 2px;">edit</mat-icon>Edited by {{ rc.edited_by || rc.updated_by || rc.created_by || 'Admin User' }} {{ formatDate(rc.edited_at || rc.updated_date) }}</span>
                                                                                           </div>
                                                                                           <div class="review-actions" *ngIf="rc.is_deleted != 1">
                                                                                                <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>
@@ -708,7 +708,7 @@
                                                                                           </div>
                                                                                           <div class="review-meta small-muted">
                                                                                                     <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted by {{ rc.updated_by || rc.reviewer_id || rc.commented_by || 'Instructor' }}</span>
-                                                                                                     <span *ngIf="rc.is_deleted != 1 && (rc.edited_by || rc.updated_by)">Edited by {{ rc.edited_by || rc.updated_by }} {{ formatDate(rc.edited_at || rc.updated_date) }}</span>
+                                                                                                     <span *ngIf="rc.is_deleted != 1 && (rc.edited_by || rc.updated_by)"><mat-icon style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle; margin-right: 2px;">edit</mat-icon>Edited by {{ rc.edited_by || rc.updated_by || rc.created_by || 'Admin User' }} {{ formatDate(rc.edited_at || rc.updated_date) }}</span>
                                                                                           </div>
                                                                                           <div class="review-actions" *ngIf="rc.is_deleted != 1">
                                                                                                <a class="edit-link" href="javascript:void(0)" *ngIf="!rc._editing" (click)="$event.stopPropagation(); startEditComment(rc)"><mat-icon>edit</mat-icon> Edit</a>

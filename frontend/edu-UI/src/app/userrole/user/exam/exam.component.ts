@@ -689,4 +689,43 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   ngOnDestroy(): void {
     if(this.reviewRefreshTimer) clearInterval(this.reviewRefreshTimer);
   }
+
+  // Format a date dynamically converting GMT/UTC timezone offsets to IST
+  formatDate(dateLike: any): string {
+    if (!dateLike) return '';
+    try {
+      const dateStr = String(dateLike);
+
+      if (typeof dateLike === 'string' && (dateLike.includes('GMT') || dateLike.includes('UTC'))) {
+        return dateLike.replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
+      }
+
+      const d = (dateLike instanceof Date) ? dateLike : new Date(dateLike);
+      if (isNaN(d.getTime())) {
+        return dateStr.replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
+      }
+
+      const formatter = new Intl.DateTimeFormat('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata'
+      });
+      const parts = formatter.formatToParts(d);
+      const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+
+      const day = getPart('day');
+      const month = getPart('month');
+      const year = getPart('year');
+      const hour = getPart('hour');
+      const min = getPart('minute');
+
+      return `On ${day}-${month}-${year} ${hour}:${min} IST`;
+    } catch (e) {
+      return String(dateLike || '').replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
+    }
+  }
 }

@@ -472,6 +472,23 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if(!rc) return;
     const newText = (rc._editedText || '').toString().trim();
     if(newText.length === 0){ this._snack.open('Comment cannot be empty', 'Close', { duration: 3000 }); return; }
+
+    const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || sessionStorage.getItem('user_info');
+    let userName = 'Admin User';
+    if (raw) {
+      try {
+        const u = JSON.parse(raw);
+        userName = u.full_name || u.fullName || u.name || u.user_name || 'Admin User';
+      } catch(e){}
+    }
+
+    rc.comment_text = newText;
+    rc.updated_by = userName;
+    rc.edited_by = userName;
+    rc.updated_date = new Date().toISOString();
+    rc.edited_at = new Date().toISOString();
+    rc._editing = false;
+
     this.updateReviewComment('edit', rc, newText, '');
   }
 
@@ -506,24 +523,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.http.post<any>(`${API_BASE}/update-review-comments/${action}`, payload).subscribe({
       next: (res)=>{
         this.loading.hide();
-        // apply changes locally
-        if(action === 'edit'){
-          rc.comment_text = text;
-          rc.updated_by = userName;
-          rc.edited_by = userName;
-          rc.edited_at = new Date().toISOString();
-          rc.edit_reason = editReason;
-          rc._editing = false;
-          rc._editedText = undefined;
-          rc._editReason = undefined;
-          this._snack.open('Comment updated', 'Close', { duration: 3000 });
-        } else if(action === 'delete'){
-          rc.is_deleted = 1;
-          rc.updated_by = userName;
-          this._snack.open('Comment deleted', 'Close', { duration: 3000 });
+        this._snack.open(action === 'edit' ? 'Comment updated' : 'Comment deleted', 'Close', { duration: 3000 });
+        if(this.currentReviewParams){
+          this.fetchUserReview(this.currentReviewParams);
         }
-        // clear global edit flag if no edits remain
-        this.commentEdit = !!this.userReviewAttempts?.some((att:any) => (att.review || []).some((q:any) => (q.review_comment?.comments || []).some((c:any)=>c._editing)));
       },
       error: (err)=>{
         this.loading.hide();
