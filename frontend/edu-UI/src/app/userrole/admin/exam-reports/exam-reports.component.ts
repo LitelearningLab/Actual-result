@@ -43,6 +43,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   selectedUserScore: string | number | null = null;
   selectedUserResult: string | null = null;
   private currentReviewParams: any = null;
+  private currentReviewRow: any = null;
   totalQuestions: number | null = null;
   totalMarks: string | number | null = null;
   pageSize = 25;
@@ -173,19 +174,20 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   // Normalize selected_option into an array of trimmed strings.
   private _normalizeSelectedOption(selected: any): string[] {
+    if (!selected && selected !== 0) return [];
     try {
-      if (!selected && selected !== 0) return [];
       if (Array.isArray(selected)) {
-        // flatten items that might be comma-separated strings
-        return selected.flatMap((it: any) => {
-          if (typeof it === 'string') return it.split(',').map((s: string) => s.trim()).filter(Boolean);
-          return [String(it)];
-        });
+        return selected.map(s => (s !== null && s !== undefined) ? String(s).trim() : '').filter(Boolean);
       }
       if (typeof selected === 'string') {
+        try {
+          const parsed = JSON.parse(selected);
+          if (Array.isArray(parsed)) {
+            return parsed.map(s => (s !== null && s !== undefined) ? String(s).trim() : '').filter(Boolean);
+          }
+        } catch(e) {}
         return selected.split(',').map(s => s.trim()).filter(Boolean);
       }
-      // fallback to single value
       return [String(selected)];
     } catch (e) {
       return [];
@@ -209,6 +211,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   // Open user review by calling backend API /review-user-exam
   openUserReview(row: any){
     if(!row) return;
+    this.currentReviewRow = row;
     // set header fields used in template
     try{
       this.selectedUserName = row.student_name || row.name || row.user_name || row.full_name || null;
@@ -272,7 +275,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       next: (res)=>{
         try{
           const body = res || {};
-          // backend returns { data: [ attemptObj, ... ] }
           let attempts: any[] = [];
           if(Array.isArray(body.data)) {
             attempts = body.data;
@@ -284,16 +286,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             attempts = body.attempts;
           }
 
-          // normalize each attempt: ensure review/questions array exists and normalize selected options
           this.userReviewAttempts = (attempts || []).map(a => {
             const reviewList = a.review || a.questions || a.attempt_review || [];
             const normalizedReview = (Array.isArray(reviewList) ? reviewList : []).map((q:any) => {
               try{
-                // normalize selected_option into array of values
                 q.selected_option = this._normalizeSelectedOption(q.selected_option || q.selected_options || q.selected || []);
-                // also ensure options is an array
                 if (!Array.isArray(q.options) && q.options && typeof q.options === 'object') {
-                  // sometimes options come as an object map, convert to array
                   q.options = Object.keys(q.options).map(k => q.options[k]);
                 }
               }catch(e){}
@@ -301,17 +299,32 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             });
             return { ...a, review: normalizedReview };
           });
-          // If total marks not set from the row, try to take it from the first attempt returned
-          if((this.totalMarks === null || this.totalMarks === undefined) && this.userReviewAttempts && this.userReviewAttempts.length){
+
+          // Always synchronize selectedUserScore, selectedUserResult, and main table row with response
+          if(this.userReviewAttempts && this.userReviewAttempts.length){
             const first = this.userReviewAttempts[0] || {};
-            this.totalMarks = first.total_marks ?? first.totalMarks ?? first.total ?? null;
-            // also set selectedUserScore fallback if not available from the row
-            if((this.selectedUserScore === null || this.selectedUserScore === undefined) && (first.score || first.marks || first.marks_obtained || first.percentage !== undefined)){
-              this.selectedUserScore = first.score ?? first.marks ?? first.marks_obtained ?? null;
+            const fetchedScore = first.score ?? first.marks ?? first.marks_obtained;
+            if(fetchedScore !== undefined && fetchedScore !== null){
+              this.selectedUserScore = fetchedScore;
+              if(this.currentReviewRow){
+                this.currentReviewRow.marks_obtained = fetchedScore;
+                this.currentReviewRow.score = fetchedScore;
+                this.currentReviewRow.marks = fetchedScore;
+              }
             }
-            // ensure totalQuestions if missing
-            if((this.totalQuestions === null || this.totalQuestions === undefined) && (first.total_questions || first.totalQuestions || first.totalQuestionsCount)){
-              this.totalQuestions = first.total_questions ?? first.totalQuestions ?? null;
+            const fetchedResult = first.result ?? first.status ?? first.feedback;
+            if(fetchedResult !== undefined && fetchedResult !== null && fetchedResult !== ''){
+              this.selectedUserResult = fetchedResult;
+              if(this.currentReviewRow){
+                this.currentReviewRow.result = fetchedResult;
+                this.currentReviewRow.status = fetchedResult;
+              }
+            }
+            if(first.total_marks !== undefined || first.totalMarks !== undefined || first.total !== undefined){
+              this.totalMarks = first.total_marks ?? first.totalMarks ?? first.total ?? this.totalMarks;
+            }
+            if(first.total_questions !== undefined || first.totalQuestions !== undefined){
+              this.totalQuestions = first.total_questions ?? first.totalQuestions ?? this.totalQuestions;
             }
           }
         }catch(e){
@@ -334,7 +347,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         if(err && err.status === 0){
           const snack = this._snack.open('Network or server unreachable — check backend and network.', 'Retry', { duration: 8000 });
           snack.onAction().subscribe(() => {
-            // retry once
             this.fetchUserReview(params);
           });
         } else {
@@ -351,6 +363,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.showUserReviewPanel = false; 
     this.userReviewAttempts = []; 
     this.selectedUserName = null; this.selectedUserScore = null; this.selectedUserResult = null; this.totalQuestions = null; this.totalMarks = null;
+    this.currentReviewRow = null;
   }
 
   // Marks editing helpers for descriptive questions
@@ -439,6 +452,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         }
         
         this._snack.open('Marks updated successfully', 'Close', { duration: 3000 });
+
+        if(this.currentReviewParams){
+          this.fetchUserReview(this.currentReviewParams);
+        }
       },
       error: (err) => {
         this.loading.hide();

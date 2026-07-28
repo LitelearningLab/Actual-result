@@ -49,3 +49,14 @@ IF COL_LENGTH('dbo.CategoriesTeams', 'name') IS NOT NULL
 BEGIN
     ALTER TABLE dbo.CategoriesTeams ALTER COLUMN name NVARCHAR(255) NULL;
 END
+
+IF COL_LENGTH('dbo.ExamReviewComments', 'category') IS NOT NULL
+BEGIN
+    ALTER TABLE dbo.ExamReviewComments ALTER COLUMN category NVARCHAR(100) NULL;
+END
+
+IF COL_LENGTH('dbo.ExamReviewCommentsHistory', 'category') IS NOT NULL
+BEGIN
+    ALTER TABLE dbo.ExamReviewCommentsHistory ALTER COLUMN category NVARCHAR(100) NULL;
+END
+

@@ -564,12 +564,13 @@ def update_review_comments(request, action_type="edit", current_user=None):
                     session.add(history_record)
             else:
                 # Preserve the prior value, then update the current entry.
+                cat_val = str(comment_record.category or '')[:100] if comment_record.category else None
                 session.add(ExamReviewCommentsHistory(
                     comment_id=comment_id,
                     attempt_id=comment_record.attempt_id,
                     question_id=comment_record.question_id,
                     comment_text=comment_record.comment_text,
-                    category=comment_record.category,
+                    category=cat_val,
                     action=comment_record.action,
                     is_deleted=comment_record.is_deleted,
                     created_by=comment_record.created_by,
