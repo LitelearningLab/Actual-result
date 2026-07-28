@@ -1138,6 +1138,13 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 0.0625rem dashed #e2e8f0;
+  flex-wrap: wrap;
+
+  .edited-info {
+    width: 100%;
+    margin-top: 0;
+    margin-bottom: 0.25rem;
+  }
 
   mat-icon {
     font-size: 14px !important;

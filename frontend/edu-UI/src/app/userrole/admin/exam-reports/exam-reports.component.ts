@@ -468,6 +468,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.commentEdit = !!this.userReviewAttempts?.some((att:any) => (att.review || []).some((q:any) => (q.review_comment?.comments || []).some((c:any)=>c._editing)));
   }
 
+  isCommentEdited(c: any): boolean {
+    if (!c) return false;
+    if (c._isEdited) return true;
+    if (c.action === 'edit') return true;
+    if (c.edited_by && (c.edited_at || c.updated_date)) return true;
+    return false;
+  }
+
   saveReviewComment(rc: any){
     if(!rc) return;
     const newText = (rc._editedText || '').toString().trim();
@@ -487,6 +495,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     rc.edited_by = userName;
     rc.updated_date = new Date().toISOString();
     rc.edited_at = new Date().toISOString();
+    rc.action = 'edit';
+    rc._isEdited = true;
     rc._editing = false;
 
     this.updateReviewComment('edit', rc, newText, '');

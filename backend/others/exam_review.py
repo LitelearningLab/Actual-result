@@ -226,9 +226,9 @@ def review_user_exam(request, current_user=None):
                             review_history_dict_item['created_by'] = (history_created_by.full_name or history_created_by.user_name) if history_created_by else (history.created_by or 'Admin User')
                             review_history_dict_item['created_date'] = history.created_date
                             review_history_dict_item['updated_date'] = history.updated_date
-                            review_history_dict_item['updated_by'] = (history_updated_by.full_name or history_updated_by.user_name) if history_updated_by else (history.updated_by or 'Admin User')
+                            review_history_dict_item['updated_by'] = (history_updated_by.full_name or history_updated_by.user_name) if history_updated_by else history.updated_by
                             review_history_dict_item['edit_reason'] = history.edit_reason
-                            review_history_dict_item['edited_by'] = (history_updated_by.full_name or history_updated_by.user_name) if history_updated_by else (history.edited_by or 'Admin User')
+                            review_history_dict_item['edited_by'] = (history_updated_by.full_name or history_updated_by.user_name) if history_updated_by else history.edited_by
                             review_history_dict_item['edited_at'] = history.edited_at
                             review_comment_dict_item['history'].append(review_history_dict_item)
                             # add current comment
@@ -243,9 +243,9 @@ def review_user_exam(request, current_user=None):
                         review_comment_dict_item['created_by'] = (created_by.full_name or created_by.user_name) if created_by else (comment.created_by or 'Admin User')
                         review_comment_dict_item['created_date'] = comment.created_date
                         review_comment_dict_item['updated_date'] = comment.updated_date
-                        review_comment_dict_item['updated_by'] = (updated_by.full_name or updated_by.user_name) if updated_by else (comment.updated_by or 'Admin User')
+                        review_comment_dict_item['updated_by'] = (updated_by.full_name or updated_by.user_name) if updated_by else comment.updated_by
                         review_comment_dict_item['edit_reason'] = comment.edit_reason
-                        review_comment_dict_item['edited_by'] = (edited_by.full_name or edited_by.user_name) if edited_by else (comment.edited_by or 'Admin User')
+                        review_comment_dict_item['edited_by'] = (edited_by.full_name or edited_by.user_name) if edited_by else comment.edited_by
                         review_comment_dict_item['edited_at'] = comment.edited_at
                         review_comment_dict['comments'].append(review_comment_dict_item)
 
