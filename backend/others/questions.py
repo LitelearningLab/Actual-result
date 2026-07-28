@@ -1,5 +1,6 @@
 from db.models import Question, Option, QuestionMapping, Categories, CategoriesDepartments, CategoriesTeams, User, openai_requests
 from db.db import SQLiteDB
+from sqlalchemy import func, or_
 import sys
 import pandas as pd
 import json
@@ -214,15 +215,16 @@ def get_questions_details(request):
         public_access_arg = args.get("public_access")
         public_access = (1 if str(public_access_arg).lower() == "true" else 0)
 
+        active_cat_filter = (func.coalesce(Categories.is_deleted, False) == False)
+
         if args.get("institute_id"):
-            Category_data = session.query(Categories).filter_by(institute_id=args.get("institute_id")).all()
+            Category_data = session.query(Categories).filter(Categories.institute_id == args.get("institute_id"), active_cat_filter).all()
             Category_list = [c.category_id for c in Category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(Category_list)).all()
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list))
         if args.get("category_name"):
-            # category_data = session.query(Categories).filter(Categories.name.ilike(f"%{args.get('category_name')}%"), Categories.public_access==public_access).all()
-            category_query = session.query(Categories).filter(Categories.name == f"{args.get('category_name')}")
+            category_query = session.query(Categories).filter(Categories.name == f"{args.get('category_name')}", active_cat_filter)
             if public_access_arg is not None:
                 category_query = category_query.filter(Categories.public_access==public_access)
             category_data = category_query.all()
@@ -231,46 +233,46 @@ def get_questions_details(request):
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list))
         if args.get("category_id"):
-            category_list = args.get("category_id").split(",")
+            raw_cat_list = args.get("category_id").split(",")
+            active_cats = session.query(Categories.category_id).filter(Categories.category_id.in_(raw_cat_list), active_cat_filter).all()
+            category_list = [c.category_id for c in active_cats]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list))
         if args.get("departments"):
-            # Assuming departments are linked to questions via categories
             department_ids = args.get("departments").split(",")
-            category_data = session.query(CategoriesDepartments).filter(CategoriesDepartments.department_id.in_(department_ids)).all()
+            category_data = session.query(CategoriesDepartments).join(Categories, Categories.category_id == CategoriesDepartments.category_id).filter(CategoriesDepartments.department_id.in_(department_ids), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list))
         if args.get("teams"):
-            # Assuming teams are linked to questions via categories
             team_ids = args.get("teams").split(",")
-            category_data = session.query(CategoriesTeams).filter(CategoriesTeams.team_id.in_(team_ids)).all()
+            category_data = session.query(CategoriesTeams).join(Categories, Categories.category_id == CategoriesTeams.category_id).filter(CategoriesTeams.team_id.in_(team_ids), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list))
         if args.get("created_by"):
-            category_data = session.query(Categories).filter(Categories.created_by == args.get("created_by")).all()
+            category_data = session.query(Categories).filter(Categories.created_by == args.get("created_by"), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list))
         if args.get("created_after"):
-            category_data = session.query(Categories).filter(Categories.created_date >= args.get("created_after")).all()
+            category_data = session.query(Categories).filter(Categories.created_date >= args.get("created_after"), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list))
         if args.get("created_before"):
-            category_data = session.query(Categories).filter(Categories.created_date <= args.get("created_before")).all()
+            category_data = session.query(Categories).filter(Categories.created_date <= args.get("created_before"), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list))
         if args.get("public_access") is not None:
-            category_data = session.query(Categories).filter(Categories.public_access == public_access).all()
+            category_data = session.query(Categories).filter(Categories.public_access == public_access, active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
@@ -279,6 +281,14 @@ def get_questions_details(request):
         questions = session.query(Question).filter(*filter).all()
         question_list = []
         for q in questions:
+            # Get category information for this question & ensure category is active
+            mapping = session.query(QuestionMapping).filter_by(question_id=q.question_id).first()
+            if not mapping:
+                continue
+            category = session.query(Categories).filter(Categories.category_id == mapping.category_id, active_cat_filter).first()
+            if not category:
+                continue
+
             options = session.query(Option).filter_by(question_id=q.question_id, active_status=1).all()
             option_list = [{"id": opt.options_id, "text": opt.option_text, "is_correct": opt.is_correct} for opt in options]
             

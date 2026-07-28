@@ -4,7 +4,7 @@ from others.exam_review import finalize_expired_attempts, is_after_everyone_fini
 import sys
 from datetime import datetime, timezone
 from db.models import Institute, User
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import load_only
 import random
 
@@ -98,6 +98,14 @@ def _replace_attempt_answers(session, exam_attempt, answers):
 
 
 def _category_pool_question_ids(session, category_id):
+    if not category_id:
+        return []
+    cat = session.query(Categories).filter(
+        Categories.category_id == category_id,
+        func.coalesce(Categories.is_deleted, False) == False
+    ).first()
+    if not cat:
+        return []
     rows = session.query(QuestionMapping.question_id).filter(
         QuestionMapping.category_id == category_id
     ).all()
