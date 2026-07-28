@@ -42,6 +42,12 @@ else:
 # read jwt_secret
 jwt_secret = os.getenv('jwt_secret', 'your_jwt_secret')
 
+try:
+    from db.run_migrations import run_migrations
+    run_migrations()
+except Exception as _mig_err:
+    print(f"Auto-migration error on startup: {_mig_err}")
+
 
 GLOBAL_SCOPE_EXCLUDED_PATHS = (
     '/edu/api/login',
@@ -402,7 +408,8 @@ def validate_answers_route(attempt_id):
 @edu_blueprint.route('/update-review-comments/<action>', methods=['POST'])
 @jwt_required
 def update_review_comments_route(action):
-    response_data, status_code = update_review_comments(request, action)
+    current_user = get_current_user_from_request()
+    response_data, status_code = update_review_comments(request, action, current_user)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/update-manual-review-status', methods=['PUT'])
@@ -413,11 +420,13 @@ def update_manual_review_status_route():
         return jsonify({"status": False, "statusMessage": "Admin access required"}), 403
     response_data, status_code = update_manual_review_status(request)
     return jsonify(response_data), status_code
+
 @edu_blueprint.route('/update-descriptive-marks', methods=['POST'])
 @jwt_required
 def update_descriptive_marks_route():
+    current_user = get_current_user_from_request()
     from others.exam_review import update_descriptive_marks
-    response_data, status_code = update_descriptive_marks(request)
+    response_data, status_code = update_descriptive_marks(request, current_user)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/delete-exam', methods=['DELETE', 'OPTIONS'])

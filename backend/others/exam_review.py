@@ -277,6 +277,10 @@ def review_user_exam(request, current_user=None):
                     "question_id": question_answer.question_id,
                     "question_text": question.question_text  if question else "",
                     "question_type": question_type,
+                    "answer_id": question_answer.answer_id,
+                    "question_id": question_answer.question_id,
+                    "question_text": question.question_text  if question else "",
+                    "question_type": question_type,
                     "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct if exam_schedule.show_correct_answers else 0} for opt in options_list],
                     "selected_option": ([selected_option] if isinstance(selected_option, str) else selected_option) if exam_schedule.show_student_answers else [],
                     "correct_option": correct_answer_data if exam_schedule.show_correct_answers else None,
@@ -285,6 +289,7 @@ def review_user_exam(request, current_user=None):
                     "marks_awarded": (question_answer.marks_awarded if question_answer.marks_awarded is not None else 0) if exam_schedule.show_score else None,
                     "updated_by": updated_by.full_name if updated_by else question_answer.created_by,
                     "updated_date": question_answer.created_date,
+                    "edit_reason": getattr(question_answer, 'edit_reason', None),
                     "question_marks": question_marks if exam_schedule.show_score else None,
                     "ai_marks": (question_answer.ai_marks if question_answer.ai_marks is not None else 0) if exam_schedule.show_explanations else None,
                     "ai_confidence": question_answer.ai_confidence if exam_schedule.show_explanations else None,
@@ -301,14 +306,25 @@ def review_user_exam(request, current_user=None):
                     MarksHistory.answer_id == question_answer.answer_id
                 ).order_by(MarksHistory.updated_date.desc()).all()
                 if marks_history and exam_schedule.show_score:
-                    review_data["review"][-1]["marks_history"] = [{
-                        "marks_awarded": mh.marks_awarded,
-                        "updated_by": (lambda user: user.full_name if user else (mh.updated_by or "System"))(
-                            session.query(User).filter(User.user_id == mh.updated_by).first()
-                        ),
-                        "updated_date": mh.updated_date,
-                        "edit_reason": mh.source
-                    } for mh in marks_history]
+                    current_item = review_data["review"][-1]
+                    # If answer_record.edit_reason was missing (legacy records), use latest history source for current item
+                    if not current_item.get("edit_reason") and marks_history:
+                        current_item["edit_reason"] = getattr(marks_history[0], 'edit_reason', None) or marks_history[0].source
+
+                    history_list = []
+                    for mh in marks_history:
+                        mh_user = session.query(User).filter(User.user_id == mh.updated_by).first()
+                        reason = getattr(mh, 'edit_reason', None) or mh.source
+                        # Avoid duplicating comment if legacy data attached it to the top history item
+                        if not getattr(question_answer, 'edit_reason', None) and mh == marks_history[0]:
+                            reason = None
+                        history_list.append({
+                            "marks_awarded": mh.marks_awarded,
+                            "updated_by": mh_user.full_name if mh_user else (mh.updated_by or "System"),
+                            "updated_date": mh.updated_date,
+                            "edit_reason": reason
+                        })
+                    current_item["marks_history"] = history_list
                 
             review_data["total_marks"] = total_marks if exam_schedule.show_score else None
             attempt_reviews.append(review_data)
@@ -490,21 +506,29 @@ def validate_answers(attempt_id):
     return {"statusMessage": "Answers validated successfully", "status": True, "evaluation_failures": 0}, 200
 
 # update review comments function can be added here
-def update_review_comments(request, action_type="edit"):
+def update_review_comments(request, action_type="edit", current_user=None):
     db = SQLiteDB()
     session = db.connect()
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
     
-    args = request.json
+    args = request.json or {}
 
     comment_id: str = args.get("comment_id", "")
     history_id: str = args.get("history_id", "")
     comment_text: str = args.get("text", "")
-    updated_by: str = args.get("updated_by", "")
+    updated_by_raw: str = args.get("updated_by", "")
     edit_reason: str = str(args.get("edit_reason", "") or "").strip()
     if not comment_id:
         return {"statusMessage": "comment_id is required", "status": False}, 400
+
+    updated_by = None
+    if updated_by_raw and str(updated_by_raw).strip():
+        u_exist = session.query(User).filter(User.user_id == str(updated_by_raw).strip()).first()
+        if u_exist:
+            updated_by = str(updated_by_raw).strip()
+    if not updated_by and current_user and getattr(current_user, 'user_id', None):
+        updated_by = getattr(current_user, 'user_id')
 
     try:
         if action_type == "delete":
@@ -528,10 +552,6 @@ def update_review_comments(request, action_type="edit"):
             comment_record = session.query(ExamReviewComments).filter(ExamReviewComments.comment_id == comment_id).first()
             if not comment_record:
                 return {"statusMessage": "Review comment not found", "status": False}, 404
-            category = str(comment_record.category or "").strip().lower()
-            reason_required = category in ("incorrct", "incorrect", "incor", "incomplete")
-            if reason_required and not edit_reason:
-                return {"statusMessage": "Reason for change is required", "status": False}, 400
             if history_id:
                 history_record = session.query(ExamReviewCommentsHistory).filter(ExamReviewCommentsHistory.history_id == history_id).first()
                 if history_record:
@@ -599,7 +619,7 @@ def update_manual_review_status(request):
         session.close()
 
 
-def update_descriptive_marks(request):
+def update_descriptive_marks(request, current_user=None):
     """
     Update marks awarded for a descriptive question.
     Expected payload:
@@ -621,30 +641,44 @@ def update_descriptive_marks(request):
         data = request.json or {}
         answer_id = data.get("answer_id", "")
         marks_awarded = data.get("marks_awarded", 0)
-        updated_by = data.get("updated_by", "")
+        updated_by_raw = data.get("updated_by", "")
         edit_reason = str(data.get("edit_reason", "") or "").strip()
 
-        if not answer_id or updated_by is None:
-            return {"statusMessage": "answer_id and updated_by are required", "status": False}, 400
-        if not edit_reason:
-            return {"statusMessage": "A reason for changing the marks is required", "status": False}, 400
+        if not answer_id:
+            return {"statusMessage": "answer_id is required", "status": False}, 400
+
+        updated_by = None
+        if updated_by_raw and str(updated_by_raw).strip():
+            u_exist = session.query(User).filter(User.user_id == str(updated_by_raw).strip()).first()
+            if u_exist:
+                updated_by = str(updated_by_raw).strip()
+        if not updated_by and current_user and getattr(current_user, 'user_id', None):
+            updated_by = getattr(current_user, 'user_id')
+
         answer_record = session.query(Answer).filter(Answer.answer_id == answer_id).first()
         if not answer_record:
             return {"statusMessage": "Answer record not found", "status": False}, 404
         
-        # update Answer history table with old marks
+        # Save snapshot of previous state to MarksHistory
+        prev_reason = getattr(answer_record, 'edit_reason', None)
         answer_history_record = MarksHistory(
             answer_id=answer_id,
+            question_id=answer_record.question_id,
             marks_awarded=answer_record.marks_awarded,
-            source=edit_reason,
-            updated_by= answer_record.created_by,
-            updated_date= answer_record.created_date
+            source=prev_reason,
+            edit_reason=prev_reason,
+            updated_by=answer_record.created_by,
+            updated_date=answer_record.created_date or func.now()
         )
         session.add(answer_history_record)
-        # update Answer table with new marks
+
+        # Update Answer record to new state
         answer_record.marks_awarded = marks_awarded
-        answer_record.created_by = updated_by
+        if updated_by:
+            answer_record.created_by = updated_by
         answer_record.created_date = func.now()
+        if hasattr(answer_record, 'edit_reason'):
+            answer_record.edit_reason = edit_reason
         session.add(answer_record)
         session.commit()
 

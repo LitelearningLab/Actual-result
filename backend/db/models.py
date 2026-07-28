@@ -365,6 +365,7 @@ class Answer(Base):
      ai_confidence = Column(Integer)
      manual_review_required = Column(Integer, default=0)
      manual_marks = Column(Integer)
+     edit_reason = Column(Text)
      created_by = Column(String, default='cac37fab-4de6-4792-969b-96e57e3c910a')
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
 

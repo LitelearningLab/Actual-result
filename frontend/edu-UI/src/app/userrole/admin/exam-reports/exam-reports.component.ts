@@ -383,11 +383,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       return;
     }
     const editReason = String(q._marksEditReason || '').trim();
-    if(!editReason){
-      q._marksReasonTouched = true;
-      this._snack.open('A change comment is required before saving', 'Close', { duration: 3000 });
-      return;
-    }
 
     // Get required IDs
     const answerID = q.answer_id || null;
@@ -421,16 +416,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.loading.hide();
         // Update local state
         const oldMarks = q.marks_awarded || 0;
+        const oldReason = q.edit_reason || '';
         q.marks_history = Array.isArray(q.marks_history) ? q.marks_history : [];
         q.marks_history.unshift({
           marks_awarded: oldMarks,
           updated_by: q.updated_by || 'System',
           updated_date: q.updated_date,
-          edit_reason: editReason
+          edit_reason: oldReason
         });
         q.marks_awarded = newMarks;
         q.updated_by = updatedByName;
         q.updated_date = new Date().toISOString();
+        q.edit_reason = editReason;
         q._editingMarks = false;
         q._editedMarks = undefined;
         q._marksEditReason = undefined;
@@ -475,14 +472,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if(!rc) return;
     const newText = (rc._editedText || '').toString().trim();
     if(newText.length === 0){ this._snack.open('Comment cannot be empty', 'Close', { duration: 3000 }); return; }
-    const reason = (rc._editReason || '').toString().trim();
-    if(this.requiresEditReason(rc) && !reason){ this._snack.open('Reason for change is required', 'Close', { duration: 3000 }); return; }
-    this.updateReviewComment('edit', rc, newText, reason);
+    this.updateReviewComment('edit', rc, newText, '');
   }
 
   requiresEditReason(rc: any): boolean {
-    const category = String(rc?.category || '').toLowerCase();
-    return ['incorrct', 'incorrect', 'incor', 'incomplete'].includes(category);
+    return false;
   }
 
   confirmDeleteComment(rc: any){
@@ -496,13 +490,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if(!rc) return;
     const commentId = rc.comment_id || rc.id || rc._id || rc.commentId || rc.cid || null;
     if(!commentId) { this._snack.open('Comment id not found', 'Close', { duration: 3000 }); return; }
-    const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+    const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || sessionStorage.getItem('user_info');
     // history_id required for delete action
     const historyId = rc.history_id || rc.hid || rc._hid || null;
+    let userId = '';
+    let userName = 'Instructor';
     if (raw) {
       const u = JSON.parse(raw);
-      this.updatedBy = u.user_id || u.id || u.userId || u._id || '';
+      userId = u.user_id || u.id || u.userId || u._id || '';
+      userName = u.full_name || u.fullName || u.name || u.user_name || userId || 'Instructor';
     }
+    this.updatedBy = userId;
     const payload: any = { comment_id: String(commentId), history_id: historyId ? String(historyId) : '', text: text || '', updated_by: this.updatedBy, edit_reason: editReason };
     this.loading.show();
     this.http.post<any>(`${API_BASE}/update-review-comments/${action}`, payload).subscribe({
@@ -511,8 +509,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         // apply changes locally
         if(action === 'edit'){
           rc.comment_text = text;
-          rc.updated_by = this.updatedBy;
-          rc.edited_by = this.updatedBy;
+          rc.updated_by = userName;
+          rc.edited_by = userName;
           rc.edited_at = new Date().toISOString();
           rc.edit_reason = editReason;
           rc._editing = false;
@@ -521,7 +519,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this._snack.open('Comment updated', 'Close', { duration: 3000 });
         } else if(action === 'delete'){
           rc.is_deleted = 1;
-          rc.updated_by = this.updatedBy;
+          rc.updated_by = userName;
           this._snack.open('Comment deleted', 'Close', { duration: 3000 });
         }
         // clear global edit flag if no edits remain
@@ -1027,7 +1025,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     try {
       const dateStr = String(dateLike);
 
-      // If dateLike is a pre-formatted string containing GMT or UTC or timezone offsets
       if (typeof dateLike === 'string' && (dateLike.includes('GMT') || dateLike.includes('UTC'))) {
         return dateLike.replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
       }
@@ -1037,14 +1034,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         return dateStr.replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
       }
 
-      const formatter = new Intl.DateTimeFormat(undefined, {
+      const formatter = new Intl.DateTimeFormat('en-IN', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
-        timeZoneName: 'short'
+        timeZone: 'Asia/Kolkata'
       });
       const parts = formatter.formatToParts(d);
       const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
@@ -1054,15 +1051,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       const year = getPart('year');
       const hour = getPart('hour');
       const min = getPart('minute');
-      let tzName = getPart('timeZoneName');
 
-      if (tzName) {
-        tzName = tzName.replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
-      } else {
-        tzName = 'IST';
-      }
-
-      return `On ${day}-${month}-${year} ${hour}:${min}${tzName ? ' ' + tzName : ''}`;
+      return `On ${day}-${month}-${year} ${hour}:${min} IST`;
     } catch (e) {
       return String(dateLike || '').replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST').trim();
     }
