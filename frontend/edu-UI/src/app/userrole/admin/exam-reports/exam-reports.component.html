@@ -572,7 +572,7 @@
                                                                                                                                             <div class="history-entry" [class.deleted]="h.is_deleted == 1">
                                                                                                               <div *ngIf="!h._editing" class="review-text-missed" [class.deleted]="rc.is_deleted == 1">
                                                                                                                         <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
-                                                                                <span class="review-text" [class.deleted]="h.is_deleted == 1">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
+                                                                                <span class="review-text deleted">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
                                                                                                               </div>
                                                                                                               <div *ngIf="h._editing" class="review-text-missed editing">
                                                                                                                         <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
@@ -638,12 +638,12 @@
                                                                                                <div *ngIf="rc.history && rc.history.length" class="review-text-history">
                                                                                                     <div *ngFor="let h of rc.history; let hi = index">
                                                                                                          <div class="history-entry" [class.deleted]="h.is_deleted == 1">
-                                                                                                              <div *ngIf="!h._editing" class="review-text-missed" [class.deleted]="h.is_deleted == 1">
-                                                                                                                        <div class="ri-left"><span class="ri-icon missed">{{ hi + 1 }}</span></div>
-                                                                                                                        <span class="review-text" [class.deleted]="h.is_deleted == 1">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
+                                                                                                              <div *ngIf="!h._editing" class="review-text-incorrect" [class.deleted]="h.is_deleted == 1">
+                                                                                                                        <div class="ri-left"><span class="ri-icon incorrect">{{ hi + 1 }}</span></div>
+                                                                                                                        <span class="review-text deleted">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
                                                                                                               </div>
-                                                                                                              <div *ngIf="h._editing" class="review-text-missed editing">
-                                                                                                                        <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                                                                                                              <div *ngIf="h._editing" class="review-text-incorrect editing">
+                                                                                                                        <div class="ri-left"><span class="ri-icon incorrect">{{ hi + 1 }}</span></div>
                                                                                                                         <textarea [(ngModel)]="h._editedText" class="edit-comment-text" rows="2"></textarea>
                                                                                                               </div>
                                                                                                               <div class="review-meta small-muted">
@@ -707,12 +707,12 @@
                                                                                                <div *ngIf="rc.history && rc.history.length" class="review-text-history">
                                                                                                     <div *ngFor="let h of rc.history; let hi = index">
                                                                                                          <div class="history-entry" [class.deleted]="h.is_deleted == 1">
-                                                                                                              <div *ngIf="!h._editing" class="review-text-missed" [class.deleted]="h.is_deleted == 1">
-                                                                                                                        <div class="ri-left"><span class="ri-icon missed">{{ hi + 1 }}</span></div>
-                                                                                                                        <span class="review-text" [class.deleted]="h.is_deleted == 1">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
+                                                                                                              <div *ngIf="!h._editing" class="review-text-incomplete" [class.deleted]="h.is_deleted == 1">
+                                                                                                                        <div class="ri-left"><span class="ri-icon incomplete">{{ hi + 1 }}</span></div>
+                                                                                                                        <span class="review-text deleted">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
                                                                                                               </div>
-                                                                                                              <div *ngIf="h._editing" class="review-text-missed editing">
-                                                                                                                        <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                                                                                                              <div *ngIf="h._editing" class="review-text-incomplete editing">
+                                                                                                                        <div class="ri-left"><span class="ri-icon incomplete">{{ hi + 1 }}</span></div>
                                                                                                                         <textarea [(ngModel)]="h._editedText" class="edit-comment-text" rows="2"></textarea>
                                                                                                               </div>
                                                                                                               <div class="review-meta small-muted">

@@ -448,6 +448,7 @@ $shadow-panel: 0 1.5rem 3.75rem rgba(5,18,40,0.22), 0 0.375rem 1rem rgba(5,18,40
       color: var(--theme-3-text-1, #1F2937);
       word-break: break-word;
 
+      &.deleted,
       &.deleted-strikethrough {
         text-decoration: line-through;
         color: var(--theme-3-text-3, #64748B);
