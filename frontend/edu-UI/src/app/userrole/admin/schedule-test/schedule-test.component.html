@@ -295,59 +295,128 @@
                         <mat-form-field appearance="outline" class="filter-item">
                            <mat-icon matPrefix>public</mat-icon>
                            <mat-label>Country</mat-label>
-                                        <mat-select [(ngModel)]="userFilters.country_id" name="filterCountry"
-                              (selectionChange)="onCountryChange()">
+                           <input matInput [(ngModel)]="userFilters.country_id" name="filterCountry" #countryTrigger="matAutocompleteTrigger"
+                              [matAutocomplete]="countryAuto" placeholder="Type or pick a country"
+                              (ngModelChange)="onCountryChange()" />
+                           <button mat-icon-button matSuffix type="button" aria-label="Open country list"
+                              (click)="countryTrigger.openPanel(); $event.stopPropagation()">
+                              <mat-icon>arrow_drop_down</mat-icon>
+                           </button>
+                           <mat-autocomplete #countryAuto="matAutocomplete">
                               <mat-option value="">All</mat-option>
-                              <mat-option *ngFor="let c of countries" [value]="c.code">
+                              <mat-option *ngFor="let c of filteredCountries()" [value]="c.name">
                                  {{ c.name }}
                               </mat-option>
-                           </mat-select>
+                           </mat-autocomplete>
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" class="filter-item">
                            <mat-icon matPrefix>location_city</mat-icon>
                            <mat-label>City</mat-label>
-                           <mat-select [(ngModel)]="userFilters.city_id" name="filterCity" (selectionChange)="loadUsers()">
+                           <input matInput [(ngModel)]="userFilters.city_id" name="filterCity" #cityTrigger="matAutocompleteTrigger"
+                              [matAutocomplete]="cityAuto" placeholder="Type or pick a city"
+                              (ngModelChange)="loadUsers()" />
+                           <button mat-icon-button matSuffix type="button" aria-label="Open city list"
+                              (click)="cityTrigger.openPanel(); $event.stopPropagation()">
+                              <mat-icon>arrow_drop_down</mat-icon>
+                           </button>
+                           <mat-autocomplete #cityAuto="matAutocomplete">
                               <mat-option value="">All</mat-option>
-                              <mat-option *ngFor="let c of cities" [value]="c.code">
+                              <mat-option *ngFor="let c of filteredCities()" [value]="c.name">
                                  {{ c.name }}
                               </mat-option>
-                           </mat-select>
+                           </mat-autocomplete>
                         </mat-form-field>
                         
                         <mat-form-field appearance="outline" class="filter-item">
                            <mat-icon matPrefix>location_on</mat-icon>
                            <mat-label>Campus</mat-label>
-                                        <mat-select [(ngModel)]="userFilters.campus_id" name="filterCampus"
-                              (selectionChange)="loadUsers()">
+                           <input matInput [(ngModel)]="userFilters.campus_id" name="filterCampus" #campusTrigger="matAutocompleteTrigger"
+                              [matAutocomplete]="campusAuto" placeholder="Type or pick a campus"
+                              (ngModelChange)="loadUsers()" />
+                           <button mat-icon-button matSuffix type="button" aria-label="Open campus list"
+                              (click)="campusTrigger.openPanel(); $event.stopPropagation()">
+                              <mat-icon>arrow_drop_down</mat-icon>
+                           </button>
+                           <mat-autocomplete #campusAuto="matAutocomplete">
                               <mat-option value="">All</mat-option>
                               <mat-option *ngFor="let cp of campusList" [value]="cp">
                                  {{ cp }}
                               </mat-option>
-                           </mat-select>
+                           </mat-autocomplete>
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" class="filter-item">
                            <mat-icon matPrefix>business</mat-icon>
-                           <mat-label>Department</mat-label>
-                                        <mat-select [(ngModel)]="userFilters.department_id" name="filterDepartment"
-                              (selectionChange)="loadUsers()">
+                           <mat-label>Industry</mat-label>
+                           <input matInput [(ngModel)]="userFilters.industry" name="filterIndustry" #industryTrigger="matAutocompleteTrigger"
+                              [matAutocomplete]="industryAuto" placeholder="Type or pick an industry"
+                              (ngModelChange)="onIndustryChange(); loadUsers()" />
+                           <button mat-icon-button matSuffix type="button" aria-label="Open industry list"
+                              (click)="industryTrigger.openPanel(); $event.stopPropagation()">
+                              <mat-icon>arrow_drop_down</mat-icon>
+                           </button>
+                           <mat-autocomplete #industryAuto="matAutocomplete">
                               <mat-option value="">All</mat-option>
-                              <mat-option *ngFor="let d of departmentList" [value]="d">
+                              <mat-option *ngFor="let ind of filteredIndustries()" [value]="ind">
+                                 {{ ind }}
+                              </mat-option>
+                           </mat-autocomplete>
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline" class="filter-item">
+                           <mat-icon matPrefix>account_tree</mat-icon>
+                           <mat-label>Sector</mat-label>
+                           <input matInput [(ngModel)]="userFilters.sector" name="filterSector" #sectorTrigger="matAutocompleteTrigger"
+                              [matAutocomplete]="sectorAuto" placeholder="Type or pick a sector"
+                              (ngModelChange)="loadUsers()" />
+                           <button mat-icon-button matSuffix type="button" aria-label="Open sector list"
+                              [disabled]="!userFilters.industry"
+                              (click)="sectorTrigger.openPanel(); $event.stopPropagation()">
+                              <mat-icon>arrow_drop_down</mat-icon>
+                           </button>
+                           <mat-autocomplete #sectorAuto="matAutocomplete">
+                              <mat-option value="">All</mat-option>
+                              <mat-option *ngFor="let sec of filteredSectors()" [value]="sec">
+                                 {{ sec }}
+                              </mat-option>
+                           </mat-autocomplete>
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline" class="filter-item">
+                           <mat-icon matPrefix>business_center</mat-icon>
+                           <mat-label>Department</mat-label>
+                           <input matInput [(ngModel)]="userFilters.department_id" name="filterDepartment" #departmentTrigger="matAutocompleteTrigger"
+                              [matAutocomplete]="departmentAuto" placeholder="Type or pick a department"
+                              (ngModelChange)="loadUsers()" />
+                           <button mat-icon-button matSuffix type="button" aria-label="Open department list"
+                              (click)="departmentTrigger.openPanel(); $event.stopPropagation()">
+                              <mat-icon>arrow_drop_down</mat-icon>
+                           </button>
+                           <mat-autocomplete #departmentAuto="matAutocomplete">
+                              <mat-option value="">All</mat-option>
+                              <mat-option *ngFor="let d of filteredDepartments()" [value]="d">
                                  {{ d }}
                               </mat-option>
-                           </mat-select>
+                           </mat-autocomplete>
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" class="filter-item">
                            <mat-icon matPrefix>groups</mat-icon>
                            <mat-label>Team</mat-label>
-                           <mat-select [(ngModel)]="userFilters.teams_id" name="filterTeam" (selectionChange)="loadUsers()">
+                           <input matInput [(ngModel)]="userFilters.teams_id" name="filterTeam" #teamTrigger="matAutocompleteTrigger"
+                              [matAutocomplete]="teamAuto" placeholder="Type or pick a team"
+                              (ngModelChange)="loadUsers()" />
+                           <button mat-icon-button matSuffix type="button" aria-label="Open team list"
+                              (click)="teamTrigger.openPanel(); $event.stopPropagation()">
+                              <mat-icon>arrow_drop_down</mat-icon>
+                           </button>
+                           <mat-autocomplete #teamAuto="matAutocomplete">
                               <mat-option value="">All</mat-option>
-                              <mat-option *ngFor="let t of teamList" [value]="t">
+                              <mat-option *ngFor="let t of filteredTeams()" [value]="t">
                                  {{ t }}
                               </mat-option>
-                           </mat-select>
+                           </mat-autocomplete>
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" class="filter-item">
@@ -374,7 +443,7 @@
                                  <mat-icon>search</mat-icon>
                                  Apply
                               </button>
-                              <button mat-button type="button" (click)="userFilters = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '' }; loadUsers()">
+                              <button mat-button type="button" (click)="userFilters = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '', industry: '', sector: '' }; loadUsers()">
                                  <mat-icon>refresh</mat-icon>
                                  Reset
                               </button>

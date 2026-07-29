@@ -61,13 +61,22 @@ export class AdminScheduleTestComponent {
   users: Array<{ id: string; name: string; email?: string; institute?: string; department?: string; team?: string }> = [];
   selectedUsers: string[] = [];
   selectAll = false;
-  userFilters: any = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '' };
+  userFilters: any = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '', industry: '', sector: '' };
   departmentList: string[] = [];
   teamList: string[] = [];
   campusList: string[] = [];
   countries: Array<{ code: string; name: string }> = [];
   states: Array<{ code: string; name: string }> = [];
   cities: Array<{ code: string; name: string }> = [];
+  industryTypes = ['School', 'College', 'BPO', 'Bank', 'IT'];
+  industrySectors = ['School', 'Engineering', 'Arts', 'Healthcare', 'Finance', 'Banking', 'IT'];
+  private sectorMap: Record<string, string[]> = {
+    School: ['School'],
+    College: ['Engineering', 'Arts', 'Healthcare'],
+    BPO: ['BPO', 'Customer Support', 'Operations'],
+    Bank: ['Banking', 'Finance'],
+    IT: ['IT', 'Software', 'Technology']
+  };
 
   model: any = {
     institute: '',
@@ -145,12 +154,16 @@ export class AdminScheduleTestComponent {
     if (this.userFilters.country_id) params.country_id = this.userFilters.country_id;
     if (this.userFilters.city_id) params.city_id = this.userFilters.city_id;
     if (this.userFilters.campus_id) params.campus_id = this.userFilters.campus_id;
+    if (this.userFilters.industry) params.industry = this.userFilters.industry;
+    if (this.userFilters.sector) params.sector = this.userFilters.sector;
     // Backwards-compatible fallbacks (in case template still binds older keys)
     if (!params.department_id && (this.userFilters.department || this.userFilters.department_id)) params.department_id = this.userFilters.department || this.userFilters.department_id;
     if (!params.teams_id && (this.userFilters.team || this.userFilters.teams_id || this.userFilters.team_id)) params.teams_id = this.userFilters.teams_id || this.userFilters.team || this.userFilters.team_id;
     if (!params.country_id && (this.userFilters.country || this.userFilters.country_id)) params.country_id = this.userFilters.country || this.userFilters.country_id;
     if (!params.city_id && (this.userFilters.city || this.userFilters.city_id)) params.city_id = this.userFilters.city || this.userFilters.city_id;
     if (!params.campus_id && (this.userFilters.campus || this.userFilters.campus_id)) params.campus_id = this.userFilters.campus || this.userFilters.campus_id;
+    if (!params.industry && this.userFilters.industry) params.industry = this.userFilters.industry;
+    if (!params.sector && this.userFilters.sector) params.sector = this.userFilters.sector;
     if (this.model.institute) params.institute_id = this.model.institute;
     this.http.get<any>(url, { params, ...this.explicitInstituteRequestOptions() }).subscribe({
       next: (res) => {
@@ -576,6 +589,50 @@ export class AdminScheduleTestComponent {
         } catch (e) { this.states = []; this.cities = []; }
       }, error: () => { this.states = []; this.cities = []; }
     });
+  }
+
+  filteredCountries(): Array<{ code: string; name: string }> {
+    const term = String(this.userFilters.country_id || '').trim().toLowerCase();
+    if (!term) return this.countries || [];
+    return (this.countries || []).filter(c => (c.name || '').toLowerCase().includes(term));
+  }
+
+  filteredCities(): Array<{ code: string; name: string }> {
+    const term = String(this.userFilters.city_id || '').trim().toLowerCase();
+    if (!term) return this.cities || [];
+    return (this.cities || []).filter(c => (c.name || '').toLowerCase().includes(term));
+  }
+
+  filteredDepartments(): string[] {
+    const term = String(this.userFilters.department_id || '').trim().toLowerCase();
+    if (!term) return this.departmentList || [];
+    return (this.departmentList || []).filter(d => d.toLowerCase().includes(term));
+  }
+
+  filteredTeams(): string[] {
+    const term = String(this.userFilters.teams_id || '').trim().toLowerCase();
+    if (!term) return this.teamList || [];
+    return (this.teamList || []).filter(t => t.toLowerCase().includes(term));
+  }
+
+  filteredIndustries(): string[] {
+    const term = String(this.userFilters.industry || '').trim().toLowerCase();
+    if (!term) return this.industryTypes;
+    return this.industryTypes.filter(i => i.toLowerCase().includes(term));
+  }
+
+  filteredSectors(): string[] {
+    const industry = String(this.userFilters.industry || '').trim();
+    const source = industry ? (this.sectorMap[industry] || []) : this.industrySectors;
+    const term = String(this.userFilters.sector || '').trim().toLowerCase();
+    if (!term) return source;
+    return source.filter(s => s.toLowerCase().includes(term));
+  }
+
+  onIndustryChange() {
+    if (this.userFilters.sector && !this.filteredSectors().includes(this.userFilters.sector)) {
+      this.userFilters.sector = '';
+    }
   }
 
   goBack() {
