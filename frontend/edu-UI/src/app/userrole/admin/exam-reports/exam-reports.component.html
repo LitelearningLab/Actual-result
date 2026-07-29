@@ -505,8 +505,9 @@
                                                                        <input type="number" class="marks-input" [(ngModel)]="q._editedMarks" [min]="0" [max]="q.question_marks || 100" step="0.5" />
                                                                        <span class="marks-max">/ {{ q.question_marks || '-' }}</span>
                                                                   </div>
-                                                                  <label class="marks-reason-label" [for]="'marks-reason-' + (q.answer_id || qi)">Change comment</label>
-                                                                  <textarea class="marks-reason-input" [(ngModel)]="q._marksEditReason" [id]="'marks-reason-' + (q.answer_id || qi)" rows="2" maxlength="1000" placeholder="Explain why the marks are being changed"></textarea>
+                                                                  <label class="marks-reason-label" [for]="'marks-reason-' + (q.answer_id || qi)">Change comment <span class="required-star" style="color: #dc3545;">*</span></label>
+                                                                  <textarea class="marks-reason-input" [class.input-error]="q._marksReasonError" [attr.aria-invalid]="q._marksReasonError" [(ngModel)]="q._marksEditReason" (input)="q._marksReasonError = false" [id]="'marks-reason-' + (q.answer_id || qi)" rows="2" maxlength="1000" placeholder="Explain why the marks are being changed (Required)"></textarea>
+                                                                  <small *ngIf="q._marksReasonError" class="marks-reason-error-msg" style="color: #dc3545; font-size: 0.75rem; display: block; margin-top: 0.25rem;">Description is required when changing marks</small>
                                                                   <div class="marks-edit-actions">
                                                                        <button mat-icon-button class="save-marks-btn" type="button" (click)="$event.stopPropagation(); saveMarks(q)" title="Save marks">
                                                                             <mat-icon>check</mat-icon>

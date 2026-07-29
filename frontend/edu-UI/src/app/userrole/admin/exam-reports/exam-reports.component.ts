@@ -373,6 +373,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     q._editedMarks = q.marks_awarded ?? 0;
     q._marksEditReason = '';
     q._marksReasonTouched = false;
+    q._marksReasonError = false;
   }
 
   cancelEditMarks(q: any){
@@ -381,6 +382,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     q._editedMarks = undefined;
     q._marksEditReason = undefined;
     q._marksReasonTouched = undefined;
+    q._marksReasonError = false;
   }
 
   saveMarks(q: any, row?: any){
@@ -396,6 +398,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       return;
     }
     const editReason = String(q._marksEditReason || '').trim();
+    if(!editReason){
+      q._marksReasonError = true;
+      this._snack.open('Description is required when changing marks', 'Close', { duration: 3000 });
+      return;
+    }
+    q._marksReasonError = false;
 
     // Get required IDs
     const answerID = q.answer_id || null;

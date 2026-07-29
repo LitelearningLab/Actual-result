@@ -648,6 +648,9 @@ def update_descriptive_marks(request, current_user=None):
         if not answer_id:
             return {"statusMessage": "answer_id is required", "status": False}, 400
 
+        if not edit_reason:
+            return {"statusMessage": "Description (reason for change) is required when updating marks", "status": False}, 400
+
         updated_by = None
         if updated_by_raw and str(updated_by_raw).strip():
             u_exist = session.query(User).filter(User.user_id == str(updated_by_raw).strip()).first()
