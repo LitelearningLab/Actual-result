@@ -165,7 +165,9 @@
                                 (optionSelected)="onCategorySelected($event.option.value)">
                                 <mat-option *ngFor="let c of (filteredCategories$ | async)" [value]="c"
                                     [class.question-bank-option-row--active]="isQuestionSectionSelected(c)">
-                                    {{ c.name || c.category_name }}
+                                    <span class="question-bank-option-row">
+                                        <span class="question-bank-option-row__label">{{ c.name || c.category_name }}</span>
+                                    </span>
                                 </mat-option>
                             </mat-autocomplete>
                         </mat-form-field>
