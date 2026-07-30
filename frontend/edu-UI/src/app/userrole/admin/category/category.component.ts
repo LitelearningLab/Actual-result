@@ -583,7 +583,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     this.instituteSearch = found ? found.institute_name : '';
   }
 
-  onInstituteSearchChange(value: string) {
+  onInstituteSearchInput(value: string) {
     this.instituteSearch = value || '';
     this.instituteSearchTerm = value || '';
   }
@@ -907,10 +907,11 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
       if (!activeInstituteId && state?.globalInstituteActive === true) return;
       if (!activeInstituteId && typeof state?.globalInstituteActive === 'undefined' && state?.instituteId) return;
       this.filter = state?.filter || '';
-      this.filterCountry = state?.filterCountry || '';
-      this.filterCity = state?.filterCity || '';
-      this.filterIndustry = state?.filterIndustry || '';
-      this.filterSector = state?.filterSector || '';
+      // Keep the filter panel blank on restore so no default values appear preselected.
+      this.filterCountry = '';
+      this.filterCity = '';
+      this.filterIndustry = '';
+      this.filterSector = '';
       this.filterName = state?.filterName || '';
       this.selectedInstitute = state?.selectedInstitute || this.selectedInstitute;
       // Do not restore the visible institute text; keep the dropdown blank by default.

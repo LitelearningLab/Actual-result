@@ -1129,10 +1129,13 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
       // Discard legacy institute-bound cache once; newly saved normal-filter state remains restorable.
       if (!activeInstituteId && typeof state?.globalInstituteActive === 'undefined' && state?.instituteId) return;
 
-      this.filterCountry = state?.filterCountry || '';
-      this.filterCity = state?.filterCity || '';
-      this.filterIndustry = state?.filterIndustry || '';
-      this.filterSector = state?.filterSector || '';
+      // Do not restore filter values into the form UI; the panel should open blank.
+      // Keep only the result set and applied-state flags so the page can still recover
+      // from navigation without re-seeding the filter controls.
+      this.filterCountry = '';
+      this.filterCity = '';
+      this.filterIndustry = '';
+      this.filterSector = '';
       this.selectedInstitute = state?.selectedInstitute || '';
       this.instituteSearch = '';
       this.selectedCategories = Array.isArray(state?.selectedCategories) ? state.selectedCategories : [];
