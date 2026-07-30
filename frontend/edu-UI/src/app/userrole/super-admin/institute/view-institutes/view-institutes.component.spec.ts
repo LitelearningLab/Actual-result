@@ -15,4 +15,15 @@ describe('ViewInstitutesComponent', () => {
   });
 
   it('should create', () => { expect(component).toBeTruthy(); });
+
+  it('should clear sector when industry changes', () => {
+    component.filters.industry = 'College';
+    component.filters.sector = 'Engineering';
+    component.sectorSearch = 'Eng';
+
+    component.onIndustryFilterChange();
+
+    expect(component.filters.sector).toBe('');
+    expect(component.sectorSearch).toBe('');
+  });
 });

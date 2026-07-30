@@ -547,7 +547,9 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   onIndustryFilterChange() {
+    // Sector options are scoped by the selected industry, so reset any stale sector value.
     this.filters.sector = '';
+    this.sectorSearch = '';
     if (!this.filters.country && !this.filters.industry) this.filters.name = '';
     this.refreshInstituteScope();
   }
