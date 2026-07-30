@@ -290,8 +290,10 @@ export class AdminQuestionsComponent {
     this.filteredCategories$ = (this.categoryCtrl.valueChanges as any).pipe(
       startWith(this.categoryCtrl.value),
       map((val: any) => {
-        const name = val && typeof val === 'object' ? val.name : (val || '');
-        const q = String(name).trim().toLowerCase();
+        if (val && typeof val === 'object') {
+          return this.categories.slice();
+        }
+        const q = String(val || '').trim().toLowerCase();
         if (!q) return this.categories.slice();
         return this.categories.filter(c => (c.name || '').toLowerCase().indexOf(q) > -1);
       })
@@ -1051,6 +1053,13 @@ export class AdminQuestionsComponent {
     const instId = this.questions && this.questions[0] && this.questions[0].institute_id;
     if (!instId) return;
     this.loadCategories(instId, false);
+  }
+  onCategorySearchChange(value: string | { name?: string; category_id?: string } | null) {
+    if (value && typeof value === 'object') return;
+    if (!value) {
+      this.selectedCategory = null;
+      try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
+    }
   }
   onCategoryAutocompleteSelected(cat: any){
     if (!cat) { this.selectedCategory = null; this.questions[0].category_id = ''; return; }
