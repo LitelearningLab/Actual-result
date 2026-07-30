@@ -718,7 +718,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       if (!activeInstituteId && typeof state?.globalInstituteActive === 'undefined' && state?.instituteId) return;
       this.search = state?.search || '';
       this.selectedInstitute = state?.selectedInstitute || '';
-      this.instituteSearch = state?.instituteSearch || '';
+      this.instituteSearch = '';
       this.filterName = state?.filterName || '';
       this.selectedDepartments = Array.isArray(state?.selectedDepartments) ? state.selectedDepartments : [];
       this.selectedTeams = Array.isArray(state?.selectedTeams) ? state.selectedTeams : [];

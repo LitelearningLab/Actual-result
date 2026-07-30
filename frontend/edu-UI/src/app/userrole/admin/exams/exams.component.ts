@@ -473,7 +473,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
               if (found) {
                 // ensure exact match type/value and load schedules
                 this.selectedInstitute = found.institute_id as any;
-                this.syncInstituteSearch();
+                this.instituteSearch = '';
                 // load dependent lists scoped to the institute
                 this.loadDepartments(this.selectedInstitute);
                 this.loadTeams(this.selectedInstitute);
@@ -494,7 +494,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
                 const found = this.institutes.find(i => String(i.institute_id) === String(instId));
                 if (found) {
                   this.selectedInstitute = found.institute_id as any;
-                  this.syncInstituteSearch();
+                  this.instituteSearch = '';
                   // load dependent lists scoped to the institute
                   this.loadDepartments(this.selectedInstitute);
                   this.loadTeams(this.selectedInstitute);
@@ -737,7 +737,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       if (!activeInstituteId && typeof state?.globalInstituteActive === 'undefined' && state?.instituteId) return false;
       this.filter = state?.filter || '';
       this.selectedInstitute = state?.selectedInstitute || '';
-      this.instituteSearch = state?.instituteSearch || '';
+      this.instituteSearch = '';
       this.filterName = state?.filterName || '';
       this.selectedDepartments = Array.isArray(state?.selectedDepartments) ? state.selectedDepartments : [];
       this.selectedTeams = Array.isArray(state?.selectedTeams) ? state.selectedTeams : [];

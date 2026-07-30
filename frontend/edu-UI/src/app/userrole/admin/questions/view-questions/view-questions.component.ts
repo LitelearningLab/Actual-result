@@ -180,6 +180,7 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
         if (instId) {
           this.loginInstituteId = String(instId);
           this.selectedInstitute = this.loginInstituteId;
+          this.instituteSearch = '';
           this.syncInstituteSearch();
         }
       }
@@ -269,7 +270,10 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
       const instId = sessionStorage.getItem('global_institute_id') || user?.institute_id || user?.instituteId || user?.institute?.institute_id || user?.institute?.id || (typeof user?.institute === 'string' ? user.institute : '');
       if (instId) {
         this.loginInstituteId = String(instId);
-        if (!this.isSuperAdmin) this.selectedInstitute = this.loginInstituteId;
+        if (!this.isSuperAdmin) {
+          this.selectedInstitute = this.loginInstituteId;
+          this.instituteSearch = '';
+        }
       }
     } catch (e) { /* ignore */ }
   }
@@ -1130,6 +1134,7 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
       this.filterIndustry = state?.filterIndustry || '';
       this.filterSector = state?.filterSector || '';
       this.selectedInstitute = state?.selectedInstitute || '';
+      this.instituteSearch = '';
       this.selectedCategories = Array.isArray(state?.selectedCategories) ? state.selectedCategories : [];
       this.categoryFilterName = state?.categoryFilterName || '';
       this.categorySearch = state?.categorySearch || '';

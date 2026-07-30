@@ -887,7 +887,9 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
       this.filterSector = state?.filterSector || '';
       this.filterName = state?.filterName || '';
       this.selectedInstitute = state?.selectedInstitute || this.selectedInstitute;
-      this.instituteSearch = state?.instituteSearch || '';
+      // Do not restore the visible institute text; keep the dropdown blank by default.
+      this.instituteSearch = '';
+      this.instituteSearchTerm = '';
       this.selectedDepartments = Array.isArray(state?.selectedDepartments) ? state.selectedDepartments : [];
       this.selectedTeams = Array.isArray(state?.selectedTeams) ? state.selectedTeams : [];
       this.filterCreationDateAfter = state?.filterCreationDateAfter ? new Date(state.filterCreationDateAfter) : null;
