@@ -41,8 +41,10 @@ import { Subscription } from 'rxjs';
 export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewInit {
   search = '';
   institutes: Array<{ name: string; institute_id?: string }> = [];
+  private allInstitutes: Array<{ name: string; institute_id?: string }> = [];
   selectedInstitute = '';
   instituteSearch = '';
+  instituteSearchTerm = '';
   // new filter fields
   filterName = '';
   selectedDepartments: string[] = [];
@@ -173,6 +175,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       next: (res) => {
         if (res && res.data && Array.isArray(res.data)) {
           this.institutes = res.data.map((r: any) => ({ name: r.name || r.institute_name || r.short_name || '', institute_id: r.institute_id }));
+          this.allInstitutes = [...this.institutes];
           // If a selectedInstitute is already set (e.g. via route/session), prefer that
           try {
             if (this.selectedInstitute) {
@@ -216,7 +219,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   private hasFilterValues(): boolean {
     return !!(
       this.selectedInstitute ||
-      this.instituteSearch.trim() ||
+      this.instituteSearchTerm.trim() ||
       this.filterName ||
       this.selectedDepartments.length ||
       this.selectedTeams.length ||
@@ -228,8 +231,8 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   onApply() {
-    if (this.isSuperAdmin && this.instituteSearch.trim()) {
-      const typedInstitute = this.instituteSearch.trim().toLowerCase();
+    if (this.isSuperAdmin && this.instituteSearchTerm.trim()) {
+      const typedInstitute = this.instituteSearchTerm.trim().toLowerCase();
       const matchedInstitute = this.institutes.find(institute =>
         (institute.name || '').trim().toLowerCase() === typedInstitute
       );
@@ -292,7 +295,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     return found ? found.name : String(value);
   };
   filteredInstitutes() {
-    const q = (this.instituteSearch || '').trim().toLowerCase();
+    const q = (this.instituteSearchTerm || '').trim().toLowerCase();
     if (!q) return this.institutes;
     return this.institutes.filter((i: any) => (i.name || '').toLowerCase().includes(q));
   }
@@ -300,12 +303,18 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   onInstituteAutocompleteSelected(id: string) {
     this.selectedInstitute = id || '';
     this.syncInstituteSearch();
+    this.instituteSearchTerm = '';
     this.onInstituteChange(this.selectedInstitute);
   }
 
   private syncInstituteSearch() {
     const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute || ''));
     this.instituteSearch = found ? found.name : '';
+  }
+
+  onInstituteSearchChange(val: string) {
+    this.instituteSearch = val || '';
+    this.instituteSearchTerm = val || '';
   }
 
   loadDepartments(instId?: string) {

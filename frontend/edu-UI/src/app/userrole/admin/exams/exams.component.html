@@ -74,6 +74,7 @@
                     <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
                         <mat-label>Institute</mat-label>
                         <input matInput placeholder="All Institutes" [(ngModel)]="instituteSearch"
+                            (ngModelChange)="onInstituteSearchChange($event)"
                             [matAutocomplete]="examInstituteAuto" aria-label="Filter by institute" />
                         <mat-autocomplete #examInstituteAuto="matAutocomplete"
                             [displayWith]="displayInstitute"

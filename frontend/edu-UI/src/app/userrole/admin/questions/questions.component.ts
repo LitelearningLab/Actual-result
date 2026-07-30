@@ -123,6 +123,7 @@ export class AdminQuestionsComponent {
   get model(){ return this.questions[0]; }
 
   institutes: Array<{ name: string; institute_id?: string }> = [];
+  private allInstitutes: Array<{ name: string; institute_id?: string }> = [];
   isSuperAdmin: boolean = false;
   private loginInstituteId: string | null = null;
   categories: Array<{ name: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any }> = [];
@@ -643,7 +644,9 @@ export class AdminQuestionsComponent {
     this.http.get<any>(this.institutesUrl).subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.institutes = arr.map((r:any) => ({ name: r.name || r.institute_name || r.short_name || '', institute_id: r.institute_id || r.id }));
+        this.allInstitutes = arr.map((r:any) => ({ name: r.name || r.institute_name || r.short_name || '', institute_id: r.institute_id || r.id }))
+          .filter((item: any) => !!item.institute_id);
+        this.institutes = [...this.allInstitutes];
         // If an institute was prefilled (from session), ensure categories load for it
         try{ const pre = this.questions && this.questions[0] && (this.questions[0].institute_id || ''); if(pre) { this.loadDepartments(pre); this.loadTeams(pre); this.loadCategories(pre); } }catch(e){}
         if (onLoaded) onLoaded();
@@ -805,15 +808,9 @@ export class AdminQuestionsComponent {
   }
 
   // Reload the Institute options scoped to the currently selected Country/City/Industry/Sector.
-  // Falls back to the full institute list (get-institute-list) when none of those are selected.
+  // Question Banks keeps the full institute list visible, like Users, and only uses
+  // the current selection for dependent data such as categories, departments, and teams.
   private refreshInstituteScope() {
-    const params: any = {};
-    if (this.filterCountry) params.country = this.filterCountry;
-    const cityId = this.resolveCityId(this.filterCity);
-    if (cityId) params.city = cityId;
-    if (this.filterIndustry) params.industry = this.filterIndustry;
-    if (this.filterSector) params.sector = this.filterSector;
-
     const clearStaleInstituteSelection = () => {
       const current = this.questions?.[0]?.institute_id;
       if (current && !this.institutes.some(i => String(i.institute_id) === String(current))) {
@@ -821,22 +818,8 @@ export class AdminQuestionsComponent {
       }
     };
 
-    if (!Object.keys(params).length) {
-      this.loadInstitutes(clearStaleInstituteSelection);
-      return;
-    }
-
-    this.http.get<any>(`${API_BASE}/get-institutes`, { params }).subscribe({
-      next: (res) => {
-        const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-        this.institutes = (data || []).map((r: any) => ({
-          name: r.name || r.institute_name || r.short_name || '',
-          institute_id: r.institute_id || r.id || r._id || ''
-        })).filter((i: any) => !!i.institute_id);
-        clearStaleInstituteSelection();
-      },
-      error: () => { this.institutes = []; }
-    });
+    this.institutes = [...this.allInstitutes];
+    clearStaleInstituteSelection();
   }
   onQuestionInstituteChange(instId?: string) {
     try {

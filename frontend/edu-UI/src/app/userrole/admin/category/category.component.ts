@@ -48,6 +48,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   editing = false;
   selectedInstitute: string | null = null;
   instituteSearch = '';
+  instituteSearchTerm = '';
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
   // location / industry filters that scope the Institute list (mirrors view-institutes.component.ts cascade)
@@ -90,6 +91,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   private _globalInstituteSub: Subscription | null = null;
   private activeInstituteId = '';
   institutes: Array<{ institute_id: string; institute_name: string; short_name: string }> = [];
+  private allInstitutes: Array<{ institute_id: string; institute_name: string; short_name: string }> = [];
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
 
@@ -333,7 +335,9 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     this.http.get<any>(`${API_BASE}/get-institute-list`).subscribe({ next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data || []);
         // Prefer the full institute name while retaining the abbreviation as a fallback.
-        this.institutes = (data || []).map((i: any) => ({ institute_id: i.institute_id || i.id || i.instituteId || null, institute_name: i.institute_name || i.name || i.short_name || '', short_name: i.short_name || i.institute_name || i.name || '' }));
+        this.allInstitutes = (data || []).map((i: any) => ({ institute_id: i.institute_id || i.id || i.instituteId || null, institute_name: i.institute_name || i.name || i.short_name || '', short_name: i.short_name || i.institute_name || i.name || '' }))
+          .filter((i: any) => !!i.institute_id);
+        this.institutes = [...this.allInstitutes];
         this.syncInstituteSearch();
         if (onLoaded) onLoaded();
       }, error: () => {} });
@@ -488,41 +492,20 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     this.refreshInstituteScope();
   }
 
-  // Reload the Institute options scoped to the currently selected Country/City/Industry/Sector.
-  // Falls back to the full institute list (get-institute-list) when none of those are selected.
+  // Keep the full Institute list visible in the autocomplete like the Users module.
+  // The scope filters still affect categories/departments/teams via the selected institute,
+  // but they should not remove institutes from the dropdown after a selection.
   private refreshInstituteScope() {
     if (!this.isSuperAdmin) return;
-    const params: any = {};
-    if (this.filterCountry) params.country = this.filterCountry;
-    const cityId = this.resolveCityId(this.filterCity);
-    if (cityId) params.city = cityId;
-    if (this.filterIndustry) params.industry = this.filterIndustry;
-    if (this.filterSector) params.sector = this.filterSector;
-
     const clearStaleInstituteSelection = () => {
-      if (this.selectedInstitute && !this.institutes.some(i => String(i.institute_id) === String(this.selectedInstitute))) {
+      if (this.selectedInstitute && !this.allInstitutes.some(i => String(i.institute_id) === String(this.selectedInstitute))) {
         this.onInstituteAutocompleteSelected(null);
       }
     };
 
-    if (!Object.keys(params).length) {
-      this.loadInstituteOptions(clearStaleInstituteSelection);
-      return;
-    }
-
-    this.http.get<any>(`${API_BASE}/get-institutes`, { params }).subscribe({
-      next: (res) => {
-        const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-        this.institutes = (data || []).map((r: any) => ({
-          institute_id: r.institute_id || r.id || r._id || null,
-          institute_name: r.institute_name || r.name || r.short_name || '',
-          short_name: r.short_name || r.institute_name || r.name || ''
-        })).filter((i: any) => !!i.institute_id);
-        this.syncInstituteSearch();
-        clearStaleInstituteSelection();
-      },
-      error: () => { this.institutes = []; }
-    });
+    this.institutes = [...this.allInstitutes];
+    this.syncInstituteSearch();
+    clearStaleInstituteSelection();
   }
 
   private loadGlobalDepartmentTeamLists() {
@@ -554,7 +537,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   };
 
   filteredInstitutes() {
-    const q = (this.instituteSearch || '').trim().toLowerCase();
+    const q = (this.instituteSearchTerm || '').trim().toLowerCase();
     if (!q) return this.institutes;
     return this.institutes.filter((i: any) => (i.institute_name || i.short_name || '').toLowerCase().includes(q));
   }
@@ -565,12 +548,18 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     }
     this.selectedInstitute = id;
     this.syncInstituteSearch();
+    this.instituteSearchTerm = '';
     this.onInstituteChange(id);
   }
 
   private syncInstituteSearch() {
     const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute || ''));
     this.instituteSearch = found ? found.institute_name : '';
+  }
+
+  onInstituteSearchChange(value: string) {
+    this.instituteSearch = value || '';
+    this.instituteSearchTerm = value || '';
   }
 
   onInstituteChange(iid: any) {

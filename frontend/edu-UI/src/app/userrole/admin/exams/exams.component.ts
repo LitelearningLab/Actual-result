@@ -42,8 +42,10 @@ import { Subscription } from 'rxjs';
 })
 export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   institutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
+  private allInstitutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
   selectedInstitute = '';
   instituteSearch = '';
+  instituteSearchTerm = '';
   filter = '';
   // new filter fields
   filterName: string = '';
@@ -463,6 +465,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
         if (res && res.data && Array.isArray(res.data)) {
           // Prefer the full institute name while retaining the abbreviation as a fallback.
           this.institutes = res.data.map((r: any) => ({ institute_name: r.institute_name || r.name || r.short_name || '', short_name: r.short_name || r.institute_name || r.name || '', institute_id: r.institute_id }));
+          this.allInstitutes = [...this.institutes];
           // If a selectedInstitute is already set (e.g. via route/session), prefer that
           try {
             if (this.selectedInstitute) {
@@ -518,7 +521,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     return found ? found.institute_name : String(value);
   };
   filteredInstitutes() {
-    const q = (this.instituteSearch || '').trim().toLowerCase();
+    const q = (this.instituteSearchTerm || '').trim().toLowerCase();
     if (!q) return this.institutes;
     return this.institutes.filter((i: any) => (i.institute_name || i.short_name || '').toLowerCase().includes(q));
   }
@@ -526,12 +529,18 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   onInstituteAutocompleteSelected(id: string) {
     this.selectedInstitute = id || '';
     this.syncInstituteSearch();
+    this.instituteSearchTerm = '';
     this.onInstituteChange(this.selectedInstitute);
   }
 
   private syncInstituteSearch() {
     const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute || ''));
     this.instituteSearch = found ? found.institute_name : '';
+  }
+
+  onInstituteSearchChange(val: string) {
+    this.instituteSearch = val || '';
+    this.instituteSearchTerm = val || '';
   }
   private hasFilterValues(): boolean {
     return !!(

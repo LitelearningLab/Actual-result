@@ -67,9 +67,11 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
   viewedQuestion: any = null;
   filter = '';
   institutes: Array<{ name: string; institute_id?: string }> = [];
+  private allInstitutes: Array<{ name: string; institute_id?: string }> = [];
   exams: Array<{ title: string; exam_id?: string }> = [];
   selectedInstitute = '';
   instituteSearch = '';
+  instituteSearchTerm = '';
   // multi-select categories with search
   selectedCategories: string[] = [];
   categoryFilterName = '';
@@ -333,6 +335,7 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
         // Prefer the full API name; short_name remains a fallback for legacy responses.
         this.institutes = arr.map((r: any) => ({ name: r.institute_name || r.name || r.short_name || '', institute_id: r.institute_id || r.id }));
+        this.allInstitutes = [...this.institutes];
           // If a selectedInstitute is already set (e.g. via route/session), prefer that
           try {
             if (this.selectedInstitute) {
@@ -596,22 +599,6 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
     }
   }
 
-  onInstituteSearchChange(val: string) {
-    const trimmed = (val || '').trim();
-    if (!trimmed) {
-      if (this.selectedInstitute) {
-        this.selectedInstitute = '';
-        this.onInstituteChange('');
-      }
-      return;
-    }
-    const found = this.institutes.find(i => (i.name || '').toLowerCase() === trimmed.toLowerCase());
-    if (found && String(found.institute_id) !== String(this.selectedInstitute)) {
-      this.selectedInstitute = String(found.institute_id || '');
-      this.onInstituteChange(this.selectedInstitute);
-    }
-  }
-
   loadDepartments(instId?: string) {
     if (!instId) { this.departments = []; return; }
     const url = `${API_BASE}/get-department-list`;
@@ -802,7 +789,7 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
     return found ? found.name : String(value);
   };
   filteredInstitutes() {
-    const q = (this.instituteSearch || '').trim().toLowerCase();
+    const q = (this.instituteSearchTerm || '').trim().toLowerCase();
     if (!q) return this.institutes;
     return this.institutes.filter((i: any) => (i.name || '').toLowerCase().includes(q));
   }
@@ -810,12 +797,18 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
   onInstituteAutocompleteSelected(id: string) {
     this.selectedInstitute = id || '';
     this.syncInstituteSearch();
+    this.instituteSearchTerm = '';
     this.onInstituteChange(this.selectedInstitute);
   }
 
   private syncInstituteSearch() {
     const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute || ''));
     this.instituteSearch = found ? found.name : '';
+  }
+
+  onInstituteSearchChange(val: string) {
+    this.instituteSearch = val || '';
+    this.instituteSearchTerm = val || '';
   }
 
   loadCategories(instId?: string) {
