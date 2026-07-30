@@ -125,6 +125,7 @@ export class AdminQuestionsComponent {
   isSuperAdmin: boolean = false;
   private loginInstituteId: string | null = null;
   categories: Array<{ name: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any }> = [];
+  private allCategories: Array<{ name: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any }> = [];
   // reactive control + filtered observable for autocomplete
   categoryCtrl: FormControl = new FormControl('');
   categorySearchText = '';
@@ -888,6 +889,7 @@ export class AdminQuestionsComponent {
     instId = this.getScopedInstituteId(instId);
     if (!instId) {
       this.categories = [];
+      this.allCategories = [];
       this.selectedCategory = null;
       try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
       try { this.categoryCtrl.setValue(''); } catch(e) {}
@@ -900,20 +902,38 @@ export class AdminQuestionsComponent {
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
         const scopedInstitute = this.getScopedInstituteId(instId);
-        this.categories = arr.filter((r: any) => this.isAllowedCategoryForInstitute(r, scopedInstitute)).map((r:any) => ({
-          name: r.name || r.category_name || '',
-          category_id: r.category_id || r.id,
-          description: r.description || r.desc || '',
-          type: r.type || r.category_type || '',
-          mark_each_question: (typeof r.mark_each_question !== 'undefined') ? r.mark_each_question : (r.mark_for_each_question ?? r.question_mark ?? r.marks ?? null),
-          mark_for_each_question: r.mark_for_each_question ?? r.mark_each_question ?? r.question_mark ?? r.marks ?? null,
-          institute: r.institute || { institute_id: r.institute_id || r.instituteId || null }
-        }));
+        const mapped = arr
+          .filter((r: any) => this.isAllowedCategoryForInstitute(r, scopedInstitute))
+          .map((r:any) => ({
+            name: r.name || r.category_name || '',
+            category_id: r.category_id || r.id,
+            description: r.description || r.desc || '',
+            type: r.type || r.category_type || '',
+            mark_each_question: (typeof r.mark_each_question !== 'undefined') ? r.mark_each_question : (r.mark_for_each_question ?? r.question_mark ?? r.marks ?? null),
+            mark_for_each_question: r.mark_for_each_question ?? r.mark_each_question ?? r.question_mark ?? r.marks ?? null,
+            institute: r.institute || { institute_id: r.institute_id || r.instituteId || null }
+          }));
+        const cid = this.questions && this.questions[0] && (this.questions[0].category_id || '');
+        const currentCategory = cid ? (this.selectedCategory || this.categories.find(c => String(c.category_id) === String(cid)) || null) : null;
+        // Keep the active question bank visible in the dropdown even if a filter refresh
+        // returns a list that doesn't include it.
+        if (currentCategory && !mapped.some((c: any) => String(c.category_id) === String(currentCategory?.category_id))) {
+          mapped.unshift({
+            name: currentCategory.name || '',
+            category_id: currentCategory.category_id || '',
+            description: currentCategory.description || '',
+            type: currentCategory.type || '',
+            mark_each_question: currentCategory.mark_each_question ?? currentCategory.mark_for_each_question ?? null,
+            mark_for_each_question: currentCategory.mark_for_each_question ?? currentCategory.mark_each_question ?? null,
+            institute: { institute_id: scopedInstitute || null }
+          });
+        }
+        this.allCategories = mapped.slice();
+        this.categories = mapped;
         // if a category was prefilled on the first question, set control to that object so autocomplete shows it
         try {
-          const cid = this.questions && this.questions[0] && (this.questions[0].category_id || '');
           if (cid) {
-            const found = this.categories.find(c => String(c.category_id) === String(cid));
+            const found = this.allCategories.find(c => String(c.category_id) === String(cid));
             if (found) {
               this.selectedCategory = found as any;
               try { this.categoryCtrl.setValue(found); } catch(e) {}
@@ -1061,14 +1081,15 @@ export class AdminQuestionsComponent {
 
   get filteredCategories() {
     const q = String(this.categorySearchText || '').trim().toLowerCase();
-    if (!q) return this.categories.slice();
-    return this.categories.filter(c => (c.name || '').toLowerCase().includes(q));
+    const source = this.allCategories.length ? this.allCategories : this.categories;
+    if (!q) return source.slice();
+    return source.filter(c => (c.name || '').toLowerCase().includes(q));
   }
 
   displayCategory(cat: any){ return cat && cat.name ? cat.name : ''; }
 
   onCategorySelected(categoryId: string) {
-    const found = (this.categories || []).find(c => String(c.category_id) === String(categoryId));
+    const found = (this.allCategories || this.categories || []).find(c => String(c.category_id) === String(categoryId));
     this.selectedCategory = found || null;
     try { this.questions[0].category_id = found?.category_id || ''; } catch(e) {}
     try { this.categoryCtrl.setValue(found || ''); } catch(e) {}

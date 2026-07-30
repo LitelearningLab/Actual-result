@@ -163,8 +163,10 @@
                                 [placeholder]="(selectedInstitute || !isSuperAdmin) ? 'Pick a question bank' : 'Select an institute first'" />
                             <mat-autocomplete #categoryAuto="matAutocomplete" [displayWith]="displayCategory"
                                 (optionSelected)="onCategorySelected($event.option.value)">
-                                <mat-option *ngFor="let c of (filteredCategories$ | async)" [value]="c">{{ c.name ||
-                                    c.category_name }}</mat-option>
+                                <mat-option *ngFor="let c of (filteredCategories$ | async)" [value]="c"
+                                    [class.question-bank-option-row--active]="isQuestionSectionSelected(c)">
+                                    {{ c.name || c.category_name }}
+                                </mat-option>
                             </mat-autocomplete>
                         </mat-form-field>
 

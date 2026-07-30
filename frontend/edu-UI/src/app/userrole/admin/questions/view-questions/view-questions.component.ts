@@ -841,7 +841,8 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
         this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
           startWith(''),
           map((val:any)=>{
-            const q = (typeof val === 'string' ? val : (val?.name||'')).toLowerCase();
+            if (val && typeof val === 'object') return (this.categories || []).slice();
+            const q = String(val || '').toLowerCase();
             return (this.categories || []).filter((c:any)=> (c.name||'').toLowerCase().includes(q));
           })
         );
@@ -897,16 +898,27 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
 
   displayCategory(c: any){ return c ? (c.name || c.category_name || '') : ''; }
 
+  isQuestionSectionSelected(c: any): boolean {
+    const current = this.selectedCategories && this.selectedCategories.length ? String(this.selectedCategories[0]) : '';
+    const catId = String(c?.category_id || c?.id || c?._id || '');
+    return !!current && !!catId && current === catId;
+  }
+
   onCategorySelected(c: any){
     if(!c) return;
     const categoryId = c.category_id || c.id || c._id || '';
     if (categoryId) {
       this.selectedCategories = [String(categoryId)];
       this.categoryFilterName = '';
+      this.hasAppliedFilters = true;
+      try { this.categoryCtrl.setValue(c, { emitEvent: false }); } catch(e) {}
+      this.loadQuestions();
       return;
     }
     this.selectedCategories = [];
     this.categoryFilterName = c.name || c.category_name || '';
+    this.hasAppliedFilters = true;
+    this.loadQuestions();
   }
 
   editQuestion(q: QuestionRow) {
