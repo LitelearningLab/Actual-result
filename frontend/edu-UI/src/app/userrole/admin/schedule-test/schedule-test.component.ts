@@ -1048,8 +1048,20 @@ export class AdminScheduleTestComponent {
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
     this.filterCreatedByMe = false;
-    // reload exams without filters
-    this.loadExams(this.model.institute);
+    // Clear the institute selection as well; it lives in a separate autocomplete
+    // control, so resetting only `model` fields leaves the visible text behind.
+    this.model.institute = '';
+    this.instituteCtrl.reset(null, { emitEvent: false });
+    this.instituteCtrl.setValue('', { emitEvent: false });
+    this.instituteCtrl.markAsPristine();
+    this.instituteCtrl.markAsUntouched();
+    this.instituteCtrl.updateValueAndValidity({ emitEvent: false });
+    this.selectedExam = null;
+    this.examCtrl.reset('', { emitEvent: false });
+    this.updateInstituteDisabledState();
+    try { this.cd.detectChanges(); } catch (e) { /* noop */ }
+    // Reload exams without an institute scope so the result list is fully reset.
+    this.loadExams('');
   }
 
   // When exam select value changes, find details and populate selectedExam

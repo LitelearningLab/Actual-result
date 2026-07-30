@@ -54,7 +54,7 @@
             <div class="filter-block">
                 <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
                     <mat-label>Institute</mat-label>
-                    <input matInput placeholder="Select institute" [(ngModel)]="instituteSearch"
+                    <input #scheduleInstituteInput matInput placeholder="Select institute" [(ngModel)]="instituteSearch"
                         (ngModelChange)="onInstituteSearchChange($event)"
                         [matAutocomplete]="scheduleInstituteAuto" />
                     <mat-autocomplete #scheduleInstituteAuto="matAutocomplete"

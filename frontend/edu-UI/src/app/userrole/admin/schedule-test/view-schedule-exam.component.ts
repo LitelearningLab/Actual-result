@@ -71,6 +71,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
+  @ViewChild('scheduleInstituteInput') scheduleInstituteInput?: ElementRef<HTMLInputElement>;
 
   isSuperAdmin = false;
 
@@ -258,6 +259,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   onReset() {
     this.selectedInstitute = '';
     this.instituteSearch = '';
+    this.instituteSearchTerm = '';
     this.filterName = '';
     this.selectedDepartments = [];
     this.selectedTeams = [];
@@ -270,6 +272,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.schedules = [];
     this.dataSource.data = [];
     this.hasAppliedFilters = false;
+    try {
+      if (this.scheduleInstituteInput?.nativeElement) {
+        this.scheduleInstituteInput.nativeElement.value = '';
+      }
+    } catch (e) { /* noop */ }
   }
   onInstituteSelected(id: string) {
     this.selectedInstitute = id || '';
