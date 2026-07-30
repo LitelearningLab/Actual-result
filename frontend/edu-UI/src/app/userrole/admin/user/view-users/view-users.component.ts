@@ -246,7 +246,19 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   loadDepartments(instituteId: string) {
     const url = `${API_BASE}/get-department-list`;
     this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({ next: (res) => {
-      try { const data = res?.data || []; this.departments = data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name })); this.departmentSearch = this.departments.find(d => String(d.id) === String(this.filters.department))?.name || ''; } catch(e){ this.departments = []; }
+      try {
+        const data = res?.data || [];
+        this.departments = data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name }));
+        const selectedDepartment = this.departments.find(d => String(d.id) === String(this.filters.department));
+        if (this.filters.department && !selectedDepartment) {
+          this.filters.department = '';
+          this.filters.team = '';
+        }
+        this.departmentSearch = selectedDepartment?.name || '';
+      } catch(e){
+        this.departments = [];
+        this.departmentSearch = '';
+      }
     }, error: () => { this.departments = []; } });
   }
 
@@ -254,7 +266,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   loadTeams(instituteId: string) {
     const url = `${API_BASE}/get-teams-list`;
     this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({ next: (res) => {
-      try { const data = res?.data || []; this.teams = data.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name })); this.teamSearch = this.teams.find(t => String(t.id) === String(this.filters.team))?.name || ''; } catch(e) { this.teams = []; }
+      try {
+        const data = res?.data || [];
+        this.teams = data.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name }));
+        const selectedTeam = this.teams.find(t => String(t.id) === String(this.filters.team));
+        if (this.filters.team && !selectedTeam) this.filters.team = '';
+        this.teamSearch = selectedTeam?.name || '';
+      } catch(e) {
+        this.teams = [];
+        this.teamSearch = '';
+      }
     }, error: () => { this.teams = []; } });
   }
 
