@@ -782,7 +782,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
         startWith(''),
         map((val: any) => {
-          const q = (typeof val === 'string' ? val : (val?.name || '')).toLowerCase();
+          if (val && typeof val === 'object') return (this.categories || []).slice();
+          const q = String(val || '').trim().toLowerCase();
           return (this.categories || []).filter((c: any) => (c.name || '').toLowerCase().includes(q));
         })
       );

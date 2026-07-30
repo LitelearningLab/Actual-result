@@ -15,8 +15,6 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
-import { startWith, map } from 'rxjs/operators';
 import { API_BASE } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
@@ -129,7 +127,7 @@ export class AdminQuestionsComponent {
   categories: Array<{ name: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any }> = [];
   // reactive control + filtered observable for autocomplete
   categoryCtrl: FormControl = new FormControl('');
-  filteredCategories$?: Observable<Array<{ name: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any }>>;
+  categorySearchText = '';
   // currently selected category object (for showing description)
   selectedCategory: { name?: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any } | null = null;
   exams: Array<{ title: string; exam_id?: string }> = [];
@@ -286,18 +284,6 @@ export class AdminQuestionsComponent {
         this.questions.forEach((qq, idx) => qq._expanded = (idx === 0));
       }
     } catch (e) { /* ignore */ }
-    // setup filtered observable for autocomplete
-    this.filteredCategories$ = (this.categoryCtrl.valueChanges as any).pipe(
-      startWith(this.categoryCtrl.value),
-      map((val: any) => {
-        if (val && typeof val === 'object') {
-          return this.categories.slice();
-        }
-        const q = String(val || '').trim().toLowerCase();
-        if (!q) return this.categories.slice();
-        return this.categories.filter(c => (c.name || '').toLowerCase().indexOf(q) > -1);
-      })
-    );
     // ensure any programmatically set textarea content is measured after init
     setTimeout(() => { try{ this.resizeAll(); }catch(e){} }, 50);
     // if a category was prefilled, set selectedCategory and control value for description display
@@ -1052,10 +1038,12 @@ export class AdminQuestionsComponent {
     if (!opened) return;
     const instId = this.questions && this.questions[0] && this.questions[0].institute_id;
     if (!instId) return;
+    this.categorySearchText = '';
     this.loadCategories(instId, false);
   }
   onCategorySearchChange(value: string | { name?: string; category_id?: string } | null) {
     if (value && typeof value === 'object') return;
+    this.categorySearchText = String(value || '');
     if (!value) {
       this.selectedCategory = null;
       try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
@@ -1065,9 +1053,16 @@ export class AdminQuestionsComponent {
     if (!cat) { this.selectedCategory = null; this.questions[0].category_id = ''; return; }
     this.selectedCategory = cat;
     try { this.questions[0].category_id = cat.category_id; } catch(e) {}
+    this.categorySearchText = '';
     this.enforceQuestionTypeForSelectedCategory();
     this.syncQuestionMarksToCategory();
     this.loadCategorySettings(cat.category_id);
+  }
+
+  get filteredCategories() {
+    const q = String(this.categorySearchText || '').trim().toLowerCase();
+    if (!q) return this.categories.slice();
+    return this.categories.filter(c => (c.name || '').toLowerCase().includes(q));
   }
 
   displayCategory(cat: any){ return cat && cat.name ? cat.name : ''; }
