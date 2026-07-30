@@ -106,21 +106,21 @@
 
                      </div>
 
-                     <!-- Right column: Departments/Teams, scoped to whichever Institute is selected below -->
-                     <div class="filter-col">
+                      <!-- Right column: Department and Team, scoped to the selected institute -->
+                      <div class="filter-col">
 
-                        <mat-form-field appearance="outline" class="filter-item" *ngIf="questions[0].institute_id">
-                           <mat-label>Departments</mat-label>
-                           <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Departments">
-                              <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
-                           </mat-select>
-                        </mat-form-field>
+                         <mat-form-field appearance="outline" class="filter-item" *ngIf="questions[0].institute_id">
+                            <mat-label>Department</mat-label>
+                            <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Departments">
+                               <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
+                            </mat-select>
+                         </mat-form-field>
 
-                        <mat-form-field appearance="outline" class="filter-item" *ngIf="questions[0].institute_id">
-                           <mat-label>Teams</mat-label>
-                           <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Teams">
-                              <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
-                           </mat-select>
+                         <mat-form-field appearance="outline" class="filter-item" *ngIf="questions[0].institute_id">
+                            <mat-label>Team</mat-label>
+                            <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Teams">
+                               <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
+                            </mat-select>
                         </mat-form-field>
 
                         <div class="filter-checks">

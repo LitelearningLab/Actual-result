@@ -962,6 +962,13 @@ export class AdminQuestionsComponent {
 
   toggleQuestionBankFilters() {
     this.questionBankFilterOpen = !this.questionBankFilterOpen;
+    if (this.questionBankFilterOpen) {
+      const instId = this.questions?.[0]?.institute_id || '';
+      if (instId) {
+        this.loadDepartments(instId);
+        this.loadTeams(instId);
+      }
+    }
   }
 
   applyQuestionBankFilters() {

@@ -168,16 +168,18 @@
                             </mat-autocomplete>
                         </mat-form-field>
 
-                        <mat-form-field appearance="outline" class="filter-item" *ngIf="selectedInstitute">
+                        <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Departments</mat-label>
-                            <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select departments">
+                            <mat-select multiple [(ngModel)]="selectedDepartments" [disabled]="!selectedInstitute"
+                                placeholder="Select departments">
                                 <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
                             </mat-select>
                         </mat-form-field>
 
-                        <mat-form-field appearance="outline" class="filter-item" *ngIf="selectedInstitute">
+                        <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Teams</mat-label>
-                            <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select teams">
+                            <mat-select multiple [(ngModel)]="selectedTeams" [disabled]="!selectedInstitute"
+                                placeholder="Select teams">
                                 <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
                             </mat-select>
                         </mat-form-field>
