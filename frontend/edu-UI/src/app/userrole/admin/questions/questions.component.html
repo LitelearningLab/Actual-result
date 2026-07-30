@@ -148,11 +148,21 @@
                <mat-form-field appearance="outline" class="field-half local-institute-field">
                   <mat-icon matPrefix>school</mat-icon>
                   <mat-label>Institute</mat-label>
-                  <mat-select id="institute-select" title="Institute" [disabled]="!isSuperAdmin"
-                     [(ngModel)]="questions[0].institute_id" (ngModelChange)="onQuestionInstituteChange($event)">
-                     <mat-option value="">Select institute</mat-option>
-                     <mat-option *ngFor="let inst of institutes" [value]="inst.institute_id">{{inst.name}}</mat-option>
-                  </mat-select>
+                  <input matInput id="institute-select" title="Institute" placeholder="All Institutes"
+                     #questionInstituteInput
+                     #questionInstituteTrigger="matAutocompleteTrigger"
+                     [disabled]="!isSuperAdmin || !!globalInstituteId"
+                     [(ngModel)]="instituteSearch"
+                     (ngModelChange)="onInstituteSearchChange($event)"
+                     (focus)="questionInstituteTrigger.openPanel()"
+                     [matAutocomplete]="questionInstituteAuto" />
+                  <mat-autocomplete #questionInstituteAuto="matAutocomplete"
+                     [autoActiveFirstOption]="true"
+                     [displayWith]="displayInstitute"
+                     (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
+                     <mat-option value="">All Institutes</mat-option>
+                     <mat-option *ngFor="let inst of filteredInstitutes()" [value]="inst.institute_id">{{inst.name}}</mat-option>
+                  </mat-autocomplete>
                </mat-form-field>
 
                <div class="question-bank-filter-wrap field-half">

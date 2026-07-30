@@ -122,8 +122,8 @@ export class AdminQuestionsComponent {
   // convenience getters targeting the first question for legacy bindings if needed
   get model(){ return this.questions[0]; }
 
-  institutes: Array<{ name: string; institute_id?: string }> = [];
-  private allInstitutes: Array<{ name: string; institute_id?: string }> = [];
+  institutes: Array<{ name: string; institute_id?: string; industry_type?: string; industry_sector?: string; country?: string; city?: string }> = [];
+  private allInstitutes: Array<{ name: string; institute_id?: string; industry_type?: string; industry_sector?: string; country?: string; city?: string }> = [];
   isSuperAdmin: boolean = false;
   private loginInstituteId: string | null = null;
   categories: Array<{ name: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any }> = [];
@@ -164,10 +164,14 @@ export class AdminQuestionsComponent {
   countrySearch = '';
   industrySearch = '';
   sectorSearch = '';
+  instituteSearch = '';
+  get globalInstituteId(): string {
+    try { return String(sessionStorage.getItem('global_institute_id') || ''); } catch (e) { return ''; }
+  }
 
   private apiUrl = `${API_BASE}/add-question`;
-  // updated endpoints per request
-  private institutesUrl = `${API_BASE}/get-institute-list`;
+  // Use the rich institute endpoint so industry/sector/country/city filters can scope the dropdown.
+  private institutesUrl = `${API_BASE}/get-institutes`;
   private examsUrl = `${API_BASE}/get-exams-list`;
   private categoriesUrl = `${API_BASE}/get-categories-list`;
   private categoryDetailsUrl = `${API_BASE}/category-details`;
@@ -641,12 +645,27 @@ export class AdminQuestionsComponent {
   }
   loadInstitutes(onLoaded?: () => void){
     this.loader.show();
-    this.http.get<any>(this.institutesUrl).subscribe({
+    const params: any = { _ts: Date.now() };
+    if (this.filterCountry) params.country = this.filterCountry;
+    if (this.filterCity) params.city = this.filterCity;
+    if (this.filterIndustry) params.industry = this.filterIndustry;
+    if (this.filterSector) params.sector = this.filterSector;
+
+    this.http.get<any>(this.institutesUrl, { params: Object.keys(params).length ? params : undefined }).subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.allInstitutes = arr.map((r:any) => ({ name: r.name || r.institute_name || r.short_name || '', institute_id: r.institute_id || r.id }))
+        const mappedInstitutes = arr.map((r:any) => ({
+          name: r.name || r.institute_name || r.short_name || '',
+          institute_id: r.institute_id || r.id,
+          industry_type: r.industry_type || r.industry || '',
+          industry_sector: r.industry_sector || r.sector || '',
+          country: r.country || r.country_name || r.country_code || '',
+          city: r.city || r.city_name || r.city_code || ''
+        }))
           .filter((item: any) => !!item.institute_id);
-        this.institutes = [...this.allInstitutes];
+        this.allInstitutes = mappedInstitutes;
+        this.institutes = mappedInstitutes;
+        this.syncInstituteSearch();
         // If an institute was prefilled (from session), ensure categories load for it
         try{ const pre = this.questions && this.questions[0] && (this.questions[0].institute_id || ''); if(pre) { this.loadDepartments(pre); this.loadTeams(pre); this.loadCategories(pre); } }catch(e){}
         if (onLoaded) onLoaded();
@@ -800,6 +819,7 @@ export class AdminQuestionsComponent {
 
   onIndustryFilterChange() {
     this.filterSector = '';
+    this.sectorSearch = '';
     this.refreshInstituteScope();
   }
 
@@ -811,15 +831,53 @@ export class AdminQuestionsComponent {
   // Question Banks keeps the full institute list visible, like Users, and only uses
   // the current selection for dependent data such as categories, departments, and teams.
   private refreshInstituteScope() {
-    const clearStaleInstituteSelection = () => {
+    this.loadInstitutes(() => {
       const current = this.questions?.[0]?.institute_id;
       if (current && !this.institutes.some(i => String(i.institute_id) === String(current))) {
         this.onQuestionInstituteChange('');
       }
-    };
+      this.syncInstituteSearch();
+    });
+  }
 
-    this.institutes = [...this.allInstitutes];
-    clearStaleInstituteSelection();
+  private filterInstitutesByScope() {
+    return this.institutes || [];
+  }
+
+  displayInstitute = (value: string | null): string => {
+    if (!value) return '';
+    const found = this.allInstitutes.find(i => String(i.institute_id) === String(value));
+    return found ? found.name : String(value);
+  };
+
+  filteredInstitutes() {
+    const q = (this.instituteSearch || '').trim().toLowerCase();
+    const scoped = this.filterInstitutesByScope();
+    if (!q) return scoped;
+    return scoped.filter((i: any) => (i.name || '').toLowerCase().includes(q));
+  }
+
+  onInstituteAutocompleteSelected(id: string) {
+    if (this.globalInstituteId) return;
+    this.instituteSearch = '';
+    this.onQuestionInstituteChange(id || '');
+  }
+
+  onInstituteSearchChange(val: string) {
+    if (this.globalInstituteId) return;
+    this.instituteSearch = val || '';
+  }
+
+  private syncInstituteSearch() {
+    const current = this.questions?.[0]?.institute_id || '';
+    const found = this.institutes.find(i => String(i.institute_id) === String(current));
+    if (!this.instituteSearch || !current) {
+      this.instituteSearch = found ? found.name : '';
+      return;
+    }
+    if (found && this.instituteSearch !== found.name) {
+      this.instituteSearch = found.name;
+    }
   }
   onQuestionInstituteChange(instId?: string) {
     try {
@@ -980,7 +1038,7 @@ export class AdminQuestionsComponent {
       this.countrySearch = '';
       this.industrySearch = '';
       this.sectorSearch = '';
-      this.loadInstitutes();
+      if (!this.globalInstituteId) this.loadInstitutes();
       this.selectedCategory = null;
       try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
       try { this.categoryCtrl.setValue(''); } catch(e) {}

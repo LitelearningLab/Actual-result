@@ -493,19 +493,45 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   }
 
   // Keep the full Institute list visible in the autocomplete like the Users module.
-  // The scope filters still affect categories/departments/teams via the selected institute,
-  // but they should not remove institutes from the dropdown after a selection.
+  // Scope the institute dropdown the same way the Users module does:
+  // ask the backend for institutes matching the current Country / City / Industry / Sector filters.
   private refreshInstituteScope() {
-    if (!this.isSuperAdmin) return;
-    const clearStaleInstituteSelection = () => {
-      if (this.selectedInstitute && !this.allInstitutes.some(i => String(i.institute_id) === String(this.selectedInstitute))) {
-        this.onInstituteAutocompleteSelected(null);
-      }
-    };
+    if (!this.isSuperAdmin && this.loginInstituteId) return;
 
-    this.institutes = [...this.allInstitutes];
-    this.syncInstituteSearch();
-    clearStaleInstituteSelection();
+    const params: any = { _ts: Date.now() };
+    if (this.filterCountry) params.country = this.filterCountry;
+    const cityCode = this.resolveCityId(this.filterCity);
+    if (cityCode) params.city = cityCode;
+    if (this.filterIndustry) params.industry = this.filterIndustry;
+    if (this.filterSector) params.sector = this.filterSector;
+
+    const hasScope = !!(params.country || params.city || params.industry || params.sector);
+    if (!hasScope) {
+      this.institutes = [...this.allInstitutes];
+      this.syncInstituteSearch();
+      return;
+    }
+
+    this.http.get<any>(`${API_BASE}/get-institutes`, { params }).subscribe({
+      next: (res) => {
+        try {
+          const data = Array.isArray(res?.data) ? res.data : [];
+          this.institutes = data.map((r: any) => ({
+            institute_id: r.institute_id || r.id || r._id || '',
+            institute_name: r.institute_name || r.name || r.short_name || '',
+            short_name: r.short_name || r.institute_name || r.name || ''
+          })).filter((i: any) => !!i.institute_id);
+        } catch (e) {
+          this.institutes = [];
+        }
+        if (this.selectedInstitute && !this.institutes.some(i => String(i.institute_id) === String(this.selectedInstitute))) {
+          this.onInstituteAutocompleteSelected(null);
+        } else {
+          this.syncInstituteSearch();
+        }
+      },
+      error: () => { this.institutes = []; }
+    });
   }
 
   private loadGlobalDepartmentTeamLists() {

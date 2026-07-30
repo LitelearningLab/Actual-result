@@ -65,6 +65,15 @@ def ensure_category_columns(session):
         session.rollback()
         print(f"Error expanding category table columns: {e}", flush=True)
 
+def _resolve_institute_scope(request):
+    args = getattr(request, "args", {})
+    institute_id = str(args.get("institute_id") or args.get("institute") or "").strip()
+    if institute_id:
+        return institute_id
+    headers = getattr(request, "headers", {})
+    header_scope = str(headers.get("X-Institute-Id") or headers.get("X-Global-Institute-Id") or "").strip()
+    return header_scope
+
 
 def get_categories_list(request):
     db = SQLiteDB()
@@ -74,8 +83,9 @@ def get_categories_list(request):
     filter = []
     args = getattr(request, "args", {})
     filter.append(func.coalesce(Categories.is_deleted, False) == False)
-    if args.get("institute_id"):
-        filter.append(Categories.institute_id == args.get("institute_id"))
+    institute_scope = _resolve_institute_scope(request)
+    if institute_scope:
+        filter.append(Categories.institute_id == institute_scope)
     if args.get("created_after"):
         filter.append(Categories.created_date >= args.get("created_after"))
     if args.get("created_before"):
@@ -120,7 +130,7 @@ def get_category_details(request):
     filter.append(func.coalesce(Categories.is_deleted, False) == False)
     if args.get("category_id"):
         filter.append(Categories.category_id == args.get("category_id"))
-    institute_id = args.get("institute_id") or args.get("institute")
+    institute_id = _resolve_institute_scope(request)
     if institute_id:
         filter.append(Categories.institute_id == institute_id)
     if args.get("departments"):

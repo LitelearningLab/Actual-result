@@ -7,6 +7,14 @@ import json
 import datetime
 from others.llm import descriptive_evaluation, openai_client
 
+def _resolve_institute_scope(request):
+    args = getattr(request, "args", {})
+    institute_id = str(args.get("institute_id") or args.get("institute") or "").strip()
+    if institute_id:
+        return institute_id
+    headers = getattr(request, "headers", {})
+    return str(headers.get("X-Institute-Id") or headers.get("X-Global-Institute-Id") or "").strip()
+
 def add_question(request):
 
     db = SQLiteDB()
@@ -216,9 +224,10 @@ def get_questions_details(request):
         public_access = (1 if str(public_access_arg).lower() == "true" else 0)
 
         active_cat_filter = (func.coalesce(Categories.is_deleted, False) == False)
+        institute_scope = _resolve_institute_scope(request)
 
-        if args.get("institute_id"):
-            Category_data = session.query(Categories).filter(Categories.institute_id == args.get("institute_id"), active_cat_filter).all()
+        if institute_scope:
+            Category_data = session.query(Categories).filter(Categories.institute_id == institute_scope, active_cat_filter).all()
             Category_list = [c.category_id for c in Category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(Category_list)).all()
             question_list = [q.question_id for q in mappingdata]
