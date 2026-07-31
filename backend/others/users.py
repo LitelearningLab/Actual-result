@@ -620,9 +620,17 @@ def get_user_details(request):
     if args.get("institute_id"):
         filter.append(User.institute_id == args.get("institute_id"))
     if args.get("department"):
-        filter.append(User.department_id == args.get("department"))
+        dept_val = str(args.get("department")).strip()
+        if ',' in dept_val:
+            filter.append(User.department_id.in_([d.strip() for d in dept_val.split(',') if d.strip()]))
+        else:
+            filter.append(User.department_id == dept_val)
     if args.get("team"):
-        filter.append(User.team_id == args.get("team"))
+        team_val = str(args.get("team")).strip()
+        if ',' in team_val:
+            filter.append(User.team_id.in_([t.strip() for t in team_val.split(',') if t.strip()]))
+        else:
+            filter.append(User.team_id == team_val)
     if args.get("name"):
         filter.append(User.full_name.ilike(f"%{args.get('name')}%"))
     if args.get("active_status") is not None:

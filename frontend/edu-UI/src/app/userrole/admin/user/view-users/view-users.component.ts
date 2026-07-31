@@ -69,7 +69,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   totalCount = 0; // total records from API
 
   // filter model and lists (match fields in the filters panel)
-  filters: any = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
+  filters: any = { institute: '', name: '', department: [], team: [], joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
   // institutes: Array<{ id: string; name: string }> = [];
   institutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
   // `code` is the Country table primary key used by /get-users. `countryCode`
@@ -138,7 +138,15 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   private checkSuperAdmin(user: any): boolean {
     try {
-      const role = (user?.role || user?.user_role || sessionStorage.getItem('userRole') || '').toString().toLowerCase();
+      let rawUser = user || this.auth.currentUserValue;
+      if (!rawUser) {
+        try {
+          const profileRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+          if (profileRaw) rawUser = JSON.parse(profileRaw);
+        } catch (e) {}
+      }
+      if (rawUser?.is_super_admin === true || !!rawUser?.isSuperAdmin) return true;
+      const role = (rawUser?.role || rawUser?.user_role || sessionStorage.getItem('userRole') || sessionStorage.getItem('role') || '').toString().toLowerCase();
       return ['super_admin', 'superadmin', 'super-admin'].includes(role);
     } catch (e) {
       return false;
@@ -152,7 +160,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
   private filtersOverlayRef: OverlayRef | null = null;
   ngOnInit(): void{
-
+    this.isSuperAdmin = this.checkSuperAdmin(this.auth.currentUserValue);
     this.pageMeta.setMeta('Users', 'Manage platform users');
     this.loadInstitutes();
     this.loadCountries();
@@ -169,8 +177,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.syncInstituteSearch();
       this.pageIndex = 0;
       // Department depends on Institute, Team depends on Department - clear both downstream.
-      this.filters.department = '';
-      this.filters.team = '';
+      this.filters.department = [];
+      this.filters.team = [];
       this.departmentSearch = '';
       this.teamSearch = '';
 
@@ -186,9 +194,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   onDepartmentFilterChange() {
-    // Team has no real data dependency on Department (no department_id on teams), so we only
-    // gate its enabled state here - clearing the selection when Department is cleared.
-    if (!this.filters.department) this.filters.team = '';
+    if (!this.filters.department || (Array.isArray(this.filters.department) && !this.filters.department.length)) {
+      this.filters.team = [];
+    }
   }
 
   filteredDepartments() {
@@ -316,8 +324,19 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const instituteId = this.filters.institute || this.selectedInstitute;
     if (instituteId) chips.push({ key: 'institute', label: `Institute: ${this.getInstituteLabel(instituteId)}`, removable: this.isSuperAdmin });
     if (this.filters.name) chips.push({ key: 'name', label: `Name: ${this.filters.name}`, removable: true });
-    if (this.filters.department) chips.push({ key: 'department', label: `Department: ${this.getSelectedName(this.departments, this.filters.department)}`, removable: true });
-    if (this.filters.team) chips.push({ key: 'team', label: `Team: ${this.getSelectedName(this.teams, this.filters.team)}`, removable: true });
+    if (Array.isArray(this.filters.department) && this.filters.department.length) {
+      const labels = this.filters.department.map((id: any) => this.getSelectedName(this.departments, id)).filter(Boolean);
+      chips.push({ key: 'department', label: `Departments: ${labels.join(', ')}`, removable: true });
+    } else if (typeof this.filters.department === 'string' && this.filters.department) {
+      chips.push({ key: 'department', label: `Departments: ${this.getSelectedName(this.departments, this.filters.department)}`, removable: true });
+    }
+
+    if (Array.isArray(this.filters.team) && this.filters.team.length) {
+      const labels = this.filters.team.map((id: any) => this.getSelectedName(this.teams, id)).filter(Boolean);
+      chips.push({ key: 'team', label: `Teams: ${labels.join(', ')}`, removable: true });
+    } else if (typeof this.filters.team === 'string' && this.filters.team) {
+      chips.push({ key: 'team', label: `Teams: ${this.getSelectedName(this.teams, this.filters.team)}`, removable: true });
+    }
     if (this.filters.country) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`, removable: true });
     if (this.filters.state) chips.push({ key: 'state', label: `State: ${this.getSelectedName(this.states, this.filters.state, 'code')}`, removable: true });
     if (this.filters.city) chips.push({ key: 'city', label: `City: ${this.filters.city}`, removable: true });
@@ -330,16 +349,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (key === 'institute' && this.isSuperAdmin) {
       this.selectedInstitute = '';
       this.filters.institute = '';
-      this.filters.department = '';
-      this.filters.team = '';
+      this.filters.department = [];
+      this.filters.team = [];
       this.instituteSearch = '';
       this.departments = [];
       this.teams = [];
       this.countries = [];
       this.cities = [];
     } else if (key === 'name') this.filters.name = '';
-    else if (key === 'department') { this.filters.department = ''; this.filters.team = ''; }
-    else if (key === 'team') this.filters.team = '';
+    else if (key === 'department') { this.filters.department = []; this.filters.team = []; }
+    else if (key === 'team') this.filters.team = [];
     else if (key === 'country') { this.filters.country = ''; this.filters.state = ''; this.filters.city = ''; this.states = []; this.cities = []; }
     else if (key === 'state') { this.filters.state = ''; this.filters.city = ''; this.cities = []; }
     else if (key === 'city') this.filters.city = '';
@@ -403,8 +422,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const instituteParam = (typeof instituteId !== 'undefined' && instituteId !== null) ? instituteId : (this.filters.institute || this.selectedInstitute);
     if (instituteParam) params.institute_id = instituteParam;
     if (this.filters.name) params.name = this.filters.name;
-    if (this.filters.department) params.department = this.filters.department;
-    if (this.filters.team) params.team = this.filters.team;
+    if (Array.isArray(this.filters.department)) {
+      if (this.filters.department.length > 0) params.department = this.filters.department.join(',');
+    } else if (this.filters.department) {
+      params.department = this.filters.department;
+    }
+    if (Array.isArray(this.filters.team)) {
+      if (this.filters.team.length > 0) params.team = this.filters.team.join(',');
+    } else if (this.filters.team) {
+      params.team = this.filters.team;
+    }
     if (this.filters.country) params.country = this.filters.country;
     if (this.filters.state) params.state = this.filters.state;
     const cityName = String(this.filters.city || '').trim();
@@ -483,11 +510,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     });
   }
   private hasFilterValues(): boolean {
+    const hasDept = Array.isArray(this.filters.department) ? this.filters.department.length > 0 : !!this.filters.department;
+    const hasTeam = Array.isArray(this.filters.team) ? this.filters.team.length > 0 : !!this.filters.team;
     return !!(
       this.filters.institute ||
       this.filters.name ||
-      this.filters.department ||
-      this.filters.team ||
+      hasDept ||
+      hasTeam ||
       this.filters.joining_from ||
       this.filters.joining_to ||
       this.filters.active_status !== '' ||
@@ -510,7 +539,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   resetFilters(){
     this.pageIndex = 0;
-    this.filters = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
+    this.filters = { institute: '', name: '', department: [], team: [], joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
     this.selectedInstitute = '';
     this.instituteSearch = '';
     this.departmentSearch = '';
