@@ -101,6 +101,11 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0,0,0,0.06);
   gap: 0.5rem;
 }
 
+.view-questions-filters-panel .filter-col-full {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+}
+
 .view-questions-filters-panel .filter-checks {
   display: flex;
   flex-wrap: wrap;

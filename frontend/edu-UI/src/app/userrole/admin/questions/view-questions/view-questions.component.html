@@ -128,18 +128,9 @@
                             <mat-datepicker #pickerAfter></mat-datepicker>
                         </mat-form-field>
 
-                        <!-- add creation date before filter -->
-                        <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Created Before</mat-label>
-                            <input matInput [matDatepicker]="picker" placeholder="Select end date"
-                                [(ngModel)]="filterCreationDate">
-                            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-                            <mat-datepicker #picker></mat-datepicker>
-                        </mat-form-field>
-
                     </div>
 
-                    <!-- Right column: Institute -> Question Bank -> Department/Team, then Active Status -->
+                    <!-- Right column: Institute -> Question Bank -> Department/Team, then Created Before -->
                     <div class="filter-col">
 
                         <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
@@ -188,7 +179,19 @@
                             </mat-select>
                         </mat-form-field>
 
-                        <!-- Active status filter -->
+                        <!-- add creation date before filter -->
+                        <mat-form-field appearance="outline" class="filter-item">
+                            <mat-label>Created Before</mat-label>
+                            <input matInput [matDatepicker]="picker" placeholder="Select end date"
+                                [(ngModel)]="filterCreationDate">
+                            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                            <mat-datepicker #picker></mat-datepicker>
+                        </mat-form-field>
+
+                    </div>
+
+                    <!-- Full width Active Status filter -->
+                    <div class="filter-col-full">
                         <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Active Status</mat-label>
                             <mat-select [(ngModel)]="filterActiveStatus" placeholder="Select status">
@@ -197,7 +200,6 @@
                                 <mat-option [value]="false">Inactive</mat-option>
                             </mat-select>
                         </mat-form-field>
-
                     </div>
 
                 </div>

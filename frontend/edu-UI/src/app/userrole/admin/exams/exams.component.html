@@ -134,20 +134,9 @@
                             <mat-datepicker-toggle matSuffix [for]="pickerAfter"></mat-datepicker-toggle>
                             <mat-datepicker #pickerAfter></mat-datepicker>
                         </mat-form-field>
-
-                        <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Created Before</mat-label>
-                            <input matInput 
-                                [matDatepicker]="picker" 
-                                placeholder="Select end date"
-                                [(ngModel)]="filterCreationDate"
-                                aria-label="Filter exams created before">
-                            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-                            <mat-datepicker #picker></mat-datepicker>
-                        </mat-form-field>
                     </div>
 
-                    <!-- Right Column: Institute, Test Name, Departments, Teams, Active Status -->
+                    <!-- Right Column: Institute, Test Name, Departments, Teams, Created Before -->
                     <div class="filter-col">
                         <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
                             <mat-label>Institute</mat-label>
@@ -194,6 +183,20 @@
                             </mat-select>
                         </mat-form-field>
 
+                        <mat-form-field appearance="outline" class="filter-item">
+                            <mat-label>Created Before</mat-label>
+                            <input matInput 
+                                [matDatepicker]="picker" 
+                                placeholder="Select end date"
+                                [(ngModel)]="filterCreationDate"
+                                aria-label="Filter exams created before">
+                            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                            <mat-datepicker #picker></mat-datepicker>
+                        </mat-form-field>
+                    </div>
+
+                    <!-- Full Width Row: Active Status -->
+                    <div class="filter-col-full">
                         <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Active Status</mat-label>
                             <mat-select [(ngModel)]="filterActiveStatus" 
