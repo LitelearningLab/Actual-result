@@ -84,6 +84,41 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
   display: none;
 }
 
+:host ::ng-deep .filters-panel .mat-mdc-text-field-wrapper,
+:host ::ng-deep .filters-panel .mat-mdc-form-field-flex,
+:host ::ng-deep .filters-panel .mat-mdc-form-field-infix {
+  min-height: 3.5rem;
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-text-field-wrapper {
+  border-radius: 0.75rem !important;
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-form-field-infix {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-select-trigger {
+  min-height: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-select-value {
+  font-size: 1rem;
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-select-arrow-wrapper {
+  transform: translateY(0.0625rem);
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-autocomplete-panel,
+:host ::ng-deep .filters-panel .mat-mdc-select-panel {
+  border-radius: 0.75rem;
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.16);
+}
+
 // ═══════════════════════════════════════════════════
 // LIST CARD CONTAINER
 // ═══════════════════════════════════════════════════

@@ -18,14 +18,49 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0,0,0,0.06);
 .button-one { background: var(--button-1) !important; color: var(--button-text-1) !important; }
 .button-one:hover { background: var(--button-1-hover) !important; color: var(--button-text-2) !important; }
 
-// // Filters overlay (CDK)
-// .filters-panel { padding: 0.75rem; background: #fff; border-radius: $radius; box-shadow: 0 1.125rem 2.5rem rgba(0,0,0,0.18); max-height: 60vh; overflow: auto; width: 22.5rem; }
-// .filter-block { display: flex; flex-direction: column; gap: 0.5rem; }
-// .filter-item { width: 100%; }
-// .checkbox-item { display: flex; align-items: center; }
-// .filter-actions { display: flex; gap: 0.5rem; justify-content: flex-end; padding-top: 0.375rem; }
-// .filter-actions button { background: var(--button-1); color: var(--button-text-1); }
-// .filter-actions button:hover { background: var(--button-1-hover); color: var(--button-text-2); }
+// Filters overlay (CDK)
+:host ::ng-deep .filters-panel .mat-mdc-text-field-wrapper,
+:host ::ng-deep .filters-panel .mat-mdc-form-field-flex,
+:host ::ng-deep .filters-panel .mat-mdc-form-field-infix {
+  min-height: 3.5rem;
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-text-field-wrapper {
+  border-radius: 0.75rem !important;
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-form-field-infix {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-select-trigger {
+  min-height: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-select-value {
+  font-size: 1rem;
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-select-arrow-wrapper {
+  transform: translateY(0.0625rem);
+}
+
+:host ::ng-deep .filters-panel .mat-mdc-autocomplete-panel,
+:host ::ng-deep .filters-panel .mat-mdc-select-panel {
+  border-radius: 0.75rem;
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.16);
+}
+
+.filters-panel { padding: 0.75rem; background: #fff; border-radius: $radius; box-shadow: 0 1.125rem 2.5rem rgba(0,0,0,0.18); max-height: 60vh; overflow: auto; width: 22.5rem; }
+.filter-block { display: flex; flex-direction: column; gap: 0.5rem; }
+.filter-item { width: 100%; }
+.checkbox-item { display: flex; align-items: center; }
+.filter-actions { display: flex; gap: 0.5rem; justify-content: flex-end; padding-top: 0.375rem; }
+.filter-actions button { background: var(--button-1); color: var(--button-text-1); }
+.filter-actions button:hover { background: var(--button-1-hover); color: var(--button-text-2); }
 
 // List card + table
 .list-card { background: #fff; border: 0.0625rem solid #e2e8f0; border-radius: $radius; box-shadow: $shadow-sm; overflow: hidden; }

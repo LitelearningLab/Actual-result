@@ -577,24 +577,46 @@
             <div class="filter-block" (click)="$event.stopPropagation()">
 
                <mat-form-field appearance="outline" class="filter-item">
+                  <mat-icon matPrefix>public</mat-icon>
+                  <mat-label>Country</mat-label>
+                  <input matInput placeholder="Country" [(ngModel)]="filterCountry" />
+               </mat-form-field>
+
+               <mat-form-field appearance="outline" class="filter-item">
+                  <mat-icon matPrefix>location_city</mat-icon>
+                  <mat-label>City</mat-label>
+                  <input matInput placeholder="City" [(ngModel)]="filterCity" />
+               </mat-form-field>
+
+               <mat-form-field appearance="outline" class="filter-item">
+                  <mat-icon matPrefix>assignment</mat-icon>
                   <mat-label>Test name</mat-label>
                   <input matInput placeholder="Test name" [(ngModel)]="filterExamName" />
                </mat-form-field>
 
-               <!-- <mat-form-field appearance="outline" class="filter-item">
-                  <mat-label>Departments</mat-label>
-                  <mat-select name="filterDepartments" multiple [(ngModel)]="selectedDepartments"
-                     placeholder="Select departments">
-                     <mat-option *ngFor="let d of departmentList" [value]="d">{{ d }}</mat-option>
-                  </mat-select>
+               <mat-form-field appearance="outline" class="filter-item">
+                  <mat-icon matPrefix>business_center</mat-icon>
+                  <mat-label>Department</mat-label>
+                  <input matInput placeholder="Department" [(ngModel)]="filterDepartment" />
                </mat-form-field>
 
                <mat-form-field appearance="outline" class="filter-item">
+                  <mat-icon matPrefix>groups</mat-icon>
                   <mat-label>Teams</mat-label>
-                  <mat-select name="filterTeams" multiple [(ngModel)]="selectedTeams" placeholder="Select teams">
-                     <mat-option *ngFor="let t of teamList" [value]="t">{{ t }}</mat-option>
-                  </mat-select>
-               </mat-form-field> -->
+                  <input matInput placeholder="Teams" [(ngModel)]="filterTeam" />
+               </mat-form-field>
+
+               <mat-form-field appearance="outline" class="filter-item">
+                  <mat-icon matPrefix>work</mat-icon>
+                  <mat-label>Industry</mat-label>
+                  <input matInput placeholder="Industry" [(ngModel)]="filterIndustry" />
+               </mat-form-field>
+
+               <mat-form-field appearance="outline" class="filter-item">
+                  <mat-icon matPrefix>category</mat-icon>
+                  <mat-label>Sector</mat-label>
+                  <input matInput placeholder="Sector" [(ngModel)]="filterSector" />
+               </mat-form-field>
 
                <mat-form-field appearance="outline" class="filter-item">
                   <mat-label>Created after</mat-label>

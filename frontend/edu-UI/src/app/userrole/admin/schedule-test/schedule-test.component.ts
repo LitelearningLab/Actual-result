@@ -899,8 +899,14 @@ export class AdminScheduleTestComponent {
   selectedExam: any = null;
   // exam filters (UI bound)
   filterExamName = '';
+  filterCountry = '';
+  filterCity = '';
+  filterDepartment = '';
+  filterTeam = '';
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
+  filterIndustry = '';
+  filterSector = '';
   filterCreationDateAfter: Date | null = null;
   filterCreationDate: Date | null = null;
   filterStartDate: Date | null = null;
@@ -923,8 +929,15 @@ export class AdminScheduleTestComponent {
     const params: string[] = [];
     params.push(`institute_id=${encodeURIComponent(instituteId)}`);
     if (this.filterExamName) params.push(`name=${encodeURIComponent(this.filterExamName)}`);
+    if (this.filterCountry) params.push(`country=${encodeURIComponent(this.filterCountry)}`);
+    const cityName = String(this.filterCity || '').trim();
+    if (cityName) params.push(`city=${encodeURIComponent(cityName)}`);
+    if (this.filterDepartment) params.push(`department=${encodeURIComponent(this.filterDepartment)}`);
+    if (this.filterTeam) params.push(`team=${encodeURIComponent(this.filterTeam)}`);
     if (this.selectedDepartments && this.selectedDepartments.length) params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
     if (this.selectedTeams && this.selectedTeams.length) params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
+    if (this.filterIndustry) params.push(`industry=${encodeURIComponent(this.filterIndustry)}`);
+    if (this.filterSector) params.push(`sector=${encodeURIComponent(this.filterSector)}`);
     if (this.filterCreationDateAfter) params.push(`created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`);
     if (this.filterCreationDate) params.push(`created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`);
     if (this.filterStartDate) params.push(`start_after=${encodeURIComponent((this.filterStartDate as Date).toISOString().slice(0, 10))}`);
@@ -980,8 +993,14 @@ export class AdminScheduleTestComponent {
   private hasExamFilterValues(): boolean {
     return !!(
       this.filterExamName ||
+      this.filterCountry ||
+      this.filterCity ||
+      this.filterDepartment ||
+      this.filterTeam ||
       (this.selectedDepartments && this.selectedDepartments.length) ||
       (this.selectedTeams && this.selectedTeams.length) ||
+      this.filterIndustry ||
+      this.filterSector ||
       this.filterCreationDateAfter ||
       this.filterCreationDate ||
       this.filterCreatedByMe
@@ -1000,8 +1019,15 @@ export class AdminScheduleTestComponent {
     const params: string[] = [];
     if (this.model && this.model.institute) params.push(`institute_id=${encodeURIComponent(this.model.institute)}`);
     if (this.filterExamName) params.push(`name=${encodeURIComponent(this.filterExamName)}`);
+    if (this.filterCountry) params.push(`country=${encodeURIComponent(this.filterCountry)}`);
+    const cityName = String(this.filterCity || '').trim();
+    if (cityName) params.push(`city=${encodeURIComponent(cityName)}`);
+    if (this.filterDepartment) params.push(`department=${encodeURIComponent(this.filterDepartment)}`);
+    if (this.filterTeam) params.push(`team=${encodeURIComponent(this.filterTeam)}`);
     if (this.selectedDepartments && this.selectedDepartments.length) params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
     if (this.selectedTeams && this.selectedTeams.length) params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
+    if (this.filterIndustry) params.push(`industry=${encodeURIComponent(this.filterIndustry)}`);
+    if (this.filterSector) params.push(`sector=${encodeURIComponent(this.filterSector)}`);
     if (this.filterCreationDateAfter) params.push(`created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`);
     if (this.filterCreationDate) params.push(`created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`);
     if (this.filterCreatedByMe) {
@@ -1043,8 +1069,14 @@ export class AdminScheduleTestComponent {
   // Reset filter fields to defaults and reload exams
   resetFilters() {
     this.filterExamName = '';
+    this.filterCountry = '';
+    this.filterCity = '';
+    this.filterDepartment = '';
+    this.filterTeam = '';
     this.selectedDepartments = [];
     this.selectedTeams = [];
+    this.filterIndustry = '';
+    this.filterSector = '';
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
     this.filterCreatedByMe = false;

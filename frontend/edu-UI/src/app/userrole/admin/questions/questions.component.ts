@@ -802,6 +802,13 @@ export class AdminQuestionsComponent {
     this.refreshInstituteScope();
   }
 
+  onCountryAutocompleteSelected(countryCode: string) {
+    const found = this.filteredCountries.find(c => String(c.code) === String(countryCode));
+    this.filterCountry = countryCode || '';
+    this.countrySearch = found ? found.name : '';
+    this.onCountryFilterChange();
+  }
+
   onCityFilterChange() {
     this.refreshInstituteScope();
   }
@@ -812,8 +819,20 @@ export class AdminQuestionsComponent {
     this.refreshInstituteScope();
   }
 
+  onIndustryAutocompleteSelected(industry: string) {
+    this.filterIndustry = industry || '';
+    this.industrySearch = industry || '';
+    this.onIndustryFilterChange();
+  }
+
   onSectorFilterChange() {
     this.refreshInstituteScope();
+  }
+
+  onSectorAutocompleteSelected(sector: string) {
+    this.filterSector = sector || '';
+    this.sectorSearch = sector || '';
+    this.onSectorFilterChange();
   }
 
   // Reload the Institute options scoped to the currently selected Country/City/Industry/Sector.

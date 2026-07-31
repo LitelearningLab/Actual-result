@@ -53,10 +53,11 @@
           <ng-container *ngIf="showLocationAndIndustryFilters">
             <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Country</mat-label>
-            <mat-select [(ngModel)]="filters.country" (selectionChange)="onCountryChange()">
-              <mat-option value="">Any</mat-option>
-              <mat-option *ngFor="let c of countries" [value]="c.code">{{c.name}}</mat-option>
-            </mat-select>
+            <input matInput placeholder="Any" [(ngModel)]="filters.country" [matAutocomplete]="countryAuto" />
+            <mat-autocomplete #countryAuto="matAutocomplete" (optionSelected)="onCountryChange()">
+              <mat-option [value]="''">Any</mat-option>
+              <mat-option *ngFor="let c of countries" [value]="c.name">{{c.name}}</mat-option>
+            </mat-autocomplete>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="filter-item">
@@ -73,30 +74,31 @@
 
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Industry</mat-label>
-            <mat-select [(ngModel)]="filters.industry" (selectionChange)="onIndustryFilterChange()">
-              <mat-option value="">Any</mat-option>
+            <input matInput placeholder="Any" [(ngModel)]="filters.industry" [matAutocomplete]="industryAuto" />
+            <mat-autocomplete #industryAuto="matAutocomplete" (optionSelected)="onIndustryFilterChange()">
+              <mat-option [value]="''">Any</mat-option>
               <mat-option *ngFor="let t of industryTypes" [value]="t">{{t}}</mat-option>
-            </mat-select>
+            </mat-autocomplete>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Sector</mat-label>
-            <mat-select [(ngModel)]="filters.sector" [disabled]="!filters.industry"
-              (selectionChange)="onSectorFilterChange()">
-              <mat-option value="">Any</mat-option>
+            <input matInput placeholder="Any" [disabled]="!filters.industry" [(ngModel)]="filters.sector" [matAutocomplete]="sectorAuto" />
+            <mat-autocomplete #sectorAuto="matAutocomplete" (optionSelected)="onSectorFilterChange()">
+              <mat-option [value]="''">Any</mat-option>
               <mat-option *ngFor="let s of scopedSectors()" [value]="s">{{s}}</mat-option>
-            </mat-select>
+            </mat-autocomplete>
           </mat-form-field>
 
           </ng-container>
 
           <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
             <mat-label>Institute</mat-label>
-            <mat-select [(ngModel)]="selectedInstitute" (selectionChange)="onInstituteChange($event.value)">
-              <!-- [disabled]="!isSuperAdmin"> -->
-              <mat-option value="">Any</mat-option>
+            <input matInput placeholder="Any" [(ngModel)]="instituteSearch" [matAutocomplete]="instituteAuto" />
+            <mat-autocomplete #instituteAuto="matAutocomplete" (optionSelected)="onInstituteChange($event.option.value)">
+              <mat-option [value]="''">Any</mat-option>
               <mat-option *ngFor="let i of institutes" [value]="i.institute_id">{{i.institute_name}}</mat-option>
-            </mat-select>
+            </mat-autocomplete>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="filter-item">

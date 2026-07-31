@@ -47,6 +47,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   instituteSearchTerm = '';
   // new filter fields
   filterName = '';
+  scheduleNameOptions: string[] = [];
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
   filterCreationDateAfter: Date | null = null;
@@ -128,6 +129,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
     const portal = new TemplatePortal(this.filtersPanelTpl, this.vcr);
     this.filtersOverlayRef.attach(portal);
+    this.loadScheduleNameOptions();
   }
 
   closeFiltersOverlay() { if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; } }
@@ -261,6 +263,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.instituteSearch = '';
     this.instituteSearchTerm = '';
     this.filterName = '';
+    this.scheduleNameOptions = [];
     this.selectedDepartments = [];
     this.selectedTeams = [];
     this.filterCreationDateAfter = null;
@@ -285,6 +288,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   onInstituteChange(id: string) {
     this.selectedInstitute = id || '';
     this.syncInstituteSearch();
+    this.loadScheduleNameOptions();
     if (this.selectedInstitute) {
       this.loadDepartments(this.selectedInstitute);
       this.loadTeams(this.selectedInstitute);
@@ -305,6 +309,12 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     const q = (this.instituteSearchTerm || '').trim().toLowerCase();
     if (!q) return this.institutes;
     return this.institutes.filter((i: any) => (i.name || '').toLowerCase().includes(q));
+  }
+
+  filteredScheduleNames() {
+    const q = (this.filterName || '').trim().toLowerCase();
+    if (!q) return this.scheduleNameOptions;
+    return this.scheduleNameOptions.filter(name => String(name || '').toLowerCase().includes(q));
   }
 
   onInstituteAutocompleteSelected(id: string) {
@@ -343,6 +353,24 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
         const arr = Array.isArray(res) ? res : (res?.data || []);
         this.teams = arr.map((t: any) => ({ id: t.team_id || t.id || t.teamId || '', name: t.name || t.team_name || '' }));
       }, error: (err) => { console.warn('Failed to load teams', err); this.teams = []; }
+    });
+  }
+
+  loadScheduleNameOptions() {
+    const institute = this.selectedInstitute || undefined;
+    let url = `${API_BASE}/get-exam-schedule-details`;
+    const params: string[] = [];
+    if (institute) params.push(`institute_id=${encodeURIComponent(institute)}`);
+    if (params.length) url += `?${params.join('&')}`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        const arr = Array.isArray(res) ? res : (res?.data || []);
+        const names = arr
+          .map((s: any) => String(s.title || s.testName || s.name || '').trim())
+          .filter((name: string) => !!name);
+        this.scheduleNameOptions = Array.from(new Set(names));
+      },
+      error: () => { this.scheduleNameOptions = []; }
     });
   }
 

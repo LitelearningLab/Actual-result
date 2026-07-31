@@ -348,6 +348,41 @@ mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:
 .question-bank-filter-panel .filter-apply-btn { background:var(--button-1)!important; color:var(--button-text-1)!important; }
 .question-bank-filter-panel .filter-reset-btn { background:var(--bg-1)!important; color:var(--theme-3-text-1)!important; }
 
+/* Make the question filter panel fields match the typable institute style */
+:host ::ng-deep .question-bank-filter-panel .mat-mdc-text-field-wrapper,
+:host ::ng-deep .question-bank-filter-panel .mat-mdc-form-field-flex,
+:host ::ng-deep .question-bank-filter-panel .mat-mdc-form-field-infix {
+  min-height: 3.5rem;
+}
+
+:host ::ng-deep .question-bank-filter-panel .mat-mdc-text-field-wrapper {
+  border-radius: 0.75rem !important;
+}
+
+:host ::ng-deep .question-bank-filter-panel .mat-mdc-form-field-infix {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+:host ::ng-deep .question-bank-filter-panel .mat-mdc-select-trigger {
+  min-height: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+:host ::ng-deep .question-bank-filter-panel .mat-mdc-select-value {
+  font-size: 1rem;
+}
+
+:host ::ng-deep .question-bank-filter-panel .mat-mdc-select-arrow-wrapper {
+  transform: translateY(0.0625rem);
+}
+
+:host ::ng-deep .question-bank-filter-panel .mat-mdc-autocomplete-panel {
+  border-radius: 0.75rem;
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.16);
+}
+
 /* Searchable filter dropdowns (Country/Industry/Sector) */
 :host ::ng-deep .select-search-option { height:auto !important; min-height:3rem; cursor:default; }
 :host ::ng-deep .select-search-option .mdc-list-item__primary-text { width:100%; }

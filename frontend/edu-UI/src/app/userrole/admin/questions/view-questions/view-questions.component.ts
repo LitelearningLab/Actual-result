@@ -905,20 +905,21 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
   }
 
   onCategorySelected(c: any){
-    if(!c) return;
+    if (!c) return;
+    if (typeof c === 'string') {
+      this.selectedCategories = [];
+      this.categoryFilterName = c.trim();
+      return;
+    }
     const categoryId = c.category_id || c.id || c._id || '';
     if (categoryId) {
       this.selectedCategories = [String(categoryId)];
       this.categoryFilterName = '';
-      this.hasAppliedFilters = true;
       try { this.categoryCtrl.setValue(c, { emitEvent: false }); } catch(e) {}
-      this.loadQuestions();
       return;
     }
     this.selectedCategories = [];
-    this.categoryFilterName = c.name || c.category_name || '';
-    this.hasAppliedFilters = true;
-    this.loadQuestions();
+    this.categoryFilterName = (c.name || c.category_name || '').trim();
   }
 
   editQuestion(q: QuestionRow) {
@@ -937,7 +938,6 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
   deleteQuestion(q: QuestionRow) {
     this.confirmService.confirm({ title: 'Delete Question', message: 'Delete this question? This action cannot be undone.', confirmText: 'Delete', cancelText: 'Cancel' }).subscribe(ok => {
       if (!ok) return;
-      // const url = `${this.questionsUrl}?question_id=${encodeURIComponent(String(q.id))}`;
       const url = `${API_BASE}/delete/question/${encodeURIComponent(String(q.id))}`;
       this.http!.delete<any>(url).subscribe({
         next: (res) => {
@@ -955,6 +955,7 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
 
   // Apply fetches with filters; reset clears filters and leaves the table empty.
   private hasFilterValues(): boolean {
+    const rawCategoryCtrlVal = typeof this.categoryCtrl?.value === 'string' ? this.categoryCtrl.value.trim() : '';
     return !!(
       this.filterCountry ||
       this.filterCity ||
@@ -964,6 +965,7 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
       this.selectedCategories.length ||
       this.categoryFilterName ||
       this.categorySearch ||
+      rawCategoryCtrlVal ||
       this.selectedDepartments.length ||
       this.selectedTeams.length ||
       this.filterCreationDateAfter ||
@@ -978,6 +980,9 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
     if (!this.hasFilterValues()) {
       try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
       return;
+    }
+    if (!this.selectedCategories.length && typeof this.categoryCtrl?.value === 'string') {
+      this.categoryFilterName = this.categoryCtrl.value.trim();
     }
     // Mark these values as applied so the existing Applied Filters chips are rendered.
     this.hasAppliedFilters = true;
@@ -1006,9 +1011,6 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
     this.industrySearch = '';
     this.sectorSearch = '';
     if (this.isSuperAdmin) {
-      // Institute is the top of the Institute -> Question Bank -> Department/Team chain;
-      // it must be cleared here so those dependents reload unscoped instead of staying
-      // pinned to whatever institute was previously selected.
       this.selectedInstitute = '';
       this.instituteSearch = '';
       this.categoryCtrl.disable({ emitEvent: false });
@@ -1024,9 +1026,6 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
     this.selectedQuestionIds.clear();
     this.hasAppliedFilters = false;
   }
-
-  // keep existing constructor-less usage working for tests
-
 
   get filtered() {
     const q = (this.filter || '').toLowerCase();
