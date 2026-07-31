@@ -1,20 +1,16 @@
 <div class="page view-schedule-exam">
     <div class="toolbar">
-        <!-- <div class="title"> -->
-            <!-- <h2>Scheduled Tests</h2>
-            <p class="muted">List of scheduled tests</p> -->
-            <div class="search">
-                <mat-form-field appearance="outline" class="search-field">
-                    <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
-                    <input matInput placeholder="Search within filtered results" [(ngModel)]="search"
-                        (ngModelChange)="applyFilter($event)" aria-label="Search questions" />
-                    <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter('')"
-                        aria-label="Clear search">
-                        <mat-icon>close</mat-icon>
-                    </button>
-                </mat-form-field>
-            </div>
-        <!-- </div> -->
+        <div class="search">
+            <mat-form-field appearance="outline" class="search-field">
+                <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
+                <input matInput placeholder="Search within filtered results" [(ngModel)]="search"
+                    (ngModelChange)="applyFilter($event)" aria-label="Search questions" />
+                <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter('')"
+                    aria-label="Clear search">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </mat-form-field>
+        </div>
         <div class="controls">
             <div class="action-row">
                 <button #filtersBtn mat-flat-button type="button"
@@ -31,9 +27,7 @@
                     <mat-icon svgIcon="add"></mat-icon>
                     <span>Schedule test</span>
                 </button>
-
             </div>
-
         </div>
     </div>
 
@@ -46,65 +40,139 @@
         </button>
         <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">Clear all</button>
     </div>
+
     <ng-template #filtersPanel>
-        <div class="filters-panel" (click)="$event.stopPropagation()">
+        <div class="filters-panel view-questions-filters-panel" role="region" aria-label="Filter options" (click)="$event.stopPropagation()">
             <div class="filters-panel-header">
                 <h4><mat-icon>tune</mat-icon> Filters</h4>
             </div>
-            <div class="filter-block">
-                <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
-                    <mat-label>Institute</mat-label>
-                    <input #scheduleInstituteInput matInput placeholder="Select institute" [(ngModel)]="instituteSearch"
-                        (ngModelChange)="onInstituteSearchChange($event)"
-                        [matAutocomplete]="scheduleInstituteAuto" />
-                    <mat-autocomplete #scheduleInstituteAuto="matAutocomplete"
-                        [displayWith]="displayInstitute"
-                        (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
-                        <mat-option value="">Select institute</mat-option>
-                        <mat-option *ngFor="let inst of filteredInstitutes()"
-                            [value]="inst.institute_id">{{inst.name}}</mat-option>
-                    </mat-autocomplete>
-                </mat-form-field>
+            <div class="filter-block filter-grid">
+                <!-- Left Column: Country, City, Industry, Sector, Created After, Created Before -->
+                <div class="filter-col">
+                    <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
+                        <mat-label>Country</mat-label>
+                        <mat-select [(ngModel)]="filterCountry" (openedChange)="onFilterSelectOpened($event, 'country')"
+                            (selectionChange)="onCountryFilterChange()">
+                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <input matInput class="select-search-input" placeholder="Search country" [(ngModel)]="countrySearch"
+                                    [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()"
+                                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                                    (input)="stopFilterSearchEvent($event)" />
+                            </mat-option>
+                            <mat-option value="">Any</mat-option>
+                            <mat-option *ngFor="let c of filteredCountries" [value]="c.code">{{c.name}}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
 
-                <mat-form-field appearance="outline" class="filter-item">
-                    <mat-label>Schedule Name</mat-label>
-                    <input matInput placeholder="Schedule name" [(ngModel)]="filterName" [matAutocomplete]="scheduleNameAuto" />
-                    <mat-autocomplete #scheduleNameAuto="matAutocomplete">
-                        <mat-option [value]="''">Any</mat-option>
-                        <mat-option *ngFor="let name of filteredScheduleNames()" [value]="name">{{ name }}</mat-option>
-                    </mat-autocomplete>
-                </mat-form-field>
+                    <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
+                        <mat-label>City</mat-label>
+                        <input matInput placeholder="Any" [disabled]="!filterCountry" [(ngModel)]="filterCity"
+                            (blur)="onCityFilterChange()" />
+                    </mat-form-field>
 
-                <mat-form-field appearance="outline" class="filter-item">
-                    <mat-label>Created After</mat-label>
-                    <input matInput [matDatepicker]="pickerAfter" placeholder="Select start date"
-                        [(ngModel)]="filterCreationDateAfter">
-                    <mat-datepicker-toggle matSuffix [for]="pickerAfter"></mat-datepicker-toggle>
-                    <mat-datepicker #pickerAfter></mat-datepicker>
-                </mat-form-field>
+                    <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
+                        <mat-label>Industry</mat-label>
+                        <mat-select [(ngModel)]="filterIndustry" placeholder="Industry type"
+                            (openedChange)="onFilterSelectOpened($event, 'industry')" (selectionChange)="onIndustryFilterChange()">
+                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <input matInput class="select-search-input" placeholder="Search industry" [(ngModel)]="industrySearch"
+                                    [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()"
+                                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                                    (input)="stopFilterSearchEvent($event)" />
+                            </mat-option>
+                            <mat-option value="">Any</mat-option>
+                            <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{t}}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
 
-                <mat-form-field appearance="outline" class="filter-item">
-                    <mat-label>Created Before</mat-label>
-                    <input matInput [matDatepicker]="picker" placeholder="Select end date"
-                        [(ngModel)]="filterCreationDate">
-                    <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-                    <mat-datepicker #picker></mat-datepicker>
-                </mat-form-field>
+                    <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
+                        <mat-label>Sector</mat-label>
+                        <mat-select [(ngModel)]="filterSector" placeholder="Industry sector" [disabled]="!filterIndustry"
+                            (openedChange)="onFilterSelectOpened($event, 'sector')" (selectionChange)="onSectorFilterChange()">
+                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <input matInput class="select-search-input" placeholder="Search sector" [(ngModel)]="sectorSearch"
+                                    [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()"
+                                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                                    (input)="stopFilterSearchEvent($event)" />
+                            </mat-option>
+                            <mat-option value="">Any</mat-option>
+                            <mat-option *ngFor="let s of filteredSectors" [value]="s">{{s}}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
 
-                <mat-form-field appearance="outline" class="filter-item">
-                    <mat-label>Active Status</mat-label>
-                    <mat-select [(ngModel)]="filterActiveStatus" placeholder="Select status">
-                        <mat-option [value]="null">All</mat-option>
-                        <mat-option [value]="true">Active</mat-option>
-                        <mat-option [value]="false">Inactive</mat-option>
-                    </mat-select>
-                </mat-form-field>
+                    <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Created After</mat-label>
+                        <input matInput [matDatepicker]="pickerAfter" placeholder="Select start date"
+                            [(ngModel)]="filterCreationDateAfter">
+                        <mat-datepicker-toggle matSuffix [for]="pickerAfter"></mat-datepicker-toggle>
+                        <mat-datepicker #pickerAfter></mat-datepicker>
+                    </mat-form-field>
 
+                    <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Created Before</mat-label>
+                        <input matInput [matDatepicker]="picker" placeholder="Select end date"
+                            [(ngModel)]="filterCreationDate">
+                        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                        <mat-datepicker #picker></mat-datepicker>
+                    </mat-form-field>
+                </div>
+
+                <!-- Right Column: Institute, Schedule Name, Departments, Teams, Active Status -->
+                <div class="filter-col">
+                    <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
+                        <mat-label>Institute</mat-label>
+                        <input #scheduleInstituteInput matInput placeholder="Select institute" [(ngModel)]="instituteSearch"
+                            (ngModelChange)="onInstituteSearchChange($event)"
+                            [matAutocomplete]="scheduleInstituteAuto" />
+                        <mat-autocomplete #scheduleInstituteAuto="matAutocomplete"
+                            [displayWith]="displayInstitute"
+                            (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
+                            <mat-option value="">Select institute</mat-option>
+                            <mat-option *ngFor="let inst of filteredInstitutes()"
+                                [value]="inst.institute_id">{{inst.name}}</mat-option>
+                        </mat-autocomplete>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Schedule Name</mat-label>
+                        <input matInput placeholder="Schedule name" [(ngModel)]="filterName" [matAutocomplete]="scheduleNameAuto" [disabled]="isSuperAdmin && !selectedInstitute" />
+                        <mat-autocomplete #scheduleNameAuto="matAutocomplete">
+                            <mat-option [value]="''">Any</mat-option>
+                            <mat-option *ngFor="let name of filteredScheduleNames()" [value]="name">{{ name }}</mat-option>
+                        </mat-autocomplete>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Departments</mat-label>
+                        <mat-select multiple [(ngModel)]="selectedDepartments" [disabled]="isSuperAdmin && !selectedInstitute" placeholder="Select departments">
+                            <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Teams</mat-label>
+                        <mat-select multiple [(ngModel)]="selectedTeams" [disabled]="isSuperAdmin && !selectedInstitute" placeholder="Select teams">
+                            <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Active Status</mat-label>
+                        <mat-select [(ngModel)]="filterActiveStatus" placeholder="Select status">
+                            <mat-option [value]="null">All</mat-option>
+                            <mat-option [value]="true">Active</mat-option>
+                            <mat-option [value]="false">Inactive</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+            </div>
+
+            <div class="filter-checks">
                 <div class="filter-item checkbox-item">
                     <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by me</mat-checkbox>
                 </div>
-
             </div>
+
             <div class="filter-actions">
                 <button mat-flat-button (click)="onApply()" class="filter-apply-btn">
                     <mat-icon svgIcon="apply"></mat-icon> Apply
@@ -117,7 +185,6 @@
     </ng-template>
 
     <div class="list-card">
-
         <div class="list-wrapper">
             <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 compact premium-table" matSort>
 
@@ -126,10 +193,8 @@
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
                     <td mat-cell *matCellDef="let s" class="cell-primary">
                         <div class="item-cell">
-                            <!-- <div class="item-avatar item-avatar--schedule">{{ (s.title || '?').charAt(0).toUpperCase() }}</div> -->
                             <div class="item-info">
                                 <span class="item-name">{{ s.title }}</span>
-                                <!-- <span class="item-sub" *ngIf="s.institute">{{ s.institute }}</span> -->
                             </div>
                         </div>
                     </td>
@@ -163,8 +228,6 @@
                 <ng-container matColumnDef="publish">
                     <th mat-header-cell *matHeaderCellDef>Publish</th>
                     <td mat-cell *matCellDef="let s">
-                        <!-- <mat-slide-toggle [checked]="s.publish"
-                            (change)="togglePublish(s)"></mat-slide-toggle> -->
                            <button type="button" role="switch" [attr.aria-checked]="s.publish ? 'true' : 'false'" [attr.data-state]="s.publish ? 'checked' : 'unchecked'" (click)="togglePublish(s)" class="custom-toggle peer inline-flex">
                               <span class="toggle-thumb" [attr.data-state]="s.publish ? 'checked' : 'unchecked'"></span>
                            </button>
@@ -175,7 +238,7 @@
                 <ng-container matColumnDef="actions">
                     <th mat-header-cell *matHeaderCellDef>Actions</th>
                     <td mat-cell *matCellDef="let s">
-                                <div class="actions-inline">
+                        <div class="actions-inline">
                             <button *hasAccess="'Schedule Exam'; hasAccessAction: 'view'" mat-icon-button color="primary" (click)="viewSchedule(s)" title="View"><mat-icon svgIcon="view"></mat-icon></button>
                             <button *hasAccess="'Schedule Exam'; hasAccessAction: 'delete'" mat-icon-button color="warn" (click)="deleteSchedule(s)" title="Delete" class="delete-btn" ><mat-icon svgIcon="delete"></mat-icon></button>
                         </div>
@@ -237,13 +300,9 @@
                                     <div class="label">End</div>
                                     <div class="value">{{ formatDate(selectedSchedule.end_time || selectedSchedule.end || selectedSchedule.endDateTime) || '—' }}</div>
 
-                                    <!-- <div class="label">Duration (mins)</div>
-                                    <div class="value">{{ selectedSchedule.duration_mins || selectedSchedule.duration || '—' }}</div> -->
-
                                     <div class="label">Published</div>
                                     <div class="value">{{ (selectedSchedule.published != null ? selectedSchedule.published : (selectedSchedule.publish != null ? selectedSchedule.publish : '—')) }}</div>
 
-                                    <!-- Show the admin's review configuration instead of the legacy boolean flag. -->
                                     <div class="label">Review Availability</div>
                                     <div class="value">{{ getReviewModeLabel(selectedSchedule) }}</div>
 
@@ -319,6 +378,3 @@
         </div>
     </div>
 </div>
-
-
-

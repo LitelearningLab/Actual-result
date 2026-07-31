@@ -1,4 +1,4 @@
-from db.models import Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamMapping, Categories, ExamScheduleMapping, QuestionMapping, ExamQuestionMapping
+from db.models import Exam, ExamSchedule, Question, Option, Answer, Exam_Attempt, ExamMapping, Categories, ExamScheduleMapping, QuestionMapping, ExamQuestionMapping, CategoriesDepartments, CategoriesTeams
 from db.db import SQLiteDB
 from others.exam_review import finalize_expired_attempts, is_after_everyone_finished_available, is_review_eligible_attempt, validate_answers
 import sys
@@ -393,6 +393,39 @@ def get_exam_details(request):
                 filter.append(Exam.created_by == user.user_id)
         if args.get('exam_id', None):
             filter.append(Exam.exam_id == args['exam_id'])
+
+        dept_arg = args.get("departments", None) or args.get("department", None)
+        if dept_arg:
+            dept_ids = [d.strip() for d in str(dept_arg).split(",") if d.strip()]
+            if dept_ids:
+                cat_exam_ids = [r[0] for r in session.query(ExamMapping.exam_id).join(CategoriesDepartments, CategoriesDepartments.category_id == ExamMapping.category_id).filter(CategoriesDepartments.department_id.in_(dept_ids)).all()]
+                user_exam_ids = [r[0] for r in session.query(Exam.exam_id).join(User, User.user_id == Exam.created_by).filter(User.department_id.in_(dept_ids)).all()]
+                sched_exam_ids = [r[0] for r in session.query(ExamSchedule.exam_id).join(ExamScheduleMapping, ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id).filter(ExamScheduleMapping.department_id.in_(dept_ids)).all()]
+                matching_exam_ids = list(set(cat_exam_ids + user_exam_ids + sched_exam_ids))
+                filter.append(Exam.exam_id.in_(matching_exam_ids if matching_exam_ids else ['__none__']))
+
+        team_arg = args.get("teams", None) or args.get("team", None)
+        if team_arg:
+            team_ids = [t.strip() for t in str(team_arg).split(",") if t.strip()]
+            if team_ids:
+                cat_exam_ids = [r[0] for r in session.query(ExamMapping.exam_id).join(CategoriesTeams, CategoriesTeams.category_id == ExamMapping.category_id).filter(CategoriesTeams.team_id.in_(team_ids)).all()]
+                user_exam_ids = [r[0] for r in session.query(Exam.exam_id).join(User, User.user_id == Exam.created_by).filter(User.team_id.in_(team_ids)).all()]
+                sched_exam_ids = [r[0] for r in session.query(ExamSchedule.exam_id).join(ExamScheduleMapping, ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id).filter(ExamScheduleMapping.team_id.in_(team_ids)).all()]
+                matching_exam_ids = list(set(cat_exam_ids + user_exam_ids + sched_exam_ids))
+                filter.append(Exam.exam_id.in_(matching_exam_ids if matching_exam_ids else ['__none__']))
+
+        if args.get("country", None):
+            country_val = str(args.get("country")).strip().lower()
+            filter.append(or_(Institute.country_id.ilike(country_val), Institute.country_name.ilike(f"%{country_val}%")))
+        if args.get("city", None):
+            city_val = str(args.get("city")).strip().lower()
+            filter.append(or_(Institute.city_id.ilike(city_val), Institute.city_name.ilike(f"%{city_val}%")))
+        if args.get("industry", None):
+            ind_val = str(args.get("industry")).strip().lower()
+            filter.append(Institute.industry_type.ilike(f"%{ind_val}%"))
+        if args.get("sector", None):
+            sec_val = str(args.get("sector")).strip().lower()
+            filter.append(Institute.sector.ilike(f"%{sec_val}%"))
             
 
         # join with Institute to fetch institute details as well
