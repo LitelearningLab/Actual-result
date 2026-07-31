@@ -158,6 +158,7 @@
                                 placeholder="Test name"
                                 [(ngModel)]="filterName"
                                 [matAutocomplete]="testNameAuto"
+                                [disabled]="isSuperAdmin && !selectedInstitute"
                                 aria-label="Filter by test name" />
                             <mat-autocomplete #testNameAuto="matAutocomplete">
                                 <mat-option value="">All Tests</mat-option>

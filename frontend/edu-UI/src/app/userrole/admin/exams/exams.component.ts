@@ -304,12 +304,17 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   get filteredTestOptions(): Array<{ id: string; title: string }> {
+    if (this.isSuperAdmin && !this.selectedInstitute) return [];
     const term = (this.filterName || '').trim().toLowerCase();
     if (!term) return this.testOptions;
     return this.testOptions.filter(t => t.title.toLowerCase().includes(term));
   }
 
   loadTestOptions(instId?: string) {
+    if (this.isSuperAdmin && !instId) {
+      this.testOptions = [];
+      return;
+    }
     const url = `${API_BASE}/get-exams-list`;
     const params: any = {};
     if (instId) params.institute_id = instId;
@@ -415,7 +420,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     else if (key === 'city') { this.filterCity = ''; if (this.isSuperAdmin) this.refreshInstituteScope(); }
     else if (key === 'industry') { this.filterIndustry = ''; this.filterSector = ''; if (this.isSuperAdmin) this.refreshInstituteScope(); }
     else if (key === 'sector') { this.filterSector = ''; if (this.isSuperAdmin) this.refreshInstituteScope(); }
-    else if (key === 'institute' && this.isSuperAdmin) { this.selectedInstitute = ''; this.instituteSearch = ''; this.selectedDepartments = []; this.selectedTeams = []; this.departments = []; this.teams = []; }
+    else if (key === 'institute' && this.isSuperAdmin) { this.selectedInstitute = ''; this.instituteSearch = ''; this.filterName = ''; this.testOptions = []; this.selectedDepartments = []; this.selectedTeams = []; this.departments = []; this.teams = []; }
     else if (key === 'name') this.filterName = '';
     else if (key.startsWith('department:')) this.selectedDepartments = this.selectedDepartments.filter(id => String(id) !== key.substring('department:'.length));
     else if (key.startsWith('team:')) this.selectedTeams = this.selectedTeams.filter(id => String(id) !== key.substring('team:'.length));
@@ -918,7 +923,12 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   onInstituteChange(value: any) {
     const v = value !== undefined && value !== null ? value : '';
     this.selectedInstitute = v;
-    this.loadTestOptions(this.selectedInstitute || undefined);
+    if (this.isSuperAdmin && !this.selectedInstitute) {
+      this.filterName = '';
+      this.testOptions = [];
+    } else {
+      this.loadTestOptions(this.selectedInstitute || undefined);
+    }
     if (this.selectedInstitute) {
       this.loadDepartments(this.selectedInstitute);
       this.loadTeams(this.selectedInstitute);
@@ -926,6 +936,8 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       // clear dependent lists
       this.departments = [];
       this.teams = [];
+      this.selectedDepartments = [];
+      this.selectedTeams = [];
     }
   }
 
