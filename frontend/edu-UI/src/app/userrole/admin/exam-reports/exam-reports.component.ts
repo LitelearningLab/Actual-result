@@ -11,6 +11,7 @@ import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 
 @Component({
   selector: 'app-exam-reports',
@@ -62,17 +63,217 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   activeMainTabIndex = 0;
   innerAnalyticsTabIndex = 0;
   userFilterOpen = false;
-  userFilters: any = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '' };
+  isGlobalInstituteActive = false;
+  userFilters: any = {
+    country_id: '',
+    city_id: '',
+    industry: '',
+    sector: '',
+    institute_id: '',
+    campus_id: '',
+    department_id: [] as string[],
+    teams_id: [] as string[],
+    schedule_id: '',
+    active_status: '',
+    created_after: null as Date | string | null,
+    created_before: null as Date | string | null,
+    created_by_me: false,
+    joined_after: null as Date | string | null,
+    joined_before: null as Date | string | null
+  };
+  searchQueries: any = {
+    country: '',
+    city: '',
+    industry: '',
+    sector: '',
+    institute: '',
+    campus: '',
+    department: '',
+    team: '',
+    schedule: '',
+    active_status: ''
+  };
   countries: any[] = [];
   cities: any[] = [];
   campusList: any[] = [];
   departmentList: any[] = [];
   teamList: any[] = [];
-  institutes: Array<{ id: string; name: string }> = [];
+  industryList: string[] = ['School', 'College', 'BPO', 'Bank', 'IT'];
+  private sectorMap: Record<string, string[]> = {
+    'School': ['School'],
+    'College': ['Engineering', 'Arts'],
+    'BPO': ['Healthcare', 'Finance'],
+    'Bank': ['Bank'],
+    'IT': ['IT']
+  };
+  activeStatusList: Array<{ value: string; label: string }> = [
+    { value: '', label: 'All' },
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' }
+  ];
+  institutes: Array<{ id: string; name: string; industry_type?: string; industry_sector?: string }> = [];
   selectedInstituteId: string | null = null;
   scheduledTestsLoading = false;
   scheduledTestsMessage = '';
   private scheduledTestsRequestId = 0;
+
+  get selectedInstituteName(): string {
+    if (!this.selectedInstituteId) return '';
+    const found = this.institutes.find(i => String(i.id) === String(this.selectedInstituteId));
+    if (found) return found.name;
+    if (this.isGlobalInstituteActive) return this.globalContextService.activeInstitute?.institute_name || '';
+    return '';
+  }
+
+  get selectedExamTitle(): string {
+    if (!this.selectedExam) return '';
+    return this.selectedExam.title || this.selectedExam.name || '';
+  }
+
+  get filteredCountriesList(): any[] {
+    const q = (this.searchQueries.country || '').toLowerCase().trim();
+    if (!q) return this.countries;
+    return (this.countries || []).filter(c => (c.name || '').toLowerCase().includes(q));
+  }
+
+  get filteredCitiesList(): any[] {
+    const q = (this.searchQueries.city || '').toLowerCase().trim();
+    if (!q) return this.cities;
+    return (this.cities || []).filter(c => (c.name || '').toLowerCase().includes(q));
+  }
+
+  get filteredIndustryList(): string[] {
+    const q = (this.searchQueries.industry || '').toLowerCase().trim();
+    if (!q) return this.industryList;
+    return (this.industryList || []).filter(i => i.toLowerCase().includes(q));
+  }
+
+  get filteredSectorList(): string[] {
+    if (!this.userFilters.industry) return [];
+    const sectors = this.sectorMap[this.userFilters.industry] || [];
+    const q = (this.searchQueries.sector || '').toLowerCase().trim();
+    if (!q) return sectors;
+    return sectors.filter(s => s.toLowerCase().includes(q));
+  }
+
+  onIndustryChange(): void {
+    const validSectors = this.userFilters.industry ? (this.sectorMap[this.userFilters.industry] || []) : [];
+    if (!validSectors.includes(this.userFilters.sector)) {
+      this.userFilters.sector = '';
+    }
+    this.loadInstitutes();
+    this.onFilterSelectionChange();
+  }
+
+  onSectorChange(): void {
+    this.loadInstitutes();
+    this.onFilterSelectionChange();
+  }
+
+  onCampusChange(): void {
+    if (!this.userFilters.institute_id && !this.userFilters.campus_id) {
+      this.userFilters.department_id = [];
+      this.userFilters.teams_id = [];
+    }
+    this.onFilterSelectionChange();
+  }
+
+  get filteredInstitutesList(): Array<{ id: string; name: string; industry_type?: string; industry_sector?: string }> {
+    const q = (this.searchQueries.institute || '').toLowerCase().trim();
+    let list = this.institutes || [];
+
+    if (this.userFilters.industry) {
+      const targetInd = this.userFilters.industry.toLowerCase().trim();
+      list = list.filter((i: any) => {
+        const ind = (i.industry_type || '').toLowerCase().trim();
+        return !ind || ind === targetInd || ind.includes(targetInd) || targetInd.includes(ind);
+      });
+    }
+
+    if (this.userFilters.sector) {
+      const targetSec = this.userFilters.sector.toLowerCase().trim();
+      list = list.filter((i: any) => {
+        const sec = (i.industry_sector || '').toLowerCase().trim();
+        return !sec || sec === targetSec || sec.includes(targetSec) || targetSec.includes(sec);
+      });
+    }
+
+    if (!q) return list;
+    return list.filter((i: any) => (i.name || '').toLowerCase().includes(q));
+  }
+
+  get filteredCampusList(): string[] {
+    const q = (this.searchQueries.campus || '').toLowerCase().trim();
+    if (!q) return this.campusList;
+    return (this.campusList || []).filter(c => c.toLowerCase().includes(q));
+  }
+
+  get filteredDepartmentList(): string[] {
+    const q = (this.searchQueries.department || '').toLowerCase().trim();
+    if (!q) return this.departmentList;
+    return (this.departmentList || []).filter(d => d.toLowerCase().includes(q));
+  }
+
+  get filteredTeamList(): string[] {
+    const q = (this.searchQueries.team || '').toLowerCase().trim();
+    if (!q) return this.teamList;
+    return (this.teamList || []).filter(t => t.toLowerCase().includes(q));
+  }
+
+  get filteredScheduleList(): any[] {
+    const q = (this.searchQueries.schedule || '').toLowerCase().trim();
+    let list = this.allTests || [];
+
+    // Filter by campus if selected
+    if (this.userFilters.campus_id) {
+      const selectedCampus = String(this.userFilters.campus_id).toLowerCase().trim();
+      list = list.filter(t => {
+        const itemCampus = String(t.campus_id || t.campus || t.campus_name || '').toLowerCase().trim();
+        return !itemCampus || itemCampus.includes(selectedCampus);
+      });
+    }
+
+    // Filter by department if selected
+    if (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length) {
+      const selectedDepts: string[] = this.userFilters.department_id.map((d: any) => String(d).toLowerCase().trim());
+      list = list.filter(t => {
+        const itemDept = String(t.department_id || t.department || t.department_name || t.departments || '').toLowerCase().trim();
+        if (!itemDept) return true;
+        return selectedDepts.some((sd: string) => itemDept.includes(sd));
+      });
+    }
+
+    // Filter by team if selected
+    if (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length) {
+      const selectedTeams: string[] = this.userFilters.teams_id.map((tm: any) => String(tm).toLowerCase().trim());
+      list = list.filter(t => {
+        const itemTeam = String(t.team_id || t.team || t.team_name || t.teams || '').toLowerCase().trim();
+        if (!itemTeam) return true;
+        return selectedTeams.some((st: string) => itemTeam.includes(st));
+      });
+    }
+
+    if (!q) return list;
+    return list.filter(t => (t.title || t.name || '').toLowerCase().includes(q));
+  }
+
+  get filteredActiveStatusList(): Array<{ value: string; label: string }> {
+    const q = (this.searchQueries.active_status || '').toLowerCase().trim();
+    if (!q) return this.activeStatusList;
+    return (this.activeStatusList || []).filter(a => (a.label || '').toLowerCase().includes(q));
+  }
+
+  onSelectOpened(opened: boolean, field: string) {
+    if (opened && field && this.searchQueries.hasOwnProperty(field)) {
+      this.searchQueries[field] = '';
+    }
+  }
+
+  onFilterSelectionChange() {
+    try {
+      this.loadScheduledTest();
+    } catch(e) {}
+  }
 
   @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
@@ -148,7 +349,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     private vcr: ViewContainerRef,
     private pageMeta: PageMetaService,
     private _snack: MatSnackBar,
-    private confirm: ConfirmService
+    private confirm: ConfirmService,
+    private globalContextService: GlobalInstituteContextService
   ) {}
 
   private _pendingCategoryFilter: string | null = null;
@@ -600,16 +802,83 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.wrongDistribution = [];
   }
 
-  // Reset filters to empty and reload scheduled tests, then close overlay.
+  // Apply filters from overlay panel
+  applyFiltersPanel() {
+    if (!this.isGlobalInstituteActive && this.userFilters.institute_id) {
+      if (this.selectedInstituteId !== this.userFilters.institute_id) {
+        this.selectedInstituteId = this.userFilters.institute_id;
+        const found = this.institutes.find(i => i.id === this.selectedInstituteId);
+        if (found) {
+          try { this.instituteCtrl.setValue(found as any); } catch(e) {}
+        }
+        try { this.loadDepartmentList(this.selectedInstituteId); } catch(e) {}
+        try { this.loadTeamsList(this.selectedInstituteId); } catch(e) {}
+        try { this.loadCampusList(this.selectedInstituteId); } catch(e) {}
+      }
+    }
+
+    this.loadScheduledTest();
+
+    if (this.userFilters.schedule_id) {
+      const selectedTest = (this.allTests || []).find(t => String(t.schedule_id || t.id || t.scheduleId) === String(this.userFilters.schedule_id));
+      if (selectedTest) {
+        this.selectedExam = selectedTest;
+        try { this.examCtrl.setValue(selectedTest); } catch(e) {}
+      }
+    }
+
+    if (this.selectedExam) {
+      if (this.activeMainTabIndex === 0) {
+        this.loadUserReport(1);
+      } else {
+        this.loadAnalytics();
+      }
+    }
+
+    this.closeFiltersOverlay();
+  }
+
+  refreshTestReports() {
+    this.selectedExam = null;
+    if (!this.isGlobalInstituteActive) {
+      this.selectedInstituteId = null;
+      this.userFilters.institute_id = '';
+      try { this.instituteCtrl.setValue(null); } catch(e) {}
+    } else {
+      this.userFilters.institute_id = this.globalContextService.activeInstituteId || '';
+    }
+    this.userFilters.country_id = '';
+    this.userFilters.city_id = '';
+    this.userFilters.industry = '';
+    this.userFilters.sector = '';
+    this.userFilters.campus_id = '';
+    this.userFilters.department_id = [];
+    this.userFilters.teams_id = [];
+    this.userFilters.schedule_id = '';
+    this.userFilters.active_status = '';
+    this.userFilters.created_after = null;
+    this.userFilters.created_before = null;
+    this.userFilters.created_by_me = false;
+    this.userFilters.joined_after = null;
+    this.userFilters.joined_before = null;
+    Object.keys(this.searchQueries).forEach(k => this.searchQueries[k] = '');
+    try { this.examCtrl.setValue(null); } catch(e) {}
+    this.allTests = [];
+    this.scheduledTestsMessage = '';
+  }
+
+  // Reset filters to empty and return to initial empty state, then close overlay.
   resetFiltersAndReload() {
-    this.resetFilters = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '' };
-    try { this.loadScheduledTest(); } catch (e) {}
-    try { this.closeFiltersOverlay(); } catch (e) {}
+    this.refreshTestReports();
+    this.closeFiltersOverlay();
   }
 
   displayTest(exam: any) { return exam ? (exam.title || exam.name || '') : ''; }
   onTestAutocompleteSelected(exam: any) {
     this.selectedExam = exam; 
+    if (exam) {
+      this.userFilters.schedule_id = String(exam.schedule_id || exam.id || exam.scheduleId || '');
+    }
     // auto-load report for the currently active main tab
     if(this.activeMainTabIndex === 0){
       this.loadUserReport(1);
@@ -621,28 +890,53 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   private loadInstitutes(){
     const url = `${API_BASE}/institutes/list`;
-    this.http.get<any>(url).subscribe({
+    const params: any = {};
+    if (this.userFilters.country_id) params.country = this.userFilters.country_id;
+    if (this.userFilters.city_id) params.city = this.userFilters.city_id;
+    if (this.userFilters.industry) params.industry = this.userFilters.industry;
+    if (this.userFilters.sector) params.sector = this.userFilters.sector;
+
+    this.http.get<any>(url, { params }).subscribe({
       next: (res)=>{
         const list = Array.isArray(res) ? res : (res?.institutes || res?.data || []);
-        this.institutes = (list || []).map((i:any)=>({ id: String(i.id || i.institute_id || i._id || ''), name: i.name || i.institute || 'Institute' }));
-        // setup filtered institutes observable
+        this.institutes = (list || []).map((i:any)=>({
+          id: String(i.id || i.institute_id || i._id || ''),
+          name: i.name || i.institute || 'Institute',
+          industry_type: i.industry_type || i.industry || i.industry_name || '',
+          industry_sector: i.industry_sector || i.sector || i.sector_name || ''
+        })).filter((i: any) => !!i.id);
+
+        const available = this.filteredInstitutesList;
+        if (this.userFilters.institute_id && !available.some((i: any) => String(i.id) === String(this.userFilters.institute_id))) {
+          this.onInstituteChange('');
+        }
+
         try{
           this.filteredInstitutes$ = this.instituteCtrl.valueChanges.pipe(
             startWith(''),
             map((val:any) => {
               const q = (typeof val === 'string' ? val : (val?.name || '')).toLowerCase();
-              return (this.institutes || []).filter((it:any) => (it.name || '').toLowerCase().includes(q));
+              return (this.filteredInstitutesList || []).filter((it:any) => (it.name || '').toLowerCase().includes(q));
             })
           );
         }catch(e){
-          this.filteredInstitutes$ = of(this.institutes || []);
+          this.filteredInstitutes$ = of(this.filteredInstitutesList || []);
         }
-        const loginInst = sessionStorage.getItem('global_institute_id') || sessionStorage.getItem('institute_id') || sessionStorage.getItem('instituteId');
-        if(loginInst) this.selectedInstituteId = String(loginInst);
-        else if(this.institutes.length) this.selectedInstituteId = this.institutes[0].id;
-        // set instituteCtrl display value
-        const selected = this.institutes.find(i=>i.id === this.selectedInstituteId);
-        if(selected){ try{ this.instituteCtrl.setValue(selected as any); this.onInstituteChange(this.selectedInstituteId); }catch(e){} }
+
+        const globalInstId = this.globalContextService.activeInstituteId;
+        if (globalInstId) {
+          this.isGlobalInstituteActive = true;
+          this.selectedInstituteId = globalInstId;
+          this.userFilters.institute_id = globalInstId;
+        } else if (!this.userFilters.institute_id) {
+          this.isGlobalInstituteActive = false;
+          this.selectedInstituteId = null;
+        }
+
+        if (this.selectedInstituteId) {
+          const selected = this.institutes.find(i=>i.id === this.selectedInstituteId);
+          if(selected){ try{ this.instituteCtrl.setValue(selected as any); }catch(e){} }
+        }
       },
       error: (err)=> console.warn('Failed to load institutes', err)
     });
@@ -651,8 +945,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   onInstituteSelected(inst: any){
     if(!inst) return;
     this.selectedInstituteId = inst.id;
+    this.userFilters.institute_id = inst.id;
     this.resetSelectedExam();
-    // populate dependent filter lists then load exams
     try{ this.loadDepartmentList(this.selectedInstituteId); }catch(e){}
     try{ this.loadTeamsList(this.selectedInstituteId); }catch(e){}
     try{ this.loadCampusList(this.selectedInstituteId); }catch(e){}
@@ -663,6 +957,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   displayInstitute(i: any){ return i ? i.name : ''; }
   onInstituteChange(id: string|null){
     this.selectedInstituteId = id;
+    if (id) {
+      this.userFilters.institute_id = id;
+    } else {
+      this.userFilters.institute_id = '';
+      if (!this.userFilters.campus_id) {
+        this.userFilters.department_id = [];
+        this.userFilters.teams_id = [];
+      }
+    }
     this.resetSelectedExam();
     try{ this.loadDepartmentList(this.selectedInstituteId); }catch(e){}
     try{ this.loadTeamsList(this.selectedInstituteId); }catch(e){}
@@ -672,13 +975,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   loadCountries() {
-    // reuse location-hierarchy endpoint used elsewhere
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url).subscribe({ next: (res) => { try { const countries = res?.data?.countries || res?.countries || res?.data || []; this.countries = countries.map((c: any) => ({ code: c.country_code || c.code || c.id, name: c.country_name || c.name || c.country })); } catch (e) { this.countries = []; } }, error: () => { this.countries = []; } });
   }
 
   onCountryChange() {
     this.cities = [];
+    this.userFilters.city_id = '';
     if (!this.userFilters.country_id) return;
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url, { params: { country: this.userFilters.country_id } }).subscribe({
@@ -696,7 +999,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // load department list for a specific institute
   loadDepartmentList(instituteId: string | null) {
     this.departmentList = [];
     if (!instituteId) return;
@@ -709,7 +1011,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // load teams list for a specific institute
   loadTeamsList(instituteId: string | null) {
     this.teamList = [];
     if (!instituteId) return;
@@ -722,7 +1023,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // load campus list for a specific institute
   loadCampusList(instituteId: string | null) {
     this.campusList = [];
     if (!instituteId) return;
@@ -760,13 +1060,29 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.scheduledTestsLoading = true;
     this.scheduledTestsMessage = '';
     this.loading.show();
-    this.http.get<any>(url, { params: { institute_id: instituteId, country_id: this.userFilters.country_id || '', city_id: this.userFilters.city_id || '', campus_id: this.userFilters.campus_id || '' } }).subscribe({
+
+    const params: any = {
+      institute_id: instituteId,
+      country_id: this.userFilters.country_id || '',
+      city_id: this.userFilters.city_id || '',
+      campus_id: this.userFilters.campus_id || ''
+    };
+    if (this.userFilters.industry) params.industry = this.userFilters.industry;
+    if (this.userFilters.sector) params.sector = this.userFilters.sector;
+    if (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length) {
+      params.department_id = this.userFilters.department_id.join(',');
+    }
+    if (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length) {
+      params.team_id = this.userFilters.teams_id.join(',');
+    }
+
+    this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
         if (requestId !== this.scheduledTestsRequestId || instituteId !== this.selectedInstituteId) return;
-        try{ const items = Array.isArray(res) ? res : (res?.data || res?.schedules || []);
+        try{
+          const items = Array.isArray(res) ? res : (res?.data || res?.schedules || []);
           this.allTests = items || [];
           this.scheduledTestsMessage = this.allTests.length ? '' : 'No scheduled tests found for this institute.';
-          // set up filtered observable to react to user typing
           try{
             this.filteredTests$ = this.examCtrl.valueChanges.pipe(
               startWith(''),
@@ -795,21 +1111,32 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     });
   }
 
-  refreshTestReports(): void {
-    this.loadScheduledTest();
-    if (!this.selectedExam) return;
-    if (this.activeMainTabIndex === 0) this.loadUserReport(this.currentPage || 1);
-    else this.loadAnalytics();
-  }
-
   ngOnInit(): void {
     try { this.pageMeta.setMeta('Test Reports', 'Reports for scheduled tests'); } catch (e) {}
-      this.loadInstitutes();
-      // load countries for filter dropdowns
-      try{ this.loadCountries(); }catch(e){}
+    this.loadInstitutes();
+    try { this.loadCountries(); } catch(e){}
+
+    try {
+      const sub = this.globalContextService.activeInstitute$.subscribe(context => {
+        if (context && context.institute_id) {
+          this.isGlobalInstituteActive = true;
+          this.selectedInstituteId = context.institute_id;
+          this.userFilters.institute_id = context.institute_id;
+          const found = this.institutes.find(i => i.id === context.institute_id) || { id: context.institute_id, name: context.institute_name };
+          try { this.instituteCtrl.setValue(found as any); } catch(e) {}
+          this.onInstituteChange(context.institute_id);
+        } else {
+          this.isGlobalInstituteActive = false;
+        }
+      });
+      if (!this._subs) {
+        this._subs = sub;
+      } else {
+        this._subs.add(sub);
+      }
+    } catch(e) {}
   }
 
-  // Helper to convert option index to letter (0 -> A, 1 -> B, ...)
   getOptionLetter(i: number): string {
     try { return String.fromCharCode(65 + (Number(i) || 0)); } catch (e) { return ''+i; }
   }
@@ -817,6 +1144,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   openFiltersOverlay(){
     if(!this.filtersBtn) return;
     if(this.filtersOverlayRef){ try{ this.filtersOverlayRef.dispose(); }catch(e){}; this.filtersOverlayRef = null; }
+
+    this.userFilters.institute_id = this.selectedInstituteId || '';
+    if (this.selectedExam) {
+      this.userFilters.schedule_id = String(this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || '');
+    }
+    Object.keys(this.searchQueries).forEach(k => this.searchQueries[k] = '');
 
     const positionStrategy = this.overlay.position()
       .flexibleConnectedTo(this.filtersBtn)
@@ -843,9 +1176,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   onTabChange(event: any){
     const idx = event.index;
-    // 0 => User Report, 1 => Category Report
     if(!this.selectedExam){
-      // nothing selected
       return;
     }
     if(idx === 0){
@@ -858,8 +1189,32 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   loadUserReport(page: number = 1){
     if(!this.selectedExam) return;
     this.currentPage = page || 1;
-    const params: any = { schedule_id: String(this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || ''), page: String(this.currentPage), page_size: String(this.pageSize) };
-    if(this.searchQuery) params.q = this.searchQuery;
+    const scheduleId = String(this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || '');
+    const params: any = {
+      schedule_id: scheduleId,
+      page: String(this.currentPage),
+      page_size: String(this.pageSize)
+    };
+    if (this.searchQuery) params.q = this.searchQuery;
+    if (this.userFilters.country_id) params.country_id = this.userFilters.country_id;
+    if (this.userFilters.city_id) params.city_id = this.userFilters.city_id;
+    if (this.userFilters.campus_id) params.campus_id = this.userFilters.campus_id;
+    if (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length) {
+      params.department_id = this.userFilters.department_id.join(',');
+    } else if (typeof this.userFilters.department_id === 'string' && this.userFilters.department_id) {
+      params.department_id = this.userFilters.department_id;
+    }
+    if (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length) {
+      params.team_id = this.userFilters.teams_id.join(',');
+    } else if (typeof this.userFilters.teams_id === 'string' && this.userFilters.teams_id) {
+      params.team_id = this.userFilters.teams_id;
+    }
+    if (this.userFilters.active_status) params.active_status = this.userFilters.active_status;
+    const afterDate = this.userFilters.created_after || this.userFilters.joined_after;
+    if (afterDate) params.created_after = afterDate instanceof Date ? afterDate.toISOString() : afterDate;
+    const beforeDate = this.userFilters.created_before || this.userFilters.joined_before;
+    if (beforeDate) params.created_before = beforeDate instanceof Date ? beforeDate.toISOString() : beforeDate;
+    if (this.userFilters.created_by_me) params.created_by_me = 'true';
     this.loadingUserReport = true;
     try { this.loading.show(); } catch(e){}
     this.http.get<any>(`${API_BASE}/get-exam-user-report`, { params }).subscribe({

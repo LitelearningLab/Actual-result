@@ -627,24 +627,46 @@ def get_institute_details(request):
     }
     return json_data , 200
 
-def get_institute_list(current_user=None):
+def get_institute_list(current_user=None, request=None):
     db = SQLiteDB()
     session = db.connect()
     if not session:
         return None
 
-    # get active institutes list
-    query = session.query(Institute).filter_by(active_status=1)
+    args = getattr(request, "args", {}) if request else {}
+    query = session.query(Institute).filter(Institute.active_status == 1, Institute.is_deleted == 0)
     if current_user and getattr(current_user, "user_role", None) not in ("super_admin", "superadmin", "super-admin"):
         query = query.filter(Institute.institute_id == current_user.institute_id)
-    active_institutes = query.all()
+
+    if args.get("industry"):
+        ind_val = str(args.get("industry")).strip()
+        if ind_val:
+            query = query.filter(or_(Institute.industry_type.ilike(f"%{ind_val}%"), Institute.industry_type == None, Institute.industry_type == ''))
+    if args.get("sector"):
+        sec_val = str(args.get("sector")).strip()
+        if sec_val:
+            query = query.filter(or_(Institute.industry_sector.ilike(f"%{sec_val}%"), Institute.industry_sector == None, Institute.industry_sector == ''))
+    if args.get("country") or args.get("city"):
+        query = query.join(InstituteCampus, Institute.institute_id == InstituteCampus.institute_id)
+        if args.get("country"):
+            query = query.filter(InstituteCampus.country_id == args.get("country"))
+        if args.get("city"):
+            city_val = str(args.get("city") or '').strip()
+            if city_val:
+                query = query.filter(InstituteCampus.city_name.ilike(f"%{city_val}%"))
+
+    active_institutes = query.distinct().all()
     result = []
     for inst in active_institutes:
         result.append({
-            "institute_id": inst.institute_id,
+            "id": str(inst.institute_id),
+            "institute_id": str(inst.institute_id),
             # Keep the full name alongside the abbreviation so filter UIs can display it safely.
             "institute_name": inst.name,
-            "short_name": inst.short_name
+            "name": inst.name,
+            "short_name": inst.short_name,
+            "industry_type": inst.industry_type or '',
+            "industry_sector": inst.industry_sector or ''
         })
     json_data = {
         "statusMessage": "Active institutes retrieved successfully",

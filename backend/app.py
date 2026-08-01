@@ -207,7 +207,7 @@ def get_institutes():
 @jwt_required
 def get_institute_list_route():
     current_user = get_current_user_from_request()
-    response_data, status_code = get_institute_list(current_user)
+    response_data, status_code = get_institute_list(current_user, request)
     return jsonify(response_data), status_code
 
 
@@ -216,7 +216,7 @@ def get_institute_list_route():
 def institutes_list_route():
     # reuse existing get_institute_list function and normalize output
     current_user = get_current_user_from_request()
-    response_data, status_code = get_institute_list(current_user)
+    response_data, status_code = get_institute_list(current_user, request)
     if not response_data:
         return jsonify([]), 200
     # if response_data contains a list under 'institutes' or similar, normalize
@@ -226,14 +226,22 @@ def institutes_list_route():
         arr = response_data
     else:
         arr = []
-    # return simplified array of { id, name }
+    # return normalized array of { id, name, short_name, industry_type, industry_sector }
     out = []
     for i in arr:
         try:
-            iid = i.get('institute_id') or i.get('id') or i.get('institute_id') or i.get('instituteId')
-            # Prefer the full institute name while retaining the short name for older consumers.
+            iid = i.get('institute_id') or i.get('id') or i.get('instituteId')
             name = i.get('institute_name') or i.get('name') or i.get('institute') or i.get('short_name')
-            out.append({'id': iid, 'name': name, 'short_name': i.get('short_name')})
+            ind = i.get('industry_type') or i.get('industry') or ''
+            sec = i.get('industry_sector') or i.get('sector') or ''
+            if iid and name:
+                out.append({
+                    'id': str(iid),
+                    'name': str(name),
+                    'short_name': i.get('short_name'),
+                    'industry_type': str(ind),
+                    'industry_sector': str(sec)
+                })
         except Exception:
             continue
     return jsonify(out), 200
