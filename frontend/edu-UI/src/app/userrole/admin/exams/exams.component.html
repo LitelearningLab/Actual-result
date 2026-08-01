@@ -124,16 +124,6 @@
                             </mat-select>
                         </mat-form-field>
 
-                        <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Created After</mat-label>
-                            <input matInput 
-                                [matDatepicker]="pickerAfter" 
-                                placeholder="Select start date"
-                                [(ngModel)]="filterCreationDateAfter"
-                                aria-label="Filter exams created after">
-                            <mat-datepicker-toggle matSuffix [for]="pickerAfter"></mat-datepicker-toggle>
-                            <mat-datepicker #pickerAfter></mat-datepicker>
-                        </mat-form-field>
                     </div>
 
                     <!-- Right Column: Institute, Test Name, Departments, Teams, Created Before -->
@@ -183,16 +173,14 @@
                                 <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
                             </mat-select>
                         </mat-form-field>
+                    </div>
 
-                        <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Created Before</mat-label>
-                            <input matInput 
-                                [matDatepicker]="picker" 
-                                placeholder="Select end date"
-                                [(ngModel)]="filterCreationDate"
-                                aria-label="Filter exams created before">
-                            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-                            <mat-datepicker #picker></mat-datepicker>
+                    <!-- Full Width Row: Created Date -->
+                    <div class="filter-col-full">
+                        <mat-form-field appearance="outline" class="filter-item date-range-field" (click)="openCreatedDateRangePicker()" style="cursor: pointer;">
+                            <mat-label>Created Date</mat-label>
+                            <input matInput readonly [value]="getCreatedDateRangeDisplay()" placeholder="Select date range" style="cursor: pointer;" />
+                            <mat-icon matSuffix style="cursor: pointer; color: #0284c7;">calendar_today</mat-icon>
                         </mat-form-field>
                     </div>
 

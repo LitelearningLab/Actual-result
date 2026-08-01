@@ -1,0 +1,75 @@
+<div class="date-range-modal-container" (click)="$event.stopPropagation()">
+  <!-- Left Presets Sidebar -->
+  <div class="presets-sidebar">
+    <button type="button" class="preset-item" [class.active]="activePreset === 'today'" (click)="selectPreset('today')">Today</button>
+    <button type="button" class="preset-item" [class.active]="activePreset === 'yesterday'" (click)="selectPreset('yesterday')">Yesterday</button>
+    <button type="button" class="preset-item" [class.active]="activePreset === 'this_week'" (click)="selectPreset('this_week')">This week</button>
+    <button type="button" class="preset-item" [class.active]="activePreset === 'last_week'" (click)="selectPreset('last_week')">Last week</button>
+    <button type="button" class="preset-item" [class.active]="activePreset === 'this_month'" (click)="selectPreset('this_month')">This month</button>
+    <button type="button" class="preset-item" [class.active]="activePreset === 'last_month'" (click)="selectPreset('last_month')">Last month</button>
+    <button type="button" class="preset-item" [class.active]="activePreset === 'this_year'" (click)="selectPreset('this_year')">This year</button>
+    <button type="button" class="preset-item" [class.active]="activePreset === 'last_year'" (click)="selectPreset('last_year')">Last year</button>
+  </div>
+
+  <!-- Right Calendar & Footer Panel -->
+  <div class="calendar-main-panel">
+    <!-- Month Navigation Header -->
+    <div class="month-nav-header">
+      <button type="button" class="nav-arrow-btn" (click)="prevMonth()" aria-label="Previous Month">
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+      <span class="month-title-text">{{ currentMonthTitle }}</span>
+      <button type="button" class="nav-arrow-btn" (click)="nextMonth()" aria-label="Next Month">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+    </div>
+
+    <!-- Weekday Row -->
+    <div class="weekdays-row">
+      <span *ngFor="let day of weekDays" class="weekday-cell">{{ day }}</span>
+    </div>
+
+    <!-- Days Grid -->
+    <div class="days-grid-container">
+      <button type="button"
+           *ngFor="let cell of calendarGrid; trackBy: trackByDate"
+           class="day-grid-cell"
+           [class.other-month]="!cell.isCurrentMonth"
+           [class.range-start]="cell.isStart"
+           [class.range-end]="cell.isEnd"
+           [class.has-end]="cell.hasEnd"
+           [class.in-range]="cell.isInRange"
+           [class.range-preview]="cell.isPreview"
+           (click)="onDayClick(cell.date)"
+           (mouseenter)="onDayHover(cell.date)"
+           (mouseleave)="onDayHover(null)">
+        <span class="day-number-label">{{ cell.dayNumber }}</span>
+      </button>
+    </div>
+
+    <!-- Footer Bar with Editable Inputs -->
+    <div class="picker-footer-bar">
+      <div class="footer-inputs-group">
+        <input type="text"
+               class="date-input-pill"
+               placeholder="DD/MM/YYYY"
+               [value]="startDateInput"
+               (input)="onStartDateInput($any($event.target).value)"
+               (blur)="onStartDateBlur()" />
+        <span class="range-dash">-</span>
+        <input type="text"
+               class="date-input-pill"
+               placeholder="DD/MM/YYYY"
+               [value]="endDateInput"
+               (input)="onEndDateInput($any($event.target).value)"
+               (blur)="onEndDateBlur()" />
+        <span class="range-days-label" *ngIf="rangeDaysCount > 0">Range : <strong>{{ rangeDaysCount }} days</strong></span>
+      </div>
+
+      <div class="footer-action-buttons">
+        <button type="button" class="btn-picker-cancel" (click)="onCancel()">Cancel</button>
+        <button type="button" class="btn-picker-apply" (click)="onApply()">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>

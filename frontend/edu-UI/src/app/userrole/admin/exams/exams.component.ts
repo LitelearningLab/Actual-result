@@ -1,4 +1,4 @@
-import { Component, ViewChild, AfterViewInit, OnInit, OnDestroy ,ElementRef, TemplateRef, ViewContainerRef } from '@angular/core';
+import { Component, ViewChild, AfterViewInit, OnInit, OnDestroy, ElementRef, TemplateRef, ViewContainerRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -8,35 +8,32 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatSort } from '@angular/material/sort';
+import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
-import { MatSortModule } from '@angular/material/sort';
-import { MatTableDataSource } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { notify } from 'src/app/shared/global-notify';
-import { Overlay, OverlayRef } from '@angular/cdk/overlay';
-import { OverlayModule } from '@angular/cdk/overlay';
+import { Overlay, OverlayRef, OverlayModule } from '@angular/cdk/overlay';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
-import { PortalModule } from '@angular/cdk/portal';
-import { TemplatePortal } from '@angular/cdk/portal';
+import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
 import { DirectivesModule } from 'src/app/shared/directives/directives.module';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import { Subscription } from 'rxjs';
+import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 @Component({
   selector: 'app-admin-exams',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, HttpClientModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatAutocompleteModule, MatButtonModule, MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule, MatListModule, MatTabsModule, MatDatepickerModule, MatCheckboxModule, OverlayModule, PortalModule, DirectivesModule],
-
   templateUrl: './exams.component.html',
   styleUrls: ['./exams.component.scss']
 })
@@ -91,7 +88,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   private apiUrl = `${API_BASE}/get-institute-list`;
 
   isSuperAdmin = false;
-  constructor(private http: HttpClient, private auth: AuthService, private loader: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private confirmService: ConfirmService, private router: Router, private globalInstituteContext: GlobalInstituteContextService) {
+  constructor(private http: HttpClient, private auth: AuthService, private loader: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private confirmService: ConfirmService, private router: Router, private globalInstituteContext: GlobalInstituteContextService, private dialog: MatDialog) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
       this.isSuperAdmin = !!this.auth.currentUserValue && ['super_admin', 'superadmin', 'super-admin'].includes((this.auth.currentUserValue.role || '').toLowerCase());
@@ -102,6 +99,44 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
         this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
       } catch (e) { this.isSuperAdmin = false; }
     });
+  }
+
+  openCreatedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.filterCreationDateAfter,
+        endDate: this.filterCreationDate
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.filterCreationDateAfter = res.startDate;
+        this.filterCreationDate = res.endDate;
+      }
+    });
+  }
+
+  getCreatedDateRangeDisplay(): string {
+    const start = this.filterCreationDateAfter;
+    const end = this.filterCreationDate;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(start);
+    const endStr = format(end);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `From ${startStr}`;
+    if (endStr) return `Until ${endStr}`;
+    return '';
   }
 
   clearEditAndCreate() {

@@ -1912,3 +1912,9 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 .edit-comment-reason { display: block; width: 100%; margin-top: 8px; }
 .review-meta .edit-reason { display: block; margin-top: 2px; }
 .save-link.disabled { opacity: .45; cursor: not-allowed; }
+
+.filters-panel .filter-item.filter-item--full {
+  width: 100% !important;
+  flex: 0 0 100% !important;
+}
+

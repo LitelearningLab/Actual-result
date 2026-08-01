@@ -22,11 +22,11 @@ import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
-import { TemplatePortal } from '@angular/cdk/portal';
-import { OverlayModule } from '@angular/cdk/overlay';
-import { PortalModule } from '@angular/cdk/portal';
-import { Overlay, OverlayRef } from '@angular/cdk/overlay';
+import { TemplatePortal, PortalModule } from '@angular/cdk/portal';
+import { OverlayModule, Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { Subscription } from 'rxjs';
+import { MatDialog } from '@angular/material/dialog';
+import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 
 @Component({
@@ -101,7 +101,45 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   hasAppliedFilters = false;
 
   private filtersOverlayRef: OverlayRef | null = null;
-  constructor(private http: HttpClient, private router: Router, private loader: LoaderService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private confirmService: ConfirmService, private globalInstituteContext: GlobalInstituteContextService) {}
+  constructor(private http: HttpClient, private router: Router, private loader: LoaderService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private confirmService: ConfirmService, private globalInstituteContext: GlobalInstituteContextService, private dialog: MatDialog) {}
+
+  openCreatedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.filterCreationDateAfter,
+        endDate: this.filterCreationDate
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.filterCreationDateAfter = res.startDate;
+        this.filterCreationDate = res.endDate;
+      }
+    });
+  }
+
+  getCreatedDateRangeDisplay(): string {
+    const start = this.filterCreationDateAfter;
+    const end = this.filterCreationDate;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(start);
+    const endStr = format(end);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `From ${startStr}`;
+    if (endStr) return `Until ${endStr}`;
+    return '';
+  }
 
   ngOnInit(): void {
 

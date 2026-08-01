@@ -9,7 +9,9 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { TemplatePortal } from '@angular/cdk/portal';
+import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 
@@ -350,8 +352,47 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     private pageMeta: PageMetaService,
     private _snack: MatSnackBar,
     private confirm: ConfirmService,
-    private globalContextService: GlobalInstituteContextService
+    private globalContextService: GlobalInstituteContextService,
+    private dialog: MatDialog
   ) {}
+
+  openCreatedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.userFilters.created_after,
+        endDate: this.userFilters.created_before
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.userFilters.created_after = res.startDate;
+        this.userFilters.created_before = res.endDate;
+      }
+    });
+  }
+
+  getCreatedDateRangeDisplay(): string {
+    const start = this.userFilters.created_after;
+    const end = this.userFilters.created_before;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(start);
+    const endStr = format(end);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `From ${startStr}`;
+    if (endStr) return `Until ${endStr}`;
+    return '';
+  }
 
   private _pendingCategoryFilter: string | null = null;
 

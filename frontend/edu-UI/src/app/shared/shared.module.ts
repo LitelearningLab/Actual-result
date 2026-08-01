@@ -25,14 +25,16 @@ import { MatSortModule, MatSort } from '@angular/material/sort';
 import { DirectivesModule } from './directives/directives.module';
 import { PermissionGuard } from './guards/permission.guard';
 import { IconModule } from './icons/icon.module';
+import { DateRangePickerDialogComponent } from './components/date-range-picker-dialog/date-range-picker-dialog.component';
+
 @NgModule({
   imports: [
     CommonModule, HttpClientModule, RouterModule, MatChipsModule, MatSnackBarModule, MatDialogModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, HttpClientModule, FormsModule, DirectivesModule, IconModule
   ],
   exports: [
-    MatChipsModule, MatIconModule, MatSnackBarModule, MatDialogModule, HttpClientModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, HttpClientModule, FormsModule, DirectivesModule, UnauthorizedComponent
+    MatChipsModule, MatIconModule, MatSnackBarModule, MatDialogModule, HttpClientModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, HttpClientModule, FormsModule, DirectivesModule, UnauthorizedComponent, DateRangePickerDialogComponent
   ],
-  declarations: [UnauthorizedComponent, ConfirmDialogComponent],
+  declarations: [UnauthorizedComponent, ConfirmDialogComponent, DateRangePickerDialogComponent],
   providers: [PermissionGuard]
 })
 export class SharedModule { 

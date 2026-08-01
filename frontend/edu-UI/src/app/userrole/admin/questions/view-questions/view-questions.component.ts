@@ -29,6 +29,8 @@ import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule } from '@angular/cdk/portal';
 import { TemplatePortal } from '@angular/cdk/portal';
+import { MatDialog } from '@angular/material/dialog';
+import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
@@ -161,33 +163,30 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
  
   isSuperAdmin = false;
   isGlobalInstituteActive = false;
-  // Country/City/Industry/Sector are Super Admin-only, and are further hidden while the
-  // Super Admin has a Global Filter institute active (that institute already scopes the page).
   get showLocationAndIndustryFilters(): boolean {
     return this.isSuperAdmin && !this.isGlobalInstituteActive;
   }
   private loginInstituteId: string | null = null;
-  constructor(private http: HttpClient, private router: Router, private loading: LoaderService, private auth: AuthService, private overlay: Overlay, private vcr: ViewContainerRef,private pageMeta: PageMetaService, private confirmService: ConfirmService, private globalInstituteContext: GlobalInstituteContextService) {
-    
-  this.initializeInstituteScopeFromSession();
+  constructor(private http: HttpClient, private router: Router, private loading: LoaderService, private auth: AuthService, private overlay: Overlay, private vcr: ViewContainerRef,private pageMeta: PageMetaService, private confirmService: ConfirmService, private globalInstituteContext: GlobalInstituteContextService, private dialog: MatDialog) {
+    this.initializeInstituteScopeFromSession();
 
-  // subscribe to isSuperAdmin observable so UI stays reactive to role changes
-  try {
-    this._subs = this.auth.user$.subscribe((user: any) => {
-      this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
-      if (!this.isSuperAdmin && user) {
-        const instId = sessionStorage.getItem('global_institute_id') || user?.institute_id || user?.instituteId || user?.institute?.institute_id || user?.institute?.id || (typeof user?.institute === 'string' ? user.institute : '');
-        if (instId) {
-          this.loginInstituteId = String(instId);
-          this.selectedInstitute = this.loginInstituteId;
-          this.instituteSearch = '';
-          this.syncInstituteSearch();
+    // subscribe to isSuperAdmin observable so UI stays reactive to role changes
+    try {
+      this._subs = this.auth.user$.subscribe((user: any) => {
+        this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
+        if (!this.isSuperAdmin && user) {
+          const instId = sessionStorage.getItem('global_institute_id') || user?.institute_id || user?.instituteId || user?.institute?.institute_id || user?.institute?.id || (typeof user?.institute === 'string' ? user.institute : '');
+          if (instId) {
+            this.loginInstituteId = String(instId);
+            this.selectedInstitute = this.loginInstituteId;
+            this.instituteSearch = '';
+            this.syncInstituteSearch();
+          }
         }
-      }
-    });
-  } catch (e) { /* ignore in tests */ }
+      });
+    } catch (e) { /* ignore in tests */ }
 
-  // http is optional for tests; if present, load institutes
+    // http is optional for tests; if present, load institutes
     if (this.http) this.loadInstitutes();
     if (this.http) this.loadCountries();
     try {
@@ -206,15 +205,52 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
     if (this.http) this.loadCategories(this.getScopedInstituteId());
   }
 
+  openCreatedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.filterCreationDateAfter,
+        endDate: this.filterCreationDate
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.filterCreationDateAfter = res.startDate;
+        this.filterCreationDate = res.endDate;
+      }
+    });
+  }
+
+  getCreatedDateRangeDisplay(): string {
+    const start = this.filterCreationDateAfter;
+    const end = this.filterCreationDate;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(start);
+    const endStr = format(end);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `From ${startStr}`;
+    if (endStr) return `Until ${endStr}`;
+    return '';
+  }
+
   ngOnDestroy(): void {
     try { this._subs?.unsubscribe(); } catch (e) { /* ignore */ }
     try { this._globalInstituteSub?.unsubscribe(); } catch (e) { /* ignore */ }
-     this.saveQuestionsReturnState();
+    this.saveQuestionsReturnState();
   }
+
   get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
-    // The context subscription populates this ID whenever the Global Institute Filter is selected.
     const globalInstituteId = this.activeInstituteId;
-    // A normal Admin's login institute becomes an applied chip only after Apply is clicked.
     if (!this.hasAppliedFilters && !globalInstituteId) return [];
     const chips: Array<{ key: string; label: string; removable: boolean }> = [];
     if (this.filterCountry) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries.map(c => ({ id: c.code, name: c.name })), this.filterCountry)}`, removable: true });
