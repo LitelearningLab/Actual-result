@@ -474,7 +474,7 @@ $modal-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 // Status pill
 .status-pill { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 2rem; letter-spacing: 0.02em; }
 .status-pill--active { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #059669; border: 1px solid rgba(16, 185, 129, 0.2); }
-.status-pill--inactive { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.2); }
+.status-pill--inactive { background: linear-gradient(135deg, #fef2f2 0%, #fee2f2 100%); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.2); }
 
 // Modal responsive
 @media (max-width: 1000px) { .dept-teams-grid { grid-template-columns: 1fr; } }
