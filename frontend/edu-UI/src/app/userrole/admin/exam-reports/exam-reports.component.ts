@@ -51,6 +51,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   totalMarks: string | number | null = null;
   pageSize = 25;
   currentPage = 1;
+  questionPageSize = 20;
+  questionCurrentPage = 1;
   searchQuery = ''; 
   commentEdit = false;
   updatedBy = '';
@@ -323,6 +325,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.selectedCategoryFilterName = category.category_name || category.name || 'Selected Category';
     // ensure main tab is analytics
     this.activeMainTabIndex = 1;
+    this.questionCurrentPage = 1; // Reset to page 1
     // if question summary already loaded, filter immediately
     if(this.questionSummary && this.questionSummary.length){
       this.filteredQuestionSummary = (this.questionSummary || []).filter((q:any) => this._getQuestionCategoryId(q) === cid);
@@ -338,6 +341,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.filteredQuestionSummary = [];
     this.selectedCategoryFilterName = '';
     this._pendingCategoryFilter = null;
+    this.questionCurrentPage = 1; // Reset to page 1
   }
 
   private filtersOverlayRef: OverlayRef | null = null;
@@ -920,6 +924,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (exam) {
       this.userFilters.schedule_id = String(exam.schedule_id || exam.id || exam.scheduleId || '');
     }
+    this.questionCurrentPage = 1; // Reset question page index
     // auto-load report for the currently active main tab
     if(this.activeMainTabIndex === 0){
       this.loadUserReport(1);
@@ -1292,6 +1297,19 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   prevPage(){ if(this.currentPage > 1) this.loadUserReport(this.currentPage - 1); }
   nextPage(){ const totalPages = Math.ceil((this.userReportTotal || 0) / this.pageSize); if(this.currentPage < totalPages) this.loadUserReport(this.currentPage + 1); }
 
+  get questionTotalPages(): number {
+    return Math.ceil(this.activeQuestionCount / this.questionPageSize) || 1;
+  }
+
+  get paginatedQuestionSummary(): any[] {
+    const list = (this.filteredQuestionSummary && this.filteredQuestionSummary.length) ? this.filteredQuestionSummary : (this.questionSummary || []);
+    const startIndex = (this.questionCurrentPage - 1) * this.questionPageSize;
+    return list.slice(startIndex, startIndex + this.questionPageSize);
+  }
+
+  prevQuestionPage(){ if(this.questionCurrentPage > 1) this.questionCurrentPage--; }
+  nextQuestionPage(){ if(this.questionCurrentPage < this.questionTotalPages) this.questionCurrentPage++; }
+
   exportUserCSV(){
     if(!this.userReportData || !this.userReportData.length) return;
     const headers = ['Student Name','Questions Attempted','Total Marks','Correct Answers','Wrong Answers','Marks Obtained','Result'];
@@ -1321,6 +1339,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.categoryAnalytics = Array.isArray(payload.category_report) ? payload.category_report : (payload.category_report || payload.categories || []);
           this.questionSummary = Array.isArray(payload.question_summary) ? payload.question_summary : (payload.question_summary || payload.questions || []);
           this.wrongDistribution = Array.isArray(payload.wrong_answer_distribution) ? payload.wrong_answer_distribution : (payload.wrong_answer_distribution || payload.distribution || []);
+          this.questionCurrentPage = 1; // Reset page on new load
           // If a category filter was requested while loading, apply it now
           if(this._pendingCategoryFilter){
             const cid = String(this._pendingCategoryFilter);

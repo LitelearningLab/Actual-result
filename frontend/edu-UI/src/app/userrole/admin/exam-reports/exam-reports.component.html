@@ -447,13 +447,13 @@
                                                        <mat-icon>close</mat-icon> <span>Show All Questions</span>
                                                   </button>
                                              </div>
-                                             <div class="table-wrap">
-                                                  <table mat-table [dataSource]="(filteredQuestionSummary && filteredQuestionSummary.length) ? filteredQuestionSummary : questionSummary"
+                                             <div class="table-wrap question-summary-wrap">
+                                                  <table mat-table [dataSource]="paginatedQuestionSummary"
                                                   class="mat-elevation-z1 compact premium-table" matSort>
                                                   <ng-container matColumnDef="sno">
                                                        <th mat-header-cell *matHeaderCellDef>#</th>
                                                        <td mat-cell *matCellDef="let q; let i = index">
-                                                            <span class="cell-mono">#{{q.sno || i+1}}</span>
+                                                            <span class="cell-mono">#{{q.sno || (i + 1 + (questionCurrentPage - 1) * questionPageSize)}}</span>
                                                        </td>
                                                   </ng-container>
                                                   <ng-container matColumnDef="question">
@@ -491,6 +491,15 @@
                                                   </tr>
                                              </table>
                                              </div>
+
+                                             <!-- Pager for Question Summary -->
+                                             <div class="pager" *ngIf="activeQuestionCount > questionPageSize">
+                                                  <button mat-button (click)="prevQuestionPage()" [disabled]="questionCurrentPage<=1">Prev</button>
+                                                  <span>Page {{questionCurrentPage}} of {{ questionTotalPages }}</span>
+                                                  <button mat-button (click)="nextQuestionPage()"
+                                                       [disabled]="questionCurrentPage>=questionTotalPages">Next</button>
+                                             </div>
+
                                              <div class="analytics-table-footer" *ngIf="questionSummary && questionSummary.length">
                                                   <span>Total {{ activeQuestionCount }} {{ activeQuestionCount === 1 ? 'question' : 'questions' }} loaded</span>
                                              </div>
