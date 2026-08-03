@@ -713,14 +713,14 @@ export class AdminScheduleTestComponent {
       this.model.showStudentAnswers && 'Student Answers',
       this.model.showExplanations && 'Explanations'
     ].filter(Boolean).join(', ') || 'No answer details';
-    let availability = 'instantly after submission';
-    if (!this.model.userreview) {
-      if (this.model.reviewMode === 'after_schedule_ends') availability = 'after the test schedule ends';
-      if (this.model.reviewMode === 'after_everyone_finishes') availability = 'after every assigned student finishes or the test schedule ends';
-      if (this.model.reviewMode === 'scheduled') availability = 'at the scheduled review date/time';
-      if (this.model.reviewMode === 'manual') availability = 'after an administrator completes evaluation';
-    }
-    return `Students will see: ${content} - available ${availability}.`;
+    // let availability = 'instantly after submission';
+    // if (!this.model.userreview) {
+    //   if (this.model.reviewMode === 'after_schedule_ends') availability = 'after the test schedule ends';
+    //   if (this.model.reviewMode === 'after_everyone_finishes') availability = 'after every assigned student finishes or the test schedule ends';
+    //   if (this.model.reviewMode === 'scheduled') availability = 'at the scheduled review date/time';
+    //   if (this.model.reviewMode === 'manual') availability = 'after an administrator completes evaluation';
+    // }
+    return `Students will see: ${content}`;
   }
 
   markDirty(): void {
