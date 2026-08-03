@@ -493,7 +493,7 @@
                                              </div>
 
                                              <!-- Pager for Question Summary -->
-                                             <div class="pager" *ngIf="activeQuestionCount > questionPageSize">
+                                             <div class="pager">
                                                   <button mat-button (click)="prevQuestionPage()" [disabled]="questionCurrentPage<=1">Prev</button>
                                                   <span>Page {{questionCurrentPage}} of {{ questionTotalPages }}</span>
                                                   <button mat-button (click)="nextQuestionPage()"
