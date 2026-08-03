@@ -770,17 +770,74 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     return this.getReviewMode(schedule) !== 'no_review';
   }
 
+  isMultipleReview(schedule: any): boolean {
+    if (!schedule) return false;
+    const val = schedule.multiple_review ?? schedule.multiplereview ?? schedule.multipleReview ?? schedule.is_multiple_review ?? schedule.settings?.multiple_review;
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'number') return val === 1;
+    if (typeof val === 'string') return ['1', 'true', 'yes', 'on'].includes(val.trim().toLowerCase());
+    return !!val;
+  }
+
+  formatReviewAvailabilityDate(v: any): string {
+    if (!v) return '—';
+    try {
+      const d = (v instanceof Date) ? v : new Date(v);
+      if (isNaN(d.getTime())) return String(v);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mmm = months[d.getMonth()];
+      const yyyy = d.getFullYear();
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${dd}-${mmm}-${yyyy}, ${hh}:${mm}`;
+    } catch (e) { return String(v); }
+  }
+
+  formatScheduleReviewDate(v: any): string {
+    if (!v) return '—';
+    try {
+      const d = (v instanceof Date) ? v : new Date(v);
+      if (isNaN(d.getTime())) return String(v);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mmm = months[d.getMonth()];
+      const yyyy = d.getFullYear();
+      let hours = d.getHours();
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const hh = String(hours).padStart(2, '0');
+      return `${dd}-${mmm}-${yyyy} at ${hh}:${minutes} ${ampm}`;
+    } catch (e) { return String(v); }
+  }
+
   getReviewModeLabel(schedule: any): string {
-    const labels: Record<string, string> = {
-      instant: 'Instant Review',
-      after_schedule_ends: 'After Schedule Ends',
-      after_everyone_finishes: 'After Everyone Finishes',
-      scheduled: 'Scheduled Review',
-      manual: 'Manual Review',
-      no_review: 'No Review'
-    };
     const mode = this.getReviewMode(schedule);
-    return labels[mode] || mode.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+    if (mode === 'instant') {
+      return 'Instant Review – available immediately after submission';
+    }
+    if (mode === 'no_review') {
+      return 'No Review – results will not be shown to students';
+    }
+    if (mode === 'after_schedule_ends') {
+      const endTime = schedule?.end_time || schedule?.end || schedule?.endDateTime;
+      const formattedEnd = endTime ? this.formatReviewAvailabilityDate(endTime) : '—';
+      return `Available after the test ends (after ${formattedEnd})`;
+    }
+    if (mode === 'after_everyone_finishes') {
+      return 'Available once all students have completed the test';
+    }
+    if (mode === 'scheduled') {
+      const reviewAt = schedule?.review_at || schedule?.reviewAt;
+      const formattedReview = reviewAt ? this.formatScheduleReviewDate(reviewAt) : '—';
+      return `Available from ${formattedReview}`;
+    }
+    if (mode === 'manual') {
+      return 'Manual Review – review is given later';
+    }
+    return mode.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
   }
 
   getReviewDetailsLabel(schedule: any): string {

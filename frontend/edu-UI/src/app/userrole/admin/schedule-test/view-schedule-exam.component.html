@@ -305,7 +305,7 @@
 
                                     <ng-container *ngIf="isReviewConfigured(selectedSchedule)">
                                         <div class="label">Review Access</div>
-                                        <div class="value">{{ selectedSchedule.multiple_review ? 'Multiple times' : 'One time only' }}</div>
+                                        <div class="value">{{ isMultipleReview(selectedSchedule) ? 'Multiple times – students can reopen the review' : 'Once only – students can view the review a single time' }}</div>
 
                                         <ng-container *ngIf="getReviewMode(selectedSchedule) === 'scheduled'">
                                             <div class="label">Review Start Time</div>
