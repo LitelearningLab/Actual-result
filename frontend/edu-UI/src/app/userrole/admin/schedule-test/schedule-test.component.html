@@ -296,6 +296,10 @@
          <mat-step>
             <ng-template matStepLabel>Select users</ng-template>
             <div class="step-content">
+               <div *ngIf="scheduleFieldsLocked" class="running-test-banner" style="margin-bottom: 0.5rem; border-radius: 0.5rem; border: 1px solid #fca5a5;" role="status">
+                  <mat-icon>warning</mat-icon>
+                  <span>This test schedule is currently running or has attendance. User assignment is not editable.</span>
+               </div>
                <div class="section-block">
                   <div class="section-header">
                      <mat-icon class="section-icon">people</mat-icon>

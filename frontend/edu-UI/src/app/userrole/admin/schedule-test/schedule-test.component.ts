@@ -496,8 +496,27 @@ export class AdminScheduleTestComponent {
 
   private combineDateAndTime(dateValue: any, timeValue: any): Date | null {
     if (!dateValue || !timeValue || !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(timeValue))) return null;
-    const date = dateValue instanceof Date ? dateValue : new Date(`${String(dateValue).slice(0, 10)}T00:00:00`);
-    if (isNaN(date.getTime())) return null;
+    let date: Date | null = null;
+    if (dateValue instanceof Date) {
+      date = isNaN(dateValue.getTime()) ? null : dateValue;
+    } else {
+      const sDate = String(dateValue).trim();
+      const matchYYYY = sDate.match(/^(\d{4})[^\d]?(\d{1,2})[^\d]?(\d{1,2})$/);
+      if (matchYYYY) {
+        const d = new Date(Number(matchYYYY[1]), Number(matchYYYY[2]) - 1, Number(matchYYYY[3]));
+        if (!isNaN(d.getTime())) date = d;
+      } else {
+        const matchDD = sDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (matchDD) {
+          const d = new Date(Number(matchDD[3]), Number(matchDD[2]) - 1, Number(matchDD[1]));
+          if (!isNaN(d.getTime())) date = d;
+        } else {
+          const parsed = new Date(sDate);
+          if (!isNaN(parsed.getTime())) date = parsed;
+        }
+      }
+    }
+    if (!date) return null;
     const [hours, minutes] = String(timeValue).split(':').map(Number);
     const combined = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, 0, 0);
     return isNaN(combined.getTime()) ? null : combined;
