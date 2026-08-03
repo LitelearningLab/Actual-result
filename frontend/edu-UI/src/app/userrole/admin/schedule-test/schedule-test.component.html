@@ -221,22 +221,46 @@
                                  <mat-radio-button value="after_everyone_finishes">After Everyone Finishes</mat-radio-button>
                                  <mat-radio-button value="scheduled">Schedule Review</mat-radio-button>
                               </mat-radio-group>
-                              <div *ngIf="model.reviewMode === 'scheduled'" class="review-schedule-fields" [formGroup]="reviewScheduleForm">
-                                 <mat-form-field appearance="outline">
-                                    <mat-label>Review Date</mat-label>
-                                    <input matInput [matDatepicker]="reviewDatePicker" formControlName="reviewDate" placeholder="DD/MM/YYYY" [readonly]="readOnly" required />
-                                    <mat-datepicker-toggle matSuffix [for]="reviewDatePicker" [disabled]="readOnly"></mat-datepicker-toggle>
-                                    <mat-datepicker #reviewDatePicker></mat-datepicker>
-                                    <mat-hint>DD/MM/YYYY</mat-hint>
-                                    <mat-error *ngIf="reviewScheduleForm.hasError('reviewIncomplete')">Review date is required.</mat-error>
-                                 </mat-form-field>
-                                 <mat-form-field appearance="outline">
-                                    <mat-label>Review Time</mat-label>
-                                    <input matInput type="time" formControlName="reviewTime" placeholder="HH:MM" [readonly]="readOnly" required />
-                                    <mat-hint>HH:MM</mat-hint>
-                                    <mat-error *ngIf="reviewScheduleForm.get('reviewTime')?.hasError('pattern')">Use 24-hour HH:MM format.</mat-error>
-                                    <mat-error *ngIf="reviewScheduleForm.hasError('reviewIncomplete')">Review time is required.</mat-error>
-                                 </mat-form-field>
+                               <div *ngIf="model.reviewMode === 'scheduled'" class="review-schedule-fields" [formGroup]="reviewScheduleForm">
+                                  <mat-form-field appearance="outline">
+                                     <mat-label>Review Start Date</mat-label>
+                                     <input matInput [matDatepicker]="reviewDatePicker" formControlName="reviewDate" placeholder="DD/MM/YYYY" [readonly]="readOnly" [min]="minReviewDate" required />
+                                     <mat-datepicker-toggle matSuffix [for]="reviewDatePicker" [disabled]="readOnly"></mat-datepicker-toggle>
+                                     <mat-datepicker #reviewDatePicker></mat-datepicker>
+                                     <mat-hint>DD/MM/YYYY</mat-hint>
+                                     <mat-error *ngIf="reviewScheduleForm.hasError('reviewIncomplete') || reviewScheduleForm.get('reviewDate')?.hasError('required')">Review date is required.</mat-error>
+                                     <mat-error *ngIf="reviewScheduleForm.get('reviewDate')?.hasError('reviewBeforeTest') || reviewScheduleForm.get('reviewDate')?.hasError('matDatepickerMin')">Review date must be after the test schedule and in the future.</mat-error>
+                                  </mat-form-field>
+                                  <mat-form-field appearance="outline">
+                                     <mat-label>Review Start Time</mat-label>
+                                     <input matInput type="time" formControlName="reviewTime" placeholder="HH:MM" [readonly]="readOnly" required />
+                                     <mat-hint>HH:MM</mat-hint>
+                                     <mat-error *ngIf="reviewScheduleForm.get('reviewTime')?.hasError('pattern')">Use 24-hour HH:MM format.</mat-error>
+                                     <mat-error *ngIf="reviewScheduleForm.hasError('reviewIncomplete') || reviewScheduleForm.get('reviewTime')?.hasError('required')">Review time is required.</mat-error>
+                                     <mat-error *ngIf="reviewScheduleForm.get('reviewTime')?.hasError('reviewBeforeTest')">Review time must be after the test schedule and in the future.</mat-error>
+                                  </mat-form-field>
+
+                                  <mat-form-field appearance="outline">
+                                     <mat-label>Review End Date</mat-label>
+                                     <input matInput [matDatepicker]="reviewEndDatePicker" formControlName="reviewEndDate" placeholder="DD/MM/YYYY" [readonly]="readOnly" [min]="minReviewDate" required />
+                                     <mat-datepicker-toggle matSuffix [for]="reviewEndDatePicker" [disabled]="readOnly"></mat-datepicker-toggle>
+                                     <mat-datepicker #reviewEndDatePicker></mat-datepicker>
+                                     <mat-hint>DD/MM/YYYY</mat-hint>
+                                     <mat-error *ngIf="reviewScheduleForm.hasError('reviewEndIncomplete') || reviewScheduleForm.get('reviewEndDate')?.hasError('required')">End review date is required.</mat-error>
+                                     <mat-error *ngIf="reviewScheduleForm.get('reviewEndDate')?.hasError('reviewEndBeforeStart')">End review date must be after or equal to review start date.</mat-error>
+                                  </mat-form-field>
+                                  <mat-form-field appearance="outline">
+                                     <mat-label>Review End Time</mat-label>
+                                     <input matInput type="time" formControlName="reviewEndTime" placeholder="HH:MM" [readonly]="readOnly" required />
+                                     <mat-hint>HH:MM</mat-hint>
+                                     <mat-error *ngIf="reviewScheduleForm.get('reviewEndTime')?.hasError('pattern')">Use 24-hour HH:MM format.</mat-error>
+                                     <mat-error *ngIf="reviewScheduleForm.hasError('reviewEndIncomplete') || reviewScheduleForm.get('reviewEndTime')?.hasError('required')">End review time is required.</mat-error>
+                                     <mat-error *ngIf="reviewScheduleForm.get('reviewEndTime')?.hasError('reviewEndBeforeStart')">End review time must be after or equal to review start time.</mat-error>
+                                  </mat-form-field>
+                               </div>
+                              <div *ngIf="reviewScheduleError" class="schedule-error" style="margin-left: 1.75rem; margin-top: -0.25rem; margin-bottom: 0.75rem;" role="alert">
+                                 <mat-icon>error_outline</mat-icon>
+                                 <span>{{ reviewScheduleError }}</span>
                               </div>
                            </div>
                         </div>
@@ -527,7 +551,7 @@
                            <div class="review-item"><span class="review-label">Start</span><span class="review-value">{{ formatDate(model.startDate) }} {{ model.startTime || '' }}</span></div>
                            <div class="review-item"><span class="review-label">End</span><span class="review-value">{{ formatDate(model.endDate) }} {{ model.endTime || '' }}</span></div>
                            <div class="review-item"><span class="review-label">Publish</span><span class="review-value"><span class="status-pill" [class.active]="model.publish">{{ model.publish ? 'Yes' : 'No' }}</span></span></div>
-                           <div class="review-item"><span class="review-label">Review</span><span class="review-value">{{ model.userreview ? 'Instant Review' : (model.reviewMode === 'no_review' ? 'No Review' : model.reviewMode === 'after_schedule_ends' ? 'After Test Schedule Ends' : model.reviewMode === 'after_everyone_finishes' ? 'After Everyone Finishes' : model.reviewMode === 'scheduled' ? 'Scheduled ' + model.reviewDate + ' ' + model.reviewTime : 'Manual Review') }}</span></div>
+                           <div class="review-item"><span class="review-label">Review</span><span class="review-value">{{ model.userreview ? 'Instant Review' : (model.reviewMode === 'no_review' ? 'No Review' : model.reviewMode === 'after_schedule_ends' ? 'After Test Schedule Ends' : model.reviewMode === 'after_everyone_finishes' ? 'After Everyone Finishes' : model.reviewMode === 'scheduled' ? 'Scheduled ' + model.reviewDate + ' ' + model.reviewTime + ' to ' + (model.reviewEndDate || '—') + ' ' + (model.reviewEndTime || '') : 'Manual Review') }}</span></div>
                            <div class="review-item"><span class="review-label">Review content</span><span class="review-value">{{ model.showScore ? 'Score; ' : '' }}{{ model.showCorrectAnswers ? 'Correct answers; ' : '' }}{{ model.showStudentAnswers ? 'Student answers; ' : '' }}{{ model.showExplanations ? 'Explanations' : '' }}</span></div>
                         </div>
                      </div>

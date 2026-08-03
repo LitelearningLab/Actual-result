@@ -278,6 +278,7 @@ class ExamSchedule(Base):
      # Admin-controlled student access gate used only by Manual Review.
      manual_review_enabled = Column(Boolean, nullable=False, default=False)
      review_at = Column(DateTime)
+     review_end_at = Column(DateTime)
      show_score = Column(Boolean, default=True)
      show_correct_answers = Column(Boolean, default=True)
      show_student_answers = Column(Boolean, default=True)

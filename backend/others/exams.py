@@ -605,6 +605,7 @@ def get_user_exam_details(request):
                 ExamSchedule.review_mode,
                 ExamSchedule.manual_review_enabled,
                 ExamSchedule.review_at,
+                ExamSchedule.review_end_at,
                 ExamSchedule.created_by,
                 ExamSchedule.created_date,
                 ExamSchedule.updated_by,
@@ -651,6 +652,7 @@ def get_user_exam_details(request):
                         ExamSchedule.review_mode,
                         ExamSchedule.manual_review_enabled,
                         ExamSchedule.review_at,
+                        ExamSchedule.review_end_at,
                         ExamSchedule.created_by,
                         ExamSchedule.created_date,
                         ExamSchedule.updated_by,
@@ -735,7 +737,7 @@ def get_user_exam_details(request):
                 elif review_mode == 'after_everyone_finishes':
                     user_review = is_after_everyone_finished_available(session, schedule_obj, current_time)
                 elif review_mode == 'scheduled':
-                    user_review = bool(schedule_obj.review_at and current_time >= schedule_obj.review_at)
+                    user_review = bool(schedule_obj.review_at and current_time >= schedule_obj.review_at and (not schedule_obj.review_end_at or current_time <= schedule_obj.review_end_at))
                 elif review_mode in ('manual', 'no_review'):
                     # Admin-controlled review requires both completed evaluation and the
                     # admin-controlled access gate to be enabled.

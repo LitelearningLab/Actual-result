@@ -102,6 +102,8 @@ export class AdminScheduleTestComponent {
     manualReviewEnabled: false,
     reviewDate: '',
     reviewTime: '',
+    reviewEndDate: '',
+    reviewEndTime: '',
     showScore: true,
     showCorrectAnswers: true,
     showStudentAnswers: true,
@@ -331,7 +333,9 @@ export class AdminScheduleTestComponent {
     }, { validators: this.endAfterStartValidator });
     this.reviewScheduleForm = this.fb.group({
       reviewDate: [this.reviewDateAsPickerValue()],
-      reviewTime: [this.model.reviewTime, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)]
+      reviewTime: [this.model.reviewTime, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
+      reviewEndDate: [this.reviewEndDateAsPickerValue()],
+      reviewEndTime: [this.model.reviewEndTime, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)]
     }, { validators: this.reviewScheduleValidator });
     this.reviewBehaviorForm = this.fb.group({
       multipleReview: [this.normalizeBoolean(this.model.multiplereview)],
@@ -342,10 +346,15 @@ export class AdminScheduleTestComponent {
     this.scheduleTimingForm.valueChanges.subscribe(value => {
       Object.assign(this.model, value);
       this.markDirty();
+      if (this.reviewScheduleForm) {
+        this.reviewScheduleForm.updateValueAndValidity({ emitEvent: false });
+      }
     });
     this.reviewScheduleForm.valueChanges.subscribe(value => {
       this.model.reviewDate = value.reviewDate;
       this.model.reviewTime = value.reviewTime;
+      this.model.reviewEndDate = value.reviewEndDate;
+      this.model.reviewEndTime = value.reviewEndTime;
       this.markDirty();
     });
     this.reviewBehaviorForm.valueChanges.subscribe(value => {
@@ -474,7 +483,9 @@ export class AdminScheduleTestComponent {
         );
         this.reviewScheduleForm.patchValue({
           reviewDate: this.reviewDateAsPickerValue(),
-          reviewTime: this.model.reviewTime
+          reviewTime: this.model.reviewTime,
+          reviewEndDate: this.reviewEndDateAsPickerValue(),
+          reviewEndTime: this.model.reviewEndTime
         }, { emitEvent: false });
         this.syncMultipleReviewAvailability();
         try { this.cd.detectChanges(); } catch (e) { /* noop */ }
@@ -506,15 +517,155 @@ export class AdminScheduleTestComponent {
   };
 
   private reviewScheduleValidator = (control: AbstractControl): ValidationErrors | null => {
-    const date = control.get('reviewDate')?.value;
-    const time = control.get('reviewTime')?.value;
-    if (!date && !time) return null;
-    if (!date || !time) return { reviewIncomplete: true };
-    return this.combineDateAndTime(date, time) ? null : { reviewFormat: true };
+    const dateCtrl = control.get('reviewDate');
+    const timeCtrl = control.get('reviewTime');
+    const endDateCtrl = control.get('reviewEndDate');
+    const endTimeCtrl = control.get('reviewEndTime');
+
+    const date = dateCtrl?.value;
+    const time = timeCtrl?.value;
+    const endDate = endDateCtrl?.value;
+    const endTime = endTimeCtrl?.value;
+
+    // Clear previous errors from controls
+    const clearControlError = (ctrl: AbstractControl | null, errorKey: string) => {
+      if (ctrl?.hasError(errorKey)) {
+        const { [errorKey]: _, ...errs } = ctrl.errors || {};
+        ctrl.setErrors(Object.keys(errs).length ? errs : null);
+      }
+    };
+
+    clearControlError(dateCtrl, 'reviewBeforeTest');
+    clearControlError(timeCtrl, 'reviewBeforeTest');
+    clearControlError(dateCtrl, 'required');
+    clearControlError(timeCtrl, 'required');
+
+    clearControlError(endDateCtrl, 'reviewEndBeforeStart');
+    clearControlError(endTimeCtrl, 'reviewEndBeforeStart');
+    clearControlError(endDateCtrl, 'required');
+    clearControlError(endTimeCtrl, 'required');
+
+    if (!date && !time && !endDate && !endTime) return null;
+
+    if (!date || !time) {
+      if (!date) {
+        dateCtrl?.setErrors({ ...dateCtrl?.errors, required: true });
+      }
+      if (!time) {
+        timeCtrl?.setErrors({ ...timeCtrl?.errors, required: true });
+      }
+      return { reviewIncomplete: true };
+    }
+
+    if (!endDate || !endTime) {
+      if (!endDate) {
+        endDateCtrl?.setErrors({ ...endDateCtrl?.errors, required: true });
+      }
+      if (!endTime) {
+        endTimeCtrl?.setErrors({ ...endTimeCtrl?.errors, required: true });
+      }
+      return { reviewEndIncomplete: true };
+    }
+
+    const reviewDt = this.combineDateAndTime(date, time);
+    if (!reviewDt) return { reviewFormat: true };
+
+    const reviewEndDt = this.combineDateAndTime(endDate, endTime);
+    if (!reviewEndDt) return { reviewEndFormat: true };
+
+    if (this.scheduleTimingForm) {
+      const startDate = this.scheduleTimingForm.get('startDate')?.value;
+      const startTime = this.scheduleTimingForm.get('startTime')?.value;
+      const endDateVal = this.scheduleTimingForm.get('endDate')?.value;
+      const endTimeVal = this.scheduleTimingForm.get('endTime')?.value;
+
+      const startDt = this.combineDateAndTime(startDate, startTime);
+      if (startDt) {
+        let testEndDt: Date | null = null;
+        if (endDateVal && endTimeVal) {
+          testEndDt = this.combineDateAndTime(endDateVal, endTimeVal);
+        } else {
+          const duration = Number(this.model.durationMin) || 10;
+          testEndDt = new Date(startDt.getTime() + duration * 60000);
+        }
+
+        const now = new Date();
+        const compareDt = (testEndDt && testEndDt.getTime() > now.getTime()) ? testEndDt : now;
+
+        if (reviewDt.getTime() < compareDt.getTime()) {
+          // Set errors on individual controls so they display as invalid in the template
+          dateCtrl?.setErrors({ ...dateCtrl.errors, reviewBeforeTest: true });
+          timeCtrl?.setErrors({ ...timeCtrl.errors, reviewBeforeTest: true });
+          return { reviewBeforeTest: true };
+        }
+      }
+    }
+
+    if (reviewEndDt.getTime() < reviewDt.getTime()) {
+      endDateCtrl?.setErrors({ ...endDateCtrl.errors, reviewEndBeforeStart: true });
+      endTimeCtrl?.setErrors({ ...endTimeCtrl.errors, reviewEndBeforeStart: true });
+      return { reviewEndBeforeStart: true };
+    }
+
+    return null;
   };
+
+  get minReviewDate(): Date | null {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dateVal = this.scheduleTimingForm?.get('endDate')?.value || this.scheduleTimingForm?.get('startDate')?.value || this.model.endDate || this.model.startDate;
+    if (!dateVal) return today;
+
+    let testDate: Date | null = null;
+    if (dateVal instanceof Date) {
+      testDate = isNaN(dateVal.getTime()) ? null : dateVal;
+    } else {
+      const sDate = String(dateVal).trim();
+      // YYYY-MM-DD
+      const match = sDate.match(/^(\d{4})[^\d]?(\d{1,2})[^\d]?(\d{1,2})$/);
+      if (match) {
+        const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        if (!isNaN(d.getTime())) testDate = d;
+      } else {
+        // DD/MM/YYYY
+        const matchSlash = sDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (matchSlash) {
+          const d = new Date(Number(matchSlash[3]), Number(matchSlash[2]) - 1, Number(matchSlash[1]));
+          if (!isNaN(d.getTime())) testDate = d;
+        } else {
+          const parsed = new Date(sDate);
+          if (!isNaN(parsed.getTime())) testDate = parsed;
+        }
+      }
+    }
+
+    if (testDate) {
+      testDate.setHours(0, 0, 0, 0);
+      return testDate.getTime() > today.getTime() ? testDate : today;
+    }
+    return today;
+  }
+
+  get reviewScheduleError(): string {
+    if (this.reviewScheduleForm?.hasError('reviewBeforeTest')) {
+      return 'Review date/time must be after the test schedule and in the future.';
+    }
+    if (this.reviewScheduleForm?.hasError('reviewEndBeforeStart')) {
+      return 'Review end date/time must be after or equal to review start date/time.';
+    }
+    return '';
+  }
 
   private reviewDateAsPickerValue(): Date | null {
     const match = String(this.model.reviewDate || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+    const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  private reviewEndDateAsPickerValue(): Date | null {
+    const match = String(this.model.reviewEndDate || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!match) return null;
     const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
     return isNaN(date.getTime()) ? null : date;
@@ -530,7 +681,9 @@ export class AdminScheduleTestComponent {
     if (this.model.userreview || this.model.reviewMode !== 'scheduled') return false;
     return this.reviewScheduleForm.invalid
       || !this.reviewScheduleForm.get('reviewDate')?.value
-      || !this.reviewScheduleForm.get('reviewTime')?.value;
+      || !this.reviewScheduleForm.get('reviewTime')?.value
+      || !this.reviewScheduleForm.get('reviewEndDate')?.value
+      || !this.reviewScheduleForm.get('reviewEndTime')?.value;
   }
 
   get reviewPreview(): string {
@@ -1160,7 +1313,13 @@ export class AdminScheduleTestComponent {
     }
     if (this.reviewScheduleInvalid) {
       this.reviewScheduleForm.markAllAsTouched();
-      notify('Choose a valid review date and enter time as HH:MM.', 'error');
+      if (this.reviewScheduleForm.hasError('reviewBeforeTest')) {
+        notify('Review date and time must be after the test schedule date and time.', 'error');
+      } else if (this.reviewScheduleForm.hasError('reviewEndBeforeStart')) {
+        notify('Review end date/time must be after or equal to review start date/time.', 'error');
+      } else {
+        notify('Choose a valid review date and enter time as HH:MM.', 'error');
+      }
       return;
     }
     // build payload matching the DB columns described by the user
@@ -1275,13 +1434,22 @@ export class AdminScheduleTestComponent {
     }
 
     let reviewAtIso: string | null = null;
+    let reviewEndAtIso: string | null = null;
     if (!this.model.userreview && this.model.reviewMode === 'scheduled') {
       const reviewAt = this.combineDateAndTime(
         this.reviewScheduleForm.get('reviewDate')?.value,
         this.reviewScheduleForm.get('reviewTime')?.value
       );
-      if (!reviewAt) return;
-      reviewAtIso = reviewAt.toISOString();
+      if (reviewAt) {
+        reviewAtIso = reviewAt.toISOString();
+      }
+      const reviewEndAt = this.combineDateAndTime(
+        this.reviewScheduleForm.get('reviewEndDate')?.value,
+        this.reviewScheduleForm.get('reviewEndTime')?.value
+      );
+      if (reviewEndAt) {
+        reviewEndAtIso = reviewEndAt.toISOString();
+      }
     }
 
     const payload: {
@@ -1302,6 +1470,7 @@ export class AdminScheduleTestComponent {
       manual_review_enabled: boolean;
       review_mode: string;
       review_at: string | null;
+      review_end_at: string | null;
       show_score: boolean;
       show_correct_answers: boolean;
       show_student_answers: boolean;
@@ -1329,6 +1498,7 @@ export class AdminScheduleTestComponent {
         && this.normalizeBoolean(this.reviewBehaviorForm.get('manualReviewEnabled')?.value),
       review_mode: this.model.userreview ? 'instant' : (this.model.reviewMode || 'no_review'),
       review_at: reviewAtIso,
+      review_end_at: reviewEndAtIso,
       show_score: !!this.model.showScore,
       show_correct_answers: !!this.model.showCorrectAnswers,
       show_student_answers: !!this.model.showStudentAnswers,
@@ -1535,6 +1705,21 @@ export class AdminScheduleTestComponent {
         this.model.reviewDate = `${pad(reviewAt.getDate())}/${pad(reviewAt.getMonth() + 1)}/${reviewAt.getFullYear()}`;
         this.model.reviewTime = `${pad(reviewAt.getHours())}:${pad(reviewAt.getMinutes())}`;
       }
+    } else {
+      this.model.reviewDate = '';
+      this.model.reviewTime = '';
+    }
+    const reviewEndAtValue = value.review_end_at || value.reviewEndAt;
+    if (reviewEndAtValue) {
+      const reviewEndAt = new Date(reviewEndAtValue);
+      if (!isNaN(reviewEndAt.getTime())) {
+        const pad = (part: number) => String(part).padStart(2, '0');
+        this.model.reviewEndDate = `${pad(reviewEndAt.getDate())}/${pad(reviewEndAt.getMonth() + 1)}/${reviewEndAt.getFullYear()}`;
+        this.model.reviewEndTime = `${pad(reviewEndAt.getHours())}:${pad(reviewEndAt.getMinutes())}`;
+      }
+    } else {
+      this.model.reviewEndDate = '';
+      this.model.reviewEndTime = '';
     }
     const contentFields: Array<[string, string, string]> = [
       ['showScore', 'show_score', 'showScore'],
@@ -1600,4 +1785,5 @@ export class AdminScheduleTestComponent {
     } catch (e) { return String(v); }
   }
 }
+// Force rebuild
 

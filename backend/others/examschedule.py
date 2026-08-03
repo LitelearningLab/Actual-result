@@ -42,15 +42,22 @@ def _review_settings(data, defaults=None):
         raise ValueError('review_mode must be no_review, after_schedule_ends, after_everyone_finishes, scheduled, or manual')
 
     review_at = _parse_iso_datetime(data.get('review_at'), 'review_at') if 'review_at' in data else defaults.get('review_at')
+    review_end_at = _parse_iso_datetime(data.get('review_end_at'), 'review_end_at') if 'review_end_at' in data else defaults.get('review_end_at')
     if review_mode == 'scheduled' and review_at is None:
         raise ValueError('review_at is required when review_mode is scheduled')
+    if review_mode == 'scheduled' and review_end_at is None:
+        raise ValueError('review_end_at is required when review_mode is scheduled')
+    if review_mode == 'scheduled' and review_at and review_end_at and review_end_at < review_at:
+        raise ValueError('review_end_at must be after or equal to review_at')
     if review_mode != 'scheduled':
         review_at = None
+        review_end_at = None
 
     return {
         'instant_review': instant_review,
         'review_mode': review_mode,
         'review_at': review_at,
+        'review_end_at': review_end_at,
         'show_score': _as_bool(data.get('show_score'), defaults.get('show_score', True)),
         'show_correct_answers': _as_bool(data.get('show_correct_answers'), defaults.get('show_correct_answers', True)),
         'show_student_answers': _as_bool(data.get('show_student_answers'), defaults.get('show_student_answers', True)),
@@ -71,6 +78,12 @@ def add_exam_schedule(request):
     try:
         review_settings = _review_settings(data)
         start_time, end_time = _schedule_times(data)
+        if review_settings['review_mode'] == 'scheduled' and review_settings['review_at']:
+            compare_time = end_time if end_time else start_time
+            now = datetime.datetime.utcnow()
+            limit_time = compare_time if (compare_time and compare_time > now) else now
+            if review_settings['review_at'] < limit_time:
+                raise ValueError('Review date and time must be after the test schedule and in the future')
     except ValueError as error:
         return {"statusMessage": str(error), "status": False}, 400
     # This is independent of review timing and only controls repeat opening.
@@ -119,6 +132,7 @@ def add_exam_schedule(request):
                 and _as_bool(data.get('manual_review_enabled'), False)
             ),
             review_at=review_settings['review_at'],
+            review_end_at=review_settings['review_end_at'],
             show_score=review_settings['show_score'],
             show_correct_answers=review_settings['show_correct_answers'],
             show_student_answers=review_settings['show_student_answers'],
@@ -216,6 +230,7 @@ def update_exam_schedule(request):
 
         previous_review_mode = sched.review_mode
         previous_review_at = sched.review_at
+        previous_review_end_at = sched.review_end_at
         previous_manual_review_enabled = bool(sched.manual_review_enabled)
 
         # An attempt row is created when a student launches the schedule. Once
@@ -254,25 +269,21 @@ def update_exam_schedule(request):
         multiple_review_requested = None
         if 'multiple_review' in data or 'multiplereview' in data:
             multiple_review_requested = _as_bool(data.get('multiple_review', data.get('multiplereview')), False)
-        if 'userreview' in data:
-            sched.user_review = 1 if data.get('userreview') else 0
-        if 'user_review' in data:
-            sched.user_review = 1 if data.get('user_review') else 0
+
         if 'manual_review_enabled' in data:
-            # Keep the stored gate false outside admin-controlled review modes so stale clients
-            # cannot accidentally grant access when the mode changes later.
             sched.manual_review_enabled = (
                 _as_bool(data.get('manual_review_enabled'), False)
                 and (data.get('review_mode', sched.review_mode) in ('manual', 'no_review'))
             )
 
-        review_keys = {'instant_review', 'userreview', 'user_review', 'review_mode', 'review_at', 'manual_review_enabled', 'show_score', 'show_correct_answers', 'show_student_answers', 'show_explanations'}
+        review_keys = {'instant_review', 'userreview', 'user_review', 'review_mode', 'review_at', 'review_end_at', 'manual_review_enabled', 'show_score', 'show_correct_answers', 'show_student_answers', 'show_explanations'}
         if review_keys.intersection(data):
             try:
                 settings = _review_settings(data, {
                     'instant_review': sched.user_review == 1,
                     'review_mode': sched.review_mode or 'no_review',
                     'review_at': sched.review_at,
+                    'review_end_at': sched.review_end_at,
                     'show_score': sched.show_score,
                     'show_correct_answers': sched.show_correct_answers,
                     'show_student_answers': sched.show_student_answers,
@@ -285,6 +296,7 @@ def update_exam_schedule(request):
             if sched.review_mode not in ('manual', 'no_review'):
                 sched.manual_review_enabled = False
             sched.review_at = settings['review_at']
+            sched.review_end_at = settings['review_end_at']
             sched.show_score = settings['show_score']
             sched.show_correct_answers = settings['show_correct_answers']
             sched.show_student_answers = settings['show_student_answers']
@@ -316,6 +328,7 @@ def update_exam_schedule(request):
                 and (
                     previous_review_mode != 'scheduled'
                     or previous_review_at != settings['review_at']
+                    or previous_review_end_at != settings['review_end_at']
                 )
             )
             if scheduled_review_changed:
@@ -335,6 +348,14 @@ def update_exam_schedule(request):
                 sched.start_time, sched.end_time = _schedule_times(data, sched.start_time, sched.end_time)
             except ValueError as error:
                 return {"statusMessage": str(error), "status": False}, 400
+
+        # Validate that review_at is after end_time (or start_time if end_time not set)
+        if sched.review_mode == 'scheduled' and sched.review_at:
+            compare_time = sched.end_time if sched.end_time else sched.start_time
+            now = datetime.datetime.utcnow()
+            limit_time = compare_time if (compare_time and compare_time > now) else now
+            if sched.review_at < limit_time:
+                return {"statusMessage": "Review date and time must be after the test schedule and in the future", "status": False}, 400
 
         # updated_by
         if data.get('updated_by'):
@@ -452,6 +473,7 @@ def get_exam_schedule_details(request):
                 "review_mode": schedule.review_mode or ('instant' if schedule.user_review == 1 else 'no_review'),
                 "manual_review_enabled": bool(schedule.manual_review_enabled),
                 "review_at": schedule.review_at,
+                "review_end_at": schedule.review_end_at,
                 "show_score": True if schedule.show_score is None else bool(schedule.show_score),
                 "show_correct_answers": True if schedule.show_correct_answers is None else bool(schedule.show_correct_answers),
                 "show_student_answers": True if schedule.show_student_answers is None else bool(schedule.show_student_answers),

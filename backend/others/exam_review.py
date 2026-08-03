@@ -130,7 +130,7 @@ def review_user_exam(request, current_user=None):
             review_mode == 'instant'
             or (review_mode == 'after_schedule_ends' and exam_schedule.end_time and now >= exam_schedule.end_time)
             or (review_mode == 'after_everyone_finishes' and is_after_everyone_finished_available(session, exam_schedule, now))
-            or (review_mode == 'scheduled' and exam_schedule.review_at and now >= exam_schedule.review_at)
+            or (review_mode == 'scheduled' and exam_schedule.review_at and now >= exam_schedule.review_at and (not exam_schedule.review_end_at or now <= exam_schedule.review_end_at))
             or (
                 review_mode in ('manual', 'no_review')
                 and bool(exam_schedule.manual_review_enabled)

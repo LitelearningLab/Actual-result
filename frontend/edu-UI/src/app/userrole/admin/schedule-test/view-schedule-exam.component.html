@@ -308,8 +308,10 @@
                                         <div class="value">{{ selectedSchedule.multiple_review ? 'Multiple times' : 'One time only' }}</div>
 
                                         <ng-container *ngIf="getReviewMode(selectedSchedule) === 'scheduled'">
-                                            <div class="label">Review Available At</div>
+                                            <div class="label">Review Start Time</div>
                                             <div class="value">{{ formatDate(selectedSchedule.review_at) || '—' }}</div>
+                                            <div class="label">Review End Time</div>
+                                            <div class="value">{{ formatDate(selectedSchedule.review_end_at) || '—' }}</div>
                                         </ng-container>
 
                                         <ng-container *ngIf="getReviewMode(selectedSchedule) === 'manual'">

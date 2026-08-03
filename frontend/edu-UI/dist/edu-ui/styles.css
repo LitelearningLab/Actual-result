@@ -10481,7 +10481,7 @@ button[matStepperNext].next-btn mat-icon {
 }
 
 .status-pill--inactive {
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2f2 100%);
   color: #dc2626;
   border: 1px solid rgba(239, 68, 68, 0.2);
 }

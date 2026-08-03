@@ -17884,7 +17884,7 @@ function AdminScheduleTestComponent_div_108_Template(rf, ctx) {
 }
 function AdminScheduleTestComponent_div_133_div_5_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 111)(1, "mat-slide-toggle", 54);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 112)(1, "mat-slide-toggle", 54);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](2, "Enable Review Access");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](3, "span");
@@ -17904,86 +17904,203 @@ function AdminScheduleTestComponent_div_133_div_13_mat_error_10_Template(rf, ctx
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
 }
-function AdminScheduleTestComponent_div_133_div_13_mat_error_17_Template(rf, ctx) {
+function AdminScheduleTestComponent_div_133_div_13_mat_error_11_Template(rf, ctx) {
   if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "mat-error");
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "Use 24-hour HH:MM format.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "Review date must be after the test schedule and in the future.");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
 }
 function AdminScheduleTestComponent_div_133_div_13_mat_error_18_Template(rf, ctx) {
   if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "mat-error");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "Use 24-hour HH:MM format.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+  }
+}
+function AdminScheduleTestComponent_div_133_div_13_mat_error_19_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "mat-error");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "Review time is required.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+  }
+}
+function AdminScheduleTestComponent_div_133_div_13_mat_error_20_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "mat-error");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "Review time must be after the test schedule and in the future.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+  }
+}
+function AdminScheduleTestComponent_div_133_div_13_mat_error_30_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "mat-error");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "End review date is required.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+  }
+}
+function AdminScheduleTestComponent_div_133_div_13_mat_error_31_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "mat-error");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "End review date must be after or equal to review start date.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+  }
+}
+function AdminScheduleTestComponent_div_133_div_13_mat_error_38_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "mat-error");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "Use 24-hour HH:MM format.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+  }
+}
+function AdminScheduleTestComponent_div_133_div_13_mat_error_39_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "mat-error");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "End review time is required.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+  }
+}
+function AdminScheduleTestComponent_div_133_div_13_mat_error_40_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "mat-error");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "End review time must be after or equal to review start time.");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
 }
 function AdminScheduleTestComponent_div_133_div_13_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 112)(1, "mat-form-field", 113)(2, "mat-label");
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](3, "Review Date");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 113)(1, "mat-form-field", 114)(2, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](3, "Review Start Date");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](4, "input", 114)(5, "mat-datepicker-toggle", 41)(6, "mat-datepicker", null, 115);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](4, "input", 115)(5, "mat-datepicker-toggle", 41)(6, "mat-datepicker", null, 116);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](8, "mat-hint");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](9, "DD/MM/YYYY");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](10, AdminScheduleTestComponent_div_133_div_13_mat_error_10_Template, 2, 0, "mat-error", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](11, AdminScheduleTestComponent_div_133_div_13_mat_error_11_Template, 2, 0, "mat-error", 32);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](11, "mat-form-field", 113)(12, "mat-label");
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](13, "Review Time");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](12, "mat-form-field", 114)(13, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](14, "Review Start Time");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](14, "input", 116);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](15, "mat-hint");
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](16, "HH:MM");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](15, "input", 117);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](16, "mat-hint");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](17, "HH:MM");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](17, AdminScheduleTestComponent_div_133_div_13_mat_error_17_Template, 2, 0, "mat-error", 32);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](18, AdminScheduleTestComponent_div_133_div_13_mat_error_18_Template, 2, 0, "mat-error", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](19, AdminScheduleTestComponent_div_133_div_13_mat_error_19_Template, 2, 0, "mat-error", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](20, AdminScheduleTestComponent_div_133_div_13_mat_error_20_Template, 2, 0, "mat-error", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](21, "mat-form-field", 114)(22, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](23, "Review End Date");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](24, "input", 118)(25, "mat-datepicker-toggle", 41)(26, "mat-datepicker", null, 119);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](28, "mat-hint");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](29, "DD/MM/YYYY");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](30, AdminScheduleTestComponent_div_133_div_13_mat_error_30_Template, 2, 0, "mat-error", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](31, AdminScheduleTestComponent_div_133_div_13_mat_error_31_Template, 2, 0, "mat-error", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](32, "mat-form-field", 114)(33, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](34, "Review End Time");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](35, "input", 120);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](36, "mat-hint");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](37, "HH:MM");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](38, AdminScheduleTestComponent_div_133_div_13_mat_error_38_Template, 2, 0, "mat-error", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](39, AdminScheduleTestComponent_div_133_div_13_mat_error_39_Template, 2, 0, "mat-error", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](40, AdminScheduleTestComponent_div_133_div_13_mat_error_40_Template, 2, 0, "mat-error", 32);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const _r47 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](7);
+    const _r48 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](7);
+    const _r54 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](27);
     const ctx_r46 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+    let tmp_6_0;
     let tmp_7_0;
+    let tmp_9_0;
+    let tmp_10_0;
+    let tmp_11_0;
+    let tmp_17_0;
+    let tmp_18_0;
+    let tmp_20_0;
+    let tmp_21_0;
+    let tmp_22_0;
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("formGroup", ctx_r46.reviewScheduleForm);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r47)("readonly", ctx_r46.readOnly);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r48)("readonly", ctx_r46.readOnly)("min", ctx_r46.minReviewDate);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r47)("disabled", ctx_r46.readOnly);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r48)("disabled", ctx_r46.readOnly);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", ctx_r46.reviewScheduleForm.hasError("reviewIncomplete"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", ctx_r46.reviewScheduleForm.hasError("reviewIncomplete") || ((tmp_6_0 = ctx_r46.reviewScheduleForm.get("reviewDate")) == null ? null : tmp_6_0.hasError("required")));
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", ((tmp_7_0 = ctx_r46.reviewScheduleForm.get("reviewDate")) == null ? null : tmp_7_0.hasError("reviewBeforeTest")) || ((tmp_7_0 = ctx_r46.reviewScheduleForm.get("reviewDate")) == null ? null : tmp_7_0.hasError("matDatepickerMin")));
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("readonly", ctx_r46.readOnly);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", (tmp_7_0 = ctx_r46.reviewScheduleForm.get("reviewTime")) == null ? null : tmp_7_0.hasError("pattern"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", (tmp_9_0 = ctx_r46.reviewScheduleForm.get("reviewTime")) == null ? null : tmp_9_0.hasError("pattern"));
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", ctx_r46.reviewScheduleForm.hasError("reviewIncomplete"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", ctx_r46.reviewScheduleForm.hasError("reviewIncomplete") || ((tmp_10_0 = ctx_r46.reviewScheduleForm.get("reviewTime")) == null ? null : tmp_10_0.hasError("required")));
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", (tmp_11_0 = ctx_r46.reviewScheduleForm.get("reviewTime")) == null ? null : tmp_11_0.hasError("reviewBeforeTest"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r54)("readonly", ctx_r46.readOnly)("min", ctx_r46.minReviewDate);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r54)("disabled", ctx_r46.readOnly);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", ctx_r46.reviewScheduleForm.hasError("reviewEndIncomplete") || ((tmp_17_0 = ctx_r46.reviewScheduleForm.get("reviewEndDate")) == null ? null : tmp_17_0.hasError("required")));
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", (tmp_18_0 = ctx_r46.reviewScheduleForm.get("reviewEndDate")) == null ? null : tmp_18_0.hasError("reviewEndBeforeStart"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("readonly", ctx_r46.readOnly);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", (tmp_20_0 = ctx_r46.reviewScheduleForm.get("reviewEndTime")) == null ? null : tmp_20_0.hasError("pattern"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", ctx_r46.reviewScheduleForm.hasError("reviewEndIncomplete") || ((tmp_21_0 = ctx_r46.reviewScheduleForm.get("reviewEndTime")) == null ? null : tmp_21_0.hasError("required")));
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", (tmp_22_0 = ctx_r46.reviewScheduleForm.get("reviewEndTime")) == null ? null : tmp_22_0.hasError("reviewEndBeforeStart"));
+  }
+}
+function AdminScheduleTestComponent_div_133_div_14_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 121)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](2, "error_outline");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](3, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
+  }
+  if (rf & 2) {
+    const ctx_r47 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate"](ctx_r47.reviewScheduleError);
   }
 }
 function AdminScheduleTestComponent_div_133_Template(rf, ctx) {
   if (rf & 1) {
-    const _r52 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
+    const _r61 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 103)(1, "mat-checkbox", 104);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("change", function AdminScheduleTestComponent_div_133_Template_mat_checkbox_change_1_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r52);
-      const ctx_r51 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r51.onNoReviewChange($event.checked));
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r61);
+      const ctx_r60 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r60.onNoReviewChange($event.checked));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](2, "No Review");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](3, "mat-checkbox", 104);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("change", function AdminScheduleTestComponent_div_133_Template_mat_checkbox_change_3_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r52);
-      const ctx_r53 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r53.onManualReviewChange($event.checked));
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r61);
+      const ctx_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r62.onManualReviewChange($event.checked));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](4, "Manual Review");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](5, AdminScheduleTestComponent_div_133_div_5_Template, 5, 1, "div", 105);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](6, "mat-radio-group", 106);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_div_133_Template_mat_radio_group_ngModelChange_6_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r52);
-      const ctx_r54 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r54.onRadioReviewModeChange($event));
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r61);
+      const ctx_r63 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r63.onRadioReviewModeChange($event));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](7, "mat-radio-button", 107);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](8, "After Test Schedule Ends");
@@ -17994,7 +18111,8 @@ function AdminScheduleTestComponent_div_133_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](11, "mat-radio-button", 109);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](12, "Schedule Review");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](13, AdminScheduleTestComponent_div_133_div_13_Template, 19, 9, "div", 110);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](13, AdminScheduleTestComponent_div_133_div_13_Template, 41, 23, "div", 110);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](14, AdminScheduleTestComponent_div_133_div_14_Template, 5, 1, "div", 111);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
@@ -18009,6 +18127,8 @@ function AdminScheduleTestComponent_div_133_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r17.radioReviewMode)("disabled", ctx_r17.readOnly);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](7);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", ctx_r17.model.reviewMode === "scheduled");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngIf", ctx_r17.reviewScheduleError);
   }
 }
 function AdminScheduleTestComponent_ng_template_159_Template(rf, ctx) {
@@ -18023,10 +18143,10 @@ function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_16_Template
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const c_r79 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", c_r79.name);
+    const c_r88 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", c_r88.name);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", c_r79.name, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", c_r88.name, " ");
   }
 }
 function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_31_Template(rf, ctx) {
@@ -18036,10 +18156,10 @@ function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_31_Template
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const c_r80 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", c_r80.name);
+    const c_r89 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", c_r89.name);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", c_r80.name, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", c_r89.name, " ");
   }
 }
 function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_46_Template(rf, ctx) {
@@ -18049,10 +18169,10 @@ function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_46_Template
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const cp_r81 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", cp_r81);
+    const cp_r90 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", cp_r90);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", cp_r81, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", cp_r90, " ");
   }
 }
 function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_61_Template(rf, ctx) {
@@ -18062,10 +18182,10 @@ function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_61_Template
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ind_r82 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", ind_r82);
+    const ind_r91 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", ind_r91);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", ind_r82, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", ind_r91, " ");
   }
 }
 function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_76_Template(rf, ctx) {
@@ -18075,10 +18195,10 @@ function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_76_Template
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const sec_r83 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", sec_r83);
+    const sec_r92 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", sec_r92);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", sec_r83, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", sec_r92, " ");
   }
 }
 function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_91_Template(rf, ctx) {
@@ -18088,10 +18208,10 @@ function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_91_Template
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const d_r84 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", d_r84);
+    const d_r93 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", d_r93);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", d_r84, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", d_r93, " ");
   }
 }
 function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_106_Template(rf, ctx) {
@@ -18101,296 +18221,296 @@ function AdminScheduleTestComponent_ng_template_175_div_0_mat_option_106_Templat
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const t_r85 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", t_r85);
+    const t_r94 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("value", t_r94);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", t_r85, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", t_r94, " ");
   }
 }
 function AdminScheduleTestComponent_ng_template_175_div_0_Template(rf, ctx) {
   if (rf & 1) {
-    const _r87 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 118);
+    const _r96 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 123);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_div_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r86 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r86.closeUserFilter());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r95 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r95.closeUserFilter());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](1, "div", 119);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](1, "div", 124);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_div_click_1_listener($event) {
       return $event.stopPropagation();
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](2, "mat-form-field", 120)(3, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](2, "mat-form-field", 125)(3, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](4, "public");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](5, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](6, "Country");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](7, "input", 121, 122);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](7, "input", 126, 127);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_7_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r89 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r89.userFilters.country_id = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r98 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r98.userFilters.country_id = $event);
     })("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_7_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r90 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r90.onCountryChange());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r99 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r99.onCountryChange());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](9, "button", 123);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](9, "button", 128);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_button_click_9_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const _r56 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](8);
-      _r56.openPanel();
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const _r65 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](8);
+      _r65.openPanel();
       return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"]($event.stopPropagation());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](10, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](11, "arrow_drop_down");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](12, "mat-autocomplete", null, 124)(14, "mat-option", 125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](12, "mat-autocomplete", null, 129)(14, "mat-option", 130);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](15, "All");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](16, AdminScheduleTestComponent_ng_template_175_div_0_mat_option_16_Template, 2, 2, "mat-option", 30);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](17, "mat-form-field", 120)(18, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](17, "mat-form-field", 125)(18, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](19, "location_city");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](20, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](21, "City");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](22, "input", 126, 127);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](22, "input", 131, 132);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_22_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r92 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r92.userFilters.city_id = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r101 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r101.userFilters.city_id = $event);
     })("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_22_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r93 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r93.loadUsers());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r102 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r102.loadUsers());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](24, "button", 128);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](24, "button", 133);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_button_click_24_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const _r59 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](23);
-      _r59.openPanel();
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const _r68 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](23);
+      _r68.openPanel();
       return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"]($event.stopPropagation());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](25, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](26, "arrow_drop_down");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](27, "mat-autocomplete", null, 129)(29, "mat-option", 125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](27, "mat-autocomplete", null, 134)(29, "mat-option", 130);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](30, "All");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](31, AdminScheduleTestComponent_ng_template_175_div_0_mat_option_31_Template, 2, 2, "mat-option", 30);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](32, "mat-form-field", 120)(33, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](32, "mat-form-field", 125)(33, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](34, "location_on");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](35, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](36, "Campus");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](37, "input", 130, 131);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](37, "input", 135, 136);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_37_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r95 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r95.userFilters.campus_id = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r104 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r104.userFilters.campus_id = $event);
     })("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_37_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r96 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r96.loadUsers());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r105 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r105.loadUsers());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](39, "button", 132);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](39, "button", 137);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_button_click_39_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const _r62 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](38);
-      _r62.openPanel();
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const _r71 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](38);
+      _r71.openPanel();
       return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"]($event.stopPropagation());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](40, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](41, "arrow_drop_down");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](42, "mat-autocomplete", null, 133)(44, "mat-option", 125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](42, "mat-autocomplete", null, 138)(44, "mat-option", 130);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](45, "All");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](46, AdminScheduleTestComponent_ng_template_175_div_0_mat_option_46_Template, 2, 2, "mat-option", 30);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](47, "mat-form-field", 120)(48, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](47, "mat-form-field", 125)(48, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](49, "business");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](50, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](51, "Industry");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](52, "input", 134, 135);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](52, "input", 139, 140);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_52_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r98 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r98.userFilters.industry = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r107 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r107.userFilters.industry = $event);
     })("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_52_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r99 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      ctx_r99.onIndustryChange();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r99.loadUsers());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r108 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      ctx_r108.onIndustryChange();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r108.loadUsers());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](54, "button", 136);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](54, "button", 141);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_button_click_54_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const _r65 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](53);
-      _r65.openPanel();
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const _r74 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](53);
+      _r74.openPanel();
       return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"]($event.stopPropagation());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](55, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](56, "arrow_drop_down");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](57, "mat-autocomplete", null, 137)(59, "mat-option", 125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](57, "mat-autocomplete", null, 142)(59, "mat-option", 130);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](60, "All");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](61, AdminScheduleTestComponent_ng_template_175_div_0_mat_option_61_Template, 2, 2, "mat-option", 30);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](62, "mat-form-field", 120)(63, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](62, "mat-form-field", 125)(63, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](64, "account_tree");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](65, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](66, "Sector");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](67, "input", 138, 139);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](67, "input", 143, 144);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_67_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r101 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r101.userFilters.sector = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r110 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r110.userFilters.sector = $event);
     })("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_67_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r102 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r102.loadUsers());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r111 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r111.loadUsers());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](69, "button", 140);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](69, "button", 145);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_button_click_69_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const _r68 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](68);
-      _r68.openPanel();
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const _r77 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](68);
+      _r77.openPanel();
       return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"]($event.stopPropagation());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](70, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](71, "arrow_drop_down");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](72, "mat-autocomplete", null, 141)(74, "mat-option", 125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](72, "mat-autocomplete", null, 146)(74, "mat-option", 130);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](75, "All");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](76, AdminScheduleTestComponent_ng_template_175_div_0_mat_option_76_Template, 2, 2, "mat-option", 30);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](77, "mat-form-field", 120)(78, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](77, "mat-form-field", 125)(78, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](79, "business_center");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](80, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](81, "Department");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](82, "input", 142, 143);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](82, "input", 147, 148);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_82_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r104 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r104.userFilters.department_id = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r113 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r113.userFilters.department_id = $event);
     })("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_82_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r105 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r105.loadUsers());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r114 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r114.loadUsers());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](84, "button", 144);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](84, "button", 149);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_button_click_84_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const _r71 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](83);
-      _r71.openPanel();
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const _r80 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](83);
+      _r80.openPanel();
       return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"]($event.stopPropagation());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](85, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](86, "arrow_drop_down");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](87, "mat-autocomplete", null, 145)(89, "mat-option", 125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](87, "mat-autocomplete", null, 150)(89, "mat-option", 130);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](90, "All");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](91, AdminScheduleTestComponent_ng_template_175_div_0_mat_option_91_Template, 2, 2, "mat-option", 30);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](92, "mat-form-field", 120)(93, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](92, "mat-form-field", 125)(93, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](94, "groups");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](95, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](96, "Team");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](97, "input", 146, 147);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](97, "input", 151, 152);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_97_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r107 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r107.userFilters.teams_id = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r116 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r116.userFilters.teams_id = $event);
     })("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_97_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r108 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r108.loadUsers());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r117 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r117.loadUsers());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](99, "button", 148);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](99, "button", 153);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_button_click_99_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const _r74 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](98);
-      _r74.openPanel();
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const _r83 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](98);
+      _r83.openPanel();
       return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"]($event.stopPropagation());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](100, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](101, "arrow_drop_down");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](102, "mat-autocomplete", null, 149)(104, "mat-option", 125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](102, "mat-autocomplete", null, 154)(104, "mat-option", 130);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](105, "All");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](106, AdminScheduleTestComponent_ng_template_175_div_0_mat_option_106_Template, 2, 2, "mat-option", 30);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](107, "mat-form-field", 120)(108, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](107, "mat-form-field", 125)(108, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](109, "calendar_today");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](110, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](111, "Joined after");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](112, "input", 150);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](112, "input", 155);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_112_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r110 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r110.userFilters.joined_after = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r119 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r119.userFilters.joined_after = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](113, "mat-datepicker-toggle", 151)(114, "mat-datepicker", null, 152);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](113, "mat-datepicker-toggle", 156)(114, "mat-datepicker", null, 157);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](116, "mat-form-field", 120)(117, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](116, "mat-form-field", 125)(117, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](118, "calendar_today");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](119, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](120, "Joined before");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](121, "input", 153);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](121, "input", 158);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_175_div_0_Template_input_ngModelChange_121_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r111 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r111.userFilters.joined_before = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r120 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r120.userFilters.joined_before = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](122, "mat-datepicker-toggle", 151)(123, "mat-datepicker", null, 154);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](122, "mat-datepicker-toggle", 156)(123, "mat-datepicker", null, 159);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](125, "div", 155)(126, "button", 156);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](125, "div", 160)(126, "button", 161);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_button_click_126_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r112 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r112.loadUsers());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r121 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r121.loadUsers());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](127, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](128, "search");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](129, " Apply ");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](130, "button", 157);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](130, "button", 162);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_175_div_0_Template_button_click_130_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r87);
-      const ctx_r113 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      ctx_r113.userFilters = {
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r96);
+      const ctx_r122 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      ctx_r122.userFilters = {
         department_id: "",
         teams_id: "",
         country_id: "",
@@ -18399,7 +18519,7 @@ function AdminScheduleTestComponent_ng_template_175_div_0_Template(rf, ctx) {
         industry: "",
         sector: ""
       };
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r113.loadUsers());
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r122.loadUsers());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](131, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](132, "refresh");
@@ -18408,59 +18528,59 @@ function AdminScheduleTestComponent_ng_template_175_div_0_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()()()();
   }
   if (rf & 2) {
-    const _r57 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](13);
-    const _r60 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](28);
-    const _r63 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](43);
-    const _r66 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](58);
-    const _r69 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](73);
-    const _r72 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](88);
-    const _r75 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](103);
-    const _r77 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](115);
-    const _r78 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](124);
-    const ctx_r55 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+    const _r66 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](13);
+    const _r69 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](28);
+    const _r72 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](43);
+    const _r75 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](58);
+    const _r78 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](73);
+    const _r81 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](88);
+    const _r84 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](103);
+    const _r86 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](115);
+    const _r87 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](124);
+    const ctx_r64 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r55.userFilters.country_id)("matAutocomplete", _r57);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r64.userFilters.country_id)("matAutocomplete", _r66);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](9);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r55.filteredCountries());
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r64.filteredCountries());
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r55.userFilters.city_id)("matAutocomplete", _r60);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r64.userFilters.city_id)("matAutocomplete", _r69);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](9);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r55.filteredCities());
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r64.filteredCities());
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r55.userFilters.campus_id)("matAutocomplete", _r63);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r64.userFilters.campus_id)("matAutocomplete", _r72);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](9);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r55.campusList);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r64.campusList);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r55.userFilters.industry)("matAutocomplete", _r66);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r64.userFilters.industry)("matAutocomplete", _r75);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](9);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r55.filteredIndustries());
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r64.filteredIndustries());
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r55.userFilters.sector)("matAutocomplete", _r69);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r64.userFilters.sector)("matAutocomplete", _r78);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("disabled", !ctx_r55.userFilters.industry);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("disabled", !ctx_r64.userFilters.industry);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r55.filteredSectors());
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r64.filteredSectors());
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r55.userFilters.department_id)("matAutocomplete", _r72);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r64.userFilters.department_id)("matAutocomplete", _r81);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](9);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r55.filteredDepartments());
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r64.filteredDepartments());
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r55.userFilters.teams_id)("matAutocomplete", _r75);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r64.userFilters.teams_id)("matAutocomplete", _r84);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](9);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r55.filteredTeams());
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngForOf", ctx_r64.filteredTeams());
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r77)("ngModel", ctx_r55.userFilters.joined_after);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r86)("ngModel", ctx_r64.userFilters.joined_after);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r77);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r86);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](8);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r78)("ngModel", ctx_r55.userFilters.joined_before);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r87)("ngModel", ctx_r64.userFilters.joined_before);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r78);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r87);
   }
 }
 function AdminScheduleTestComponent_ng_template_175_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](0, AdminScheduleTestComponent_ng_template_175_div_0_Template, 134, 28, "div", 117);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](0, AdminScheduleTestComponent_ng_template_175_div_0_Template, 134, 28, "div", 122);
   }
   if (rf & 2) {
     const ctx_r21 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
@@ -18469,28 +18589,28 @@ function AdminScheduleTestComponent_ng_template_175_Template(rf, ctx) {
 }
 function AdminScheduleTestComponent_mat_list_item_186_Template(rf, ctx) {
   if (rf & 1) {
-    const _r116 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
+    const _r125 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "mat-list-item")(1, "mat-checkbox", 104);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("change", function AdminScheduleTestComponent_mat_list_item_186_Template_mat_checkbox_change_1_listener($event) {
-      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r116);
-      const u_r114 = restoredCtx.$implicit;
-      const ctx_r115 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r115.toggleUserSelection(u_r114.id, $event.checked));
+      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r125);
+      const u_r123 = restoredCtx.$implicit;
+      const ctx_r124 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r124.toggleUserSelection(u_r123.id, $event.checked));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](3, "span", 158);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](3, "span", 163);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()()();
   }
   if (rf & 2) {
-    const u_r114 = ctx.$implicit;
+    const u_r123 = ctx.$implicit;
     const ctx_r22 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("checked", ctx_r22.selectedUsers.indexOf(u_r114.id) >= 0)("disabled", ctx_r22.readOnly || ctx_r22.scheduleFieldsLocked);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("checked", ctx_r22.selectedUsers.indexOf(u_r123.id) >= 0)("disabled", ctx_r22.readOnly || ctx_r22.scheduleFieldsLocked);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", u_r114.name, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"](" ", u_r123.name, " ");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"]("\u00A0(", u_r114.email, ")");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate1"]("\u00A0(", u_r123.email, ")");
   }
 }
 function AdminScheduleTestComponent_ng_template_199_Template(rf, ctx) {
@@ -18500,21 +18620,21 @@ function AdminScheduleTestComponent_ng_template_199_Template(rf, ctx) {
 }
 function AdminScheduleTestComponent_ng_container_274_span_1_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "span", 160);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "span", 165);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const uid_r118 = ctx.$implicit;
-    const ctx_r117 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+    const uid_r127 = ctx.$implicit;
+    const ctx_r126 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate"](ctx_r117.getUserNameById(uid_r118) || uid_r118);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate"](ctx_r126.getUserNameById(uid_r127) || uid_r127);
   }
 }
 function AdminScheduleTestComponent_ng_container_274_Template(rf, ctx) {
   if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementContainerStart"](0);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](1, AdminScheduleTestComponent_ng_container_274_span_1_Template, 2, 1, "span", 159);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](1, AdminScheduleTestComponent_ng_container_274_span_1_Template, 2, 1, "span", 164);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementContainerEnd"]();
   }
   if (rf & 2) {
@@ -18525,19 +18645,19 @@ function AdminScheduleTestComponent_ng_container_274_Template(rf, ctx) {
 }
 function AdminScheduleTestComponent_ng_template_275_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "span", 158);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "span", 163);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](1, "No users assigned");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
   }
 }
 function AdminScheduleTestComponent_button_283_Template(rf, ctx) {
   if (rf & 1) {
-    const _r120 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "button", 161);
+    const _r129 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "button", 166);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_button_283_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r120);
-      const ctx_r119 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r119.schedule());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r129);
+      const ctx_r128 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r128.schedule());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](2, "event_available");
@@ -18554,12 +18674,12 @@ function AdminScheduleTestComponent_button_283_Template(rf, ctx) {
 }
 function AdminScheduleTestComponent_button_284_Template(rf, ctx) {
   if (rf & 1) {
-    const _r122 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "button", 156);
+    const _r131 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "button", 161);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_button_284_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r122);
-      const ctx_r121 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r121.goBack());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r131);
+      const ctx_r130 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r130.goBack());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](2, "arrow_back");
@@ -18570,156 +18690,156 @@ function AdminScheduleTestComponent_button_284_Template(rf, ctx) {
 }
 function AdminScheduleTestComponent_ng_template_285_div_0_Template(rf, ctx) {
   if (rf & 1) {
-    const _r127 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 118);
+    const _r136 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 123);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_285_div_0_Template_div_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r126 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r126.filterEnabled = false);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r135 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r135.filterEnabled = false);
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](1, "div", 119);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](1, "div", 124);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_285_div_0_Template_div_click_1_listener($event) {
       return $event.stopPropagation();
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](2, "mat-form-field", 120)(3, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](2, "mat-form-field", 125)(3, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](4, "public");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](5, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](6, "Country");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](7, "input", 162);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](7, "input", 167);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_285_div_0_Template_input_ngModelChange_7_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r129 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r129.filterCountry = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r138 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r138.filterCountry = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](8, "mat-form-field", 120)(9, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](8, "mat-form-field", 125)(9, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](10, "location_city");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](11, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](12, "City");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](13, "input", 163);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](13, "input", 168);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_285_div_0_Template_input_ngModelChange_13_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r130 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r130.filterCity = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r139 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r139.filterCity = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](14, "mat-form-field", 120)(15, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](14, "mat-form-field", 125)(15, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](16, "assignment");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](17, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](18, "Test name");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](19, "input", 164);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](19, "input", 169);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_285_div_0_Template_input_ngModelChange_19_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r131 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r131.filterExamName = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r140 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r140.filterExamName = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](20, "mat-form-field", 120)(21, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](20, "mat-form-field", 125)(21, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](22, "business_center");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](23, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](24, "Department");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](25, "input", 165);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](25, "input", 170);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_285_div_0_Template_input_ngModelChange_25_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r132 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r132.filterDepartment = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r141 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r141.filterDepartment = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](26, "mat-form-field", 120)(27, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](26, "mat-form-field", 125)(27, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](28, "groups");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](29, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](30, "Teams");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](31, "input", 166);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](31, "input", 171);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_285_div_0_Template_input_ngModelChange_31_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r133 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r133.filterTeam = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r142 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r142.filterTeam = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](32, "mat-form-field", 120)(33, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](32, "mat-form-field", 125)(33, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](34, "work");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](35, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](36, "Industry");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](37, "input", 167);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](37, "input", 172);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_285_div_0_Template_input_ngModelChange_37_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r134 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r134.filterIndustry = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r143 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r143.filterIndustry = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](38, "mat-form-field", 120)(39, "mat-icon", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](38, "mat-form-field", 125)(39, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](40, "category");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](41, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](42, "Sector");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](43, "input", 168);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](43, "input", 173);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_285_div_0_Template_input_ngModelChange_43_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r135 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r135.filterSector = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r144 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r144.filterSector = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](44, "mat-form-field", 120)(45, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](44, "mat-form-field", 125)(45, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](46, "Created after");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](47, "input", 169);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](47, "input", 174);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_285_div_0_Template_input_ngModelChange_47_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r136 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r136.filterCreationDateAfter = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r145 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r145.filterCreationDateAfter = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](48, "mat-datepicker-toggle", 151)(49, "mat-datepicker", null, 170);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](48, "mat-datepicker-toggle", 156)(49, "mat-datepicker", null, 175);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](51, "mat-form-field", 120)(52, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](51, "mat-form-field", 125)(52, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](53, "Created before");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](54, "input", 171);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](54, "input", 176);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_285_div_0_Template_input_ngModelChange_54_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r137 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r137.filterCreationDate = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r146 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r146.filterCreationDate = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](55, "mat-datepicker-toggle", 151)(56, "mat-datepicker", null, 172);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](55, "mat-datepicker-toggle", 156)(56, "mat-datepicker", null, 177);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](58, "div", 173)(59, "mat-checkbox", 174);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](58, "div", 178)(59, "mat-checkbox", 179);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("ngModelChange", function AdminScheduleTestComponent_ng_template_285_div_0_Template_mat_checkbox_ngModelChange_59_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r138 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r138.filterCreatedByMe = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r147 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r147.filterCreatedByMe = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](60, "Created by me");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](61, "div", 155)(62, "button", 175);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](61, "div", 160)(62, "button", 180);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_285_div_0_Template_button_click_62_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r139 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r139.applyFilters());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r148 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r148.applyFilters());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](63, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](64, "search");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](65, " Apply ");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](66, "button", 157);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](66, "button", 162);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_ng_template_285_div_0_Template_button_click_66_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r127);
-      const ctx_r140 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r140.resetFilters());
+      _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r136);
+      const ctx_r149 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx_r149.resetFilters());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](67, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](68, "refresh");
@@ -18728,38 +18848,38 @@ function AdminScheduleTestComponent_ng_template_285_div_0_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()()()();
   }
   if (rf & 2) {
-    const _r124 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](50);
-    const _r125 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](57);
-    const ctx_r123 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
+    const _r133 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](50);
+    const _r134 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](57);
+    const ctx_r132 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r123.filterCountry);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r132.filterCountry);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r123.filterCity);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r132.filterCity);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r123.filterExamName);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r132.filterExamName);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r123.filterDepartment);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r132.filterDepartment);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r123.filterTeam);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r132.filterTeam);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r123.filterIndustry);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r132.filterIndustry);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r123.filterSector);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r132.filterSector);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r124)("ngModel", ctx_r123.filterCreationDateAfter);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r133)("ngModel", ctx_r132.filterCreationDateAfter);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r124);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r133);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r125)("ngModel", ctx_r123.filterCreationDate);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("matDatepicker", _r134)("ngModel", ctx_r132.filterCreationDate);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("for", _r134);
     _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r123.filterCreatedByMe);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵproperty"]("ngModel", ctx_r132.filterCreatedByMe);
   }
 }
 function AdminScheduleTestComponent_ng_template_285_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](0, AdminScheduleTestComponent_ng_template_285_div_0_Template, 70, 14, "div", 117);
+    _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](0, AdminScheduleTestComponent_ng_template_285_div_0_Template, 70, 14, "div", 122);
   }
   if (rf & 2) {
     const ctx_r30 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵnextContext"]();
@@ -19009,6 +19129,8 @@ class AdminScheduleTestComponent {
       manualReviewEnabled: false,
       reviewDate: '',
       reviewTime: '',
+      reviewEndDate: '',
+      reviewEndTime: '',
       showScore: true,
       showCorrectAnswers: true,
       showStudentAnswers: true,
@@ -19057,15 +19179,121 @@ class AdminScheduleTestComponent {
       } : null;
     };
     this.reviewScheduleValidator = control => {
-      const date = control.get('reviewDate')?.value;
-      const time = control.get('reviewTime')?.value;
-      if (!date && !time) return null;
-      if (!date || !time) return {
-        reviewIncomplete: true
+      const dateCtrl = control.get('reviewDate');
+      const timeCtrl = control.get('reviewTime');
+      const endDateCtrl = control.get('reviewEndDate');
+      const endTimeCtrl = control.get('reviewEndTime');
+      const date = dateCtrl?.value;
+      const time = timeCtrl?.value;
+      const endDate = endDateCtrl?.value;
+      const endTime = endTimeCtrl?.value;
+      // Clear previous errors from controls
+      const clearControlError = (ctrl, errorKey) => {
+        if (ctrl?.hasError(errorKey)) {
+          const {
+            [errorKey]: _,
+            ...errs
+          } = ctrl.errors || {};
+          ctrl.setErrors(Object.keys(errs).length ? errs : null);
+        }
       };
-      return this.combineDateAndTime(date, time) ? null : {
+      clearControlError(dateCtrl, 'reviewBeforeTest');
+      clearControlError(timeCtrl, 'reviewBeforeTest');
+      clearControlError(dateCtrl, 'required');
+      clearControlError(timeCtrl, 'required');
+      clearControlError(endDateCtrl, 'reviewEndBeforeStart');
+      clearControlError(endTimeCtrl, 'reviewEndBeforeStart');
+      clearControlError(endDateCtrl, 'required');
+      clearControlError(endTimeCtrl, 'required');
+      if (!date && !time && !endDate && !endTime) return null;
+      if (!date || !time) {
+        if (!date) {
+          dateCtrl?.setErrors({
+            ...dateCtrl?.errors,
+            required: true
+          });
+        }
+        if (!time) {
+          timeCtrl?.setErrors({
+            ...timeCtrl?.errors,
+            required: true
+          });
+        }
+        return {
+          reviewIncomplete: true
+        };
+      }
+      if (!endDate || !endTime) {
+        if (!endDate) {
+          endDateCtrl?.setErrors({
+            ...endDateCtrl?.errors,
+            required: true
+          });
+        }
+        if (!endTime) {
+          endTimeCtrl?.setErrors({
+            ...endTimeCtrl?.errors,
+            required: true
+          });
+        }
+        return {
+          reviewEndIncomplete: true
+        };
+      }
+      const reviewDt = this.combineDateAndTime(date, time);
+      if (!reviewDt) return {
         reviewFormat: true
       };
+      const reviewEndDt = this.combineDateAndTime(endDate, endTime);
+      if (!reviewEndDt) return {
+        reviewEndFormat: true
+      };
+      if (this.scheduleTimingForm) {
+        const startDate = this.scheduleTimingForm.get('startDate')?.value;
+        const startTime = this.scheduleTimingForm.get('startTime')?.value;
+        const endDateVal = this.scheduleTimingForm.get('endDate')?.value;
+        const endTimeVal = this.scheduleTimingForm.get('endTime')?.value;
+        const startDt = this.combineDateAndTime(startDate, startTime);
+        if (startDt) {
+          let testEndDt = null;
+          if (endDateVal && endTimeVal) {
+            testEndDt = this.combineDateAndTime(endDateVal, endTimeVal);
+          } else {
+            const duration = Number(this.model.durationMin) || 10;
+            testEndDt = new Date(startDt.getTime() + duration * 60000);
+          }
+          const now = new Date();
+          const compareDt = testEndDt && testEndDt.getTime() > now.getTime() ? testEndDt : now;
+          if (reviewDt.getTime() < compareDt.getTime()) {
+            // Set errors on individual controls so they display as invalid in the template
+            dateCtrl?.setErrors({
+              ...dateCtrl.errors,
+              reviewBeforeTest: true
+            });
+            timeCtrl?.setErrors({
+              ...timeCtrl.errors,
+              reviewBeforeTest: true
+            });
+            return {
+              reviewBeforeTest: true
+            };
+          }
+        }
+      }
+      if (reviewEndDt.getTime() < reviewDt.getTime()) {
+        endDateCtrl?.setErrors({
+          ...endDateCtrl.errors,
+          reviewEndBeforeStart: true
+        });
+        endTimeCtrl?.setErrors({
+          ...endTimeCtrl.errors,
+          reviewEndBeforeStart: true
+        });
+        return {
+          reviewEndBeforeStart: true
+        };
+      }
+      return null;
     };
     // Track whether institute field should be disabled (used in template via [readonly] + [matAutocompleteDisabled])
     // NOTE: We do NOT call FormControl.disable() because that prevents MatAutocompleteTrigger
@@ -19136,7 +19364,9 @@ class AdminScheduleTestComponent {
     });
     this.reviewScheduleForm = this.fb.group({
       reviewDate: [this.reviewDateAsPickerValue()],
-      reviewTime: [this.model.reviewTime, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)]
+      reviewTime: [this.model.reviewTime, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
+      reviewEndDate: [this.reviewEndDateAsPickerValue()],
+      reviewEndTime: [this.model.reviewEndTime, _angular_forms__WEBPACK_IMPORTED_MODULE_5__.Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)]
     }, {
       validators: this.reviewScheduleValidator
     });
@@ -19148,10 +19378,17 @@ class AdminScheduleTestComponent {
     this.scheduleTimingForm.valueChanges.subscribe(value => {
       Object.assign(this.model, value);
       this.markDirty();
+      if (this.reviewScheduleForm) {
+        this.reviewScheduleForm.updateValueAndValidity({
+          emitEvent: false
+        });
+      }
     });
     this.reviewScheduleForm.valueChanges.subscribe(value => {
       this.model.reviewDate = value.reviewDate;
       this.model.reviewTime = value.reviewTime;
+      this.model.reviewEndDate = value.reviewEndDate;
+      this.model.reviewEndTime = value.reviewEndTime;
       this.markDirty();
     });
     this.reviewBehaviorForm.valueChanges.subscribe(value => {
@@ -19276,7 +19513,9 @@ class AdminScheduleTestComponent {
         });
         this.reviewScheduleForm.patchValue({
           reviewDate: this.reviewDateAsPickerValue(),
-          reviewTime: this.model.reviewTime
+          reviewTime: this.model.reviewTime,
+          reviewEndDate: this.reviewEndDateAsPickerValue(),
+          reviewEndTime: this.model.reviewEndTime
         }, {
           emitEvent: false
         });
@@ -19296,8 +19535,56 @@ class AdminScheduleTestComponent {
     const combined = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, 0, 0);
     return isNaN(combined.getTime()) ? null : combined;
   }
+  get minReviewDate() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dateVal = this.scheduleTimingForm?.get('endDate')?.value || this.scheduleTimingForm?.get('startDate')?.value || this.model.endDate || this.model.startDate;
+    if (!dateVal) return today;
+    let testDate = null;
+    if (dateVal instanceof Date) {
+      testDate = isNaN(dateVal.getTime()) ? null : dateVal;
+    } else {
+      const sDate = String(dateVal).trim();
+      // YYYY-MM-DD
+      const match = sDate.match(/^(\d{4})[^\d]?(\d{1,2})[^\d]?(\d{1,2})$/);
+      if (match) {
+        const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        if (!isNaN(d.getTime())) testDate = d;
+      } else {
+        // DD/MM/YYYY
+        const matchSlash = sDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (matchSlash) {
+          const d = new Date(Number(matchSlash[3]), Number(matchSlash[2]) - 1, Number(matchSlash[1]));
+          if (!isNaN(d.getTime())) testDate = d;
+        } else {
+          const parsed = new Date(sDate);
+          if (!isNaN(parsed.getTime())) testDate = parsed;
+        }
+      }
+    }
+    if (testDate) {
+      testDate.setHours(0, 0, 0, 0);
+      return testDate.getTime() > today.getTime() ? testDate : today;
+    }
+    return today;
+  }
+  get reviewScheduleError() {
+    if (this.reviewScheduleForm?.hasError('reviewBeforeTest')) {
+      return 'Review date/time must be after the test schedule and in the future.';
+    }
+    if (this.reviewScheduleForm?.hasError('reviewEndBeforeStart')) {
+      return 'Review end date/time must be after or equal to review start date/time.';
+    }
+    return '';
+  }
   reviewDateAsPickerValue() {
     const match = String(this.model.reviewDate || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+    const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+    return isNaN(date.getTime()) ? null : date;
+  }
+  reviewEndDateAsPickerValue() {
+    const match = String(this.model.reviewEndDate || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!match) return null;
     const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
     return isNaN(date.getTime()) ? null : date;
@@ -19309,7 +19596,7 @@ class AdminScheduleTestComponent {
   }
   get reviewScheduleInvalid() {
     if (this.model.userreview || this.model.reviewMode !== 'scheduled') return false;
-    return this.reviewScheduleForm.invalid || !this.reviewScheduleForm.get('reviewDate')?.value || !this.reviewScheduleForm.get('reviewTime')?.value;
+    return this.reviewScheduleForm.invalid || !this.reviewScheduleForm.get('reviewDate')?.value || !this.reviewScheduleForm.get('reviewTime')?.value || !this.reviewScheduleForm.get('reviewEndDate')?.value || !this.reviewScheduleForm.get('reviewEndTime')?.value;
   }
   get reviewPreview() {
     if (!this.model.userreview && this.model.reviewMode === 'no_review') return 'Students will not be able to review this test.';
@@ -20011,7 +20298,13 @@ class AdminScheduleTestComponent {
     }
     if (this.reviewScheduleInvalid) {
       this.reviewScheduleForm.markAllAsTouched();
-      (0,src_app_shared_global_notify__WEBPACK_IMPORTED_MODULE_1__.notify)('Choose a valid review date and enter time as HH:MM.', 'error');
+      if (this.reviewScheduleForm.hasError('reviewBeforeTest')) {
+        (0,src_app_shared_global_notify__WEBPACK_IMPORTED_MODULE_1__.notify)('Review date and time must be after the test schedule date and time.', 'error');
+      } else if (this.reviewScheduleForm.hasError('reviewEndBeforeStart')) {
+        (0,src_app_shared_global_notify__WEBPACK_IMPORTED_MODULE_1__.notify)('Review end date/time must be after or equal to review start date/time.', 'error');
+      } else {
+        (0,src_app_shared_global_notify__WEBPACK_IMPORTED_MODULE_1__.notify)('Choose a valid review date and enter time as HH:MM.', 'error');
+      }
       return;
     }
     // build payload matching the DB columns described by the user
@@ -20126,10 +20419,16 @@ class AdminScheduleTestComponent {
       endIso = computed.toISOString();
     }
     let reviewAtIso = null;
+    let reviewEndAtIso = null;
     if (!this.model.userreview && this.model.reviewMode === 'scheduled') {
       const reviewAt = this.combineDateAndTime(this.reviewScheduleForm.get('reviewDate')?.value, this.reviewScheduleForm.get('reviewTime')?.value);
-      if (!reviewAt) return;
-      reviewAtIso = reviewAt.toISOString();
+      if (reviewAt) {
+        reviewAtIso = reviewAt.toISOString();
+      }
+      const reviewEndAt = this.combineDateAndTime(this.reviewScheduleForm.get('reviewEndDate')?.value, this.reviewScheduleForm.get('reviewEndTime')?.value);
+      if (reviewEndAt) {
+        reviewEndAtIso = reviewEndAt.toISOString();
+      }
     }
     const payload = {
       title: this.model.schedulerName || this.model.testName || 'Untitled Test',
@@ -20150,6 +20449,7 @@ class AdminScheduleTestComponent {
       manual_review_enabled: !this.model.userreview && ['manual', 'no_review'].includes(this.model.reviewMode) && this.normalizeBoolean(this.reviewBehaviorForm.get('manualReviewEnabled')?.value),
       review_mode: this.model.userreview ? 'instant' : this.model.reviewMode || 'no_review',
       review_at: reviewAtIso,
+      review_end_at: reviewEndAtIso,
       show_score: !!this.model.showScore,
       show_correct_answers: !!this.model.showCorrectAnswers,
       show_student_answers: !!this.model.showStudentAnswers,
@@ -20400,6 +20700,21 @@ class AdminScheduleTestComponent {
         this.model.reviewDate = `${pad(reviewAt.getDate())}/${pad(reviewAt.getMonth() + 1)}/${reviewAt.getFullYear()}`;
         this.model.reviewTime = `${pad(reviewAt.getHours())}:${pad(reviewAt.getMinutes())}`;
       }
+    } else {
+      this.model.reviewDate = '';
+      this.model.reviewTime = '';
+    }
+    const reviewEndAtValue = value.review_end_at || value.reviewEndAt;
+    if (reviewEndAtValue) {
+      const reviewEndAt = new Date(reviewEndAtValue);
+      if (!isNaN(reviewEndAt.getTime())) {
+        const pad = part => String(part).padStart(2, '0');
+        this.model.reviewEndDate = `${pad(reviewEndAt.getDate())}/${pad(reviewEndAt.getMonth() + 1)}/${reviewEndAt.getFullYear()}`;
+        this.model.reviewEndTime = `${pad(reviewEndAt.getHours())}:${pad(reviewEndAt.getMinutes())}`;
+      }
+    } else {
+      this.model.reviewEndDate = '';
+      this.model.reviewEndTime = '';
     }
     const contentFields = [['showScore', 'show_score', 'showScore'], ['showCorrectAnswers', 'show_correct_answers', 'showCorrectAnswers'], ['showStudentAnswers', 'show_student_answers', 'showStudentAnswers'], ['showExplanations', 'show_explanations', 'showExplanations']];
     contentFields.forEach(([modelField, apiField, alternateField]) => {
@@ -20497,10 +20812,10 @@ class AdminScheduleTestComponent {
       features: [_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵStandaloneFeature"]],
       decls: 287,
       vars: 75,
-      consts: [[1, "page", "admin-schedule-exam", 3, "input", "change"], [1, "toolbar"], [1, "title"], [1, "form-actions"], ["mat-flat-button", "", "color", "accent", "type", "button", 1, "btn-cancel", 3, "click"], [1, "form-card"], ["class", "draft-safety-banner", "role", "status", 4, "ngIf"], ["linear", ""], ["stepper", ""], ["matStepLabel", ""], [1, "step-content"], [1, "step1-two-column"], [1, "basic-info"], [1, "section-block"], [1, "section-header"], [1, "section-icon"], [1, "section-header-text"], [1, "section-heading"], [1, "section-desc"], ["mat-stroked-button", "", "color", "primary", "type", "button", "aria-haspopup", "true", 3, "disabled", "click"], ["filtersBtn", ""], [1, "field-row"], ["appearance", "outline", "class", "field-half schedule-institute-field", 3, "institute-disabled", 4, "ngIf"], ["appearance", "outline", 3, "ngClass"], ["matPrefix", ""], ["matInput", "", "placeholder", "Pick a test", "required", "", 3, "formControl", "matAutocomplete", "readonly", "matAutocompleteDisabled"], ["testInput", "", "examTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open test list", 3, "disabled", "click"], [3, "displayWith", "optionSelected"], ["examAuto", "matAutocomplete"], [3, "value", 4, "ngFor", "ngForOf"], ["align", "start"], [4, "ngIf"], ["class", "exam-preview", 4, "ngIf"], ["appearance", "outline", 1, "field-full"], ["matInput", "", "id", "schedulerName", "name", "schedulerName", "placeholder", "E.g. Weekly Math Test Batch A", "required", "", 3, "ngModel", "disabled", "ngModelChange"], [1, "schedule-section"], [1, "schedule-timing-fields", 3, "formGroup"], [1, "schedule-row"], ["appearance", "outline", 1, "schedule-field", "date-field"], ["matInput", "", "formControlName", "startDate", "placeholder", "Select start date", "required", "", 3, "matDatepicker", "readonly"], ["matSuffix", "", 3, "for", "disabled"], ["startDatePicker", ""], ["appearance", "outline", 1, "schedule-field", "time-field"], ["matInput", "", "type", "time", "formControlName", "startTime", "placeholder", "HH:MM", "required", "", 3, "readonly"], ["matInput", "", "formControlName", "endDate", "placeholder", "Select end date", 3, "matDatepicker", "readonly"], ["endDatePicker", ""], ["matInput", "", "type", "time", "formControlName", "endTime", "placeholder", "HH:MM", 3, "readonly"], ["class", "schedule-error", "role", "alert", 4, "ngIf"], [1, "visibility-review-card"], [1, "settings-card-header"], [1, "toggle-setting"], ["name", "publish", 3, "ngModel", "disabled", "ngModelChange"], [1, "toggle-setting", "toggle-setting--review"], [3, "formControl"], ["class", "review-options", "aria-label", "Review availability", 4, "ngIf"], [1, "review-settings-panel", "review-content-panel"], [1, "review-content-options"], ["name", "showScore", 3, "ngModel", "disabled", "ngModelChange"], ["name", "showCorrectAnswers", 3, "ngModel", "disabled", "ngModelChange"], ["name", "showStudentAnswers", 3, "ngModel", "disabled", "ngModelChange"], ["name", "showExplanations", 3, "ngModel", "disabled", "ngModelChange"], ["role", "status", "aria-live", "polite", 1, "review-preview"], ["mat-button", "", "type", "button", 1, "next-btn", 3, "disabled", "click"], ["userFiltersBtn", ""], ["filtersPanelUserAnchor", ""], [1, "user-list"], [1, "user-list-header"], [3, "ngModel", "disabled", "ngModelChange", "change"], ["mat-button", "", "type", "button", 1, "refresh-action-btn", 3, "disabled", "click"], [1, "user-selection-list"], [4, "ngFor", "ngForOf"], ["mat-button", "", "matStepperPrevious", "", "type", "button", 1, "prev-btn"], ["mat-button", "", "matStepperNext", "", "type", "button", 1, "next-btn"], [1, "review-grid"], [1, "review-section"], [1, "review-section-title"], [1, "review-items"], [1, "review-item"], [1, "review-label"], [1, "review-value"], [1, "status-pill"], [1, "review-section", "review-section--full"], [4, "ngIf", "ngIfElse"], ["noAssigned", ""], ["mat-flat-button", "", "color", "primary", "type", "button", "class", "submit-btn", 3, "click", 4, "ngIf"], ["mat-stroked-button", "", "type", "button", 3, "click", 4, "ngIf"], ["filtersPanel", ""], ["role", "status", 1, "draft-safety-banner"], ["mat-icon-button", "", "type", "button", "aria-label", "Dismiss unsaved changes notice", 3, "click"], ["appearance", "outline", 1, "field-half", "schedule-institute-field"], ["matInput", "", "placeholder", "Pick an institute", 3, "formControl", "matAutocomplete", "readonly", "matAutocompleteDisabled"], ["instTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open institute list", 3, "disabled", "click"], ["instAuto", "matAutocomplete"], ["disabled", "", 4, "ngIf"], ["disabled", ""], [3, "value"], [1, "exam-preview"], [1, "exam-preview-header"], [1, "exam-title"], [1, "exam-meta"], ["role", "alert", 1, "schedule-error"], ["aria-label", "Review availability", 1, "review-options"], [3, "checked", "disabled", "change"], ["class", "toggle-setting toggle-setting--manual-access", 4, "ngIf"], ["name", "reviewMode", "aria-label", "Timed review availability", 3, "ngModel", "disabled", "ngModelChange"], ["value", "after_schedule_ends"], ["value", "after_everyone_finishes"], ["value", "scheduled"], ["class", "review-schedule-fields", 3, "formGroup", 4, "ngIf"], [1, "toggle-setting", "toggle-setting--manual-access"], [1, "review-schedule-fields", 3, "formGroup"], ["appearance", "outline"], ["matInput", "", "formControlName", "reviewDate", "placeholder", "DD/MM/YYYY", "required", "", 3, "matDatepicker", "readonly"], ["reviewDatePicker", ""], ["matInput", "", "type", "time", "formControlName", "reviewTime", "placeholder", "HH:MM", "required", "", 3, "readonly"], ["class", "filters-panel", 3, "click", 4, "ngIf"], [1, "filters-panel", 3, "click"], [1, "filter-block", 3, "click"], ["appearance", "outline", 1, "filter-item"], ["matInput", "", "name", "filterCountry", "placeholder", "Type or pick a country", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["countryTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open country list", 3, "click"], ["countryAuto", "matAutocomplete"], ["value", ""], ["matInput", "", "name", "filterCity", "placeholder", "Type or pick a city", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["cityTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open city list", 3, "click"], ["cityAuto", "matAutocomplete"], ["matInput", "", "name", "filterCampus", "placeholder", "Type or pick a campus", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["campusTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open campus list", 3, "click"], ["campusAuto", "matAutocomplete"], ["matInput", "", "name", "filterIndustry", "placeholder", "Type or pick an industry", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["industryTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open industry list", 3, "click"], ["industryAuto", "matAutocomplete"], ["matInput", "", "name", "filterSector", "placeholder", "Type or pick a sector", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["sectorTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open sector list", 3, "disabled", "click"], ["sectorAuto", "matAutocomplete"], ["matInput", "", "name", "filterDepartment", "placeholder", "Type or pick a department", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["departmentTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open department list", 3, "click"], ["departmentAuto", "matAutocomplete"], ["matInput", "", "name", "filterTeam", "placeholder", "Type or pick a team", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["teamTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open team list", 3, "click"], ["teamAuto", "matAutocomplete"], ["matInput", "", "placeholder", "Joined after", 3, "matDatepicker", "ngModel", "ngModelChange"], ["matSuffix", "", 3, "for"], ["joinAfter", ""], ["matInput", "", "placeholder", "Joined before", 3, "matDatepicker", "ngModel", "ngModelChange"], ["joinBefore", ""], [1, "filter-actions"], ["mat-stroked-button", "", "type", "button", 3, "click"], ["mat-button", "", "type", "button", 3, "click"], [1, "muted"], ["class", "review-chip", 4, "ngFor", "ngForOf"], [1, "review-chip"], ["mat-flat-button", "", "color", "primary", "type", "button", 1, "submit-btn", 3, "click"], ["matInput", "", "placeholder", "Country", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "City", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Test name", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Department", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Teams", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Industry", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Sector", 3, "ngModel", "ngModelChange"], ["matInput", "", "name", "filterCreatedAfter", "placeholder", "Select start date", 3, "matDatepicker", "ngModel", "ngModelChange"], ["examCreatedAfter", ""], ["matInput", "", "name", "filterCreatedBefore", "placeholder", "Select end date", 3, "matDatepicker", "ngModel", "ngModelChange"], ["examCreatedBefore", ""], [1, "filter-item"], [3, "ngModel", "ngModelChange"], ["mat-stroked-button", "", "type", "button", "color", "primary", 3, "click"]],
+      consts: [[1, "page", "admin-schedule-exam", 3, "input", "change"], [1, "toolbar"], [1, "title"], [1, "form-actions"], ["mat-flat-button", "", "color", "accent", "type", "button", 1, "btn-cancel", 3, "click"], [1, "form-card"], ["class", "draft-safety-banner", "role", "status", 4, "ngIf"], ["linear", ""], ["stepper", ""], ["matStepLabel", ""], [1, "step-content"], [1, "step1-two-column"], [1, "basic-info"], [1, "section-block"], [1, "section-header"], [1, "section-icon"], [1, "section-header-text"], [1, "section-heading"], [1, "section-desc"], ["mat-stroked-button", "", "color", "primary", "type", "button", "aria-haspopup", "true", 3, "disabled", "click"], ["filtersBtn", ""], [1, "field-row"], ["appearance", "outline", "class", "field-half schedule-institute-field", 3, "institute-disabled", 4, "ngIf"], ["appearance", "outline", 3, "ngClass"], ["matPrefix", ""], ["matInput", "", "placeholder", "Pick a test", "required", "", 3, "formControl", "matAutocomplete", "readonly", "matAutocompleteDisabled"], ["testInput", "", "examTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open test list", 3, "disabled", "click"], [3, "displayWith", "optionSelected"], ["examAuto", "matAutocomplete"], [3, "value", 4, "ngFor", "ngForOf"], ["align", "start"], [4, "ngIf"], ["class", "exam-preview", 4, "ngIf"], ["appearance", "outline", 1, "field-full"], ["matInput", "", "id", "schedulerName", "name", "schedulerName", "placeholder", "E.g. Weekly Math Test Batch A", "required", "", 3, "ngModel", "disabled", "ngModelChange"], [1, "schedule-section"], [1, "schedule-timing-fields", 3, "formGroup"], [1, "schedule-row"], ["appearance", "outline", 1, "schedule-field", "date-field"], ["matInput", "", "formControlName", "startDate", "placeholder", "Select start date", "required", "", 3, "matDatepicker", "readonly"], ["matSuffix", "", 3, "for", "disabled"], ["startDatePicker", ""], ["appearance", "outline", 1, "schedule-field", "time-field"], ["matInput", "", "type", "time", "formControlName", "startTime", "placeholder", "HH:MM", "required", "", 3, "readonly"], ["matInput", "", "formControlName", "endDate", "placeholder", "Select end date", 3, "matDatepicker", "readonly"], ["endDatePicker", ""], ["matInput", "", "type", "time", "formControlName", "endTime", "placeholder", "HH:MM", 3, "readonly"], ["class", "schedule-error", "role", "alert", 4, "ngIf"], [1, "visibility-review-card"], [1, "settings-card-header"], [1, "toggle-setting"], ["name", "publish", 3, "ngModel", "disabled", "ngModelChange"], [1, "toggle-setting", "toggle-setting--review"], [3, "formControl"], ["class", "review-options", "aria-label", "Review availability", 4, "ngIf"], [1, "review-settings-panel", "review-content-panel"], [1, "review-content-options"], ["name", "showScore", 3, "ngModel", "disabled", "ngModelChange"], ["name", "showCorrectAnswers", 3, "ngModel", "disabled", "ngModelChange"], ["name", "showStudentAnswers", 3, "ngModel", "disabled", "ngModelChange"], ["name", "showExplanations", 3, "ngModel", "disabled", "ngModelChange"], ["role", "status", "aria-live", "polite", 1, "review-preview"], ["mat-button", "", "type", "button", 1, "next-btn", 3, "disabled", "click"], ["userFiltersBtn", ""], ["filtersPanelUserAnchor", ""], [1, "user-list"], [1, "user-list-header"], [3, "ngModel", "disabled", "ngModelChange", "change"], ["mat-button", "", "type", "button", 1, "refresh-action-btn", 3, "disabled", "click"], [1, "user-selection-list"], [4, "ngFor", "ngForOf"], ["mat-button", "", "matStepperPrevious", "", "type", "button", 1, "prev-btn"], ["mat-button", "", "matStepperNext", "", "type", "button", 1, "next-btn"], [1, "review-grid"], [1, "review-section"], [1, "review-section-title"], [1, "review-items"], [1, "review-item"], [1, "review-label"], [1, "review-value"], [1, "status-pill"], [1, "review-section", "review-section--full"], [4, "ngIf", "ngIfElse"], ["noAssigned", ""], ["mat-flat-button", "", "color", "primary", "type", "button", "class", "submit-btn", 3, "click", 4, "ngIf"], ["mat-stroked-button", "", "type", "button", 3, "click", 4, "ngIf"], ["filtersPanel", ""], ["role", "status", 1, "draft-safety-banner"], ["mat-icon-button", "", "type", "button", "aria-label", "Dismiss unsaved changes notice", 3, "click"], ["appearance", "outline", 1, "field-half", "schedule-institute-field"], ["matInput", "", "placeholder", "Pick an institute", 3, "formControl", "matAutocomplete", "readonly", "matAutocompleteDisabled"], ["instTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open institute list", 3, "disabled", "click"], ["instAuto", "matAutocomplete"], ["disabled", "", 4, "ngIf"], ["disabled", ""], [3, "value"], [1, "exam-preview"], [1, "exam-preview-header"], [1, "exam-title"], [1, "exam-meta"], ["role", "alert", 1, "schedule-error"], ["aria-label", "Review availability", 1, "review-options"], [3, "checked", "disabled", "change"], ["class", "toggle-setting toggle-setting--manual-access", 4, "ngIf"], ["name", "reviewMode", "aria-label", "Timed review availability", 3, "ngModel", "disabled", "ngModelChange"], ["value", "after_schedule_ends"], ["value", "after_everyone_finishes"], ["value", "scheduled"], ["class", "review-schedule-fields", 3, "formGroup", 4, "ngIf"], ["class", "schedule-error", "style", "margin-left: 1.75rem; margin-top: -0.25rem; margin-bottom: 0.75rem;", "role", "alert", 4, "ngIf"], [1, "toggle-setting", "toggle-setting--manual-access"], [1, "review-schedule-fields", 3, "formGroup"], ["appearance", "outline"], ["matInput", "", "formControlName", "reviewDate", "placeholder", "DD/MM/YYYY", "required", "", 3, "matDatepicker", "readonly", "min"], ["reviewDatePicker", ""], ["matInput", "", "type", "time", "formControlName", "reviewTime", "placeholder", "HH:MM", "required", "", 3, "readonly"], ["matInput", "", "formControlName", "reviewEndDate", "placeholder", "DD/MM/YYYY", "required", "", 3, "matDatepicker", "readonly", "min"], ["reviewEndDatePicker", ""], ["matInput", "", "type", "time", "formControlName", "reviewEndTime", "placeholder", "HH:MM", "required", "", 3, "readonly"], ["role", "alert", 1, "schedule-error", 2, "margin-left", "1.75rem", "margin-top", "-0.25rem", "margin-bottom", "0.75rem"], ["class", "filters-panel", 3, "click", 4, "ngIf"], [1, "filters-panel", 3, "click"], [1, "filter-block", 3, "click"], ["appearance", "outline", 1, "filter-item"], ["matInput", "", "name", "filterCountry", "placeholder", "Type or pick a country", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["countryTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open country list", 3, "click"], ["countryAuto", "matAutocomplete"], ["value", ""], ["matInput", "", "name", "filterCity", "placeholder", "Type or pick a city", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["cityTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open city list", 3, "click"], ["cityAuto", "matAutocomplete"], ["matInput", "", "name", "filterCampus", "placeholder", "Type or pick a campus", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["campusTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open campus list", 3, "click"], ["campusAuto", "matAutocomplete"], ["matInput", "", "name", "filterIndustry", "placeholder", "Type or pick an industry", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["industryTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open industry list", 3, "click"], ["industryAuto", "matAutocomplete"], ["matInput", "", "name", "filterSector", "placeholder", "Type or pick a sector", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["sectorTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open sector list", 3, "disabled", "click"], ["sectorAuto", "matAutocomplete"], ["matInput", "", "name", "filterDepartment", "placeholder", "Type or pick a department", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["departmentTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open department list", 3, "click"], ["departmentAuto", "matAutocomplete"], ["matInput", "", "name", "filterTeam", "placeholder", "Type or pick a team", 3, "ngModel", "matAutocomplete", "ngModelChange"], ["teamTrigger", "matAutocompleteTrigger"], ["mat-icon-button", "", "matSuffix", "", "type", "button", "aria-label", "Open team list", 3, "click"], ["teamAuto", "matAutocomplete"], ["matInput", "", "placeholder", "Joined after", 3, "matDatepicker", "ngModel", "ngModelChange"], ["matSuffix", "", 3, "for"], ["joinAfter", ""], ["matInput", "", "placeholder", "Joined before", 3, "matDatepicker", "ngModel", "ngModelChange"], ["joinBefore", ""], [1, "filter-actions"], ["mat-stroked-button", "", "type", "button", 3, "click"], ["mat-button", "", "type", "button", 3, "click"], [1, "muted"], ["class", "review-chip", 4, "ngFor", "ngForOf"], [1, "review-chip"], ["mat-flat-button", "", "color", "primary", "type", "button", 1, "submit-btn", 3, "click"], ["matInput", "", "placeholder", "Country", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "City", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Test name", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Department", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Teams", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Industry", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Sector", 3, "ngModel", "ngModelChange"], ["matInput", "", "name", "filterCreatedAfter", "placeholder", "Select start date", 3, "matDatepicker", "ngModel", "ngModelChange"], ["examCreatedAfter", ""], ["matInput", "", "name", "filterCreatedBefore", "placeholder", "Select end date", 3, "matDatepicker", "ngModel", "ngModelChange"], ["examCreatedBefore", ""], [1, "filter-item"], [3, "ngModel", "ngModelChange"], ["mat-stroked-button", "", "type", "button", "color", "primary", 3, "click"]],
       template: function AdminScheduleTestComponent_Template(rf, ctx) {
         if (rf & 1) {
-          const _r141 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
+          const _r150 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵgetCurrentView"]();
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](0, "div", 0);
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("input", function AdminScheduleTestComponent_Template_div_input_0_listener() {
             return ctx.markDirty();
@@ -20553,7 +20868,7 @@ class AdminScheduleTestComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](39, "input", 25, 26);
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](42, "button", 27);
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_Template_button_click_42_listener($event) {
-            _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r141);
+            _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r150);
             const _r6 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](41);
             _r6.openPanel();
             return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"]($event.stopPropagation());
@@ -20667,7 +20982,7 @@ class AdminScheduleTestComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](131, "span");
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](132, "Make the selected review content available immediately after submission.");
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]()();
-          _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](133, AdminScheduleTestComponent_div_133_Template, 14, 8, "div", 55);
+          _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtemplate"](133, AdminScheduleTestComponent_div_133_Template, 15, 9, "div", 55);
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementEnd"]();
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](134, "div", 56)(135, "h3");
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtext"](136, "Review Content");
@@ -20706,7 +21021,7 @@ class AdminScheduleTestComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelement"](152, "span");
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵelementStart"](153, "button", 63);
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵlistener"]("click", function AdminScheduleTestComponent_Template_button_click_153_listener() {
-            _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r141);
+            _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵrestoreView"](_r150);
             const _r1 = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵreference"](12);
             return _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵresetView"](ctx.goToNextStep(_r1));
           });
@@ -20961,7 +21276,7 @@ class AdminScheduleTestComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate"](ctx.model.publish ? "Yes" : "No");
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate"](ctx.model.userreview ? "Instant Review" : ctx.model.reviewMode === "no_review" ? "No Review" : ctx.model.reviewMode === "after_schedule_ends" ? "After Test Schedule Ends" : ctx.model.reviewMode === "after_everyone_finishes" ? "After Everyone Finishes" : ctx.model.reviewMode === "scheduled" ? "Scheduled " + ctx.model.reviewDate + " " + ctx.model.reviewTime : "Manual Review");
+          _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate"](ctx.model.userreview ? "Instant Review" : ctx.model.reviewMode === "no_review" ? "No Review" : ctx.model.reviewMode === "after_schedule_ends" ? "After Test Schedule Ends" : ctx.model.reviewMode === "after_everyone_finishes" ? "After Everyone Finishes" : ctx.model.reviewMode === "scheduled" ? "Scheduled " + ctx.model.reviewDate + " " + ctx.model.reviewTime + " to " + (ctx.model.reviewEndDate || "\u2014") + " " + (ctx.model.reviewEndTime || "") : "Manual Review");
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](5);
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵtextInterpolate4"]("", ctx.model.showScore ? "Score; " : "", "", ctx.model.showCorrectAnswers ? "Correct answers; " : "", "", ctx.model.showStudentAnswers ? "Student answers; " : "", "", ctx.model.showExplanations ? "Explanations" : "", "");
           _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵadvance"](11);
@@ -21844,10 +22159,16 @@ function ViewScheduleExamComponent_div_45_ng_container_15_ng_container_33_ng_con
   if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementContainerStart"](0);
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementStart"](1, "div", 127);
-    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtext"](2, "Review Available At");
+    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtext"](2, "Review Start Time");
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementStart"](3, "div", 128);
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementStart"](5, "div", 127);
+    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtext"](6, "Review End Time");
+    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementStart"](7, "div", 128);
+    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtext"](8);
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementContainerEnd"]();
   }
@@ -21855,6 +22176,8 @@ function ViewScheduleExamComponent_div_45_ng_container_15_ng_container_33_ng_con
     const ctx_r122 = _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵnextContext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtextInterpolate"](ctx_r122.formatDate(ctx_r122.selectedSchedule.review_at) || "\u2014");
+    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtextInterpolate"](ctx_r122.formatDate(ctx_r122.selectedSchedule.review_end_at) || "\u2014");
   }
 }
 function ViewScheduleExamComponent_div_45_ng_container_15_ng_container_33_ng_container_6_Template(rf, ctx) {
@@ -21883,7 +22206,7 @@ function ViewScheduleExamComponent_div_45_ng_container_15_ng_container_33_Templa
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementStart"](3, "div", 128);
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtemplate"](5, ViewScheduleExamComponent_div_45_ng_container_15_ng_container_33_ng_container_5_Template, 5, 1, "ng-container", 42);
+    _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtemplate"](5, ViewScheduleExamComponent_div_45_ng_container_15_ng_container_33_ng_container_5_Template, 9, 2, "ng-container", 42);
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtemplate"](6, ViewScheduleExamComponent_div_45_ng_container_15_ng_container_33_ng_container_6_Template, 5, 1, "ng-container", 42);
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementStart"](7, "div", 127);
     _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵtext"](8, "Review Details");
