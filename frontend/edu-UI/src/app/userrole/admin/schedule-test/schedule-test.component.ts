@@ -17,6 +17,8 @@ import { MatStepperModule } from '@angular/material/stepper';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { Overlay, OverlayRef, OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { API_BASE } from 'src/app/shared/api.config';
 import { BehaviorSubject, combineLatest, Observable, of } from 'rxjs';
 import { startWith, map, retry } from 'rxjs/operators';
@@ -27,7 +29,7 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 @Component({
   selector: 'app-admin-schedule-test',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatIconModule, MatButtonModule, MatCheckboxModule, MatRadioModule, MatSlideToggleModule, MatListModule, MatDatepickerModule, MatStepperModule, OverlayModule, PortalModule, MatAutocompleteModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatIconModule, MatButtonModule, MatCheckboxModule, MatRadioModule, MatSlideToggleModule, MatListModule, MatDatepickerModule, MatStepperModule, OverlayModule, PortalModule, MatAutocompleteModule, MatDialogModule],
   templateUrl: './schedule-test.component.html',
   styleUrls: ['./schedule-test.component.scss']
 })
@@ -294,7 +296,7 @@ export class AdminScheduleTestComponent {
   // which can be slow enough to leave an autocomplete with no options.
   private apiUrl = `${API_BASE}/get-institute-list`;
 
-  constructor(private http: HttpClient, private router: Router, private loader: LoaderService,private cd: ChangeDetectorRef, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private fb: FormBuilder) {
+  constructor(private http: HttpClient, private router: Router, private loader: LoaderService,private cd: ChangeDetectorRef, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private fb: FormBuilder, private dialog: MatDialog) {
     this.loadInstitutes();
     this.loadCountries();
     // this.loadUsers();
@@ -736,9 +738,126 @@ export class AdminScheduleTestComponent {
     if (this.dirty && !this.submitted) event.preventDefault();
   }
 
+  locationHierarchyRaw: any[] = [];
+  allRegisteredCities: Array<{ code: string; name: string; countryCode: string }> = [];
+  citySearch = '';
+
   loadCountries() {
     const url = `${API_BASE}/location-hierarchy`;
-    this.http.get<any>(url).subscribe({ next: (res) => { try { const countries = res?.data?.countries || res?.countries || res?.data || []; this.countries = countries.map((c: any) => ({ code: c.country_code || c.code || c.id, name: c.country_name || c.name || c.country })); } catch (e) { this.countries = []; } }, error: () => { this.countries = []; } });
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        try {
+          const countries = res?.data?.countries || res?.countries || res?.data || [];
+          this.locationHierarchyRaw = Array.isArray(countries) ? countries : [];
+          this.loadRegisteredInstituteLocations(this.locationHierarchyRaw);
+        } catch (e) { this.countries = []; }
+      },
+      error: () => { this.countries = []; }
+    });
+  }
+
+  private loadRegisteredInstituteLocations(locationCountries: any[]) {
+    this.countries = [];
+    this.allRegisteredCities = [];
+    this.cities = [];
+    this.http.get<any>(`${API_BASE}/get-institutes`, { headers: { 'X-Skip-Institute-Context': 'true' } }).subscribe({
+      next: (res) => {
+        try {
+          const institutes = Array.isArray(res?.data) ? res.data : [];
+          const hierarchyCountries = (locationCountries || []).map((country: any) => ({
+            code: country.country_code || country.code || country.id,
+            name: country.country_name || country.name || country.country,
+            cities: country.cities || []
+          })).filter((country: any) => country.code && country.name);
+
+          const registeredCountries: Array<{ code: string; name: string }> = [];
+          const registeredCities: Array<{ code: string; name: string; countryCode: string }> = [];
+
+          institutes.forEach((institute: any) => {
+            const locations = [institute, ...(Array.isArray(institute?.campuses) ? institute.campuses : [])];
+            locations.forEach((location: any) => {
+              // Extract country
+              const rawCountry = location?.country;
+              const countryCode = location?.country_id || location?.country_code
+                || (typeof rawCountry === 'object' ? rawCountry?.country_id || rawCountry?.id || rawCountry?.country_code || rawCountry?.code : rawCountry);
+              const countryName = location?.country_name
+                || (typeof rawCountry === 'object' ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country : rawCountry);
+
+              const hierarchyMatch = hierarchyCountries.find((country: any) =>
+                (countryCode && String(country.code).toLowerCase() === String(countryCode).toLowerCase())
+                || (countryName && String(country.name).trim().toLowerCase() === String(countryName).trim().toLowerCase())
+              );
+              const resolvedCountry = hierarchyMatch || (countryCode && countryName ? { code: countryCode, name: countryName, cities: [] } : null);
+              if (resolvedCountry) {
+                registeredCountries.push({ code: String(resolvedCountry.code), name: String(resolvedCountry.name).trim() });
+
+                // Extract city
+                const rawCity = location?.city;
+                const cityCode = location?.city_id || location?.city_code || (typeof rawCity === 'object' ? rawCity?.city_id || rawCity?.id || rawCity?.city_code || rawCity?.code : rawCity);
+                const cityName = location?.city_name || (typeof rawCity === 'object' ? rawCity?.city_name || rawCity?.name || rawCity?.city : rawCity);
+
+                if (cityName) {
+                  registeredCities.push({
+                    code: cityCode ? String(cityCode) : cityName,
+                    name: String(cityName).trim(),
+                    countryCode: String(resolvedCountry.code)
+                  });
+                }
+              }
+            });
+          });
+
+          // Unique Countries
+          const uniqueCountries = new Map<string, { code: string; name: string }>();
+          registeredCountries.forEach(country => {
+            const key = country.name.toLowerCase();
+            if (!uniqueCountries.has(key)) uniqueCountries.set(key, country);
+          });
+          this.countries = Array.from(uniqueCountries.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+          // Store all registered cities so we can filter them by selected country
+          this.allRegisteredCities = registeredCities;
+          this.filterCitiesByCountry();
+        } catch (e) {
+          this.countries = [];
+          this.allRegisteredCities = [];
+          this.cities = [];
+        }
+      },
+      error: () => {
+        this.countries = [];
+        this.allRegisteredCities = [];
+        this.cities = [];
+      }
+    });
+  }
+
+  filterCitiesByCountry() {
+    this.cities = [];
+    if (!this.filterCountry) {
+      // If no country is selected, show all registered cities uniquely
+      const uniqueCities = new Map<string, { code: string; name: string }>();
+      this.allRegisteredCities.forEach(city => {
+        const key = city.name.toLowerCase();
+        if (!uniqueCities.has(key)) uniqueCities.set(key, { code: city.code, name: city.name });
+      });
+      this.cities = Array.from(uniqueCities.values()).sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      // Filter by selected country
+      const filtered = this.allRegisteredCities.filter(city => String(city.countryCode).toLowerCase() === String(this.filterCountry).toLowerCase());
+      const uniqueCities = new Map<string, { code: string; name: string }>();
+      filtered.forEach(city => {
+        const key = city.name.toLowerCase();
+        if (!uniqueCities.has(key)) uniqueCities.set(key, { code: city.code, name: city.name });
+      });
+      this.cities = Array.from(uniqueCities.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }
+
+  get examFilteredCities(): Array<{ code: string; name: string }> {
+    const term = (this.citySearch || '').trim().toLowerCase();
+    if (!term) return this.cities;
+    return this.cities.filter(c => (c.name || '').toLowerCase().includes(term));
   }
 
   onCountryChange() {
@@ -813,20 +932,22 @@ export class AdminScheduleTestComponent {
   }
 
   loadInstitutes() {
-    // Always load the complete list here; this selector is the source of the
-    // institute scope for the schedule being created.
     this.institutesLoading = true;
     this.institutesLoadFailed = false;
+    const params: any = {};
+    if (this.filterCountry) params.country = this.filterCountry;
+    if (this.filterCity) params.city = this.filterCity;
+    if (this.filterIndustry) params.industry = this.filterIndustry;
+    if (this.filterSector) params.sector = this.filterSector;
+
     this.http.get<any>(this.apiUrl, {
+      params,
       headers: { 'X-Skip-Institute-Context': 'true' }
     }).pipe(retry(2)).subscribe({
       next: (res) => {
         this.institutesLoading = false;
         if (res && res.data && Array.isArray(res.data)) {
           this.institutes = res.data.map((r: any) => ({ name: r.name || r.institute_name || r.short_name || '', short_name: r.short_name || r.name || r.institute_name || '', institute_id: r.institute_id }));
-          // Update an already-open autocomplete panel as soon as the API result
-          // arrives. The previous valueChanges-only stream could remain empty
-          // until the user typed or reopened the field.
           this.institutesSubject.next(this.institutes);
 
           // If the model already has an institute (for example when applying edit/view), prefer it
@@ -836,12 +957,20 @@ export class AdminScheduleTestComponent {
               const found = this.institutes.find(i => String(i.institute_id) === String(instId));
               if (found) {
                 this.model.institute = found.institute_id as any;
-                this.instituteCtrl.setValue(found);
+                this.instituteCtrl.setValue(found, { emitEvent: false });
                 this.updateInstituteDisabledState();
                 this.onInstituteChange(this.model.institute);
                 this.applyDefaultSchedulerName();
                 try { this.cd.detectChanges(); } catch (e) { /* noop */ }
                 return;
+              } else {
+                // If it is filtered out, clear it
+                this.model.institute = '';
+                this.instituteCtrl.setValue('', { emitEvent: false });
+                this.model.exam_id = '';
+                this.selectedExam = null;
+                this.examCtrl.setValue('', { emitEvent: false });
+                this.updateInstituteDisabledState();
               }
             }
           } catch (e) { /* ignore */ }
@@ -858,7 +987,7 @@ export class AdminScheduleTestComponent {
                 if (found) {
                   this.model.institute = found.institute_id as any;
                   // trigger change handlers to populate dependent lists
-                  this.instituteCtrl.setValue(found);
+                  this.instituteCtrl.setValue(found, { emitEvent: false });
                   this.updateInstituteDisabledState();
                   this.onInstituteChange(this.model.institute);
                   this.applyDefaultSchedulerName();
@@ -916,6 +1045,9 @@ export class AdminScheduleTestComponent {
     this.loadTeamsList(this.model.institute);
     this.loadCampusList(this.model.institute);
     this.loadUsers();
+    this.loadDepartments(this.model.institute);
+    this.loadTeams(this.model.institute);
+    this.loadTestOptions(this.model.institute);
   }
 
   // Autocomplete display / selection helpers
@@ -1088,6 +1220,148 @@ export class AdminScheduleTestComponent {
   // controls the Select Users filter modal
   userFilterOpen = false;
 
+  // New exam filter properties
+  countrySearch = '';
+  industrySearch = '';
+  sectorSearch = '';
+  filterCityOptions: Array<{ code: string; name: string }> = [];
+  departments: Array<{ id: string; name: string }> = [];
+  teams: Array<{ id: string; name: string }> = [];
+  testOptions: Array<{ id: string; title: string }> = [];
+
+  get examFilteredCountries(): Array<{ code: string; name: string }> {
+    const term = (this.countrySearch || '').trim().toLowerCase();
+    if (!term) return this.countries;
+    return this.countries.filter(c => (c.name || '').toLowerCase().includes(term));
+  }
+
+  get filteredIndustryTypes(): string[] {
+    const term = (this.industrySearch || '').trim().toLowerCase();
+    if (!term) return this.industryTypes;
+    return this.industryTypes.filter(t => t.toLowerCase().includes(term));
+  }
+
+  private get scopedSectors(): string[] {
+    if (!this.filterIndustry) return [];
+    return this.sectorMap[this.filterIndustry] || [];
+  }
+
+  get filteredSectorsForExam(): string[] {
+    const scoped = this.scopedSectors;
+    const term = (this.sectorSearch || '').trim().toLowerCase();
+    if (!term) return scoped;
+    return scoped.filter(s => s.toLowerCase().includes(term));
+  }
+
+  filteredCitiesForExam(): Array<{ code: string; name: string }> {
+    const term = (this.filterCity || '').trim().toLowerCase();
+    if (!term) return this.filterCityOptions;
+    return this.filterCityOptions.filter(c => (c.name || '').toLowerCase().includes(term));
+  }
+
+  filteredExamNamesForFilter(): string[] {
+    const term = (this.filterExamName || '').trim().toLowerCase();
+    const names = Array.from(new Set((this.testOptions || []).map(o => o.title).filter(Boolean)));
+    if (!term) return names;
+    return names.filter(n => n.toLowerCase().includes(term));
+  }
+
+  loadCitiesForCountry(countryCode: string) {
+    this.filterCityOptions = [];
+    if (!countryCode) return;
+    const url = `${API_BASE}/location-hierarchy`;
+    this.http.get<any>(url, { params: { country_id: countryCode } }).subscribe({
+      next: (res) => {
+        try {
+          const data = Array.isArray(res?.data?.cities) ? res.data.cities : [];
+          this.filterCityOptions = data.map((city: any) => ({
+            code: city.id ?? city.city_id ?? city.city_code ?? city.code,
+            name: city.name ?? city.city_name ?? city.city
+          })).filter((city: any) => city.code && city.name).sort((a: any, b: any) => a.name.localeCompare(b.name));
+        } catch (e) { this.filterCityOptions = []; }
+      },
+      error: () => { this.filterCityOptions = []; }
+    });
+  }
+
+  onCountryFilterChange() {
+    this.filterCity = '';
+    this.filterCitiesByCountry();
+    this.loadInstitutes();
+  }
+
+  onIndustryFilterChange() {
+    this.filterSector = '';
+    this.loadInstitutes();
+  }
+
+  onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector' | 'city') {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    }
+  }
+
+  stopFilterSearchEvent(event: Event) {
+    event.stopPropagation();
+  }
+
+  loadDepartments(instId?: string) {
+    if (!instId) { this.departments = []; return; }
+    const url = `${API_BASE}/get-department-list`;
+    this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
+      next: (res) => {
+        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        this.departments = arr.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name || d.dept_name || d.title || '' }));
+      }, error: (err) => { console.warn('Failed to load departments', err); this.departments = []; }
+    });
+  }
+
+  loadTeams(instId?: string) {
+    if (!instId) { this.teams = []; return; }
+    const url = `${API_BASE}/get-teams-list`;
+    this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
+      next: (res) => {
+        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        this.teams = arr.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name || t.team_name || t.title || '' }));
+      }, error: (err) => { console.warn('Failed to load teams', err); this.teams = []; }
+    });
+  }
+
+  loadTestOptions(instId?: string) {
+    if (!instId) { this.testOptions = []; return; }
+    const url = `${API_BASE}/get-exams-list`;
+    const params: any = {};
+    if (instId) params.institute_id = instId;
+    const options = {
+      params,
+      ...this.explicitInstituteRequestOptions()
+    };
+    this.http.get<any>(url, options).subscribe({
+      next: (res) => {
+        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        const mapped = arr.map((x: any) => ({
+          id: String(x.test_id || x.exam_id || x.id || ''),
+          title: String(x.title || x.name || x.exam_name || '').trim()
+        })).filter((x: any) => !!x.title);
+        const uniqueMap = new Map<string, { id: string; title: string }>();
+        mapped.forEach((item: any) => {
+          const key = item.title.toLowerCase();
+          if (!uniqueMap.has(key)) uniqueMap.set(key, item);
+        });
+        this.testOptions = Array.from(uniqueMap.values()).sort((a, b) => a.title.localeCompare(b.title));
+      },
+      error: (err) => {
+        console.warn('Failed to load test options', err);
+        this.testOptions = [];
+      }
+    });
+  }
+
   loadExams(instituteId: string, loadDependenciesAfter = false) {
     this.loader.show();
     this.examsLoading = true;
@@ -1136,7 +1410,13 @@ export class AdminScheduleTestComponent {
         this.examsRaw = Array.isArray(arr) ? arr : [];
         this.examsList = this.examsRaw.map((e: any) => ({ id: e.exam_id || e.id || e.test_id || e._id, title: e.title || e.name || '' }));
         // if an exam id is already selected, update selectedExam
-        if (this.model && this.model.exam_id) this.onExamChange(this.model.exam_id);
+        if (this.model && this.model.exam_id) {
+          this.onExamChange(this.model.exam_id);
+          if (!this.selectedExam) {
+            this.examCtrl.setValue('', { emitEvent: false });
+            this.model.exam_id = '';
+          }
+        }
         // wire exam autocomplete observable
         try{
           this.filteredExams$ = this.examCtrl.valueChanges.pipe(
@@ -1162,9 +1442,115 @@ export class AdminScheduleTestComponent {
       }
     });
   }
+  hasAppliedFilters = false;
+
+  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
+    if (!this.hasAppliedFilters) return [];
+    const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    if (this.filterCountry) chips.push({ key: 'country', label: `Country: ${this.getCountryLabel(this.filterCountry)}`, removable: true });
+    if (this.filterCity) chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
+    if (this.filterIndustry) chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true });
+    if (this.filterSector) chips.push({ key: 'sector', label: `Sector: ${this.filterSector}`, removable: true });
+    (this.selectedDepartments || []).forEach(id => chips.push({ key: `department:${id}`, label: `Department: ${this.getSelectedName(this.departments, id)}`, removable: true }));
+    (this.selectedTeams || []).forEach(id => chips.push({ key: `team:${id}`, label: `Team: ${this.getSelectedName(this.teams, id)}`, removable: true }));
+    if (this.filterCreationDateAfter) chips.push({ key: 'created_after', label: `Created after: ${this.formatFilterDate(this.filterCreationDateAfter)}`, removable: true });
+    if (this.filterCreationDate) chips.push({ key: 'created_before', label: `Created before: ${this.formatFilterDate(this.filterCreationDate)}`, removable: true });
+    if (this.filterCreatedByMe) chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
+    return chips;
+  }
+
+  getCountryLabel(code: string): string {
+    const found = this.countries.find(c => String(c.code) === String(code));
+    return found ? found.name : String(code || '');
+  }
+
+  getSelectedName(list: any[], selectedId: any): string {
+    const found = (list || []).find(item => String(item?.id) === String(selectedId) || String(item?.dept_id) === String(selectedId) || String(item?.team_id) === String(selectedId));
+    return found?.name || String(selectedId || '');
+  }
+
+  private toApiDateString(value: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  }
+
+  formatFilterDate(value: Date): string {
+    try {
+      return this.toApiDateString(value);
+    } catch (e) {
+      return String(value || '');
+    }
+  }
+
+  removeAppliedFilter(key: string) {
+    if (!key) return;
+    if (key === 'country') { this.filterCountry = ''; this.filterCity = ''; this.onCountryFilterChange(); }
+    else if (key === 'city') { this.filterCity = ''; this.loadInstitutes(); }
+    else if (key === 'industry') { this.filterIndustry = ''; this.filterSector = ''; this.onIndustryFilterChange(); }
+    else if (key === 'sector') { this.filterSector = ''; this.loadInstitutes(); }
+    else if (key.startsWith('department:')) this.selectedDepartments = this.selectedDepartments.filter(id => String(id) !== key.substring('department:'.length));
+    else if (key.startsWith('team:')) this.selectedTeams = this.selectedTeams.filter(id => String(id) !== key.substring('team:'.length));
+    else if (key === 'created_after') this.filterCreationDateAfter = null;
+    else if (key === 'created_before') this.filterCreationDate = null;
+    else if (key === 'created_by_me') this.filterCreatedByMe = false;
+    this.refreshAfterFilterChipChange();
+  }
+
+  clearAppliedFilters() {
+    this.resetFilters();
+  }
+
+  private refreshAfterFilterChipChange() {
+    if (this.appliedFilterChips.length) {
+      this.loadExams(this.model.institute);
+      this.loadInstitutes();
+    } else {
+      this.hasAppliedFilters = false;
+      this.loadExams('');
+      this.loadInstitutes();
+    }
+  }
+
+  openCreatedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.filterCreationDateAfter,
+        endDate: this.filterCreationDate
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.filterCreationDateAfter = res.startDate;
+        this.filterCreationDate = res.endDate;
+      }
+    });
+  }
+
+  getCreatedDateRangeDisplay(): string {
+    const start = this.filterCreationDateAfter;
+    const end = this.filterCreationDate;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(start);
+    const endStr = format(end);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `From ${startStr}`;
+    if (endStr) return `Until ${endStr}`;
+    return '';
+  }
+
   private hasExamFilterValues(): boolean {
     return !!(
-      this.filterExamName ||
       this.filterCountry ||
       this.filterCity ||
       this.filterDepartment ||
@@ -1185,57 +1571,10 @@ export class AdminScheduleTestComponent {
       try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
       return;
     }
-    this.loader.show();
-    // Build the exams API URL using the active filters (include departments/teams explicitly)
-    let url = `${API_BASE}/get-exams-list`;
-    const params: string[] = [];
-    if (this.model && this.model.institute) params.push(`institute_id=${encodeURIComponent(this.model.institute)}`);
-    if (this.filterExamName) params.push(`name=${encodeURIComponent(this.filterExamName)}`);
-    if (this.filterCountry) params.push(`country=${encodeURIComponent(this.filterCountry)}`);
-    const cityName = String(this.filterCity || '').trim();
-    if (cityName) params.push(`city=${encodeURIComponent(cityName)}`);
-    if (this.filterDepartment) params.push(`department=${encodeURIComponent(this.filterDepartment)}`);
-    if (this.filterTeam) params.push(`team=${encodeURIComponent(this.filterTeam)}`);
-    if (this.selectedDepartments && this.selectedDepartments.length) params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
-    if (this.selectedTeams && this.selectedTeams.length) params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
-    if (this.filterIndustry) params.push(`industry=${encodeURIComponent(this.filterIndustry)}`);
-    if (this.filterSector) params.push(`sector=${encodeURIComponent(this.filterSector)}`);
-    if (this.filterCreationDateAfter) params.push(`created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`);
-    if (this.filterCreationDate) params.push(`created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`);
-    if (this.filterCreatedByMe) {
-      try {
-        const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
-        if (raw) {
-          const obj = JSON.parse(raw);
-          const userId = obj?.user_id || obj?.id || obj?._id;
-          if (userId) {
-            params.push(`created_by=${encodeURIComponent(String(userId))}`);
-          }
-        }
-      } catch (e) { }
-    }
-    if (params.length) url += `?${params.join('&')}`;
-
-    this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
-      next: (res) => {
-        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-        this.examsRaw = Array.isArray(arr) ? arr : [];
-        this.examsList = this.examsRaw.map((e: any) => ({ id: e.exam_id || e.id || e.test_id || e._id, title: e.title || e.name || '' }));
-        if (this.model && this.model.exam_id) {
-          const stillExists = this.examsRaw.find((e: any) => String(e.exam_id || e.id || e._id) === String(this.model.exam_id));
-          if (!stillExists) this.selectedExam = null;
-        }
-      },
-      error: (err) => {
-        console.warn('Failed to apply exam filters', err);
-        this.examsList = [];
-        this.examsRaw = [];
-        this.selectedExam = null;
-      },
-      complete: () => {
-        this.loader.hide();
-      }
-    });
+    this.hasAppliedFilters = true;
+    this.loadExams(this.model.institute);
+    this.loadInstitutes();
+    this.closeFiltersOverlay();
   }
 
   // Reset filter fields to defaults and reload exams
@@ -1252,6 +1591,12 @@ export class AdminScheduleTestComponent {
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
     this.filterCreatedByMe = false;
+    this.countrySearch = '';
+    this.industrySearch = '';
+    this.sectorSearch = '';
+    this.citySearch = '';
+    this.filterCityOptions = [];
+
     // Clear the institute selection as well; it lives in a separate autocomplete
     // control, so resetting only `model` fields leaves the visible text behind.
     this.model.institute = '';
@@ -1263,9 +1608,13 @@ export class AdminScheduleTestComponent {
     this.selectedExam = null;
     this.examCtrl.reset('', { emitEvent: false });
     this.updateInstituteDisabledState();
+    this.hasAppliedFilters = false;
+    this.filterCitiesByCountry();
     try { this.cd.detectChanges(); } catch (e) { /* noop */ }
-    // Reload exams without an institute scope so the result list is fully reset.
+    // Reload exams and institutes without an institute scope so the result list is fully reset.
     this.loadExams('');
+    this.loadInstitutes();
+    this.closeFiltersOverlay();
   }
 
   // When exam select value changes, find details and populate selectedExam
