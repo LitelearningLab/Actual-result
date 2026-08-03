@@ -445,7 +445,7 @@
                               <div class="opt-left"><span class="opt-mark">{{ getOptionLetter(oi) }}</span></div>
                               <div class="opt-body"><div class="opt-text">{{ opt && (opt.option_text || opt) }}</div></div>
                               <div class="opt-badge">
-                                 <span *ngIf="isOptionSelected(q,opt)" class="badge your-answer">Your Answer</span>
+                                 <span *ngIf="isOptionSelected(q,opt)" class="badge" [ngClass]="isOptionCorrect(opt) ? 'correct' : 'your-answer'">Your Answer</span>
                                  <span *ngIf="isOptionCorrect(opt)" class="badge" [ngClass]="isOptionSelected(q,opt) ? 'correct' : 'missed'">Correct Answer</span>
                               </div>
                            </div>
