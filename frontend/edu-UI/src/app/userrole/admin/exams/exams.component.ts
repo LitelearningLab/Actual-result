@@ -72,9 +72,13 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   industrySearch = '';
   sectorSearch = '';
   testOptions: Array<{ id: string; title: string }> = [];
+  testSearch = '';
+  testSearchTerm = '';
   // department/team lists used by the filters
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
+  departmentSearch = '';
+  teamSearch = '';
   exams: any[] = [];
   // modal state for viewing exam details
   selectedExam: any = null;
@@ -340,7 +344,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
 
   get filteredTestOptions(): Array<{ id: string; title: string }> {
     if (this.isSuperAdmin && !this.selectedInstitute) return [];
-    const term = (this.filterName || '').trim().toLowerCase();
+    const term = (this.testSearchTerm || this.filterName || '').trim().toLowerCase();
     if (!term) return this.testOptions;
     return this.testOptions.filter(t => t.title.toLowerCase().includes(term));
   }
@@ -353,6 +357,8 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     const url = `${API_BASE}/get-exams-list`;
     const params: any = {};
     if (instId) params.institute_id = instId;
+    if (this.selectedDepartments && this.selectedDepartments.length) params.departments = this.selectedDepartments.join(',');
+    if (this.selectedTeams && this.selectedTeams.length) params.teams = this.selectedTeams.join(',');
     this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
@@ -819,9 +825,13 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.instituteSearch = found ? found.institute_name : '';
   }
 
-  onInstituteSearchChange(val: string) {
+  onInstituteSearchInput(val: string) {
     this.instituteSearch = val || '';
     this.instituteSearchTerm = val || '';
+  }
+
+  onInstituteSearchChange(val: string) {
+    this.onInstituteSearchInput(val);
   }
   private hasFilterValues(): boolean {
     return !!(
@@ -852,6 +862,10 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   onReset() {
     // clear filter fields
     this.filterName = '';
+    this.testSearch = '';
+    this.testSearchTerm = '';
+    this.departmentSearch = '';
+    this.teamSearch = '';
     this.filterCountry = '';
     this.filterCity = '';
     this.filterIndustry = '';
@@ -958,8 +972,10 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   onInstituteChange(value: any) {
     const v = value !== undefined && value !== null ? value : '';
     this.selectedInstitute = v;
+    this.filterName = '';
+    this.testSearch = '';
+    this.testSearchTerm = '';
     if (this.isSuperAdmin && !this.selectedInstitute) {
-      this.filterName = '';
       this.testOptions = [];
     } else {
       this.loadTestOptions(this.selectedInstitute || undefined);
@@ -984,6 +1000,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
         this.departments = arr.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name || d.dept_name || d.title || '' }));
+        this.loadTestOptions(this.selectedInstitute || undefined);
       }, error: (err) => { console.warn('Failed to load departments', err); this.departments = []; }
     });
   }
@@ -996,8 +1013,40 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       next: (res) => {
         const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
         this.teams = arr.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name || t.team_name || t.title || '' }));
+        this.loadTestOptions(this.selectedInstitute || undefined);
       }, error: (err) => { console.warn('Failed to load teams', err); this.teams = []; }
     });
+  }
+
+  onDepartmentsChange() {
+    this.loadTestOptions(this.selectedInstitute || undefined);
+  }
+
+  onTeamsChange() {
+    this.loadTestOptions(this.selectedInstitute || undefined);
+  }
+
+  onTestSearchInput(value: string) {
+    this.testSearch = value || '';
+    this.testSearchTerm = value || '';
+  }
+
+  onTestNameSelected(value: string) {
+    this.filterName = value || '';
+    this.testSearch = value || '';
+    this.testSearchTerm = value || '';
+  }
+
+  get filteredDepartments(): Array<{ id: string; name: string }> {
+    const term = (this.departmentSearch || '').trim().toLowerCase();
+    if (!term) return this.departments;
+    return this.departments.filter(d => (d.name || '').toLowerCase().includes(term));
+  }
+
+  get filteredTeams(): Array<{ id: string; name: string }> {
+    const term = (this.teamSearch || '').trim().toLowerCase();
+    if (!term) return this.teams;
+    return this.teams.filter(t => (t.name || '').toLowerCase().includes(term));
   }
   openCreateTest(): void {
     this.saveTestsReturnState();
@@ -1089,6 +1138,10 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.activeInstituteId = '';
     this.selectedInstitute = '';
     this.instituteSearch = '';
+    this.testSearch = '';
+    this.testSearchTerm = '';
+    this.departmentSearch = '';
+    this.teamSearch = '';
     // Clear all global-scope UI data while preserving the normal filter workflow.
     this.exams = []; this.dataSource.data = []; this.departments = []; this.teams = [];
     this.selectedDepartments = []; this.selectedTeams = []; this.filter = ''; this.dataSource.filter = '';

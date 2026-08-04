@@ -245,7 +245,7 @@ export class AdminScheduleTestComponent {
         const endDt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 0, 0);
         this.model.endDateTime = this.toLocalDateTimeInput(endDt);
       }
-      this.applyDefaultSchedulerName(now);
+      // Leave scheduler name blank until the user selects a test or types one.
     } catch (e) { /* ignore */ }
   }
 
@@ -914,16 +914,55 @@ export class AdminScheduleTestComponent {
 
   filteredSectors(): string[] {
     const industry = String(this.userFilters.industry || '').trim();
-    const source = industry ? (this.sectorMap[industry] || []) : this.industrySectors;
+    const source = industry ? (this.sectorMap[industry] || []) : [];
     const term = String(this.userFilters.sector || '').trim().toLowerCase();
     if (!term) return source;
     return source.filter(s => s.toLowerCase().includes(term));
   }
 
   onIndustryChange() {
-    if (this.userFilters.sector && !this.filteredSectors().includes(this.userFilters.sector)) {
-      this.userFilters.sector = '';
+    // Match manage-test behavior: changing industry always resets sector.
+    this.userFilters.sector = '';
+  }
+
+  isAllDepartmentsSelected(): boolean {
+    return !!(this.departments.length && this.selectedDepartments.length && this.selectedDepartments.length === this.departments.length);
+  }
+
+  isAllTeamsSelected(): boolean {
+    return !!(this.teams.length && this.selectedTeams.length && this.selectedTeams.length === this.teams.length);
+  }
+
+  toggleAllDepartments(checked: boolean): void {
+    this.selectedDepartments = checked ? this.departments.map(d => d.id) : [];
+  }
+
+  toggleAllTeams(checked: boolean): void {
+    this.selectedTeams = checked ? this.teams.map(t => t.id) : [];
+  }
+
+  onDepartmentSelectionChange(): void {
+    if (this.selectedDepartments.includes('__all__')) {
+      this.toggleAllDepartments(true);
+      return;
     }
+    this.selectedDepartments = Array.from(new Set(this.selectedDepartments.filter(id => id !== '__all__')));
+  }
+
+  onTeamSelectionChange(): void {
+    if (this.selectedTeams.includes('__all__')) {
+      this.toggleAllTeams(true);
+      return;
+    }
+    this.selectedTeams = Array.from(new Set(this.selectedTeams.filter(id => id !== '__all__')));
+  }
+
+  get selectedInstituteName(): string {
+    return this.getInstituteName(this.model.institute) || this.model.institute || '';
+  }
+
+  get selectedTestName(): string {
+    return this.selectedExam?.title || this.examCtrl.value?.title || this.model.exam_id || '';
   }
 
   goBack() {
@@ -964,7 +1003,7 @@ export class AdminScheduleTestComponent {
                 try { this.cd.detectChanges(); } catch (e) { /* noop */ }
                 return;
               } else {
-                // If it is filtered out, clear it
+          // If it is filtered out, clear it
                 this.model.institute = '';
                 this.instituteCtrl.setValue('', { emitEvent: false });
                 this.model.exam_id = '';
@@ -974,28 +1013,6 @@ export class AdminScheduleTestComponent {
               }
             }
           } catch (e) { /* ignore */ }
-
-          // Fallback: If user has an institute in session storage, set it as default
-          try {
-            const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
-            if (raw) {
-              const u = JSON.parse(raw);
-              const instId = sessionStorage.getItem('global_institute_id') || u?.institute_id || u?.instituteId || u?.institute || '';
-              if (instId) {
-                // only set if the institute exists in the loaded list
-                const found = this.institutes.find(i => String(i.institute_id) === String(instId));
-                if (found) {
-                  this.model.institute = found.institute_id as any;
-                  // trigger change handlers to populate dependent lists
-                  this.instituteCtrl.setValue(found, { emitEvent: false });
-                  this.updateInstituteDisabledState();
-                  this.onInstituteChange(this.model.institute);
-                  this.applyDefaultSchedulerName();
-                  try { this.cd.detectChanges(); } catch (e) { /* noop */ }
-                }
-              }
-            }
-          } catch (e) { /* ignore malformed session data */ }
         }
       },
       error: (err) => {
@@ -1013,7 +1030,11 @@ export class AdminScheduleTestComponent {
   // from invoking displayWith after setValue, causing the input to appear blank.
   instituteDisabled = false;
   updateInstituteDisabledState() {
-    this.instituteDisabled = !this.isSuperAdmin || this.readOnly || this.scheduleFieldsLocked;
+    this.instituteDisabled = !this.isSuperAdmin || this.readOnly || this.scheduleFieldsLocked || !this.filterInstitute;
+  }
+
+  get testSelectionDisabled(): boolean {
+    return this.readOnly || this.scheduleFieldsLocked || !this.filterInstitute || !this.filterExamName;
   }
 
   private applyScheduleFieldsLock(): void {
@@ -1057,6 +1078,7 @@ export class AdminScheduleTestComponent {
       ? (value.institute_id || value.id || value.instituteId || '')
       : '';
     if (!id) return;
+    if (!this.filterInstitute) return;
     const instituteChanged = String(this.model.institute || '') !== String(id);
     this.model.institute = id;
     if (instituteChanged) {
@@ -1074,6 +1096,7 @@ export class AdminScheduleTestComponent {
       ? (value.id || value.exam_id || value._id || '')
       : '';
     if (!id) return;
+    if (!this.filterExamName) return;
     this.model.exam_id = id;
     this.onExamChange(this.model.exam_id);
     this.examCtrl.setErrors(null);
@@ -1202,6 +1225,8 @@ export class AdminScheduleTestComponent {
   examsRaw: any[] = [];
   selectedExam: any = null;
   // exam filters (UI bound)
+  filterInstitute = '';
+  filterInstituteSearch = '';
   filterExamName = '';
   filterCountry = '';
   filterCity = '';
@@ -1264,6 +1289,24 @@ export class AdminScheduleTestComponent {
     const names = Array.from(new Set((this.testOptions || []).map(o => o.title).filter(Boolean)));
     if (!term) return names;
     return names.filter(n => n.toLowerCase().includes(term));
+  }
+
+  filteredInstitutesForFilter(): Array<{ name: string; institute_id?: string }> {
+    const term = (this.filterInstituteSearch || this.filterInstitute || '').trim().toLowerCase();
+    if (!term) return this.institutes;
+    return (this.institutes || []).filter(inst => (inst.name || '').toLowerCase().includes(term));
+  }
+
+  displayFilterInstitute(value: any): string {
+    if (!value) return '';
+    if (typeof value === 'object') return value.name || '';
+    return this.getInstituteName(value);
+  }
+
+  onFilterInstituteSelected(instituteId: string): void {
+    this.filterInstitute = instituteId || '';
+    this.filterInstituteSearch = this.getInstituteName(this.filterInstitute);
+    this.loadTestOptions(this.filterInstitute || this.model.institute);
   }
 
   loadCitiesForCountry(countryCode: string) {
@@ -1367,6 +1410,9 @@ export class AdminScheduleTestComponent {
     this.examsLoading = true;
     this.examsList = [];
     if (!instituteId) {
+      this.examsRaw = [];
+      this.selectedExam = null;
+      this.examCtrl.setValue('', { emitEvent: false });
       this.examsLoading = false;
       this.loader.hide();
       return;
@@ -1447,6 +1493,8 @@ export class AdminScheduleTestComponent {
   get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
     if (!this.hasAppliedFilters) return [];
     const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    if (this.filterInstitute) chips.push({ key: 'filter_institute', label: `Institute: ${this.getInstituteName(this.filterInstitute)}`, removable: true });
+    if (this.filterExamName) chips.push({ key: 'filter_exam_name', label: `Test: ${this.filterExamName}`, removable: true });
     if (this.filterCountry) chips.push({ key: 'country', label: `Country: ${this.getCountryLabel(this.filterCountry)}`, removable: true });
     if (this.filterCity) chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
     if (this.filterIndustry) chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true });
@@ -1484,6 +1532,8 @@ export class AdminScheduleTestComponent {
 
   removeAppliedFilter(key: string) {
     if (!key) return;
+    if (key === 'filter_institute') { this.filterInstitute = ''; this.filterInstituteSearch = ''; }
+    else if (key === 'filter_exam_name') { this.filterExamName = ''; }
     if (key === 'country') { this.filterCountry = ''; this.filterCity = ''; this.onCountryFilterChange(); }
     else if (key === 'city') { this.filterCity = ''; this.loadInstitutes(); }
     else if (key === 'industry') { this.filterIndustry = ''; this.filterSector = ''; this.onIndustryFilterChange(); }
@@ -1502,11 +1552,11 @@ export class AdminScheduleTestComponent {
 
   private refreshAfterFilterChipChange() {
     if (this.appliedFilterChips.length) {
-      this.loadExams(this.model.institute);
+      this.loadExams(this.filterInstitute || this.model.institute);
       this.loadInstitutes();
     } else {
       this.hasAppliedFilters = false;
-      this.loadExams('');
+      this.loadExams(this.model.institute);
       this.loadInstitutes();
     }
   }
@@ -1551,6 +1601,8 @@ export class AdminScheduleTestComponent {
 
   private hasExamFilterValues(): boolean {
     return !!(
+      this.filterInstitute ||
+      this.filterExamName ||
       this.filterCountry ||
       this.filterCity ||
       this.filterDepartment ||
@@ -1572,13 +1624,21 @@ export class AdminScheduleTestComponent {
       return;
     }
     this.hasAppliedFilters = true;
-    this.loadExams(this.model.institute);
+    this.model.institute = this.filterInstitute || '';
+    this.model.exam_id = '';
+    this.selectedExam = null;
+    this.instituteCtrl.setValue(this.institutes.find(i => String(i.institute_id) === String(this.filterInstitute)) || '', { emitEvent: false });
+    this.examCtrl.setValue('', { emitEvent: false });
+    this.updateInstituteDisabledState();
+    this.loadExams(this.filterInstitute || this.model.institute);
     this.loadInstitutes();
     this.closeFiltersOverlay();
   }
 
   // Reset filter fields to defaults and reload exams
   resetFilters() {
+    this.filterInstitute = '';
+    this.filterInstituteSearch = '';
     this.filterExamName = '';
     this.filterCountry = '';
     this.filterCity = '';
@@ -1612,7 +1672,7 @@ export class AdminScheduleTestComponent {
     this.filterCitiesByCountry();
     try { this.cd.detectChanges(); } catch (e) { /* noop */ }
     // Reload exams and institutes without an institute scope so the result list is fully reset.
-    this.loadExams('');
+    this.loadExams(this.model.institute);
     this.loadInstitutes();
     this.closeFiltersOverlay();
   }

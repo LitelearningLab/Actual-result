@@ -206,6 +206,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return list.filter((i: any) => (i.name || '').toLowerCase().includes(q));
   }
 
+  displayInstituteName = (value: string | null): string => {
+    if (!value) return '';
+    const found = this.institutes.find(i => String(i.id) === String(value));
+    return found ? found.name : String(value);
+  };
+
+  onInstituteAutocompleteSelected(id: string) {
+    this.userFilters.institute_id = id || '';
+    this.selectedInstituteId = id || this.selectedInstituteId;
+    this.onInstituteChange(id || '');
+  }
+
   get filteredCampusList(): string[] {
     const q = (this.searchQueries.campus || '').toLowerCase().trim();
     if (!q) return this.campusList;

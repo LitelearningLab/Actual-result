@@ -40,6 +40,39 @@
                           <div class="filter-block">
 
                                <mat-form-field appearance="outline" class="filter-item">
+                                    <mat-label>Institute</mat-label>
+                                    <input matInput
+                                         placeholder="All Institutes"
+                                         [(ngModel)]="searchQueries.institute"
+                                         [matAutocomplete]="instituteAuto"
+                                         aria-label="Filter by institute" />
+                                    <mat-autocomplete #instituteAuto="matAutocomplete"
+                                         [displayWith]="displayInstituteName"
+                                         (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
+                                         <mat-option value="">Any</mat-option>
+                                         <mat-option *ngFor="let inst of filteredInstitutesList" [value]="inst.id">
+                                              {{ inst.name }}
+                                         </mat-option>
+                                    </mat-autocomplete>
+                               </mat-form-field>
+
+                               <mat-form-field appearance="outline" class="filter-item">
+                                    <mat-label>Test Name</mat-label>
+                                    <input matInput
+                                         placeholder="Test name"
+                                         [(ngModel)]="searchQueries.schedule"
+                                         [matAutocomplete]="testNameAuto"
+                                         aria-label="Filter by test name" />
+                                    <mat-autocomplete #testNameAuto="matAutocomplete"
+                                         (optionSelected)="userFilters.schedule_id = $event.option.value">
+                                         <mat-option value="">Any</mat-option>
+                                         <mat-option *ngFor="let exam of filteredScheduleList" [value]="exam.schedule_id || exam.id">
+                                              {{ exam.title || exam.name }}
+                                         </mat-option>
+                                    </mat-autocomplete>
+                               </mat-form-field>
+
+                               <mat-form-field appearance="outline" class="filter-item">
                                     <mat-label>Country</mat-label>
                                     <mat-select [(ngModel)]="userFilters.country_id" name="filterCountry" (openedChange)="onSelectOpened($event, 'country')" (selectionChange)="onCountryChange()">
                                          <div class="select-search-option" (click)="$event.stopPropagation()">
@@ -91,19 +124,6 @@
                                     </mat-select>
                                </mat-form-field>
 
-                               <mat-form-field appearance="outline" class="filter-item" *ngIf="!isGlobalInstituteActive">
-                                    <mat-label>Institute</mat-label>
-                                    <mat-select [(ngModel)]="userFilters.institute_id" name="filterInstitute" (openedChange)="onSelectOpened($event, 'institute')" (selectionChange)="onInstituteChange($event.value)">
-                                         <div class="select-search-option" (click)="$event.stopPropagation()">
-                                              <input matInput class="select-search-input" placeholder="Search institute..." [(ngModel)]="searchQueries.institute" [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" (keyup)="$event.stopPropagation()" (input)="$event.stopPropagation()" />
-                                         </div>
-                                         <mat-option value="">Any</mat-option>
-                                         <mat-option *ngFor="let inst of filteredInstitutesList" [value]="inst.id">
-                                              {{ inst.name }}
-                                         </mat-option>
-                                    </mat-select>
-                               </mat-form-field>
-
                                <mat-form-field appearance="outline" class="filter-item">
                                     <mat-label>Campus</mat-label>
                                     <mat-select [(ngModel)]="userFilters.campus_id" name="filterCampus" (openedChange)="onSelectOpened($event, 'campus')" (selectionChange)="onCampusChange()">
@@ -137,19 +157,6 @@
                                          </div>
                                          <mat-option *ngFor="let t of filteredTeamList" [value]="t">
                                               {{ t }}
-                                         </mat-option>
-                                    </mat-select>
-                               </mat-form-field>
-
-                               <mat-form-field appearance="outline" class="filter-item">
-                                    <mat-label>Schedule Name</mat-label>
-                                    <mat-select [(ngModel)]="userFilters.schedule_id" name="filterSchedule" (openedChange)="onSelectOpened($event, 'schedule')">
-                                         <div class="select-search-option" (click)="$event.stopPropagation()">
-                                              <input matInput class="select-search-input" placeholder="Search schedule..." [(ngModel)]="searchQueries.schedule" [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" (keyup)="$event.stopPropagation()" (input)="$event.stopPropagation()" />
-                                         </div>
-                                         <mat-option value="">Any</mat-option>
-                                         <mat-option *ngFor="let exam of filteredScheduleList" [value]="exam.schedule_id || exam.id">
-                                              {{ exam.title || exam.name }}
                                          </mat-option>
                                     </mat-select>
                                </mat-form-field>

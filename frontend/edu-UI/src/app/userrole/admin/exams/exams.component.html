@@ -130,13 +130,13 @@
                     <div class="filter-col">
                         <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
                             <mat-label>Institute</mat-label>
-                            <input matInput placeholder="All Institutes" [(ngModel)]="instituteSearch"
-                                (ngModelChange)="onInstituteSearchChange($event)"
+                            <input matInput placeholder="Any" [(ngModel)]="instituteSearch"
+                                (input)="onInstituteSearchInput($any($event.target).value)"
                                 [matAutocomplete]="examInstituteAuto" aria-label="Filter by institute" />
                             <mat-autocomplete #examInstituteAuto="matAutocomplete"
                                 [displayWith]="displayInstitute"
                                 (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
-                                <mat-option value="">All Institutes</mat-option>
+                                <mat-option value="">Any</mat-option>
                                 <mat-option *ngFor="let inst of filteredInstitutes()"
                                     [value]="inst.institute_id">{{inst.institute_name}}</mat-option>
                             </mat-autocomplete>
@@ -145,14 +145,16 @@
                         <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Test Name</mat-label>
                             <input matInput 
-                                placeholder="Test name"
+                                placeholder="Any"
                                 [(ngModel)]="filterName"
+                                (input)="onTestSearchInput($any($event.target).value)"
                                 [matAutocomplete]="testNameAuto"
                                 [disabled]="isSuperAdmin && !selectedInstitute"
                                 aria-label="Filter by test name" />
                             <mat-autocomplete #testNameAuto="matAutocomplete">
-                                <mat-option value="">All Tests</mat-option>
-                                <mat-option *ngFor="let testOpt of filteredTestOptions" [value]="testOpt.title">
+                                <mat-option value="">Any</mat-option>
+                                <mat-option *ngFor="let testOpt of filteredTestOptions" [value]="testOpt.title"
+                                    (onSelectionChange)="onTestNameSelected(testOpt.title)">
                                     {{ testOpt.title }}
                                 </mat-option>
                             </mat-autocomplete>
@@ -161,16 +163,32 @@
                         <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Departments</mat-label>
                             <mat-select multiple [(ngModel)]="selectedDepartments" [disabled]="isSuperAdmin && !selectedInstitute"
-                                placeholder="Select departments">
-                                <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
+                                placeholder="Any" (selectionChange)="onDepartmentsChange()"
+                                (openedChange)="onFilterSelectOpened($event, 'country')">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input matInput class="select-search-input" placeholder="Search departments"
+                                        [(ngModel)]="departmentSearch" [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option *ngFor="let d of filteredDepartments" [value]="d.id">{{d.name}}</mat-option>
                             </mat-select>
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Teams</mat-label>
                             <mat-select multiple [(ngModel)]="selectedTeams" [disabled]="isSuperAdmin && !selectedInstitute"
-                                placeholder="Select teams">
-                                <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
+                                placeholder="Any" (selectionChange)="onTeamsChange()"
+                                (openedChange)="onFilterSelectOpened($event, 'industry')">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input matInput class="select-search-input" placeholder="Search teams"
+                                        [(ngModel)]="teamSearch" [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option *ngFor="let t of filteredTeams" [value]="t.id">{{t.name}}</mat-option>
                             </mat-select>
                         </mat-form-field>
                     </div>
