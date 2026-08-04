@@ -246,9 +246,15 @@
                 role="grid"
                 aria-label="Tests list table">
 
+                <!-- Serial Number Column -->
+                <ng-container matColumnDef="sno">
+                    <th mat-header-cell *matHeaderCellDef>S.No</th>
+                    <td mat-cell *matCellDef="let e; let i = index">{{ getRowNumber(i) }}</td>
+                </ng-container>
+
                 <!-- Title Column -->
                 <ng-container matColumnDef="title">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Test Name</th>
                     <td mat-cell *matCellDef="let e" class="cell-primary">
                         <div class="item-cell">
                             <!-- <div class="item-avatar item-avatar--exam">{{ (e.title || '?').charAt(0).toUpperCase() }}</div> -->
@@ -263,7 +269,11 @@
                 <!-- Description Column -->
                 <ng-container matColumnDef="description">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>Description</th>
-                    <td mat-cell *matCellDef="let e">{{ e.description }}</td>
+                    <td mat-cell *matCellDef="let e">
+                        <span class="item-description" [matTooltip]="e.description || ''">
+                            {{ e.description || '-' }}
+                        </span>
+                    </td>
                 </ng-container>
 
                 <!-- Questions Column -->

@@ -8,6 +8,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -33,7 +34,7 @@ import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/s
 @Component({
   selector: 'app-admin-exams',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, HttpClientModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatAutocompleteModule, MatButtonModule, MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule, MatListModule, MatTabsModule, MatDatepickerModule, MatCheckboxModule, OverlayModule, PortalModule, DirectivesModule],
+  imports: [CommonModule, FormsModule, RouterModule, HttpClientModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatAutocompleteModule, MatButtonModule, MatTooltipModule, MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule, MatListModule, MatTabsModule, MatDatepickerModule, MatCheckboxModule, OverlayModule, PortalModule, DirectivesModule],
   templateUrl: './exams.component.html',
   styleUrls: ['./exams.component.scss']
 })
@@ -83,7 +84,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   // modal state for viewing exam details
   selectedExam: any = null;
   showModal = false;
-  displayedColumns: string[] = ['title', 'description', 'total_questions', 'duration_mins', 'number_of_attempts', 'actions'];
+  displayedColumns: string[] = ['sno', 'title', 'description', 'total_questions', 'duration_mins', 'number_of_attempts', 'actions'];
   dataSource = new MatTableDataSource<any>([]);
   hasAppliedFilters = false;
   private shouldLoadTestsAfterInstitutes = false;
@@ -162,6 +163,12 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   }
   applyFilter(filterValue: string) {
     this.dataSource.filter = filterValue.trim().toLowerCase();
+  }
+
+  getRowNumber(index: number): number {
+    const pageIndex = this.paginator?.pageIndex || 0;
+    const pageSize = this.paginator?.pageSize || this.dataSource.filteredData.length || 1;
+    return pageIndex * pageSize + index + 1;
   }
   private filtersOverlayRef: OverlayRef | null = null;
 
