@@ -209,22 +209,14 @@
                            </div>
                            <div class="toggle-setting toggle-setting--review">
                               <mat-slide-toggle [formControl]="instantReviewControl">Instant Review</mat-slide-toggle>
-                              <span>Make the selected review content available immediately after submission.</span>
+                              <span>{{ instantReviewControl.value ? 'Review is available immediately after test submission.': 'Review is available based on the configured review schedule.' }}</span>
                            </div>
                            <div *ngIf="!model.userreview" class="review-options" aria-label="Review availability">
-                              <mat-checkbox [checked]="noReviewChecked" (change)="onNoReviewChange($event.checked)"
-                                 [disabled]="readOnly">No Review</mat-checkbox>
-                              <mat-checkbox [checked]="manualReviewChecked" (change)="onManualReviewChange($event.checked)"
-                                 [disabled]="readOnly">Manual Review</mat-checkbox>
-                              <div *ngIf="model.reviewMode === 'manual' || model.reviewMode === 'no_review'" class="toggle-setting toggle-setting--manual-access">
-                                 <mat-slide-toggle [formControl]="manualReviewEnabledControl">Enable Review Access</mat-slide-toggle>
-                                 <span>Show review to students after their attempt has been evaluated.</span>
-                              </div>
-                              <mat-radio-group [ngModel]="radioReviewMode" (ngModelChange)="onRadioReviewModeChange($event)"
-                                 name="reviewMode" [disabled]="readOnly" aria-label="Timed review availability">
+                              <mat-radio-group [ngModel]="radioReviewMode" (ngModelChange)="onRadioReviewModeChange($event)" name="reviewMode" [disabled]="readOnly" aria-label="Review availability">       
                                  <mat-radio-button value="after_schedule_ends">After Test Schedule Ends</mat-radio-button>
                                  <mat-radio-button value="after_everyone_finishes">After Everyone Finishes</mat-radio-button>
                                  <mat-radio-button value="scheduled">Schedule Review</mat-radio-button>
+                                 <mat-radio-button value="manual">Manual Review</mat-radio-button>
                               </mat-radio-group>
                                <div *ngIf="model.reviewMode === 'scheduled'" class="review-schedule-fields" [formGroup]="reviewScheduleForm">
                                   <mat-form-field appearance="outline">

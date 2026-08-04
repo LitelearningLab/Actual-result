@@ -409,11 +409,11 @@ export class AdminScheduleTestComponent {
     return this.model.reviewMode === 'manual' || this.noReviewChecked;
   }
 
-  get radioReviewMode(): string | null {
-    return ['after_schedule_ends', 'after_everyone_finishes', 'scheduled'].includes(this.model.reviewMode)
-      ? this.model.reviewMode
-      : null;
-  }
+  get radioReviewMode(): string {
+    return ['manual', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled'].includes(this.model.reviewMode)
+    ? this.model.reviewMode
+    : 'after_schedule_ends';
+}
 
 
   onNoReviewChange(checked: boolean): void {
@@ -434,11 +434,11 @@ export class AdminScheduleTestComponent {
   }
 
   onRadioReviewModeChange(value: string): void {
-    if (!['after_schedule_ends', 'after_everyone_finishes', 'scheduled'].includes(value)) return;
+    if (!['manual', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled'].includes(value)) return;
     this.model.reviewMode = value;
     this.syncMultipleReviewAvailability();
     this.markDirty();
-  }
+}
 
   // Multiple Review is independent of review timing; it only controls whether
   // an available review can be reopened after its first successful view.
