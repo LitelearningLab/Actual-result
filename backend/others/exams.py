@@ -3,7 +3,7 @@ from db.db import SQLiteDB
 from others.exam_review import finalize_expired_attempts, is_after_everyone_finished_available, is_review_eligible_attempt, validate_answers
 import sys
 from datetime import datetime, timezone
-from db.models import Institute, User
+from db.models import Institute, InstituteCampus, User
 from sqlalchemy import func, or_
 from sqlalchemy.orm import load_only
 import random
@@ -414,23 +414,33 @@ def get_exam_details(request):
                 matching_exam_ids = list(set(cat_exam_ids + user_exam_ids + sched_exam_ids))
                 filter.append(Exam.exam_id.in_(matching_exam_ids if matching_exam_ids else ['__none__']))
 
+        # Country/city filters come from the location hierarchy used by the institute picker.
+        # Match against institute campus data first, then fall back to any text stored on Institute.
         if args.get("country", None):
             country_val = str(args.get("country")).strip().lower()
-            filter.append(or_(Institute.country_id.ilike(country_val), Institute.country_name.ilike(f"%{country_val}%")))
+            filter.append(or_(
+                InstituteCampus.country_id.ilike(country_val),
+                Institute.country.ilike(f"%{country_val}%")
+            ))
         if args.get("city", None):
             city_val = str(args.get("city")).strip().lower()
-            filter.append(or_(Institute.city_id.ilike(city_val), Institute.city_name.ilike(f"%{city_val}%")))
+            filter.append(or_(
+                InstituteCampus.city_name.ilike(f"%{city_val}%"),
+                Institute.city.ilike(f"%{city_val}%")
+            ))
         if args.get("industry", None):
             ind_val = str(args.get("industry")).strip().lower()
             filter.append(Institute.industry_type.ilike(f"%{ind_val}%"))
         if args.get("sector", None):
             sec_val = str(args.get("sector")).strip().lower()
-            filter.append(Institute.sector.ilike(f"%{sec_val}%"))
-            
+            filter.append(Institute.industry_sector.ilike(f"%{sec_val}%"))
 
         # join with Institute to fetch institute details as well
         # rows = session.query(ExamScheduleMapping, ExamSchedule, Exam).join(ExamSchedule, ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id).join(Exam, ExamSchedule.exam_id == Exam.exam_id).filter(*filter).all()
-        rows = session.query(Exam, Institute).join(Institute, Exam.institute_id == Institute.institute_id).filter(*filter).order_by(Exam.created_date.desc()).all()
+        rows = session.query(Exam, Institute).join(Institute, Exam.institute_id == Institute.institute_id)
+        if args.get("country", None) or args.get("city", None):
+            rows = rows.outerjoin(InstituteCampus, InstituteCampus.institute_id == Institute.institute_id)
+        rows = rows.filter(*filter).order_by(Exam.created_date.desc()).all()
 
         # keep exams as list of Exam objects for existing usage
         exams = [row[0] for row in rows]

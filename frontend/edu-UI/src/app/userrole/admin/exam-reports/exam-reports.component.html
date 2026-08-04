@@ -8,11 +8,23 @@
                          placeholder="Institute Name" aria-label="Institute" />
                </mat-form-field>
 
-               <mat-form-field appearance="outline" class="scheduled-test-field disabled-toolbar-field">
-                    <mat-label>Scheduled Test</mat-label>
+               <mat-form-field appearance="outline" class="scheduled-test-field">
+                    <mat-label>Test</mat-label>
                     <mat-icon matPrefix svgIcon="exam"></mat-icon>
-                    <input type="text" matInput [value]="selectedExamTitle" disabled
-                         placeholder="Schedule Test" aria-label="Scheduled test" />
+                    <input type="text"
+                         matInput
+                         [formControl]="examCtrl"
+                         [matAutocomplete]="testAuto"
+                         [placeholder]="selectedInstituteName ? 'Select test' : 'Select institute first'"
+                         [readonly]="!selectedInstituteId"
+                         aria-label="Test" />
+                    <mat-autocomplete #testAuto="matAutocomplete"
+                         [displayWith]="displayTest"
+                         (optionSelected)="onTestAutocompleteSelected($event.option.value)">
+                         <mat-option *ngFor="let exam of filteredTests$ | async" [value]="exam">
+                              {{ exam.title || exam.name }}
+                         </mat-option>
+                    </mat-autocomplete>
                </mat-form-field>
           </div>
 
@@ -206,8 +218,8 @@
                     <mat-icon>analytics</mat-icon>
                </div>
                <h3 class="empty-state-title">No Test Selected</h3>
-               <p class="empty-state-description">
-                    Please select an <strong>Institute</strong> and a <strong>Scheduled Test</strong> from the toolbar above or use the <strong>Filter Panel</strong> to load test reports and analytics.
+                    <p class="empty-state-description">
+                    Please select an <strong>Institute</strong> and a <strong>Test</strong> from the toolbar above or use the <strong>Filter Panel</strong> to load test reports and analytics.
                </p>
                <button mat-flat-button type="button" class="button-one empty-action-btn" (click)="openFiltersOverlay()">
                     <mat-icon svgIcon="filter"></mat-icon> Filter Test Reports
