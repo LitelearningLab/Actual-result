@@ -1,6 +1,23 @@
-import { Component, ChangeDetectorRef, ViewChild, ElementRef, TemplateRef, ViewContainerRef, HostListener } from '@angular/core';
+import {
+  Component,
+  ChangeDetectorRef,
+  ViewChild,
+  ElementRef,
+  TemplateRef,
+  ViewContainerRef,
+  HostListener,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormControl, FormGroup, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import {
+  FormsModule,
+  ReactiveFormsModule,
+  FormControl,
+  FormGroup,
+  FormBuilder,
+  Validators,
+  AbstractControl,
+  ValidationErrors,
+} from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Router, RouterModule } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -18,7 +35,10 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { Overlay, OverlayRef, OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
+import {
+  DateRangePickerDialogComponent,
+  DateRangeDialogResult,
+} from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { API_BASE } from 'src/app/shared/api.config';
 import { BehaviorSubject, combineLatest, Observable, of } from 'rxjs';
 import { startWith, map, retry } from 'rxjs/operators';
@@ -29,9 +49,30 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 @Component({
   selector: 'app-admin-schedule-test',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatIconModule, MatButtonModule, MatCheckboxModule, MatRadioModule, MatSlideToggleModule, MatListModule, MatDatepickerModule, MatStepperModule, OverlayModule, PortalModule, MatAutocompleteModule, MatDialogModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    HttpClientModule,
+    RouterModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatInputModule,
+    MatIconModule,
+    MatButtonModule,
+    MatCheckboxModule,
+    MatRadioModule,
+    MatSlideToggleModule,
+    MatListModule,
+    MatDatepickerModule,
+    MatStepperModule,
+    OverlayModule,
+    PortalModule,
+    MatAutocompleteModule,
+    MatDialogModule,
+  ],
   templateUrl: './schedule-test.component.html',
-  styleUrls: ['./schedule-test.component.scss']
+  styleUrls: ['./schedule-test.component.scss'],
 })
 export class AdminScheduleTestComponent {
   @ViewChild('testInput') testInput?: ElementRef<HTMLInputElement>;
@@ -39,19 +80,21 @@ export class AdminScheduleTestComponent {
   institutes: Array<{ name: string; institute_id?: string; short_name?: string }> = [];
   // autocomplete controls for institute/exam
   instituteCtrl: FormControl = new FormControl('');
-  private institutesSubject = new BehaviorSubject<Array<{ name: string; institute_id?: string; short_name?: string }>>([]);
+  private institutesSubject = new BehaviorSubject<
+    Array<{ name: string; institute_id?: string; short_name?: string }>
+  >([]);
   institutesLoading = false;
   institutesLoadFailed = false;
   filteredInstitutes$: Observable<any[]> = combineLatest([
     this.institutesSubject,
-    this.instituteCtrl.valueChanges.pipe(startWith(this.instituteCtrl.value))
+    this.instituteCtrl.valueChanges.pipe(startWith(this.instituteCtrl.value)),
   ]).pipe(
     map(([institutes, value]) => {
       // An object value represents an existing selection. Only free text should
       // filter the panel; reopening a selected control must show every option.
       const query = typeof value === 'string' ? value.trim().toLowerCase() : '';
       return query
-        ? institutes.filter(institute => (institute.name || '').toLowerCase().includes(query))
+        ? institutes.filter((institute) => (institute.name || '').toLowerCase().includes(query))
         : institutes;
     })
   );
@@ -60,10 +103,25 @@ export class AdminScheduleTestComponent {
   batches = ['Batch A', 'Batch B', 'Batch C'];
 
   // User selection related
-  users: Array<{ id: string; name: string; email?: string; institute?: string; department?: string; team?: string }> = [];
+  users: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    institute?: string;
+    department?: string;
+    team?: string;
+  }> = [];
   selectedUsers: string[] = [];
   selectAll = false;
-  userFilters: any = { department_id: '', teams_id: '', country_id: '', city_id: '', campus_id: '', industry: '', sector: '' };
+  userFilters: any = {
+    department_id: '',
+    teams_id: '',
+    country_id: '',
+    city_id: '',
+    campus_id: '',
+    industry: '',
+    sector: '',
+  };
   departmentList: string[] = [];
   teamList: string[] = [];
   campusList: string[] = [];
@@ -77,7 +135,7 @@ export class AdminScheduleTestComponent {
     College: ['Engineering', 'Arts', 'Healthcare'],
     BPO: ['BPO', 'Customer Support', 'Operations'],
     Bank: ['Banking', 'Finance'],
-    IT: ['IT', 'Software', 'Technology']
+    IT: ['IT', 'Software', 'Technology'],
   };
 
   model: any = {
@@ -111,12 +169,11 @@ export class AdminScheduleTestComponent {
     showStudentAnswers: true,
     showExplanations: true,
     // initialize categories so UI can bind reliably
-    categories: [] as Array<{ name: string, questions: number }>
+    categories: [] as Array<{ name: string; questions: number }>,
   };
 
   // categories support
   newCategory: { name: string; questions: number } = { name: '', questions: 0 };
-
 
   readOnly = false;
   // Applies only to edits after the first Exam_Attempt; review controls stay enabled.
@@ -131,7 +188,13 @@ export class AdminScheduleTestComponent {
   private submitted = false;
 
   scheduled: any[] = [
-    { institute: 'Institute Alpha', testName: 'Math Test', start: '2025-09-28 10:00', duration: 60, published: true }
+    {
+      institute: 'Institute Alpha',
+      testName: 'Math Test',
+      start: '2025-09-28 10:00',
+      duration: 60,
+      published: true,
+    },
   ];
 
   toggleBatch(name: string) {
@@ -143,7 +206,9 @@ export class AdminScheduleTestComponent {
   ngOnInit(): void {
     try {
       this.pageMeta.setMeta('Test Schedule', 'Schedule and manage tests for your institute');
-    } catch (e) { /* ignore if service not available */ }
+    } catch (e) {
+      /* ignore if service not available */
+    }
   }
   // Load users from backend using filters (reuses get-users endpoint conventions)
   loadUsers() {
@@ -161,25 +226,66 @@ export class AdminScheduleTestComponent {
     if (this.userFilters.industry) params.industry = this.userFilters.industry;
     if (this.userFilters.sector) params.sector = this.userFilters.sector;
     // Backwards-compatible fallbacks (in case template still binds older keys)
-    if (!params.department_id && (this.userFilters.department || this.userFilters.department_id)) params.department_id = this.userFilters.department || this.userFilters.department_id;
-    if (!params.teams_id && (this.userFilters.team || this.userFilters.teams_id || this.userFilters.team_id)) params.teams_id = this.userFilters.teams_id || this.userFilters.team || this.userFilters.team_id;
-    if (!params.country_id && (this.userFilters.country || this.userFilters.country_id)) params.country_id = this.userFilters.country || this.userFilters.country_id;
-    if (!params.city_id && (this.userFilters.city || this.userFilters.city_id)) params.city_id = this.userFilters.city || this.userFilters.city_id;
-    if (!params.campus_id && (this.userFilters.campus || this.userFilters.campus_id)) params.campus_id = this.userFilters.campus || this.userFilters.campus_id;
+    if (!params.department_id && (this.userFilters.department || this.userFilters.department_id))
+      params.department_id = this.userFilters.department || this.userFilters.department_id;
+    if (
+      !params.teams_id &&
+      (this.userFilters.team || this.userFilters.teams_id || this.userFilters.team_id)
+    )
+      params.teams_id =
+        this.userFilters.teams_id || this.userFilters.team || this.userFilters.team_id;
+    if (!params.country_id && (this.userFilters.country || this.userFilters.country_id))
+      params.country_id = this.userFilters.country || this.userFilters.country_id;
+    if (!params.city_id && (this.userFilters.city || this.userFilters.city_id))
+      params.city_id = this.userFilters.city || this.userFilters.city_id;
+    if (!params.campus_id && (this.userFilters.campus || this.userFilters.campus_id))
+      params.campus_id = this.userFilters.campus || this.userFilters.campus_id;
     if (!params.industry && this.userFilters.industry) params.industry = this.userFilters.industry;
     if (!params.sector && this.userFilters.sector) params.sector = this.userFilters.sector;
     if (this.model.institute) params.institute_id = this.model.institute;
     this.http.get<any>(url, { params, ...this.explicitInstituteRequestOptions() }).subscribe({
       next: (res) => {
         const data = res?.data || [];
-        this.users = Array.isArray(data) ? data.map((u: any) => ({ id: String(u.user_id || u.id || ''), name: u.full_name || u.user_name || u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim(), email: u.email, institute: u.institute_name || (u.institute && u.institute.institute_name) || '', department: u.department_name || (u.department && (u.department.name || u.department.department_name)) || '', team: u.team_name || (u.team && (u.team.name || u.team.team_name)) || '' })) : [];
+        this.users = Array.isArray(data)
+          ? data.map((u: any) => ({
+              id: String(u.user_id || u.id || ''),
+              name:
+                u.full_name ||
+                u.user_name ||
+                u.name ||
+                `${u.first_name || ''} ${u.last_name || ''}`.trim(),
+              email: u.email,
+              institute: u.institute_name || (u.institute && u.institute.institute_name) || '',
+              department:
+                u.department_name ||
+                (u.department && (u.department.name || u.department.department_name)) ||
+                '',
+              team: u.team_name || (u.team && (u.team.name || u.team.team_name)) || '',
+            }))
+          : [];
         // prefill department/team/campus lists if empty
-        if (this.departmentList.length === 0) { this.departmentList = Array.from(new Set(this.users.map(u => u.department || '').filter((s: string) => !!s))); }
-        if (this.teamList.length === 0) { this.teamList = Array.from(new Set(this.users.map(u => u.team || '').filter((s: string) => !!s))); }
-        if (this.campusList.length === 0) { this.campusList = Array.from(new Set(this.users.map(u => u.institute || '').filter((s: string) => !!s))); }
+        if (this.departmentList.length === 0) {
+          this.departmentList = Array.from(
+            new Set(this.users.map((u) => u.department || '').filter((s: string) => !!s))
+          );
+        }
+        if (this.teamList.length === 0) {
+          this.teamList = Array.from(
+            new Set(this.users.map((u) => u.team || '').filter((s: string) => !!s))
+          );
+        }
+        if (this.campusList.length === 0) {
+          this.campusList = Array.from(
+            new Set(this.users.map((u) => u.institute || '').filter((s: string) => !!s))
+          );
+        }
       },
-      error: () => { this.users = []; },
-      complete: () => { this.loader.hide(); }
+      error: () => {
+        this.users = [];
+      },
+      complete: () => {
+        this.loader.hide();
+      },
     });
   }
 
@@ -194,7 +300,7 @@ export class AdminScheduleTestComponent {
   toggleSelectAll(checked: boolean) {
     if (this.readOnly || this.scheduleFieldsLocked) return;
     this.selectAll = !!checked;
-    if (this.selectAll) this.selectedUsers = this.users.map(u => u.id);
+    if (this.selectAll) this.selectedUsers = this.users.map((u) => u.id);
     else this.selectedUsers = [];
   }
 
@@ -237,7 +343,8 @@ export class AdminScheduleTestComponent {
       // Only set defaults if fields are not already populated (e.g. when editing/viewing)
       if (!this.model.startDate) this.model.startDate = today;
       if (!this.model.startTime) this.model.startTime = nowTime;
-      if (!this.model.startDateTime) this.model.startDateTime = this.toLocalDateTimeInput(new Date());
+      if (!this.model.startDateTime)
+        this.model.startDateTime = this.toLocalDateTimeInput(new Date());
 
       if (!this.model.endDate) this.model.endDate = today;
       if (!this.model.endTime) this.model.endTime = '23:59';
@@ -246,7 +353,9 @@ export class AdminScheduleTestComponent {
         this.model.endDateTime = this.toLocalDateTimeInput(endDt);
       }
       // Leave scheduler name blank until the user selects a test or types one.
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   }
 
   private formatSchedulerDateTime(date: Date): string {
@@ -272,31 +381,52 @@ export class AdminScheduleTestComponent {
   }
 
   addCategory() {
-    if (!this.newCategory || !this.newCategory.name || !(Number(this.newCategory.questions) > 0)) return;
+    if (!this.newCategory || !this.newCategory.name || !(Number(this.newCategory.questions) > 0))
+      return;
     this.ensureCategories();
-    const entry = { name: String(this.newCategory.name).trim(), questions: Number(this.newCategory.questions) };
+    const entry = {
+      name: String(this.newCategory.name).trim(),
+      questions: Number(this.newCategory.questions),
+    };
     // assign a new array to help Angular detect changes
     this.model.categories = (this.model.categories || []).concat([entry]);
     this.newCategory = { name: '', questions: 0 };
     // ensure Angular view updates when using programmatic array replacement
-    try { this.cd.detectChanges(); } catch (e) { /* noop */ }
+    try {
+      this.cd.detectChanges();
+    } catch (e) {
+      /* noop */
+    }
   }
 
   removeCategory(index: number) {
     this.ensureCategories();
     if (index >= 0 && index < this.model.categories.length) {
       this.model.categories = this.model.categories.filter((_: any, i: number) => i !== index);
-      try { this.cd.detectChanges(); } catch (e) { /* noop */ }
+      try {
+        this.cd.detectChanges();
+      } catch (e) {
+        /* noop */
+      }
     }
   }
-
 
   // Use the lightweight selector endpoint. `/get-institutes` builds the full
   // management view (departments, teams, campuses and user counts per row),
   // which can be slow enough to leave an autocomplete with no options.
   private apiUrl = `${API_BASE}/get-institute-list`;
 
-  constructor(private http: HttpClient, private router: Router, private loader: LoaderService,private cd: ChangeDetectorRef, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private fb: FormBuilder, private dialog: MatDialog) {
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+    private loader: LoaderService,
+    private cd: ChangeDetectorRef,
+    private pageMeta: PageMetaService,
+    private overlay: Overlay,
+    private vcr: ViewContainerRef,
+    private fb: FormBuilder,
+    private dialog: MatDialog
+  ) {
     this.loadInstitutes();
     this.loadCountries();
     // this.loadUsers();
@@ -305,10 +435,11 @@ export class AdminScheduleTestComponent {
     this.initializeDefaults();
     this.initializeValidationForms();
     this.refreshPersistedReviewSettings();
-    this.examCtrl.valueChanges.subscribe(value => {
-      const selectedId = value && typeof value === 'object'
-        ? (value.id || value.exam_id || value.test_id || value._id)
-        : '';
+    this.examCtrl.valueChanges.subscribe((value) => {
+      const selectedId =
+        value && typeof value === 'object'
+          ? value.id || value.exam_id || value.test_id || value._id
+          : '';
       if (!selectedId || String(selectedId) !== String(this.model.exam_id || '')) {
         // Typed, cleared, or otherwise invalid text is not a selected Test.
         this.model.exam_id = '';
@@ -320,46 +451,63 @@ export class AdminScheduleTestComponent {
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       if (raw) {
         const u = JSON.parse(raw);
-        this.isSuperAdmin = !!(u && (u.is_super_admin === true || u.isSuperAdmin || u.role === 'super_admin' || u.user_role === 'super_admin'));
+        this.isSuperAdmin = !!(
+          u &&
+          (u.is_super_admin === true ||
+            u.isSuperAdmin ||
+            u.role === 'super_admin' ||
+            u.user_role === 'super_admin')
+        );
       }
-    } catch (e) { /* ignore parse errors */ }
+    } catch (e) {
+      /* ignore parse errors */
+    }
     this.updateInstituteDisabledState();
   }
 
   private initializeValidationForms(): void {
-    this.scheduleTimingForm = this.fb.group({
-      startDate: [this.model.startDate, Validators.required],
-      startTime: [this.model.startTime, [Validators.required, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)]],
-      endDate: [this.model.endDate],
-      endTime: [this.model.endTime, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)]
-    }, { validators: this.endAfterStartValidator });
-    this.reviewScheduleForm = this.fb.group({
-      reviewDate: [this.reviewDateAsPickerValue()],
-      reviewTime: [this.model.reviewTime, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
-      reviewEndDate: [this.reviewEndDateAsPickerValue()],
-      reviewEndTime: [this.model.reviewEndTime, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)]
-    }, { validators: this.reviewScheduleValidator });
+    this.scheduleTimingForm = this.fb.group(
+      {
+        startDate: [this.model.startDate, Validators.required],
+        startTime: [
+          this.model.startTime,
+          [Validators.required, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
+        ],
+        endDate: [this.model.endDate],
+        endTime: [this.model.endTime, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
+      },
+      { validators: this.endAfterStartValidator }
+    );
+    this.reviewScheduleForm = this.fb.group(
+      {
+        reviewDate: [this.reviewDateAsPickerValue()],
+        reviewTime: [this.model.reviewTime, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
+        reviewEndDate: [this.reviewEndDateAsPickerValue()],
+        reviewEndTime: [this.model.reviewEndTime, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
+      },
+      { validators: this.reviewScheduleValidator }
+    );
     this.reviewBehaviorForm = this.fb.group({
       multipleReview: [this.normalizeBoolean(this.model.multiplereview)],
       instantReview: [this.normalizeBoolean(this.model.userreview)],
-      manualReviewEnabled: [this.normalizeBoolean(this.model.manualReviewEnabled)]
+      manualReviewEnabled: [this.normalizeBoolean(this.model.manualReviewEnabled)],
     });
 
-    this.scheduleTimingForm.valueChanges.subscribe(value => {
+    this.scheduleTimingForm.valueChanges.subscribe((value) => {
       Object.assign(this.model, value);
       this.markDirty();
       if (this.reviewScheduleForm) {
         this.reviewScheduleForm.updateValueAndValidity({ emitEvent: false });
       }
     });
-    this.reviewScheduleForm.valueChanges.subscribe(value => {
+    this.reviewScheduleForm.valueChanges.subscribe((value) => {
       this.model.reviewDate = value.reviewDate;
       this.model.reviewTime = value.reviewTime;
       this.model.reviewEndDate = value.reviewEndDate;
       this.model.reviewEndTime = value.reviewEndTime;
       this.markDirty();
     });
-    this.reviewBehaviorForm.valueChanges.subscribe(value => {
+    this.reviewBehaviorForm.valueChanges.subscribe((value) => {
       // Keep the legacy model fields synchronized for the review preview and API
       // compatibility. The reactive controls remain the toggle source of truth.
       this.model.multiplereview = this.normalizeBoolean(value.multipleReview);
@@ -383,7 +531,8 @@ export class AdminScheduleTestComponent {
   private normalizeBoolean(value: any): boolean {
     if (typeof value === 'boolean') return value;
     if (typeof value === 'number') return value === 1;
-    if (typeof value === 'string') return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
+    if (typeof value === 'string')
+      return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
     return !!value;
   }
 
@@ -410,11 +559,12 @@ export class AdminScheduleTestComponent {
   }
 
   get radioReviewMode(): string {
-    return ['manual', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled'].includes(this.model.reviewMode)
-    ? this.model.reviewMode
-    : 'after_schedule_ends';
-}
-
+    return ['manual', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled'].includes(
+      this.model.reviewMode
+    )
+      ? this.model.reviewMode
+      : 'after_schedule_ends';
+  }
 
   onNoReviewChange(checked: boolean): void {
     this.model.reviewMode = checked ? 'no_review' : 'manual';
@@ -434,11 +584,12 @@ export class AdminScheduleTestComponent {
   }
 
   onRadioReviewModeChange(value: string): void {
-    if (!['manual', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled'].includes(value)) return;
+    if (!['manual', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled'].includes(value))
+      return;
     this.model.reviewMode = value;
     this.syncMultipleReviewAvailability();
     this.markDirty();
-}
+  }
 
   // Multiple Review is independent of review timing; it only controls whether
   // an available review can be reopened after its first successful view.
@@ -458,9 +609,9 @@ export class AdminScheduleTestComponent {
     const url = `${API_BASE}/get-exam-schedule-details`;
     this.http.get<any>(url, { params: { schedule_id: String(scheduleId) } }).subscribe({
       next: (response) => {
-        const schedules = Array.isArray(response) ? response : (response?.data || []);
-        const persisted = schedules.find((item: any) =>
-          String(item?.schedule_id || item?.id || item?._id) === String(scheduleId)
+        const schedules = Array.isArray(response) ? response : response?.data || [];
+        const persisted = schedules.find(
+          (item: any) => String(item?.schedule_id || item?.id || item?._id) === String(scheduleId)
         );
         if (!persisted) return;
 
@@ -478,26 +629,34 @@ export class AdminScheduleTestComponent {
         this.model.userreview = instantReview;
         this.model.multiplereview = multipleReview;
         this.model.manualReviewEnabled = manualReviewEnabled;
-        this.applyReviewSettings(persisted, value => this.normalizeBoolean(value));
+        this.applyReviewSettings(persisted, (value) => this.normalizeBoolean(value));
         this.reviewBehaviorForm.patchValue(
           { instantReview, multipleReview, manualReviewEnabled },
           { emitEvent: false }
         );
-        this.reviewScheduleForm.patchValue({
-          reviewDate: this.reviewDateAsPickerValue(),
-          reviewTime: this.model.reviewTime,
-          reviewEndDate: this.reviewEndDateAsPickerValue(),
-          reviewEndTime: this.model.reviewEndTime
-        }, { emitEvent: false });
+        this.reviewScheduleForm.patchValue(
+          {
+            reviewDate: this.reviewDateAsPickerValue(),
+            reviewTime: this.model.reviewTime,
+            reviewEndDate: this.reviewEndDateAsPickerValue(),
+            reviewEndTime: this.model.reviewEndTime,
+          },
+          { emitEvent: false }
+        );
         this.syncMultipleReviewAvailability();
-        try { this.cd.detectChanges(); } catch (e) { /* noop */ }
+        try {
+          this.cd.detectChanges();
+        } catch (e) {
+          /* noop */
+        }
       },
-      error: (error) => console.warn('Failed to refresh persisted review settings', error)
+      error: (error) => console.warn('Failed to refresh persisted review settings', error),
     });
   }
 
   private combineDateAndTime(dateValue: any, timeValue: any): Date | null {
-    if (!dateValue || !timeValue || !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(timeValue))) return null;
+    if (!dateValue || !timeValue || !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(timeValue)))
+      return null;
     let date: Date | null = null;
     if (dateValue instanceof Date) {
       date = isNaN(dateValue.getTime()) ? null : dateValue;
@@ -520,7 +679,15 @@ export class AdminScheduleTestComponent {
     }
     if (!date) return null;
     const [hours, minutes] = String(timeValue).split(':').map(Number);
-    const combined = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, 0, 0);
+    const combined = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      hours,
+      minutes,
+      0,
+      0
+    );
     return isNaN(combined.getTime()) ? null : combined;
   }
 
@@ -611,7 +778,7 @@ export class AdminScheduleTestComponent {
         }
 
         const now = new Date();
-        const compareDt = (testEndDt && testEndDt.getTime() > now.getTime()) ? testEndDt : now;
+        const compareDt = testEndDt && testEndDt.getTime() > now.getTime() ? testEndDt : now;
 
         if (reviewDt.getTime() < compareDt.getTime()) {
           // Set errors on individual controls so they display as invalid in the template
@@ -635,7 +802,11 @@ export class AdminScheduleTestComponent {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const dateVal = this.scheduleTimingForm?.get('endDate')?.value || this.scheduleTimingForm?.get('startDate')?.value || this.model.endDate || this.model.startDate;
+    const dateVal =
+      this.scheduleTimingForm?.get('endDate')?.value ||
+      this.scheduleTimingForm?.get('startDate')?.value ||
+      this.model.endDate ||
+      this.model.startDate;
     if (!dateVal) return today;
 
     let testDate: Date | null = null;
@@ -652,7 +823,11 @@ export class AdminScheduleTestComponent {
         // DD/MM/YYYY
         const matchSlash = sDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
         if (matchSlash) {
-          const d = new Date(Number(matchSlash[3]), Number(matchSlash[2]) - 1, Number(matchSlash[1]));
+          const d = new Date(
+            Number(matchSlash[3]),
+            Number(matchSlash[2]) - 1,
+            Number(matchSlash[1])
+          );
           if (!isNaN(d.getTime())) testDate = d;
         } else {
           const parsed = new Date(sDate);
@@ -693,28 +868,36 @@ export class AdminScheduleTestComponent {
   }
 
   get scheduleDateError(): string {
-    if (this.scheduleTimingForm?.hasError('endBeforeStart')) return 'End date/time must be after the start date/time.';
-    if (this.scheduleTimingForm?.hasError('endIncomplete')) return 'Enter both an end date and end time, or leave both blank.';
+    if (this.scheduleTimingForm?.hasError('endBeforeStart'))
+      return 'End date/time must be after the start date/time.';
+    if (this.scheduleTimingForm?.hasError('endIncomplete'))
+      return 'Enter both an end date and end time, or leave both blank.';
     return '';
   }
 
   get reviewScheduleInvalid(): boolean {
     if (this.model.userreview || this.model.reviewMode !== 'scheduled') return false;
-    return this.reviewScheduleForm.invalid
-      || !this.reviewScheduleForm.get('reviewDate')?.value
-      || !this.reviewScheduleForm.get('reviewTime')?.value
-      || !this.reviewScheduleForm.get('reviewEndDate')?.value
-      || !this.reviewScheduleForm.get('reviewEndTime')?.value;
+    return (
+      this.reviewScheduleForm.invalid ||
+      !this.reviewScheduleForm.get('reviewDate')?.value ||
+      !this.reviewScheduleForm.get('reviewTime')?.value ||
+      !this.reviewScheduleForm.get('reviewEndDate')?.value ||
+      !this.reviewScheduleForm.get('reviewEndTime')?.value
+    );
   }
 
   get reviewPreview(): string {
-    if (!this.model.userreview && this.model.reviewMode === 'no_review') return 'Students will not be able to review this test.';
-    const content = [
-      this.model.showScore && 'Score',
-      this.model.showCorrectAnswers && 'Correct Answers',
-      this.model.showStudentAnswers && 'Student Answers',
-      this.model.showExplanations && 'Explanations'
-    ].filter(Boolean).join(', ') || 'No answer details';
+    if (!this.model.userreview && this.model.reviewMode === 'no_review')
+      return 'Students will not be able to review this test.';
+    const content =
+      [
+        this.model.showScore && 'Score',
+        this.model.showCorrectAnswers && 'Correct Answers',
+        this.model.showStudentAnswers && 'Student Answers',
+        this.model.showExplanations && 'Explanations',
+      ]
+        .filter(Boolean)
+        .join(', ') || 'No answer details';
     // let availability = 'instantly after submission';
     // if (!this.model.userreview) {
     //   if (this.model.reviewMode === 'after_schedule_ends') availability = 'after the test schedule ends';
@@ -730,7 +913,9 @@ export class AdminScheduleTestComponent {
   }
 
   canDeactivate(): boolean {
-    return !this.dirty || this.submitted || window.confirm('You have unsaved changes. Leave anyway?');
+    return (
+      !this.dirty || this.submitted || window.confirm('You have unsaved changes. Leave anyway?')
+    );
   }
 
   @HostListener('window:beforeunload', ['$event'])
@@ -750,9 +935,13 @@ export class AdminScheduleTestComponent {
           const countries = res?.data?.countries || res?.countries || res?.data || [];
           this.locationHierarchyRaw = Array.isArray(countries) ? countries : [];
           this.loadRegisteredInstituteLocations(this.locationHierarchyRaw);
-        } catch (e) { this.countries = []; }
+        } catch (e) {
+          this.countries = [];
+        }
       },
-      error: () => { this.countries = []; }
+      error: () => {
+        this.countries = [];
+      },
     });
   }
 
@@ -760,76 +949,115 @@ export class AdminScheduleTestComponent {
     this.countries = [];
     this.allRegisteredCities = [];
     this.cities = [];
-    this.http.get<any>(`${API_BASE}/get-institutes`, { headers: { 'X-Skip-Institute-Context': 'true' } }).subscribe({
-      next: (res) => {
-        try {
-          const institutes = Array.isArray(res?.data) ? res.data : [];
-          const hierarchyCountries = (locationCountries || []).map((country: any) => ({
-            code: country.country_code || country.code || country.id,
-            name: country.country_name || country.name || country.country,
-            cities: country.cities || []
-          })).filter((country: any) => country.code && country.name);
+    this.http
+      .get<any>(`${API_BASE}/get-institutes`, { headers: { 'X-Skip-Institute-Context': 'true' } })
+      .subscribe({
+        next: (res) => {
+          try {
+            const institutes = Array.isArray(res?.data) ? res.data : [];
+            const hierarchyCountries = (locationCountries || [])
+              .map((country: any) => ({
+                code: country.country_code || country.code || country.id,
+                name: country.country_name || country.name || country.country,
+                cities: country.cities || [],
+              }))
+              .filter((country: any) => country.code && country.name);
 
-          const registeredCountries: Array<{ code: string; name: string }> = [];
-          const registeredCities: Array<{ code: string; name: string; countryCode: string }> = [];
+            const registeredCountries: Array<{ code: string; name: string }> = [];
+            const registeredCities: Array<{ code: string; name: string; countryCode: string }> = [];
 
-          institutes.forEach((institute: any) => {
-            const locations = [institute, ...(Array.isArray(institute?.campuses) ? institute.campuses : [])];
-            locations.forEach((location: any) => {
-              // Extract country
-              const rawCountry = location?.country;
-              const countryCode = location?.country_id || location?.country_code
-                || (typeof rawCountry === 'object' ? rawCountry?.country_id || rawCountry?.id || rawCountry?.country_code || rawCountry?.code : rawCountry);
-              const countryName = location?.country_name
-                || (typeof rawCountry === 'object' ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country : rawCountry);
+            institutes.forEach((institute: any) => {
+              const locations = [
+                institute,
+                ...(Array.isArray(institute?.campuses) ? institute.campuses : []),
+              ];
+              locations.forEach((location: any) => {
+                // Extract country
+                const rawCountry = location?.country;
+                const countryCode =
+                  location?.country_id ||
+                  location?.country_code ||
+                  (typeof rawCountry === 'object'
+                    ? rawCountry?.country_id ||
+                      rawCountry?.id ||
+                      rawCountry?.country_code ||
+                      rawCountry?.code
+                    : rawCountry);
+                const countryName =
+                  location?.country_name ||
+                  (typeof rawCountry === 'object'
+                    ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
+                    : rawCountry);
 
-              const hierarchyMatch = hierarchyCountries.find((country: any) =>
-                (countryCode && String(country.code).toLowerCase() === String(countryCode).toLowerCase())
-                || (countryName && String(country.name).trim().toLowerCase() === String(countryName).trim().toLowerCase())
-              );
-              const resolvedCountry = hierarchyMatch || (countryCode && countryName ? { code: countryCode, name: countryName, cities: [] } : null);
-              if (resolvedCountry) {
-                registeredCountries.push({ code: String(resolvedCountry.code), name: String(resolvedCountry.name).trim() });
-
-                // Extract city
-                const rawCity = location?.city;
-                const cityCode = location?.city_id || location?.city_code || (typeof rawCity === 'object' ? rawCity?.city_id || rawCity?.id || rawCity?.city_code || rawCity?.code : rawCity);
-                const cityName = location?.city_name || (typeof rawCity === 'object' ? rawCity?.city_name || rawCity?.name || rawCity?.city : rawCity);
-
-                if (cityName) {
-                  registeredCities.push({
-                    code: cityCode ? String(cityCode) : cityName,
-                    name: String(cityName).trim(),
-                    countryCode: String(resolvedCountry.code)
+                const hierarchyMatch = hierarchyCountries.find(
+                  (country: any) =>
+                    (countryCode &&
+                      String(country.code).toLowerCase() === String(countryCode).toLowerCase()) ||
+                    (countryName &&
+                      String(country.name).trim().toLowerCase() ===
+                        String(countryName).trim().toLowerCase())
+                );
+                const resolvedCountry =
+                  hierarchyMatch ||
+                  (countryCode && countryName
+                    ? { code: countryCode, name: countryName, cities: [] }
+                    : null);
+                if (resolvedCountry) {
+                  registeredCountries.push({
+                    code: String(resolvedCountry.code),
+                    name: String(resolvedCountry.name).trim(),
                   });
+
+                  // Extract city
+                  const rawCity = location?.city;
+                  const cityCode =
+                    location?.city_id ||
+                    location?.city_code ||
+                    (typeof rawCity === 'object'
+                      ? rawCity?.city_id || rawCity?.id || rawCity?.city_code || rawCity?.code
+                      : rawCity);
+                  const cityName =
+                    location?.city_name ||
+                    (typeof rawCity === 'object'
+                      ? rawCity?.city_name || rawCity?.name || rawCity?.city
+                      : rawCity);
+
+                  if (cityName) {
+                    registeredCities.push({
+                      code: cityCode ? String(cityCode) : cityName,
+                      name: String(cityName).trim(),
+                      countryCode: String(resolvedCountry.code),
+                    });
+                  }
                 }
-              }
+              });
             });
-          });
 
-          // Unique Countries
-          const uniqueCountries = new Map<string, { code: string; name: string }>();
-          registeredCountries.forEach(country => {
-            const key = country.name.toLowerCase();
-            if (!uniqueCountries.has(key)) uniqueCountries.set(key, country);
-          });
-          this.countries = Array.from(uniqueCountries.values()).sort((a, b) => a.name.localeCompare(b.name));
+            // Unique Countries
+            const uniqueCountries = new Map<string, { code: string; name: string }>();
+            registeredCountries.forEach((country) => {
+              const key = country.name.toLowerCase();
+              if (!uniqueCountries.has(key)) uniqueCountries.set(key, country);
+            });
+            this.countries = Array.from(uniqueCountries.values()).sort((a, b) =>
+              a.name.localeCompare(b.name)
+            );
 
-          // Store all registered cities so we can filter them by selected country
-          this.allRegisteredCities = registeredCities;
-          this.filterCitiesByCountry();
-        } catch (e) {
+            // Store all registered cities so we can filter them by selected country
+            this.allRegisteredCities = registeredCities;
+            this.filterCitiesByCountry();
+          } catch (e) {
+            this.countries = [];
+            this.allRegisteredCities = [];
+            this.cities = [];
+          }
+        },
+        error: () => {
           this.countries = [];
           this.allRegisteredCities = [];
           this.cities = [];
-        }
-      },
-      error: () => {
-        this.countries = [];
-        this.allRegisteredCities = [];
-        this.cities = [];
-      }
-    });
+        },
+      });
   }
 
   filterCitiesByCountry() {
@@ -837,16 +1065,19 @@ export class AdminScheduleTestComponent {
     if (!this.filterCountry) {
       // If no country is selected, show all registered cities uniquely
       const uniqueCities = new Map<string, { code: string; name: string }>();
-      this.allRegisteredCities.forEach(city => {
+      this.allRegisteredCities.forEach((city) => {
         const key = city.name.toLowerCase();
         if (!uniqueCities.has(key)) uniqueCities.set(key, { code: city.code, name: city.name });
       });
       this.cities = Array.from(uniqueCities.values()).sort((a, b) => a.name.localeCompare(b.name));
     } else {
       // Filter by selected country
-      const filtered = this.allRegisteredCities.filter(city => String(city.countryCode).toLowerCase() === String(this.filterCountry).toLowerCase());
+      const filtered = this.allRegisteredCities.filter(
+        (city) =>
+          String(city.countryCode).toLowerCase() === String(this.filterCountry).toLowerCase()
+      );
       const uniqueCities = new Map<string, { code: string; name: string }>();
-      filtered.forEach(city => {
+      filtered.forEach((city) => {
         const key = city.name.toLowerCase();
         if (!uniqueCities.has(key)) uniqueCities.set(key, { code: city.code, name: city.name });
       });
@@ -857,7 +1088,7 @@ export class AdminScheduleTestComponent {
   get examFilteredCities(): Array<{ code: string; name: string }> {
     const term = (this.citySearch || '').trim().toLowerCase();
     if (!term) return this.cities;
-    return this.cities.filter(c => (c.name || '').toLowerCase().includes(term));
+    return this.cities.filter((c) => (c.name || '').toLowerCase().includes(term));
   }
 
   onCountryChange() {
@@ -869,55 +1100,87 @@ export class AdminScheduleTestComponent {
       next: (res) => {
         try {
           const statesRaw = res?.data?.states || res?.states || [];
-          this.states = (Array.isArray(statesRaw) ? statesRaw : []).map((s: any) => ({ code: s.state_code || s.code || s.id, name: s.state_name || s.name || s.state }));
+          this.states = (Array.isArray(statesRaw) ? statesRaw : []).map((s: any) => ({
+            code: s.state_code || s.code || s.id,
+            name: s.state_name || s.name || s.state,
+          }));
           let allCities: any[] = [];
           const countries = res?.data?.countries || res?.countries || [];
           if (Array.isArray(countries)) {
-            countries.forEach((c: any) => { if (Array.isArray(c.cities)) allCities = allCities.concat(c.cities); if (Array.isArray(c.states)) c.states.forEach((s: any) => { if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities); }); });
+            countries.forEach((c: any) => {
+              if (Array.isArray(c.cities)) allCities = allCities.concat(c.cities);
+              if (Array.isArray(c.states))
+                c.states.forEach((s: any) => {
+                  if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities);
+                });
+            });
           }
-          if (allCities.length === 0 && (res?.data?.cities || res?.cities)) allCities = res?.data?.cities || res?.cities || [];
-          this.cities = (allCities || []).map((c: any) => ({ code: c.city_code || c.code || c.id, name: c.city_name || c.name || c.city }));
-        } catch (e) { this.states = []; this.cities = []; }
-      }, error: () => { this.states = []; this.cities = []; }
+          if (allCities.length === 0 && (res?.data?.cities || res?.cities))
+            allCities = res?.data?.cities || res?.cities || [];
+          this.cities = (allCities || []).map((c: any) => ({
+            code: c.city_code || c.code || c.id,
+            name: c.city_name || c.name || c.city,
+          }));
+        } catch (e) {
+          this.states = [];
+          this.cities = [];
+        }
+      },
+      error: () => {
+        this.states = [];
+        this.cities = [];
+      },
     });
   }
 
   filteredCountries(): Array<{ code: string; name: string }> {
-    const term = String(this.userFilters.country_id || '').trim().toLowerCase();
+    const term = String(this.userFilters.country_id || '')
+      .trim()
+      .toLowerCase();
     if (!term) return this.countries || [];
-    return (this.countries || []).filter(c => (c.name || '').toLowerCase().includes(term));
+    return (this.countries || []).filter((c) => (c.name || '').toLowerCase().includes(term));
   }
 
   filteredCities(): Array<{ code: string; name: string }> {
-    const term = String(this.userFilters.city_id || '').trim().toLowerCase();
+    const term = String(this.userFilters.city_id || '')
+      .trim()
+      .toLowerCase();
     if (!term) return this.cities || [];
-    return (this.cities || []).filter(c => (c.name || '').toLowerCase().includes(term));
+    return (this.cities || []).filter((c) => (c.name || '').toLowerCase().includes(term));
   }
 
   filteredDepartments(): string[] {
-    const term = String(this.userFilters.department_id || '').trim().toLowerCase();
+    const term = String(this.userFilters.department_id || '')
+      .trim()
+      .toLowerCase();
     if (!term) return this.departmentList || [];
-    return (this.departmentList || []).filter(d => d.toLowerCase().includes(term));
+    return (this.departmentList || []).filter((d) => d.toLowerCase().includes(term));
   }
 
   filteredTeams(): string[] {
-    const term = String(this.userFilters.teams_id || '').trim().toLowerCase();
+    const term = String(this.userFilters.teams_id || '')
+      .trim()
+      .toLowerCase();
     if (!term) return this.teamList || [];
-    return (this.teamList || []).filter(t => t.toLowerCase().includes(term));
+    return (this.teamList || []).filter((t) => t.toLowerCase().includes(term));
   }
 
   filteredIndustries(): string[] {
-    const term = String(this.userFilters.industry || '').trim().toLowerCase();
+    const term = String(this.userFilters.industry || '')
+      .trim()
+      .toLowerCase();
     if (!term) return this.industryTypes;
-    return this.industryTypes.filter(i => i.toLowerCase().includes(term));
+    return this.industryTypes.filter((i) => i.toLowerCase().includes(term));
   }
 
   filteredSectors(): string[] {
     const industry = String(this.userFilters.industry || '').trim();
-    const source = industry ? (this.sectorMap[industry] || []) : [];
-    const term = String(this.userFilters.sector || '').trim().toLowerCase();
+    const source = industry ? this.sectorMap[industry] || [] : [];
+    const term = String(this.userFilters.sector || '')
+      .trim()
+      .toLowerCase();
     if (!term) return source;
-    return source.filter(s => s.toLowerCase().includes(term));
+    return source.filter((s) => s.toLowerCase().includes(term));
   }
 
   onIndustryChange() {
@@ -926,19 +1189,27 @@ export class AdminScheduleTestComponent {
   }
 
   isAllDepartmentsSelected(): boolean {
-    return !!(this.departments.length && this.selectedDepartments.length && this.selectedDepartments.length === this.departments.length);
+    return !!(
+      this.departments.length &&
+      this.selectedDepartments.length &&
+      this.selectedDepartments.length === this.departments.length
+    );
   }
 
   isAllTeamsSelected(): boolean {
-    return !!(this.teams.length && this.selectedTeams.length && this.selectedTeams.length === this.teams.length);
+    return !!(
+      this.teams.length &&
+      this.selectedTeams.length &&
+      this.selectedTeams.length === this.teams.length
+    );
   }
 
   toggleAllDepartments(checked: boolean): void {
-    this.selectedDepartments = checked ? this.departments.map(d => d.id) : [];
+    this.selectedDepartments = checked ? this.departments.map((d) => d.id) : [];
   }
 
   toggleAllTeams(checked: boolean): void {
-    this.selectedTeams = checked ? this.teams.map(t => t.id) : [];
+    this.selectedTeams = checked ? this.teams.map((t) => t.id) : [];
   }
 
   onDepartmentSelectionChange(): void {
@@ -946,7 +1217,9 @@ export class AdminScheduleTestComponent {
       this.toggleAllDepartments(true);
       return;
     }
-    this.selectedDepartments = Array.from(new Set(this.selectedDepartments.filter(id => id !== '__all__')));
+    this.selectedDepartments = Array.from(
+      new Set(this.selectedDepartments.filter((id) => id !== '__all__'))
+    );
   }
 
   onTeamSelectionChange(): void {
@@ -954,7 +1227,7 @@ export class AdminScheduleTestComponent {
       this.toggleAllTeams(true);
       return;
     }
-    this.selectedTeams = Array.from(new Set(this.selectedTeams.filter(id => id !== '__all__')));
+    this.selectedTeams = Array.from(new Set(this.selectedTeams.filter((id) => id !== '__all__')));
   }
 
   get selectedInstituteName(): string {
@@ -979,50 +1252,65 @@ export class AdminScheduleTestComponent {
     if (this.filterIndustry) params.industry = this.filterIndustry;
     if (this.filterSector) params.sector = this.filterSector;
 
-    this.http.get<any>(this.apiUrl, {
-      params,
-      headers: { 'X-Skip-Institute-Context': 'true' }
-    }).pipe(retry(2)).subscribe({
-      next: (res) => {
-        this.institutesLoading = false;
-        if (res && res.data && Array.isArray(res.data)) {
-          this.institutes = res.data.map((r: any) => ({ name: r.name || r.institute_name || r.short_name || '', short_name: r.short_name || r.name || r.institute_name || '', institute_id: r.institute_id }));
-          this.institutesSubject.next(this.institutes);
+    this.http
+      .get<any>(this.apiUrl, {
+        params,
+        headers: { 'X-Skip-Institute-Context': 'true' },
+      })
+      .pipe(retry(2))
+      .subscribe({
+        next: (res) => {
+          this.institutesLoading = false;
+          if (res && res.data && Array.isArray(res.data)) {
+            this.institutes = res.data.map((r: any) => ({
+              name: r.name || r.institute_name || r.short_name || '',
+              short_name: r.short_name || r.name || r.institute_name || '',
+              institute_id: r.institute_id,
+            }));
+            this.institutesSubject.next(this.institutes);
 
-          // If the model already has an institute (for example when applying edit/view), prefer it
-          try {
-            if (this.model && this.model.institute) {
-              const instId = this.model.institute;
-              const found = this.institutes.find(i => String(i.institute_id) === String(instId));
-              if (found) {
-                this.model.institute = found.institute_id as any;
-                this.instituteCtrl.setValue(found, { emitEvent: false });
-                this.updateInstituteDisabledState();
-                this.onInstituteChange(this.model.institute);
-                this.applyDefaultSchedulerName();
-                try { this.cd.detectChanges(); } catch (e) { /* noop */ }
-                return;
-              } else {
-          // If it is filtered out, clear it
-                this.model.institute = '';
-                this.instituteCtrl.setValue('', { emitEvent: false });
-                this.model.exam_id = '';
-                this.selectedExam = null;
-                this.examCtrl.setValue('', { emitEvent: false });
-                this.updateInstituteDisabledState();
+            // If the model already has an institute (for example when applying edit/view), prefer it
+            try {
+              if (this.model && this.model.institute) {
+                const instId = this.model.institute;
+                const found = this.institutes.find(
+                  (i) => String(i.institute_id) === String(instId)
+                );
+                if (found) {
+                  this.model.institute = found.institute_id as any;
+                  this.instituteCtrl.setValue(found, { emitEvent: false });
+                  this.updateInstituteDisabledState();
+                  this.onInstituteChange(this.model.institute);
+                  this.applyDefaultSchedulerName();
+                  try {
+                    this.cd.detectChanges();
+                  } catch (e) {
+                    /* noop */
+                  }
+                  return;
+                } else {
+                  // If it is filtered out, clear it
+                  this.model.institute = '';
+                  this.instituteCtrl.setValue('', { emitEvent: false });
+                  this.model.exam_id = '';
+                  this.selectedExam = null;
+                  this.examCtrl.setValue('', { emitEvent: false });
+                  this.updateInstituteDisabledState();
+                }
               }
+            } catch (e) {
+              /* ignore */
             }
-          } catch (e) { /* ignore */ }
-        }
-      },
-      error: (err) => {
-        this.institutesLoading = false;
-        this.institutesLoadFailed = true;
-        this.institutes = [];
-        this.institutesSubject.next([]);
-        console.warn('Failed to load institutes', err);
-      }
-    });
+          }
+        },
+        error: (err) => {
+          this.institutesLoading = false;
+          this.institutesLoadFailed = true;
+          this.institutes = [];
+          this.institutesSubject.next([]);
+          console.warn('Failed to load institutes', err);
+        },
+      });
   }
 
   // Track whether institute field should be disabled (used in template via [readonly] + [matAutocompleteDisabled])
@@ -1030,11 +1318,14 @@ export class AdminScheduleTestComponent {
   // from invoking displayWith after setValue, causing the input to appear blank.
   instituteDisabled = false;
   updateInstituteDisabledState() {
-    this.instituteDisabled = !this.isSuperAdmin || this.readOnly || this.scheduleFieldsLocked || !this.filterInstitute;
+    this.instituteDisabled =
+      !this.isSuperAdmin || this.readOnly || this.scheduleFieldsLocked || !this.filterInstitute;
   }
 
   get testSelectionDisabled(): boolean {
-    return this.readOnly || this.scheduleFieldsLocked || !this.filterInstitute || !this.filterExamName;
+    return (
+      this.readOnly || this.scheduleFieldsLocked || !this.filterInstitute || !this.filterExamName
+    );
   }
 
   private applyScheduleFieldsLock(): void {
@@ -1072,11 +1363,14 @@ export class AdminScheduleTestComponent {
   }
 
   // Autocomplete display / selection helpers
-  displayInstitute(i: any) { return i ? (i.name || '') : ''; }
+  displayInstitute(i: any) {
+    return i ? i.name || '' : '';
+  }
   onInstituteAutocompleteSelected(value: any) {
-    const id = value && typeof value === 'object'
-      ? (value.institute_id || value.id || value.instituteId || '')
-      : '';
+    const id =
+      value && typeof value === 'object'
+        ? value.institute_id || value.id || value.instituteId || ''
+        : '';
     if (!id) return;
     if (!this.filterInstitute) return;
     const instituteChanged = String(this.model.institute || '') !== String(id);
@@ -1090,11 +1384,12 @@ export class AdminScheduleTestComponent {
     this.applyDefaultSchedulerName();
   }
 
-  displayExam(e: any) { return e ? (e.title || e.name || '') : ''; }
+  displayExam(e: any) {
+    return e ? e.title || e.name || '' : '';
+  }
   onExamAutocompleteSelected(value: any) {
-    const id = value && typeof value === 'object'
-      ? (value.id || value.exam_id || value._id || '')
-      : '';
+    const id =
+      value && typeof value === 'object' ? value.id || value.exam_id || value._id || '' : '';
     if (!id) return;
     if (!this.filterExamName) return;
     this.model.exam_id = id;
@@ -1104,18 +1399,19 @@ export class AdminScheduleTestComponent {
   }
 
   private explicitInstituteRequestOptions(): { headers?: { [name: string]: string } } {
-    return this.isSuperAdmin
-      ? { headers: { 'X-Skip-Institute-Context': 'true' } }
-      : {};
+    return this.isSuperAdmin ? { headers: { 'X-Skip-Institute-Context': 'true' } } : {};
   }
 
   goToNextStep(stepper: any): void {
     const value = this.examCtrl.value;
-    const selectedId = value && typeof value === 'object'
-      ? (value.id || value.exam_id || value.test_id || value._id)
-      : '';
-    const validSelection = !!selectedId && String(selectedId) === String(this.model.exam_id || '') &&
-      (this.examsList || []).some(exam => String(exam.id) === String(selectedId));
+    const selectedId =
+      value && typeof value === 'object'
+        ? value.id || value.exam_id || value.test_id || value._id
+        : '';
+    const validSelection =
+      !!selectedId &&
+      String(selectedId) === String(this.model.exam_id || '') &&
+      (this.examsList || []).some((exam) => String(exam.id) === String(selectedId));
 
     if (!validSelection) {
       // Keep Next clickable, but block navigation until an autocomplete option is selected.
@@ -1138,15 +1434,39 @@ export class AdminScheduleTestComponent {
     this.filterEnabled = !!enabled;
     // if enabling, ensure dependent lists are loaded so filters populate
     if (this.filterEnabled) {
-      try { this.loadExams(this.model.institute); } catch (e) { /* noop */ }
-      try { this.loadDepartmentList(this.model.institute); } catch (e) { /* noop */ }
-      try { this.loadTeamsList(this.model.institute); } catch (e) { /* noop */ }
+      try {
+        this.loadExams(this.model.institute);
+      } catch (e) {
+        /* noop */
+      }
+      try {
+        this.loadDepartmentList(this.model.institute);
+      } catch (e) {
+        /* noop */
+      }
+      try {
+        this.loadTeamsList(this.model.institute);
+      } catch (e) {
+        /* noop */
+      }
       // open overlay if the template and anchor exist
-      try { this.openFiltersOverlay(); } catch (e) { /* noop */ }
+      try {
+        this.openFiltersOverlay();
+      } catch (e) {
+        /* noop */
+      }
     } else {
-      try { this.closeFiltersOverlay(); } catch (e) { /* noop */ }
+      try {
+        this.closeFiltersOverlay();
+      } catch (e) {
+        /* noop */
+      }
     }
-    try { this.cd.detectChanges(); } catch (e) { /* noop */ }
+    try {
+      this.cd.detectChanges();
+    } catch (e) {
+      /* noop */
+    }
   }
 
   @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
@@ -1161,62 +1481,116 @@ export class AdminScheduleTestComponent {
 
   openExamFilter(): void {
     this.filterEnabled = true;
-    this.onFilterToggle(true);  // if you already use this hook
+    this.onFilterToggle(true); // if you already use this hook
   }
   openFiltersOverlay() {
     if (!this.filtersBtn) return;
     // ensure template's inner *ngIf becomes true so template content renders inside the overlay
     this.filterEnabled = true;
-    if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; }
+    if (this.filtersOverlayRef) {
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (e) {}
+      this.filtersOverlayRef = null;
+    }
 
-    const positionStrategy = this.overlay.position()
+    const positionStrategy = this.overlay
+      .position()
       .flexibleConnectedTo(this.filtersBtn)
       .withPositions([
         // prefer aligning overlay to the left of the button (overlay sits left of button)
         { originX: 'start', originY: 'top', overlayX: 'end', overlayY: 'top', offsetX: -8 },
         { originX: 'end', originY: 'top', overlayX: 'start', overlayY: 'top', offsetX: 8 },
-        { originX: 'start', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 }
+        { originX: 'start', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
       ])
       .withPush(true);
 
-    this.filtersOverlayRef = this.overlay.create({ positionStrategy, hasBackdrop: true, backdropClass: 'cdk-overlay-transparent-backdrop', panelClass: 'overlay-filters-panel-left', scrollStrategy: this.overlay.scrollStrategies.reposition() });
+    this.filtersOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      panelClass: 'overlay-filters-panel-left',
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+    });
     this.filtersOverlayRef.backdropClick().subscribe(() => this.closeFiltersOverlay());
-    this.filtersOverlayRef.keydownEvents().subscribe((ev: any) => { if (ev.key === 'Escape') this.closeFiltersOverlay(); });
+    this.filtersOverlayRef.keydownEvents().subscribe((ev: any) => {
+      if (ev.key === 'Escape') this.closeFiltersOverlay();
+    });
 
     const portal = new TemplatePortal(this.filtersPanelTpl, this.vcr);
     this.filtersOverlayRef.attach(portal);
   }
 
   // ensure UI flag is cleared when overlay closes
-  closeFiltersOverlay() { if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; } this.filterEnabled = false; }
+  closeFiltersOverlay() {
+    if (this.filtersOverlayRef) {
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (e) {}
+      this.filtersOverlayRef = null;
+    }
+    this.filterEnabled = false;
+  }
 
   openUserFiltersOverlay() {
     if (!this.userFiltersBtn) return;
     this.userFilterOpen = true;
-    if (this.userFiltersOverlayRef) { try { this.userFiltersOverlayRef.dispose(); } catch (e) { }; this.userFiltersOverlayRef = null; }
+    if (this.userFiltersOverlayRef) {
+      try {
+        this.userFiltersOverlayRef.dispose();
+      } catch (e) {}
+      this.userFiltersOverlayRef = null;
+    }
 
-    const positionStrategy = this.overlay.position()
+    const positionStrategy = this.overlay
+      .position()
       .flexibleConnectedTo(this.userFiltersBtn)
       .withPositions([
         { originX: 'start', originY: 'top', overlayX: 'end', overlayY: 'top', offsetX: -8 },
-        { originX: 'end', originY: 'top', overlayX: 'start', overlayY: 'top', offsetX: 8 }
+        { originX: 'end', originY: 'top', overlayX: 'start', overlayY: 'top', offsetX: 8 },
       ])
       .withPush(true);
 
-    this.userFiltersOverlayRef = this.overlay.create({ positionStrategy, hasBackdrop: true, backdropClass: 'cdk-overlay-transparent-backdrop', panelClass: 'overlay-filters-panel-left', scrollStrategy: this.overlay.scrollStrategies.reposition() });
+    this.userFiltersOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      panelClass: 'overlay-filters-panel-left',
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+    });
     this.userFiltersOverlayRef.backdropClick().subscribe(() => this.closeUserFiltersOverlay());
-    this.userFiltersOverlayRef.keydownEvents().subscribe((ev: any) => { if (ev.key === 'Escape') this.closeUserFiltersOverlay(); });
+    this.userFiltersOverlayRef.keydownEvents().subscribe((ev: any) => {
+      if (ev.key === 'Escape') this.closeUserFiltersOverlay();
+    });
 
     // Attach the anchored user filters template (compact overlay panel)
     const portal = new TemplatePortal(this.filtersPanelUserAnchorTpl, this.vcr);
     this.userFiltersOverlayRef.attach(portal);
   }
 
-  closeUserFiltersOverlay() { if (this.userFiltersOverlayRef) { try { this.userFiltersOverlayRef.dispose(); } catch (e) { }; this.userFiltersOverlayRef = null; } this.userFilterOpen = false; }
+  closeUserFiltersOverlay() {
+    if (this.userFiltersOverlayRef) {
+      try {
+        this.userFiltersOverlayRef.dispose();
+      } catch (e) {}
+      this.userFiltersOverlayRef = null;
+    }
+    this.userFilterOpen = false;
+  }
 
   // Open/close the Select Users filter modal
-  openUserFilter() { this.userFilterOpen = true; try { this.cd.detectChanges(); } catch (e) { } }
-  closeUserFilter() { this.userFilterOpen = false; try { this.cd.detectChanges(); } catch (e) { } }
+  openUserFilter() {
+    this.userFilterOpen = true;
+    try {
+      this.cd.detectChanges();
+    } catch (e) {}
+  }
+  closeUserFilter() {
+    this.userFilterOpen = false;
+    try {
+      this.cd.detectChanges();
+    } catch (e) {}
+  }
 
   // load exams for a selected institute (populate the exam dropdown)
   examsList: Array<{ id: string; title: string }> = [];
@@ -1257,13 +1631,13 @@ export class AdminScheduleTestComponent {
   get examFilteredCountries(): Array<{ code: string; name: string }> {
     const term = (this.countrySearch || '').trim().toLowerCase();
     if (!term) return this.countries;
-    return this.countries.filter(c => (c.name || '').toLowerCase().includes(term));
+    return this.countries.filter((c) => (c.name || '').toLowerCase().includes(term));
   }
 
   get filteredIndustryTypes(): string[] {
     const term = (this.industrySearch || '').trim().toLowerCase();
     if (!term) return this.industryTypes;
-    return this.industryTypes.filter(t => t.toLowerCase().includes(term));
+    return this.industryTypes.filter((t) => t.toLowerCase().includes(term));
   }
 
   private get scopedSectors(): string[] {
@@ -1275,26 +1649,26 @@ export class AdminScheduleTestComponent {
     const scoped = this.scopedSectors;
     const term = (this.sectorSearch || '').trim().toLowerCase();
     if (!term) return scoped;
-    return scoped.filter(s => s.toLowerCase().includes(term));
+    return scoped.filter((s) => s.toLowerCase().includes(term));
   }
 
   filteredCitiesForExam(): Array<{ code: string; name: string }> {
     const term = (this.filterCity || '').trim().toLowerCase();
     if (!term) return this.filterCityOptions;
-    return this.filterCityOptions.filter(c => (c.name || '').toLowerCase().includes(term));
+    return this.filterCityOptions.filter((c) => (c.name || '').toLowerCase().includes(term));
   }
 
   filteredExamNamesForFilter(): string[] {
     const term = (this.filterExamName || '').trim().toLowerCase();
-    const names = Array.from(new Set((this.testOptions || []).map(o => o.title).filter(Boolean)));
+    const names = Array.from(new Set((this.testOptions || []).map((o) => o.title).filter(Boolean)));
     if (!term) return names;
-    return names.filter(n => n.toLowerCase().includes(term));
+    return names.filter((n) => n.toLowerCase().includes(term));
   }
 
   filteredInstitutesForFilter(): Array<{ name: string; institute_id?: string }> {
     const term = (this.filterInstituteSearch || this.filterInstitute || '').trim().toLowerCase();
     if (!term) return this.institutes;
-    return (this.institutes || []).filter(inst => (inst.name || '').toLowerCase().includes(term));
+    return (this.institutes || []).filter((inst) => (inst.name || '').toLowerCase().includes(term));
   }
 
   displayFilterInstitute(value: any): string {
@@ -1309,6 +1683,28 @@ export class AdminScheduleTestComponent {
     this.loadTestOptions(this.filterInstitute || this.model.institute);
   }
 
+  // ADD THIS MISSING METHOD DEFINITION:
+  private syncSelectedExamFromFilters(): void {
+    const targetName = String(this.filterExamName || '').trim().toLowerCase();
+    if (!targetName) return;
+
+    const match =
+      (this.testOptions || []).find((opt) => String(opt.title || '').trim().toLowerCase() === targetName) ||
+      (this.examsList || []).find((opt: any) => String(opt.title || '').trim().toLowerCase() === targetName);
+
+    if (!match) return;
+
+    const examId = String((match as any).id || (match as any).exam_id || (match as any).test_id || (match as any)._id || '');
+    if (!examId) return;
+
+    this.model.exam_id = examId;
+    this.onExamChange(examId);
+    try {
+      const examOption = (this.examsList || []).find((ex: any) => String(ex.id) === String(examId));
+      if (examOption) this.examCtrl.setValue(examOption, { emitEvent: false });
+    } catch (e) { /* noop */ }
+  }
+
   loadCitiesForCountry(countryCode: string) {
     this.filterCityOptions = [];
     if (!countryCode) return;
@@ -1317,13 +1713,20 @@ export class AdminScheduleTestComponent {
       next: (res) => {
         try {
           const data = Array.isArray(res?.data?.cities) ? res.data.cities : [];
-          this.filterCityOptions = data.map((city: any) => ({
-            code: city.id ?? city.city_id ?? city.city_code ?? city.code,
-            name: city.name ?? city.city_name ?? city.city
-          })).filter((city: any) => city.code && city.name).sort((a: any, b: any) => a.name.localeCompare(b.name));
-        } catch (e) { this.filterCityOptions = []; }
+          this.filterCityOptions = data
+            .map((city: any) => ({
+              code: city.id ?? city.city_id ?? city.city_code ?? city.code,
+              name: city.name ?? city.city_name ?? city.city,
+            }))
+            .filter((city: any) => city.code && city.name)
+            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+        } catch (e) {
+          this.filterCityOptions = [];
+        }
       },
-      error: () => { this.filterCityOptions = []; }
+      error: () => {
+        this.filterCityOptions = [];
+      },
     });
   }
 
@@ -1342,9 +1745,11 @@ export class AdminScheduleTestComponent {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { }
+        } catch (e) {}
       });
     }
   }
@@ -1354,54 +1759,92 @@ export class AdminScheduleTestComponent {
   }
 
   loadDepartments(instId?: string) {
-    if (!instId) { this.departments = []; return; }
+    if (!instId) {
+      this.departments = [];
+      return;
+    }
     const url = `${API_BASE}/get-department-list`;
     this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.departments = arr.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name || d.dept_name || d.title || '' }));
-      }, error: (err) => { console.warn('Failed to load departments', err); this.departments = []; }
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
+        this.departments = arr.map((d: any) => ({
+          id: d.dept_id || d.id || d.deptId,
+          name: d.name || d.dept_name || d.title || '',
+        }));
+      },
+      error: (err) => {
+        console.warn('Failed to load departments', err);
+        this.departments = [];
+      },
     });
   }
 
   loadTeams(instId?: string) {
-    if (!instId) { this.teams = []; return; }
+    if (!instId) {
+      this.teams = [];
+      return;
+    }
     const url = `${API_BASE}/get-teams-list`;
     this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.teams = arr.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name || t.team_name || t.title || '' }));
-      }, error: (err) => { console.warn('Failed to load teams', err); this.teams = []; }
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
+        this.teams = arr.map((t: any) => ({
+          id: t.team_id || t.id || t.teamId,
+          name: t.name || t.team_name || t.title || '',
+        }));
+      },
+      error: (err) => {
+        console.warn('Failed to load teams', err);
+        this.teams = [];
+      },
     });
   }
 
   loadTestOptions(instId?: string) {
-    if (!instId) { this.testOptions = []; return; }
+    if (!instId) {
+      this.testOptions = [];
+      return;
+    }
     const url = `${API_BASE}/get-exams-list`;
     const params: any = {};
     if (instId) params.institute_id = instId;
+
+    // Add date filters to the request parameters
+    if (this.filterCreationDateAfter) {
+      params.created_after = this.toApiDateString(this.filterCreationDateAfter);
+    }
+    if (this.filterCreationDate) {
+      params.created_before = this.toApiDateString(this.filterCreationDate);
+    }
+
     const options = {
       params,
-      ...this.explicitInstituteRequestOptions()
+      ...this.explicitInstituteRequestOptions(),
     };
+
     this.http.get<any>(url, options).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-        const mapped = arr.map((x: any) => ({
-          id: String(x.test_id || x.exam_id || x.id || ''),
-          title: String(x.title || x.name || x.exam_name || '').trim()
-        })).filter((x: any) => !!x.title);
+        const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        const mapped = arr
+          .map((x: any) => ({
+            id: String(x.test_id || x.exam_id || x.id || ''),
+            title: String(x.title || x.name || x.exam_name || '').trim(),
+          }))
+          .filter((x: any) => !!x.title);
         const uniqueMap = new Map<string, { id: string; title: string }>();
         mapped.forEach((item: any) => {
           const key = item.title.toLowerCase();
           if (!uniqueMap.has(key)) uniqueMap.set(key, item);
         });
-        this.testOptions = Array.from(uniqueMap.values()).sort((a, b) => a.title.localeCompare(b.title));
+        this.testOptions = Array.from(uniqueMap.values()).sort((a, b) =>
+          a.title.localeCompare(b.title)
+        );
+        this.syncSelectedExamFromFilters();
       },
       error: (err) => {
         console.warn('Failed to load test options', err);
         this.testOptions = [];
-      }
+      },
     });
   }
 
@@ -1424,16 +1867,31 @@ export class AdminScheduleTestComponent {
     if (this.filterCountry) params.push(`country=${encodeURIComponent(this.filterCountry)}`);
     const cityName = String(this.filterCity || '').trim();
     if (cityName) params.push(`city=${encodeURIComponent(cityName)}`);
-    if (this.filterDepartment) params.push(`department=${encodeURIComponent(this.filterDepartment)}`);
+    if (this.filterDepartment)
+      params.push(`department=${encodeURIComponent(this.filterDepartment)}`);
     if (this.filterTeam) params.push(`team=${encodeURIComponent(this.filterTeam)}`);
-    if (this.selectedDepartments && this.selectedDepartments.length) params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
-    if (this.selectedTeams && this.selectedTeams.length) params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
+    if (this.selectedDepartments && this.selectedDepartments.length)
+      params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
+    if (this.selectedTeams && this.selectedTeams.length)
+      params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
     if (this.filterIndustry) params.push(`industry=${encodeURIComponent(this.filterIndustry)}`);
     if (this.filterSector) params.push(`sector=${encodeURIComponent(this.filterSector)}`);
-    if (this.filterCreationDateAfter) params.push(`created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`);
-    if (this.filterCreationDate) params.push(`created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`);
-    if (this.filterStartDate) params.push(`start_after=${encodeURIComponent((this.filterStartDate as Date).toISOString().slice(0, 10))}`);
-    if (this.filterEndDate) params.push(`start_before=${encodeURIComponent((this.filterEndDate as Date).toISOString().slice(0, 10))}`);
+    if (this.filterCreationDateAfter)
+      params.push(
+        `created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`
+      );
+    if (this.filterCreationDate)
+      params.push(
+        `created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`
+      );
+    if (this.filterStartDate)
+      params.push(
+        `start_after=${encodeURIComponent((this.filterStartDate as Date).toISOString().slice(0, 10))}`
+      );
+    if (this.filterEndDate)
+      params.push(
+        `start_before=${encodeURIComponent((this.filterEndDate as Date).toISOString().slice(0, 10))}`
+      );
     if (this.filterCreatedByMe) {
       try {
         const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
@@ -1444,7 +1902,7 @@ export class AdminScheduleTestComponent {
             params.push(`created_by=${encodeURIComponent(String(userId))}`);
           }
         }
-      } catch (e) { }
+      } catch (e) {}
     }
     if (params.length) url += `?${params.join('&')}`;
 
@@ -1452,9 +1910,12 @@ export class AdminScheduleTestComponent {
     // interceptor from replacing the explicitly selected institute.
     this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         this.examsRaw = Array.isArray(arr) ? arr : [];
-        this.examsList = this.examsRaw.map((e: any) => ({ id: e.exam_id || e.id || e.test_id || e._id, title: e.title || e.name || '' }));
+        this.examsList = this.examsRaw.map((e: any) => ({
+          id: e.exam_id || e.id || e.test_id || e._id,
+          title: e.title || e.name || '',
+        }));
         // if an exam id is already selected, update selectedExam
         if (this.model && this.model.exam_id) {
           this.onExamChange(this.model.exam_id);
@@ -1464,15 +1925,21 @@ export class AdminScheduleTestComponent {
           }
         }
         // wire exam autocomplete observable
-        try{
+        try {
           this.filteredExams$ = this.examCtrl.valueChanges.pipe(
             startWith(''),
-            map((val:any) => {
-              const q = (typeof val === 'string' ? val : (val?.title || val?.name || '')).toLowerCase();
-              return (this.examsList || []).filter((it:any) => (it.title || '').toLowerCase().includes(q));
+            map((val: any) => {
+              const q = (
+                typeof val === 'string' ? val : val?.title || val?.name || ''
+              ).toLowerCase();
+              return (this.examsList || []).filter((it: any) =>
+                (it.title || '').toLowerCase().includes(q)
+              );
             })
           );
-        }catch(e){ this.filteredExams$ = of(this.examsList || []); }
+        } catch (e) {
+          this.filteredExams$ = of(this.examsList || []);
+        }
       },
       error: (err) => {
         console.warn('Failed to apply exam filters', err);
@@ -1483,9 +1950,13 @@ export class AdminScheduleTestComponent {
       complete: () => {
         this.examsLoading = false;
         this.loader.hide();
-        try { this.cd.detectChanges(); } catch (e) { /* noop */ }
+        try {
+          this.cd.detectChanges();
+        } catch (e) {
+          /* noop */
+        }
         if (loadDependenciesAfter) this.loadInstituteDependencies();
-      }
+      },
     });
   }
   hasAppliedFilters = false;
@@ -1493,27 +1964,73 @@ export class AdminScheduleTestComponent {
   get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
     if (!this.hasAppliedFilters) return [];
     const chips: Array<{ key: string; label: string; removable: boolean }> = [];
-    if (this.filterInstitute) chips.push({ key: 'filter_institute', label: `Institute: ${this.getInstituteName(this.filterInstitute)}`, removable: true });
-    if (this.filterExamName) chips.push({ key: 'filter_exam_name', label: `Test: ${this.filterExamName}`, removable: true });
-    if (this.filterCountry) chips.push({ key: 'country', label: `Country: ${this.getCountryLabel(this.filterCountry)}`, removable: true });
-    if (this.filterCity) chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
-    if (this.filterIndustry) chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true });
-    if (this.filterSector) chips.push({ key: 'sector', label: `Sector: ${this.filterSector}`, removable: true });
-    (this.selectedDepartments || []).forEach(id => chips.push({ key: `department:${id}`, label: `Department: ${this.getSelectedName(this.departments, id)}`, removable: true }));
-    (this.selectedTeams || []).forEach(id => chips.push({ key: `team:${id}`, label: `Team: ${this.getSelectedName(this.teams, id)}`, removable: true }));
-    if (this.filterCreationDateAfter) chips.push({ key: 'created_after', label: `Created after: ${this.formatFilterDate(this.filterCreationDateAfter)}`, removable: true });
-    if (this.filterCreationDate) chips.push({ key: 'created_before', label: `Created before: ${this.formatFilterDate(this.filterCreationDate)}`, removable: true });
-    if (this.filterCreatedByMe) chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
+    if (this.filterInstitute)
+      chips.push({
+        key: 'filter_institute',
+        label: `Institute: ${this.getInstituteName(this.filterInstitute)}`,
+        removable: true,
+      });
+    if (this.filterExamName)
+      chips.push({
+        key: 'filter_exam_name',
+        label: `Test: ${this.filterExamName}`,
+        removable: true,
+      });
+    if (this.filterCountry)
+      chips.push({
+        key: 'country',
+        label: `Country: ${this.getCountryLabel(this.filterCountry)}`,
+        removable: true,
+      });
+    if (this.filterCity)
+      chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
+    if (this.filterIndustry)
+      chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true });
+    if (this.filterSector)
+      chips.push({ key: 'sector', label: `Sector: ${this.filterSector}`, removable: true });
+    (this.selectedDepartments || []).forEach((id) =>
+      chips.push({
+        key: `department:${id}`,
+        label: `Department: ${this.getSelectedName(this.departments, id)}`,
+        removable: true,
+      })
+    );
+    (this.selectedTeams || []).forEach((id) =>
+      chips.push({
+        key: `team:${id}`,
+        label: `Team: ${this.getSelectedName(this.teams, id)}`,
+        removable: true,
+      })
+    );
+    if (this.filterCreationDateAfter)
+      chips.push({
+        key: 'created_after',
+        label: `Created after: ${this.formatFilterDate(this.filterCreationDateAfter)}`,
+        removable: true,
+      });
+    if (this.filterCreationDate)
+      chips.push({
+        key: 'created_before',
+        label: `Created before: ${this.formatFilterDate(this.filterCreationDate)}`,
+        removable: true,
+      });
+    if (this.filterCreatedByMe)
+      chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
     return chips;
   }
 
   getCountryLabel(code: string): string {
-    const found = this.countries.find(c => String(c.code) === String(code));
+    const found = this.countries.find((c) => String(c.code) === String(code));
     return found ? found.name : String(code || '');
   }
 
   getSelectedName(list: any[], selectedId: any): string {
-    const found = (list || []).find(item => String(item?.id) === String(selectedId) || String(item?.dept_id) === String(selectedId) || String(item?.team_id) === String(selectedId));
+    const found = (list || []).find(
+      (item) =>
+        String(item?.id) === String(selectedId) ||
+        String(item?.dept_id) === String(selectedId) ||
+        String(item?.team_id) === String(selectedId)
+    );
     return found?.name || String(selectedId || '');
   }
 
@@ -1532,14 +2049,34 @@ export class AdminScheduleTestComponent {
 
   removeAppliedFilter(key: string) {
     if (!key) return;
-    if (key === 'filter_institute') { this.filterInstitute = ''; this.filterInstituteSearch = ''; }
-    else if (key === 'filter_exam_name') { this.filterExamName = ''; }
-    if (key === 'country') { this.filterCountry = ''; this.filterCity = ''; this.onCountryFilterChange(); }
-    else if (key === 'city') { this.filterCity = ''; this.loadInstitutes(); }
-    else if (key === 'industry') { this.filterIndustry = ''; this.filterSector = ''; this.onIndustryFilterChange(); }
-    else if (key === 'sector') { this.filterSector = ''; this.loadInstitutes(); }
-    else if (key.startsWith('department:')) this.selectedDepartments = this.selectedDepartments.filter(id => String(id) !== key.substring('department:'.length));
-    else if (key.startsWith('team:')) this.selectedTeams = this.selectedTeams.filter(id => String(id) !== key.substring('team:'.length));
+    if (key === 'filter_institute') {
+      this.filterInstitute = '';
+      this.filterInstituteSearch = '';
+    } else if (key === 'filter_exam_name') {
+      this.filterExamName = '';
+    }
+    if (key === 'country') {
+      this.filterCountry = '';
+      this.filterCity = '';
+      this.onCountryFilterChange();
+    } else if (key === 'city') {
+      this.filterCity = '';
+      this.loadInstitutes();
+    } else if (key === 'industry') {
+      this.filterIndustry = '';
+      this.filterSector = '';
+      this.onIndustryFilterChange();
+    } else if (key === 'sector') {
+      this.filterSector = '';
+      this.loadInstitutes();
+    } else if (key.startsWith('department:'))
+      this.selectedDepartments = this.selectedDepartments.filter(
+        (id) => String(id) !== key.substring('department:'.length)
+      );
+    else if (key.startsWith('team:'))
+      this.selectedTeams = this.selectedTeams.filter(
+        (id) => String(id) !== key.substring('team:'.length)
+      );
     else if (key === 'created_after') this.filterCreationDateAfter = null;
     else if (key === 'created_before') this.filterCreationDate = null;
     else if (key === 'created_by_me') this.filterCreatedByMe = false;
@@ -1566,14 +2103,15 @@ export class AdminScheduleTestComponent {
       width: '520px',
       data: {
         startDate: this.filterCreationDateAfter,
-        endDate: this.filterCreationDate
-      }
+        endDate: this.filterCreationDate,
+      },
     });
 
     dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
       if (res) {
         this.filterCreationDateAfter = res.startDate;
         this.filterCreationDate = res.endDate;
+        this.loadTestOptions(this.filterInstitute || this.model.institute);
       }
     });
   }
@@ -1620,14 +2158,19 @@ export class AdminScheduleTestComponent {
   // Called when Apply button is clicked (explicit apply wrapper)
   applyFilters() {
     if (!this.hasExamFilterValues()) {
-      try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
+      try {
+        notify('Please add filters in the filter form.', 'info');
+      } catch (e) {}
       return;
     }
     this.hasAppliedFilters = true;
     this.model.institute = this.filterInstitute || '';
     this.model.exam_id = '';
     this.selectedExam = null;
-    this.instituteCtrl.setValue(this.institutes.find(i => String(i.institute_id) === String(this.filterInstitute)) || '', { emitEvent: false });
+    this.instituteCtrl.setValue(
+      this.institutes.find((i) => String(i.institute_id) === String(this.filterInstitute)) || '',
+      { emitEvent: false }
+    );
     this.examCtrl.setValue('', { emitEvent: false });
     this.updateInstituteDisabledState();
     this.loadExams(this.filterInstitute || this.model.institute);
@@ -1657,21 +2200,17 @@ export class AdminScheduleTestComponent {
     this.citySearch = '';
     this.filterCityOptions = [];
 
-    // Clear the institute selection as well; it lives in a separate autocomplete
-    // control, so resetting only `model` fields leaves the visible text behind.
     this.model.institute = '';
     this.instituteCtrl.reset(null, { emitEvent: false });
     this.instituteCtrl.setValue('', { emitEvent: false });
-    this.instituteCtrl.markAsPristine();
-    this.instituteCtrl.markAsUntouched();
-    this.instituteCtrl.updateValueAndValidity({ emitEvent: false });
     this.selectedExam = null;
     this.examCtrl.reset('', { emitEvent: false });
     this.updateInstituteDisabledState();
     this.hasAppliedFilters = false;
     this.filterCitiesByCountry();
-    try { this.cd.detectChanges(); } catch (e) { /* noop */ }
-    // Reload exams and institutes without an institute scope so the result list is fully reset.
+
+    // Reload options without date constraints
+    this.loadTestOptions(this.model.institute);
     this.loadExams(this.model.institute);
     this.loadInstitutes();
     this.closeFiltersOverlay();
@@ -1682,14 +2221,20 @@ export class AdminScheduleTestComponent {
     this.model.exam_id = examId || '';
     this.selectedExam = null;
     if (!examId) return;
-    const found = (this.examsRaw || []).find((e: any) => String(e.exam_id || e.id || e.test_id || e._id) === String(examId));
+    const found = (this.examsRaw || []).find(
+      (e: any) => String(e.exam_id || e.id || e.test_id || e._id) === String(examId)
+    );
     if (found) {
       this.selectedExam = found;
       // set the autocomplete control so the exam name displays in the input
       try {
-        const examOption = (this.examsList || []).find((ex: any) => String(ex.id) === String(examId));
+        const examOption = (this.examsList || []).find(
+          (ex: any) => String(ex.id) === String(examId)
+        );
         if (examOption) this.examCtrl.setValue(examOption);
-      } catch (e) { /* noop */ }
+      } catch (e) {
+        /* noop */
+      }
     }
   }
 
@@ -1700,10 +2245,16 @@ export class AdminScheduleTestComponent {
     const url = `${API_BASE}/get-department-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         // normalize to strings
-        this.departmentList = arr.map((d: any) => (d.name || d.department_name || d.department || d).toString()).filter((s: any) => !!s);
-      }, error: (err) => { console.warn('Failed to load department list', err); this.departmentList = []; }
+        this.departmentList = arr
+          .map((d: any) => (d.name || d.department_name || d.department || d).toString())
+          .filter((s: any) => !!s);
+      },
+      error: (err) => {
+        console.warn('Failed to load department list', err);
+        this.departmentList = [];
+      },
     });
   }
 
@@ -1714,9 +2265,15 @@ export class AdminScheduleTestComponent {
     const url = `${API_BASE}/get-teams-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-        this.teamList = arr.map((t: any) => (t.name || t.team_name || t.team || t).toString()).filter((s: any) => !!s);
-      }, error: (err) => { console.warn('Failed to load teams list', err); this.teamList = []; }
+        const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        this.teamList = arr
+          .map((t: any) => (t.name || t.team_name || t.team || t).toString())
+          .filter((s: any) => !!s);
+      },
+      error: (err) => {
+        console.warn('Failed to load teams list', err);
+        this.teamList = [];
+      },
     });
   }
 
@@ -1727,9 +2284,15 @@ export class AdminScheduleTestComponent {
     const url = `${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-        this.campusList = arr.map((c: any) => (c.name || c.campus_name || c.campus || c).toString()).filter((s: any) => !!s);
-      }, error: (err) => { console.warn('Failed to load campus list', err); this.campusList = []; }
+        const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        this.campusList = arr
+          .map((c: any) => (c.name || c.campus_name || c.campus || c).toString())
+          .filter((s: any) => !!s);
+      },
+      error: (err) => {
+        console.warn('Failed to load campus list', err);
+        this.campusList = [];
+      },
     });
   }
 
@@ -1755,7 +2318,6 @@ export class AdminScheduleTestComponent {
     const duration = Number(this.model.durationMin) || 10;
     const total_questions = Number(this.model.totalQuestions) || 0;
 
-
     // compute end_time by adding duration minutes to the start datetime
     // If explicit endDate/endTime provided, prefer those values for end_time
     let startIso: string | null = null;
@@ -1776,7 +2338,9 @@ export class AdminScheduleTestComponent {
           // control so edits submit the date and time shown in the form.
           const result = new Date(dateLike.getTime());
           if (timeLike !== undefined && timeLike !== null && String(timeLike).trim()) {
-            const timeMatch = String(timeLike).trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+            const timeMatch = String(timeLike)
+              .trim()
+              .match(/^([01]\d|2[0-3]):([0-5]\d)$/);
             if (!timeMatch) return null;
             result.setHours(Number(timeMatch[1]), Number(timeMatch[2]), 0, 0);
           }
@@ -1792,7 +2356,8 @@ export class AdminScheduleTestComponent {
         if (!dateLike && !timeLike) return null;
 
         const sDate = String(dateLike || '').trim();
-        const sTime = (typeof timeLike !== 'undefined' && timeLike !== null) ? String(timeLike).trim() : '';
+        const sTime =
+          typeof timeLike !== 'undefined' && timeLike !== null ? String(timeLike).trim() : '';
 
         // If dateLike already contains a time part (T or space), try direct parse first
         if (sDate.includes('T') || sDate.includes(' ')) {
@@ -1812,7 +2377,8 @@ export class AdminScheduleTestComponent {
           const y = Number(dateMatch[1]);
           const m = Number(dateMatch[2]);
           const day = Number(dateMatch[3]);
-          let hh = 0, mm = 0;
+          let hh = 0,
+            mm = 0;
           if (sTime) {
             const tparts = sTime.split(':').map((v: any) => Number(v));
             if (!isNaN(tparts[0])) hh = tparts[0];
@@ -1838,10 +2404,16 @@ export class AdminScheduleTestComponent {
     let dt: Date | null = null;
     if (this.model.startDate && this.model.startTime) {
       dt = parseDateInput(this.model.startDate, this.model.startTime);
-      if (!dt) { notify('Invalid start date or time', 'error'); return; }
+      if (!dt) {
+        notify('Invalid start date or time', 'error');
+        return;
+      }
     } else if (this.model.startDateTime) {
       dt = parseDateInput(this.model.startDateTime);
-      if (!dt) { notify('Invalid start datetime', 'error'); return; }
+      if (!dt) {
+        notify('Invalid start datetime', 'error');
+        return;
+      }
     }
 
     if (dt) startIso = dt.toISOString();
@@ -1850,11 +2422,17 @@ export class AdminScheduleTestComponent {
     let endDt: Date | null = null;
     if (this.model.endDate && this.model.endTime) {
       endDt = parseDateInput(this.model.endDate, this.model.endTime);
-      if (!endDt) { notify('Invalid end date or time', 'error'); return; }
+      if (!endDt) {
+        notify('Invalid end date or time', 'error');
+        return;
+      }
       endIso = endDt.toISOString();
     } else if (this.model.endDateTime) {
       endDt = parseDateInput(this.model.endDateTime);
-      if (!endDt) { notify('Invalid end datetime', 'error'); return; }
+      if (!endDt) {
+        notify('Invalid end datetime', 'error');
+        return;
+      }
       endIso = endDt.toISOString();
     } else if (dt) {
       const computed = new Date(dt.getTime() + duration * 60000);
@@ -1915,22 +2493,24 @@ export class AdminScheduleTestComponent {
       categories: Array.isArray(this.model.categories) ? this.model.categories : undefined,
       start_time: startIso,
       end_time: endIso,
-      created_by: sessionStorage.getItem('user_id') || sessionStorage.getItem('username') || 'admin',
+      created_by:
+        sessionStorage.getItem('user_id') || sessionStorage.getItem('username') || 'admin',
       published: this.model.publish || false,
       userreview: this.normalizeBoolean(this.reviewBehaviorForm.get('instantReview')?.value),
       instant_review: this.normalizeBoolean(this.reviewBehaviorForm.get('instantReview')?.value),
       // Persist independently from review_mode; availability timing is enforced separately.
       multiple_review: this.normalizeBoolean(this.reviewBehaviorForm.get('multipleReview')?.value),
-      manual_review_enabled: !this.model.userreview
-        && ['manual', 'no_review'].includes(this.model.reviewMode)
-        && this.normalizeBoolean(this.reviewBehaviorForm.get('manualReviewEnabled')?.value),
-      review_mode: this.model.userreview ? 'instant' : (this.model.reviewMode || 'no_review'),
+      manual_review_enabled:
+        !this.model.userreview &&
+        ['manual', 'no_review'].includes(this.model.reviewMode) &&
+        this.normalizeBoolean(this.reviewBehaviorForm.get('manualReviewEnabled')?.value),
+      review_mode: this.model.userreview ? 'instant' : this.model.reviewMode || 'no_review',
       review_at: reviewAtIso,
       review_end_at: reviewEndAtIso,
       show_score: !!this.model.showScore,
       show_correct_answers: !!this.model.showCorrectAnswers,
       show_student_answers: !!this.model.showStudentAnswers,
-      show_explanations: !!this.model.showExplanations
+      show_explanations: !!this.model.showExplanations,
     };
 
     // If editing an existing schedule, call update endpoint, otherwise create
@@ -1941,7 +2521,8 @@ export class AdminScheduleTestComponent {
       try {
         const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
         const u = raw ? JSON.parse(raw) : null;
-        payload['updated_by'] = (u && (u.user_id || u.id || u._id)) || sessionStorage.getItem('username') || 'admin';
+        payload['updated_by'] =
+          (u && (u.user_id || u.id || u._id)) || sessionStorage.getItem('username') || 'admin';
       } catch (e) {
         payload['updated_by'] = sessionStorage.getItem('username') || 'admin';
       }
@@ -1949,13 +2530,27 @@ export class AdminScheduleTestComponent {
       this.http.post<any>(putUrl, payload).subscribe({
         next: (resp) => {
           const ok = typeof resp?.status === 'undefined' ? true : !!resp.status;
-          try { const msg = resp?.statusMessage || resp?.message || 'Scheduled test updated successfully'; notify(msg, ok ? 'success' : 'error'); } catch(e){}
-          if (ok) { this.submitted = true; this.goBack(); }
+          try {
+            const msg =
+              resp?.statusMessage || resp?.message || 'Scheduled test updated successfully';
+            notify(msg, ok ? 'success' : 'error');
+          } catch (e) {}
+          if (ok) {
+            this.submitted = true;
+            this.goBack();
+          }
         },
         error: (err) => {
           console.error('Failed to update scheduled test', err);
-          try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to update scheduled test. See console for details.', 'error'); } catch(e){}
-        }
+          try {
+            notify(
+              err?.error?.statusMessage ||
+                err?.error?.message ||
+                'Failed to update scheduled test. See console for details.',
+              'error'
+            );
+          } catch (e) {}
+        },
       });
     } else {
       // POST to backend API to persist the scheduled test
@@ -1963,10 +2558,19 @@ export class AdminScheduleTestComponent {
       this.http.post<any>(postUrl, payload).subscribe({
         next: (resp) => {
           const ok = typeof resp?.status === 'undefined' ? true : !!resp.status;
-          try { const msg = resp?.statusMessage || resp?.message || 'Scheduled test saved successfully'; notify(msg, ok ? 'success' : 'error'); } catch(e){}
+          try {
+            const msg = resp?.statusMessage || resp?.message || 'Scheduled test saved successfully';
+            notify(msg, ok ? 'success' : 'error');
+          } catch (e) {}
           if (ok) {
             // on success add to local scheduled list for UI
-            this.scheduled.push({ institute: this.model.institute, testName: this.model.testName, start, duration, published: this.model.publish });
+            this.scheduled.push({
+              institute: this.model.institute,
+              testName: this.model.testName,
+              start,
+              duration,
+              published: this.model.publish,
+            });
             this.model.testName = '';
             this.submitted = true;
             this.goBack();
@@ -1974,8 +2578,15 @@ export class AdminScheduleTestComponent {
         },
         error: (err) => {
           console.error('Failed to save scheduled test', err);
-          try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to save scheduled test. See console for details.', 'error'); } catch(e){}
-        }
+          try {
+            notify(
+              err?.error?.statusMessage ||
+                err?.error?.message ||
+                'Failed to save scheduled test. See console for details.',
+              'error'
+            );
+          } catch (e) {}
+        },
       });
     }
   }
@@ -1990,14 +2601,27 @@ export class AdminScheduleTestComponent {
         this.model.schedule_id = e.schedule_id || e.id || e._id || e.scheduleId || null;
         this.scheduleFieldsLocked = this.normalizeBoolean(e.has_attendance);
         // map fields into the form model where possible
-        this.model.institute = (e.institute && typeof e.institute === 'object' ? (e.institute.institute_id || e.institute.id || '') : e.institute) || e.institute_id || '';
+        this.model.institute =
+          (e.institute && typeof e.institute === 'object'
+            ? e.institute.institute_id || e.institute.id || ''
+            : e.institute) ||
+          e.institute_id ||
+          '';
         // try multiple shapes for exam reference
-        this.model.exam_id = e.exam_id || (e.exam && (e.exam.exam_id || e.exam.id || e.exam._id || e.exam.test_id)) || e.test_id || '';
+        this.model.exam_id =
+          e.exam_id ||
+          (e.exam && (e.exam.exam_id || e.exam.id || e.exam._id || e.exam.test_id)) ||
+          e.test_id ||
+          '';
         // scheduler name used in template; also set legacy testName for compatibility
         this.model.schedulerName = e.title || e.testName || e.schedulerName || '';
         this.model.testName = this.model.testName || this.model.schedulerName;
         // ensure exams dropdown is loaded for the institute before attempting to bind exam id
-        try { this.loadExams(this.model.institute); } catch (e) { /* noop */ }
+        try {
+          this.loadExams(this.model.institute);
+        } catch (e) {
+          /* noop */
+        }
         // try to parse start_time ISO into combined datetime-local format and legacy date/time
         if (e.start_time) {
           const dt = new Date(e.start_time);
@@ -2013,7 +2637,9 @@ export class AdminScheduleTestComponent {
             this.model.endDate = edt.toISOString().slice(0, 10);
             this.model.endTime = edt.toTimeString().slice(0, 5);
           } else {
-            const dur = Number(e.duration_mins || e.duration || this.model.durationMin) || this.model.durationMin;
+            const dur =
+              Number(e.duration_mins || e.duration || this.model.durationMin) ||
+              this.model.durationMin;
             const endDt = new Date(dt.getTime() + dur * 60000);
             this.model.endDateTime = this.toLocalDateTimeInput(endDt);
             this.model.endDate = endDt.toISOString().slice(0, 10);
@@ -2025,44 +2651,105 @@ export class AdminScheduleTestComponent {
         // coerce various publish/user-review field variants into booleans
         try {
           const toBool = (value: any) => this.normalizeBoolean(value);
-          const pubCandidates = [e.publish, e.published, e.is_published, e.isPublished, e.published_flag, (e.settings && e.settings.publish)];
-          for (const c of pubCandidates) { if (typeof c !== 'undefined') { this.model.publish = toBool(c); break; } }
-          const reviewCandidates = [e.instant_review, e.user_review, e.userreview, e.review_available, e.review, e.allow_review, e.review_enabled, e.is_reviewable, (e.settings && e.settings.user_review)];
-          for (const c of reviewCandidates) { if (typeof c !== 'undefined') { this.model.userreview = toBool(c); break; } }
-          this.model.multiplereview = toBool(e.multiple_review ?? e.multiplereview ?? e.multipleReview ?? e.is_multiple_review ?? e.settings?.multiple_review ?? false);
+          const pubCandidates = [
+            e.publish,
+            e.published,
+            e.is_published,
+            e.isPublished,
+            e.published_flag,
+            e.settings && e.settings.publish,
+          ];
+          for (const c of pubCandidates) {
+            if (typeof c !== 'undefined') {
+              this.model.publish = toBool(c);
+              break;
+            }
+          }
+          const reviewCandidates = [
+            e.instant_review,
+            e.user_review,
+            e.userreview,
+            e.review_available,
+            e.review,
+            e.allow_review,
+            e.review_enabled,
+            e.is_reviewable,
+            e.settings && e.settings.user_review,
+          ];
+          for (const c of reviewCandidates) {
+            if (typeof c !== 'undefined') {
+              this.model.userreview = toBool(c);
+              break;
+            }
+          }
+          this.model.multiplereview = toBool(
+            e.multiple_review ??
+              e.multiplereview ??
+              e.multipleReview ??
+              e.is_multiple_review ??
+              e.settings?.multiple_review ??
+              false
+          );
           this.applyReviewSettings(e, toBool);
-        } catch (err) { /* ignore */ }
+        } catch (err) {
+          /* ignore */
+        }
         // clear edit after applying
         // normalize assigned users so the Select Users step pre-selects them
         try {
-          const au = e.assigned_users || e.assignedUsers || e.assignees || e.users || e.assigned_user_ids || [];
+          const au =
+            e.assigned_users ||
+            e.assignedUsers ||
+            e.assignees ||
+            e.users ||
+            e.assigned_user_ids ||
+            [];
           let normalized: string[] = [];
           if (!au) normalized = [];
           else if (Array.isArray(au)) {
-            normalized = au.map((x: any) => {
-              if (!x && x !== 0) return '';
-              if (typeof x === 'string' || typeof x === 'number') return String(x);
-              if (typeof x === 'object') return String(x.user_id || x.id || x._id || x.uid || x.userId || x.value || '');
-              return String(x);
-            }).filter((v: string) => v && v.length);
+            normalized = au
+              .map((x: any) => {
+                if (!x && x !== 0) return '';
+                if (typeof x === 'string' || typeof x === 'number') return String(x);
+                if (typeof x === 'object')
+                  return String(x.user_id || x.id || x._id || x.uid || x.userId || x.value || '');
+                return String(x);
+              })
+              .filter((v: string) => v && v.length);
           } else if (typeof au === 'string') {
-            normalized = au.split(',').map((s: string) => s.trim()).filter((s: string) => s.length);
+            normalized = au
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter((s: string) => s.length);
           } else if (typeof au === 'object') {
             const v = au.user_id || au.id || au._id || au.uid || au.userId || '';
             normalized = v ? [String(v)] : [];
           }
           this.selectedUsers = normalized;
           // if users list is not yet loaded or institute differs, attempt to load users for the institute
-          try { if (!this.users || this.users.length === 0) this.loadUsers(); } catch (e) { }
-        } catch (err) { /* ignore normalization errors */ }
+          try {
+            if (!this.users || this.users.length === 0) this.loadUsers();
+          } catch (e) {}
+        } catch (err) {
+          /* ignore normalization errors */
+        }
         sessionStorage.removeItem('edit_exam');
       } else if (rawView) {
         const v = JSON.parse(rawView);
         // set schedule id for view mode as well
         this.model.schedule_id = v.schedule_id || v.id || v._id || v.scheduleId || null;
-        this.model.institute = (v.institute && typeof v.institute === 'object' ? (v.institute.institute_id || v.institute.id || '') : v.institute) || v.institute_id || '';
+        this.model.institute =
+          (v.institute && typeof v.institute === 'object'
+            ? v.institute.institute_id || v.institute.id || ''
+            : v.institute) ||
+          v.institute_id ||
+          '';
         // exam id from view payload (similar shapes as edit)
-        this.model.exam_id = v.exam_id || (v.exam && (v.exam.exam_id || v.exam.id || v.exam._id || v.exam.test_id)) || v.test_id || '';
+        this.model.exam_id =
+          v.exam_id ||
+          (v.exam && (v.exam.exam_id || v.exam.id || v.exam._id || v.exam.test_id)) ||
+          v.test_id ||
+          '';
         this.model.schedulerName = v.title || v.testName || v.schedulerName || '';
         this.model.testName = this.model.testName || this.model.schedulerName;
         if (v.start_time) {
@@ -2077,53 +2764,122 @@ export class AdminScheduleTestComponent {
             this.model.endTime = edt.toTimeString().slice(0, 5);
           }
         }
-        try { this.loadExams(this.model.institute); } catch (e) { /* noop */ }
+        try {
+          this.loadExams(this.model.institute);
+        } catch (e) {
+          /* noop */
+        }
         this.model.durationMin = v.duration_mins || v.duration || this.model.durationMin;
         this.model.maxAttempts = v.number_of_attempts || this.model.maxAttempts;
         try {
           const toBool = (value: any) => this.normalizeBoolean(value);
-          const pubCandidates = [v.publish, v.published, v.is_published, v.isPublished, v.published_flag, (v.settings && v.settings.publish)];
-          for (const c of pubCandidates) { if (typeof c !== 'undefined') { this.model.publish = toBool(c); break; } }
-          const reviewCandidates = [v.instant_review, v.user_review, v.userreview, v.review_available, v.review, v.allow_review, v.review_enabled, v.is_reviewable, (v.settings && v.settings.user_review)];
-          for (const c of reviewCandidates) { if (typeof c !== 'undefined') { this.model.userreview = toBool(c); break; } }
-          this.model.multiplereview = toBool(v.multiple_review ?? v.multiplereview ?? v.multipleReview ?? v.is_multiple_review ?? v.settings?.multiple_review ?? false);
+          const pubCandidates = [
+            v.publish,
+            v.published,
+            v.is_published,
+            v.isPublished,
+            v.published_flag,
+            v.settings && v.settings.publish,
+          ];
+          for (const c of pubCandidates) {
+            if (typeof c !== 'undefined') {
+              this.model.publish = toBool(c);
+              break;
+            }
+          }
+          const reviewCandidates = [
+            v.instant_review,
+            v.user_review,
+            v.userreview,
+            v.review_available,
+            v.review,
+            v.allow_review,
+            v.review_enabled,
+            v.is_reviewable,
+            v.settings && v.settings.user_review,
+          ];
+          for (const c of reviewCandidates) {
+            if (typeof c !== 'undefined') {
+              this.model.userreview = toBool(c);
+              break;
+            }
+          }
+          this.model.multiplereview = toBool(
+            v.multiple_review ??
+              v.multiplereview ??
+              v.multipleReview ??
+              v.is_multiple_review ??
+              v.settings?.multiple_review ??
+              false
+          );
           this.applyReviewSettings(v, toBool);
-        } catch (err) { /* ignore */ }
+        } catch (err) {
+          /* ignore */
+        }
         this.readOnly = true;
         sessionStorage.removeItem('view_exam');
-          // also normalize assigned users for view mode so UI highlights them if needed
-          try {
-            const au = v.assigned_users || v.assignedUsers || v.assignees || v.users || v.assigned_user_ids || [];
-            let normalized: string[] = [];
-            if (!au) normalized = [];
-            else if (Array.isArray(au)) {
-              normalized = au.map((x: any) => {
+        // also normalize assigned users for view mode so UI highlights them if needed
+        try {
+          const au =
+            v.assigned_users ||
+            v.assignedUsers ||
+            v.assignees ||
+            v.users ||
+            v.assigned_user_ids ||
+            [];
+          let normalized: string[] = [];
+          if (!au) normalized = [];
+          else if (Array.isArray(au)) {
+            normalized = au
+              .map((x: any) => {
                 if (!x && x !== 0) return '';
                 if (typeof x === 'string' || typeof x === 'number') return String(x);
-                if (typeof x === 'object') return String(x.user_id || x.id || x._id || x.uid || x.userId || x.value || '');
+                if (typeof x === 'object')
+                  return String(x.user_id || x.id || x._id || x.uid || x.userId || x.value || '');
                 return String(x);
-              }).filter((v: string) => v && v.length);
-            } else if (typeof au === 'string') {
-              normalized = au.split(',').map((s: string) => s.trim()).filter((s: string) => s.length);
-            } else if (typeof au === 'object') {
-              const val = au.user_id || au.id || au._id || au.uid || au.userId || '';
-              normalized = val ? [String(val)] : [];
-            }
-            this.selectedUsers = normalized;
-            try { if (!this.users || this.users.length === 0) this.loadUsers(); } catch (e) { }
-          } catch (err) { /* ignore */ }
+              })
+              .filter((v: string) => v && v.length);
+          } else if (typeof au === 'string') {
+            normalized = au
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter((s: string) => s.length);
+          } else if (typeof au === 'object') {
+            const val = au.user_id || au.id || au._id || au.uid || au.userId || '';
+            normalized = val ? [String(val)] : [];
+          }
+          this.selectedUsers = normalized;
+          try {
+            if (!this.users || this.users.length === 0) this.loadUsers();
+          } catch (e) {}
+        } catch (err) {
+          /* ignore */
+        }
       }
-    } catch (e) { /* ignore parse errors */ }
+    } catch (e) {
+      /* ignore parse errors */
+    }
   }
 
   private applyReviewSettings(value: any, toBool: (value: any) => boolean): void {
     const persistedReviewMode = value.review_mode || value.reviewMode;
-    if (['no_review', 'manual', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled', 'instant'].includes(persistedReviewMode)) {
+    if (
+      [
+        'no_review',
+        'manual',
+        'after_schedule_ends',
+        'after_everyone_finishes',
+        'scheduled',
+        'instant',
+      ].includes(persistedReviewMode)
+    ) {
       this.model.reviewMode = persistedReviewMode === 'instant' ? 'no_review' : persistedReviewMode;
     }
     if (typeof value.manual_review_enabled !== 'undefined') {
       this.model.manualReviewEnabled = toBool(value.manual_review_enabled);
-      this.manualReviewEnabledControl?.setValue(this.model.manualReviewEnabled, { emitEvent: false });
+      this.manualReviewEnabledControl?.setValue(this.model.manualReviewEnabled, {
+        emitEvent: false,
+      });
     }
     const reviewAtValue = value.review_at || value.reviewAt;
     if (reviewAtValue) {
@@ -2153,10 +2909,11 @@ export class AdminScheduleTestComponent {
       ['showScore', 'show_score', 'showScore'],
       ['showCorrectAnswers', 'show_correct_answers', 'showCorrectAnswers'],
       ['showStudentAnswers', 'show_student_answers', 'showStudentAnswers'],
-      ['showExplanations', 'show_explanations', 'showExplanations']
+      ['showExplanations', 'show_explanations', 'showExplanations'],
     ];
     contentFields.forEach(([modelField, apiField, alternateField]) => {
-      const fieldValue = typeof value[apiField] !== 'undefined' ? value[apiField] : value[alternateField];
+      const fieldValue =
+        typeof value[apiField] !== 'undefined' ? value[apiField] : value[alternateField];
       if (typeof fieldValue !== 'undefined') this.model[modelField] = toBool(fieldValue);
     });
   }
@@ -2180,38 +2937,54 @@ export class AdminScheduleTestComponent {
       const dur = Number(this.model.durationMin) || 0;
       const end = new Date(dt.getTime() + dur * 60000);
       return end.toLocaleString();
-    } catch (e) { return ''; }
+    } catch (e) {
+      return '';
+    }
   }
 
   // Return a readable institute name for a given institute id
   getInstituteName(instId: any): string {
     if (!instId) return '';
-    const found = (this.institutes || []).find(i => String(i.institute_id) === String(instId));
-    return found ? (found.name || '') : '';
+    const found = (this.institutes || []).find((i) => String(i.institute_id) === String(instId));
+    return found ? found.name || '' : '';
   }
 
   // Lookup user name by id from currently loaded users
   getUserNameById(userId: any): string {
     if (!userId) return '';
-    const found = (this.users || []).find(u => String(u.id) === String(userId));
-    return found ? (found.name || '') : '';
+    const found = (this.users || []).find((u) => String(u.id) === String(userId));
+    return found ? found.name || '' : '';
   }
 
   // Small date formatter for review display (accepts date-like strings or Date objects)
   formatDate(v: any): string {
     if (!v) return '';
     try {
-      const d = (v instanceof Date) ? v : new Date(v);
+      const d = v instanceof Date ? v : new Date(v);
       if (isNaN(d.getTime())) return String(v);
-      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
       const dayName = days[d.getDay()];
-      const dd = String(d.getDate()).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2, '0');
       const mmm = months[d.getMonth()];
       const yyyy = d.getFullYear();
       return `${dayName} ${dd}-${mmm}-${yyyy}`;
-    } catch (e) { return String(v); }
+    } catch (e) {
+      return String(v);
+    }
   }
 }
 // Force rebuild
-
