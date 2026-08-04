@@ -1231,11 +1231,18 @@ export class AdminScheduleTestComponent {
   }
 
   get selectedInstituteName(): string {
-    return this.getInstituteName(this.model.institute) || this.model.institute || '';
+    return this.getInstituteName(this.model.institute) || this.filterInstituteSearch || '';
   }
 
   get selectedTestName(): string {
-    return this.selectedExam?.title || this.examCtrl.value?.title || this.model.exam_id || '';
+    return (
+      this.selectedExam?.title ||
+      this.selectedExam?.name ||
+      this.examCtrl.value?.title ||
+      this.examCtrl.value?.name ||
+      this.filterExamName ||
+      ''
+    );
   }
 
   goBack() {
@@ -1685,16 +1692,34 @@ export class AdminScheduleTestComponent {
 
   // ADD THIS MISSING METHOD DEFINITION:
   private syncSelectedExamFromFilters(): void {
-    const targetName = String(this.filterExamName || '').trim().toLowerCase();
+    const targetName = String(this.filterExamName || '')
+      .trim()
+      .toLowerCase();
     if (!targetName) return;
 
     const match =
-      (this.testOptions || []).find((opt) => String(opt.title || '').trim().toLowerCase() === targetName) ||
-      (this.examsList || []).find((opt: any) => String(opt.title || '').trim().toLowerCase() === targetName);
+      (this.testOptions || []).find(
+        (opt) =>
+          String(opt.title || '')
+            .trim()
+            .toLowerCase() === targetName
+      ) ||
+      (this.examsList || []).find(
+        (opt: any) =>
+          String(opt.title || '')
+            .trim()
+            .toLowerCase() === targetName
+      );
 
     if (!match) return;
 
-    const examId = String((match as any).id || (match as any).exam_id || (match as any).test_id || (match as any)._id || '');
+    const examId = String(
+      (match as any).id ||
+        (match as any).exam_id ||
+        (match as any).test_id ||
+        (match as any)._id ||
+        ''
+    );
     if (!examId) return;
 
     this.model.exam_id = examId;
@@ -1702,7 +1727,9 @@ export class AdminScheduleTestComponent {
     try {
       const examOption = (this.examsList || []).find((ex: any) => String(ex.id) === String(examId));
       if (examOption) this.examCtrl.setValue(examOption, { emitEvent: false });
-    } catch (e) { /* noop */ }
+    } catch (e) {
+      /* noop */
+    }
   }
 
   loadCitiesForCountry(countryCode: string) {
@@ -2165,15 +2192,36 @@ export class AdminScheduleTestComponent {
     }
     this.hasAppliedFilters = true;
     this.model.institute = this.filterInstitute || '';
-    this.model.exam_id = '';
-    this.selectedExam = null;
+
+    // 1. Sync the institute control
     this.instituteCtrl.setValue(
       this.institutes.find((i) => String(i.institute_id) === String(this.filterInstitute)) || '',
       { emitEvent: false }
     );
-    this.examCtrl.setValue('', { emitEvent: false });
+
+    // 2. Fetch and auto-select the exam if filterExamName was picked
+    const targetInstitute = this.filterInstitute || this.model.institute;
+    if (targetInstitute) {
+      this.loadExams(targetInstitute, false);
+
+      // Auto-populate selectedExam if a Test Name filter was chosen
+      if (this.filterExamName) {
+        const match = (this.examsRaw || []).find(
+          (e: any) =>
+            String(e.title || e.name || '')
+              .trim()
+              .toLowerCase() === String(this.filterExamName).trim().toLowerCase()
+        );
+        if (match) {
+          const examId = String(match.exam_id || match.id || match.test_id || match._id || '');
+          this.model.exam_id = examId;
+          this.selectedExam = match;
+          this.examCtrl.setValue(match, { emitEvent: false });
+        }
+      }
+    }
+
     this.updateInstituteDisabledState();
-    this.loadExams(this.filterInstitute || this.model.institute);
     this.loadInstitutes();
     this.closeFiltersOverlay();
   }
