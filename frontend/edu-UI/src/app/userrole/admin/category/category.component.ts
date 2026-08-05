@@ -97,7 +97,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
 
   categories: Array<{ id: string; name: string; description?: string; institute?: any; departments?: any[]; teams?: any[] }> = [];
   dataSource = new MatTableDataSource<any>([]);
-  columns = ['name','description','active','actions'];
+  columns = ['sno','name','description','active','actions'];
   hasAppliedFilters = false;
 
   private filtersOverlayRef: OverlayRef | null = null;
@@ -183,6 +183,14 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
+
+  get pageIndex(): number {
+    return this.paginator?.pageIndex || 0;
+  }
+
+  get pageSize(): number {
+    return this.paginator?.pageSize || 25;
+  }
 
   ngAfterViewInit(): void {
     this.dataSource.sort = this.sort;

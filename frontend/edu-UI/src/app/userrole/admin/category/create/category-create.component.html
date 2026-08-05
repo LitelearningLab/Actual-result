@@ -31,9 +31,11 @@
                             <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Name</mat-label>
                                 <mat-icon matPrefix>edit</mat-icon>
-                                <input matInput required [value]="name" [disabled]="isEditing" (input)="setName($any($event.target).value)"
-                                    placeholder="Question Bank name" />
-                                <mat-hint class="field-error" *ngIf="(formSubmitted || categoryInfoSubmitted) && isNameInvalid()">Name is required.</mat-hint>
+                                <input matInput required [value]="name" [disabled]="isEditing"
+                                    (input)="setName($any($event.target).value)" placeholder="Question Bank name" />
+                                <mat-hint class="field-error"
+                                    *ngIf="(formSubmitted || categoryInfoSubmitted) && isNameInvalid()">Name is
+                                    required.</mat-hint>
                             </mat-form-field>
 
                             <mat-form-field appearance="outline" class="field-half local-institute-field">
@@ -43,26 +45,33 @@
                                     (selectionChange)="setInstitute($event.value)">
                                     <mat-option *ngFor="let i of institutesList" [value]="i.id">{{i.name}}</mat-option>
                                 </mat-select>
-                                <mat-hint class="field-error" *ngIf="formSubmitted && isInstituteInvalid()">Institute is required.</mat-hint>
+                                <mat-hint class="field-error" *ngIf="formSubmitted && isInstituteInvalid()">Institute is
+                                    required.</mat-hint>
                             </mat-form-field>
                         </div>
 
                         <div class="field-row">
-                            <mat-form-field appearance="outline" class="field-half">
-                                <mat-label>Description</mat-label>
-                                <mat-icon matPrefix>description</mat-icon>
-                                <input matInput [value]="description"
-                                    (input)="setDescription($any($event.target).value)"
-                                    placeholder="Optional description" />
-                            </mat-form-field>
-                            
+                            <div class="field-half field-with-counter">
+                                <mat-form-field appearance="outline" class="field-full">
+                                    <mat-label>Description</mat-label>
+                                    <mat-icon matPrefix>description</mat-icon>
+                                    <textarea matInput [value]="description" maxlength="250" rows="3"
+                                        (input)="setDescription($any($event.target).value)"
+                                        placeholder="Optional description"></textarea>
+                                </mat-form-field>
+                                <span class="inside-char-counter">{{ (description || '').length }}/250</span>
+                            </div>
+
                             <mat-form-field appearance="outline" class="field-half">
                                 <mat-label>Type</mat-label>
                                 <mat-icon matPrefix>category</mat-icon>
-                                <mat-select required [value]="type" [disabled]="isEditing" (selectionChange)="setType($event.value)">
+                                <mat-select required [value]="type" [disabled]="isEditing"
+                                    (selectionChange)="setType($event.value)">
                                     <mat-option *ngFor="let t of typeOptions" [value]="t.id">{{t.name}}</mat-option>
                                 </mat-select>
-                                <mat-hint class="field-error" *ngIf="(formSubmitted || categoryInfoSubmitted) && isTypeInvalid()">Type is required.</mat-hint>
+                                <mat-hint class="field-error"
+                                    *ngIf="(formSubmitted || categoryInfoSubmitted) && isTypeInvalid()">Type is
+                                    required.</mat-hint>
                             </mat-form-field>
                         </div>
                     </div>
@@ -102,7 +111,9 @@
                                     <mat-option *ngFor="let d of departments" [value]="d.id"
                                         (onSelectionChange)="setDepartmentOption(d.id, $event)">{{d.name}}</mat-option>
                                 </mat-select>
-                                <mat-hint class="field-error" *ngIf="(formSubmitted || accessInfoSubmitted) && isDepartmentsInvalid()">Please select at least one department.</mat-hint>
+                                <mat-hint class="field-error"
+                                    *ngIf="(formSubmitted || accessInfoSubmitted) && isDepartmentsInvalid()">Please
+                                    select at least one department.</mat-hint>
                             </mat-form-field>
 
                             <mat-form-field appearance="outline" class="field-half"
@@ -115,7 +126,9 @@
                                     <mat-option *ngFor="let t of teams" [value]="t.id"
                                         (onSelectionChange)="setTeamOption(t.id, $event)">{{t.name}}</mat-option>
                                 </mat-select>
-                                <mat-hint class="field-error" *ngIf="(formSubmitted || accessInfoSubmitted) && isTeamsInvalid()">Please select at least one team.</mat-hint>
+                                <mat-hint class="field-error"
+                                    *ngIf="(formSubmitted || accessInfoSubmitted) && isTeamsInvalid()">Please select at
+                                    least one team.</mat-hint>
                             </mat-form-field>
                         </div>
                     </div>
@@ -136,7 +149,9 @@
                                 <mat-icon matPrefix>grade</mat-icon>
                                 <input matInput required [value]="markForEachQuestion" [disabled]="isEditing"
                                     (input)="setMark($any($event.target).value)" placeholder="e.g. 1" />
-                                <mat-hint class="field-error" *ngIf="(formSubmitted || accessInfoSubmitted) && isMarkInvalid()">Mark for each question is required and must be a number.</mat-hint>
+                                <mat-hint class="field-error"
+                                    *ngIf="(formSubmitted || accessInfoSubmitted) && isMarkInvalid()">Mark for each
+                                    question is required and must be a number.</mat-hint>
                             </mat-form-field>
 
                             <mat-form-field appearance="outline" class="field-half"
@@ -146,7 +161,9 @@
                                 <mat-select required [value]="status" (selectionChange)="setStatus($event.value)">
                                     <mat-option *ngFor="let s of statusOptions" [value]="s.id">{{s.name}}</mat-option>
                                 </mat-select>
-                                <mat-hint class="field-error" *ngIf="(formSubmitted || accessInfoSubmitted) && isStatusInvalid()">Status is required.</mat-hint>
+                                <mat-hint class="field-error"
+                                    *ngIf="(formSubmitted || accessInfoSubmitted) && isStatusInvalid()">Status is
+                                    required.</mat-hint>
                             </mat-form-field>
                         </div>
 
@@ -197,10 +214,15 @@
                                     <mat-icon>category</mat-icon> Basic Info
                                 </h4>
                                 <div class="review-items">
-                                    <div class="review-item"><span class="review-label">Name</span><span class="review-value">{{ name || '—' }}</span></div>
-                                    <div class="review-item"><span class="review-label">Institute</span><span class="review-value">{{ getInstituteName(institute) || '—' }}</span></div>
-                                    <div class="review-item"><span class="review-label">Type</span><span class="review-value">{{ getOptionName(typeOptions, type) || '—' }}</span></div>
-                                    <div class="review-item"><span class="review-label">Description</span><span class="review-value">{{ description || '—' }}</span></div>
+                                    <div class="review-item"><span class="review-label">Name</span><span
+                                            class="review-value">{{ name || '—' }}</span></div>
+                                    <div class="review-item"><span class="review-label">Institute</span><span
+                                            class="review-value">{{ getInstituteName(institute) || '—' }}</span></div>
+                                    <div class="review-item"><span class="review-label">Type</span><span
+                                            class="review-value">{{ getOptionName(typeOptions, type) || '—' }}</span>
+                                    </div>
+                                    <div class="review-item"><span class="review-label">Description</span><span
+                                            class="review-value">{{ description || '—' }}</span></div>
                                 </div>
                             </div>
 
@@ -214,7 +236,8 @@
                                         <span class="review-label">Departments</span>
                                         <span class="review-value">
                                             <span *ngIf="selectedDepartments.length; else noDept">
-                                                <span class="review-chip" *ngFor="let d of selectedDepartments">{{ getDepartmentName(d) || d }}</span>
+                                                <span class="review-chip" *ngFor="let d of selectedDepartments">{{
+                                                    getDepartmentName(d) || d }}</span>
                                             </span>
                                             <ng-template #noDept>—</ng-template>
                                         </span>
@@ -223,7 +246,8 @@
                                         <span class="review-label">Teams</span>
                                         <span class="review-value">
                                             <span *ngIf="selectedTeams.length; else noTeam">
-                                                <span class="review-chip" *ngFor="let t of selectedTeams">{{ getTeamName(t) || t }}</span>
+                                                <span class="review-chip" *ngFor="let t of selectedTeams">{{
+                                                    getTeamName(t) || t }}</span>
                                             </span>
                                             <ng-template #noTeam>—</ng-template>
                                         </span>
@@ -237,9 +261,13 @@
                                     <mat-icon>grade</mat-icon> Scoring & Status
                                 </h4>
                                 <div class="review-items">
-                                    <div class="review-item"><span class="review-label">Mark / Question</span><span class="review-value">{{ markForEachQuestion || '—' }}</span></div>
-                                    <div class="review-item"><span class="review-label">Status</span><span class="review-value">{{ getOptionName(statusOptions, status) || '—' }}</span></div>
-                                    <div class="review-item"><span class="review-label">Access</span><span class="review-value">{{ publicAccess ? 'Public' : 'Limited' }}</span></div>
+                                    <div class="review-item"><span class="review-label">Mark / Question</span><span
+                                            class="review-value">{{ markForEachQuestion || '—' }}</span></div>
+                                    <div class="review-item"><span class="review-label">Status</span><span
+                                            class="review-value">{{ getOptionName(statusOptions, status) || '—'
+                                            }}</span></div>
+                                    <div class="review-item"><span class="review-label">Access</span><span
+                                            class="review-value">{{ publicAccess ? 'Public' : 'Limited' }}</span></div>
                                 </div>
                             </div>
                         </div>

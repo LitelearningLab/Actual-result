@@ -41,19 +41,19 @@ export class CategoryCreateComponent {
   accessInfoSubmitted = false;
 
   institutesList: Array<{ id: string; name: string }> = [];
-  typeOptions = [ { id: 'objective', name: 'Objective' }, { id: 'descriptive', name: 'Descriptive' } ];
-  whoInputOptions = [ { id: 'instructor', name: 'Instructor' }, { id: 'student', name: 'Student' } ];
-  evaluationOptions = [ { id: 'auto', name: 'Automatic' }, { id: 'manual', name: 'Manual' } ];
-  statusOptions = [ { id: 'true', name: 'Active' }, { id: 'false', name: 'Inactive' } ];
+  typeOptions = [{ id: 'objective', name: 'Objective' }, { id: 'descriptive', name: 'Descriptive' }];
+  whoInputOptions = [{ id: 'instructor', name: 'Instructor' }, { id: 'student', name: 'Student' }];
+  evaluationOptions = [{ id: 'auto', name: 'Automatic' }, { id: 'manual', name: 'Manual' }];
+  statusOptions = [{ id: 'true', name: 'Active' }, { id: 'false', name: 'Inactive' }];
 
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
   isSuperAdmin: boolean = false;
   currentUserId: string | null = null;
 
-  constructor(private router: Router, private http: HttpClient, private loader: LoaderService,private pageMeta: PageMetaService, private snack: MatSnackBar){}
+  constructor(private router: Router, private http: HttpClient, private loader: LoaderService, private pageMeta: PageMetaService, private snack: MatSnackBar) { }
 
-  ngOnInit(): void{
+  ngOnInit(): void {
     try {
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       if (raw) {
@@ -66,17 +66,17 @@ export class CategoryCreateComponent {
     } catch (e) { /* ignore */ }
 
     // if we are editing an existing category, load it from sessionStorage
-    try{
+    try {
       const raw = sessionStorage.getItem('edit_category');
-      if(raw){
+      if (raw) {
         const c = JSON.parse(raw);
         this.applyEditCategory(c);
         // remove to avoid accidental reuse
-        try{ sessionStorage.removeItem('edit_category'); }catch(e){}
+        try { sessionStorage.removeItem('edit_category'); } catch (e) { }
       }
-    }catch(e){ /* ignore parse errors */ }
+    } catch (e) { /* ignore parse errors */ }
 
-    this.pageMeta.setMeta(this.isEditing ? 'Edit question bank':'Create question bank', this.isEditing ? 'Update the question bank details and click Update to save changes.' : 'Add a new question bank. Fill required fields and save.');
+    this.pageMeta.setMeta(this.isEditing ? 'Edit question bank' : 'Create question bank', this.isEditing ? 'Update the question bank details and click Update to save changes.' : 'Add a new question bank. Fill required fields and save.');
     this.loadInstitutes();
     if (this.institute) {
       this.loadDepartments();
@@ -121,62 +121,68 @@ export class CategoryCreateComponent {
       .filter((id: string) => !!id);
   }
 
-  loadInstitutes(){
+  loadInstitutes() {
     const url = `${API_BASE}/get-institute-list`;
-    this.http.get<any>(url).subscribe({ next: (res) => {
-      const data = res?.data || [];
-      this.institutesList = (Array.isArray(data) ? data : [])
-        .map((i:any)=>({ id: i.institute_id || i.id || i.code, name: i.short_name || i.institute_name || i.name }))
-        .filter((i:any) => !!i.id);
-      if (!this.institute && !this.isSuperAdmin && this.institutesList.length === 1) {
-        this.setInstitute(String(this.institutesList[0].id));
-        return;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        const data = res?.data || [];
+        this.institutesList = (Array.isArray(data) ? data : [])
+          .map((i: any) => ({ id: i.institute_id || i.id || i.code, name: i.short_name || i.institute_name || i.name }))
+          .filter((i: any) => !!i.id);
+        if (!this.institute && !this.isSuperAdmin && this.institutesList.length === 1) {
+          this.setInstitute(String(this.institutesList[0].id));
+          return;
+        }
+        // if institute was prefilled from sessionStorage, trigger setInstitute to load dependent lists
+        try { if (this.institute) this.setInstitute(this.institute); } catch (e) { }
+      }, error: () => {
+        this.institutesList = [];
+        this.snack.open('Unable to load institutes. Please refresh and try again.', 'Close', { duration: 5000, horizontalPosition: 'right', verticalPosition: 'top' });
       }
-      // if institute was prefilled from sessionStorage, trigger setInstitute to load dependent lists
-      try{ if(this.institute) this.setInstitute(this.institute); }catch(e){}
-    }, error: () => {
-      this.institutesList = [];
-      this.snack.open('Unable to load institutes. Please refresh and try again.', 'Close', { duration: 5000, horizontalPosition: 'right', verticalPosition: 'top' });
-    } });
+    });
   }
 
-  loadDepartments(){
+  loadDepartments() {
     const url = `${API_BASE}/get-department-list`;
     const params: any = {};
     if (this.institute) params.institute_id = this.institute;
-    this.http.get<any>(url, { params }).subscribe({ next: (res) => {
-      const data = res?.data || res || [];
-      this.departments = (Array.isArray(data) ? data : [])
-        .map((d:any)=> ({ id: d.department_id || d.id || d.code, name: d.department_name || d.name }))
-        .filter((d:any) => !!d.id);
-      this.selectedDepartments = this.onlyAvailableIds(this.selectedDepartments, this.departments);
-    }, error: () => {
-      this.departments = [];
-      this.selectedDepartments = [];
-    } });
+    this.http.get<any>(url, { params }).subscribe({
+      next: (res) => {
+        const data = res?.data || res || [];
+        this.departments = (Array.isArray(data) ? data : [])
+          .map((d: any) => ({ id: d.department_id || d.id || d.code, name: d.department_name || d.name }))
+          .filter((d: any) => !!d.id);
+        this.selectedDepartments = this.onlyAvailableIds(this.selectedDepartments, this.departments);
+      }, error: () => {
+        this.departments = [];
+        this.selectedDepartments = [];
+      }
+    });
   }
 
-  loadTeams(){
+  loadTeams() {
     const url = `${API_BASE}/get-teams-list`;
     const params: any = {};
     if (this.institute) params.institute_id = this.institute;
-    this.http.get<any>(url, { params }).subscribe({ next: (res) => {
-      const data = res?.data || res || [];
-      this.teams = (Array.isArray(data) ? data : [])
-        .map((t:any)=> ({ id: t.team_id || t.id || t.code, name: t.team_name || t.name }))
-        .filter((t:any) => !!t.id);
-      this.selectedTeams = this.onlyAvailableIds(this.selectedTeams, this.teams);
-    }, error: () => {
-      this.teams = [];
-      this.selectedTeams = [];
-    } });
+    this.http.get<any>(url, { params }).subscribe({
+      next: (res) => {
+        const data = res?.data || res || [];
+        this.teams = (Array.isArray(data) ? data : [])
+          .map((t: any) => ({ id: t.team_id || t.id || t.code, name: t.team_name || t.name }))
+          .filter((t: any) => !!t.id);
+        this.selectedTeams = this.onlyAvailableIds(this.selectedTeams, this.teams);
+      }, error: () => {
+        this.teams = [];
+        this.selectedTeams = [];
+      }
+    });
   }
 
-  save(){
+  save() {
     this.formSubmitted = true;
     this.categoryInfoSubmitted = true;
     this.loader.show();
-    if (this.isNameInvalid()){
+    if (this.isNameInvalid()) {
       this.loader.hide();
       this.snack.open('Name is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' });
       return;
@@ -188,7 +194,7 @@ export class CategoryCreateComponent {
     // if (!this.whoInputs) { this.loader.hide(); this.snack.open('Who inputs the answer is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
     // if (!this.evaluation) { this.loader.hide(); this.snack.open('Evaluation is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
     if (!this.status) { this.loader.hide(); this.snack.open('Status is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
-    if (this.isMarkInvalid()){ this.loader.hide(); this.snack.open('Mark for each question is required and must be a number.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
+    if (this.isMarkInvalid()) { this.loader.hide(); this.snack.open('Mark for each question is required and must be a number.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
 
     const payload: any = {
       name: String(this.name).trim(),
@@ -210,47 +216,53 @@ export class CategoryCreateComponent {
       // include who updated this category if available
       if (this.currentUserId) payload.updated_by = this.currentUserId;
       const url = `${API_BASE}/update-category/${encodeURIComponent(String(this.editId))}`;
-      this.http.put<any>(url, payload).subscribe({ next: (res) => {
-        this.snack.open(res?.message || 'Question Bank updated successfully', 'Close', { duration: 3000, horizontalPosition: 'right', verticalPosition: 'top' });
-        this.router.navigate(['/category']);
-      }, complete: () => { this.loader.hide(); }, error: (err) => { this.loader.hide(); console.error('Failed to update question bank', err); const msg = err?.error?.statusMessage || err?.error?.message || err?.message || 'Failed to update question bank'; this.snack.open(msg, 'Close', { duration: 5000, horizontalPosition: 'right', verticalPosition: 'top' }); } });
+      this.http.put<any>(url, payload).subscribe({
+        next: (res) => {
+          this.snack.open(res?.message || 'Question Bank updated successfully', 'Close', { duration: 3000, horizontalPosition: 'right', verticalPosition: 'top' });
+          this.router.navigate(['/category']);
+        }, complete: () => { this.loader.hide(); }, error: (err) => { this.loader.hide(); console.error('Failed to update question bank', err); const msg = err?.error?.statusMessage || err?.error?.message || err?.message || 'Failed to update question bank'; this.snack.open(msg, 'Close', { duration: 5000, horizontalPosition: 'right', verticalPosition: 'top' }); }
+      });
     } else {
       if (this.currentUserId) payload.created_by = this.currentUserId;
       const url = `${API_BASE}/add-categories`;
-      this.http.post<any>(url, payload).subscribe({ next: (res) => {
-        this.snack.open(res?.message || 'Question Bank saved successfully', 'Close', { duration: 3000, horizontalPosition: 'right', verticalPosition: 'top' });
-        this.router.navigate(['/category']);
-      }, complete: () => { this.loader.hide(); }, error: (err) => { this.loader.hide(); console.error('Failed to save question bank', err); const msg = err?.error?.statusMessage || err?.error?.message || err?.message || 'Failed to save question bank'; this.snack.open(msg, 'Close', { duration: 5000, horizontalPosition: 'right', verticalPosition: 'top' }); } });
+      this.http.post<any>(url, payload).subscribe({
+        next: (res) => {
+          this.snack.open(res?.message || 'Question Bank saved successfully', 'Close', { duration: 3000, horizontalPosition: 'right', verticalPosition: 'top' });
+          this.router.navigate(['/category']);
+        }, complete: () => { this.loader.hide(); }, error: (err) => { this.loader.hide(); console.error('Failed to save question bank', err); const msg = err?.error?.statusMessage || err?.error?.message || err?.message || 'Failed to save question bank'; this.snack.open(msg, 'Close', { duration: 5000, horizontalPosition: 'right', verticalPosition: 'top' }); }
+      });
     }
   }
-     // Reset the form fields to their defaults
-     reset(): void {
-       this.name = '';
-       this.description = '';
-       this.institute = sessionStorage.getItem('global_institute_id') || '';
-       this.type = '';
-       this.whoInputs = '';
-       this.evaluation = '';
-       this.status = '';
-       this.markForEachQuestion = null;
-       this.selectedDepartments = [];
-       this.selectedTeams = [];
-        this.publicAccess = false;
-        this.formSubmitted = false;
-        this.categoryInfoSubmitted = false;
-        this.accessInfoSubmitted = false;
-     }
-  cancel(){ this.router.navigate(['/category']); }
-  setName(v: string){ this.name = v || ''; }
-  setDescription(v: string){ this.description = v || ''; }
-  setInstitute(v: string){ this.institute = v || ''; this.loadDepartments(); this.loadTeams(); }
-  setType(v: string){ this.type = v || ''; }
-  setWhoInputs(v: string){ this.whoInputs = v || ''; }
-  setEvaluation(v: string){ this.evaluation = v || ''; }
-  setStatus(v: string){ this.status = v || ''; }
-  setMark(v: string){ const n = Number(v); this.markForEachQuestion = isNaN(n) ? null : n; }
-  setDepartments(v: string[]){ this.selectedDepartments = this.onlyAvailableIds(v, this.departments); }
-  setTeams(v: string[]){ this.selectedTeams = this.onlyAvailableIds(v, this.teams); }
+  // Reset the form fields to their defaults
+  reset(): void {
+    this.name = '';
+    this.description = '';
+    this.institute = sessionStorage.getItem('global_institute_id') || '';
+    this.type = '';
+    this.whoInputs = '';
+    this.evaluation = '';
+    this.status = '';
+    this.markForEachQuestion = null;
+    this.selectedDepartments = [];
+    this.selectedTeams = [];
+    this.publicAccess = false;
+    this.formSubmitted = false;
+    this.categoryInfoSubmitted = false;
+    this.accessInfoSubmitted = false;
+  }
+  cancel() { this.router.navigate(['/category']); }
+  setName(v: string) { this.name = v || ''; }
+  setDescription(v: string) {
+    this.description = (v || '').slice(0, 250);
+  }
+  setInstitute(v: string) { this.institute = v || ''; this.loadDepartments(); this.loadTeams(); }
+  setType(v: string) { this.type = v || ''; }
+  setWhoInputs(v: string) { this.whoInputs = v || ''; }
+  setEvaluation(v: string) { this.evaluation = v || ''; }
+  setStatus(v: string) { this.status = v || ''; }
+  setMark(v: string) { const n = Number(v); this.markForEachQuestion = isNaN(n) ? null : n; }
+  setDepartments(v: string[]) { this.selectedDepartments = this.onlyAvailableIds(v, this.departments); }
+  setTeams(v: string[]) { this.selectedTeams = this.onlyAvailableIds(v, this.teams); }
 
   goToAccessStep(stepper: any): void {
     this.categoryInfoSubmitted = true;
@@ -342,7 +354,7 @@ export class CategoryCreateComponent {
   }
 
   // Helper: get option label from a list of {id,name}
-  getOptionName(list: Array<{id:any,name:string}>|null|undefined, id: any): string {
+  getOptionName(list: Array<{ id: any, name: string }> | null | undefined, id: any): string {
     if (!list || !id) return '';
     const f = list.find(x => String(x.id) === String(id));
     return f ? f.name : String(id);
