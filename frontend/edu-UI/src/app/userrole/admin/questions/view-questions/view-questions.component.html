@@ -256,7 +256,10 @@
                 <ng-container matColumnDef="sno">
                     <th mat-header-cell *matHeaderCellDef>S.No</th>
                     <td mat-cell *matCellDef="let q; let i = index">
-                        {{ (paginator.pageIndex || 0) * (paginator.pageSize || 25) + i + 1 }}
+                        <!-- AFTER (Use optional chaining '?') -->
+                        {{ ((paginator?.pageIndex || 0) * (paginator?.pageSize || 25)) + i + 1 }}
+
+
                     </td>
                 </ng-container>
 
@@ -279,7 +282,8 @@
                         <div class="item-cell">
                             <!-- <div class="item-avatar item-avatar--question">{{ (q.question || '?').charAt(0).toUpperCase() }}</div> -->
                             <div class="item-info">
-                                <span class="item-name q-title">{{q.question}}</span>
+                                <span class="item-name q-title">{{ q.question || q.question_text || q.text || '—'
+                                    }}</span>
                             </div>
                         </div>
                     </td>
