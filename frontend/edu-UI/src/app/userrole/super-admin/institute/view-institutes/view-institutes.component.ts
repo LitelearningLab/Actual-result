@@ -62,7 +62,7 @@ export interface Institute {
 })
 export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy {
   // Show only requested columns in list-card table (include subscription dates and active)
-  columns = ['name','industry_type','industry_sector', 'primary_contact_person','subscription_start','subscription_end','active','actions'];
+  columns = ['sno','name','industry_type','industry_sector', 'primary_contact_person','subscription_start','subscription_end','active','actions'];
 
   filter = '';
 

@@ -262,14 +262,16 @@ $modal-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   table-layout: fixed;
 }
 
-:host ::ng-deep .premium-table .mat-column-name { width: 28%; }
-:host ::ng-deep .premium-table .mat-column-industry_type { width: 10%; }
-:host ::ng-deep .premium-table .mat-column-industry_sector { width: 9%; }
-:host ::ng-deep .premium-table .mat-column-primary_contact_person { width: 15%; }
-:host ::ng-deep .premium-table .mat-column-subscription_start { width: 11%; }
-:host ::ng-deep .premium-table .mat-column-subscription_end { width: 11%; }
+:host ::ng-deep .premium-table .mat-column-sno { width: 7.5%; }
+:host ::ng-deep .premium-table .mat-column-name { width: 23%; }            /* Reduced from 23% */
+:host ::ng-deep .premium-table .mat-column-industry_type { width: 9%; }     /* Reduced from 10% */
+:host ::ng-deep .premium-table .mat-column-industry_sector { width: 8%; }   /* Reduced from 9% */
+:host ::ng-deep .premium-table .mat-column-primary_contact_person { width: 15%; } /* Reduced from 15% */
+:host ::ng-deep .premium-table .mat-column-subscription_start { width: 11%; }  /* Increased from 11% */
+:host ::ng-deep .premium-table .mat-column-subscription_end { width: 11%; }    /* Increased from 11% */
 :host ::ng-deep .premium-table .mat-column-active { width: 8%; }
-:host ::ng-deep .premium-table .mat-column-actions { width: 8%; text-align: center; }
+:host ::ng-deep .premium-table .mat-column-actions { width: 9%; text-align: center; }
+
 
 :host ::ng-deep .premium-table .mat-column-actions .actions-inline {
   justify-content: center;
