@@ -1,19 +1,19 @@
 <div class="page user-exam">
    <div class="toolbar">
       <!-- <div class="title"> -->
-         <!-- <h2>Your Tests</h2>
+      <!-- <h2>Your Tests</h2>
          <p class="muted">Tests available for your institute</p> -->
-         <div class="search">
-            <mat-form-field appearance="outline" class="search-field">
-               <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
-               <input matInput placeholder="Title" [(ngModel)]="search"
-                  (ngModelChange)="applyFilter()" aria-label="Search institutes" />
-               <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter()"
-                  aria-label="Clear search">
-                  <mat-icon>close</mat-icon>
-               </button>
-            </mat-form-field>
-         </div>
+      <div class="search">
+         <mat-form-field appearance="outline" class="search-field">
+            <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
+            <input matInput placeholder="Title" [(ngModel)]="search" (ngModelChange)="applyFilter()"
+               aria-label="Search institutes" />
+            <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter()"
+               aria-label="Clear search">
+               <mat-icon>close</mat-icon>
+            </button>
+         </mat-form-field>
+      </div>
       <!-- </div> -->
       <div class="controls">
          <button mat-flat-button (click)="loadExams()" class="button-one">
@@ -22,30 +22,44 @@
          </button>
 
          <div class="action-row">
-             <button mat-flat-button type="button" class="button-one" (click)="toggleFilters($event)">
-                <mat-icon svgIcon="filter"></mat-icon>
-                <span>Filter Tests</span>
-             </button>
-          </div>
+            <button mat-flat-button type="button" class="button-one" (click)="toggleFilters($event)">
+               <mat-icon svgIcon="filter"></mat-icon>
+               <span>Filter Tests</span>
+            </button>
+         </div>
       </div>
    </div>
 
    <div class="filters-panel card" *ngIf="filtersOpen" (click)="$event.stopPropagation()">
-      <div class="filters-header"><div class="filters-title"><mat-icon>tune</mat-icon><strong>Filters</strong></div><span class="filters-header-mark" aria-hidden="true"></span></div>
+      <div class="filters-header">
+         <div class="filters-title"><mat-icon>tune</mat-icon><strong>Filters</strong></div><span
+            class="filters-header-mark" aria-hidden="true"></span>
+      </div>
       <div class="filter-row">
          <mat-form-field *ngIf="isSuperAdmin" appearance="outline">
             <mat-label>Institute</mat-label>
             <input matInput [(ngModel)]="instituteSearch" [matAutocomplete]="instituteAuto" placeholder="Institute">
             <mat-autocomplete #instituteAuto="matAutocomplete">
-               <mat-option *ngFor="let institute of filteredInstitutes()" [value]="institute.name" (onSelectionChange)="$event.isUserInput && selectInstitute(institute)">{{ institute.name }}</mat-option>
+               <mat-option *ngFor="let institute of filteredInstitutes()" [value]="institute.name"
+                  (onSelectionChange)="$event.isUserInput && selectInstitute(institute)">{{ institute.name
+                  }}</mat-option>
             </mat-autocomplete>
          </mat-form-field>
-         <mat-form-field appearance="outline"><mat-label>Schedule Name</mat-label><input matInput [(ngModel)]="filterScheduleName"></mat-form-field>
-         <mat-form-field appearance="outline"><mat-label>Created After</mat-label><input matInput [matDatepicker]="createdAfterPicker" [(ngModel)]="filterCreatedAfter"><mat-datepicker-toggle matSuffix [for]="createdAfterPicker"></mat-datepicker-toggle><mat-datepicker #createdAfterPicker></mat-datepicker></mat-form-field>
-         <mat-form-field appearance="outline"><mat-label>Created Before</mat-label><input matInput [matDatepicker]="createdBeforePicker" [(ngModel)]="filterCreatedBefore"><mat-datepicker-toggle matSuffix [for]="createdBeforePicker"></mat-datepicker-toggle><mat-datepicker #createdBeforePicker></mat-datepicker></mat-form-field>
+         <mat-form-field appearance="outline"><mat-label>Schedule Name</mat-label><input matInput
+               [(ngModel)]="filterScheduleName"></mat-form-field>
+         <mat-form-field appearance="outline"><mat-label>Created After</mat-label><input matInput
+               [matDatepicker]="createdAfterPicker" [(ngModel)]="filterCreatedAfter"><mat-datepicker-toggle matSuffix
+               [for]="createdAfterPicker"></mat-datepicker-toggle><mat-datepicker
+               #createdAfterPicker></mat-datepicker></mat-form-field>
+         <mat-form-field appearance="outline"><mat-label>Created Before</mat-label><input matInput
+               [matDatepicker]="createdBeforePicker" [(ngModel)]="filterCreatedBefore"><mat-datepicker-toggle matSuffix
+               [for]="createdBeforePicker"></mat-datepicker-toggle><mat-datepicker
+               #createdBeforePicker></mat-datepicker></mat-form-field>
          <div class="created-by-filter"><mat-checkbox [(ngModel)]="filterCreatedByMe">Created by me</mat-checkbox></div>
       </div>
-      <div class="filter-actions"><button mat-flat-button class="filter-reset-btn" (click)="resetFilters()"><mat-icon svgIcon="reset_settings"></mat-icon>Reset</button><button mat-flat-button class="filter-apply-btn" (click)="applyFilter(); filtersOpen = false"><mat-icon svgIcon="apply"></mat-icon>Apply</button></div>
+      <div class="filter-actions"><button mat-flat-button class="filter-reset-btn" (click)="resetFilters()"><mat-icon
+               svgIcon="reset_settings"></mat-icon>Reset</button><button mat-flat-button class="filter-apply-btn"
+            (click)="applyFilter(); filtersOpen = false"><mat-icon svgIcon="apply"></mat-icon>Apply</button></div>
    </div>
 
    <div class="list-card">
@@ -54,6 +68,14 @@
             <mat-tab [label]="'Active (' + activeSource.data.length + ')'">
                <div class="tab-table">
                   <table mat-table [dataSource]="activeSource" class="mat-elevation-z1 compact premium-table" matSort>
+
+                     <ng-container matColumnDef="sno">
+                        <th mat-header-cell *matHeaderCellDef>S.No</th>
+                        <td mat-cell *matCellDef="let row; let i = index">
+                           {{ (activeSource.paginator?.pageIndex || 0) * (activeSource.paginator?.pageSize || 25) + i +
+                           1 }}
+                        </td>
+                     </ng-container>
 
                      <ng-container matColumnDef="title">
                         <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
@@ -72,9 +94,11 @@
                         <th mat-header-cell *matHeaderCellDef mat-sort-header>Schedule Test</th>
                         <td mat-cell *matCellDef="let row">
                            <div *ngIf="row.scheduleTest; else noActiveSchedule" class="schedule-range">
-                              <div class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</div>
+                              <div class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}
+                              </div>
                               <div class="schedule-separator" aria-hidden="true"></div>
-                              <div class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</div>
+                              <div class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—'
+                                 }}</div>
                            </div>
                            <ng-template #noActiveSchedule>—</ng-template>
                         </td>
@@ -107,7 +131,8 @@
                      <ng-container matColumnDef="status">
                         <th mat-header-cell *matHeaderCellDef>Status</th>
                         <td mat-cell *matCellDef="let row">
-                           <div class="status-pill" [ngClass]="isUpcomingTest(row.type) ? 'status-pill--upcoming' : 'status-pill--active'">
+                           <div class="status-pill"
+                              [ngClass]="isUpcomingTest(row.type) ? 'status-pill--upcoming' : 'status-pill--active'">
                               <span class="status-dot-sm"></span>{{ isUpcomingTest(row.type) ? 'UPCOMING' : 'ACTIVE' }}
                            </div>
                         </td>
@@ -121,7 +146,7 @@
                                  (click)="confirmStartTest(row)" class="launch-btn">
                                  <mat-icon>rocket_launch</mat-icon> Start
                               </button>
-                               <span *ngIf="isUpcomingTest(row.type)" class="upcoming-label">Scheduled</span>
+                              <span *ngIf="isUpcomingTest(row.type)" class="upcoming-label">Scheduled</span>
                            </div>
                         </td>
                      </ng-container>
@@ -129,13 +154,24 @@
                      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
                      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
                   </table>
-                  <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+                  <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons
+                     class="custom-paginator"></mat-paginator>
                </div>
             </mat-tab>
 
             <mat-tab [label]="'Completed (' + completeSource.data.length + ')'">
                <div class="tab-table">
                   <table mat-table [dataSource]="completeSource" class="mat-elevation-z1 compact premium-table" matSort>
+
+                     <ng-container matColumnDef="sno">
+                        <th mat-header-cell *matHeaderCellDef>S.No</th>
+                        <td mat-cell *matCellDef="let row; let i = index">
+                           {{ (completeSource.paginator?.pageIndex || 0) * (completeSource.paginator?.pageSize || 25) +
+                           i + 1 }}
+                        </td>
+                     </ng-container>
+
+
                      <ng-container matColumnDef="title">
                         <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
                         <td mat-cell *matCellDef="let row" class="cell-primary">
@@ -152,9 +188,11 @@
                         <th mat-header-cell *matHeaderCellDef mat-sort-header>Schedule Test</th>
                         <td mat-cell *matCellDef="let row">
                            <div *ngIf="row.scheduleTest; else noCompletedSchedule" class="schedule-range">
-                              <div class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</div>
+                              <div class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}
+                              </div>
                               <div class="schedule-separator" aria-hidden="true"></div>
-                              <div class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</div>
+                              <div class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—'
+                                 }}</div>
                            </div>
                            <ng-template #noCompletedSchedule>—</ng-template>
                         </td>
@@ -182,15 +220,16 @@
                      <ng-container matColumnDef="status">
                         <th mat-header-cell *matHeaderCellDef>Status</th>
                         <td mat-cell *matCellDef="let row">
-                           <div class="status-pill status-pill--completed"><span class="status-dot-sm"></span>{{ row.type | titlecase }}</div>
+                           <div class="status-pill status-pill--completed"><span class="status-dot-sm"></span>{{
+                              row.type | titlecase }}</div>
                         </td>
                      </ng-container>
                      <ng-container matColumnDef="actions">
                         <th mat-header-cell *matHeaderCellDef>Actions</th>
                         <td mat-cell *matCellDef="let row">
                            <div class="exam-actions">
-                              <button *ngIf="row.user_review" mat-flat-button
-                                 (click)="viewReview(row)" class="review-btn">
+                              <button *ngIf="row.user_review" mat-flat-button (click)="viewReview(row)"
+                                 class="review-btn">
                                  <mat-icon>rule</mat-icon> Review
                               </button>
                            </div>
@@ -199,7 +238,8 @@
                      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
                      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
                   </table>
-                  <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+                  <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons
+                     class="custom-paginator"></mat-paginator>
                </div>
             </mat-tab>
          </mat-tab-group>
@@ -215,12 +255,16 @@
                   <!-- <div class="exam-card-avatar">{{ (exam.title || '?').charAt(0).toUpperCase() }}</div> -->
                   <div>
                      <div class="title">{{exam.title}}</div>
-                     <div *ngIf="exam.scheduleTest; else noMobileSchedule" class="schedule-range schedule-range--mobile">
+                     <div *ngIf="exam.scheduleTest; else noMobileSchedule"
+                        class="schedule-range schedule-range--mobile">
                         <div class="schedule-time schedule-time--start">{{ exam.scheduleTest.split(' - ')[0] }}</div>
                         <div class="schedule-separator" aria-hidden="true"></div>
-                        <div class="schedule-time schedule-time--end">{{ exam.scheduleTest.split(' - ')[1] || '—' }}</div>
+                        <div class="schedule-time schedule-time--end">{{ exam.scheduleTest.split(' - ')[1] || '—' }}
+                        </div>
                      </div>
-                     <ng-template #noMobileSchedule><div class="muted small">—</div></ng-template>
+                     <ng-template #noMobileSchedule>
+                        <div class="muted small">—</div>
+                     </ng-template>
                   </div>
                </div>
                <div class="pill">{{ exam.total_questions || 0 }} Q</div>
@@ -250,8 +294,8 @@
                   <h1 class="review-exam-title">{{ selectedReviewTitle }}</h1>
                </div>
             </div>
-            <button type="button" mat-icon-button class="review-close-btn" aria-label="Close test review"
-               title="Close" (click)="closeReview()">
+            <button type="button" mat-icon-button class="review-close-btn" aria-label="Close test review" title="Close"
+               (click)="closeReview()">
                <mat-icon aria-hidden="true">close</mat-icon>
             </button>
          </div>
@@ -274,11 +318,15 @@
                         </div>
                         <div class="meta-item status-item">
                            <strong>Status</strong>
-                           <span class="value status-badge" [ngClass]="{'status-pass': a.status === 'evaluated', 'status-fail': a.status === 'failed'}">{{ a.status || 'N/A' | titlecase }}</span>
+                           <span class="value status-badge"
+                              [ngClass]="{'status-pass': a.status === 'evaluated', 'status-fail': a.status === 'failed'}">{{
+                              a.status || 'N/A' | titlecase }}</span>
                         </div>
                         <div class="meta-item result-item" *ngIf="a.result">
                            <strong>Result</strong>
-                           <span class="value result-badge" [ngClass]="{'result-pass': (a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass', 'result-fail': (a.result | lowercase) === 'failed'}">{{ a.result | titlecase }}</span>
+                           <span class="value result-badge"
+                              [ngClass]="{'result-pass': (a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass', 'result-fail': (a.result | lowercase) === 'failed'}">{{
+                              a.result | titlecase }}</span>
                         </div>
                      </div>
                      <div class="meta-row secondary-row">
@@ -306,19 +354,20 @@
                                     <div class="q-badge">{{ (q.question_type || '').toUpperCase() }}</div>
                                     <div class="q-info">{{ (q.question_marks || 0) + ' Marks' }}</div>
                                  </div>
-                                 <div class="q-text"><strong>{{ q.question_text || q.question || 'Question' }}</strong></div>
+                                 <div class="q-text"><strong>{{ q.question_text || q.question || 'Question' }}</strong>
+                                 </div>
                               </div>
                            </div>
                            <div class="q-right">
-                              <div class="score-chip"
-                                 [ngClass]="{
+                              <div class="score-chip" [ngClass]="{
                                     'score-full': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) >= (q.question_marks || 0),
                                     'score-partial': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.question_marks || 0),
                                     'score-zero': (q.marks_awarded || 0) === 0
                                  }">
-                                 <span class="score-awarded">{{ q.marks_awarded != null ? q.marks_awarded : '-' }}</span>
+                                 <span class="score-awarded">{{ q.marks_awarded != null ? q.marks_awarded : '-'
+                                    }}</span>
                                  <span class="score-sep">/</span>
-                                 <span class="score-total">{{ q.question_marks ||  0 }}</span>
+                                 <span class="score-total">{{ q.question_marks || 0 }}</span>
                                  <!-- <span class="score-unit">Marks</span> -->
                               </div>
                            </div>
@@ -326,127 +375,179 @@
 
                         <div *ngIf="(q.question_type || '') === 'fill'" class="q-fill">
                            <div class="fill-row">
-                              <div class="fill-option" [class.selected]="(q.selected_option || []).length" [class.correct]="q.is_correct"> Your Answer: {{ (q.selected_option || []).join(', ') || '-' }}</div>
-                              <div class="fill-correct" *ngIf="q.marks_awarded === 0">Correct Answer: {{ q.options && q.options[0] ? (q.options[0].option_text || q.options[0]) : '-' }}</div>
+                              <div class="fill-option" [class.selected]="(q.selected_option || []).length"
+                                 [class.correct]="q.is_correct"> Your Answer: {{ (q.selected_option || []).join(', ') ||
+                                 '-' }}</div>
+                              <div class="fill-correct" *ngIf="q.marks_awarded === 0">Correct Answer: {{ q.options &&
+                                 q.options[0] ? (q.options[0].option_text || q.options[0]) : '-' }}</div>
                            </div>
                         </div>
 
                         <div *ngIf="(q.question_type || '') === 'descriptive'" class="q-descriptive">
-                           <div class="q-feedback" *ngIf="q.feedback"><strong>High-level Feedback</strong><div class="feedback-text">{{ q.feedback }}</div></div>
+                           <div class="q-feedback" *ngIf="q.feedback"><strong>High-level Feedback</strong>
+                              <div class="feedback-text">{{ q.feedback }}</div>
+                           </div>
                         </div>
-                        <div class="q-review-comments" *ngIf="q.review_comment && q.review_comment.comments && q.review_comment.comments.length">
-                              <div class="review-columns">
-                                    <div class="col missed">
-                                          <div class="col-header"><span class="dot red"></span><h4>Points Missed</h4></div>
-                                          <div *ngFor="let rc of reviewComments(q, 'missing'); let rci = index">
-                                                <div class="review-item">
-                                                      <div class="ri-body">
-                                                            <div *ngIf="rc.history && rc.history.length" class="review-text-history">
-                                                                  <div *ngFor="let h of rc.history; let hi = index">
-                                                                        <div class="history-entry" [class.deleted]="h.is_deleted == 1">
-                                                                              <div class="review-text-missed" [class.deleted]="h.is_deleted == 1">
-                                                                                    <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
-                                                                                    <span class="review-text deleted">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
-                                                                              </div>
-                                                                              <div class="review-meta small-muted">
-                                                                                    <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(h.updated_date) || h.updated_date }}</span>
-                                                                              </div>
-                                                                        </div>
-                                                                  </div>
-                                                            </div>
-                                                            <div class="review-text-missed" [class.deleted]="rc.is_deleted == 1">
-                                                                  <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
-                                                                  <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{ toTitleCase(rc.comment_text || rc.comment || '') }}</span>
-                                                            </div>
-                                                            <div class="review-meta small-muted">
-                                                                  <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(rc.updated_date) || rc.updated_date }}</span>
-                                                            </div>
-                                                      </div>
+                        <div class="q-review-comments"
+                           *ngIf="q.review_comment && q.review_comment.comments && q.review_comment.comments.length">
+                           <div class="review-columns">
+                              <div class="col missed">
+                                 <div class="col-header"><span class="dot red"></span>
+                                    <h4>Points Missed</h4>
+                                 </div>
+                                 <div *ngFor="let rc of reviewComments(q, 'missing'); let rci = index">
+                                    <div class="review-item">
+                                       <div class="ri-body">
+                                          <div *ngIf="rc.history && rc.history.length" class="review-text-history">
+                                             <div *ngFor="let h of rc.history; let hi = index">
+                                                <div class="history-entry" [class.deleted]="h.is_deleted == 1">
+                                                   <div class="review-text-missed" [class.deleted]="h.is_deleted == 1">
+                                                      <div class="ri-left"><span class="ri-icon missed">{{ rci + 1
+                                                            }}</span></div>
+                                                      <span class="review-text deleted">{{ toTitleCase(h.comment_text ||
+                                                         h.comment || '') }}</span>
+                                                   </div>
+                                                   <div class="review-meta small-muted">
+                                                      <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
+                                                      <span *ngIf="h.is_deleted != 1 && h.updated_by"
+                                                         class="edited-info"><mat-icon
+                                                            style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited
+                                                         on {{ formatDate(h.updated_date) || h.updated_date }}</span>
+                                                   </div>
                                                 </div>
+                                             </div>
                                           </div>
-                                    </div>
-                                    <div class="col incorrect">
-                                          <div class="col-header"><span class="dot orange"></span><h4>Points Incorrect</h4></div>
-                                          <div *ngFor="let rc of reviewComments(q, ['incorrct','incorrect','incor']); let rci = index">
-                                                <div class="review-item">
-                                                      <div class="ri-body">
-                                                            <div *ngIf="rc.history && rc.history.length" class="review-text-history">
-                                                                  <div *ngFor="let h of rc.history; let hi = index">
-                                                                        <div class="history-entry" [class.deleted]="h.is_deleted == 1">
-                                                                              <div class="review-text-incorrect" [class.deleted]="h.is_deleted == 1">
-                                                                                    <div class="ri-left"><span class="ri-icon incorrect">{{ hi + 1 }}</span></div>
-                                                                                    <span class="review-text deleted">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
-                                                                              </div>
-                                                                              <div class="review-meta small-muted">
-                                                                                    <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(h.updated_date) || h.updated_date }}</span>
-                                                                              </div>
-                                                                        </div>
-                                                                  </div>
-                                                            </div>
-                                                            <div class="review-text-incorrect" [class.deleted]="rc.is_deleted == 1">
-                                                                  <div class="ri-left"><span class="ri-icon incorrect">{{ rci + 1 }}</span></div>
-                                                                  <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{ toTitleCase(rc.comment_text || rc.comment || '') }}</span>
-                                                            </div>
-                                                            <div class="review-meta small-muted">
-                                                                  <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(rc.updated_date) || rc.updated_date }}</span>
-                                                            </div>
-                                                      </div>
-                                                </div>
+                                          <div class="review-text-missed" [class.deleted]="rc.is_deleted == 1">
+                                             <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span>
+                                             </div>
+                                             <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{
+                                                toTitleCase(rc.comment_text || rc.comment || '') }}</span>
                                           </div>
-                                    </div>
-                                    <div class="col incomplete">
-                                          <div class="col-header"><span class="dot yellow"></span><h4>Points Incomplete</h4></div>
-                                          <div *ngFor="let rc of reviewComments(q, 'incomplete'); let rci = index">
-                                                <div class="review-item">
-                                                      <div class="ri-body">
-                                                            <div *ngIf="rc.history && rc.history.length" class="review-text-history">
-                                                                  <div *ngFor="let h of rc.history; let hi = index">
-                                                                        <div class="history-entry" [class.deleted]="h.is_deleted == 1">
-                                                                              <div class="review-text-incomplete" [class.deleted]="h.is_deleted == 1">
-                                                                                    <div class="ri-left"><span class="ri-icon incomplete">{{ hi + 1 }}</span></div>
-                                                                                    <span class="review-text deleted">{{ toTitleCase(h.comment_text || h.comment || '') }}</span>
-                                                                              </div>
-                                                                              <div class="review-meta small-muted">
-                                                                                    <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                                    <span *ngIf="h.is_deleted != 1 && h.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(h.updated_date) || h.updated_date }}</span>
-                                                                              </div>
-                                                                        </div>
-                                                                  </div>
-                                                            </div>
-                                                            <div class="review-text-incomplete" [class.deleted]="rc.is_deleted == 1">
-                                                                  <div class="ri-left"><span class="ri-icon incomplete">{{ rci + 1 }}</span></div>
-                                                                  <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{ toTitleCase(rc.comment_text || rc.comment || '') }}</span>
-                                                            </div>
-                                                            <div class="review-meta small-muted">
-                                                                  <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
-                                                                  <span *ngIf="rc.is_deleted != 1 && rc.updated_by" class="edited-info"><mat-icon style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited on {{ formatDate(rc.updated_date) || rc.updated_date }}</span>
-                                                            </div>
-                                                      </div>
-                                                </div>
+                                          <div class="review-meta small-muted">
+                                             <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
+                                             <span *ngIf="rc.is_deleted != 1 && rc.updated_by"
+                                                class="edited-info"><mat-icon
+                                                   style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited
+                                                on {{ formatDate(rc.updated_date) || rc.updated_date }}</span>
                                           </div>
+                                       </div>
                                     </div>
+                                 </div>
                               </div>
+                              <div class="col incorrect">
+                                 <div class="col-header"><span class="dot orange"></span>
+                                    <h4>Points Incorrect</h4>
+                                 </div>
+                                 <div
+                                    *ngFor="let rc of reviewComments(q, ['incorrct','incorrect','incor']); let rci = index">
+                                    <div class="review-item">
+                                       <div class="ri-body">
+                                          <div *ngIf="rc.history && rc.history.length" class="review-text-history">
+                                             <div *ngFor="let h of rc.history; let hi = index">
+                                                <div class="history-entry" [class.deleted]="h.is_deleted == 1">
+                                                   <div class="review-text-incorrect"
+                                                      [class.deleted]="h.is_deleted == 1">
+                                                      <div class="ri-left"><span class="ri-icon incorrect">{{ hi + 1
+                                                            }}</span></div>
+                                                      <span class="review-text deleted">{{ toTitleCase(h.comment_text ||
+                                                         h.comment || '') }}</span>
+                                                   </div>
+                                                   <div class="review-meta small-muted">
+                                                      <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
+                                                      <span *ngIf="h.is_deleted != 1 && h.updated_by"
+                                                         class="edited-info"><mat-icon
+                                                            style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited
+                                                         on {{ formatDate(h.updated_date) || h.updated_date }}</span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                          </div>
+                                          <div class="review-text-incorrect" [class.deleted]="rc.is_deleted == 1">
+                                             <div class="ri-left"><span class="ri-icon incorrect">{{ rci + 1 }}</span>
+                                             </div>
+                                             <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{
+                                                toTitleCase(rc.comment_text || rc.comment || '') }}</span>
+                                          </div>
+                                          <div class="review-meta small-muted">
+                                             <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
+                                             <span *ngIf="rc.is_deleted != 1 && rc.updated_by"
+                                                class="edited-info"><mat-icon
+                                                   style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited
+                                                on {{ formatDate(rc.updated_date) || rc.updated_date }}</span>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="col incomplete">
+                                 <div class="col-header"><span class="dot yellow"></span>
+                                    <h4>Points Incomplete</h4>
+                                 </div>
+                                 <div *ngFor="let rc of reviewComments(q, 'incomplete'); let rci = index">
+                                    <div class="review-item">
+                                       <div class="ri-body">
+                                          <div *ngIf="rc.history && rc.history.length" class="review-text-history">
+                                             <div *ngFor="let h of rc.history; let hi = index">
+                                                <div class="history-entry" [class.deleted]="h.is_deleted == 1">
+                                                   <div class="review-text-incomplete"
+                                                      [class.deleted]="h.is_deleted == 1">
+                                                      <div class="ri-left"><span class="ri-icon incomplete">{{ hi + 1
+                                                            }}</span></div>
+                                                      <span class="review-text deleted">{{ toTitleCase(h.comment_text ||
+                                                         h.comment || '') }}</span>
+                                                   </div>
+                                                   <div class="review-meta small-muted">
+                                                      <span *ngIf="h.is_deleted == 1" class="deleted-by">Deleted</span>
+                                                      <span *ngIf="h.is_deleted != 1 && h.updated_by"
+                                                         class="edited-info"><mat-icon
+                                                            style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited
+                                                         on {{ formatDate(h.updated_date) || h.updated_date }}</span>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                          </div>
+                                          <div class="review-text-incomplete" [class.deleted]="rc.is_deleted == 1">
+                                             <div class="ri-left"><span class="ri-icon incomplete">{{ rci + 1 }}</span>
+                                             </div>
+                                             <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{
+                                                toTitleCase(rc.comment_text || rc.comment || '') }}</span>
+                                          </div>
+                                          <div class="review-meta small-muted">
+                                             <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>
+                                             <span *ngIf="rc.is_deleted != 1 && rc.updated_by"
+                                                class="edited-info"><mat-icon
+                                                   style="font-size: 13px; width: 13px; height: 13px; vertical-align: middle; margin-right: 2px;">edit_note</mat-icon>Edited
+                                                on {{ formatDate(rc.updated_date) || rc.updated_date }}</span>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
                         </div>
                         <div *ngIf="(q.question_type || '') === 'descriptive'" class="desc-student">
                            <div class="student-label">Student's Answer</div>
                            <div class="answer-text">{{ (q.selected_option || []).join(' ') || '-' }}</div>
                         </div>
-                        
+
                         <!-- <div class="desc-model">
                            <div class="model-label">Model Answer</div>
                            <div class="model-text">{{ q.correct_option || (q.options && q.options[0] && q.options[0].option_text) || '-' }}</div>
                         </div> -->
-                        <div *ngIf="(q.question_type || '') == 'choose' || (q.question_type || '') == 'multi'" class="q-options two-col">
-                           <div *ngFor="let opt of (q.options || []); let oi = index" class="q-option" [class.correct]="isOptionCorrect(opt)" [class.selected]="isOptionSelected(q,opt)" [class.missed]="isOptionCorrect(opt) && !isOptionSelected(q,opt)">
+                        <div *ngIf="(q.question_type || '') == 'choose' || (q.question_type || '') == 'multi'"
+                           class="q-options two-col">
+                           <div *ngFor="let opt of (q.options || []); let oi = index" class="q-option"
+                              [class.correct]="isOptionCorrect(opt)" [class.selected]="isOptionSelected(q,opt)"
+                              [class.missed]="isOptionCorrect(opt) && !isOptionSelected(q,opt)">
                               <div class="opt-left"><span class="opt-mark">{{ getOptionLetter(oi) }}</span></div>
-                              <div class="opt-body"><div class="opt-text">{{ opt && (opt.option_text || opt) }}</div></div>
+                              <div class="opt-body">
+                                 <div class="opt-text">{{ opt && (opt.option_text || opt) }}</div>
+                              </div>
                               <div class="opt-badge">
-                                 <span *ngIf="isOptionSelected(q,opt)" class="badge" [ngClass]="isOptionCorrect(opt) ? 'correct' : 'your-answer'">Your Answer</span>
-                                 <span *ngIf="isOptionCorrect(opt)" class="badge" [ngClass]="isOptionSelected(q,opt) ? 'correct' : 'missed'">Correct Answer</span>
+                                 <span *ngIf="isOptionSelected(q,opt)" class="badge"
+                                    [ngClass]="isOptionCorrect(opt) ? 'correct' : 'your-answer'">Your Answer</span>
+                                 <span *ngIf="isOptionCorrect(opt)" class="badge"
+                                    [ngClass]="isOptionSelected(q,opt) ? 'correct' : 'missed'">Correct Answer</span>
                               </div>
                            </div>
                         </div>

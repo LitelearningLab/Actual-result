@@ -175,7 +175,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   loading = false;
   instituteId = '';
   // table and filters
-  displayedColumns: string[] = ['title','scheduleTest','duration','questions','pass_mark','number_of_attempts','status','actions'];
+  displayedColumns: string[] = ['sno','title','scheduleTest','duration','questions','pass_mark','number_of_attempts','status','actions'];
   dataSource = new MatTableDataSource<UserTestRow>([]);
   // Per-tab filtered tables
   activeSource = new MatTableDataSource<UserTestRow>([]);
