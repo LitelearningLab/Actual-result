@@ -54,7 +54,7 @@ export interface UserRow {
 export class ViewUsersComponent implements OnDestroy, OnInit {
   // loading = false;
   // show full name, institute, role, department, team, active
-  columns = ['name','institute','role','department','team','active','actions'];
+  columns = ['sno','name','institute','role','department','team','active','actions'];
   filter = '';
   selectedInstitute = '';
   instituteSearch = '';
