@@ -81,7 +81,7 @@ export class ViewQuestionsComponent implements OnDestroy,OnInit{
   // value used for the "select all" pseudo-option
   selectAllValue = '__SELECT_ALL_CATEGORIES__';
   questions: QuestionRow[] = [];
-  displayedColumns: string[] = ['select','question', 'category', 'type', 'marks', 'actions'];
+  displayedColumns: string[] = ['select', 'sno','question', 'category', 'type', 'marks', 'actions'];
   dataSource = new MatTableDataSource<QuestionRow>([]);
   hasAppliedFilters = false;
   // selection for batch operations
