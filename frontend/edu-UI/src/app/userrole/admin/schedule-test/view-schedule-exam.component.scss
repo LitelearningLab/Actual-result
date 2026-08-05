@@ -179,6 +179,16 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0,0,0,0.06);
   width: 100%;
   border-collapse: collapse;
 }
+
+.premium-table .mat-column-sno {
+  width: 4rem;
+  text-align: center;
+}
+.premium-table th.mat-column-sno {
+  text-align: center;
+}
+
+
 .premium-table .mat-column-title { width: var(--title-column-width); }
 .premium-table .mat-column-schedule {
   width: var(--schedule-column-width);

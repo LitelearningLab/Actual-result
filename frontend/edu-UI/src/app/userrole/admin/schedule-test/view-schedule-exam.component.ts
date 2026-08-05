@@ -83,7 +83,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   schedules: any[] = [];
   dataSource = new MatTableDataSource<any>([]);
   hasAppliedFilters = false;
-  columns: string[] = ['title', 'institute', 'schedule', 'publish', 'actions'];
+  columns: string[] = ['sno','title', 'institute', 'schedule', 'publish', 'actions'];
   selectedSchedule: any = null;
 
   private baseUrl = API_BASE;
