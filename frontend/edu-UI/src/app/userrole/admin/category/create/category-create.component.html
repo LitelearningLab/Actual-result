@@ -55,11 +55,11 @@
                                 <mat-form-field appearance="outline" class="field-full">
                                     <mat-label>Description</mat-label>
                                     <mat-icon matPrefix>description</mat-icon>
-                                    <textarea matInput [value]="description" maxlength="250" rows="3"
+                                    <textarea matInput [value]="description" maxlength="150" rows="3"
                                         (input)="setDescription($any($event.target).value)"
                                         placeholder="Optional description"></textarea>
                                 </mat-form-field>
-                                <span class="inside-char-counter">{{ (description || '').length }}/250</span>
+                                <span class="inside-char-counter">{{ (description || '').length }}/150</span>
                             </div>
 
                             <mat-form-field appearance="outline" class="field-half">

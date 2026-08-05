@@ -33,8 +33,13 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0,0,0,0.06);
 // Table
 // Table Column Widths
 .col-sno { width: 5%; }
-.col-name { width: 30%; }
-.col-description { width: 45%; }
+.col-name { width: 60%; } 
+.col-description { 
+  width: 150px; 
+  min-width: 100px;
+  word-break: break-word; 
+}
+
 .col-active { width: 10%; }
 .col-actions { width: 5%; }
 
