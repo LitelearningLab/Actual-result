@@ -1,4 +1,4 @@
-<ng-container *ngIf="isLoggedIn$ | async; else publicView">
+<ng-container *ngIf="(isLoggedIn$ | async) && !isAuthRoute; else publicView">
     <!-- Skip to main content link for accessibility -->
     <a class="skip-link" href="#main-content">Skip to main content</a>
     

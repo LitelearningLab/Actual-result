@@ -27,10 +27,11 @@ import { GlobalInstituteScopeGuard } from '../shared/guards/global-institute-sco
 import { scheduleTestUnsavedChangesGuard } from '../shared/guards/schedule-test-unsaved-changes.guard';
 import { InstituteScopeInactiveComponent } from '../shared/components/institute-scope-inactive/institute-scope-inactive.component';
 import { AdminSettingsComponent } from '../userrole/admin/settings/settings.component';
+import { UnauthGuard } from '../shared/guards/unauth.guard';
 
 const routes: Routes = [
   { path: '', component: LandingComponent },
-  { path: 'login', component: LoginComponent },
+  { path: 'login', component: LoginComponent, canActivate: [UnauthGuard] },
   { path: 'register', component: RegisterComponent }
   , { path: 'institute-register', component: InstituteRegisterComponent, canActivate: [GlobalInstituteScopeGuard, PermissionGuard], data: { requiredRole: ['super_admin','superadmin','super-admin'] } }
   , { path: 'view-institutes', component: ViewInstitutesComponent, canActivate: [GlobalInstituteScopeGuard, PermissionGuard], data: { requiredRole: ['super_admin','superadmin','super-admin'] } }
@@ -50,11 +51,9 @@ const routes: Routes = [
   , { path: 'admin/exam-reports', loadChildren: () => import('../userrole/admin/exam-reports/exam-reports.module').then(m => m.ExamReportsModule), canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'admin-dashboard', component: AdminResultsComponent, canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'admin/settings', component: AdminSettingsComponent, canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
-  // Admins can also use the complete candidate flow for tests assigned to their own account.
   , { path: 'user/exam', component: UserExamComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
-  , { path: 'user-dashboard', component: UserDashboardComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
-  , { path: 'user/exam/run', component: UserExamRunnerComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
-  // Preserve old bookmarked links while keeping all candidate routes under /user.
+  , { path: 'user-dashboard', component: UserDashboardComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','super-admin'] } }
+  , { path: 'user/exam/run', component: UserExamRunnerComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','super-admin'] } }
   , { path: 'user-exam', redirectTo: 'user/exam/run', pathMatch: 'full' }
 ];
 
@@ -63,4 +62,3 @@ const routes: Routes = [
   exports: [RouterModule]
 })
 export class HomeRoutingModule { }
-
