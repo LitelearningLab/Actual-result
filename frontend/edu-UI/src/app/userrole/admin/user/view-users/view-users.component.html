@@ -52,57 +52,66 @@
         <div class="filter-block">
           <ng-container *ngIf="showLocationAndIndustryFilters">
             <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>Country</mat-label>
-            <input matInput placeholder="Any" [(ngModel)]="filters.country" [matAutocomplete]="countryAuto" />
-            <mat-autocomplete #countryAuto="matAutocomplete" (optionSelected)="onCountryChange()">
-              <mat-option [value]="''">Any</mat-option>
-              <mat-option *ngFor="let c of countries" [value]="c.name">{{c.name}}</mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
+              <mat-label>Country</mat-label>
+              <input matInput placeholder="Any" [(ngModel)]="filters.country" [matAutocomplete]="countryAuto" />
+              <mat-autocomplete #countryAuto="matAutocomplete" (optionSelected)="onCountryChange()">
+                <mat-option [value]="''">Any</mat-option>
+                <mat-option *ngFor="let c of countries" [value]="c.name">{{c.name}}</mat-option>
+              </mat-autocomplete>
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>State</mat-label>
-            <input matInput placeholder="Any" [disabled]="!filters.country" [(ngModel)]="filters.state"
-              (ngModelChange)="onStateChange()" />
-          </mat-form-field>
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>State</mat-label>
+              <input matInput placeholder="Any" [disabled]="!filters.country" [(ngModel)]="filters.state"
+                (ngModelChange)="onStateChange()" />
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>City</mat-label>
-            <input matInput placeholder="Any" [disabled]="!filters.country" [(ngModel)]="filters.city"
-              (ngModelChange)="onCityFilterChange()" />
-          </mat-form-field>
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>City</mat-label>
+              <input matInput placeholder="Any" [disabled]="!filters.country" [(ngModel)]="filters.city"
+                (ngModelChange)="onCityFilterChange()" />
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>Industry</mat-label>
-            <input matInput placeholder="Any" [(ngModel)]="filters.industry" [matAutocomplete]="industryAuto" />
-            <mat-autocomplete #industryAuto="matAutocomplete" (optionSelected)="onIndustryFilterChange()">
-              <mat-option [value]="''">Any</mat-option>
-              <mat-option *ngFor="let t of industryTypes" [value]="t">{{t}}</mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>Industry</mat-label>
+              <input matInput placeholder="Any" [(ngModel)]="filters.industry" [matAutocomplete]="industryAuto" />
+              <mat-autocomplete #industryAuto="matAutocomplete" (optionSelected)="onIndustryFilterChange()">
+                <mat-option [value]="''">Any</mat-option>
+                <mat-option *ngFor="let t of industryTypes" [value]="t">{{t}}</mat-option>
+              </mat-autocomplete>
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>Sector</mat-label>
-            <input matInput placeholder="Any" [disabled]="!filters.industry" [(ngModel)]="filters.sector" [matAutocomplete]="sectorAuto" />
-            <mat-autocomplete #sectorAuto="matAutocomplete" (optionSelected)="onSectorFilterChange()">
-              <mat-option [value]="''">Any</mat-option>
-              <mat-option *ngFor="let s of scopedSectors()" [value]="s">{{s}}</mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>Sector</mat-label>
+              <input matInput placeholder="Any" [disabled]="!filters.industry" [(ngModel)]="filters.sector"
+                [matAutocomplete]="sectorAuto" />
+              <mat-autocomplete #sectorAuto="matAutocomplete" (optionSelected)="onSectorFilterChange()">
+                <mat-option [value]="''">Any</mat-option>
+                <mat-option *ngFor="let s of scopedSectors()" [value]="s">{{s}}</mat-option>
+              </mat-autocomplete>
+            </mat-form-field>
 
           </ng-container>
 
           <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
             <mat-label>Institute</mat-label>
-            <mat-select [(ngModel)]="selectedInstitute" (selectionChange)="onInstituteChange($event.value)" placeholder="Select Institute">
-              <mat-option value="">Any</mat-option>
-              <mat-option *ngFor="let i of institutes" [value]="i.institute_id">{{i.institute_name}}</mat-option>
-            </mat-select>
+            <input matInput placeholder="All" [value]="instituteSearch"
+              (input)="onInstituteSearchInput($any($event.target).value)" [matAutocomplete]="userInstituteAuto" />
+            <mat-autocomplete #userInstituteAuto="matAutocomplete" [displayWith]="displayInstitute"
+              (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
+              <mat-option [value]="''">Any</mat-option>
+              <mat-option *ngFor="let i of filteredInstitutes()"
+                [value]="i.institute_id">{{i.institute_name}}</mat-option>
+            </mat-autocomplete>
           </mat-form-field>
+
+
+
 
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Departments</mat-label>
-            <mat-select multiple [(ngModel)]="filters.department" (selectionChange)="onDepartmentFilterChange()" [disabled]="!selectedInstitute" placeholder="Select departments">
+            <mat-select multiple [(ngModel)]="filters.department" (selectionChange)="onDepartmentFilterChange()"
+              [disabled]="!selectedInstitute" placeholder="Select departments">
               <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
             </mat-select>
           </mat-form-field>
@@ -142,7 +151,7 @@
 
     <div class="list-wrapper">
       <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 compact premium-table" matSort>
-                <!-- S.No Column -->
+        <!-- S.No Column -->
         <ng-container matColumnDef="sno">
           <th mat-header-cell *matHeaderCellDef> S.No </th>
           <td mat-cell *matCellDef="let u; let i = index">
@@ -150,7 +159,7 @@
           </td>
         </ng-container>
 
-    
+
 
 
         <ng-container matColumnDef="name">
@@ -203,10 +212,11 @@
           <th mat-header-cell *matHeaderCellDef>Actions</th>
           <td mat-cell *matCellDef="let u">
             <div class="actions-inline">
-              <button *hasAccess="'Users'; hasAccessAction: 'view'" mat-icon-button color="primary" (click)="viewDetails(u)"
-                title="View details"><mat-icon svgIcon="view"></mat-icon></button>
-              <button *hasAccess="'Users'; hasAccessAction: 'delete'" mat-icon-button color="warn" (click)="deleteUser(u)"
-                title="Delete" class="delete-btn"><mat-icon svgIcon="delete"></mat-icon></button>
+              <button *hasAccess="'Users'; hasAccessAction: 'view'" mat-icon-button color="primary"
+                (click)="viewDetails(u)" title="View details"><mat-icon svgIcon="view"></mat-icon></button>
+              <button *hasAccess="'Users'; hasAccessAction: 'delete'" mat-icon-button color="warn"
+                (click)="deleteUser(u)" title="Delete" class="delete-btn"><mat-icon
+                  svgIcon="delete"></mat-icon></button>
             </div>
           </td>
         </ng-container>
@@ -223,9 +233,8 @@
           </tr>
         </tbody>
       </table>
-      <mat-paginator [length]="totalCount" [pageSize]="pageSize" [pageIndex]="pageIndex"
-        [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"
-        (page)="onPageEvent($event)"></mat-paginator>
+      <mat-paginator [length]="totalCount" [pageSize]="pageSize" [pageIndex]="pageIndex" [pageSizeOptions]="[25,50,100]"
+        showFirstLastButtons class="custom-paginator" (page)="onPageEvent($event)"></mat-paginator>
     </div>
   </div>
 </div>
@@ -242,7 +251,8 @@
           <h1 class="modal-user-name">{{selectedUser.full_name || selectedUser.name}}</h1>
           <div class="modal-user-meta">
             <span class="modal-role-badge">{{selectedUser.user_role || selectedUser.role || 'User'}}</span>
-            <span class="modal-status" [class.modal-status--active]="selectedUser.active || selectedUser.active_status" [class.modal-status--inactive]="!(selectedUser.active || selectedUser.active_status)">
+            <span class="modal-status" [class.modal-status--active]="selectedUser.active || selectedUser.active_status"
+              [class.modal-status--inactive]="!(selectedUser.active || selectedUser.active_status)">
               <span class="status-dot"></span>
               {{(selectedUser.active || selectedUser.active_status) ? 'Active' : 'Inactive'}}
             </span>
@@ -274,12 +284,15 @@
 
                 <div class="label"><mat-icon>verified_user</mat-icon> Role</div>
                 <div class="value">
-                  <span class="role-badge role-badge--modal">{{selectedUser.user_role || selectedUser.role || '—'}}</span>
+                  <span class="role-badge role-badge--modal">{{selectedUser.user_role || selectedUser.role ||
+                    '—'}}</span>
                 </div>
 
                 <div class="label"><mat-icon>toggle_on</mat-icon> Status</div>
                 <div class="value">
-                  <span class="status-pill" [class.status-pill--active]="selectedUser.active || selectedUser.active_status" [class.status-pill--inactive]="!(selectedUser.active || selectedUser.active_status)">
+                  <span class="status-pill"
+                    [class.status-pill--active]="selectedUser.active || selectedUser.active_status"
+                    [class.status-pill--inactive]="!(selectedUser.active || selectedUser.active_status)">
                     <span class="status-dot"></span>
                     {{(selectedUser.active || selectedUser.active_status) ? 'Active' : 'Inactive'}}
                   </span>
@@ -290,29 +303,37 @@
             <mat-tab label="Affiliation">
               <div class="detail-grid">
                 <div class="label"><mat-icon>business</mat-icon> Institute</div>
-                <div class="value">{{selectedUser.institute?.institute_name || selectedUser.institute_name || selectedUser.institute}}</div>
+                <div class="value">{{selectedUser.institute?.institute_name || selectedUser.institute_name ||
+                  selectedUser.institute}}</div>
 
                 <div class="label"><mat-icon>school</mat-icon> Department</div>
-                <div class="value">{{selectedUser.department?.department_name || selectedUser.department_name || selectedUser.department || '—'}}</div>
+                <div class="value">{{selectedUser.department?.department_name || selectedUser.department_name ||
+                  selectedUser.department || '—'}}</div>
 
                 <div class="label"><mat-icon>groups</mat-icon> Team</div>
-                <div class="value">{{selectedUser.team?.team_name || selectedUser.team_name || selectedUser.team || '—'}}</div>
+                <div class="value">{{selectedUser.team?.team_name || selectedUser.team_name || selectedUser.team ||
+                  '—'}}</div>
 
                 <div class="label"><mat-icon>apartment</mat-icon> Campus</div>
-                <div class="value">{{selectedUser.campus?.campus_name || selectedUser.campus_name || selectedUser.campus || '—'}}</div>
+                <div class="value">{{selectedUser.campus?.campus_name || selectedUser.campus_name || selectedUser.campus
+                  || '—'}}</div>
 
                 <div class="label"><mat-icon>location_city</mat-icon> City</div>
-                <div class="value">{{selectedUser.city?.city_name || selectedUser.city_name || selectedUser.city || '—'}}</div>
+                <div class="value">{{selectedUser.city?.city_name || selectedUser.city_name || selectedUser.city ||
+                  '—'}}</div>
 
                 <div class="label"><mat-icon>map</mat-icon> State</div>
-                <div class="value">{{selectedUser.state?.state_name || selectedUser.state_name || selectedUser.state || '—'}}</div>
+                <div class="value">{{selectedUser.state?.state_name || selectedUser.state_name || selectedUser.state ||
+                  '—'}}</div>
 
                 <div class="label"><mat-icon>public</mat-icon> Country</div>
-                <div class="value">{{selectedUser.country?.country_name || selectedUser.country_name || selectedUser.country || '—'}}</div>
+                <div class="value">{{selectedUser.country?.country_name || selectedUser.country_name ||
+                  selectedUser.country || '—'}}</div>
               </div>
             </mat-tab>
 
-            <mat-tab label="Privileges" *ngIf="(selectedUser.user_privileges && selectedUser.user_privileges.length) || (selectedUser.privileges && selectedUser.privileges.length)">
+            <mat-tab label="Privileges"
+              *ngIf="(selectedUser.user_privileges && selectedUser.user_privileges.length) || (selectedUser.privileges && selectedUser.privileges.length)">
               <div class="privileges-grid">
                 <div class="priv-col head">Page</div>
                 <div class="priv-col head"><mat-icon>visibility</mat-icon> View</div>
@@ -323,10 +344,14 @@
                 <ng-container
                   *ngFor="let p of (selectedUser.privileges && selectedUser.privileges.length ? selectedUser.privileges : (selectedUser.user_privileges || []))">
                   <div class="priv-col name">{{p.page_name || p.pageName || p.page || p.page_name}}</div>
-                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_view">done</mat-icon> <mat-icon color="warn" *ngIf="!p.can_view">visibility_off</mat-icon> </div>
-                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_edit">done</mat-icon> <mat-icon color="warn" *ngIf="!p.can_edit">block</mat-icon> </div>
-                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_add">done</mat-icon> <mat-icon color="warn" *ngIf="!p.can_add">block</mat-icon> </div>
-                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_delete">done</mat-icon> <mat-icon color="warn" *ngIf="!p.can_delete">block</mat-icon> </div>
+                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_view">done</mat-icon> <mat-icon
+                      color="warn" *ngIf="!p.can_view">visibility_off</mat-icon> </div>
+                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_edit">done</mat-icon> <mat-icon
+                      color="warn" *ngIf="!p.can_edit">block</mat-icon> </div>
+                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_add">done</mat-icon> <mat-icon
+                      color="warn" *ngIf="!p.can_add">block</mat-icon> </div>
+                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_delete">done</mat-icon> <mat-icon
+                      color="warn" *ngIf="!p.can_delete">block</mat-icon> </div>
                 </ng-container>
               </div>
             </mat-tab>
@@ -359,6 +384,3 @@
     </div>
   </div>
 </div>
-
-
-

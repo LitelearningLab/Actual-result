@@ -248,20 +248,20 @@ export class AdminScheduleTestComponent {
         const data = res?.data || [];
         this.users = Array.isArray(data)
           ? data.map((u: any) => ({
-              id: String(u.user_id || u.id || ''),
-              name:
-                u.full_name ||
-                u.user_name ||
-                u.name ||
-                `${u.first_name || ''} ${u.last_name || ''}`.trim(),
-              email: u.email,
-              institute: u.institute_name || (u.institute && u.institute.institute_name) || '',
-              department:
-                u.department_name ||
-                (u.department && (u.department.name || u.department.department_name)) ||
-                '',
-              team: u.team_name || (u.team && (u.team.name || u.team.team_name)) || '',
-            }))
+            id: String(u.user_id || u.id || ''),
+            name:
+              u.full_name ||
+              u.user_name ||
+              u.name ||
+              `${u.first_name || ''} ${u.last_name || ''}`.trim(),
+            email: u.email,
+            institute: u.institute_name || (u.institute && u.institute.institute_name) || '',
+            department:
+              u.department_name ||
+              (u.department && (u.department.name || u.department.department_name)) ||
+              '',
+            team: u.team_name || (u.team && (u.team.name || u.team.team_name)) || '',
+          }))
           : [];
         // prefill department/team/campus lists if empty
         if (this.departmentList.length === 0) {
@@ -979,9 +979,9 @@ export class AdminScheduleTestComponent {
                   location?.country_code ||
                   (typeof rawCountry === 'object'
                     ? rawCountry?.country_id ||
-                      rawCountry?.id ||
-                      rawCountry?.country_code ||
-                      rawCountry?.code
+                    rawCountry?.id ||
+                    rawCountry?.country_code ||
+                    rawCountry?.code
                     : rawCountry);
                 const countryName =
                   location?.country_name ||
@@ -995,7 +995,7 @@ export class AdminScheduleTestComponent {
                       String(country.code).toLowerCase() === String(countryCode).toLowerCase()) ||
                     (countryName &&
                       String(country.name).trim().toLowerCase() ===
-                        String(countryName).trim().toLowerCase())
+                      String(countryName).trim().toLowerCase())
                 );
                 const resolvedCountry =
                   hierarchyMatch ||
@@ -1497,7 +1497,7 @@ export class AdminScheduleTestComponent {
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) {}
+      } catch (e) { }
       this.filtersOverlayRef = null;
     }
 
@@ -1533,7 +1533,7 @@ export class AdminScheduleTestComponent {
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) {}
+      } catch (e) { }
       this.filtersOverlayRef = null;
     }
     this.filterEnabled = false;
@@ -1545,7 +1545,7 @@ export class AdminScheduleTestComponent {
     if (this.userFiltersOverlayRef) {
       try {
         this.userFiltersOverlayRef.dispose();
-      } catch (e) {}
+      } catch (e) { }
       this.userFiltersOverlayRef = null;
     }
 
@@ -1579,7 +1579,7 @@ export class AdminScheduleTestComponent {
     if (this.userFiltersOverlayRef) {
       try {
         this.userFiltersOverlayRef.dispose();
-      } catch (e) {}
+      } catch (e) { }
       this.userFiltersOverlayRef = null;
     }
     this.userFilterOpen = false;
@@ -1590,13 +1590,13 @@ export class AdminScheduleTestComponent {
     this.userFilterOpen = true;
     try {
       this.cd.detectChanges();
-    } catch (e) {}
+    } catch (e) { }
   }
   closeUserFilter() {
     this.userFilterOpen = false;
     try {
       this.cd.detectChanges();
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // load exams for a selected institute (populate the exam dropdown)
@@ -1684,11 +1684,17 @@ export class AdminScheduleTestComponent {
     return this.getInstituteName(value);
   }
 
-  onFilterInstituteSelected(instituteId: string): void {
-    this.filterInstitute = instituteId || '';
-    this.filterInstituteSearch = this.getInstituteName(this.filterInstitute);
-    this.loadTestOptions(this.filterInstitute || this.model.institute);
-  }
+onFilterInstituteSelected(instituteId: string): void {
+  this.filterInstitute = instituteId || '';
+  this.filterInstituteSearch = this.getInstituteName(this.filterInstitute);
+  const targetInstitute = this.filterInstitute || this.model.institute;
+  
+  // Load departments, teams, and test options for the selected institute
+  this.loadDepartments(targetInstitute);
+  this.loadTeams(targetInstitute);
+  this.loadTestOptions(targetInstitute);
+}
+
 
   // ADD THIS MISSING METHOD DEFINITION:
   private syncSelectedExamFromFilters(): void {
@@ -1715,10 +1721,10 @@ export class AdminScheduleTestComponent {
 
     const examId = String(
       (match as any).id ||
-        (match as any).exam_id ||
-        (match as any).test_id ||
-        (match as any)._id ||
-        ''
+      (match as any).exam_id ||
+      (match as any).test_id ||
+      (match as any)._id ||
+      ''
     );
     if (!examId) return;
 
@@ -1776,7 +1782,7 @@ export class AdminScheduleTestComponent {
             '.cdk-overlay-pane .select-search-input'
           ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) {}
+        } catch (e) { }
       });
     }
   }
@@ -1929,7 +1935,7 @@ export class AdminScheduleTestComponent {
             params.push(`created_by=${encodeURIComponent(String(userId))}`);
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     if (params.length) url += `?${params.join('&')}`;
 
@@ -2187,7 +2193,7 @@ export class AdminScheduleTestComponent {
     if (!this.hasExamFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
     this.hasAppliedFilters = true;
@@ -2582,7 +2588,7 @@ export class AdminScheduleTestComponent {
             const msg =
               resp?.statusMessage || resp?.message || 'Scheduled test updated successfully';
             notify(msg, ok ? 'success' : 'error');
-          } catch (e) {}
+          } catch (e) { }
           if (ok) {
             this.submitted = true;
             this.goBack();
@@ -2593,11 +2599,11 @@ export class AdminScheduleTestComponent {
           try {
             notify(
               err?.error?.statusMessage ||
-                err?.error?.message ||
-                'Failed to update scheduled test. See console for details.',
+              err?.error?.message ||
+              'Failed to update scheduled test. See console for details.',
               'error'
             );
-          } catch (e) {}
+          } catch (e) { }
         },
       });
     } else {
@@ -2609,7 +2615,7 @@ export class AdminScheduleTestComponent {
           try {
             const msg = resp?.statusMessage || resp?.message || 'Scheduled test saved successfully';
             notify(msg, ok ? 'success' : 'error');
-          } catch (e) {}
+          } catch (e) { }
           if (ok) {
             // on success add to local scheduled list for UI
             this.scheduled.push({
@@ -2629,11 +2635,11 @@ export class AdminScheduleTestComponent {
           try {
             notify(
               err?.error?.statusMessage ||
-                err?.error?.message ||
-                'Failed to save scheduled test. See console for details.',
+              err?.error?.message ||
+              'Failed to save scheduled test. See console for details.',
               'error'
             );
-          } catch (e) {}
+          } catch (e) { }
         },
       });
     }
@@ -2732,11 +2738,11 @@ export class AdminScheduleTestComponent {
           }
           this.model.multiplereview = toBool(
             e.multiple_review ??
-              e.multiplereview ??
-              e.multipleReview ??
-              e.is_multiple_review ??
-              e.settings?.multiple_review ??
-              false
+            e.multiplereview ??
+            e.multipleReview ??
+            e.is_multiple_review ??
+            e.settings?.multiple_review ??
+            false
           );
           this.applyReviewSettings(e, toBool);
         } catch (err) {
@@ -2777,7 +2783,7 @@ export class AdminScheduleTestComponent {
           // if users list is not yet loaded or institute differs, attempt to load users for the institute
           try {
             if (!this.users || this.users.length === 0) this.loadUsers();
-          } catch (e) {}
+          } catch (e) { }
         } catch (err) {
           /* ignore normalization errors */
         }
@@ -2854,11 +2860,11 @@ export class AdminScheduleTestComponent {
           }
           this.model.multiplereview = toBool(
             v.multiple_review ??
-              v.multiplereview ??
-              v.multipleReview ??
-              v.is_multiple_review ??
-              v.settings?.multiple_review ??
-              false
+            v.multiplereview ??
+            v.multipleReview ??
+            v.is_multiple_review ??
+            v.settings?.multiple_review ??
+            false
           );
           this.applyReviewSettings(v, toBool);
         } catch (err) {
@@ -2899,7 +2905,7 @@ export class AdminScheduleTestComponent {
           this.selectedUsers = normalized;
           try {
             if (!this.users || this.users.length === 0) this.loadUsers();
-          } catch (e) {}
+          } catch (e) { }
         } catch (err) {
           /* ignore */
         }
