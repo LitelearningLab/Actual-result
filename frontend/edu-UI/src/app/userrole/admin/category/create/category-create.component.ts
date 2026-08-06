@@ -189,8 +189,7 @@ export class CategoryCreateComponent {
     }
     if (this.isInstituteInvalid()) { this.loader.hide(); this.snack.open('Institute is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
     if (!this.type) { this.loader.hide(); this.snack.open('Type is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
-    if (this.isDepartmentsInvalid()) { this.loader.hide(); this.snack.open('Please select at least one department.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
-    if (this.isTeamsInvalid()) { this.loader.hide(); this.snack.open('Please select at least one team.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
+
     // if (!this.whoInputs) { this.loader.hide(); this.snack.open('Who inputs the answer is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
     // if (!this.evaluation) { this.loader.hide(); this.snack.open('Evaluation is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
     if (!this.status) { this.loader.hide(); this.snack.open('Status is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
@@ -208,8 +207,7 @@ export class CategoryCreateComponent {
       // public access flag
       public_access: !!this.publicAccess,
       mark_for_each_question: Number(this.markForEachQuestion),
-      departments: Array.isArray(this.selectedDepartments) ? this.selectedDepartments : [],
-      teams: Array.isArray(this.selectedTeams) ? this.selectedTeams : []
+
     };
 
     if (this.isEditing && this.editId) {
@@ -279,17 +277,17 @@ export class CategoryCreateComponent {
 
   goToReviewStep(stepper: any): void {
     this.accessInfoSubmitted = true;
-    if (this.isDepartmentsInvalid() || this.isTeamsInvalid() || this.isMarkInvalid() || this.isStatusInvalid()) {
+    if (this.isMarkInvalid() || this.isStatusInvalid()) {
       return;
     }
     stepper.next();
   }
 
+
   isNameInvalid(): boolean { return !this.name || !this.name.trim(); }
   isInstituteInvalid(): boolean { return !this.institute; }
   isTypeInvalid(): boolean { return !this.type; }
-  isDepartmentsInvalid(): boolean { return !this.selectedDepartments || this.selectedDepartments.length === 0; }
-  isTeamsInvalid(): boolean { return !this.selectedTeams || this.selectedTeams.length === 0; }
+
   isStatusInvalid(): boolean { return !this.status; }
   isMarkInvalid(): boolean { return this.markForEachQuestion === null || isNaN(Number(this.markForEachQuestion)); }
 

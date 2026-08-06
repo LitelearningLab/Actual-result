@@ -41,7 +41,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   durationMinutes: number | null = 10;
   passMark: number | null = 50;
   startDateTime = '';
-  numberOfAttempts: number | null = 1; 
+  numberOfAttempts: number | null = 1;
   institutes: Array<{ id: string; name: string }> = [];
   // categories UI model
   categories: Array<any> = [];
@@ -68,6 +68,56 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   appliedQuestionBankFilters: string[] = [];
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
+
+  // Select All functionality for Departments
+  isAllDepartmentsSelected(): boolean {
+    return this.departments.length > 0 &&
+      this.selectedDepartments.filter(id => id !== 'ALL').length === this.departments.length;
+  }
+
+  toggleSelectAllDepartments(event: any): void {
+    const selected = (event?.value || []) as string[];
+    const allIds = this.departments.map(d => String(d.id));
+
+    if (selected.includes('ALL')) {
+      if (this.selectedDepartments.filter(id => id !== 'ALL').length === allIds.length) {
+        this.selectedDepartments = [];
+      } else {
+        this.selectedDepartments = ['ALL', ...allIds];
+      }
+    } else {
+      if (this.selectedDepartments.includes('ALL')) {
+        this.selectedDepartments = [];
+      } else {
+        this.selectedDepartments = selected.filter(id => id !== 'ALL');
+      }
+    }
+  }
+
+  // Select All functionality for Teams
+  isAllTeamsSelected(): boolean {
+    return this.teams.length > 0 &&
+      this.selectedTeams.filter(id => id !== 'ALL').length === this.teams.length;
+  }
+
+  toggleSelectAllTeams(event: any): void {
+    const selected = (event?.value || []) as string[];
+    const allIds = this.teams.map(t => String(t.id));
+
+    if (selected.includes('ALL')) {
+      if (this.selectedTeams.filter(id => id !== 'ALL').length === allIds.length) {
+        this.selectedTeams = [];
+      } else {
+        this.selectedTeams = ['ALL', ...allIds];
+      }
+    } else {
+      if (this.selectedTeams.includes('ALL')) {
+        this.selectedTeams = [];
+      } else {
+        this.selectedTeams = selected.filter(id => id !== 'ALL');
+      }
+    }
+  }
 
   // question selection for currently selected category
   questionsForCategory: Array<any> = [];
@@ -132,7 +182,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ensure UI flag clears when overlay is closed programmatically
   private _closeOverlayInternal() {
-    try { this.filtersOverlayRef?.dispose(); } catch(e) {}
+    try { this.filtersOverlayRef?.dispose(); } catch (e) { }
     this.filtersOverlayRef = null;
     this.filterEnabled = false;
   }
@@ -219,8 +269,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       if (!e) return;
       if (e.is_editable === false || e.editable === false) {
         const msg = "This test cannot be edited because it is currently active or is being attended by users.";
-        try { notify(msg, 'error'); } catch (_) {}
-        try { sessionStorage.removeItem('edit_exam'); } catch (_) {}
+        try { notify(msg, 'error'); } catch (_) { }
+        try { sessionStorage.removeItem('edit_exam'); } catch (_) { }
         this.router.navigate(['/exams']);
         return;
       }
@@ -233,6 +283,11 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.passMark = e.pass_mark ?? e.passMark ?? null;
       this.numberOfAttempts = e.number_of_attempts ?? e.numberOfAttempts ?? null;
       this.startDateTime = e.start_time || e.start || '';
+      this.selectedDepartments = Array.isArray(e.departments) ? e.departments.map((d: any) => String(d.id || d.department_id || d)) : [];
+      this.selectedTeams = Array.isArray(e.teams) ? e.teams.map((t: any) => String(t.id || t.team_id || t)) : [];
+
+
+
 
       // normalize categories if present in the payload
       const srcCats = Array.isArray(e.categories) ? e.categories : (Array.isArray(e.category_list) ? e.category_list : []);
@@ -821,7 +876,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   onApply() {
     if (!this.hasCategoryFilterValues()) {
-      try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
+      try { notify('Please add filters in the filter form.', 'info'); } catch (e) { }
       return;
     }
     const filters: any = { institute_id: this.institute };
@@ -1213,9 +1268,12 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       pass_mark: this.passMark !== null ? Number(this.passMark) : null,
       number_of_attempts: this.numberOfAttempts !== null ? Number(this.numberOfAttempts) : null,
       start_time: this.startDateTime || null,
+      departments: Array.isArray(this.selectedDepartments) ? this.selectedDepartments.filter(id => id !== 'ALL') : [],
+      teams: Array.isArray(this.selectedTeams) ? this.selectedTeams.filter(id => id !== 'ALL') : [],
       categories: Array.isArray(this.model.categories) ? this.model.categories : [],
       total_questions: this.totalQuestions
     };
+
 
     // attach audit fields when available
     if (currentUser) {
@@ -1230,12 +1288,12 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       const url = `${API_BASE}/update-exam`;
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
-          try { const msg = res?.statusMessage || res?.message || 'Test updated'; const ok = typeof res?.status === 'undefined' ? true : !!res.status; notify(msg, ok ? 'success' : 'error'); } catch(e){}
+          try { const msg = res?.statusMessage || res?.message || 'Test updated'; const ok = typeof res?.status === 'undefined' ? true : !!res.status; notify(msg, ok ? 'success' : 'error'); } catch (e) { }
           try { sessionStorage.removeItem('edit_exam'); } catch (e) { }
           this.router.navigate(['/exams']);
         }, error: (err) => {
           console.error('Failed to update exam', err);
-          try { notify(this.getExamSaveErrorMessage(err, 'Failed to update exam'), 'error'); } catch(e){}
+          try { notify(this.getExamSaveErrorMessage(err, 'Failed to update exam'), 'error'); } catch (e) { }
           this.loader.hide();
         }, complete: () => { this.loader.hide(); }
       });
@@ -1246,12 +1304,12 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loader.show();
     this.http.post<any>(url, payload).subscribe({
       next: (res) => {
-        try { const msg = res?.statusMessage || res?.message || 'Test created'; const ok = typeof res?.status === 'undefined' ? true : !!res.status; notify(msg, ok ? 'success' : 'error'); } catch(e){}
+        try { const msg = res?.statusMessage || res?.message || 'Test created'; const ok = typeof res?.status === 'undefined' ? true : !!res.status; notify(msg, ok ? 'success' : 'error'); } catch (e) { }
         try { sessionStorage.removeItem('edit_exam'); } catch (e) { }
         this.router.navigate(['/exams']);
       }, error: (err) => {
         console.error('Failed to create exam', err);
-        try { notify(this.getExamSaveErrorMessage(err, 'Failed to create exam'), 'error'); } catch(e){}
+        try { notify(this.getExamSaveErrorMessage(err, 'Failed to create exam'), 'error'); } catch (e) { }
         this.loader.hide();
       }, complete: () => { this.loader.hide(); }
     });

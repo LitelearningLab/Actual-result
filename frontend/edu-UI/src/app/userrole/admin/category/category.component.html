@@ -150,21 +150,7 @@
                             </mat-select>
                         </mat-form-field>
 
-                        <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Departments</mat-label>
-                            <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select departments"
-                                [disabled]="!selectedInstitute">
-                                <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
-                            </mat-select>
-                        </mat-form-field>
-
-                        <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Teams</mat-label>
-                            <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select teams"
-                                [disabled]="!selectedInstitute">
-                                <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
-                            </mat-select>
-                        </mat-form-field>
+          
 
                     </div>
 
@@ -360,26 +346,7 @@
 
                             </mat-tab>
 
-                            <mat-tab label="Departments"
-                                *ngIf="selectedCategory.departments && keysLength(selectedCategory.departments) > 0">
-                                <div class="tab-panel">
-                                    <div class="chips">
-                                        <span class="chip"
-                                            *ngFor="let d of iterableList(selectedCategory.departments)">{{
-                                            d.department_name || d.dept_name || d.name || d }}</span>
-                                    </div>
-                                </div>
-                            </mat-tab>
-
-                            <mat-tab label="Teams"
-                                *ngIf="selectedCategory.teams && keysLength(selectedCategory.teams) > 0">
-                                <div class="tab-panel">
-                                    <div class="chips">
-                                        <span class="chip" *ngFor="let t of iterableList(selectedCategory.teams)">{{
-                                            t.team_name || t.name || t }}</span>
-                                    </div>
-                                </div>
-                            </mat-tab>
+                         
 
                             <mat-tab label="Metadata">
 

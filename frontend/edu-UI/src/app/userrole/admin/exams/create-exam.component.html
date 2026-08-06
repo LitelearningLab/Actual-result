@@ -36,7 +36,8 @@
                                             (selectionChange)="onInstituteChange($event.value)"
                                             [disabled]="!isSuperAdmin">
                                             <mat-option value="">Select institute</mat-option>
-                                            <mat-option *ngFor="let i of institutes" [value]="i.id">{{i.name}}</mat-option>
+                                            <mat-option *ngFor="let i of institutes"
+                                                [value]="i.id">{{i.name}}</mat-option>
                                         </mat-select>
                                     </mat-form-field>
 
@@ -57,7 +58,46 @@
                                             rows="3"></textarea>
                                     </mat-form-field>
                                 </div>
+
+                                <div class="field-row">
+                                    <mat-form-field appearance="outline" class="field-half">
+                                        <mat-icon matPrefix>apartment</mat-icon>
+                                        <mat-label>Departments</mat-label>
+                                        <mat-select multiple [(ngModel)]="selectedDepartments"
+                                            (selectionChange)="toggleSelectAllDepartments($event)"
+                                            placeholder="Select departments">
+                                            <!--  Select All Option  -->
+                                            <mat-option value="ALL">
+                                                Select All
+                                            </mat-option>
+                                            <mat-divider></mat-divider>
+
+                                            <mat-option *ngFor="let d of departments"
+                                                [value]="d.id">{{d.name}}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+
+                                    <mat-form-field appearance="outline" class="field-half">
+                                        <mat-icon matPrefix>groups</mat-icon>
+                                        <mat-label>Teams</mat-label>
+                                        <mat-select multiple [(ngModel)]="selectedTeams"
+                                            (selectionChange)="toggleSelectAllTeams($event)"
+                                            placeholder="Select teams">
+
+                                            <!--  Select All Option  -->
+                                            <mat-option value="ALL">
+                                                Select All
+                                            </mat-option>
+                                            <mat-divider></mat-divider>
+
+                                            <!-- Individual Options -->
+                                            <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                </div>
+
                             </div>
+
                         </div>
 
                         <div class="right">
@@ -137,18 +177,21 @@
                                     </div>
                                     <button #filtersBtn mat-flat-button type="button" class="filter-toggle-btn"
                                         [class.filter-toggle-btn--active]="filterEnabled || appliedQuestionBankFilters.length"
-                                        (click)="openFiltersOverlay(); $event.stopPropagation()"
-                                        [disabled]="readOnly" [attr.aria-pressed]="filterEnabled"
-                                        matTooltip="Toggle filters" matTooltipPosition="left">
+                                        (click)="openFiltersOverlay(); $event.stopPropagation()" [disabled]="readOnly"
+                                        [attr.aria-pressed]="filterEnabled" matTooltip="Toggle filters"
+                                        matTooltipPosition="left">
                                         <mat-icon>filter_list</mat-icon>
                                         <span>Filters</span>
-                                        <span class="filter-count" *ngIf="appliedQuestionBankFilters.length">{{ appliedQuestionBankFilters.length }}</span>
+                                        <span class="filter-count" *ngIf="appliedQuestionBankFilters.length">{{
+                                            appliedQuestionBankFilters.length }}</span>
                                     </button>
                                 </div>
 
                                 <div class="applied-filters" *ngIf="appliedQuestionBankFilters.length">
-                                    <span class="applied-filters-label"><mat-icon>filter_alt</mat-icon> Active filters</span>
-                                    <span class="applied-filter-chip" *ngFor="let filter of appliedQuestionBankFilters">{{ filter }}</span>
+                                    <span class="applied-filters-label"><mat-icon>filter_alt</mat-icon> Active
+                                        filters</span>
+                                    <span class="applied-filter-chip"
+                                        *ngFor="let filter of appliedQuestionBankFilters">{{ filter }}</span>
                                 </div>
                                 <ng-template #filtersPanel>
                                     <div class="filters-panel card" (click)="$event.stopPropagation()">
@@ -180,10 +223,9 @@
                                             </mat-form-field>
                                             <mat-form-field appearance="outline" class="filter-item">
                                                 <mat-label>Created Before</mat-label>
-                                                <input matInput [matDatepicker]="picker"
-                                                    placeholder="Select end date" [(ngModel)]="filterCreationDate">
-                                                <mat-datepicker-toggle matSuffix
-                                                    [for]="picker"></mat-datepicker-toggle>
+                                                <input matInput [matDatepicker]="picker" placeholder="Select end date"
+                                                    [(ngModel)]="filterCreationDate">
+                                                <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
                                                 <mat-datepicker #picker></mat-datepicker>
                                             </mat-form-field>
 
@@ -212,16 +254,19 @@
                                         <mat-form-field appearance="outline" class="full">
                                             <mat-icon matPrefix>assignment</mat-icon>
                                             <mat-label>Question Bank</mat-label>
-                                            <input type="text" matInput [formControl]="categoryCtrl" [matAutocomplete]="auto"
-                                                placeholder="Type or pick a question bank" [readonly]="readOnly"
-                                                autocomplete="off" spellcheck="false"
+                                            <input type="text" matInput [formControl]="categoryCtrl"
+                                                [matAutocomplete]="auto" placeholder="Type or pick a question bank"
+                                                [readonly]="readOnly" autocomplete="off" spellcheck="false"
                                                 (input)="onQuestionBankNameInput($event)" />
-                                            <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayCategory.bind(this)"
+                                            <mat-autocomplete #auto="matAutocomplete"
+                                                [displayWith]="displayCategory.bind(this)"
                                                 (optionSelected)="onCategoryAutocompleteSelected($event.option.value)">
-                                                <mat-option *ngFor="let cat of (filteredCategories$ | async)" [value]="cat" class="question-bank-option-row">
+                                                <mat-option *ngFor="let cat of (filteredCategories$ | async)"
+                                                    [value]="cat" class="question-bank-option-row">
                                                     <span class="question-bank-option">
                                                         <span class="question-bank-option-name">{{cat.name}}</span>
-                                                        <mat-icon *ngIf="isQuestionBankOptionChecked(cat)" class="question-bank-option-check">check</mat-icon>
+                                                        <mat-icon *ngIf="isQuestionBankOptionChecked(cat)"
+                                                            class="question-bank-option-check">check</mat-icon>
                                                     </span>
                                                 </mat-option>
                                             </mat-autocomplete>
@@ -231,7 +276,8 @@
                                     <div class="col question-type-col">
                                         <mat-form-field appearance="outline" class="full">
                                             <mat-label>Question Type</mat-label>
-                                            <input matInput [value]="formatQuestionBankType(newCategory.question_type)" readonly />
+                                            <input matInput [value]="formatQuestionBankType(newCategory.question_type)"
+                                                readonly />
                                         </mat-form-field>
                                     </div>
 
@@ -245,7 +291,8 @@
                                     <div class="col total-questions-col">
                                         <mat-form-field appearance="outline" class="full">
                                             <mat-label>No of Questions available</mat-label>
-                                            <input matInput [value]="selectedQuestionBankQuestionCount || ''" readonly />
+                                            <input matInput [value]="selectedQuestionBankQuestionCount || ''"
+                                                readonly />
                                         </mat-form-field>
                                     </div>
                                 </div>
@@ -255,10 +302,10 @@
                                         <mat-form-field appearance="outline" class="full">
                                             <mat-label>Count of questions to be included from this bank</mat-label>
                                             <input matInput type="number" [(ngModel)]="newCategory.questions"
-    (ngModelChange)="onNewCategoryQuestionCountChange($event)"
-    (input)="stripLeadingZeros($event)"
-    name="newCategoryQuestions" placeholder="" min="1"
-    [max]="selectedQuestionBankQuestionCount || null" [disabled]="!selectedCategory || readOnly" />
+                                                (ngModelChange)="onNewCategoryQuestionCountChange($event)"
+                                                (input)="stripLeadingZeros($event)" name="newCategoryQuestions"
+                                                placeholder="" min="1" [max]="selectedQuestionBankQuestionCount || null"
+                                                [disabled]="!selectedCategory || readOnly" />
                                         </mat-form-field>
                                     </div>
                                     <div class="col checkbox-col">
@@ -267,17 +314,23 @@
                                             [disabled]="readOnly">Alloted questions randomly to users</mat-checkbox>
                                     </div>
                                     <div class="col actions-col">
-                                        <button mat-flat-button color="primary" aria-label="Add category" class="add-btn" type="button"
-                                            (click)="addSelectedQuestionBankQuestions()"
+                                        <button mat-flat-button color="primary" aria-label="Add category"
+                                            class="add-btn" type="button" (click)="addSelectedQuestionBankQuestions()"
                                             [disabled]="!selectedCategory || activeQuestionCategoryId !== selectedCategory || !canAddSelectedQuestionBankQuestions || readOnly">
                                             <mat-icon class="add-icon">add</mat-icon>Add Selected
                                         </button>
                                     </div>
                                 </div>
-                                <div class="question-count-error" *ngIf="questionCountError" [class.warning-msg]="questionCountError.includes('Random selection has no effect')">{{ questionCountError }}</div>
+                                <div class="question-count-error" *ngIf="questionCountError"
+                                    [class.warning-msg]="questionCountError.includes('Random selection has no effect')">
+                                    {{ questionCountError }}</div>
                                 <div class="muted question-mode-hint" *ngIf="selectedCategory">
-                                    <span *ngIf="newCategory.randomize_questions">Each student gets a freshly randomized set of {{ newCategory.questions || 0 }} question(s) when they start the test.</span>
-                                    <span *ngIf="!newCategory.randomize_questions">A fixed set of {{ newCategory.questions || 0 }} question(s) are randomly chosen once and given to every student. Optionally hand-pick specific questions below.</span>
+                                    <span *ngIf="newCategory.randomize_questions">Each student gets a freshly randomized
+                                        set of {{ newCategory.questions || 0 }} question(s) when they start the
+                                        test.</span>
+                                    <span *ngIf="!newCategory.randomize_questions">A fixed set of {{
+                                        newCategory.questions || 0 }} question(s) are randomly chosen once and given to
+                                        every student. Optionally hand-pick specific questions below.</span>
                                 </div>
 
                                 <div *ngIf="model.categories?.length">
@@ -289,45 +342,63 @@
                                         <div class="attached-bank-table" role="list">
                                             <div class="attached-bank-row attached-bank-row--head" aria-hidden="true">
                                                 <div class="attached-bank-cell attached-bank-cell--sno">S.No</div>
-                                                <div class="attached-bank-cell attached-bank-cell--name">Question Bank Name</div>
-                                                <div class="attached-bank-cell attached-bank-cell--type">Question Type</div>
-                                                <div class="attached-bank-cell attached-bank-cell--count">No. of Questions Selected</div>
-                                                <div class="attached-bank-cell attached-bank-cell--per-mark">Marks per Question</div>
-                                                <div class="attached-bank-cell attached-bank-cell--marks">Total Marks</div>
-                                                <div class="attached-bank-cell attached-bank-cell--actions">Actions</div>
+                                                <div class="attached-bank-cell attached-bank-cell--name">Question Bank
+                                                    Name</div>
+                                                <div class="attached-bank-cell attached-bank-cell--type">Question Type
+                                                </div>
+                                                <div class="attached-bank-cell attached-bank-cell--count">No. of
+                                                    Questions Selected</div>
+                                                <div class="attached-bank-cell attached-bank-cell--per-mark">Marks per
+                                                    Question</div>
+                                                <div class="attached-bank-cell attached-bank-cell--marks">Total Marks
+                                                </div>
+                                                <div class="attached-bank-cell attached-bank-cell--actions">Actions
+                                                </div>
                                             </div>
                                             <div class="attached-bank-row attached-bank-card"
-                                                *ngFor="let c of model.categories; let i = index"
-                                                role="listitem"
+                                                *ngFor="let c of model.categories; let i = index" role="listitem"
                                                 [class.attached-bank-card--active]="isCategoryQuestionsExpanded(c)">
-                                                <div class="attached-bank-cell attached-bank-cell--sno" data-label="S.No">{{ i + 1 }}</div>
-                                                <div class="attached-bank-cell attached-bank-cell--name" data-label="Question Bank Name">
+                                                <div class="attached-bank-cell attached-bank-cell--sno"
+                                                    data-label="S.No">{{ i + 1 }}</div>
+                                                <div class="attached-bank-cell attached-bank-cell--name"
+                                                    data-label="Question Bank Name">
                                                     <span class="attached-bank-name">{{ c.name }}</span>
-                                                    <span class="attached-bank-randomize" *ngIf="c.randomize_questions">Randomized</span>
-                                                    <span class="attached-bank-fixed" *ngIf="!c.randomize_questions && (!c.question_ids || c.question_ids.length === 0) && c.questions > 0">Fixed</span>
+                                                    <span class="attached-bank-randomize"
+                                                        *ngIf="c.randomize_questions">Randomized</span>
+                                                    <span class="attached-bank-fixed"
+                                                        *ngIf="!c.randomize_questions && (!c.question_ids || c.question_ids.length === 0) && c.questions > 0">Fixed</span>
                                                 </div>
-                                                <div class="attached-bank-cell attached-bank-cell--type" data-label="Question Type">{{ formatQuestionBankType(c.question_type) }}</div>
-                                                <div class="attached-bank-cell attached-bank-cell--count" data-label="No. of Questions Selected">{{ c.questions || 0 }}</div>
-                                                <div class="attached-bank-cell attached-bank-cell--per-mark" data-label="Marks per Question">{{ getCategoryMarksPerQuestion(c) }}</div>
-                                                <div class="attached-bank-cell attached-bank-cell--marks" data-label="Total Marks">{{ getCategoryTotalMarks(c) }}</div>
-                                                <div class="attached-bank-cell attached-bank-cell--actions" data-label="Actions">
-                                                    <button mat-icon-button type="button" class="attached-bank-action-btn attached-bank-action-btn--view"
+                                                <div class="attached-bank-cell attached-bank-cell--type"
+                                                    data-label="Question Type">{{
+                                                    formatQuestionBankType(c.question_type) }}</div>
+                                                <div class="attached-bank-cell attached-bank-cell--count"
+                                                    data-label="No. of Questions Selected">{{ c.questions || 0 }}</div>
+                                                <div class="attached-bank-cell attached-bank-cell--per-mark"
+                                                    data-label="Marks per Question">{{ getCategoryMarksPerQuestion(c) }}
+                                                </div>
+                                                <div class="attached-bank-cell attached-bank-cell--marks"
+                                                    data-label="Total Marks">{{ getCategoryTotalMarks(c) }}</div>
+                                                <div class="attached-bank-cell attached-bank-cell--actions"
+                                                    data-label="Actions">
+                                                    <button mat-icon-button type="button"
+                                                        class="attached-bank-action-btn attached-bank-action-btn--view"
                                                         (click)="viewCategoryQuestions(c)"
                                                         [attr.aria-label]="isCategoryQuestionsExpanded(c) ? 'Hide questions' : 'View questions'"
                                                         [title]="isCategoryQuestionsExpanded(c) ? 'Hide questions' : 'View questions'">
-                                                        <mat-icon>{{ isCategoryQuestionsExpanded(c) ? 'visibility' : 'visibility_off' }}</mat-icon>
+                                                        <mat-icon>{{ isCategoryQuestionsExpanded(c) ? 'visibility' :
+                                                            'visibility_off' }}</mat-icon>
                                                     </button>
-                                                    <button mat-icon-button color="warn" type="button" class="attached-bank-action-btn attached-bank-action-btn--delete"
-                                                        (click)="removeCategory(i)"
-                                                        aria-label="Remove question bank"
-                                                        title="Remove question bank"
-                                                        [disabled]="readOnly">
+                                                    <button mat-icon-button color="warn" type="button"
+                                                        class="attached-bank-action-btn attached-bank-action-btn--delete"
+                                                        (click)="removeCategory(i)" aria-label="Remove question bank"
+                                                        title="Remove question bank" [disabled]="readOnly">
                                                         <mat-icon>delete</mat-icon>
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
-                                    <div class="attached-bank-summary">Total Questions: {{ totalQuestions || 0 }}</div>
+                                        <div class="attached-bank-summary">Total Questions: {{ totalQuestions || 0 }}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -339,8 +410,10 @@
                                     <mat-icon class="section-icon">quiz</mat-icon>
                                     <div class="section-header-text">
                                         <h2 class="section-heading">Questions</h2>
-                                        <p class="section-desc" *ngIf="activeQuestionCategoryName">Questions from {{ activeQuestionCategoryName }}.</p>
-                                        <p class="section-desc" *ngIf="!activeQuestionCategoryName">Select or view a question bank to load questions.</p>
+                                        <p class="section-desc" *ngIf="activeQuestionCategoryName">Questions from {{
+                                            activeQuestionCategoryName }}.</p>
+                                        <p class="section-desc" *ngIf="!activeQuestionCategoryName">Select or view a
+                                            question bank to load questions.</p>
                                     </div>
                                     <!-- <button mat-flat-button color="primary" class="questions-add-btn" type="button"
                                         (click)="addSelectedQuestionBankQuestions()"
@@ -351,9 +424,20 @@
                                     </button> -->
                                 </div>
                                 <div class="question-controls">
-                                    <mat-checkbox class="question-select-all" [(ngModel)]="selectAllQuestions" [disabled]="readOnly || isActiveQuestionBankRandomized()" (change)="toggleSelectAllQuestions($event.checked)">Select All ({{questionsForCategory.length}})</mat-checkbox><span class="question-count question-count--selected"><span>Selected</span><strong>{{selectedQuestionIds.length}}</strong></span>
+                                    <mat-checkbox class="question-select-all" [(ngModel)]="selectAllQuestions"
+                                        [disabled]="readOnly || isActiveQuestionBankRandomized()"
+                                        (change)="toggleSelectAllQuestions($event.checked)">Select All
+                                        ({{questionsForCategory.length}})</mat-checkbox><span
+                                        class="question-count question-count--selected"><span>Selected</span><strong>{{selectedQuestionIds.length}}</strong></span>
                                 </div>
                                 <div class="question-list">
+                                    <div class="review-item"><span class="review-label">Departments</span><span
+                                            class="review-value">{{ selectedDepartments.length ?
+                                            selectedDepartments.length + ' selected' : 'All' }}</span></div>
+                                    <div class="review-item"><span class="review-label">Teams</span><span
+                                            class="review-value">{{ selectedTeams.length ? selectedTeams.length + '
+                                            selected' : 'All' }}</span></div>
+
                                     <mat-list *ngIf="questionsForCategory.length">
                                         <mat-list-item *ngFor="let q of questionsForCategory" class="question-row">
                                             <mat-checkbox [checked]="selectedQuestionIds.indexOf(q.id+'')>=0"
@@ -361,7 +445,8 @@
                                                 (change)="toggleQuestionSelection(q.id, $event.checked)">{{q.question}}</mat-checkbox>
                                         </mat-list-item>
                                     </mat-list>
-                                    <div *ngIf="!questionsForCategory.length" class="muted">Select a question bank or click View Questions from an attached question bank.</div>
+                                    <div *ngIf="!questionsForCategory.length" class="muted">Select a question bank or
+                                        click View Questions from an attached question bank.</div>
                                 </div>
                             </div>
                         </div>
@@ -400,8 +485,10 @@
                                     <mat-icon>assignment</mat-icon> Basic Info
                                 </h4>
                                 <div class="review-items">
-                                    <div class="review-item"><span class="review-label">Title</span><span class="review-value">{{ title || '—' }}</span></div>
-                                    <div class="review-item"><span class="review-label">Description</span><span class="review-value">{{ description || '—' }}</span></div>
+                                    <div class="review-item"><span class="review-label">Title</span><span
+                                            class="review-value">{{ title || '—' }}</span></div>
+                                    <div class="review-item"><span class="review-label">Description</span><span
+                                            class="review-value">{{ description || '—' }}</span></div>
                                 </div>
                             </div>
 
@@ -411,9 +498,12 @@
                                     <mat-icon>settings</mat-icon> Settings
                                 </h4>
                                 <div class="review-items">
-                                    <div class="review-item"><span class="review-label">Duration</span><span class="review-value">{{ durationMinutes || '—' }} mins</span></div>
-                                    <div class="review-item"><span class="review-label">Pass Percentage</span><span class="review-value">{{ passMark || '—' }}%</span></div>
-                                    <div class="review-item"><span class="review-label">Attempts</span><span class="review-value">{{ numberOfAttempts || 0 }}</span></div>
+                                    <div class="review-item"><span class="review-label">Duration</span><span
+                                            class="review-value">{{ durationMinutes || '—' }} mins</span></div>
+                                    <div class="review-item"><span class="review-label">Pass Percentage</span><span
+                                            class="review-value">{{ passMark || '—' }}%</span></div>
+                                    <div class="review-item"><span class="review-label">Attempts</span><span
+                                            class="review-value">{{ numberOfAttempts || 0 }}</span></div>
                                 </div>
                             </div>
 
@@ -423,9 +513,13 @@
                                     <mat-icon>quiz</mat-icon> Questions &amp; Question Banks
                                 </h4>
                                 <div class="review-items review-items--grid">
-                                    <div class="review-item"><span class="review-label">Total questions</span><span class="review-value">{{ totalQuestions || 0 }}</span></div>
-                                    <div class="review-item"><span class="review-label">Question Banks</span><span class="review-value">{{ model.categories?.length || 0 }}</span></div>
-                                    <div class="review-item"><span class="review-label">Randomize</span><span class="review-value">{{ anyCategoryRandomized() ? 'Yes' : 'No' }}</span></div>
+                                    <div class="review-item"><span class="review-label">Total questions</span><span
+                                            class="review-value">{{ totalQuestions || 0 }}</span></div>
+                                    <div class="review-item"><span class="review-label">Question Banks</span><span
+                                            class="review-value">{{ model.categories?.length || 0 }}</span></div>
+                                    <div class="review-item"><span class="review-label">Randomize</span><span
+                                            class="review-value">{{ anyCategoryRandomized() ? 'Yes' : 'No' }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
