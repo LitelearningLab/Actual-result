@@ -389,3 +389,26 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
 .applied-filter-chip mat-icon { width: 1rem; height: 1rem; font-size: 1rem; color: #64748b; }
 .applied-filter-chip--locked { cursor: default; background: #eef2f7; color: #475569; }
 .applied-filter-clear { min-height: 1.75rem; padding: 0.25rem 0.75rem; border-radius: 0.5rem; border: 0.0625rem solid #1f7bff; background: #fff; color: #1f7bff; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+
+/* Hide default pseudo-checkbox on search row and select-all row */
+::ng-deep .select-search-option .mat-pseudo-checkbox,
+::ng-deep .select-search-option .mat-mdc-option-pseudo-checkbox,
+::ng-deep .select-search-option .mdc-checkbox,
+::ng-deep .select-all-option .mat-pseudo-checkbox,
+::ng-deep .select-all-option .mat-mdc-option-pseudo-checkbox {
+  display: none !important;
+}
+
+/* Style for custom select-all-checkbox-icon */
+::ng-deep .select-all-option .mdc-list-item__primary-text {
+  display: flex !important;
+  align-items: center !important;
+}
+
+::ng-deep .select-all-checkbox-icon {
+  font-size: 1.25rem !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  line-height: 1.25rem !important;
+  margin-right: 0.5rem !important;
+}

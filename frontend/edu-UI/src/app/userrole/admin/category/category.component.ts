@@ -49,6 +49,8 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   selectedInstitute: string | null = null;
   instituteSearch = '';
   instituteSearchTerm = '';
+  selectedInstitutes: string[] = [];
+  instituteFilterSearch = '';
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
   // location / industry filters that scope the Institute list (mirrors view-institutes.component.ts cascade)
@@ -199,9 +201,51 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   }
 
   ngOnDestroy(): void {
-  try { this._globalInstituteSub?.unsubscribe(); } catch (e) { /* ignore */ }
-  this.saveCategoryReturnState();
-}
+    try { this._globalInstituteSub?.unsubscribe(); } catch (e) { /* ignore */ }
+    this.saveCategoryReturnState();
+  }
+
+  get filteredInstitutesForFilter() {
+    const term = (this.instituteFilterSearch || '').trim().toLowerCase();
+    let list = this.institutes || [];
+    if (term) {
+      list = list.filter(i =>
+        (i.institute_name || (i as any).name || '').toLowerCase().includes(term) ||
+        (!!i.institute_id && this.selectedInstitutes.includes(i.institute_id))
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = !!a.institute_id && this.selectedInstitutes.includes(a.institute_id);
+      const bSel = !!b.institute_id && this.selectedInstitutes.includes(b.institute_id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.institute_name || (a as any).name || '').localeCompare(b.institute_name || (b as any).name || '');
+    });
+  }
+
+  isAllInstitutesSelected(): boolean {
+    const ids: string[] = (this.filteredInstitutesForFilter || []).map(i => i.institute_id || '').filter((id): id is string => !!id);
+    return ids.length > 0 && ids.every(id => (this.selectedInstitutes || []).includes(id));
+  }
+
+  toggleSelectAllInstitutes() {
+    const ids: string[] = (this.filteredInstitutesForFilter || []).map(i => i.institute_id || '').filter((id): id is string => !!id);
+    if (this.isAllInstitutesSelected()) {
+      this.selectedInstitutes = [];
+    } else {
+      this.selectedInstitutes = [...ids];
+    }
+    this.onInstituteSelectionChange();
+  }
+
+  onInstituteSelectionChange() {
+    const iid = this.selectedInstitutes[0] || null;
+    this.selectedInstitute = iid;
+    if (!iid) {
+      this.selectedDepartments = [];
+      this.selectedTeams = [];
+    }
+  }
 
   refresh(){
     if (!this.hasAppliedFilters) {
@@ -253,6 +297,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
     if (!this.hasAppliedFilters) return [];
     const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    if (this.selectedInstitutes.length) chips.push({ key: 'selectedInstitutes', label: `Institutes: ${this.selectedInstitutes.length} selected`, removable: true });
     if (this.filterCountry) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries.map(c => ({ id: c.code, name: c.name })), this.filterCountry)}`, removable: true });
     if (this.filterCity) chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
     if (this.filterIndustry) chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true });
@@ -273,7 +318,8 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
 
   removeAppliedFilter(key: string) {
     if (!key) return;
-    if (key === 'country') { this.filterCountry = ''; this.filterCity = ''; this.filterCityOptions = []; this.refreshInstituteScope(); }
+    if (key === 'selectedInstitutes') this.selectedInstitutes = [];
+    else if (key === 'country') { this.filterCountry = ''; this.filterCity = ''; this.filterCityOptions = []; this.refreshInstituteScope(); }
     else if (key === 'city') { this.filterCity = ''; this.refreshInstituteScope(); }
     else if (key === 'industry') { this.filterIndustry = ''; this.filterSector = ''; this.refreshInstituteScope(); }
     else if (key === 'sector') { this.filterSector = ''; this.refreshInstituteScope(); }

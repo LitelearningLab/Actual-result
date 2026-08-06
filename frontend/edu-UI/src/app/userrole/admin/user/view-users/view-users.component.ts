@@ -84,6 +84,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   departmentSearch = '';
   teamSearch = '';
 
+  selectedInstitutes: string[] = [];
+  instituteFilterSearch = '';
+  departmentFilterSearch = '';
+  teamFilterSearch = '';
+
   // Industry -> Sector dependency (mirrors view-institutes.component.ts)
   industryTypes = ['School', 'College', 'BPO', 'Bank', 'IT'];
   industrySectors = ['School', 'Engineering', 'Arts', 'Healthcare', 'Finance', 'Banking', 'IT'];
@@ -197,6 +202,122 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   onDepartmentFilterChange() {
     if (!this.filters.department || (Array.isArray(this.filters.department) && !this.filters.department.length)) {
+      this.filters.team = [];
+    }
+  }
+
+  get filteredInstitutesForFilter() {
+    const term = (this.instituteFilterSearch || '').trim().toLowerCase();
+    let list = this.institutes || [];
+    if (term) {
+      list = list.filter(i =>
+        (i.institute_name || (i as any).name || '').toLowerCase().includes(term) ||
+        (!!i.institute_id && this.selectedInstitutes.includes(i.institute_id))
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = !!a.institute_id && this.selectedInstitutes.includes(a.institute_id);
+      const bSel = !!b.institute_id && this.selectedInstitutes.includes(b.institute_id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.institute_name || (a as any).name || '').localeCompare(b.institute_name || (b as any).name || '');
+    });
+  }
+
+  get filteredDepartmentsForFilter() {
+    const term = (this.departmentFilterSearch || '').trim().toLowerCase();
+    let list = this.departments || [];
+    if (term) {
+      list = list.filter(d =>
+        (d.name || '').toLowerCase().includes(term) ||
+        (Array.isArray(this.filters.department) && this.filters.department.includes(d.id))
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = Array.isArray(this.filters.department) && this.filters.department.includes(a.id);
+      const bSel = Array.isArray(this.filters.department) && this.filters.department.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  get filteredTeamsForFilter() {
+    const term = (this.teamFilterSearch || '').trim().toLowerCase();
+    let list = this.teams || [];
+    if (term) {
+      list = list.filter(t =>
+        (t.name || '').toLowerCase().includes(term) ||
+        (Array.isArray(this.filters.team) && this.filters.team.includes(t.id))
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = Array.isArray(this.filters.team) && this.filters.team.includes(a.id);
+      const bSel = Array.isArray(this.filters.team) && this.filters.team.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllInstitutesSelected(): boolean {
+    const ids: string[] = (this.filteredInstitutesForFilter || []).map(i => i.institute_id || '').filter((id): id is string => !!id);
+    return ids.length > 0 && ids.every(id => (this.selectedInstitutes || []).includes(id));
+  }
+
+  toggleSelectAllInstitutes() {
+    const ids: string[] = (this.filteredInstitutesForFilter || []).map(i => i.institute_id || '').filter((id): id is string => !!id);
+    if (this.isAllInstitutesSelected()) {
+      this.selectedInstitutes = [];
+    } else {
+      this.selectedInstitutes = [...ids];
+    }
+    this.onInstituteSelectionChange();
+  }
+
+  isAllDepartmentsSelected(): boolean {
+    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    const selected = Array.isArray(this.filters.department) ? this.filters.department : [];
+    return ids.length > 0 && ids.every(id => selected.includes(id));
+  }
+
+  toggleSelectAllDepartments() {
+    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    if (this.isAllDepartmentsSelected()) {
+      this.filters.department = [];
+    } else {
+      this.filters.department = [...ids];
+    }
+  }
+
+  isAllTeamsSelected(): boolean {
+    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    const selected = Array.isArray(this.filters.team) ? this.filters.team : [];
+    return ids.length > 0 && ids.every(id => selected.includes(id));
+  }
+
+  toggleSelectAllTeams() {
+    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    if (this.isAllTeamsSelected()) {
+      this.filters.team = [];
+    } else {
+      this.filters.team = [...ids];
+    }
+  }
+
+  onInstituteSelectionChange() {
+    const iid = this.selectedInstitutes[0] || '';
+    this.selectedInstitute = iid;
+    this.filters.institute = iid;
+    this.syncInstituteSearch();
+    this.pageIndex = 0;
+    if (iid) {
+      this.loadDepartments(iid);
+      this.loadTeams(iid);
+    } else {
+      this.departments = [];
+      this.teams = [];
+      this.filters.department = [];
       this.filters.team = [];
     }
   }

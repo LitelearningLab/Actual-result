@@ -94,6 +94,8 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   countrySearch = '';
   industrySearch = '';
   sectorSearch = '';
+  instituteFilterSearch = '';
+  selectedInstitutes: string[] = [];
 
   institutes: Institute[] = [];
   dataSource = new MatTableDataSource<Institute>([]);
@@ -231,6 +233,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
     if (!this.hasAppliedFilters) return [];
     const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    if (this.selectedInstitutes.length) chips.push({ key: 'selectedInstitutes', label: `Institutes: ${this.selectedInstitutes.length} selected`, removable: true });
     if (this.filters.name) chips.push({ key: 'name', label: `Institute: ${this.filters.name}`, removable: true });
     if (this.filters.industry) chips.push({ key: 'industry', label: `Industry: ${this.filters.industry}`, removable: true });
     if (this.filters.sector) chips.push({ key: 'sector', label: `Sector: ${this.filters.sector}`, removable: true });
@@ -242,7 +245,8 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
 
   removeAppliedFilter(key: string) {
     if (!key) return;
-    if (key === 'name') this.filters.name = '';
+    if (key === 'selectedInstitutes') this.selectedInstitutes = [];
+    else if (key === 'name') this.filters.name = '';
     else if (key === 'industry') { this.filters.industry = ''; this.filters.sector = ''; }
     else if (key === 'sector') this.filters.sector = '';
     else if (key === 'country') { this.filters.country = ''; this.filters.city = ''; this.filterCityOptions = []; }
@@ -269,10 +273,11 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
 
   loadInstitutes() {
     const params: any = {};
-  if(this.filters.name) params.name = this.filters.name;
-  if(this.filters.industry) params.industry = this.filters.industry;
-  if(this.filters.sector) params.sector = this.filters.sector;
-  if(this.filters.country) params.country = this.filters.country;
+    if (this.selectedInstitutes.length) params.institute_id = this.selectedInstitutes.join(',');
+    if(this.filters.name) params.name = this.filters.name;
+    if(this.filters.industry) params.industry = this.filters.industry;
+    if(this.filters.sector) params.sector = this.filters.sector;
+    if(this.filters.country) params.country = this.filters.country;
   const cityName = String(this.filters.city || '').trim();
   if (cityName) params.city = cityName;
     if(this.filters.active_status !== '') params.active_status = this.filters.active_status;
@@ -335,6 +340,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
 
   private hasFilterValues(): boolean {
     return !!(
+      this.selectedInstitutes.length ||
       this.filters.name ||
       this.filters.industry ||
       this.filters.sector ||
@@ -356,6 +362,8 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
 
   resetFilters(){
     this.filters = { name: '', industry: '', sector: '', country: '', city: '', active_status: '' };
+    this.selectedInstitutes = [];
+    this.instituteFilterSearch = '';
     this.filter = '';
     this.dataSource.filter = '';
     this.institutes = [];
@@ -516,7 +524,39 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     return scoped.filter(s => s.toLowerCase().includes(term));
   }
 
-  onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector') {
+  get filteredInstitutesForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.instituteFilterSearch || '').trim().toLowerCase();
+    let list = this.instituteOptions || [];
+    if (term) {
+      list = list.filter(i =>
+        (i.name || '').toLowerCase().includes(term) ||
+        this.selectedInstitutes.includes(i.id)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = this.selectedInstitutes.includes(a.id);
+      const bSel = this.selectedInstitutes.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllInstitutesSelected(): boolean {
+    const ids = (this.filteredInstitutesForFilter || []).map(i => i.id).filter(Boolean);
+    return ids.length > 0 && ids.every(id => (this.selectedInstitutes || []).includes(id));
+  }
+
+  toggleSelectAllInstitutes() {
+    const ids = (this.filteredInstitutesForFilter || []).map(i => i.id).filter(Boolean);
+    if (this.isAllInstitutesSelected()) {
+      this.selectedInstitutes = [];
+    } else {
+      this.selectedInstitutes = [...ids];
+    }
+  }
+
+  onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector' | 'institute') {
     if (opened) {
       setTimeout(() => {
         try {
@@ -529,6 +569,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     if (field === 'country') this.countrySearch = '';
     else if (field === 'industry') this.industrySearch = '';
     else if (field === 'sector') this.sectorSearch = '';
+    else if (field === 'institute') this.instituteFilterSearch = '';
   }
 
   stopFilterSearchEvent(event: Event) {

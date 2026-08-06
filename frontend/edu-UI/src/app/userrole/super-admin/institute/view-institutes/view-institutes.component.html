@@ -105,12 +105,23 @@
 
         <mat-form-field appearance="outline" class="filter-item">
           <mat-label>Institute</mat-label>
-          <input matInput placeholder="Any" [disabled]="!filters.industry && !filters.sector" [(ngModel)]="filters.name"
-            [matAutocomplete]="instituteAuto" />
-          <mat-autocomplete #instituteAuto="matAutocomplete">
-            <mat-option value="">Any</mat-option>
-            <mat-option *ngFor="let i of filteredInstituteOptions()" [value]="i.name">{{i.name}}</mat-option>
-          </mat-autocomplete>
+          <mat-select multiple [(ngModel)]="selectedInstitutes" placeholder="Select institute"
+            (openedChange)="onFilterSelectOpened($event, 'institute')">
+            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+              <input matInput class="select-search-input" placeholder="Search institute"
+                [(ngModel)]="instituteFilterSearch" [ngModelOptions]="{ standalone: true }"
+                (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+            </mat-option>
+            <mat-option class="select-all-option" *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
+              (click)="toggleSelectAllInstitutes()">
+              <mat-icon class="select-all-checkbox-icon" [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'">
+                {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+              </mat-icon>
+              <strong>Select All</strong>
+            </mat-option>
+            <mat-option *ngFor="let inst of filteredInstitutesForFilter" [value]="inst.id">{{inst.name}}</mat-option>
+          </mat-select>
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="filter-item">

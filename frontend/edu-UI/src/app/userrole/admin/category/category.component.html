@@ -130,15 +130,25 @@
                         <mat-form-field appearance="outline" class="filter-item local-institute-field"
                             *ngIf="isSuperAdmin">
                             <mat-label>Institute</mat-label>
-                            <input matInput placeholder="All" [value]="instituteSearch"
-                                (input)="onInstituteSearchInput($any($event.target).value)"
-                                [matAutocomplete]="categoryInstituteAuto" />
-                            <mat-autocomplete #categoryInstituteAuto="matAutocomplete" [displayWith]="displayInstitute"
-                                (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
-                                <mat-option [value]="null">All</mat-option>
-                                <mat-option *ngFor="let i of filteredInstitutes()"
-                                    [value]="i.institute_id">{{i.institute_name}}</mat-option>
-                            </mat-autocomplete>
+                            <mat-select multiple [(ngModel)]="selectedInstitutes" placeholder="Select institute"
+                                (selectionChange)="onInstituteSelectionChange()">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input matInput class="select-search-input" placeholder="Search institute"
+                                        [(ngModel)]="instituteFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option class="select-all-option" *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
+                                    (click)="toggleSelectAllInstitutes()">
+                                    <mat-icon class="select-all-checkbox-icon" [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'">
+                                        {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                    </mat-icon>
+                                    <strong>Select All</strong>
+                                </mat-option>
+                                <mat-option *ngFor="let inst of filteredInstitutesForFilter"
+                                    [value]="inst.institute_id">{{inst.institute_name}}</mat-option>
+                            </mat-select>
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" class="filter-item">
