@@ -640,3 +640,26 @@ $shadow-panel: 0 1.5rem 3.75rem rgba(5,18,40,0.22), 0 0.375rem 1rem rgba(5,18,40
   .meta-row.secondary-row .meta-item:not(:last-child)::after { display:none; }
   .meta-row.secondary-row .meta-item:not(:last-child) { border-bottom:0.0625rem solid var(--bg-2); }
 }
+
+/* Hide default pseudo-checkbox on search row and select-all row */
+::ng-deep .select-search-option .mat-pseudo-checkbox,
+::ng-deep .select-search-option .mat-mdc-option-pseudo-checkbox,
+::ng-deep .select-search-option .mdc-checkbox,
+::ng-deep .select-all-option .mat-pseudo-checkbox,
+::ng-deep .select-all-option .mat-mdc-option-pseudo-checkbox {
+  display: none !important;
+}
+
+/* Style for custom select-all-checkbox-icon */
+::ng-deep .select-all-option .mdc-list-item__primary-text {
+  display: flex !important;
+  align-items: center !important;
+}
+
+::ng-deep .select-all-checkbox-icon {
+  font-size: 1.25rem !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  line-height: 1.25rem !important;
+  margin-right: 0.5rem !important;
+}

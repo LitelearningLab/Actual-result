@@ -187,6 +187,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   institutes: Array<{ name: string; institute_id: string }> = [];
   filterInstitute = '';
   instituteSearch = '';
+  selectedInstitutes: string[] = [];
+  instituteFilterSearch = '';
   filterScheduleName = '';
   filterCreatedAfter: Date | null = null;
   filterCreatedBefore: Date | null = null;
@@ -219,6 +221,10 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     if (this.instituteId || this.isSuperAdmin) this.loadExams();
   }
 
+  stopFilterSearchEvent(event: Event) {
+    event.stopPropagation();
+  }
+
   loadInstitutes(): void {
     this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
       next: res => this.institutes = (Array.isArray(res?.data) ? res.data : []).map((item: any) => ({
@@ -227,6 +233,38 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
       })),
       error: () => this.institutes = []
     });
+  }
+
+  get filteredInstitutesForFilter() {
+    const term = (this.instituteFilterSearch || '').trim().toLowerCase();
+    let list = this.institutes || [];
+    if (term) {
+      list = list.filter(i =>
+        (i.name || '').toLowerCase().includes(term) ||
+        (!!i.institute_id && this.selectedInstitutes.includes(i.institute_id))
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = !!a.institute_id && this.selectedInstitutes.includes(a.institute_id);
+      const bSel = !!b.institute_id && this.selectedInstitutes.includes(b.institute_id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllInstitutesSelected(): boolean {
+    const ids: string[] = (this.filteredInstitutesForFilter || []).map(i => i.institute_id || '').filter((id): id is string => !!id);
+    return ids.length > 0 && ids.every(id => (this.selectedInstitutes || []).includes(id));
+  }
+
+  toggleSelectAllInstitutes() {
+    const ids: string[] = (this.filteredInstitutesForFilter || []).map(i => i.institute_id || '').filter((id): id is string => !!id);
+    if (this.isAllInstitutesSelected()) {
+      this.selectedInstitutes = [];
+    } else {
+      this.selectedInstitutes = [...ids];
+    }
   }
 
   filteredInstitutes() {
@@ -242,6 +280,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   resetFilters(): void {
     this.filterInstitute = '';
     this.instituteSearch = '';
+    this.selectedInstitutes = [];
+    this.instituteFilterSearch = '';
     this.filterScheduleName = '';
     this.filterCreatedAfter = null;
     this.filterCreatedBefore = null;

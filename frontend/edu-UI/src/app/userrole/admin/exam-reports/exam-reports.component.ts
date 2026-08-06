@@ -62,6 +62,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   instituteCtrl = new FormControl<any>('');
   filteredInstitutes$: Observable<any[]> = of([]);
   filteredTests$: Observable<any[]> = of([]);
+
   allTests: any[] = [];
   selectedExam: any = null;
   activeMainTabIndex = 0;
@@ -117,9 +118,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   ];
   institutes: Array<{ id: string; name: string; industry_type?: string; industry_sector?: string }> = [];
   selectedInstituteId: string | null = null;
+  selectedInstitutes: string[] = [];
+  instituteFilterSearch = '';
+  departmentFilterSearch = '';
+  teamFilterSearch = '';
   scheduledTestsLoading = false;
   scheduledTestsMessage = '';
   private scheduledTestsRequestId = 0;
+
+  stopFilterSearchEvent(event: Event) {
+    event.stopPropagation();
+  }
 
   get selectedInstituteName(): string {
     if (!this.selectedInstituteId) return '';
@@ -129,9 +138,122 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return '';
   }
 
-  get selectedExamTitle(): string {
-    if (!this.selectedExam) return '';
-    return this.selectedExam.title || this.selectedExam.name || '';
+  get filteredInstitutesForFilter() {
+    const q = (this.instituteFilterSearch || '').toLowerCase().trim();
+    let list = this.institutes || [];
+
+    if (this.userFilters.industry) {
+      const targetInd = this.userFilters.industry.toLowerCase().trim();
+      list = list.filter((i: any) => {
+        const ind = (i.industry_type || '').toLowerCase().trim();
+        return !ind || ind === targetInd || ind.includes(targetInd) || targetInd.includes(ind);
+      });
+    }
+
+    if (this.userFilters.sector) {
+      const targetSec = this.userFilters.sector.toLowerCase().trim();
+      list = list.filter((i: any) => {
+        const sec = (i.industry_sector || '').toLowerCase().trim();
+        return !sec || sec === targetSec || sec.includes(targetSec) || targetSec.includes(sec);
+      });
+    }
+
+    if (q) {
+      list = list.filter((i: any) => (i.name || '').toLowerCase().includes(q) || (!!i.id && this.selectedInstitutes.includes(i.id)));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = !!a.id && this.selectedInstitutes.includes(a.id);
+      const bSel = !!b.id && this.selectedInstitutes.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllInstitutesSelected(): boolean {
+    const ids: string[] = (this.filteredInstitutesForFilter || []).map(i => i.id || '').filter((id): id is string => !!id);
+    return ids.length > 0 && ids.every(id => (this.selectedInstitutes || []).includes(id));
+  }
+
+  toggleSelectAllInstitutes() {
+    const ids: string[] = (this.filteredInstitutesForFilter || []).map(i => i.id || '').filter((id): id is string => !!id);
+    if (this.isAllInstitutesSelected()) {
+      this.selectedInstitutes = [];
+    } else {
+      this.selectedInstitutes = [...ids];
+    }
+    this.onInstituteSelectionChange();
+  }
+
+  onInstituteSelectionChange() {
+    const iid = this.selectedInstitutes[0] || '';
+    this.userFilters.institute_id = iid;
+    this.selectedInstituteId = iid || this.selectedInstituteId;
+    this.onInstituteChange(iid);
+  }
+
+  get filteredDepartmentsForFilter(): string[] {
+    const q = (this.departmentFilterSearch || '').toLowerCase().trim();
+    let list = this.departmentList || [];
+    const selected = Array.isArray(this.userFilters.department_id) ? this.userFilters.department_id : [];
+    if (q) {
+      list = list.filter(d => d.toLowerCase().includes(q) || selected.includes(d));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = selected.includes(a);
+      const bSel = selected.includes(b);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.localeCompare(b);
+    });
+  }
+
+  isAllDepartmentsSelected(): boolean {
+    const list = this.filteredDepartmentsForFilter || [];
+    const selected = Array.isArray(this.userFilters.department_id) ? this.userFilters.department_id : [];
+    return list.length > 0 && list.every(d => selected.includes(d));
+  }
+
+  toggleSelectAllDepartments() {
+    const list = this.filteredDepartmentsForFilter || [];
+    if (this.isAllDepartmentsSelected()) {
+      this.userFilters.department_id = [];
+    } else {
+      this.userFilters.department_id = [...list];
+    }
+    this.onFilterSelectionChange();
+  }
+
+  get filteredTeamsForFilter(): string[] {
+    const q = (this.teamFilterSearch || '').toLowerCase().trim();
+    let list = this.teamList || [];
+    const selected = Array.isArray(this.userFilters.teams_id) ? this.userFilters.teams_id : [];
+    if (q) {
+      list = list.filter(t => t.toLowerCase().includes(q) || selected.includes(t));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = selected.includes(a);
+      const bSel = selected.includes(b);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.localeCompare(b);
+    });
+  }
+
+  isAllTeamsSelected(): boolean {
+    const list = this.filteredTeamsForFilter || [];
+    const selected = Array.isArray(this.userFilters.teams_id) ? this.userFilters.teams_id : [];
+    return list.length > 0 && list.every(t => selected.includes(t));
+  }
+
+  toggleSelectAllTeams() {
+    const list = this.filteredTeamsForFilter || [];
+    if (this.isAllTeamsSelected()) {
+      this.userFilters.teams_id = [];
+    } else {
+      this.userFilters.teams_id = [...list];
+    }
+    this.onFilterSelectionChange();
   }
 
   get filteredCountriesList(): any[] {

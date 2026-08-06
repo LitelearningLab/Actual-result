@@ -9578,7 +9578,7 @@ html, body {
   background: #fff;
   border: none;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.03);
-  overflow: hidden;
+  overflow: visible;
   animation: filterDrop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -9599,6 +9599,7 @@ html, body {
   padding: 1.125rem 1.25rem;
   border-bottom: 1px solid #f1f5f9;
   background: linear-gradient(180deg, var(--theme-2) 0%, var(--theme-2) 100%);
+  border-radius: 1rem 1rem 0 0;
 }
 
 .filters-panel-header h4 {
@@ -9617,14 +9618,6 @@ html, body {
   width: 1.25rem;
   height: 1.25rem;
   color: var(--button-1);
-}
-
-.filters-panel-header::after {
-  content: "";
-  width: 2.5rem;
-  height: 0.25rem;
-  background: linear-gradient(90deg, var(--button-1) 0%, var(--button-1-hover) 100%);
-  border-radius: 2px;
 }
 
 .filters-panel .filter-block {
@@ -9680,16 +9673,19 @@ html, body {
   }
 }
 .filter-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
   padding: 1rem 1.25rem 1.25rem;
-  background: linear-gradient(180deg, var(--theme-2) 0%, var(--theme-2) 100%);
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  border-radius: 0 0 1rem 1rem;
 }
 
 .filter-actions button {
   height: 2.75rem;
-  padding: 0 1rem;
+  padding: 0 1.25rem;
   font-size: 0.875rem;
   font-weight: 600;
   border-radius: 0.625rem;
@@ -9708,33 +9704,52 @@ html, body {
 }
 
 .filter-actions .filter-reset-btn {
-  background: var(--button-1) !important;
-  color: var(--button-text-1) !important;
-  border: 2px solid #e2e8f0;
+  background: transparent !important;
+  color: #334155 !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-weight: 600;
   order: 1;
+  opacity: 1 !important;
 }
 
 .filter-actions .filter-reset-btn:hover {
-  background: var(--button-1-hover) !important;
-  border-color: #cbd5e1;
-  color: var(--button-text-1) !important;
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
 }
 
 .filter-actions .filter-apply-btn {
-  background: linear-gradient(135deg, var(--button-1) 0%, var(--button-1-hover) 100%) !important;
-  color: var(--button-text-1) !important;
-  border: none;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+  background: linear-gradient(135deg, #1f7bff 0%, #175cd3 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(31, 123, 255, 0.4) !important;
   order: 2;
+  opacity: 1 !important;
 }
 
 .filter-actions .filter-apply-btn:hover {
-  background: linear-gradient(135deg, var(--button-1-hover) 0%, var(--button-1) 100%) !important;
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+  background: linear-gradient(135deg, #175cd3 0%, #1f7bff 100%) !important;
+  box-shadow: 0 6px 20px rgba(31, 123, 255, 0.5) !important;
+  transform: translateY(-1px);
 }
 
 .filter-actions .filter-apply-btn:active {
   transform: translateY(0);
+}
+
+/* Global Angular Material MDC Checkbox Theme Fix */
+.mat-mdc-checkbox {
+  --mdc-checkbox-selected-focus-icon-color: #1f7bff;
+  --mdc-checkbox-selected-hover-icon-color: #175cd3;
+  --mdc-checkbox-selected-icon-color: #1f7bff;
+  --mdc-checkbox-selected-pressed-icon-color: #175cd3;
+  --mdc-checkbox-selected-checkmark-color: #ffffff;
+}
+
+.mat-mdc-checkbox .mdc-checkbox__native-control:checked ~ .mdc-checkbox__background,
+.mat-mdc-checkbox .mdc-checkbox__native-control:indeterminate ~ .mdc-checkbox__background {
+  background-color: #1f7bff !important;
+  border-color: #1f7bff !important;
 }
 
 .premium-table {
