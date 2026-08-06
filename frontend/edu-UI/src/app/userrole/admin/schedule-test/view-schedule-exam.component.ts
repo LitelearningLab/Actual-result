@@ -31,7 +31,8 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
+
 
 @Component({
   selector: 'app-view-schedule-exam',
@@ -47,6 +48,14 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   selectedInstitute = '';
   instituteSearch = '';
   instituteSearchTerm = '';
+  departmentFilterSearch = '';
+  teamFilterSearch = '';
+
+  selectedInstitutes: string[] = [];
+  instituteFilterSearch = '';
+
+
+
 
   // Location, Industry & Filter fields
   filterCountry = '';
@@ -83,7 +92,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   schedules: any[] = [];
   dataSource = new MatTableDataSource<any>([]);
   hasAppliedFilters = false;
-  columns: string[] = ['sno','title', 'institute', 'schedule', 'publish', 'actions'];
+  columns: string[] = ['sno', 'title', 'institute', 'schedule', 'publish', 'actions'];
   selectedSchedule: any = null;
 
   private baseUrl = API_BASE;
@@ -126,6 +135,92 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       }
     });
   }
+
+  // 1. Update Institute Filter Getter
+  get filteredInstitutesForFilter(): Array<{ name: string; institute_id?: string }> {
+    const term = (this.instituteFilterSearch || '').trim().toLowerCase();
+    let list = this.institutes || [];
+    if (term) {
+      list = list.filter((i: any) =>
+        (i.name || i.institute_name || '').toLowerCase().includes(term) ||
+        (i.institute_id && (this.selectedInstitutes || []).includes(i.institute_id))
+      );
+    }
+    return [...list].sort((a: any, b: any) => {
+      const aSel = a.institute_id ? (this.selectedInstitutes || []).includes(a.institute_id) : false;
+      const bSel = b.institute_id ? (this.selectedInstitutes || []).includes(b.institute_id) : false;
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || a.institute_name || '').localeCompare(b.name || b.institute_name || '');
+    });
+  }
+
+
+  // Focus search input when dropdown opens, and clear search input when closed
+  onFilterInstituteOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.instituteFilterSearch = '';
+    }
+  }
+
+  onInstituteSelectionChange() {
+    const institutes = this.selectedInstitutes || [];
+    this.selectedInstitute = institutes[institutes.length - 1] || '';
+
+    if (!institutes.length) {
+      this.departments = [];
+      this.teams = [];
+      return;
+    }
+
+    // Fetch departments for ALL selected institutes
+    const deptRequests = institutes.map(id =>
+      this.http.get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: id } })
+    );
+    forkJoin(deptRequests).subscribe({
+      next: (responses) => {
+        let combined: any[] = [];
+        responses.forEach(res => {
+          const arr = Array.isArray(res) ? res : (res?.data || []);
+          combined = combined.concat(arr);
+        });
+        const seen = new Set();
+        this.departments = combined
+          .map((d: any) => ({ id: d.dept_id || d.id || d.deptId || '', name: d.name || d.dept_name || '' }))
+          .filter(d => d.id && !seen.has(d.id) && seen.add(d.id));
+      },
+      error: () => { this.departments = []; }
+    });
+
+    // Fetch teams for ALL selected institutes
+    const teamRequests = institutes.map(id =>
+      this.http.get<any>(`${API_BASE}/get-teams-list`, { params: { institute_id: id } })
+    );
+    forkJoin(teamRequests).subscribe({
+      next: (responses) => {
+        let combined: any[] = [];
+        responses.forEach(res => {
+          const arr = Array.isArray(res) ? res : (res?.data || []);
+          combined = combined.concat(arr);
+        });
+        const seen = new Set();
+        this.teams = combined
+          .map((t: any) => ({ id: t.team_id || t.id || t.teamId || '', name: t.name || t.team_name || '' }))
+          .filter(t => t.id && !seen.has(t.id) && seen.add(t.id));
+      },
+      error: () => { this.teams = []; }
+    });
+  }
+
+
+
 
   getCreatedDateRangeDisplay(): string {
     const start = this.filterCreationDateAfter;
@@ -188,6 +283,119 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       });
     }
   }
+
+
+  // 2. Update Department Filter Getter
+  get filteredDepartmentsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.departmentFilterSearch || '').trim().toLowerCase();
+    let list = this.departments || [];
+    if (term) {
+      list = list.filter(d =>
+        (d.name || '').toLowerCase().includes(term) ||
+        (this.selectedDepartments || []).includes(d.id)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedDepartments || []).includes(a.id);
+      const bSel = (this.selectedDepartments || []).includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  // 3. Update Team Filter Getter
+  get filteredTeamsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.teamFilterSearch || '').trim().toLowerCase();
+    let list = this.teams || [];
+    if (term) {
+      list = list.filter(t =>
+        (t.name || '').toLowerCase().includes(term) ||
+        (this.selectedTeams || []).includes(t.id)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedTeams || []).includes(a.id);
+      const bSel = (this.selectedTeams || []).includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  // --- Select All: Institute ---
+  isAllInstitutesSelected(): boolean {
+    const ids = (this.filteredInstitutesForFilter || []).map(i => i.institute_id!).filter(Boolean);
+    return ids.length > 0 && ids.every(id => (this.selectedInstitutes || []).includes(id));
+  }
+
+  toggleSelectAllInstitutes() {
+    const ids = (this.filteredInstitutesForFilter || []).map(i => i.institute_id!).filter(Boolean);
+    if (this.isAllInstitutesSelected()) {
+      this.selectedInstitutes = [];
+    } else {
+      this.selectedInstitutes = [...ids];
+    }
+    this.onInstituteSelectionChange();
+  }
+
+  // --- Select All: Department ---
+  isAllDepartmentsSelected(): boolean {
+    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    return ids.length > 0 && ids.every(id => (this.selectedDepartments || []).includes(id));
+  }
+
+  toggleSelectAllDepartments() {
+    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    if (this.isAllDepartmentsSelected()) {
+      this.selectedDepartments = [];
+    } else {
+      this.selectedDepartments = [...ids];
+    }
+  }
+
+  // --- Select All: Team ---
+  isAllTeamsSelected(): boolean {
+    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    return ids.length > 0 && ids.every(id => (this.selectedTeams || []).includes(id));
+  }
+
+  toggleSelectAllTeams() {
+    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    if (this.isAllTeamsSelected()) {
+      this.selectedTeams = [];
+    } else {
+      this.selectedTeams = [...ids];
+    }
+  }
+
+
+  onFilterDepartmentOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.departmentFilterSearch = '';
+    }
+  }
+
+  onFilterTeamOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.teamFilterSearch = '';
+    }
+  }
+
 
   stopFilterSearchEvent(event: Event) {
     event.stopPropagation();
@@ -350,7 +558,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
   refresh() {
     if (!this.hasAppliedFilters) {
-      try { notify('Apply filters to fetch scheduled tests', 'info'); } catch (e) {}
+      try { notify('Apply filters to fetch scheduled tests', 'info'); } catch (e) { }
       return;
     }
     this.loadSchedules(this.selectedInstitute || undefined);
@@ -470,7 +678,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
   private hasFilterValues(): boolean {
     return !!(
-      this.selectedInstitute ||
+      (this.selectedInstitutes && this.selectedInstitutes.length) || this.selectedInstitute ||
       this.instituteSearchTerm.trim() ||
       this.filterCountry ||
       this.filterCity ||
@@ -494,7 +702,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       );
 
       if (!matchedInstitute?.institute_id) {
-        try { notify('Please select a valid institute from the list.', 'info'); } catch (e) {}
+        try { notify('Please select a valid institute from the list.', 'info'); } catch (e) { }
         return;
       }
 
@@ -502,7 +710,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       this.syncInstituteSearch();
     }
     if (!this.hasFilterValues()) {
-      try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
+      try { notify('Please add filters in the filter form.', 'info'); } catch (e) { }
       return;
     }
     this.hasAppliedFilters = true;
@@ -519,6 +727,8 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.industrySearch = '';
     this.sectorSearch = '';
     this.selectedInstitute = '';
+    this.selectedInstitutes = [];      // <--- ADD THIS to clear the Institute dropdown
+    this.instituteFilterSearch = '';  // <--- ADD THIS to clear the search input
     this.instituteSearch = '';
     this.instituteSearchTerm = '';
     this.filterName = '';
@@ -744,7 +954,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
         this.dataSource.paginator = this.paginator;
         if (err?.status !== 404) {
           const msg = err?.error?.statusMessage || err?.message || 'Failed to load scheduled tests';
-          try { notify(msg, 'error'); } catch (e) {}
+          try { notify(msg, 'error'); } catch (e) { }
         }
         try { this.loader.hide(); } catch (e) { }
       }
@@ -900,7 +1110,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
         const normalizeBool = (v: any) => {
           if (typeof v === 'boolean') return v;
           if (typeof v === 'number') return v === 1;
-          if (typeof v === 'string') return ['1','true','yes','on'].includes(v.toLowerCase());
+          if (typeof v === 'string') return ['1', 'true', 'yes', 'on'].includes(v.toLowerCase());
           return !!v;
         };
         const pub = payload.publish ?? payload.published ?? payload.is_published ?? payload.isPublished ?? payload.published_flag;
@@ -952,10 +1162,10 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
           try {
             notify('Schedule deleted', 'success');
             this.loadSchedules(this.selectedInstitute || undefined);
-          } catch(e) {}
+          } catch (e) { }
         }, error: (err) => {
           console.error('Failed to delete schedule', err);
-          try { notify('Failed to delete schedule', 'error'); } catch(e) {}
+          try { notify('Failed to delete schedule', 'error'); } catch (e) { }
           this.schedules = this.schedules.filter(s => s.id !== id);
           this.dataSource.data = this.schedules;
         }
@@ -983,19 +1193,21 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       const id = row.id || row.schedule_id;
       const action = newState ? 'activate' : 'deactivate';
       const url = `${this.baseUrl}/exam-schedule/${action}/${encodeURIComponent(String(id))}`;
-      const payload = { current_user: (() => { try { const raw = sessionStorage.getItem('user'); return raw ? (JSON.parse(raw).user_id || JSON.parse(raw).userId) : undefined; } catch(e){ return undefined; } })() };
-      this.http.put<any>(url, payload).subscribe({ next: (res) => {
-        try { notify(res?.statusMessage || 'Schedule updated', 'success'); } catch (e) {}
-      }, error: (err) => {
-        console.error('Failed to update publish', err);
-        row.publish = prev;
-        if (row.raw) {
-          row.raw.publish = prev;
-          row.raw.published = prev;
+      const payload = { current_user: (() => { try { const raw = sessionStorage.getItem('user'); return raw ? (JSON.parse(raw).user_id || JSON.parse(raw).userId) : undefined; } catch (e) { return undefined; } })() };
+      this.http.put<any>(url, payload).subscribe({
+        next: (res) => {
+          try { notify(res?.statusMessage || 'Schedule updated', 'success'); } catch (e) { }
+        }, error: (err) => {
+          console.error('Failed to update publish', err);
+          row.publish = prev;
+          if (row.raw) {
+            row.raw.publish = prev;
+            row.raw.published = prev;
+          }
+          const msg = err?.error?.statusMessage || err?.message || 'Failed to update schedule';
+          try { notify(msg, 'error'); } catch (e) { }
         }
-        const msg = err?.error?.statusMessage || err?.message || 'Failed to update schedule';
-        try { notify(msg, 'error'); } catch(e) {}
-      } });
+      });
     });
   }
 
@@ -1075,7 +1287,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.selectedSchedule = null;
     if (this.paginator) { this.paginator.firstPage(); this.paginator.length = 0; }
     this.closeFiltersOverlay();
-    try { sessionStorage.removeItem('schedule_return_state'); } catch (e) {}
+    try { sessionStorage.removeItem('schedule_return_state'); } catch (e) { }
     this.loadDepartments(instituteId);
     this.loadTeams(instituteId);
     this.syncInstituteSearch();
@@ -1093,7 +1305,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.selectedSchedule = null;
     if (this.paginator) { this.paginator.firstPage(); this.paginator.length = 0; }
     this.closeFiltersOverlay();
-    try { sessionStorage.removeItem('schedule_return_state'); } catch (e) {}
+    try { sessionStorage.removeItem('schedule_return_state'); } catch (e) { }
     this.loadInstitutes();
   }
 }

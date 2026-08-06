@@ -171,6 +171,9 @@ export class AdminScheduleTestComponent {
     // initialize categories so UI can bind reliably
     categories: [] as Array<{ name: string; questions: number }>,
   };
+  departmentFilterSearch = '';
+  teamFilterSearch = '';
+
 
   // categories support
   newCategory: { name: string; questions: number } = { name: '', questions: 0 };
@@ -1678,22 +1681,66 @@ export class AdminScheduleTestComponent {
     return (this.institutes || []).filter((inst) => (inst.name || '').toLowerCase().includes(term));
   }
 
+  // Getter to filter departments list dynamically by search text
+  get filteredDepartmentsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.departmentFilterSearch || '').trim().toLowerCase();
+    if (!term) return this.departments;
+    return this.departments.filter(d => (d.name || '').toLowerCase().includes(term));
+  }
+
+  // Getter to filter teams list dynamically by search text
+  get filteredTeamsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.teamFilterSearch || '').trim().toLowerCase();
+    if (!term) return this.teams;
+    return this.teams.filter(t => (t.name || '').toLowerCase().includes(term));
+  }
+
+  // Focus search input when dropdown opens, and clear search input when closed
+  onFilterDepartmentOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.departmentFilterSearch = '';
+    }
+  }
+
+  onFilterTeamOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.teamFilterSearch = '';
+    }
+  }
+
+
+
+
   displayFilterInstitute(value: any): string {
     if (!value) return '';
     if (typeof value === 'object') return value.name || '';
     return this.getInstituteName(value);
   }
 
-onFilterInstituteSelected(instituteId: string): void {
-  this.filterInstitute = instituteId || '';
-  this.filterInstituteSearch = this.getInstituteName(this.filterInstitute);
-  const targetInstitute = this.filterInstitute || this.model.institute;
-  
-  // Load departments, teams, and test options for the selected institute
-  this.loadDepartments(targetInstitute);
-  this.loadTeams(targetInstitute);
-  this.loadTestOptions(targetInstitute);
-}
+  onFilterInstituteSelected(instituteId: string): void {
+    this.filterInstitute = instituteId || '';
+    this.filterInstituteSearch = this.getInstituteName(this.filterInstitute);
+    const targetInstitute = this.filterInstitute || this.model.institute;
+
+    // Load departments, teams, and test options for the selected institute
+    this.loadDepartments(targetInstitute);
+    this.loadTeams(targetInstitute);
+    this.loadTestOptions(targetInstitute);
+  }
 
 
   // ADD THIS MISSING METHOD DEFINITION:

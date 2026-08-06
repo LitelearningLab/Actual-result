@@ -72,6 +72,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   countrySearch = '';
   industrySearch = '';
   sectorSearch = '';
+  categorySearch = '';
   // additional filters
   filterCreationDateAfter: Date | null = null;
   filterCreationDate: Date | null = null;
@@ -416,7 +417,13 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     return scoped.filter(s => s.toLowerCase().includes(term));
   }
 
-  onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector') {
+  get filteredCategoryOptions(): Array<any> {
+    const term = (this.categorySearch || '').trim().toLowerCase();
+    if (!term) return this.categoryOptions;
+    return this.categoryOptions.filter(c => (c.name || '').toLowerCase().includes(term));
+  }
+
+  onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector' | 'questionBank') {
     if (opened) {
       setTimeout(() => {
         try {
@@ -429,6 +436,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     if (field === 'country') this.countrySearch = '';
     else if (field === 'industry') this.industrySearch = '';
     else if (field === 'sector') this.sectorSearch = '';
+    else if (field === 'questionBank') this.categorySearch = '';
   }
 
   stopFilterSearchEvent(event: Event) {
@@ -802,6 +810,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     this.countrySearch = '';
     this.industrySearch = '';
     this.sectorSearch = '';
+    this.categorySearch = '';
     if (this.isSuperAdmin) {
       // Institute is the top of the Institute -> Question Bank -> Department/Team chain;
       // it must be cleared here so those dependents reload unscoped instead of staying

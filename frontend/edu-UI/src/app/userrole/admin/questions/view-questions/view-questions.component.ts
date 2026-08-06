@@ -23,7 +23,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 import { API_BASE } from 'src/app/shared/api.config';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { OverlayModule } from '@angular/cdk/overlay';
@@ -72,6 +72,11 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   private allInstitutes: Array<{ name: string; institute_id?: string }> = [];
   exams: Array<{ title: string; exam_id?: string }> = [];
   selectedInstitute = '';
+  selectedInstitutes: string[] = [];
+  instituteFilterSearch = '';
+  departmentFilterSearch = '';
+  teamFilterSearch = '';
+
   instituteSearch = '';
   instituteSearchTerm = '';
   // multi-select categories with search
@@ -142,10 +147,110 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   industrySearch = '';
   sectorSearch = '';
 
+  get filteredInstitutesForFilter(): Array<{ name: string; institute_id?: string }> {
+    const term = (this.instituteFilterSearch || '').trim().toLowerCase();
+    let list = this.institutes || [];
+    if (term) {
+      list = list.filter(i =>
+        (i.name || '').toLowerCase().includes(term) ||
+        (i.institute_id && this.selectedInstitutes.includes(i.institute_id))
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = a.institute_id ? this.selectedInstitutes.includes(a.institute_id) : false;
+      const bSel = b.institute_id ? this.selectedInstitutes.includes(b.institute_id) : false;
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  get filteredDepartmentsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.departmentFilterSearch || '').trim().toLowerCase();
+    let list = this.departments || [];
+    if (term) {
+      list = list.filter(d =>
+        (d.name || '').toLowerCase().includes(term) ||
+        this.selectedDepartments.includes(d.id)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = this.selectedDepartments.includes(a.id);
+      const bSel = this.selectedDepartments.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  get filteredTeamsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.teamFilterSearch || '').trim().toLowerCase();
+    let list = this.teams || [];
+    if (term) {
+      list = list.filter(t =>
+        (t.name || '').toLowerCase().includes(term) ||
+        this.selectedTeams.includes(t.id)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = this.selectedTeams.includes(a.id);
+      const bSel = this.selectedTeams.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+
   get filteredCategories() {
     const q = (this.categorySearch || '').toLowerCase();
     if (!q) return this.categories;
     return this.categories.filter((c: any) => (c.name || '').toLowerCase().includes(q) || (c.category_name || '').toLowerCase().includes(q));
+  }
+
+  // --- Select All: Institute ---
+  isAllInstitutesSelected(): boolean {
+    const ids = (this.filteredInstitutesForFilter || []).map(i => i.institute_id!).filter(Boolean);
+    return ids.length > 0 && ids.every(id => (this.selectedInstitutes || []).includes(id));
+  }
+  toggleSelectAllInstitutes() {
+    const ids = (this.filteredInstitutesForFilter || []).map(i => i.institute_id!).filter(Boolean);
+    if (this.isAllInstitutesSelected()) {
+      this.selectedInstitutes = [];
+    } else {
+      this.selectedInstitutes = [...ids];
+    }
+    this.onInstituteSelectionChange();
+  }
+
+  // --- Select All: Department ---
+  isAllDepartmentsSelected(): boolean {
+    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    return ids.length > 0 && ids.every(id => (this.selectedDepartments || []).includes(id));
+  }
+
+  toggleSelectAllDepartments() {
+    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    if (this.isAllDepartmentsSelected()) {
+      this.selectedDepartments = [];
+    } else {
+      this.selectedDepartments = [...ids];
+    }
+  }
+
+  // --- Select All: Team ---
+  isAllTeamsSelected(): boolean {
+    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    return ids.length > 0 && ids.every(id => (this.selectedTeams || []).includes(id));
+  }
+
+  toggleSelectAllTeams() {
+    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    if (this.isAllTeamsSelected()) {
+      this.selectedTeams = [];
+    } else {
+      this.selectedTeams = [...ids];
+    }
   }
 
   private filtersOverlayRef: OverlayRef | null = null;
@@ -566,6 +671,96 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   onSectorFilterChange() {
     this.refreshInstituteScope();
   }
+
+  onFilterInstituteOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.instituteFilterSearch = '';
+    }
+  }
+
+  onFilterDepartmentOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.departmentFilterSearch = '';
+    }
+  }
+
+  onFilterTeamOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.teamFilterSearch = '';
+    }
+  }
+
+  onInstituteSelectionChange() {
+    const institutes = this.selectedInstitutes || [];
+    this.selectedInstitute = institutes[institutes.length - 1] || '';
+
+    if (!institutes.length) {
+      this.departments = [];
+      this.teams = [];
+      this.loadCategories(undefined);
+      return;
+    }
+
+    this.loadCategories(this.selectedInstitute);
+
+    const deptRequests = institutes.map(id =>
+      this.http.get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: id } })
+    );
+    forkJoin(deptRequests).subscribe({
+      next: (responses) => {
+        let combined: any[] = [];
+        responses.forEach(res => {
+          const arr = Array.isArray(res) ? res : (res?.data || []);
+          combined = combined.concat(arr);
+        });
+        const seen = new Set();
+        this.departments = combined
+          .map((d: any) => ({ id: d.dept_id || d.id || d.deptId || '', name: d.name || d.dept_name || '' }))
+          .filter(d => d.id && !seen.has(d.id) && seen.add(d.id));
+      },
+      error: () => { this.departments = []; }
+    });
+
+    const teamRequests = institutes.map(id =>
+      this.http.get<any>(`${API_BASE}/get-teams-list`, { params: { institute_id: id } })
+    );
+    forkJoin(teamRequests).subscribe({
+      next: (responses) => {
+        let combined: any[] = [];
+        responses.forEach(res => {
+          const arr = Array.isArray(res) ? res : (res?.data || []);
+          combined = combined.concat(arr);
+        });
+        const seen = new Set();
+        this.teams = combined
+          .map((t: any) => ({ id: t.team_id || t.id || t.teamId || '', name: t.name || t.team_name || '' }))
+          .filter(t => t.id && !seen.has(t.id) && seen.add(t.id));
+      },
+      error: () => { this.teams = []; }
+    });
+  }
+
 
   // Reload the Institute options scoped to the currently selected Country/City/Industry/Sector.
   // Falls back to the full institute list (get-institute-list) when none of those are selected.
@@ -1003,7 +1198,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       this.filterCity ||
       this.filterIndustry ||
       this.filterSector ||
-      this.selectedInstitute ||
+      (this.selectedInstitutes && this.selectedInstitutes.length) || this.selectedInstitute ||
       this.selectedCategories.length ||
       this.categoryFilterName ||
       this.categorySearch ||
@@ -1054,6 +1249,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     this.sectorSearch = '';
     if (this.isSuperAdmin) {
       this.selectedInstitute = '';
+      this.selectedInstitutes = [];
+      this.instituteFilterSearch = '';
+      this.departmentFilterSearch = '';
+      this.teamFilterSearch = '';
       this.instituteSearch = '';
       this.categoryCtrl.disable({ emitEvent: false });
       this.departments = [];

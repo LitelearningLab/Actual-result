@@ -111,21 +111,35 @@
                 <div class="filter-col">
                     <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
                         <mat-label>Institute</mat-label>
-                        <input #scheduleInstituteInput matInput placeholder="Select institute"
-                            [(ngModel)]="instituteSearch" (ngModelChange)="onInstituteSearchChange($event)"
-                            [matAutocomplete]="scheduleInstituteAuto" />
-                        <mat-autocomplete #scheduleInstituteAuto="matAutocomplete" [displayWith]="displayInstitute"
-                            (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
-                            <mat-option value="">Select institute</mat-option>
-                            <mat-option *ngFor="let inst of filteredInstitutes()"
+                        <mat-select multiple [(ngModel)]="selectedInstitutes"
+                            (selectionChange)="onInstituteSelectionChange()" placeholder="Select institute"
+                            (openedChange)="onFilterInstituteOpenedChange($event)">
+
+                            <!-- Embedded Search Bar -->
+                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <input matInput class="select-search-input" placeholder="Search institute"
+                                    [(ngModel)]="instituteFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                            </mat-option>
+                            <!-- Select All Option for Institute -->
+                            <mat-option class="select-all-option" *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
+                                (click)="toggleSelectAllInstitutes()">
+                                <mat-icon class="select-all-checkbox-icon" [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'">
+                                    {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                </mat-icon>
+                                <strong>Select All</strong>
+                            </mat-option>
+
+                            <mat-option *ngFor="let inst of filteredInstitutesForFilter"
                                 [value]="inst.institute_id">{{inst.name}}</mat-option>
-                        </mat-autocomplete>
+                        </mat-select>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="filter-item">
                         <mat-label>Schedule Name</mat-label>
                         <input matInput placeholder="Schedule name" [(ngModel)]="filterName"
-                            [matAutocomplete]="scheduleNameAuto" [disabled]="isSuperAdmin && !selectedInstitute" />
+                            [matAutocomplete]="scheduleNameAuto" [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute" />
                         <mat-autocomplete #scheduleNameAuto="matAutocomplete">
                             <mat-option [value]="''">Any</mat-option>
                             <mat-option *ngFor="let name of filteredScheduleNames()" [value]="name">{{ name
@@ -136,18 +150,54 @@
                     <mat-form-field appearance="outline" class="filter-item">
                         <mat-label>Departments</mat-label>
                         <mat-select multiple [(ngModel)]="selectedDepartments"
-                            [disabled]="isSuperAdmin && !selectedInstitute" placeholder="Select departments">
-                            <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
+                            [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
+                            placeholder="Select departments" (openedChange)="onFilterDepartmentOpenedChange($event)">
+                            <!-- Embedded Search Bar -->
+                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <input matInput class="select-search-input" placeholder="Search department"
+                                    [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                            </mat-option>
+                            <!-- Select All Option for Department -->
+                            <mat-option class="select-all-option" *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
+                                (click)="toggleSelectAllDepartments()">
+                                <mat-icon class="select-all-checkbox-icon" [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
+                                    {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                </mat-icon>
+                                <strong>Select All</strong>
+                            </mat-option>
+
+                            <mat-option *ngFor="let d of filteredDepartmentsForFilter"
+                                [value]="d.id">{{d.name}}</mat-option>
                         </mat-select>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="filter-item">
                         <mat-label>Teams</mat-label>
-                        <mat-select multiple [(ngModel)]="selectedTeams" [disabled]="isSuperAdmin && !selectedInstitute"
-                            placeholder="Select teams">
-                            <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
+                        <mat-select multiple [(ngModel)]="selectedTeams"
+                            [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
+                            placeholder="Select teams" (openedChange)="onFilterTeamOpenedChange($event)">
+                            <!-- Embedded Search Bar -->
+                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <input matInput class="select-search-input" placeholder="Search team"
+                                    [(ngModel)]="teamFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                            </mat-option>
+                            <!-- Select All Option for Team -->
+                            <mat-option class="select-all-option" *ngIf="filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
+                                (click)="toggleSelectAllTeams()">
+                                <mat-icon class="select-all-checkbox-icon" [style.color]="isAllTeamsSelected() ? '#2563eb' : '#64748b'">
+                                    {{ isAllTeamsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                </mat-icon>
+                                <strong>Select All</strong>
+                            </mat-option>
+
+                            <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id">{{t.name}}</mat-option>
                         </mat-select>
                     </mat-form-field>
+
                 </div>
 
                 <!-- Full Width Row: Created Date -->

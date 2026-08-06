@@ -15,12 +15,8 @@
     <div *ngIf="draftBannerVisible && !readOnly" class="draft-safety-banner" role="status">
       <mat-icon>info</mat-icon>
       <span>Your changes are not saved until you complete all steps and submit.</span>
-      <button
-        mat-icon-button
-        type="button"
-        aria-label="Dismiss unsaved changes notice"
-        (click)="draftBannerVisible = false"
-      >
+      <button mat-icon-button type="button" aria-label="Dismiss unsaved changes notice"
+        (click)="draftBannerVisible = false">
         <mat-icon>close</mat-icon>
       </button>
     </div>
@@ -39,100 +35,62 @@
                     <h2 class="section-heading">Basic Information</h2>
                     <p class="section-desc">
                       {{
-                        isSuperAdmin
-                          ? 'Select institute and test to schedule.'
-                          : 'Select test to schedule.'
+                      isSuperAdmin
+                      ? 'Select institute and test to schedule.'
+                      : 'Select test to schedule.'
                       }}
                     </p>
                   </div>
-                  <button
-                    #filtersBtn
-                    mat-stroked-button
-                    color="primary"
-                    type="button"
+                  <button #filtersBtn mat-stroked-button color="primary" type="button"
                     (click)="openFiltersOverlay(); $event.stopPropagation()"
-                    [disabled]="readOnly || scheduleFieldsLocked"
-                    aria-haspopup="true"
-                    [attr.aria-expanded]="filterEnabled"
-                  >
+                    [disabled]="readOnly || scheduleFieldsLocked" aria-haspopup="true"
+                    [attr.aria-expanded]="filterEnabled">
                     <mat-icon>filter_list</mat-icon>
                     Filters
                   </button>
                 </div>
 
                 <!-- Applied filters -->
-                <div
-                  class="applied-filters"
-                  *ngIf="appliedFilterChips.length"
-                  style="margin-bottom: 1rem"
-                >
+                <div class="applied-filters" *ngIf="appliedFilterChips.length" style="margin-bottom: 1rem">
                   <span class="applied-filters-title">Applied filters</span>
-                  <button
-                    type="button"
-                    class="applied-filter-chip"
-                    *ngFor="let chip of appliedFilterChips"
+                  <button type="button" class="applied-filter-chip" *ngFor="let chip of appliedFilterChips"
                     [class.applied-filter-chip--locked]="!chip.removable"
-                    (click)="chip.removable && removeAppliedFilter(chip.key)"
-                  >
+                    (click)="chip.removable && removeAppliedFilter(chip.key)">
                     <span>{{ chip.label }}</span>
                     <!-- <mat-icon *ngIf="chip.removable">close</mat-icon> -->
                   </button>
-                  <button
-                    type="button"
-                    class="applied-filter-clear"
-                    (click)="clearAppliedFilters()"
-                  >
+                  <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">
                     Clear all
                   </button>
                 </div>
 
                 <!-- Institute + Filters toggle -->
-                <div
-                  class="field-row schedule-lock-row"
-                  [class.schedule-lock-row--inactive]="isSuperAdmin && !filterInstitute"
-                >
+                <div class="field-row schedule-lock-row"
+                  [class.schedule-lock-row--inactive]="isSuperAdmin && !filterInstitute">
                   <mat-form-field *ngIf="isSuperAdmin" appearance="outline" class="field-half schedule-institute-field"
-   [class.institute-disabled]="instituteDisabled">
-   <mat-icon matPrefix>apartment</mat-icon>
-   <mat-label>Institute*</mat-label>
-   <input matInput
-      [value]="selectedInstituteName"
-      name="superAdminInstitute"
-      placeholder="Choose an institute in Filters"
-      [readonly]="true"
-      [disabled]="instituteDisabled" />
-   <mat-hint align="start" *ngIf="!filterInstitute">Choose an institute in Filters to unlock this field.</mat-hint>
-   <mat-hint align="start" *ngIf="filterInstitute">Type the institute name.</mat-hint>
-   <mat-error *ngIf="!model.institute">Institute is required.</mat-error>
-</mat-form-field>
-                  <mat-form-field
-                    appearance="outline"
-                    [ngClass]="isSuperAdmin ? 'field-half' : 'field-full'"
-                  >
+                    [class.institute-disabled]="instituteDisabled">
+                    <mat-icon matPrefix>apartment</mat-icon>
+                    <mat-label>Institute*</mat-label>
+                    <input matInput [value]="selectedInstituteName" name="superAdminInstitute"
+                      placeholder="Choose an institute in Filters" [readonly]="true" [disabled]="instituteDisabled" />
+                    <mat-hint align="start" *ngIf="!filterInstitute">Choose an institute in Filters to unlock this
+                      field.</mat-hint>
+                    <mat-hint align="start" *ngIf="filterInstitute">Type the institute name.</mat-hint>
+                    <mat-error *ngIf="!model.institute">Institute is required.</mat-error>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" [ngClass]="isSuperAdmin ? 'field-half' : 'field-full'">
                     <mat-icon matPrefix>assignment</mat-icon>
                     <mat-label>Test*</mat-label>
-                    <input
-                      matInput
-                      [value]="selectedTestName"
-                      name="superAdminTest"
-                      placeholder="Choose a test in Filters"
-                      [readonly]="true"
-                      [disabled]="testSelectionDisabled"
-                    />
-                    <mat-hint align="start" *ngIf="!filterExamName"
-                      >Choose a test in Filters to unlock this field.</mat-hint
-                    >
+                    <input matInput [value]="selectedTestName" name="superAdminTest"
+                      placeholder="Choose a test in Filters" [readonly]="true" [disabled]="testSelectionDisabled" />
+                    <mat-hint align="start" *ngIf="!filterExamName">Choose a test in Filters to unlock this
+                      field.</mat-hint>
                     <mat-hint align="start" *ngIf="filterExamName">Selected from Filters.</mat-hint>
-                    <mat-error *ngIf="examCtrl.touched && examCtrl.invalid"
-                      >Test is required.</mat-error
-                    >
+                    <mat-error *ngIf="examCtrl.touched && examCtrl.invalid">Test is required.</mat-error>
                   </mat-form-field>
                 </div>
 
-                <div
-                  class="field-lock-note"
-                  *ngIf="isSuperAdmin && (!filterInstitute || !filterExamName)"
-                >
+                <div class="field-lock-note" *ngIf="isSuperAdmin && (!filterInstitute || !filterExamName)">
                   <mat-icon>lock</mat-icon>
                   <span>
                     Select an institute and test from <strong>Filters</strong> first. The fields
@@ -145,10 +103,10 @@
                   <div class="exam-preview-header">
                     <h4 class="exam-title">
                       {{
-                        selectedExam.description ||
-                          selectedExam.summary ||
-                          selectedExam.short_description ||
-                          'No description available.'
+                      selectedExam.description ||
+                      selectedExam.summary ||
+                      selectedExam.short_description ||
+                      'No description available.'
                       }}
                     </h4>
                     <span class="exam-meta">
@@ -166,16 +124,10 @@
                   <mat-form-field appearance="outline" class="field-full">
                     <mat-icon matPrefix>person</mat-icon>
                     <mat-label>Schedule name*</mat-label>
-                    <input
-                      matInput
-                      id="schedulerName"
-                      [(ngModel)]="model.schedulerName"
-                      (ngModelChange)="onSchedulerNameInput()"
-                      name="schedulerName"
-                      placeholder="E.g. Weekly Math Test Batch A"
-                      [disabled]="readOnly || scheduleFieldsLocked"
-                      required
-                    />
+                    <input matInput id="schedulerName" [(ngModel)]="model.schedulerName"
+                      (ngModelChange)="onSchedulerNameInput()" name="schedulerName"
+                      placeholder="E.g. Weekly Math Test Batch A" [disabled]="readOnly || scheduleFieldsLocked"
+                      required />
                     <mat-hint align="start">Name used to identify this schedule.</mat-hint>
                     <mat-error *ngIf="!model.schedulerName">Schedule name is required.</mat-error>
                   </mat-form-field>
@@ -199,19 +151,10 @@
                   <div class="schedule-row">
                     <mat-form-field appearance="outline" class="schedule-field date-field">
                       <mat-label>Start date*</mat-label>
-                      <input
-                        matInput
-                        [matDatepicker]="startDatePicker"
-                        formControlName="startDate"
-                        placeholder="Select start date"
-                        required
-                        [readonly]="readOnly || scheduleFieldsLocked"
-                      />
-                      <mat-datepicker-toggle
-                        matSuffix
-                        [for]="startDatePicker"
-                        [disabled]="readOnly || scheduleFieldsLocked"
-                      ></mat-datepicker-toggle>
+                      <input matInput [matDatepicker]="startDatePicker" formControlName="startDate"
+                        placeholder="Select start date" required [readonly]="readOnly || scheduleFieldsLocked" />
+                      <mat-datepicker-toggle matSuffix [for]="startDatePicker"
+                        [disabled]="readOnly || scheduleFieldsLocked"></mat-datepicker-toggle>
                       <mat-datepicker #startDatePicker></mat-datepicker>
                       <mat-hint align="start">Required</mat-hint>
                       <mat-error *ngIf="!model.startDate">Start date is required.</mat-error>
@@ -220,14 +163,8 @@
                     <mat-form-field appearance="outline" class="schedule-field time-field">
                       <mat-icon matPrefix>schedule</mat-icon>
                       <mat-label>Start time*</mat-label>
-                      <input
-                        matInput
-                        type="time"
-                        formControlName="startTime"
-                        placeholder="HH:MM"
-                        required
-                        [readonly]="readOnly || scheduleFieldsLocked"
-                      />
+                      <input matInput type="time" formControlName="startTime" placeholder="HH:MM" required
+                        [readonly]="readOnly || scheduleFieldsLocked" />
                       <mat-hint align="start">Required</mat-hint>
                       <mat-error *ngIf="!model.startTime">Start time is required.</mat-error>
                     </mat-form-field>
@@ -237,31 +174,18 @@
                   <div class="schedule-row">
                     <mat-form-field appearance="outline" class="schedule-field date-field">
                       <mat-label>End date (optional)</mat-label>
-                      <input
-                        matInput
-                        [matDatepicker]="endDatePicker"
-                        formControlName="endDate"
-                        placeholder="Select end date"
-                        [readonly]="readOnly || scheduleFieldsLocked"
-                      />
-                      <mat-datepicker-toggle
-                        matSuffix
-                        [for]="endDatePicker"
-                        [disabled]="readOnly || scheduleFieldsLocked"
-                      ></mat-datepicker-toggle>
+                      <input matInput [matDatepicker]="endDatePicker" formControlName="endDate"
+                        placeholder="Select end date" [readonly]="readOnly || scheduleFieldsLocked" />
+                      <mat-datepicker-toggle matSuffix [for]="endDatePicker"
+                        [disabled]="readOnly || scheduleFieldsLocked"></mat-datepicker-toggle>
                       <mat-datepicker #endDatePicker></mat-datepicker>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="schedule-field time-field">
                       <mat-icon matPrefix>schedule</mat-icon>
                       <mat-label>End time (optional)</mat-label>
-                      <input
-                        matInput
-                        type="time"
-                        formControlName="endTime"
-                        placeholder="HH:MM"
-                        [readonly]="readOnly || scheduleFieldsLocked"
-                      />
+                      <input matInput type="time" formControlName="endTime" placeholder="HH:MM"
+                        [readonly]="readOnly || scheduleFieldsLocked" />
                     </mat-form-field>
                   </div>
                   <div *ngIf="scheduleDateError" class="schedule-error" role="alert">
@@ -281,188 +205,102 @@
                     </div>
                   </div>
                   <div class="toggle-setting">
-                    <mat-slide-toggle
-                      [(ngModel)]="model.publish"
-                      name="publish"
-                      [disabled]="readOnly"
-                      >Publish</mat-slide-toggle
-                    >
+                    <mat-slide-toggle [(ngModel)]="model.publish" name="publish"
+                      [disabled]="readOnly">Publish</mat-slide-toggle>
                     <span>Make this schedule visible to assigned students.</span>
                   </div>
                   <div class="toggle-setting toggle-setting--review">
-                    <mat-slide-toggle [formControl]="multipleReviewControl"
-                      >Multiple Review</mat-slide-toggle
-                    >
+                    <mat-slide-toggle [formControl]="multipleReviewControl">Multiple Review</mat-slide-toggle>
                     <span>The user can view the review multiple times.</span>
                   </div>
                   <div class="toggle-setting toggle-setting--review">
-                    <mat-slide-toggle [formControl]="instantReviewControl"
-                      >Instant Review</mat-slide-toggle
-                    >
+                    <mat-slide-toggle [formControl]="instantReviewControl">Instant Review</mat-slide-toggle>
                     <span>{{
                       instantReviewControl.value
-                        ? 'Review is available immediately after test submission.'
-                        : 'Review is available based on the configured review schedule.'
-                    }}</span>
+                      ? 'Review is available immediately after test submission.'
+                      : 'Review is available based on the configured review schedule.'
+                      }}</span>
                   </div>
-                  <div
-                    *ngIf="!model.userreview"
-                    class="review-options"
-                    aria-label="Review availability"
-                  >
-                    <mat-radio-group
-                      [ngModel]="radioReviewMode"
-                      (ngModelChange)="onRadioReviewModeChange($event)"
-                      name="reviewMode"
-                      [disabled]="readOnly"
-                      aria-label="Review availability"
-                    >
-                      <mat-radio-button value="after_schedule_ends"
-                        >After Test Schedule Ends</mat-radio-button
-                      >
-                      <mat-radio-button value="after_everyone_finishes"
-                        >After Everyone Finishes</mat-radio-button
-                      >
+                  <div *ngIf="!model.userreview" class="review-options" aria-label="Review availability">
+                    <mat-radio-group [ngModel]="radioReviewMode" (ngModelChange)="onRadioReviewModeChange($event)"
+                      name="reviewMode" [disabled]="readOnly" aria-label="Review availability">
+                      <mat-radio-button value="after_schedule_ends">After Test Schedule Ends</mat-radio-button>
+                      <mat-radio-button value="after_everyone_finishes">After Everyone Finishes</mat-radio-button>
                       <mat-radio-button value="scheduled">Schedule Review</mat-radio-button>
                       <mat-radio-button value="manual">Manual Review</mat-radio-button>
                     </mat-radio-group>
-                    <div
-                      *ngIf="model.reviewMode === 'scheduled'"
-                      class="review-schedule-fields"
-                      [formGroup]="reviewScheduleForm"
-                    >
+                    <div *ngIf="model.reviewMode === 'scheduled'" class="review-schedule-fields"
+                      [formGroup]="reviewScheduleForm">
                       <mat-form-field appearance="outline">
                         <mat-label>Review Start Date</mat-label>
-                        <input
-                          matInput
-                          [matDatepicker]="reviewDatePicker"
-                          formControlName="reviewDate"
-                          placeholder="DD/MM/YYYY"
-                          [readonly]="readOnly"
-                          [min]="minReviewDate"
-                          required
-                        />
-                        <mat-datepicker-toggle
-                          matSuffix
-                          [for]="reviewDatePicker"
-                          [disabled]="readOnly"
-                        ></mat-datepicker-toggle>
+                        <input matInput [matDatepicker]="reviewDatePicker" formControlName="reviewDate"
+                          placeholder="DD/MM/YYYY" [readonly]="readOnly" [min]="minReviewDate" required />
+                        <mat-datepicker-toggle matSuffix [for]="reviewDatePicker"
+                          [disabled]="readOnly"></mat-datepicker-toggle>
                         <mat-datepicker #reviewDatePicker></mat-datepicker>
                         <mat-hint>DD/MM/YYYY</mat-hint>
-                        <mat-error
-                          *ngIf="
+                        <mat-error *ngIf="
                             reviewScheduleForm.hasError('reviewIncomplete') ||
                             reviewScheduleForm.get('reviewDate')?.hasError('required')
-                          "
-                          >Review date is required.</mat-error
-                        >
-                        <mat-error
-                          *ngIf="
+                          ">Review date is required.</mat-error>
+                        <mat-error *ngIf="
                             reviewScheduleForm.get('reviewDate')?.hasError('reviewBeforeTest') ||
                             reviewScheduleForm.get('reviewDate')?.hasError('matDatepickerMin')
-                          "
-                          >Review date must be after the test schedule and in the future.</mat-error
-                        >
+                          ">Review date must be after the test schedule and in the future.</mat-error>
                       </mat-form-field>
                       <mat-form-field appearance="outline">
                         <mat-label>Review Start Time</mat-label>
-                        <input
-                          matInput
-                          type="time"
-                          formControlName="reviewTime"
-                          placeholder="HH:MM"
-                          [readonly]="readOnly"
-                          required
-                        />
+                        <input matInput type="time" formControlName="reviewTime" placeholder="HH:MM"
+                          [readonly]="readOnly" required />
                         <mat-hint>HH:MM</mat-hint>
-                        <mat-error *ngIf="reviewScheduleForm.get('reviewTime')?.hasError('pattern')"
-                          >Use 24-hour HH:MM format.</mat-error
-                        >
-                        <mat-error
-                          *ngIf="
+                        <mat-error *ngIf="reviewScheduleForm.get('reviewTime')?.hasError('pattern')">Use 24-hour HH:MM
+                          format.</mat-error>
+                        <mat-error *ngIf="
                             reviewScheduleForm.hasError('reviewIncomplete') ||
                             reviewScheduleForm.get('reviewTime')?.hasError('required')
-                          "
-                          >Review time is required.</mat-error
-                        >
-                        <mat-error
-                          *ngIf="reviewScheduleForm.get('reviewTime')?.hasError('reviewBeforeTest')"
-                          >Review time must be after the test schedule and in the future.</mat-error
-                        >
+                          ">Review time is required.</mat-error>
+                        <mat-error *ngIf="reviewScheduleForm.get('reviewTime')?.hasError('reviewBeforeTest')">Review
+                          time must be after the test schedule and in the future.</mat-error>
                       </mat-form-field>
 
                       <mat-form-field appearance="outline">
                         <mat-label>Review End Date</mat-label>
-                        <input
-                          matInput
-                          [matDatepicker]="reviewEndDatePicker"
-                          formControlName="reviewEndDate"
-                          placeholder="DD/MM/YYYY"
-                          [readonly]="readOnly"
-                          [min]="minReviewDate"
-                          required
-                        />
-                        <mat-datepicker-toggle
-                          matSuffix
-                          [for]="reviewEndDatePicker"
-                          [disabled]="readOnly"
-                        ></mat-datepicker-toggle>
+                        <input matInput [matDatepicker]="reviewEndDatePicker" formControlName="reviewEndDate"
+                          placeholder="DD/MM/YYYY" [readonly]="readOnly" [min]="minReviewDate" required />
+                        <mat-datepicker-toggle matSuffix [for]="reviewEndDatePicker"
+                          [disabled]="readOnly"></mat-datepicker-toggle>
                         <mat-datepicker #reviewEndDatePicker></mat-datepicker>
                         <mat-hint>DD/MM/YYYY</mat-hint>
-                        <mat-error
-                          *ngIf="
+                        <mat-error *ngIf="
                             reviewScheduleForm.hasError('reviewEndIncomplete') ||
                             reviewScheduleForm.get('reviewEndDate')?.hasError('required')
-                          "
-                          >End review date is required.</mat-error
-                        >
-                        <mat-error
-                          *ngIf="
+                          ">End review date is required.</mat-error>
+                        <mat-error *ngIf="
                             reviewScheduleForm
                               .get('reviewEndDate')
                               ?.hasError('reviewEndBeforeStart')
-                          "
-                          >End review date must be after or equal to review start date.</mat-error
-                        >
+                          ">End review date must be after or equal to review start date.</mat-error>
                       </mat-form-field>
                       <mat-form-field appearance="outline">
                         <mat-label>Review End Time</mat-label>
-                        <input
-                          matInput
-                          type="time"
-                          formControlName="reviewEndTime"
-                          placeholder="HH:MM"
-                          [readonly]="readOnly"
-                          required
-                        />
+                        <input matInput type="time" formControlName="reviewEndTime" placeholder="HH:MM"
+                          [readonly]="readOnly" required />
                         <mat-hint>HH:MM</mat-hint>
-                        <mat-error
-                          *ngIf="reviewScheduleForm.get('reviewEndTime')?.hasError('pattern')"
-                          >Use 24-hour HH:MM format.</mat-error
-                        >
-                        <mat-error
-                          *ngIf="
+                        <mat-error *ngIf="reviewScheduleForm.get('reviewEndTime')?.hasError('pattern')">Use 24-hour
+                          HH:MM format.</mat-error>
+                        <mat-error *ngIf="
                             reviewScheduleForm.hasError('reviewEndIncomplete') ||
                             reviewScheduleForm.get('reviewEndTime')?.hasError('required')
-                          "
-                          >End review time is required.</mat-error
-                        >
-                        <mat-error
-                          *ngIf="
+                          ">End review time is required.</mat-error>
+                        <mat-error *ngIf="
                             reviewScheduleForm
                               .get('reviewEndTime')
                               ?.hasError('reviewEndBeforeStart')
-                          "
-                          >End review time must be after or equal to review start time.</mat-error
-                        >
+                          ">End review time must be after or equal to review start time.</mat-error>
                       </mat-form-field>
                     </div>
-                    <div
-                      *ngIf="reviewScheduleError"
-                      class="schedule-error"
-                      style="margin-left: 1.75rem; margin-top: -0.25rem; margin-bottom: 0.75rem"
-                      role="alert"
-                    >
+                    <div *ngIf="reviewScheduleError" class="schedule-error"
+                      style="margin-left: 1.75rem; margin-top: -0.25rem; margin-bottom: 0.75rem" role="alert">
                       <mat-icon>error_outline</mat-icon>
                       <span>{{ reviewScheduleError }}</span>
                     </div>
@@ -472,30 +310,14 @@
                 <div class="review-settings-panel review-content-panel">
                   <h3>Review Content</h3>
                   <div class="review-content-options">
-                    <mat-checkbox
-                      [(ngModel)]="model.showScore"
-                      name="showScore"
-                      [disabled]="readOnly"
-                      >Show Score</mat-checkbox
-                    >
-                    <mat-checkbox
-                      [(ngModel)]="model.showCorrectAnswers"
-                      name="showCorrectAnswers"
-                      [disabled]="readOnly"
-                      >Show Correct Answers</mat-checkbox
-                    >
-                    <mat-checkbox
-                      [(ngModel)]="model.showStudentAnswers"
-                      name="showStudentAnswers"
-                      [disabled]="readOnly"
-                      >Show Student Answers</mat-checkbox
-                    >
-                    <mat-checkbox
-                      [(ngModel)]="model.showExplanations"
-                      name="showExplanations"
-                      [disabled]="readOnly"
-                      >Show Explanations</mat-checkbox
-                    >
+                    <mat-checkbox [(ngModel)]="model.showScore" name="showScore" [disabled]="readOnly">Show
+                      Score</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.showCorrectAnswers" name="showCorrectAnswers"
+                      [disabled]="readOnly">Show Correct Answers</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.showStudentAnswers" name="showStudentAnswers"
+                      [disabled]="readOnly">Show Student Answers</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.showExplanations" name="showExplanations"
+                      [disabled]="readOnly">Show Explanations</mat-checkbox>
                   </div>
                   <div class="review-preview" role="status" aria-live="polite">
                     <mat-icon>info</mat-icon>
@@ -508,13 +330,9 @@
 
           <div class="form-actions">
             <span></span>
-            <button
-              mat-button
-              type="button"
-              class="next-btn"
+            <button mat-button type="button" class="next-btn"
               [disabled]="readOnly || scheduleTimingForm.invalid || reviewScheduleInvalid"
-              (click)="goToNextStep(stepper)"
-            >
+              (click)="goToNextStep(stepper)">
               <span>Next</span>
               <mat-icon>arrow_forward</mat-icon>
             </button>
@@ -526,17 +344,11 @@
       <mat-step>
         <ng-template matStepLabel>Select users</ng-template>
         <div class="step-content">
-          <div
-            *ngIf="scheduleFieldsLocked"
-            class="running-test-banner"
-            style="margin-bottom: 0.5rem; border-radius: 0.5rem; border: 1px solid #fca5a5"
-            role="status"
-          >
+          <div *ngIf="scheduleFieldsLocked" class="running-test-banner"
+            style="margin-bottom: 0.5rem; border-radius: 0.5rem; border: 1px solid #fca5a5" role="status">
             <mat-icon>warning</mat-icon>
-            <span
-              >This test schedule is currently running or has attendance. User assignment is not
-              editable.</span
-            >
+            <span>This test schedule is currently running or has attendance. User assignment is not
+              editable.</span>
           </div>
           <div class="section-block">
             <div class="section-header">
@@ -545,16 +357,9 @@
                 <h2 class="section-heading">Select Users</h2>
                 <p class="section-desc">Choose which users to assign this test to.</p>
               </div>
-              <button
-                #userFiltersBtn
-                mat-stroked-button
-                color="primary"
-                type="button"
-                (click)="openUserFiltersOverlay(); $event.stopPropagation()"
-                aria-haspopup="true"
-                [attr.aria-expanded]="userFilterOpen"
-                [disabled]="readOnly || scheduleFieldsLocked"
-              >
+              <button #userFiltersBtn mat-stroked-button color="primary" type="button"
+                (click)="openUserFiltersOverlay(); $event.stopPropagation()" aria-haspopup="true"
+                [attr.aria-expanded]="userFilterOpen" [disabled]="readOnly || scheduleFieldsLocked">
                 <mat-icon>filter_list</mat-icon>
                 Filters
               </button>
@@ -567,22 +372,11 @@
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-icon matPrefix>public</mat-icon>
                     <mat-label>Country</mat-label>
-                    <input
-                      matInput
-                      [(ngModel)]="userFilters.country_id"
-                      name="filterCountry"
-                      #countryTrigger="matAutocompleteTrigger"
-                      [matAutocomplete]="countryAuto"
-                      placeholder="Type or pick a country"
-                      (ngModelChange)="onCountryChange()"
-                    />
-                    <button
-                      mat-icon-button
-                      matSuffix
-                      type="button"
-                      aria-label="Open country list"
-                      (click)="countryTrigger.openPanel(); $event.stopPropagation()"
-                    >
+                    <input matInput [(ngModel)]="userFilters.country_id" name="filterCountry"
+                      #countryTrigger="matAutocompleteTrigger" [matAutocomplete]="countryAuto"
+                      placeholder="Type or pick a country" (ngModelChange)="onCountryChange()" />
+                    <button mat-icon-button matSuffix type="button" aria-label="Open country list"
+                      (click)="countryTrigger.openPanel(); $event.stopPropagation()">
                       <mat-icon>arrow_drop_down</mat-icon>
                     </button>
                     <mat-autocomplete #countryAuto="matAutocomplete">
@@ -596,22 +390,11 @@
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-icon matPrefix>location_city</mat-icon>
                     <mat-label>City</mat-label>
-                    <input
-                      matInput
-                      [(ngModel)]="userFilters.city_id"
-                      name="filterCity"
-                      #cityTrigger="matAutocompleteTrigger"
-                      [matAutocomplete]="cityAuto"
-                      placeholder="Type or pick a city"
-                      (ngModelChange)="loadUsers()"
-                    />
-                    <button
-                      mat-icon-button
-                      matSuffix
-                      type="button"
-                      aria-label="Open city list"
-                      (click)="cityTrigger.openPanel(); $event.stopPropagation()"
-                    >
+                    <input matInput [(ngModel)]="userFilters.city_id" name="filterCity"
+                      #cityTrigger="matAutocompleteTrigger" [matAutocomplete]="cityAuto"
+                      placeholder="Type or pick a city" (ngModelChange)="loadUsers()" />
+                    <button mat-icon-button matSuffix type="button" aria-label="Open city list"
+                      (click)="cityTrigger.openPanel(); $event.stopPropagation()">
                       <mat-icon>arrow_drop_down</mat-icon>
                     </button>
                     <mat-autocomplete #cityAuto="matAutocomplete">
@@ -625,22 +408,11 @@
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-icon matPrefix>location_on</mat-icon>
                     <mat-label>Campus</mat-label>
-                    <input
-                      matInput
-                      [(ngModel)]="userFilters.campus_id"
-                      name="filterCampus"
-                      #campusTrigger="matAutocompleteTrigger"
-                      [matAutocomplete]="campusAuto"
-                      placeholder="Type or pick a campus"
-                      (ngModelChange)="loadUsers()"
-                    />
-                    <button
-                      mat-icon-button
-                      matSuffix
-                      type="button"
-                      aria-label="Open campus list"
-                      (click)="campusTrigger.openPanel(); $event.stopPropagation()"
-                    >
+                    <input matInput [(ngModel)]="userFilters.campus_id" name="filterCampus"
+                      #campusTrigger="matAutocompleteTrigger" [matAutocomplete]="campusAuto"
+                      placeholder="Type or pick a campus" (ngModelChange)="loadUsers()" />
+                    <button mat-icon-button matSuffix type="button" aria-label="Open campus list"
+                      (click)="campusTrigger.openPanel(); $event.stopPropagation()">
                       <mat-icon>arrow_drop_down</mat-icon>
                     </button>
                     <mat-autocomplete #campusAuto="matAutocomplete">
@@ -654,22 +426,11 @@
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-icon matPrefix>business</mat-icon>
                     <mat-label>Industry</mat-label>
-                    <input
-                      matInput
-                      [(ngModel)]="userFilters.industry"
-                      name="filterIndustry"
-                      #industryTrigger="matAutocompleteTrigger"
-                      [matAutocomplete]="industryAuto"
-                      placeholder="Type or pick an industry"
-                      (ngModelChange)="onIndustryChange(); loadUsers()"
-                    />
-                    <button
-                      mat-icon-button
-                      matSuffix
-                      type="button"
-                      aria-label="Open industry list"
-                      (click)="industryTrigger.openPanel(); $event.stopPropagation()"
-                    >
+                    <input matInput [(ngModel)]="userFilters.industry" name="filterIndustry"
+                      #industryTrigger="matAutocompleteTrigger" [matAutocomplete]="industryAuto"
+                      placeholder="Type or pick an industry" (ngModelChange)="onIndustryChange(); loadUsers()" />
+                    <button mat-icon-button matSuffix type="button" aria-label="Open industry list"
+                      (click)="industryTrigger.openPanel(); $event.stopPropagation()">
                       <mat-icon>arrow_drop_down</mat-icon>
                     </button>
                     <mat-autocomplete #industryAuto="matAutocomplete">
@@ -683,23 +444,11 @@
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-icon matPrefix>account_tree</mat-icon>
                     <mat-label>Sector</mat-label>
-                    <input
-                      matInput
-                      [(ngModel)]="userFilters.sector"
-                      name="filterSector"
-                      #sectorTrigger="matAutocompleteTrigger"
-                      [matAutocomplete]="sectorAuto"
-                      placeholder="Type or pick a sector"
-                      (ngModelChange)="loadUsers()"
-                    />
-                    <button
-                      mat-icon-button
-                      matSuffix
-                      type="button"
-                      aria-label="Open sector list"
-                      [disabled]="!userFilters.industry"
-                      (click)="sectorTrigger.openPanel(); $event.stopPropagation()"
-                    >
+                    <input matInput [(ngModel)]="userFilters.sector" name="filterSector"
+                      #sectorTrigger="matAutocompleteTrigger" [matAutocomplete]="sectorAuto"
+                      placeholder="Type or pick a sector" (ngModelChange)="loadUsers()" />
+                    <button mat-icon-button matSuffix type="button" aria-label="Open sector list"
+                      [disabled]="!userFilters.industry" (click)="sectorTrigger.openPanel(); $event.stopPropagation()">
                       <mat-icon>arrow_drop_down</mat-icon>
                     </button>
                     <mat-autocomplete #sectorAuto="matAutocomplete">
@@ -713,22 +462,11 @@
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-icon matPrefix>business_center</mat-icon>
                     <mat-label>Department</mat-label>
-                    <input
-                      matInput
-                      [(ngModel)]="userFilters.department_id"
-                      name="filterDepartment"
-                      #departmentTrigger="matAutocompleteTrigger"
-                      [matAutocomplete]="departmentAuto"
-                      placeholder="Type or pick a department"
-                      (ngModelChange)="loadUsers()"
-                    />
-                    <button
-                      mat-icon-button
-                      matSuffix
-                      type="button"
-                      aria-label="Open department list"
-                      (click)="departmentTrigger.openPanel(); $event.stopPropagation()"
-                    >
+                    <input matInput [(ngModel)]="userFilters.department_id" name="filterDepartment"
+                      #departmentTrigger="matAutocompleteTrigger" [matAutocomplete]="departmentAuto"
+                      placeholder="Type or pick a department" (ngModelChange)="loadUsers()" />
+                    <button mat-icon-button matSuffix type="button" aria-label="Open department list"
+                      (click)="departmentTrigger.openPanel(); $event.stopPropagation()">
                       <mat-icon>arrow_drop_down</mat-icon>
                     </button>
                     <mat-autocomplete #departmentAuto="matAutocomplete">
@@ -742,22 +480,11 @@
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-icon matPrefix>groups</mat-icon>
                     <mat-label>Team</mat-label>
-                    <input
-                      matInput
-                      [(ngModel)]="userFilters.teams_id"
-                      name="filterTeam"
-                      #teamTrigger="matAutocompleteTrigger"
-                      [matAutocomplete]="teamAuto"
-                      placeholder="Type or pick a team"
-                      (ngModelChange)="loadUsers()"
-                    />
-                    <button
-                      mat-icon-button
-                      matSuffix
-                      type="button"
-                      aria-label="Open team list"
-                      (click)="teamTrigger.openPanel(); $event.stopPropagation()"
-                    >
+                    <input matInput [(ngModel)]="userFilters.teams_id" name="filterTeam"
+                      #teamTrigger="matAutocompleteTrigger" [matAutocomplete]="teamAuto"
+                      placeholder="Type or pick a team" (ngModelChange)="loadUsers()" />
+                    <button mat-icon-button matSuffix type="button" aria-label="Open team list"
+                      (click)="teamTrigger.openPanel(); $event.stopPropagation()">
                       <mat-icon>arrow_drop_down</mat-icon>
                     </button>
                     <mat-autocomplete #teamAuto="matAutocomplete">
@@ -771,12 +498,8 @@
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-icon matPrefix>calendar_today</mat-icon>
                     <mat-label>Joined after</mat-label>
-                    <input
-                      matInput
-                      [matDatepicker]="joinAfter"
-                      [(ngModel)]="userFilters.joined_after"
-                      placeholder="Joined after"
-                    />
+                    <input matInput [matDatepicker]="joinAfter" [(ngModel)]="userFilters.joined_after"
+                      placeholder="Joined after" />
                     <mat-datepicker-toggle matSuffix [for]="joinAfter"></mat-datepicker-toggle>
                     <mat-datepicker #joinAfter></mat-datepicker>
                   </mat-form-field>
@@ -784,12 +507,8 @@
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-icon matPrefix>calendar_today</mat-icon>
                     <mat-label>Joined before</mat-label>
-                    <input
-                      matInput
-                      [matDatepicker]="joinBefore"
-                      [(ngModel)]="userFilters.joined_before"
-                      placeholder="Joined before"
-                    />
+                    <input matInput [matDatepicker]="joinBefore" [(ngModel)]="userFilters.joined_before"
+                      placeholder="Joined before" />
                     <mat-datepicker-toggle matSuffix [for]="joinBefore"></mat-datepicker-toggle>
                     <mat-datepicker #joinBefore></mat-datepicker>
                   </mat-form-field>
@@ -799,10 +518,7 @@
                       <mat-icon>search</mat-icon>
                       Apply
                     </button>
-                    <button
-                      mat-button
-                      type="button"
-                      (click)="
+                    <button mat-button type="button" (click)="
                         userFilters = {
                           department_id: '',
                           teams_id: '',
@@ -813,8 +529,7 @@
                           sector: '',
                         };
                         loadUsers()
-                      "
-                    >
+                      ">
                       <mat-icon>refresh</mat-icon>
                       Reset
                     </button>
@@ -826,20 +541,12 @@
             <!-- User list -->
             <div class="user-list">
               <div class="user-list-header">
-                <mat-checkbox
-                  [(ngModel)]="selectAll"
-                  (change)="toggleSelectAll($event.checked)"
-                  [disabled]="readOnly || scheduleFieldsLocked"
-                >
+                <mat-checkbox [(ngModel)]="selectAll" (change)="toggleSelectAll($event.checked)"
+                  [disabled]="readOnly || scheduleFieldsLocked">
                   Select all ({{ users.length }})
                 </mat-checkbox>
-                <button
-                  mat-button
-                  type="button"
-                  class="refresh-action-btn"
-                  (click)="loadUsers()"
-                  [disabled]="readOnly || scheduleFieldsLocked"
-                >
+                <button mat-button type="button" class="refresh-action-btn" (click)="loadUsers()"
+                  [disabled]="readOnly || scheduleFieldsLocked">
                   <mat-icon>refresh</mat-icon>
                   Refresh
                 </button>
@@ -847,11 +554,8 @@
 
               <mat-list class="user-selection-list">
                 <mat-list-item *ngFor="let u of users">
-                  <mat-checkbox
-                    [checked]="selectedUsers.indexOf(u.id) >= 0"
-                    [disabled]="readOnly || scheduleFieldsLocked"
-                    (change)="toggleUserSelection(u.id, $event.checked)"
-                  >
+                  <mat-checkbox [checked]="selectedUsers.indexOf(u.id) >= 0"
+                    [disabled]="readOnly || scheduleFieldsLocked" (change)="toggleUserSelection(u.id, $event.checked)">
                     {{ u.name }}
                     <span class="muted">&nbsp;({{ u.email }})</span>
                   </mat-checkbox>
@@ -892,16 +596,16 @@
                 <h4 class="review-section-title"><mat-icon>assignment</mat-icon> Schedule Info</h4>
                 <div class="review-items">
                   <div class="review-item">
-                    <span class="review-label">Institute</span
-                    ><span class="review-value">{{ selectedInstituteName || '—' }}</span>
+                    <span class="review-label">Institute</span><span class="review-value">{{ selectedInstituteName ||
+                      '—' }}</span>
                   </div>
                   <div class="review-item">
-                    <span class="review-label">Test</span
-                    ><span class="review-value">{{ selectedTestName || '—' }}</span>
+                    <span class="review-label">Test</span><span class="review-value">{{ selectedTestName || '—'
+                      }}</span>
                   </div>
                   <div class="review-item">
-                    <span class="review-label">Schedule name</span
-                    ><span class="review-value">{{ model.schedulerName || '—' }}</span>
+                    <span class="review-label">Schedule name</span><span class="review-value">{{ model.schedulerName ||
+                      '—' }}</span>
                   </div>
                 </div>
               </div>
@@ -911,56 +615,47 @@
                 <h4 class="review-section-title"><mat-icon>schedule</mat-icon> Timing</h4>
                 <div class="review-items">
                   <div class="review-item">
-                    <span class="review-label">Start</span
-                    ><span class="review-value"
-                      >{{ formatDate(model.startDate) }} {{ model.startTime || '' }}</span
-                    >
+                    <span class="review-label">Start</span><span class="review-value">{{ formatDate(model.startDate) }}
+                      {{ model.startTime || '' }}</span>
                   </div>
                   <div class="review-item">
-                    <span class="review-label">End</span
-                    ><span class="review-value"
-                      >{{ formatDate(model.endDate) }} {{ model.endTime || '' }}</span
-                    >
+                    <span class="review-label">End</span><span class="review-value">{{ formatDate(model.endDate) }} {{
+                      model.endTime || '' }}</span>
                   </div>
                   <div class="review-item">
-                    <span class="review-label">Publish</span
-                    ><span class="review-value"
-                      ><span class="status-pill" [class.active]="model.publish">{{
+                    <span class="review-label">Publish</span><span class="review-value"><span class="status-pill"
+                        [class.active]="model.publish">{{
                         model.publish ? 'Yes' : 'No'
-                      }}</span></span
-                    >
+                        }}</span></span>
                   </div>
                   <div class="review-item">
-                    <span class="review-label">Review</span
-                    ><span class="review-value">{{
+                    <span class="review-label">Review</span><span class="review-value">{{
                       model.userreview
-                        ? 'Instant Review'
-                        : model.reviewMode === 'no_review'
-                          ? 'No Review'
-                          : model.reviewMode === 'after_schedule_ends'
-                            ? 'After Test Schedule Ends'
-                            : model.reviewMode === 'after_everyone_finishes'
-                              ? 'After Everyone Finishes'
-                              : model.reviewMode === 'scheduled'
-                                ? 'Scheduled ' +
-                                  model.reviewDate +
-                                  ' ' +
-                                  model.reviewTime +
-                                  ' to ' +
-                                  (model.reviewEndDate || '—') +
-                                  ' ' +
-                                  (model.reviewEndTime || '')
-                                : 'Manual Review'
-                    }}</span>
+                      ? 'Instant Review'
+                      : model.reviewMode === 'no_review'
+                      ? 'No Review'
+                      : model.reviewMode === 'after_schedule_ends'
+                      ? 'After Test Schedule Ends'
+                      : model.reviewMode === 'after_everyone_finishes'
+                      ? 'After Everyone Finishes'
+                      : model.reviewMode === 'scheduled'
+                      ? 'Scheduled ' +
+                      model.reviewDate +
+                      ' ' +
+                      model.reviewTime +
+                      ' to ' +
+                      (model.reviewEndDate || '—') +
+                      ' ' +
+                      (model.reviewEndTime || '')
+                      : 'Manual Review'
+                      }}</span>
                   </div>
                   <div class="review-item">
-                    <span class="review-label">Review content</span
-                    ><span class="review-value"
-                      >{{ model.showScore ? 'Score; ' : ''
+                    <span class="review-label">Review content</span><span class="review-value">{{ model.showScore ?
+                      'Score; ' : ''
                       }}{{ model.showCorrectAnswers ? 'Correct answers; ' : ''
                       }}{{ model.showStudentAnswers ? 'Student answers; ' : ''
-                      }}{{ model.showExplanations ? 'Explanations' : '' }}</span
-                    >
+                      }}{{ model.showExplanations ? 'Explanations' : '' }}</span>
                   </div>
                 </div>
               </div>
@@ -975,11 +670,9 @@
                       <ng-container *ngIf="selectedUsers && selectedUsers.length; else noAssigned">
                         <span class="review-chip" *ngFor="let uid of selectedUsers">{{
                           getUserNameById(uid) || uid
-                        }}</span>
+                          }}</span>
                       </ng-container>
-                      <ng-template #noAssigned
-                        ><span class="muted">No users assigned</span></ng-template
-                      >
+                      <ng-template #noAssigned><span class="muted">No users assigned</span></ng-template>
                     </span>
                   </div>
                 </div>
@@ -992,18 +685,12 @@
               <mat-icon>arrow_back</mat-icon>
               <span>Back</span>
             </button>
-            <button
-              *ngIf="!readOnly"
-              mat-flat-button
-              color="primary"
-              type="button"
-              class="submit-btn"
-              (click)="schedule()"
-            >
+            <button *ngIf="!readOnly" mat-flat-button color="primary" type="button" class="submit-btn"
+              (click)="schedule()">
               <mat-icon>event_available</mat-icon>
               <span>{{
                 model && (model.testName || model.schedulerName) ? 'Update' : 'Schedule Test'
-              }}</span>
+                }}</span>
             </button>
             <button *ngIf="readOnly" mat-stroked-button type="button" (click)="goBack()">
               <mat-icon>arrow_back</mat-icon>
@@ -1016,11 +703,7 @@
 
     <!-- Test filters overlay -->
     <ng-template #filtersPanel>
-      <div
-        *ngIf="filterEnabled"
-        class="filters-panel view-questions-filters-panel"
-        (click)="$event.stopPropagation()"
-      >
+      <div *ngIf="filterEnabled" class="filters-panel view-questions-filters-panel" (click)="$event.stopPropagation()">
         <div class="filters-panel-header">
           <h4><mat-icon>tune</mat-icon> Filters</h4>
         </div>
@@ -1030,29 +713,16 @@
             <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
               <mat-icon matPrefix>apartment</mat-icon>
               <mat-label>Institute</mat-label>
-              <mat-select
-                [(ngModel)]="filterInstitute"
-                (selectionChange)="onFilterInstituteSelected($event.value)"
-                (openedChange)="onFilterSelectOpened($event, 'country')"
-              >
+              <mat-select [(ngModel)]="filterInstitute" (selectionChange)="onFilterInstituteSelected($event.value)"
+                (openedChange)="onFilterSelectOpened($event, 'country')">
                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input
-                    matInput
-                    class="select-search-input"
-                    placeholder="Search institute"
-                    [(ngModel)]="filterInstituteSearch"
-                    [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)"
-                  />
+                  <input matInput class="select-search-input" placeholder="Search institute"
+                    [(ngModel)]="filterInstituteSearch" [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
                 </mat-option>
                 <mat-option value="">Any</mat-option>
-                <mat-option
-                  *ngFor="let inst of filteredInstitutesForFilter()"
-                  [value]="inst.institute_id"
-                >
+                <mat-option *ngFor="let inst of filteredInstitutesForFilter()" [value]="inst.institute_id">
                   {{ inst.name }}
                 </mat-option>
               </mat-select>
@@ -1061,81 +731,49 @@
             <mat-form-field appearance="outline" class="filter-item">
               <mat-icon matPrefix>public</mat-icon>
               <mat-label>Country</mat-label>
-              <mat-select
-                [(ngModel)]="filterCountry"
-                (selectionChange)="onCountryFilterChange()"
-                (openedChange)="onFilterSelectOpened($event, 'country')"
-              >
+              <mat-select [(ngModel)]="filterCountry" (selectionChange)="onCountryFilterChange()"
+                (openedChange)="onFilterSelectOpened($event, 'country')">
                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input
-                    matInput
-                    class="select-search-input"
-                    placeholder="Search country"
-                    [(ngModel)]="countrySearch"
-                    [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)"
-                  />
+                  <input matInput class="select-search-input" placeholder="Search country" [(ngModel)]="countrySearch"
+                    [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)" />
                 </mat-option>
                 <mat-option value="">Any</mat-option>
                 <mat-option *ngFor="let c of examFilteredCountries" [value]="c.code">{{
                   c.name
-                }}</mat-option>
+                  }}</mat-option>
               </mat-select>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-item">
               <mat-icon matPrefix>location_city</mat-icon>
               <mat-label>City</mat-label>
-              <mat-select
-                [(ngModel)]="filterCity"
-                [disabled]="!filterCountry"
-                (selectionChange)="loadInstitutes()"
-                (openedChange)="onFilterSelectOpened($event, 'city')"
-              >
+              <mat-select [(ngModel)]="filterCity" [disabled]="!filterCountry" (selectionChange)="loadInstitutes()"
+                (openedChange)="onFilterSelectOpened($event, 'city')">
                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input
-                    matInput
-                    class="select-search-input"
-                    placeholder="Search city"
-                    [(ngModel)]="citySearch"
-                    [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)"
-                  />
+                  <input matInput class="select-search-input" placeholder="Search city" [(ngModel)]="citySearch"
+                    [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)" />
                 </mat-option>
                 <mat-option value="">Any</mat-option>
                 <mat-option *ngFor="let c of examFilteredCities" [value]="c.name">{{
                   c.name
-                }}</mat-option>
+                  }}</mat-option>
               </mat-select>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-item">
               <mat-icon matPrefix>work</mat-icon>
               <mat-label>Industry</mat-label>
-              <mat-select
-                [(ngModel)]="filterIndustry"
-                placeholder="Industry type"
-                (selectionChange)="onIndustryFilterChange()"
-                (openedChange)="onFilterSelectOpened($event, 'industry')"
-              >
+              <mat-select [(ngModel)]="filterIndustry" placeholder="Industry type"
+                (selectionChange)="onIndustryFilterChange()" (openedChange)="onFilterSelectOpened($event, 'industry')">
                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input
-                    matInput
-                    class="select-search-input"
-                    placeholder="Search industry"
-                    [(ngModel)]="industrySearch"
-                    [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)"
-                  />
+                  <input matInput class="select-search-input" placeholder="Search industry" [(ngModel)]="industrySearch"
+                    [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)" />
                 </mat-option>
                 <mat-option value="">Any</mat-option>
                 <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{ t }}</mat-option>
@@ -1145,48 +783,32 @@
             <mat-form-field appearance="outline" class="filter-item">
               <mat-icon matPrefix>category</mat-icon>
               <mat-label>Sector</mat-label>
-              <mat-select
-                [(ngModel)]="filterSector"
-                placeholder="Industry sector"
-                [disabled]="!filterIndustry"
-                (openedChange)="onFilterSelectOpened($event, 'sector')"
-                (selectionChange)="loadInstitutes()"
-              >
+              <mat-select [(ngModel)]="filterSector" placeholder="Industry sector" [disabled]="!filterIndustry"
+                (openedChange)="onFilterSelectOpened($event, 'sector')" (selectionChange)="loadInstitutes()">
                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input
-                    matInput
-                    class="select-search-input"
-                    placeholder="Search sector"
-                    [(ngModel)]="sectorSearch"
-                    [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)"
-                  />
+                  <input matInput class="select-search-input" placeholder="Search sector" [(ngModel)]="sectorSearch"
+                    [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)" />
                 </mat-option>
                 <mat-option value="">Any</mat-option>
                 <mat-option *ngFor="let s of filteredSectorsForExam" [value]="s">{{
                   s
-                }}</mat-option>
+                  }}</mat-option>
               </mat-select>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-item">
               <mat-icon matPrefix>assignment</mat-icon>
               <mat-label>Test Name</mat-label>
-              <mat-select
-                [(ngModel)]="filterExamName"
-                [disabled]="isSuperAdmin && !filterInstitute"
-                (selectionChange)="
+              <mat-select [(ngModel)]="filterExamName" [disabled]="isSuperAdmin && !filterInstitute" (selectionChange)="
                   loadTestOptions(filterInstitute || model.institute);
                   loadExams(filterInstitute || model.institute)
-                "
-              >
+                ">
                 <mat-option value="">Any</mat-option>
                 <mat-option *ngFor="let name of filteredExamNamesForFilter()" [value]="name">{{
                   name
-                }}</mat-option>
+                  }}</mat-option>
               </mat-select>
             </mat-form-field>
           </div>
@@ -1196,48 +818,49 @@
             <mat-form-field appearance="outline" class="filter-item">
               <mat-icon matPrefix>business_center</mat-icon>
               <mat-label>Departments</mat-label>
-              <mat-select
-                multiple
-                [(ngModel)]="selectedDepartments"
-                placeholder="Select departments"
+              <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select departments"
                 (selectionChange)="onDepartmentSelectionChange()"
-              >
+                (openedChange)="onFilterDepartmentOpenedChange($event)">
+                <!-- Embedded Search Bar -->
+                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                  <input matInput class="select-search-input" placeholder="Search department"
+                    [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                </mat-option>
+
                 <mat-option [value]="'__all__'">All the above</mat-option>
-                <mat-option *ngFor="let d of departments" [value]="d.id">{{ d.name }}</mat-option>
+                <mat-option *ngFor="let d of filteredDepartmentsForFilter" [value]="d.id">{{ d.name }}</mat-option>
               </mat-select>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-item">
               <mat-icon matPrefix>groups</mat-icon>
               <mat-label>Teams</mat-label>
-              <mat-select
-                multiple
-                [(ngModel)]="selectedTeams"
-                placeholder="Select teams"
-                (selectionChange)="onTeamSelectionChange()"
-              >
+              <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select teams"
+                (selectionChange)="onTeamSelectionChange()" (openedChange)="onFilterTeamOpenedChange($event)">
+                <!-- Embedded Search Bar -->
+                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                  <input matInput class="select-search-input" placeholder="Search team" [(ngModel)]="teamFilterSearch"
+                    [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)" />
+                </mat-option>
+
                 <mat-option [value]="'__all__'">All the above</mat-option>
-                <mat-option *ngFor="let t of teams" [value]="t.id">{{ t.name }}</mat-option>
+                <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id">{{ t.name }}</mat-option>
               </mat-select>
             </mat-form-field>
           </div>
 
+
           <!-- Full Width Row: Created Date -->
           <div class="filter-col-full">
-            <mat-form-field
-              appearance="outline"
-              class="filter-item date-range-field"
-              (click)="openCreatedDateRangePicker()"
-              style="cursor: pointer"
-            >
+            <mat-form-field appearance="outline" class="filter-item date-range-field"
+              (click)="openCreatedDateRangePicker()" style="cursor: pointer">
               <mat-label>Created Date</mat-label>
-              <input
-                matInput
-                readonly
-                [value]="getCreatedDateRangeDisplay()"
-                placeholder="Select date range"
-                style="cursor: pointer"
-              />
+              <input matInput readonly [value]="getCreatedDateRangeDisplay()" placeholder="Select date range"
+                style="cursor: pointer" />
               <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
             </mat-form-field>
           </div>

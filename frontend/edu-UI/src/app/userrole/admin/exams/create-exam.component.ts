@@ -45,6 +45,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   startDateTime = '';
   numberOfAttempts: number | null = 1;
   institutes: Array<{ id: string; name: string }> = [];
+  departmentFilterSearch = '';
+  teamFilterSearch = '';
   // categories UI model
   categories: Array<any> = [];
   // 1. Property to track search input
@@ -99,6 +101,48 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
   }
+
+  // Getter to filter teams list dynamically by search text
+  get filteredTeams(): Array<{ id: string; name: string }> {
+    const term = (this.teamFilterSearch || '').trim().toLowerCase();
+    if (!term) return this.teams;
+    return this.teams.filter(t => (t.name || '').toLowerCase().includes(term));
+  }
+
+  // Focus search input when dropdown opens, and clear search input when closed
+  onTeamOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.teamFilterSearch = '';
+    }
+  }
+
+  // 2. Getter to filter department list dynamically by search text
+  get filteredDepartments(): Array<{ id: string; name: string }> {
+    const term = (this.departmentFilterSearch || '').trim().toLowerCase();
+    if (!term) return this.departments;
+    return this.departments.filter(d => (d.name || '').toLowerCase().includes(term));
+  }
+  // 3. Focus search input when dropdown opens, and clear search input when closed
+  onDepartmentOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.departmentFilterSearch = '';
+    }
+  }
+
 
   // Select All functionality for Teams
   isAllTeamsSelected(): boolean {

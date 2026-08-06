@@ -28,7 +28,8 @@ import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
 import { DirectivesModule } from 'src/app/shared/directives/directives.module';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
+
 import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 @Component({
@@ -42,6 +43,10 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   institutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
   private allInstitutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
   selectedInstitute = '';
+  selectedInstitutes: string[] = [];
+  instituteFilterSearch = '';
+  departmentFilterSearch = '';
+  teamFilterSearch = '';
   instituteSearch = '';
   instituteSearchTerm = '';
   filter = '';
@@ -106,6 +111,107 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     });
   }
 
+  get filteredInstitutesForFilter(): Array<{ institute_id?: string; institute_name?: string; name?: string }> {
+    const term = (this.instituteFilterSearch || '').trim().toLowerCase();
+    let list = this.institutes || [];
+    if (term) {
+      list = list.filter(i =>
+        (i.institute_name || (i as any).name || '').toLowerCase().includes(term) ||
+        (i.institute_id && this.selectedInstitutes.includes(i.institute_id))
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = a.institute_id ? this.selectedInstitutes.includes(a.institute_id) : false;
+      const bSel = b.institute_id ? this.selectedInstitutes.includes(b.institute_id) : false;
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return ((a as any).name || a.institute_name || '').localeCompare((b as any).name || b.institute_name || '');
+    });
+  }
+
+  get filteredDepartmentsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.departmentFilterSearch || '').trim().toLowerCase();
+    let list = this.departments || [];
+    if (term) {
+      list = list.filter(d =>
+        (d.name || '').toLowerCase().includes(term) ||
+        this.selectedDepartments.includes(d.id)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = this.selectedDepartments.includes(a.id);
+      const bSel = this.selectedDepartments.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  get filteredTeamsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.teamFilterSearch || '').trim().toLowerCase();
+    let list = this.teams || [];
+    if (term) {
+      list = list.filter(t =>
+        (t.name || '').toLowerCase().includes(term) ||
+        this.selectedTeams.includes(t.id)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = this.selectedTeams.includes(a.id);
+      const bSel = this.selectedTeams.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+
+  // --- Select All: Institute ---
+  isAllInstitutesSelected(): boolean {
+    const ids = (this.filteredInstitutesForFilter || []).map(i => i.institute_id!).filter(Boolean);
+    return ids.length > 0 && ids.every(id => (this.selectedInstitutes || []).includes(id));
+  }
+
+  toggleSelectAllInstitutes() {
+    const ids = (this.filteredInstitutesForFilter || []).map(i => i.institute_id!).filter(Boolean);
+    if (this.isAllInstitutesSelected()) {
+      this.selectedInstitutes = [];
+    } else {
+      this.selectedInstitutes = [...ids];
+    }
+    this.onInstituteSelectionChange();
+  }
+
+  // --- Select All: Department ---
+  isAllDepartmentsSelected(): boolean {
+    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    return ids.length > 0 && ids.every(id => (this.selectedDepartments || []).includes(id));
+  }
+
+  toggleSelectAllDepartments() {
+    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    if (this.isAllDepartmentsSelected()) {
+      this.selectedDepartments = [];
+    } else {
+      this.selectedDepartments = [...ids];
+    }
+  }
+
+  // --- Select All: Team ---
+  isAllTeamsSelected(): boolean {
+    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    return ids.length > 0 && ids.every(id => (this.selectedTeams || []).includes(id));
+  }
+
+  toggleSelectAllTeams() {
+    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    if (this.isAllTeamsSelected()) {
+      this.selectedTeams = [];
+    } else {
+      this.selectedTeams = [...ids];
+    }
+  }
+
   openCreatedDateRangePicker(): void {
     const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
       width: '520px',
@@ -156,7 +262,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
 
   refresh() {
     if (!this.hasAppliedFilters) {
-      try { notify('Apply filters to fetch tests', 'info'); } catch (e) {}
+      try { notify('Apply filters to fetch tests', 'info'); } catch (e) { }
       return;
     }
     this.loadExamsForInstitute(this.selectedInstitute || undefined);
@@ -210,6 +316,97 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       });
     }
   }
+
+  onFilterInstituteOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.instituteFilterSearch = '';
+    }
+  }
+
+  onFilterDepartmentOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.departmentFilterSearch = '';
+    }
+  }
+
+  onFilterTeamOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.teamFilterSearch = '';
+    }
+  }
+
+  onInstituteSelectionChange() {
+    const institutes = this.selectedInstitutes || [];
+    this.selectedInstitute = institutes[institutes.length - 1] || '';
+
+    if (!institutes.length) {
+      this.departments = [];
+      this.teams = [];
+      return;
+    }
+
+    // Fetch departments for ALL selected institutes
+    const deptRequests = institutes.map(id =>
+      this.http.get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: id } })
+    );
+    forkJoin(deptRequests).subscribe({
+      next: (responses) => {
+        let combined: any[] = [];
+        responses.forEach(res => {
+          const arr = Array.isArray(res) ? res : (res?.data || []);
+          combined = combined.concat(arr);
+        });
+        const seen = new Set();
+        this.departments = combined
+          .map((d: any) => ({ id: d.dept_id || d.id || d.deptId || '', name: d.name || d.dept_name || '' }))
+          .filter(d => d.id && !seen.has(d.id) && seen.add(d.id));
+      },
+      error: () => { this.departments = []; }
+    });
+
+    // Fetch teams for ALL selected institutes
+    const teamRequests = institutes.map(id =>
+      this.http.get<any>(`${API_BASE}/get-teams-list`, { params: { institute_id: id } })
+    );
+    forkJoin(teamRequests).subscribe({
+      next: (responses) => {
+        let combined: any[] = [];
+        responses.forEach(res => {
+          const arr = Array.isArray(res) ? res : (res?.data || []);
+          combined = combined.concat(arr);
+        });
+        const seen = new Set();
+        this.teams = combined
+          .map((t: any) => ({ id: t.team_id || t.id || t.teamId || '', name: t.name || t.team_name || '' }))
+          .filter(t => t.id && !seen.has(t.id) && seen.add(t.id));
+      },
+      error: () => { this.teams = []; }
+    });
+  }
+
+
+
 
   stopFilterSearchEvent(event: Event) {
     event.stopPropagation();
@@ -451,7 +648,11 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     if (this.filterCity) chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
     if (this.filterIndustry) chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true });
     if (this.filterSector) chips.push({ key: 'sector', label: `Sector: ${this.filterSector}`, removable: true });
-    if (this.selectedInstitute) chips.push({ key: 'institute', label: `Institute: ${this.getInstituteLabel(this.selectedInstitute)}`, removable: this.isSuperAdmin });
+    if (this.selectedInstitutes && this.selectedInstitutes.length) {
+      this.selectedInstitutes.forEach(id => chips.push({ key: `institute:${id}`, label: `Institute: ${this.getInstituteLabel(id)}`, removable: this.isSuperAdmin }));
+    } else if (this.selectedInstitute) {
+      chips.push({ key: 'institute', label: `Institute: ${this.getInstituteLabel(this.selectedInstitute)}`, removable: this.isSuperAdmin });
+    }
     if (this.filterName) chips.push({ key: 'name', label: `Test: ${this.filterName}`, removable: true });
     (this.selectedDepartments || []).forEach(id => chips.push({ key: `department:${id}`, label: `Department: ${this.getSelectedName(this.departments, id)}`, removable: true }));
     (this.selectedTeams || []).forEach(id => chips.push({ key: `team:${id}`, label: `Team: ${this.getSelectedName(this.teams, id)}`, removable: true }));
@@ -468,7 +669,13 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     else if (key === 'city') { this.filterCity = ''; if (this.isSuperAdmin) this.refreshInstituteScope(); }
     else if (key === 'industry') { this.filterIndustry = ''; this.filterSector = ''; if (this.isSuperAdmin) this.refreshInstituteScope(); }
     else if (key === 'sector') { this.filterSector = ''; if (this.isSuperAdmin) this.refreshInstituteScope(); }
-    else if (key === 'institute' && this.isSuperAdmin) { this.selectedInstitute = ''; this.instituteSearch = ''; this.filterName = ''; this.testOptions = []; this.selectedDepartments = []; this.selectedTeams = []; this.departments = []; this.teams = []; }
+    else if (key.startsWith('institute:') && this.isSuperAdmin) {
+      const idToRemove = key.substring('institute:'.length);
+      this.selectedInstitutes = this.selectedInstitutes.filter(id => String(id) !== idToRemove);
+      this.selectedInstitute = this.selectedInstitutes[this.selectedInstitutes.length - 1] || '';
+      if (!this.selectedInstitutes.length) { this.selectedDepartments = []; this.selectedTeams = []; this.departments = []; this.teams = []; }
+    }
+    else if (key === 'institute' && this.isSuperAdmin) { this.selectedInstitute = ''; this.selectedInstitutes = []; this.instituteSearch = ''; this.filterName = ''; this.testOptions = []; this.selectedDepartments = []; this.selectedTeams = []; this.departments = []; this.teams = []; }
     else if (key === 'name') this.filterName = '';
     else if (key.startsWith('department:')) this.selectedDepartments = this.selectedDepartments.filter(id => String(id) !== key.substring('department:'.length));
     else if (key.startsWith('team:')) this.selectedTeams = this.selectedTeams.filter(id => String(id) !== key.substring('team:'.length));
@@ -560,7 +767,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       confirmText: 'OK',
       cancelText: ''
     }).subscribe();
-    try { notify(message, 'error'); } catch (e) {}
+    try { notify(message, 'error'); } catch (e) { }
   }
 
   onEdit(e: any) {
@@ -752,6 +959,24 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.selectedExam = null;
   }
 
+  private hasFilterValues(): boolean {
+    return !!(
+      (this.selectedInstitutes && this.selectedInstitutes.length) || this.selectedInstitute ||
+      this.filterName ||
+      this.filterCountry ||
+      this.filterCity ||
+      this.filterIndustry ||
+      this.filterSector ||
+      (this.selectedDepartments && this.selectedDepartments.length) ||
+      (this.selectedTeams && this.selectedTeams.length) ||
+      this.filterCreationDateAfter ||
+      this.filterCreationDate ||
+      this.filterActiveStatus !== null ||
+      this.filterCreatedByMe
+    );
+  }
+
+
   loadInstitutes() {
     this.loader.show();
     this.http.get<any>(this.apiUrl).subscribe({
@@ -840,26 +1065,10 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   onInstituteSearchChange(val: string) {
     this.onInstituteSearchInput(val);
   }
-  private hasFilterValues(): boolean {
-    return !!(
-      this.filterName ||
-      this.selectedInstitute ||
-      this.filterCountry ||
-      this.filterCity ||
-      this.filterIndustry ||
-      this.filterSector ||
-      (this.selectedDepartments && this.selectedDepartments.length) ||
-      (this.selectedTeams && this.selectedTeams.length) ||
-      this.filterCreationDateAfter ||
-      this.filterCreationDate ||
-      this.filterActiveStatus !== null ||
-      this.filterCreatedByMe
-    );
-  }
 
   onApply() {
     if (!this.hasFilterValues()) {
-      try { notify('Please add filters in the filter form.', 'info'); } catch (e) {}
+      try { notify('Please add filters in the filter form.', 'info'); } catch (e) { }
       return;
     }
     this.hasAppliedFilters = true;
@@ -867,7 +1076,11 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.closeFiltersOverlay();
   }
   onReset() {
-    // clear filter fields
+    this.selectedInstitute = '';
+    this.selectedInstitutes = [];
+    this.instituteFilterSearch = '';
+    this.departmentFilterSearch = '';
+    this.teamFilterSearch = '';
     this.filterName = '';
     this.testSearch = '';
     this.testSearchTerm = '';
@@ -902,7 +1115,11 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     const base = `${API_BASE}/get-exams-details`;
     // build query params based on filters
     const params: string[] = [];
-    if (id) params.push(`institute_id=${encodeURIComponent(id)}`);
+    if (this.selectedInstitutes && this.selectedInstitutes.length) {
+      params.push(`institute_id=${encodeURIComponent(this.selectedInstitutes.join(','))}`);
+    } else if (id) {
+      params.push(`institute_id=${encodeURIComponent(id)}`);
+    }
     if (this.filterName) params.push(`name=${encodeURIComponent(this.filterName)}`);
     if (this.filterCountry) params.push(`country=${encodeURIComponent(this.filterCountry)}`);
     if (this.filterCity) params.push(`city=${encodeURIComponent(this.filterCity)}`);
@@ -1135,7 +1352,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.selectedExam = null; this.showModal = false;
     if (this.paginator) { this.paginator.firstPage(); this.paginator.length = 0; }
     this.closeFiltersOverlay();
-    try { sessionStorage.removeItem('exams_table_return_state'); } catch (e) {}
+    try { sessionStorage.removeItem('exams_table_return_state'); } catch (e) { }
     this.loadDepartments(instituteId);
     this.loadTeams(instituteId);
     this.syncInstituteSearch();
@@ -1158,7 +1375,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.selectedExam = null; this.showModal = false;
     if (this.paginator) { this.paginator.firstPage(); this.paginator.length = 0; }
     this.closeFiltersOverlay();
-    try { sessionStorage.removeItem('exams_table_return_state'); } catch (e) {}
+    try { sessionStorage.removeItem('exams_table_return_state'); } catch (e) { }
     this.loadInstitutes();
   }
 }

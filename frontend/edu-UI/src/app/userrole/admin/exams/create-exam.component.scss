@@ -29,22 +29,35 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
   border-radius: 0.5rem;
 }
 
-:host ::ng-deep .select-search-option {
+::ng-deep .select-search-option {
   height: auto !important;
   min-height: 3rem;
   cursor: default;
+
+  /* Hide checkbox inside search option dropdown */
+  .mat-pseudo-checkbox,
+  .mat-mdc-option-pseudo-checkbox,
+  .mat-pseudo-checkbox-minimal,
+  .mdc-list-item__graphic,
+  .mat-mdc-option-graphic,
+  .mdc-list-item__start,
+  .mdc-list-item__end {
+    display: none !important;
+  }
+
+  .mdc-list-item__primary-text {
+    width: 100%;
+  }
 }
 
-:host ::ng-deep .select-search-option .mdc-list-item__primary-text {
-  width: 100%;
-}
-
-:host ::ng-deep .select-search-input {
+::ng-deep .select-search-input {
   width: 100%;
   box-sizing: border-box;
   padding: 0.5rem 0.25rem;
   font-size: 0.875rem;
 }
+
+
 
 
 .step-actions {
