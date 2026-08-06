@@ -10,7 +10,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { MatStepperModule } from '@angular/material/stepper';
+import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { Router, RouterModule } from '@angular/router';
@@ -26,11 +26,13 @@ import { TemplatePortal } from '@angular/cdk/portal';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule } from '@angular/cdk/portal';
 import { LoaderService } from 'src/app/shared/services/loader.service';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 @Component({
   selector: 'app-create-exam',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatAutocompleteModule, MatButtonModule, MatIconModule, MatListModule, MatCheckboxModule, MatDatepickerModule, RouterModule, HttpClientModule, MatStepperModule, OverlayModule, PortalModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatAutocompleteModule, MatButtonModule, MatIconModule, MatListModule, MatCheckboxModule, MatDatepickerModule, MatDialogModule, RouterModule, HttpClientModule, MatStepperModule, OverlayModule, PortalModule],
   templateUrl: './create-exam.component.html',
   styleUrls: ['./create-exam.component.scss']
 })
@@ -45,6 +47,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   institutes: Array<{ id: string; name: string }> = [];
   // categories UI model
   categories: Array<any> = [];
+  // 1. Property to track search input
+  instituteFilterSearch = '';
   selectedCategory = '';
   categoryCtrl = new FormControl('');
   filteredCategories$: Observable<any[]> = of([]);
@@ -55,6 +59,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('filterAnchor', { static: false }) filterAnchor?: ElementRef;
   @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
+  @ViewChild('stepper') stepper!: MatStepper;
+  step1Submitted = false;
 
   private _docClickHandler: ((ev: any) => void) | null = null;
   private _randomBlockClickHandler: ((ev: any) => void) | null = null;
@@ -64,7 +70,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   filterCreationDateAfter: Date | null = null;
   filterCreationDate: Date | null = null;
   filterCreatedByMe: boolean = false;
-  filterPublicAccess: boolean | null = null;
+  filterPublicAccess: boolean = false;
   appliedQuestionBankFilters: string[] = [];
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
@@ -119,6 +125,31 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  // 2. Getter to filter institute list dynamically by search text
+  get filteredInstitutes(): Array<{ id: string; name: string }> {
+    const term = (this.instituteFilterSearch || '').trim().toLowerCase();
+    if (!term) return this.institutes;
+    return this.institutes.filter(i => (i.name || '').toLowerCase().includes(term));
+  }
+  // 3. Focus search input when opened, and reset search term when closed
+  onInstituteOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      // Resetting when closed ensures that reopening shows all institutes, even after selecting one
+      this.instituteFilterSearch = '';
+    }
+  }
+  // 4. Prevent keystrokes in search input from triggering select dropdown shortcuts
+  stopFilterSearchEvent(event: Event) {
+    event.stopPropagation();
+  }
+
   // question selection for currently selected category
   questionsForCategory: Array<any> = [];
   selectedQuestionIds: string[] = [];
@@ -126,6 +157,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   activeQuestionCategoryId = '';
   activeQuestionCategoryName = '';
   questionCountError = '';
+  categoryFilterError = '';
   tempQuestionsForCategory: Array<any> = [];
   private lastAddedQuestionSelectionByCategory: { [categoryId: string]: string } = {};
 
@@ -147,7 +179,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     return !this.activeQuestionCategoryId || !this.questionsForCategory.length;
   }
 
-  constructor(private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private loader: LoaderService) {
+  constructor(private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private loader: LoaderService, private dialog: MatDialog) {
     try {
       this._subs = this.auth.user$.subscribe((user: any) => {
         this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
@@ -163,10 +195,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const positionStrategy = this.overlay.position()
       .flexibleConnectedTo(this.filtersBtn)
       .withPositions([
-        // prefer right side, vertically centered relative to trigger
-        { originX: 'end', originY: 'center', overlayX: 'start', overlayY: 'center', offsetX: 8 },
-        // fallback: place below trigger
-        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 }
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 10 },
+        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 10 },
+        { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom', offsetY: -10 }
       ])
       .withPush(true);
 
@@ -178,7 +209,13 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.filtersOverlayRef.attach(portal);
   }
 
-  closeFiltersOverlay() { if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; } }
+  closeFiltersOverlay() {
+    if (this.filtersOverlayRef) {
+      try { this.filtersOverlayRef.dispose(); } catch (e) { };
+      this.filtersOverlayRef = null;
+    }
+    this.filterEnabled = false;
+  }
 
   // ensure UI flag clears when overlay is closed programmatically
   private _closeOverlayInternal() {
@@ -651,7 +688,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   formatQuestionBankType(type: any): string {
     const value = String(type || '').trim();
-    if (!value) return '--';
+    if (!value) return ''; // Return empty string so label doesn't float when unselected
     return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
@@ -816,11 +853,21 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         this.reconcileAttachedQuestionBankMarks();
         // ensure autocomplete reflects latest categories
         this.updateFilteredCategoriesStream();
+        if (this.categories.length === 0 && this.hasCategoryFilterValues()) {
+          this.categoryFilterError = 'No question bank found for the selected filter / date range.';
+          try { notify('No question bank found for the selected filter criteria.', 'info'); } catch (e) { }
+        } else {
+          this.categoryFilterError = '';
+        }
       }, error: (err) => {
         if (requestSeq !== this.categoryLoadSeq) return;
         console.warn('Failed to load categories with filters', err);
         this.categories = [];
         this.updateFilteredCategoriesStream();
+        if (this.hasCategoryFilterValues()) {
+          this.categoryFilterError = 'No question bank found for the selected filter / date range.';
+          try { notify('No question bank found for the selected filter criteria.', 'info'); } catch (e) { }
+        }
       }
       , complete: () => { this.loader.hide(); }
     });
@@ -830,48 +877,114 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
    * Ensure `filteredCategories$` observable is wired to `categoryCtrl.valueChanges`
    * so the autocomplete updates when `this.categories` changes.
    */
+  // Update updateFilteredCategoriesStream() around line 834:
   updateFilteredCategoriesStream() {
     try {
-      const base = this.categories || [];
-      this.filteredCategories$ = of(base);
       this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
         startWith(''),
         map((val: any) => {
-          if (val && typeof val === 'object') return (this.categories || []).slice();
           const q = String(val || '').trim().toLowerCase();
-          return (this.categories || []).filter((c: any) => (c.name || '').toLowerCase().includes(q));
+          const currentUser = this.getCurrentUserId();
+
+          return (this.categories || []).filter((c: any) => {
+            // 1. Search query match
+            const matchesName = (c.name || '').toLowerCase().includes(q);
+
+            // 2. Date range match
+            let matchesDate = true;
+            if (c.created_at || c.created_date) {
+              const itemDate = new Date(c.created_at || c.created_date).getTime();
+              if (this.filterCreationDateAfter && itemDate < new Date(this.filterCreationDateAfter).getTime()) {
+                matchesDate = false;
+              }
+              if (this.filterCreationDate && itemDate > new Date(this.filterCreationDate).getTime()) {
+                matchesDate = false;
+              }
+            }
+
+            // 3. Created by me match
+            let matchesCreatedBy = true;
+            if (this.filterCreatedByMe && currentUser) {
+              const creator = String(c.created_by || c.created_by_user_id || '');
+              matchesCreatedBy = (creator === String(currentUser));
+            }
+
+            // 4. Public access match — only filter when checkbox is checked
+            let matchesPublicAccess = true;
+            if (this.filterPublicAccess) {
+              const isPublic = !!(c.public_access === true || c.public_access === 1 || String(c.public_access).toLowerCase() === 'true');
+              matchesPublicAccess = isPublic;
+            }
+
+            return matchesName && matchesDate && matchesCreatedBy && matchesPublicAccess;
+          });
         })
       );
     } catch (e) {
       this.filteredCategories$ = of(this.categories || []);
     }
   }
-  private hasCategoryFilterValues(): boolean {
+
+  hasCategoryFilterValues(): boolean {
     return !!(
-      (this.selectedDepartments && this.selectedDepartments.length) ||
-      (this.selectedTeams && this.selectedTeams.length) ||
       this.filterCreationDateAfter ||
       this.filterCreationDate ||
       this.filterCreatedByMe ||
-      this.filterPublicAccess !== null
+      this.filterPublicAccess
     );
+  }
+
+  // Update openCreatedDateRangePicker() around line 859:
+  openCreatedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.filterCreationDateAfter,
+        endDate: this.filterCreationDate
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.filterCreationDateAfter = res.startDate;
+        this.filterCreationDate = res.endDate;
+
+        // 💥 ADD THIS: Automatically apply filter & reload categories when date changes
+        this.onApply();
+      }
+    });
+  }
+
+
+  getCreatedDateRangeDisplay(): string {
+    const start = this.filterCreationDateAfter;
+    const end = this.filterCreationDate;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(start);
+    const endStr = format(end);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `From ${startStr}`;
+    if (endStr) return `Until ${endStr}`;
+    return '';
   }
 
   private getQuestionBankFilterLabels(): string[] {
     const labels: string[] = [];
-    const departmentNames = (this.selectedDepartments || [])
-      .map(id => this.departments.find(d => String(d.id) === String(id))?.name || String(id))
-      .filter(Boolean);
-    const teamNames = (this.selectedTeams || [])
-      .map(id => this.teams.find(t => String(t.id) === String(id))?.name || String(id))
-      .filter(Boolean);
-
-    if (departmentNames.length) labels.push(`Departments: ${departmentNames.join(', ')}`);
-    if (teamNames.length) labels.push(`Teams: ${teamNames.join(', ')}`);
-    if (this.filterCreationDateAfter) labels.push(`Created after: ${(this.filterCreationDateAfter as Date).toISOString().slice(0, 10)}`);
-    if (this.filterCreationDate) labels.push(`Created before: ${(this.filterCreationDate as Date).toISOString().slice(0, 10)}`);
+    if (this.filterCreationDateAfter || this.filterCreationDate) {
+      const rangeDisplay = this.getCreatedDateRangeDisplay();
+      if (rangeDisplay) labels.push(`Created: ${rangeDisplay}`);
+    }
     if (this.filterCreatedByMe) labels.push('Created by me');
-    if (this.filterPublicAccess !== null && typeof this.filterPublicAccess !== 'undefined') labels.push(`Public access: ${this.filterPublicAccess ? 'Yes' : 'No'}`);
+    if (this.filterPublicAccess) labels.push('Public access');
     return labels;
   }
   onApply() {
@@ -880,26 +993,24 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const filters: any = { institute_id: this.institute };
-    if (this.selectedDepartments && this.selectedDepartments.length) filters.departments = this.selectedDepartments;
-    if (this.selectedTeams && this.selectedTeams.length) filters.teams = this.selectedTeams;
     if (this.filterCreationDateAfter) filters.created_after = (this.filterCreationDateAfter as Date).toISOString().slice(0, 10);
     if (this.filterCreationDate) filters.created_before = (this.filterCreationDate as Date).toISOString().slice(0, 10);
     if (this.filterCreatedByMe) filters.created_by = true;
-    if (this.filterPublicAccess !== null && typeof this.filterPublicAccess !== 'undefined') filters.public_access = this.filterPublicAccess;
+    if (this.filterPublicAccess) filters.public_access = true;
     this.appliedQuestionBankFilters = this.getQuestionBankFilterLabels();
     this.loadCategoriesWithFilters(filters);
+    this.closeFiltersOverlay();
   }
-
   onReset() {
-    this.selectedDepartments = [];
-    this.selectedTeams = [];
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
     this.filterCreatedByMe = false;
-    this.filterPublicAccess = null;
+    this.filterPublicAccess = false;
     this.appliedQuestionBankFilters = [];
+    this.categoryFilterError = '';
     // reload categories for current institute if any
     this.loadCategoriesWithFilters({ institute_id: this.institute });
+    this.closeFiltersOverlay();
   }
 
   onInstituteChange(value: any) {
@@ -916,7 +1027,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.filterCreationDateAfter = null;
       this.filterCreationDate = null;
       this.filterCreatedByMe = false;
-      this.filterPublicAccess = null;
+      this.filterPublicAccess = false;
       this.resetQuestionBanksAndQuestionsSection();
     }
     this.trackedInstituteForQuestionBanks = v;
@@ -1258,6 +1369,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.institute) { notify('Institute is required', 'error'); return; }
     if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) { notify('Duration is required', 'error'); return; }
     if (this.passMark !== null && this.passMark !== undefined && (Number(this.passMark) < 0 || Number(this.passMark) > 100)) { notify('Pass Percentage must be between 0 and 100', 'error'); return; }
+    if (!this.model.categories || !this.model.categories.length) { notify('Please attach at least one Question Bank before saving', 'error'); return; }
 
     const currentUser = this.getCurrentUserId();
     const payload: any = {
@@ -1332,6 +1444,59 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     try { sessionStorage.removeItem('edit_exam'); } catch (e) { }
     try { sessionStorage.setItem('exams_return_state', 'true'); } catch (e) { }
     this.router.navigate(['/exams']);
+  }
+
+  get isStep1Valid(): boolean {
+    return !!(this.title && this.title.trim() && this.durationMinutes && this.selectedDepartments.length > 0 && this.selectedTeams.length > 0);
+  }
+
+  validateStep1AndProceed() {
+    this.step1Submitted = true;
+    const missing: string[] = [];
+    if (!this.title || !this.title.trim()) missing.push('Title');
+    if (!this.selectedDepartments.length) missing.push('Departments');
+    if (!this.selectedTeams.length) missing.push('Teams');
+    if (!this.durationMinutes) missing.push('Duration');
+    if (missing.length) {
+      try { notify(`Please fill required fields: ${missing.join(', ')}`, 'error'); } catch (e) { }
+      return;
+    }
+    // All valid — move to next step
+    if (this.stepper) {
+      this.stepper.next();
+    }
+  }
+
+  getSelectedDepartmentsDisplay(): string {
+    if (!this.selectedDepartments || !this.selectedDepartments.length) return '—';
+    if (this.selectedDepartments.includes('ALL')) return 'All Departments';
+    const names = this.departments
+      .filter(d => this.selectedDepartments.includes(d.id))
+      .map(d => d.name);
+    return names.length ? names.join(', ') : `${this.selectedDepartments.length} selected`;
+  }
+
+  getSelectedTeamsDisplay(): string {
+    if (!this.selectedTeams || !this.selectedTeams.length) return '—';
+    if (this.selectedTeams.includes('ALL')) return 'All Teams';
+    const names = this.teams
+      .filter(t => this.selectedTeams.includes(t.id))
+      .map(t => t.name);
+    return names.length ? names.join(', ') : `${this.selectedTeams.length} selected`;
+  }
+
+  get isStep2Valid(): boolean {
+    return !!(this.model.categories && this.model.categories.length > 0);
+  }
+
+  validateStep2AndProceed() {
+    if (!this.model.categories || !this.model.categories.length) {
+      try { notify('Please attach at least one Question Bank before proceeding', 'error'); } catch (e) { }
+      return;
+    }
+    if (this.stepper) {
+      this.stepper.next();
+    }
   }
 }
 

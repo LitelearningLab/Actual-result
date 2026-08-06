@@ -100,6 +100,12 @@ def get_categories_list(request):
         filter.append(Categories.category_id.in_([t.category_id for t in teams_data]))
     if args.get("created_by") is not None:
         filter.append(Categories.created_by == args.get("created_by"))
+    if args.get("public_access") is not None:
+        val = str(args.get("public_access")).lower()
+        if val in ['true', '1']:
+            filter.append(Categories.public_access == 1)
+        elif val in ['false', '0']:
+            filter.append(Categories.public_access == 0)
 
     categories = session.query(Categories).filter(*filter).all()
     categories_list =[]
@@ -108,7 +114,10 @@ def get_categories_list(request):
             "id": category.category_id,
             "name": category.name,
             "description": category.description,
-            "type": category.type
+            "type": category.type,
+            "created_date": category.created_date.isoformat() if category.created_date else None,
+            "created_by": category.created_by,
+            "public_access": getattr(category, "public_access", None)
         })
     json_data = {
         "statusMessage": "Categories retrieved successfully",

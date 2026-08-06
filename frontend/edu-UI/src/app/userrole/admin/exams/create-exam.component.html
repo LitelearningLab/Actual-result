@@ -14,7 +14,7 @@
     <div class="form-card">
         <mat-horizontal-stepper linear #stepper>
             <!-- â•â•â• Step 1: Basic info & Settings â•â•â• -->
-            <mat-step [completed]="!!(title && durationMinutes)">
+            <mat-step [completed]="isStep1Valid">
                 <ng-template matStepLabel>Basic info & Settings</ng-template>
                 <div class="step-content">
                     <div class="card-body-inner two-column first-step">
@@ -34,16 +34,31 @@
                                         <mat-label>Institute</mat-label>
                                         <mat-select [(ngModel)]="institute"
                                             (selectionChange)="onInstituteChange($event.value)"
-                                            [disabled]="!isSuperAdmin">
+                                            (openedChange)="onInstituteOpenedChange($event)" [disabled]="!isSuperAdmin">
+
+                                            <!-- Embedded Search Bar -->
+                                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                                <input matInput class="select-search-input"
+                                                    placeholder="Search institute" [(ngModel)]="instituteFilterSearch"
+                                                    [ngModelOptions]="{standalone: true}"
+                                                    (click)="$event.stopPropagation()"
+                                                    (keydown)="stopFilterSearchEvent($event)"
+                                                    (keyup)="stopFilterSearchEvent($event)"
+                                                    (input)="stopFilterSearchEvent($event)" />
+                                            </mat-option>
+
                                             <mat-option value="">Select institute</mat-option>
-                                            <mat-option *ngFor="let i of institutes"
+                                            <!-- Loop through filteredInstitutes getter -->
+                                            <mat-option *ngFor="let i of filteredInstitutes"
                                                 [value]="i.id">{{i.name}}</mat-option>
                                         </mat-select>
+
                                     </mat-form-field>
 
-                                    <mat-form-field appearance="outline" class="field-half">
+                                    <mat-form-field appearance="outline" class="field-half"
+                                        [class.mat-form-field-invalid]="step1Submitted && !title?.trim()">
                                         <mat-icon matPrefix>edit</mat-icon>
-                                        <mat-label>Title</mat-label>
+                                        <mat-label>Title <span class="required-star">*</span></mat-label>
                                         <input matInput id="examTitle" [(ngModel)]="title" name="title"
                                             placeholder="E.g. Midterm Maths" />
                                     </mat-form-field>
@@ -60,9 +75,10 @@
                                 </div>
 
                                 <div class="field-row">
-                                    <mat-form-field appearance="outline" class="field-half">
+                                    <mat-form-field appearance="outline" class="field-half"
+                                        [class.mat-form-field-invalid]="step1Submitted && !selectedDepartments.length">
                                         <mat-icon matPrefix>apartment</mat-icon>
-                                        <mat-label>Departments</mat-label>
+                                        <mat-label>Departments <span class="required-star">*</span></mat-label>
                                         <mat-select multiple [(ngModel)]="selectedDepartments"
                                             (selectionChange)="toggleSelectAllDepartments($event)"
                                             placeholder="Select departments">
@@ -77,12 +93,12 @@
                                         </mat-select>
                                     </mat-form-field>
 
-                                    <mat-form-field appearance="outline" class="field-half">
+                                    <mat-form-field appearance="outline" class="field-half"
+                                        [class.mat-form-field-invalid]="step1Submitted && !selectedTeams.length">
                                         <mat-icon matPrefix>groups</mat-icon>
-                                        <mat-label>Teams</mat-label>
+                                        <mat-label>Teams <span class="required-star">*</span></mat-label>
                                         <mat-select multiple [(ngModel)]="selectedTeams"
-                                            (selectionChange)="toggleSelectAllTeams($event)"
-                                            placeholder="Select teams">
+                                            (selectionChange)="toggleSelectAllTeams($event)" placeholder="Select teams">
 
                                             <!--  Select All Option  -->
                                             <mat-option value="ALL">
@@ -154,7 +170,7 @@
 
                     <div class="form-actions">
                         <span></span>
-                        <button mat-button matStepperNext type="button" class="next-btn">
+                        <button mat-button type="button" class="next-btn" (click)="validateStep1AndProceed()">
                             <span>Next</span>
                             <mat-icon>arrow_forward</mat-icon>
                         </button>
@@ -163,7 +179,7 @@
             </mat-step>
 
             <!-- â•â•â• Step 2: Question Banks & Questions â•â•â• -->
-            <mat-step>
+            <mat-step [completed]="isStep2Valid">
                 <ng-template matStepLabel>Question Banks & Questions</ng-template>
                 <div class="step-content">
                     <div class="card-body-inner question-bank-layout">
@@ -182,7 +198,7 @@
                                         matTooltipPosition="left">
                                         <mat-icon>filter_list</mat-icon>
                                         <span>Filters</span>
-                                        <span class="filter-count" *ngIf="appliedQuestionBankFilters.length">{{
+                                        <span class="filter-count-badge" *ngIf="appliedQuestionBankFilters.length">· {{
                                             appliedQuestionBankFilters.length }}</span>
                                     </button>
                                 </div>
@@ -192,59 +208,51 @@
                                         filters</span>
                                     <span class="applied-filter-chip"
                                         *ngFor="let filter of appliedQuestionBankFilters">{{ filter }}</span>
+                                    <button type="button" class="clear-all-btn" (click)="onReset()">
+                                        <mat-icon>close</mat-icon> Clear all
+                                    </button>
                                 </div>
+
+
                                 <ng-template #filtersPanel>
                                     <div class="filters-panel card" (click)="$event.stopPropagation()">
-                                        <div class="filter-block">
-                                            <mat-form-field appearance="outline" class="filter-item">
-                                                <mat-label>Departments</mat-label>
-                                                <mat-select multiple [(ngModel)]="selectedDepartments"
-                                                    placeholder="Select departments">
-                                                    <mat-option *ngFor="let d of departments"
-                                                        [value]="d.id">{{d.name}}</mat-option>
-                                                </mat-select>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="filter-item">
-                                                <mat-label>Teams</mat-label>
-                                                <mat-select multiple [(ngModel)]="selectedTeams"
-                                                    placeholder="Select teams">
-                                                    <mat-option *ngFor="let t of teams"
-                                                        [value]="t.id">{{t.name}}</mat-option>
-                                                </mat-select>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="filter-item">
-                                                <mat-label>Created After</mat-label>
-                                                <input matInput [matDatepicker]="pickerAfter"
-                                                    placeholder="Select start date"
-                                                    [(ngModel)]="filterCreationDateAfter">
-                                                <mat-datepicker-toggle matSuffix
-                                                    [for]="pickerAfter"></mat-datepicker-toggle>
-                                                <mat-datepicker #pickerAfter></mat-datepicker>
-                                            </mat-form-field>
-                                            <mat-form-field appearance="outline" class="filter-item">
-                                                <mat-label>Created Before</mat-label>
-                                                <input matInput [matDatepicker]="picker" placeholder="Select end date"
-                                                    [(ngModel)]="filterCreationDate">
-                                                <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-                                                <mat-datepicker #picker></mat-datepicker>
-                                            </mat-form-field>
-
-                                            <div class="checkboxes">
-                                                <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by
-                                                    me</mat-checkbox>
-                                                <mat-checkbox [(ngModel)]="filterPublicAccess"
-                                                    [indeterminate]="filterPublicAccess === null">Public
-                                                    access</mat-checkbox>
+                                        <div class="filters-panel-caret"></div>
+                                        <div class="filters-panel-header">
+                                            <h4><mat-icon>tune</mat-icon> Filters</h4>
+                                        </div>
+                                        <div class="filter-panel-body">
+                                            <div class="filter-section">
+                                                <span class="filter-section-title">DATE RANGE</span>
+                                                <mat-form-field appearance="outline"
+                                                    class="filter-item date-range-field"
+                                                    (click)="openCreatedDateRangePicker()" style="cursor: pointer;">
+                                                    <input matInput readonly [value]="getCreatedDateRangeDisplay()"
+                                                        placeholder="Select date range" style="cursor: pointer;" />
+                                                    <mat-icon matSuffix
+                                                        style="cursor: pointer; color: #0284c7;">calendar_today</mat-icon>
+                                                </mat-form-field>
                                             </div>
 
-                                            <div class="filter-actions">
-                                                <button mat-flat-button color="primary" type="button"
-                                                    (click)="onApply()"><mat-icon>check</mat-icon>
-                                                    Apply</button>
-                                                <button mat-flat-button type="button"
-                                                    (click)="onReset()"><mat-icon>refresh</mat-icon>
-                                                    Reset</button>
+                                            <div class="filter-section-divider"></div>
+
+                                            <div class="filter-section">
+                                                <span class="filter-section-title">ACCESS & OWNERSHIP</span>
+                                                <div class="checkboxes-vertical">
+                                                    <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by
+                                                        me</mat-checkbox>
+                                                    <mat-checkbox [(ngModel)]="filterPublicAccess">Public
+                                                        access</mat-checkbox>
+                                                </div>
                                             </div>
+                                        </div>
+
+                                        <div class="filter-actions">
+                                            <button mat-button class="filter-reset-btn" type="button"
+                                                (click)="onReset()"><mat-icon>refresh</mat-icon>
+                                                Reset</button>
+                                            <button mat-flat-button class="filter-apply-btn" type="button"
+                                                (click)="onApply()"><mat-icon>check</mat-icon>
+                                                Apply</button>
                                         </div>
                                     </div>
                                 </ng-template>
@@ -269,8 +277,17 @@
                                                             class="question-bank-option-check">check</mat-icon>
                                                     </span>
                                                 </mat-option>
+                                                <mat-option *ngIf="(filteredCategories$ | async)?.length === 0"
+                                                    [disabled]="true"
+                                                    style="font-size: 13px; color: #ef4444; font-style: italic;">
+                                                    No question bank found for the selected filter
+                                                </mat-option>
                                             </mat-autocomplete>
                                         </mat-form-field>
+                                        <div class="question-count-error" *ngIf="categoryFilterError"
+                                            style="margin-top: 4px;">
+                                            {{ categoryFilterError }}
+                                        </div>
                                     </div>
 
                                     <div class="col question-type-col">
@@ -290,7 +307,7 @@
 
                                     <div class="col total-questions-col">
                                         <mat-form-field appearance="outline" class="full">
-                                            <mat-label>No of Questions available</mat-label>
+                                            <mat-label>No of Questions</mat-label>
                                             <input matInput [value]="selectedQuestionBankQuestionCount || ''"
                                                 readonly />
                                         </mat-form-field>
@@ -325,11 +342,13 @@
                                     [class.warning-msg]="questionCountError.includes('Random selection has no effect')">
                                     {{ questionCountError }}</div>
                                 <div class="muted question-mode-hint" *ngIf="selectedCategory">
-                                    <span *ngIf="newCategory.randomize_questions">Each student gets a freshly randomized
+                                    <span *ngIf="newCategory.randomize_questions">Each student gets a freshly
+                                        randomized
                                         set of {{ newCategory.questions || 0 }} question(s) when they start the
                                         test.</span>
                                     <span *ngIf="!newCategory.randomize_questions">A fixed set of {{
-                                        newCategory.questions || 0 }} question(s) are randomly chosen once and given to
+                                        newCategory.questions || 0 }} question(s) are randomly chosen once and given
+                                        to
                                         every student. Optionally hand-pick specific questions below.</span>
                                 </div>
 
@@ -342,15 +361,19 @@
                                         <div class="attached-bank-table" role="list">
                                             <div class="attached-bank-row attached-bank-row--head" aria-hidden="true">
                                                 <div class="attached-bank-cell attached-bank-cell--sno">S.No</div>
-                                                <div class="attached-bank-cell attached-bank-cell--name">Question Bank
+                                                <div class="attached-bank-cell attached-bank-cell--name">Question
+                                                    Bank
                                                     Name</div>
-                                                <div class="attached-bank-cell attached-bank-cell--type">Question Type
+                                                <div class="attached-bank-cell attached-bank-cell--type">Question
+                                                    Type
                                                 </div>
                                                 <div class="attached-bank-cell attached-bank-cell--count">No. of
                                                     Questions Selected</div>
-                                                <div class="attached-bank-cell attached-bank-cell--per-mark">Marks per
+                                                <div class="attached-bank-cell attached-bank-cell--per-mark">Marks
+                                                    per
                                                     Question</div>
-                                                <div class="attached-bank-cell attached-bank-cell--marks">Total Marks
+                                                <div class="attached-bank-cell attached-bank-cell--marks">Total
+                                                    Marks
                                                 </div>
                                                 <div class="attached-bank-cell attached-bank-cell--actions">Actions
                                                 </div>
@@ -369,12 +392,16 @@
                                                         *ngIf="!c.randomize_questions && (!c.question_ids || c.question_ids.length === 0) && c.questions > 0">Fixed</span>
                                                 </div>
                                                 <div class="attached-bank-cell attached-bank-cell--type"
-                                                    data-label="Question Type">{{
-                                                    formatQuestionBankType(c.question_type) }}</div>
+                                                    data-label="Question Type">
+                                                    {{ formatQuestionBankType(c.question_type) || '--' }}
+                                                </div>
+
                                                 <div class="attached-bank-cell attached-bank-cell--count"
-                                                    data-label="No. of Questions Selected">{{ c.questions || 0 }}</div>
+                                                    data-label="No. of Questions Selected">{{ c.questions || 0 }}
+                                                </div>
                                                 <div class="attached-bank-cell attached-bank-cell--per-mark"
-                                                    data-label="Marks per Question">{{ getCategoryMarksPerQuestion(c) }}
+                                                    data-label="Marks per Question">{{
+                                                    getCategoryMarksPerQuestion(c) }}
                                                 </div>
                                                 <div class="attached-bank-cell attached-bank-cell--marks"
                                                     data-label="Total Marks">{{ getCategoryTotalMarks(c) }}</div>
@@ -397,7 +424,8 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="attached-bank-summary">Total Questions: {{ totalQuestions || 0 }}
+                                        <div class="attached-bank-summary">Total Questions: {{ totalQuestions || 0
+                                            }}
                                         </div>
                                     </div>
                                 </div>
@@ -445,7 +473,8 @@
                                                 (change)="toggleQuestionSelection(q.id, $event.checked)">{{q.question}}</mat-checkbox>
                                         </mat-list-item>
                                     </mat-list>
-                                    <div *ngIf="!questionsForCategory.length" class="muted">Select a question bank or
+                                    <div *ngIf="!questionsForCategory.length" class="muted">Select a question bank
+                                        or
                                         click View Questions from an attached question bank.</div>
                                 </div>
                             </div>
@@ -457,7 +486,7 @@
                             <mat-icon>arrow_back</mat-icon>
                             <span>Back</span>
                         </button>
-                        <button mat-button matStepperNext type="button" class="next-btn">
+                        <button mat-button type="button" class="next-btn" (click)="validateStep2AndProceed()">
                             <span>Next</span>
                             <mat-icon>arrow_forward</mat-icon>
                         </button>
@@ -489,6 +518,10 @@
                                             class="review-value">{{ title || '—' }}</span></div>
                                     <div class="review-item"><span class="review-label">Description</span><span
                                             class="review-value">{{ description || '—' }}</span></div>
+                                    <div class="review-item"><span class="review-label">Departments</span><span
+                                            class="review-value">{{ getSelectedDepartmentsDisplay() }}</span></div>
+                                    <div class="review-item"><span class="review-label">Teams</span><span
+                                            class="review-value">{{ getSelectedTeamsDisplay() }}</span></div>
                                 </div>
                             </div>
 
