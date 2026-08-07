@@ -244,13 +244,36 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
     if (!this.hasAppliedFilters) return [];
     const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+
     if (this.selectedInstitutes.length) chips.push({ key: 'selectedInstitutes', label: `Institutes: ${this.selectedInstitutes.length} selected`, removable: true });
     if (this.filters.name) chips.push({ key: 'name', label: `Institute: ${this.filters.name}`, removable: true });
-    if (this.filters.industry) chips.push({ key: 'industry', label: `Industry: ${this.filters.industry}`, removable: true });
-    if (this.filters.sector) chips.push({ key: 'sector', label: `Sector: ${this.filters.sector}`, removable: true });
-    if (this.filters.country) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`, removable: true });
+
+    if (this.selectedIndustries && this.selectedIndustries.length) {
+      chips.push({ key: 'industry', label: `Industry: ${this.selectedIndustries.join(', ')}`, removable: true });
+    } else if (this.filters.industry) {
+      chips.push({ key: 'industry', label: `Industry: ${this.filters.industry}`, removable: true });
+    }
+
+    if (this.selectedSectors && this.selectedSectors.length) {
+      chips.push({ key: 'sector', label: `Sector: ${this.selectedSectors.join(', ')}`, removable: true });
+    } else if (this.filters.sector) {
+      chips.push({ key: 'sector', label: `Sector: ${this.filters.sector}`, removable: true });
+    }
+
+    if (this.selectedCountries && this.selectedCountries.length) {
+      chips.push({ key: 'country', label: `Country: ${this.selectedCountries.join(', ')}`, removable: true });
+    } else if (this.filters.country) {
+      chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`, removable: true });
+    }
+
+    if (this.selectedActiveStatuses && this.selectedActiveStatuses.length) {
+      const statusLabels = this.selectedActiveStatuses.map(s => s ? 'Active' : 'Inactive');
+      chips.push({ key: 'active_status', label: `Status: ${statusLabels.join(', ')}`, removable: true });
+    } else if (this.filters.active_status !== '') {
+      chips.push({ key: 'active_status', label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`, removable: true });
+    }
+
     if (this.filters.city) chips.push({ key: 'city', label: `City: ${this.filters.city}`, removable: true });
-    if (this.filters.active_status !== '') chips.push({ key: 'active_status', label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`, removable: true });
     return chips;
   }
 
@@ -258,15 +281,15 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     if (!key) return;
     if (key === 'selectedInstitutes') this.selectedInstitutes = [];
     else if (key === 'name') this.filters.name = '';
-    else if (key === 'industry') { this.filters.industry = ''; this.filters.sector = ''; }
-    else if (key === 'sector') this.filters.sector = '';
-    else if (key === 'country') { this.filters.country = ''; this.filters.city = ''; this.filterCityOptions = []; }
+    else if (key === 'industry') { this.selectedIndustries = []; this.selectedSectors = []; this.filters.industry = ''; this.filters.sector = ''; }
+    else if (key === 'sector') { this.selectedSectors = []; this.filters.sector = ''; }
+    else if (key === 'country') { this.selectedCountries = []; this.filters.country = ''; this.filters.city = ''; this.filterCityOptions = []; }
     else if (key === 'city') this.filters.city = '';
-    else if (key === 'active_status') this.filters.active_status = '';
-    if (!this.filters.country && !this.filters.industry) this.filters.name = '';
+    else if (key === 'active_status') { this.selectedActiveStatuses = []; this.filters.active_status = ''; }
     this.refreshInstituteScope();
     this.refreshAfterFilterChipChange();
   }
+
 
   clearAppliedFilters() { this.resetFilters(); }
   private refreshAfterFilterChipChange() { if (this.appliedFilterChips.length) this.loadInstitutes(); else { this.hasAppliedFilters = false; this.institutes = []; this.rawRecords = []; this.dataSource.data = []; } }
@@ -284,14 +307,23 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
 
   loadInstitutes() {
     const params: any = {};
-    if (this.selectedInstitutes.length) params.institute_id = this.selectedInstitutes.join(',');
+    if (this.selectedInstitutes && this.selectedInstitutes.length) params.institute_id = this.selectedInstitutes.join(',');
     if (this.filters.name) params.name = this.filters.name;
-    if (this.filters.industry) params.industry = this.filters.industry;
-    if (this.filters.sector) params.sector = this.filters.sector;
-    if (this.filters.country) params.country = this.filters.country;
+
+    if (this.selectedIndustries && this.selectedIndustries.length) params.industry = this.selectedIndustries.join(',');
+    else if (this.filters.industry) params.industry = this.filters.industry;
+
+    if (this.selectedSectors && this.selectedSectors.length) params.sector = this.selectedSectors.join(',');
+    else if (this.filters.sector) params.sector = this.filters.sector;
+
+    if (this.selectedCountries && this.selectedCountries.length) params.country = this.selectedCountries.join(',');
+    else if (this.filters.country) params.country = this.filters.country;
+
     const cityName = String(this.filters.city || '').trim();
     if (cityName) params.city = cityName;
-    if (this.filters.active_status !== '') params.active_status = this.filters.active_status;
+
+    if (this.selectedActiveStatuses && this.selectedActiveStatuses.length) params.active_status = this.selectedActiveStatuses.join(',');
+    else if (this.filters.active_status !== '') params.active_status = this.filters.active_status;
 
     this.loader.show();
     this.http.get<any>(this.apiUrl, { params }).subscribe({
@@ -302,43 +334,23 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
             id: idx + 1,
             name: r.name,
             short: r.short_name || r.short || '',
-            // prefer top-level city/state/country, fallback to first campus if present
             city: r.city || (r.campuses && r.campuses[0] && r.campuses[0].city && r.campuses[0].city.city_name) || '',
             state: r.state || (r.campuses && r.campuses[0] && r.campuses[0].state && r.campuses[0].state.state_name) || '',
             country: r.country || (r.campuses && r.campuses[0] && r.campuses[0].country && r.campuses[0].country.country_name) || '',
             primary_contact: r.primary_contact_person || '',
             primary_email: r.primary_contact_email || '',
-            primary_contact_phone: r.primary_contact_phone || r.primary_contact_phone || r.primary_contact_phone || r.primary_contact_phone || '',
-            website: r.website || '',
-            max_users: r.max_users || null,
-            admins_count: this.getAdminCount(r),
-            users_count: this.getUserCount(r),
+            primary_contact_phone: r.primary_contact_phone || '',
             subscription_start: r.subscription_start || r.subscriptionStart || '',
             subscription_end: r.subscription_end || r.subscriptionEnd || '',
-            industry_type: r.industry_type || '',
-            industry_sector: r.industry_sector || '',
+            industry_type: r.industry_type || r.industry || '',        // <--- ADD THIS LINE
+            industry_sector: r.industry_sector || r.sector || '',    // <--- ADD THIS LINE
             active: !!r.active_status,
-            active_status: !!r.active_status,
-            institute_id: r.institute_id,
             raw: r
           }));
-          // update table data source
           this.dataSource.data = this.institutes;
-          // set filter predicate to look into key fields
-          this.dataSource.filterPredicate = (data: Institute, filter: string) => {
-            const q = (filter || '').toLowerCase();
-            return (data.name || '').toLowerCase().includes(q)
-              || (data.short || '').toLowerCase().includes(q)
-              || (data.country || '').toLowerCase().includes(q)
-              || (data.city || '').toLowerCase().includes(q)
-              || (data.state || '').toLowerCase().includes(q)
-              || (data.industry_type || '').toLowerCase().includes(q)
-              || (data.industry_sector || '').toLowerCase().includes(q);
-          };
-          // attach paginator/sort if available
-          setTimeout(() => {
-            try { this.dataSource.paginator = this.paginator; this.dataSource.sort = this.sort; } catch (e) { }
-          }, 0);
+        } else {
+          this.institutes = [];
+          this.dataSource.data = [];
         }
       },
       error: (err) => {
@@ -349,9 +361,14 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
+
   private hasFilterValues(): boolean {
     return !!(
-      this.selectedInstitutes.length ||
+      (this.selectedInstitutes && this.selectedInstitutes.length) ||
+      (this.selectedCountries && this.selectedCountries.length) ||
+      (this.selectedIndustries && this.selectedIndustries.length) ||
+      (this.selectedSectors && this.selectedSectors.length) ||
+      (this.selectedActiveStatuses && this.selectedActiveStatuses.length) ||
       this.filters.name ||
       this.filters.industry ||
       this.filters.sector ||
@@ -404,23 +421,34 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     this.closeFiltersOverlay();
   }
 
-    resetFilters() {
+  resetFilters() {
     this.filters = { name: '', industry: '', sector: '', country: '', city: '', active_status: '' };
+
+    // --- Clear multi-select arrays ---
     this.selectedInstitutes = [];
     this.selectedCountries = [];
     this.selectedIndustries = [];
     this.selectedSectors = [];
     this.selectedActiveStatuses = [];
-    
+
+    // --- Clear search inputs ---
     this.instituteFilterSearch = '';
     this.countrySearch = '';
     this.industrySearch = '';
     this.sectorSearch = '';
     this.filterCityOptions = [];
     this.cities = [];
+
+    // --- Clear table data & applied filter chips ---
+    this.institutes = [];
+    this.dataSource.data = [];
     this.hasAppliedFilters = false;
- 
+
+    // --- Close filter overlay modal ---
+    this.closeFiltersOverlay();
+
   }
+
 
 
   refresh() {
@@ -710,14 +738,20 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   // Reload Institute options scoped to the currently selected Country/City/Industry/Sector.
-  // Falls back to the full institute list (get-institute-list) when none of those are selected.
   private refreshInstituteScope() {
     const params: any = {};
-    if (this.filters.country) params.country = this.filters.country;
+
+    if (this.selectedCountries && this.selectedCountries.length) params.country = this.selectedCountries.join(',');
+    else if (this.filters.country) params.country = this.filters.country;
+
     const cityName = String(this.filters.city || '').trim();
     if (cityName) params.city = cityName;
-    if (this.filters.industry) params.industry = this.filters.industry;
-    if (this.filters.sector) params.sector = this.filters.sector;
+
+    if (this.selectedIndustries && this.selectedIndustries.length) params.industry = this.selectedIndustries.join(',');
+    else if (this.filters.industry) params.industry = this.filters.industry;
+
+    if (this.selectedSectors && this.selectedSectors.length) params.sector = this.selectedSectors.join(',');
+    else if (this.filters.sector) params.sector = this.filters.sector;
 
     if (!Object.keys(params).length) {
       this.loadInstituteOptions();
@@ -735,13 +769,11 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
         } catch (e) {
           this.instituteOptions = [];
         }
-        if (this.filters.name && !this.instituteOptions.some(i => i.name === this.filters.name)) {
-          this.filters.name = '';
-        }
       },
       error: () => { this.instituteOptions = []; }
     });
   }
+
 
   loadCountries() {
     const url = `${API_BASE}/location-hierarchy`;

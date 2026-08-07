@@ -1,6 +1,6 @@
-import { Component, OnInit, AfterViewInit, ViewChild,ElementRef, OnDestroy, TemplateRef, ViewContainerRef} from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, OnDestroy, TemplateRef, ViewContainerRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router , RouterModule} from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { MatIconModule } from '@angular/material/icon';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
@@ -26,6 +26,7 @@ import { TemplatePortal, PortalModule } from '@angular/cdk/portal';
 import { OverlayModule, Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { Subscription } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 
@@ -33,11 +34,11 @@ import { GlobalInstituteContextService } from 'src/app/shared/services/global-in
   selector: 'app-category',
   standalone: true,
   // imports: [CommonModule, SharedModule, FormsModule, RouterModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, HttpClientModule],
-  imports: [CommonModule, SharedModule, FormsModule, MatPaginatorModule, HttpClientModule, RouterModule, MatTableModule, MatIconModule, MatSortModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatAutocompleteModule, MatDatepickerModule, MatSlideToggleModule, MatButtonModule, MatCheckboxModule, MatTabsModule, OverlayModule, PortalModule],
+  imports: [CommonModule, SharedModule, FormsModule, MatPaginatorModule, HttpClientModule, RouterModule, MatTableModule, MatIconModule, MatSortModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatAutocompleteModule, MatDatepickerModule, MatSlideToggleModule, MatButtonModule, MatCheckboxModule, MatTabsModule, MatTooltipModule, OverlayModule, PortalModule],
   templateUrl: './category.component.html',
   styleUrls: ['./category.component.scss']
 })
-export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
+export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   filter = '';
   name = '';
   description = '';
@@ -71,6 +72,16 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     'Bank': ['Bank'],
     'IT': ['IT']
   };
+
+  // Multi-select state arrays
+  selectedCountries: string[] = [];
+  selectedIndustries: string[] = [];
+  selectedSectors: string[] = [];
+  selectedCategoryNames: string[] = [];
+
+
+
+  // Filter search terms
   countrySearch = '';
   industrySearch = '';
   sectorSearch = '';
@@ -100,11 +111,11 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
 
   categories: Array<{ id: string; name: string; description?: string; institute?: any; departments?: any[]; teams?: any[] }> = [];
   dataSource = new MatTableDataSource<any>([]);
-  columns = ['sno','name','description','active','actions'];
+  columns = ['sno', 'name', 'description', 'active', 'actions'];
   hasAppliedFilters = false;
 
   private filtersOverlayRef: OverlayRef | null = null;
-  constructor(private http: HttpClient, private router: Router, private loader: LoaderService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private confirmService: ConfirmService, private globalInstituteContext: GlobalInstituteContextService, private dialog: MatDialog) {}
+  constructor(private http: HttpClient, private router: Router, private loader: LoaderService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private confirmService: ConfirmService, private globalInstituteContext: GlobalInstituteContextService, private dialog: MatDialog) { }
 
   openCreatedDateRangePicker(): void {
     const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
@@ -239,35 +250,35 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   }
 
   onInstituteSelectionChange() {
+    const instIds = this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes.join(',') : null;
     const iid = this.selectedInstitutes[0] || null;
     this.selectedInstitute = iid;
-    if (!iid) {
-      this.selectedDepartments = [];
-      this.selectedTeams = [];
-    }
+    this.selectedCategoryNames = [];
+    this.onInstituteChange(instIds);
   }
 
-  refresh(){
+
+  refresh() {
     if (!this.hasAppliedFilters) {
-      try { notify('Apply filters to fetch question banks', 'info'); } catch(e) {}
+      try { notify('Apply filters to fetch question banks', 'info'); } catch (e) { }
       return;
     }
     this.fetchCategories();
   }
 
-  addCategory(){
-    const title = (this.name||'').trim();
+  addCategory() {
+    const title = (this.name || '').trim();
     if (!title) return;
     const id = Date.now().toString();
-    this.categories.unshift({ id, name: title, description: (this.description||'').trim() });
+    this.categories.unshift({ id, name: title, description: (this.description || '').trim() });
     this.dataSource.data = this.categories;
     this.name = '';
     this.description = '';
   }
 
-  openFiltersOverlay(){
-    if(!this.filtersBtn) return;
-    if(this.filtersOverlayRef){ try{ this.filtersOverlayRef.dispose(); }catch(e){}; this.filtersOverlayRef = null; }
+  openFiltersOverlay() {
+    if (!this.filtersBtn) return;
+    if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; }
 
     const positionStrategy = this.overlay.position()
       .flexibleConnectedTo(this.filtersBtn)
@@ -279,12 +290,12 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
 
     this.filtersOverlayRef = this.overlay.create({ positionStrategy, hasBackdrop: true, backdropClass: 'cdk-overlay-transparent-backdrop', scrollStrategy: this.overlay.scrollStrategies.reposition() });
     this.filtersOverlayRef.backdropClick().subscribe(() => this.closeFiltersOverlay());
-    this.filtersOverlayRef.keydownEvents().subscribe((ev:any) => { if(ev.key === 'Escape') this.closeFiltersOverlay(); });
+    this.filtersOverlayRef.keydownEvents().subscribe((ev: any) => { if (ev.key === 'Escape') this.closeFiltersOverlay(); });
 
     const portal = new TemplatePortal(this.filtersPanelTpl, this.vcr);
     this.filtersOverlayRef.attach(portal);
   }
-  closeFiltersOverlay(){ if(this.filtersOverlayRef){ try{ this.filtersOverlayRef.dispose(); }catch(e){}; this.filtersOverlayRef = null; } }
+  closeFiltersOverlay() { if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; } }
 
   applyFilter(value: any) {
     const q = (value || '').trim().toLowerCase();
@@ -294,18 +305,39 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     // };
     this.dataSource.filter = q;
   }
-  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
+  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean; tooltip?: string }> {
     if (!this.hasAppliedFilters) return [];
-    const chips: Array<{ key: string; label: string; removable: boolean }> = [];
-    if (this.selectedInstitutes.length) chips.push({ key: 'selectedInstitutes', label: `Institutes: ${this.selectedInstitutes.length} selected`, removable: true });
-    if (this.filterCountry) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries.map(c => ({ id: c.code, name: c.name })), this.filterCountry)}`, removable: true });
+    const chips: Array<{ key: string; label: string; removable: boolean; tooltip?: string }> = [];
+    if (this.selectedInstitutes && this.selectedInstitutes.length) {
+      if (this.selectedInstitutes.length === 1) {
+        const instName = this.getInstituteLabel(this.selectedInstitutes[0]);
+        chips.push({ key: 'selectedInstitutes', label: `Institute: ${instName}`, removable: true, tooltip: instName });
+      } else {
+        const instNames = this.selectedInstitutes.map(id => this.getInstituteLabel(id)).filter(Boolean);
+        chips.push({ key: 'selectedInstitutes', label: `Institutes: ${this.selectedInstitutes.length} selected`, removable: true, tooltip: instNames.join(', ') });
+      }
+    } else {
+      const scopedInstitute = this.getScopedInstituteId();
+      if (scopedInstitute && !scopedInstitute.includes(',')) {
+        const instituteName = this.getInstituteLabel(scopedInstitute);
+        if (instituteName) chips.push({ key: 'institute', label: `Institute: ${instituteName}`, removable: this.isSuperAdmin, tooltip: instituteName });
+      }
+    }
+
+    if (this.selectedCountries.length) chips.push({ key: 'country', label: `Country: ${this.selectedCountries.join(', ')}`, removable: true });
+    else if (this.filterCountry) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries.map(c => ({ id: c.code, name: c.name })), this.filterCountry)}`, removable: true });
+
     if (this.filterCity) chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
-    if (this.filterIndustry) chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true });
-    if (this.filterSector) chips.push({ key: 'sector', label: `Sector: ${this.filterSector}`, removable: true });
-    const scopedInstitute = this.getScopedInstituteId();
-    const instituteName = this.getInstituteLabel(scopedInstitute);
-    if (instituteName) chips.push({ key: 'institute', label: `Institute: ${instituteName}`, removable: this.isSuperAdmin });
-    if (this.filterName) chips.push({ key: 'category', label: `Question Bank: ${this.filterName}`, removable: true });
+
+    if (this.selectedIndustries.length) chips.push({ key: 'industry', label: `Industry: ${this.selectedIndustries.join(', ')}`, removable: true });
+    else if (this.filterIndustry) chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true });
+
+    if (this.selectedSectors.length) chips.push({ key: 'sector', label: `Sector: ${this.selectedSectors.join(', ')}`, removable: true });
+    else if (this.filterSector) chips.push({ key: 'sector', label: `Sector: ${this.filterSector}`, removable: true });
+
+    if (this.selectedCategoryNames.length) chips.push({ key: 'category', label: `Question Bank: ${this.selectedCategoryNames.join(', ')}`, removable: true });
+    else if (this.filterName) chips.push({ key: 'category', label: `Question Bank: ${this.filterName}`, removable: true });
+
     (this.selectedDepartments || []).forEach(id => chips.push({ key: `department:${id}`, label: `Department: ${this.getSelectedName(this.departments, id)}`, removable: true }));
     (this.selectedTeams || []).forEach(id => chips.push({ key: `team:${id}`, label: `Team: ${this.getSelectedName(this.teams, id)}`, removable: true }));
     if (this.filterCreationDateAfter) chips.push({ key: 'created_after', label: `Created after: ${this.formatFilterDate(this.filterCreationDateAfter)}`, removable: true });
@@ -319,10 +351,10 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   removeAppliedFilter(key: string) {
     if (!key) return;
     if (key === 'selectedInstitutes') this.selectedInstitutes = [];
-    else if (key === 'country') { this.filterCountry = ''; this.filterCity = ''; this.filterCityOptions = []; this.refreshInstituteScope(); }
+    else if (key === 'country') { this.selectedCountries = []; this.filterCountry = ''; this.filterCity = ''; this.filterCityOptions = []; this.refreshInstituteScope(); }
     else if (key === 'city') { this.filterCity = ''; this.refreshInstituteScope(); }
-    else if (key === 'industry') { this.filterIndustry = ''; this.filterSector = ''; this.refreshInstituteScope(); }
-    else if (key === 'sector') { this.filterSector = ''; this.refreshInstituteScope(); }
+    else if (key === 'industry') { this.selectedIndustries = []; this.selectedSectors = []; this.filterIndustry = ''; this.filterSector = ''; this.refreshInstituteScope(); }
+    else if (key === 'sector') { this.selectedSectors = []; this.filterSector = ''; this.refreshInstituteScope(); }
     else if (key === 'institute' && this.isSuperAdmin) {
       this.selectedInstitute = null;
       this.instituteSearch = '';
@@ -330,7 +362,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
       this.selectedTeams = [];
       this.loadGlobalDepartmentTeamLists();
       this.loadCategoryOptions();
-    } else if (key === 'category') this.filterName = '';
+    } else if (key === 'category') { this.selectedCategoryNames = []; this.filterName = ''; }
     else if (key.startsWith('department:')) this.selectedDepartments = this.selectedDepartments.filter(id => String(id) !== key.split(':')[1]);
     else if (key.startsWith('team:')) this.selectedTeams = this.selectedTeams.filter(id => String(id) !== key.split(':')[1]);
     else if (key === 'created_after') this.filterCreationDateAfter = null;
@@ -354,9 +386,13 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   }
 
   private getScopedInstituteId(): string | null {
+    if (this.selectedInstitutes && this.selectedInstitutes.length) {
+      return this.selectedInstitutes.join(',');
+    }
     if (this.isSuperAdmin) return this.selectedInstitute ? String(this.selectedInstitute) : null;
     return this.loginInstituteId || this.selectedInstitute || null;
   }
+
 
   private getCategoryInstituteId(item: any): string {
     return String(
@@ -373,11 +409,17 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   private isAllowedCategoryForInstitute(item: any, scopedInstitute: string | null): boolean {
     if (this.isSuperAdmin || !scopedInstitute) return true;
     const itemInstituteId = this.getCategoryInstituteId(item);
+    if (scopedInstitute.includes(',')) {
+      const allowedIds = scopedInstitute.split(',').map(s => s.trim());
+      return allowedIds.includes(String(itemInstituteId));
+    }
     return itemInstituteId === String(scopedInstitute);
   }
+
   private getInstituteLabel(id: any): string {
     if (!id) return '';
-    const found = this.institutes.find(i => String(i.institute_id) === String(id));
+    const pool = (this.allInstitutes && this.allInstitutes.length) ? this.allInstitutes : this.institutes;
+    const found = pool.find(i => String(i.institute_id) === String(id));
     return found?.institute_name || found?.short_name || String(id);
   }
 
@@ -386,9 +428,9 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   }
 
   private formatFilterDate(value: Date): string {
-    try { return value.toISOString().slice(0, 10); } catch(e) { return String(value || ''); }
+    try { return value.toISOString().slice(0, 10); } catch (e) { return String(value || ''); }
   }
-  deleteCategory(c: any){
+  deleteCategory(c: any) {
     const id = c.category_id || c.id;
     if (!id) return;
     this.confirmService.confirm({ title: 'Delete Question Bank', message: `Delete question bank ${c.name}? This action cannot be undone.`, confirmText: 'Delete', cancelText: 'Cancel' }).subscribe(ok => {
@@ -400,18 +442,18 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
       const current_user = sessionStorage.getItem('user_id')
       const url = `${API_BASE}/delete/category/${encodeURIComponent(String(id))}?current_user=${encodeURIComponent(String(current_user))}`;
       // call backend generic manage route (category/delete)
-      this.http.delete<any>(url , { }).subscribe({
-        next: (res) => { try { notify('Question Bank deleted', 'success'); } catch(e) {} },
-        error: (err) => { console.error('Failed deleting question bank', err); try { notify('Failed to delete question bank', 'error'); } catch(e) {}; this.categories = prev; this.dataSource.data = this.categories; }
+      this.http.delete<any>(url, {}).subscribe({
+        next: (res) => { try { notify('Question Bank deleted', 'success'); } catch (e) { } },
+        error: (err) => { console.error('Failed deleting question bank', err); try { notify('Failed to delete question bank', 'error'); } catch (e) { }; this.categories = prev; this.dataSource.data = this.categories; }
       });
     });
   }
 
-  setName(v: string){ this.name = v || ''; }
-  setDescription(v: string){ this.description = v || ''; }
+  setName(v: string) { this.name = v || ''; }
+  setDescription(v: string) { this.description = v || ''; }
 
   // load initial lists for institute/department/team filters (best-effort endpoints)
-  loadFilterLists(){
+  loadFilterLists() {
     // Load institutes first, then load department/team lists according to the allowed institute scope.
     this.loadInstituteOptions(() => {
       if (this.selectedInstitute) {
@@ -424,8 +466,9 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
 
   // load the unscoped institute list (get-institute-list); used at init and whenever
   // Country/City/Industry/Sector filters are cleared back to "Any".
-  private loadInstituteOptions(onLoaded?: () => void){
-    this.http.get<any>(`${API_BASE}/get-institute-list`).subscribe({ next: (res) => {
+  private loadInstituteOptions(onLoaded?: () => void) {
+    this.http.get<any>(`${API_BASE}/get-institute-list`).subscribe({
+      next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data || []);
         // Prefer the full institute name while retaining the abbreviation as a fallback.
         this.allInstitutes = (data || []).map((i: any) => ({ institute_id: i.institute_id || i.id || i.instituteId || null, institute_name: i.institute_name || i.name || i.short_name || '', short_name: i.short_name || i.institute_name || i.name || '' }))
@@ -433,21 +476,79 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
         this.institutes = [...this.allInstitutes];
         this.syncInstituteSearch();
         if (onLoaded) onLoaded();
-      }, error: () => {} });
+      }, error: () => { }
+    });
   }
 
   // ---- Country / City / Industry / Sector cascade (mirrors view-institutes.component.ts) ----
 
+  // --- Country Multi-Select & Sorting Logic ---
   get filteredCountries(): Array<{ code: string; name: string }> {
     const term = (this.countrySearch || '').trim().toLowerCase();
-    if (!term) return this.countries;
-    return this.countries.filter(c => (c.name || '').toLowerCase().includes(term));
+    let list = this.countries || [];
+    if (term) {
+      list = list.filter(c => (c.name || '').toLowerCase().includes(term) || (this.selectedCountries || []).includes(c.code));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCountries || []).includes(a.code);
+      const bSel = (this.selectedCountries || []).includes(b.code);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+  isAllCountriesSelected(): boolean {
+    const items = this.filteredCountries || [];
+    return items.length > 0 && items.every(c => (this.selectedCountries || []).includes(c.code));
+  }
+  toggleSelectAllCountries(): void {
+    const items = this.filteredCountries || [];
+    if (this.isAllCountriesSelected()) {
+      this.selectedCountries = [];
+    } else {
+      this.selectedCountries = items.map(c => c.code);
+    }
   }
 
+  // --- Industry Multi-Select & Sorting Logic ---
   get filteredIndustryTypes(): string[] {
     const term = (this.industrySearch || '').trim().toLowerCase();
-    if (!term) return this.industryTypes;
-    return this.industryTypes.filter(t => t.toLowerCase().includes(term));
+    let list = this.industryTypes || [];
+    if (term) {
+      list = list.filter(t => t.toLowerCase().includes(term) || (this.selectedIndustries || []).includes(t));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedIndustries || []).includes(a);
+      const bSel = (this.selectedIndustries || []).includes(b);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.localeCompare(b);
+    });
+  }
+  isAllIndustriesSelected(): boolean {
+    const items = this.filteredIndustryTypes || [];
+    return items.length > 0 && items.every(t => (this.selectedIndustries || []).includes(t));
+  }
+  toggleSelectAllIndustries(): void {
+    const items = this.filteredIndustryTypes || [];
+    if (this.isAllIndustriesSelected()) {
+      this.selectedIndustries = [];
+    } else {
+      this.selectedIndustries = [...items];
+    }
+  }
+
+  // --- Sector Multi-Select & Sorting Logic ---
+  private get scopedSectorsList(): string[] {
+    if (!this.selectedIndustries || this.selectedIndustries.length === 0) {
+      return [];
+    }
+    const sectorsSet = new Set<string>();
+    for (const ind of this.selectedIndustries) {
+      const list = this.sectorMap[ind] || [];
+      list.forEach(s => sectorsSet.add(s));
+    }
+    return Array.from(sectorsSet);
   }
 
   // Sectors scoped to the selected industry; empty until an industry is selected.
@@ -457,16 +558,62 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   }
 
   get filteredSectors(): string[] {
-    const scoped = this.scopedSectors;
+    const scoped = this.scopedSectorsList || [];
     const term = (this.sectorSearch || '').trim().toLowerCase();
-    if (!term) return scoped;
-    return scoped.filter(s => s.toLowerCase().includes(term));
+    let list = scoped;
+    if (term) {
+      list = list.filter(s => s.toLowerCase().includes(term) || (this.selectedSectors || []).includes(s));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedSectors || []).includes(a);
+      const bSel = (this.selectedSectors || []).includes(b);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.localeCompare(b);
+    });
+  }
+  isAllSectorsSelected(): boolean {
+    const items = this.filteredSectors || [];
+    return items.length > 0 && items.every(s => (this.selectedSectors || []).includes(s));
+  }
+  toggleSelectAllSectors(): void {
+    const items = this.filteredSectors || [];
+    if (this.isAllSectorsSelected()) {
+      this.selectedSectors = [];
+    } else {
+      this.selectedSectors = [...items];
+    }
   }
 
-  get filteredCategoryOptions(): Array<any> {
+
+  // --- Question Bank Name Multi-Select & Sorting Logic ---
+  get filteredCategoryOptions(): Array<{ id: string; name: string }> {
     const term = (this.categorySearch || '').trim().toLowerCase();
-    if (!term) return this.categoryOptions;
-    return this.categoryOptions.filter(c => (c.name || '').toLowerCase().includes(term));
+    let list = this.categoryOptions || [];
+    if (term) {
+      list = list.filter(c => (c.name || '').toLowerCase().includes(term) || (this.selectedCategoryNames || []).includes(c.name));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCategoryNames || []).includes(a.name);
+      const bSel = (this.selectedCategoryNames || []).includes(b.name);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllCategoriesSelected(): boolean {
+    const items = this.filteredCategoryOptions || [];
+    return items.length > 0 && items.every(c => (this.selectedCategoryNames || []).includes(c.name));
+  }
+
+  toggleSelectAllCategories(): void {
+    const items = this.filteredCategoryOptions || [];
+    if (this.isAllCategoriesSelected()) {
+      this.selectedCategoryNames = [];
+    } else {
+      this.selectedCategoryNames = items.map(c => c.name);
+    }
   }
 
   onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector' | 'questionBank') {
@@ -491,7 +638,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
 
   // Only show countries that have at least one registered institute (mirrors
   // view-institutes.component.ts loadRegisteredInstituteCountries), not the full world hierarchy.
-  loadCountries(){
+  loadCountries() {
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -599,11 +746,17 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     if (!this.isSuperAdmin && this.loginInstituteId) return;
 
     const params: any = { _ts: Date.now() };
-    if (this.filterCountry) params.country = this.filterCountry;
+    if (this.selectedCountries && this.selectedCountries.length) params.country = this.selectedCountries.join(',');
+    else if (this.filterCountry) params.country = this.filterCountry;
+
     const cityCode = this.resolveCityId(this.filterCity);
     if (cityCode) params.city = cityCode;
-    if (this.filterIndustry) params.industry = this.filterIndustry;
-    if (this.filterSector) params.sector = this.filterSector;
+
+    if (this.selectedIndustries && this.selectedIndustries.length) params.industry = this.selectedIndustries.join(',');
+    else if (this.filterIndustry) params.industry = this.filterIndustry;
+
+    if (this.selectedSectors && this.selectedSectors.length) params.sector = this.selectedSectors.join(',');
+    else if (this.filterSector) params.sector = this.filterSector;
 
     const hasScope = !!(params.country || params.city || params.industry || params.sector);
     if (!hasScope) {
@@ -636,8 +789,8 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
 
   private loadGlobalDepartmentTeamLists() {
     if (!this.isSuperAdmin) return;
-    this.http.get<any>(`${API_BASE}/get-department-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.departments = (data || []).map((d:any)=> ({ id: d.department_id || d.dept_id || d.id || d.deptId, name: d.department_name || d.dept_name || d.name })); }, error: () => { this.departments = []; } });
-    this.http.get<any>(`${API_BASE}/get-teams-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.teams = (data || []).map((t:any)=> ({ id: t.team_id || t.id || t.teamId, name: t.team_name || t.name })); }, error: () => { this.teams = []; } });
+    this.http.get<any>(`${API_BASE}/get-department-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.departments = (data || []).map((d: any) => ({ id: d.department_id || d.dept_id || d.id || d.deptId, name: d.department_name || d.dept_name || d.name })); }, error: () => { this.departments = []; } });
+    this.http.get<any>(`${API_BASE}/get-teams-list`).subscribe({ next: (res) => { const data = Array.isArray(res) ? res : (res?.data || []); this.teams = (data || []).map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.team_name || t.name })); }, error: () => { this.teams = []; } });
   }
   loadCategoryOptions() {
     const scopedInstitute = this.getScopedInstituteId();
@@ -712,33 +865,46 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     this.http.get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: iid } }).subscribe({
       next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data || []);
-        this.departments = (data || []).map((d:any)=> ({ id: d.department_id || d.dept_id || d.id || d.deptId, name: d.department_name || d.dept_name || d.name }));
+        this.departments = (data || []).map((d: any) => ({ id: d.department_id || d.dept_id || d.id || d.deptId, name: d.department_name || d.dept_name || d.name }));
       }, error: () => { this.departments = []; }
     });
     // teams
     this.http.get<any>(`${API_BASE}/get-teams-list`, { params: { institute_id: iid } }).subscribe({
       next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data || []);
-        this.teams = (data || []).map((t:any)=> ({ id: t.team_id || t.id || t.teamId, name: t.team_name || t.name }));
+        this.teams = (data || []).map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.team_name || t.name }));
       }, error: () => { this.teams = []; }
     });
   }
 
   // fetch categories, optionally with current filter values
-  fetchCategories(){
+  fetchCategories() {
     this.loader.show();
     let params = new HttpParams();
     const scopedInstitute = this.getScopedInstituteId();
-    if (this.filterName) params = params.set('name', this.filterName);
-    if (scopedInstitute) params = params.set('institute_id', scopedInstitute);
+    if (this.selectedInstitutes && this.selectedInstitutes.length) params = params.set('institute_id', this.selectedInstitutes.join(','));
+    else if (scopedInstitute) params = params.set('institute_id', scopedInstitute);
+
+    if (this.selectedCountries && this.selectedCountries.length) params = params.set('country', this.selectedCountries.join(','));
+    else if (this.filterCountry) params = params.set('country', this.filterCountry);
+
+    if (this.selectedIndustries && this.selectedIndustries.length) params = params.set('industry', this.selectedIndustries.join(','));
+    else if (this.filterIndustry) params = params.set('industry', this.filterIndustry);
+
+    if (this.selectedSectors && this.selectedSectors.length) params = params.set('sector', this.selectedSectors.join(','));
+    else if (this.filterSector) params = params.set('sector', this.filterSector);
+
+    if (this.selectedCategoryNames && this.selectedCategoryNames.length) params = params.set('name', this.selectedCategoryNames.join(','));
+    else if (this.filterName) params = params.set('name', this.filterName);
+
     if (this.selectedDepartments && this.selectedDepartments.length) params = params.set('departments', this.selectedDepartments.join(','));
     if (this.selectedTeams && this.selectedTeams.length) params = params.set('teams', this.selectedTeams.join(','));
     // optional date filters
     if (this.filterCreationDateAfter) {
-      try { params = params.set('created_after', (this.filterCreationDateAfter as Date).toISOString().slice(0,10)); } catch(e){}
+      try { params = params.set('created_after', (this.filterCreationDateAfter as Date).toISOString().slice(0, 10)); } catch (e) { }
     }
     if (this.filterCreationDate) {
-      try { params = params.set('created_before', (this.filterCreationDate as Date).toISOString().slice(0,10)); } catch(e){}
+      try { params = params.set('created_before', (this.filterCreationDate as Date).toISOString().slice(0, 10)); } catch (e) { }
     }
     if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') {
       params = params.set('active_status', String(this.filterActiveStatus));
@@ -752,17 +918,17 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
           const obj = JSON.parse(raw);
           const userId = obj?.user_id || obj?.id || obj?._id;
           if (userId) {
-        params = params.set('created_by', String(userId));
+            params = params.set('created_by', String(userId));
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     // public access checkbox — when true/false filter explicitly; when null, don't add param
     if (this.filterPublicAccess !== null && typeof this.filterPublicAccess !== 'undefined') {
       params = params.set('public_access', String(this.filterPublicAccess));
     }
 
-  this.http.get<any>(`${API_BASE}/category-details`, { params }).subscribe({
+    this.http.get<any>(`${API_BASE}/category-details`, { params }).subscribe({
       next: (res) => {
         // response may be array or {data: array}
         const items = Array.isArray(res) ? res : (res?.data || []);
@@ -782,9 +948,9 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
           public_access: typeof it.public_access !== 'undefined' ? it.public_access : (it.public ?? false),
           institute: (it.institute && typeof it.institute === 'object')
             ? {
-          institute_id: it.institute.institute_id || it.institute.id || null,
-          institute_name: it.institute.institute_name || it.institute.name || null
-              }
+              institute_id: it.institute.institute_id || it.institute.id || null,
+              institute_name: it.institute.institute_name || it.institute.name || null
+            }
             : (typeof it.institute === 'string' ? { institute_id: null, institute_name: it.institute } : (it.institute || null)),
           // normalize departments/teams to arrays (handles {} or arrays)
           departments: this.iterableList(it.departments || it.department_ids),
@@ -802,7 +968,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
       },
       error: (err) => {
         console.error('Failed to load categories', err);
-        this.categories = []; 
+        this.categories = [];
         this.dataSource.data = this.categories;
       },
       complete: () => {
@@ -813,6 +979,11 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   }
   private hasFilterValues(): boolean {
     return !!(
+      (this.selectedInstitutes && this.selectedInstitutes.length) ||
+      (this.selectedCountries && this.selectedCountries.length) ||
+      (this.selectedIndustries && this.selectedIndustries.length) ||
+      (this.selectedSectors && this.selectedSectors.length) ||
+      (this.selectedCategoryNames && this.selectedCategoryNames.length) ||
       this.filterCountry ||
       this.filterCity ||
       this.filterIndustry ||
@@ -829,9 +1000,9 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     );
   }
 
-  onApply(){
+  onApply() {
     if (!this.hasFilterValues()) {
-      try { notify('Please add filters in the filter form.', 'info'); } catch(e) {}
+      try { notify('Please add filters in the filter form.', 'info'); } catch (e) { }
       return;
     }
     this.hasAppliedFilters = true;
@@ -839,7 +1010,12 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     this.closeFiltersOverlay();
   }
 
-  onReset(){
+  onReset() {
+    this.selectedCountries = [];
+    this.selectedIndustries = [];
+    this.selectedSectors = [];
+    this.selectedCategoryNames = [];
+    this.selectedInstitutes = [];
     this.filterName = '';
     this.selectedDepartments = [];
     this.selectedTeams = [];
@@ -877,10 +1053,10 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
   }
 
   // toggle active state locally and try to persist to server (best-effort)
-  toggleActive(element: any){
+  toggleActive(element: any) {
     const newState = !element.active;
     const action = newState ? 'activate' : 'deactivate';
-    this.confirmService.confirm({ title: `${action[0].toUpperCase()+action.slice(1)} Question Bank`, message: `${action[0].toUpperCase()+action.slice(1)} question bank ${element.name}?`, confirmText: action[0].toUpperCase()+action.slice(1), cancelText: 'Cancel' }).subscribe(ok => {
+    this.confirmService.confirm({ title: `${action[0].toUpperCase() + action.slice(1)} Question Bank`, message: `${action[0].toUpperCase() + action.slice(1)} question bank ${element.name}?`, confirmText: action[0].toUpperCase() + action.slice(1), cancelText: 'Cancel' }).subscribe(ok => {
       if (!ok) return;
       const prev = element.active;
       element.active = newState;
@@ -889,13 +1065,13 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
       if (!id) { element.active = prev; return; }
       const url = `${API_BASE}/category/${action}/${encodeURIComponent(String(id))}`;
       this.http.put<any>(url, { current_user: sessionStorage.getItem('user_id') || sessionStorage.getItem('user') || '' }).subscribe({
-        next: () => { try { notify(`Question Bank ${action}d`, 'success'); } catch(e) {} },
-        error: (err) => { console.error('Failed updating category state', err); try { notify('Failed to update question bank status', 'error'); } catch(e) {} ; element.active = prev; element.active_status = prev; }
+        next: () => { try { notify(`Question Bank ${action}d`, 'success'); } catch (e) { } },
+        error: (err) => { console.error('Failed updating category state', err); try { notify('Failed to update question bank status', 'error'); } catch (e) { }; element.active = prev; element.active_status = prev; }
       });
     });
   }
 
-  viewDetails(element: any){
+  viewDetails(element: any) {
     const id = element.category_id || element.id;
     if (!id) return;
     this.selectedCategory = element;
@@ -922,7 +1098,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     });
   }
 
-  EditCategory(element: any){
+  EditCategory(element: any) {
     const id = element?.category_id || element?.id;
     if (!id) return;
     this.loader.show();
@@ -931,12 +1107,12 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
         const items = Array.isArray(res) ? res : (res?.data || []);
         const category = items && items.length ? items[0] : element;
         this.saveCategoryReturnState();
-        try{ sessionStorage.setItem('edit_category', JSON.stringify(category)); }catch(e){}
+        try { sessionStorage.setItem('edit_category', JSON.stringify(category)); } catch (e) { }
         this.router.navigate(['/category/create']);
       },
       error: () => {
         this.saveCategoryReturnState();
-        try{ sessionStorage.setItem('edit_category', JSON.stringify(element)); }catch(e){}
+        try { sessionStorage.setItem('edit_category', JSON.stringify(element)); } catch (e) { }
         this.router.navigate(['/category/create']);
       },
       complete: () => {
@@ -945,7 +1121,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     });
   }
 
-  closeModal(){
+  closeModal() {
     this.selectedCategory = null;
     this.editing = false;
   }
@@ -1046,7 +1222,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     this.categories = []; this.dataSource.data = []; this.departments = []; this.teams = [];
     this.selectedDepartments = []; this.selectedTeams = []; this.filter = ''; this.filterName = '';
     this.hasAppliedFilters = false;
-    try { sessionStorage.removeItem('category_return_state'); } catch (e) {}
+    try { sessionStorage.removeItem('category_return_state'); } catch (e) { }
     // Reload filter options only; records remain empty until the user applies filters.
     this.onInstituteChange(instituteId);
   }
@@ -1066,7 +1242,7 @@ export class CategoryComponent implements OnInit, AfterViewInit,OnDestroy  {
     this.hasAppliedFilters = false; this.selectedCategory = null; this.editing = false;
     if (this.paginator) { this.paginator.firstPage(); this.paginator.length = 0; }
     this.closeFiltersOverlay();
-    try { sessionStorage.removeItem('category_return_state'); } catch (e) {}
+    try { sessionStorage.removeItem('category_return_state'); } catch (e) { }
     this.loadFilterLists();
     this.loadCategoryOptions();
   }

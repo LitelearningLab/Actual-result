@@ -27,6 +27,7 @@ import { OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule } from '@angular/cdk/portal';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { SharedModule } from 'src/app/shared/shared.module';
 
 export interface UserRow {
@@ -47,7 +48,7 @@ export interface UserRow {
 @Component({
   selector: 'app-view-users',
   standalone: true,
-  imports: [CommonModule, MatTableModule, MatIconModule, MatButtonModule, MatSlideToggleModule, MatInputModule, MatTabsModule, MatFormFieldModule, MatSelectModule, MatAutocompleteModule, FormsModule, RouterModule, HttpClientModule, MatPaginatorModule, MatSortModule, OverlayModule, PortalModule, SharedModule],
+  imports: [CommonModule, MatTableModule, MatIconModule, MatButtonModule, MatSlideToggleModule, MatInputModule, MatTabsModule, MatFormFieldModule, MatSelectModule, MatAutocompleteModule, FormsModule, RouterModule, HttpClientModule, MatPaginatorModule, MatSortModule, MatTooltipModule, OverlayModule, PortalModule, SharedModule],
   templateUrl: './view-users.component.html',
   styleUrls: ['./view-users.component.scss']
 })
@@ -582,17 +583,23 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     );
   }
 
-  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
+  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean; tooltip?: string }> {
     if (!this.hasAppliedFilters) return [];
-    const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    const chips: Array<{ key: string; label: string; removable: boolean; tooltip?: string }> = [];
 
     // Institute Chip
     if (this.selectedInstitutes && this.selectedInstitutes.length) {
-      const labels = this.selectedInstitutes.map(id => this.getInstituteLabel(id)).filter(Boolean);
-      chips.push({ key: 'institute', label: `Institute: ${labels.join(', ')}`, removable: this.isSuperAdmin });
+      if (this.selectedInstitutes.length === 1) {
+        const name = this.getInstituteLabel(this.selectedInstitutes[0]);
+        chips.push({ key: 'institute', label: `Institute: ${name}`, removable: this.isSuperAdmin, tooltip: name });
+      } else {
+        const labels = this.selectedInstitutes.map(id => this.getInstituteLabel(id)).filter(Boolean);
+        chips.push({ key: 'institute', label: `Institutes: ${this.selectedInstitutes.length} selected`, removable: this.isSuperAdmin, tooltip: labels.join(', ') });
+      }
     } else if (this.filters.institute || this.selectedInstitute) {
       const instId = this.filters.institute || this.selectedInstitute;
-      chips.push({ key: 'institute', label: `Institute: ${this.getInstituteLabel(instId)}`, removable: this.isSuperAdmin });
+      const name = this.getInstituteLabel(instId);
+      chips.push({ key: 'institute', label: `Institute: ${name}`, removable: this.isSuperAdmin, tooltip: name });
     }
 
     // Country Chip
@@ -917,6 +924,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.dataSource.data = [];
     this.totalCount = 0;
     this.hasAppliedFilters = false;
+
+       // --- Close filter overlay modal ---
+    this.closeFiltersOverlay();
+
 
   }
 

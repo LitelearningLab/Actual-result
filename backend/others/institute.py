@@ -489,18 +489,25 @@ def get_institute_details(request):
         name_filter = f"%{args.get('name')}%"
         filters.append(or_(Institute.name.ilike(name_filter), Institute.short_name.ilike(name_filter)))
     if args.get("industry"):
-        filters.append(Institute.industry_type.ilike(f"%{args.get('industry')}%"))
+        ind_val = str(args.get("industry")).strip()
+        if ',' in ind_val:
+            filters.append(Institute.industry_type.in_([i.strip() for i in ind_val.split(',') if i.strip()]))
+        else:
+            filters.append(Institute.industry_type.ilike(f"%{ind_val}%"))
     if args.get("sector"):
-        filters.append(Institute.industry_sector.ilike(f"%{args.get('sector')}%"))
+        sec_val = str(args.get("sector")).strip()
+        if ',' in sec_val:
+            filters.append(Institute.industry_sector.in_([s.strip() for s in sec_val.split(',') if s.strip()]))
+        else:
+            filters.append(Institute.industry_sector.ilike(f"%{sec_val}%"))
     if args.get("active_status") is not None:
         filters.append(Institute.active_status == (1 if args.get("active_status") == 'true' else 0))
     if args.get("country"):
-        country_val = args.get("country")
-        if country_val is not None:
-            if isinstance(country_val, (list, tuple)):
-                filters.append(InstituteCampus.country_id.in_(country_val))
-            else:
-                filters.append(InstituteCampus.country_id.in_([country_val]))
+        country_val = str(args.get("country")).strip()
+        if ',' in country_val:
+            filters.append(InstituteCampus.country_id.in_([c.strip() for c in country_val.split(',') if c.strip()]))
+        else:
+            filters.append(InstituteCampus.country_id.in_([country_val]))
     if args.get("city"):
         city_val = str(args.get("city") or '').strip()
         if city_val:

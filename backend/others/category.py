@@ -85,7 +85,11 @@ def get_categories_list(request):
     filter.append(func.coalesce(Categories.is_deleted, False) == False)
     institute_scope = _resolve_institute_scope(request)
     if institute_scope:
-        filter.append(Categories.institute_id == institute_scope)
+        inst_val = str(institute_scope).strip()
+        if ',' in inst_val:
+            filter.append(Categories.institute_id.in_([i.strip() for i in inst_val.split(',') if i.strip()]))
+        else:
+            filter.append(Categories.institute_id == inst_val)
     if args.get("created_after"):
         filter.append(Categories.created_date >= args.get("created_after"))
     if args.get("created_before"):
@@ -141,7 +145,11 @@ def get_category_details(request):
         filter.append(Categories.category_id == args.get("category_id"))
     institute_id = _resolve_institute_scope(request)
     if institute_id:
-        filter.append(Categories.institute_id == institute_id)
+        inst_val = str(institute_id).strip()
+        if ',' in inst_val:
+            filter.append(Categories.institute_id.in_([i.strip() for i in inst_val.split(',') if i.strip()]))
+        else:
+            filter.append(Categories.institute_id == inst_val)
     if args.get("departments"):
         departments = args.get("departments").split(",")
         filter.append(CategoriesDepartments.department_id.in_(departments))
