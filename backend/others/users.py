@@ -618,7 +618,12 @@ def get_user_details(request):
     # Legacy users may have NULL here; only an explicit true/1 is deleted.
     filter.append(or_(User.is_deleted == 0, User.is_deleted.is_(None)))
     if args.get("institute_id"):
-        filter.append(User.institute_id == args.get("institute_id"))
+        inst_val = str(args.get("institute_id")).strip()
+        if ',' in inst_val:
+            filter.append(User.institute_id.in_([i.strip() for i in inst_val.split(',') if i.strip()]))
+        else:
+            filter.append(User.institute_id == inst_val)
+
     if args.get("department"):
         dept_val = str(args.get("department")).strip()
         if ',' in dept_val:

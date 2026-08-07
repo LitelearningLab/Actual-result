@@ -53,12 +53,27 @@
           <ng-container *ngIf="showLocationAndIndustryFilters">
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>Country</mat-label>
-              <input matInput placeholder="Any" [(ngModel)]="filters.country" [matAutocomplete]="countryAuto" />
-              <mat-autocomplete #countryAuto="matAutocomplete" (optionSelected)="onCountryChange()">
-                <mat-option [value]="''">Any</mat-option>
-                <mat-option *ngFor="let c of countries" [value]="c.name">{{c.name}}</mat-option>
-              </mat-autocomplete>
+              <mat-select multiple [(ngModel)]="selectedCountries" placeholder="Select Country"
+                (selectionChange)="onCountryChange()">
+                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                  <input matInput class="select-search-input" placeholder="Search country"
+                    [(ngModel)]="countryFilterSearch" [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                </mat-option>
+                <mat-option class="select-all-option"
+                  *ngIf="filteredCountriesForFilter.length && !countryFilterSearch?.trim()"
+                  (click)="toggleSelectAllCountries()">
+                  <mat-icon class="select-all-checkbox-icon"
+                    [style.color]="isAllCountriesSelected() ? '#2563eb' : '#64748b'">
+                    {{ isAllCountriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </mat-option>
+                <mat-option *ngFor="let c of filteredCountriesForFilter" [value]="c.name">{{c.name}}</mat-option>
+              </mat-select>
             </mat-form-field>
+
 
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>State</mat-label>
@@ -74,22 +89,51 @@
 
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>Industry</mat-label>
-              <input matInput placeholder="Any" [(ngModel)]="filters.industry" [matAutocomplete]="industryAuto" />
-              <mat-autocomplete #industryAuto="matAutocomplete" (optionSelected)="onIndustryFilterChange()">
-                <mat-option [value]="''">Any</mat-option>
-                <mat-option *ngFor="let t of industryTypes" [value]="t">{{t}}</mat-option>
-              </mat-autocomplete>
+              <mat-select multiple [(ngModel)]="selectedIndustries" placeholder="Select Industry"
+                (selectionChange)="onIndustryFilterChange()">
+                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                  <input matInput class="select-search-input" placeholder="Search industry"
+                    [(ngModel)]="industryFilterSearch" [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                </mat-option>
+                <mat-option class="select-all-option"
+                  *ngIf="filteredIndustryTypesForFilter.length && !industryFilterSearch?.trim()"
+                  (click)="toggleSelectAllIndustries()">
+                  <mat-icon class="select-all-checkbox-icon"
+                    [style.color]="isAllIndustriesSelected() ? '#2563eb' : '#64748b'">
+                    {{ isAllIndustriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </mat-option>
+                <mat-option *ngFor="let t of filteredIndustryTypesForFilter" [value]="t">{{t}}</mat-option>
+              </mat-select>
             </mat-form-field>
+
 
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>Sector</mat-label>
-              <input matInput placeholder="Any" [disabled]="!filters.industry" [(ngModel)]="filters.sector"
-                [matAutocomplete]="sectorAuto" />
-              <mat-autocomplete #sectorAuto="matAutocomplete" (optionSelected)="onSectorFilterChange()">
-                <mat-option [value]="''">Any</mat-option>
-                <mat-option *ngFor="let s of scopedSectors()" [value]="s">{{s}}</mat-option>
-              </mat-autocomplete>
+              <mat-select multiple [(ngModel)]="selectedSectors" placeholder="Select Sector"
+                [disabled]="!selectedIndustries.length" (selectionChange)="onSectorFilterChange()">
+                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                  <input matInput class="select-search-input" placeholder="Search sector"
+                    [(ngModel)]="sectorFilterSearch" [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                </mat-option>
+                <mat-option class="select-all-option"
+                  *ngIf="filteredSectorsForFilter.length && !sectorFilterSearch?.trim()"
+                  (click)="toggleSelectAllSectors()">
+                  <mat-icon class="select-all-checkbox-icon"
+                    [style.color]="isAllSectorsSelected() ? '#2563eb' : '#64748b'">
+                    {{ isAllSectorsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </mat-option>
+                <mat-option *ngFor="let s of filteredSectorsForFilter" [value]="s">{{s}}</mat-option>
+              </mat-select>
             </mat-form-field>
+
 
           </ng-container>
 
@@ -103,14 +147,17 @@
                   (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
                   (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
               </mat-option>
-              <mat-option class="select-all-option" *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
+              <mat-option class="select-all-option"
+                *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
                 (click)="toggleSelectAllInstitutes()">
-                <mat-icon class="select-all-checkbox-icon" [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'">
+                <mat-icon class="select-all-checkbox-icon"
+                  [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'">
                   {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
                 </mat-icon>
                 <strong>Select All</strong>
               </mat-option>
-              <mat-option *ngFor="let inst of filteredInstitutesForFilter" [value]="inst.institute_id">{{inst.institute_name}}</mat-option>
+              <mat-option *ngFor="let inst of filteredInstitutesForFilter"
+                [value]="inst.institute_id">{{inst.institute_name}}</mat-option>
             </mat-select>
           </mat-form-field>
 
@@ -124,9 +171,11 @@
                   (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
                   (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
               </mat-option>
-              <mat-option class="select-all-option" *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
+              <mat-option class="select-all-option"
+                *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
                 (click)="toggleSelectAllDepartments()">
-                <mat-icon class="select-all-checkbox-icon" [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
+                <mat-icon class="select-all-checkbox-icon"
+                  [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
                   {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
                 </mat-icon>
                 <strong>Select All</strong>
@@ -137,12 +186,13 @@
 
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Teams</mat-label>
-            <mat-select multiple [(ngModel)]="filters.team" [disabled]="!selectedInstitute && !selectedInstitutes.length" placeholder="Select teams">
+            <mat-select multiple [(ngModel)]="filters.team"
+              [disabled]="!selectedInstitute && !selectedInstitutes.length" placeholder="Select teams">
               <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                <input matInput class="select-search-input" placeholder="Search team"
-                  [(ngModel)]="teamFilterSearch" [ngModelOptions]="{ standalone: true }"
-                  (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                  (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                <input matInput class="select-search-input" placeholder="Search team" [(ngModel)]="teamFilterSearch"
+                  [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                  (input)="stopFilterSearchEvent($event)" />
               </mat-option>
               <mat-option class="select-all-option" *ngIf="filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
                 (click)="toggleSelectAllTeams()">
@@ -161,13 +211,19 @@
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>Active</mat-label>
-            <mat-select [(ngModel)]="filters.active_status">
-              <mat-option value="">Any</mat-option>
-              <mat-option [value]="true">Active</mat-option>
-              <mat-option [value]="false">Inactive</mat-option>
+            <mat-label>Active Status</mat-label>
+            <mat-select multiple [(ngModel)]="selectedActiveStatuses" placeholder="Select Status">
+              <mat-option class="select-all-option" (click)="toggleSelectAllActiveStatuses()">
+                <mat-icon class="select-all-checkbox-icon"
+                  [style.color]="isAllActiveStatusesSelected() ? '#2563eb' : '#64748b'">
+                  {{ isAllActiveStatusesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                </mat-icon>
+                <strong>Select All</strong>
+              </mat-option>
+              <mat-option *ngFor="let opt of activeStatusOptions" [value]="opt.value">{{opt.label}}</mat-option>
             </mat-select>
           </mat-form-field>
+
 
         </div>
         <div class="filter-actions">

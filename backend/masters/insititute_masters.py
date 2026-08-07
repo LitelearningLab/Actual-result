@@ -9,10 +9,12 @@ def get_institute_department_details(institute_id):
 
     try:
         if institute_id:
-            departments = session.query(InstituteDepartment).filter_by(institute_id=institute_id).all()
+            ids = [i.strip() for i in str(institute_id).split(',') if i.strip()]
+            departments = session.query(InstituteDepartment).filter(InstituteDepartment.institute_id.in_(ids)).all()
         else:
             departments = session.query(InstituteDepartment).all()
-        json_data = []
+            
+        json_data = []  # <--- ADD THIS LINE BACK
         for department in departments:
             json_data.append({
                 "id": department.department_id,
@@ -42,15 +44,17 @@ def get_institute_team_details(institute_id):
 
     try:
         if institute_id:
-            teams = session.query(InstituteTeam).filter_by(institute_id=institute_id).all()
+            ids = [i.strip() for i in str(institute_id).split(',') if i.strip()]
+            teams = session.query(InstituteTeam).filter(InstituteTeam.institute_id.in_(ids)).all()
         else:
             teams = session.query(InstituteTeam).all()
-        json_data = []
+            
+        json_data = []  # <--- ADD THIS LINE BACK
         for team in teams:
             json_data.append({
                 "id": team.team_id,
                 "name": team.name
-            })
+        })
         json_data = {
             "statusMessage": "User details fetched successfully",
             "status": True,

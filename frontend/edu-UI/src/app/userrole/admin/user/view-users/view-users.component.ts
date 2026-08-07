@@ -21,7 +21,7 @@ import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin, of } from 'rxjs';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule } from '@angular/cdk/portal';
@@ -100,6 +100,20 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     'IT': ['IT']
   };
 
+  selectedCountries: string[] = [];
+  selectedIndustries: string[] = [];
+  selectedSectors: string[] = [];
+  selectedActiveStatuses: boolean[] = [];
+
+  // Filter search terms
+  countryFilterSearch = '';
+  industryFilterSearch = '';
+  sectorFilterSearch = '';
+  activeStatusOptions = [
+    { label: 'Active', value: true },
+    { label: 'Inactive', value: false }
+  ];
+
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
   @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
@@ -164,7 +178,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     try { this._subs?.unsubscribe(); } catch (e) { /* ignore */ }
     try { this._globalInstituteSub?.unsubscribe(); } catch (e) { /* ignore */ }
     this.saveUsersReturnState();
-  } 
+  }
   private filtersOverlayRef: OverlayRef | null = null;
   ngOnInit(): void {
     this.isSuperAdmin = this.checkSuperAdmin(this.auth.currentUserValue);
@@ -205,6 +219,125 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.filters.team = [];
     }
   }
+
+  // --- Country Logic ---
+  get filteredCountriesForFilter() {
+    const term = (this.countryFilterSearch || '').trim().toLowerCase();
+    let list = this.countries || [];
+    if (term) {
+      list = list.filter(c => (c.name || '').toLowerCase().includes(term) || (this.selectedCountries || []).includes(c.name));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCountries || []).includes(a.name);
+      const bSel = (this.selectedCountries || []).includes(b.name);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllCountriesSelected(): boolean {
+    const items = this.filteredCountriesForFilter || [];
+    return items.length > 0 && items.every(c => (this.selectedCountries || []).includes(c.name));
+  }
+
+  toggleSelectAllCountries(): void {
+    const items = this.filteredCountriesForFilter || [];
+    if (this.isAllCountriesSelected()) {
+      this.selectedCountries = [];
+    } else {
+      this.selectedCountries = items.map(c => c.name);
+    }
+  }
+
+  // --- Industry Logic ---
+  get filteredIndustryTypesForFilter(): string[] {
+    const term = (this.industryFilterSearch || '').trim().toLowerCase();
+    let list = this.industryTypes || [];
+    if (term) {
+      list = list.filter(t => t.toLowerCase().includes(term) || (this.selectedIndustries || []).includes(t));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedIndustries || []).includes(a);
+      const bSel = (this.selectedIndustries || []).includes(b);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.localeCompare(b);
+    });
+  }
+
+  isAllIndustriesSelected(): boolean {
+    const items = this.filteredIndustryTypesForFilter || [];
+    return items.length > 0 && items.every(t => (this.selectedIndustries || []).includes(t));
+  }
+
+  toggleSelectAllIndustries(): void {
+    const items = this.filteredIndustryTypesForFilter || [];
+    if (this.isAllIndustriesSelected()) {
+      this.selectedIndustries = [];
+    } else {
+      this.selectedIndustries = [...items];
+    }
+  }
+
+  // --- Sector Logic ---
+  private get scopedSectorsList(): string[] {
+    if (!this.selectedIndustries || this.selectedIndustries.length === 0) {
+      return [];
+    }
+    const sectorsSet = new Set<string>();
+    for (const ind of this.selectedIndustries) {
+      const list = this.sectorMap[ind] || [];
+      list.forEach(s => sectorsSet.add(s));
+    }
+    return Array.from(sectorsSet);
+  }
+
+  get filteredSectorsForFilter(): string[] {
+    const scoped = this.scopedSectorsList || [];
+    const term = (this.sectorFilterSearch || '').trim().toLowerCase();
+    let list = scoped;
+    if (term) {
+      list = list.filter(s => s.toLowerCase().includes(term) || (this.selectedSectors || []).includes(s));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedSectors || []).includes(a);
+      const bSel = (this.selectedSectors || []).includes(b);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.localeCompare(b);
+    });
+  }
+
+  isAllSectorsSelected(): boolean {
+    const items = this.filteredSectorsForFilter || [];
+    return items.length > 0 && items.every(s => (this.selectedSectors || []).includes(s));
+  }
+
+  toggleSelectAllSectors(): void {
+    const items = this.filteredSectorsForFilter || [];
+    if (this.isAllSectorsSelected()) {
+      this.selectedSectors = [];
+    } else {
+      this.selectedSectors = [...items];
+    }
+  }
+
+  // --- Active Status Logic ---
+  isAllActiveStatusesSelected(): boolean {
+    return this.activeStatusOptions.length > 0 && this.activeStatusOptions.every(o => (this.selectedActiveStatuses || []).includes(o.value));
+  }
+
+  toggleSelectAllActiveStatuses(): void {
+    if (this.isAllActiveStatusesSelected()) {
+      this.selectedActiveStatuses = [];
+    } else {
+      this.selectedActiveStatuses = this.activeStatusOptions.map(o => o.value);
+    }
+  }
+
+
+
 
   get filteredInstitutesForFilter() {
     const term = (this.instituteFilterSearch || '').trim().toLowerCase();
@@ -306,14 +439,14 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   onInstituteSelectionChange() {
-    const iid = this.selectedInstitutes[0] || '';
-    this.selectedInstitute = iid;
-    this.filters.institute = iid;
+    const iids = (this.selectedInstitutes || []).join(',');
+    this.selectedInstitute = this.selectedInstitutes[0] || '';
+    this.filters.institute = this.selectedInstitute;
     this.syncInstituteSearch();
     this.pageIndex = 0;
-    if (iid) {
-      this.loadDepartments(iid);
-      this.loadTeams(iid);
+    if (iids) {
+      this.loadDepartments(iids);
+      this.loadTeams(iids);
     } else {
       this.departments = [];
       this.teams = [];
@@ -321,6 +454,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.filters.team = [];
     }
   }
+
+
 
   filteredDepartments() {
     const query = (this.departmentSearch || '').trim().toLowerCase();
@@ -373,29 +508,32 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.filters.team = team.id;
     this.teamSearch = team.name;
   }
-  // load departments for the selected institute
-  loadDepartments(instituteId: string) {
-    const url = `${API_BASE}/get-department-list`;
-    this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
-      next: (res) => {
-        try {
+
+  // load departments for the selected institute(s)
+  loadDepartments(instituteIdsStr: string) {
+    const ids = (instituteIdsStr || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!ids.length) { this.departments = []; return; }
+    const requests = ids.map(id =>
+      this.http.get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: id } })
+    );
+    forkJoin(requests).subscribe({
+      next: (responses) => {
+        const allDepts: any[] = [];
+        responses.forEach(res => {
           const data = res?.data || [];
-          this.departments = data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name }));
-          const selectedDepartment = this.departments.find(d => String(d.id) === String(this.filters.department));
-          if (this.filters.department && !selectedDepartment) {
-            this.filters.department = '';
-            this.filters.team = '';
-          }
-          this.departmentSearch = selectedDepartment?.name || '';
-        } catch (e) {
-          this.departments = [];
-          this.departmentSearch = '';
-        }
-      }, error: () => { this.departments = []; }
+          allDepts.push(...data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name })));
+        });
+        // Deduplicate by department ID
+        const unique = new Map<string, any>();
+        allDepts.forEach(d => { if (d.id && !unique.has(d.id)) unique.set(d.id, d); });
+        this.departments = Array.from(unique.values());
+      },
+      error: () => { this.departments = []; }
     });
   }
 
-  // load teams for the selected institute
+
+  // load teams for the selected institute(s)
   loadTeams(instituteId: string) {
     const url = `${API_BASE}/get-teams-list`;
     this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
@@ -403,16 +541,15 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         try {
           const data = res?.data || [];
           this.teams = data.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name }));
-          const selectedTeam = this.teams.find(t => String(t.id) === String(this.filters.team));
-          if (this.filters.team && !selectedTeam) this.filters.team = '';
-          this.teamSearch = selectedTeam?.name || '';
         } catch (e) {
           this.teams = [];
           this.teamSearch = '';
         }
-      }, error: () => { this.teams = []; }
+      },
+      error: () => { this.teams = []; }
     });
   }
+
 
   ngAfterViewInit(): void {
     // Do NOT assign paginator to dataSource for server-side pagination
@@ -448,32 +585,68 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
     if (!this.hasAppliedFilters) return [];
     const chips: Array<{ key: string; label: string; removable: boolean }> = [];
-    const instituteId = this.filters.institute || this.selectedInstitute;
-    if (instituteId) chips.push({ key: 'institute', label: `Institute: ${this.getInstituteLabel(instituteId)}`, removable: this.isSuperAdmin });
+
+    // Institute Chip
+    if (this.selectedInstitutes && this.selectedInstitutes.length) {
+      const labels = this.selectedInstitutes.map(id => this.getInstituteLabel(id)).filter(Boolean);
+      chips.push({ key: 'institute', label: `Institute: ${labels.join(', ')}`, removable: this.isSuperAdmin });
+    } else if (this.filters.institute || this.selectedInstitute) {
+      const instId = this.filters.institute || this.selectedInstitute;
+      chips.push({ key: 'institute', label: `Institute: ${this.getInstituteLabel(instId)}`, removable: this.isSuperAdmin });
+    }
+
+    // Country Chip
+    if (this.selectedCountries && this.selectedCountries.length) {
+      chips.push({ key: 'country', label: `Country: ${this.selectedCountries.join(', ')}`, removable: true });
+    } else if (this.filters.country) {
+      chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`, removable: true });
+    }
+
+    // Industry Chip
+    if (this.selectedIndustries && this.selectedIndustries.length) {
+      chips.push({ key: 'industry', label: `Industry: ${this.selectedIndustries.join(', ')}`, removable: true });
+    } else if (this.filters.industry) {
+      chips.push({ key: 'industry', label: `Industry: ${this.filters.industry}`, removable: true });
+    }
+
+    // Sector Chip
+    if (this.selectedSectors && this.selectedSectors.length) {
+      chips.push({ key: 'sector', label: `Sector: ${this.selectedSectors.join(', ')}`, removable: true });
+    } else if (this.filters.sector) {
+      chips.push({ key: 'sector', label: `Sector: ${this.filters.sector}`, removable: true });
+    }
+
+    // Active Status Chip
+    if (this.selectedActiveStatuses && this.selectedActiveStatuses.length) {
+      const statusLabels = this.selectedActiveStatuses.map(s => s ? 'Active' : 'Inactive');
+      chips.push({ key: 'active_status', label: `Status: ${statusLabels.join(', ')}`, removable: true });
+    } else if (this.filters.active_status !== '') {
+      chips.push({ key: 'active_status', label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`, removable: true });
+    }
+
+    // Name Chip
     if (this.filters.name) chips.push({ key: 'name', label: `Name: ${this.filters.name}`, removable: true });
+
+    // Department Chip
     if (Array.isArray(this.filters.department) && this.filters.department.length) {
       const labels = this.filters.department.map((id: any) => this.getSelectedName(this.departments, id)).filter(Boolean);
       chips.push({ key: 'department', label: `Departments: ${labels.join(', ')}`, removable: true });
-    } else if (typeof this.filters.department === 'string' && this.filters.department) {
-      chips.push({ key: 'department', label: `Departments: ${this.getSelectedName(this.departments, this.filters.department)}`, removable: true });
     }
 
+    // Team Chip
     if (Array.isArray(this.filters.team) && this.filters.team.length) {
       const labels = this.filters.team.map((id: any) => this.getSelectedName(this.teams, id)).filter(Boolean);
       chips.push({ key: 'team', label: `Teams: ${labels.join(', ')}`, removable: true });
-    } else if (typeof this.filters.team === 'string' && this.filters.team) {
-      chips.push({ key: 'team', label: `Teams: ${this.getSelectedName(this.teams, this.filters.team)}`, removable: true });
     }
-    if (this.filters.country) chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`, removable: true });
-    if (this.filters.state) chips.push({ key: 'state', label: `State: ${this.getSelectedName(this.states, this.filters.state, 'code')}`, removable: true });
-    if (this.filters.city) chips.push({ key: 'city', label: `City: ${this.filters.city}`, removable: true });
-    if (this.filters.active_status !== '') chips.push({ key: 'active_status', label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`, removable: true });
+
     return chips;
   }
+
 
   removeAppliedFilter(key: string) {
     if (!key) return;
     if (key === 'institute' && this.isSuperAdmin) {
+      this.selectedInstitutes = [];
       this.selectedInstitute = '';
       this.filters.institute = '';
       this.filters.department = [];
@@ -483,17 +656,37 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.teams = [];
       this.countries = [];
       this.cities = [];
-    } else if (key === 'name') this.filters.name = '';
-    else if (key === 'department') { this.filters.department = []; this.filters.team = []; }
-    else if (key === 'team') this.filters.team = [];
-    else if (key === 'country') { this.filters.country = ''; this.filters.state = ''; this.filters.city = ''; this.states = []; this.cities = []; }
-    else if (key === 'state') { this.filters.state = ''; this.filters.city = ''; this.cities = []; }
-    else if (key === 'city') this.filters.city = '';
-    else if (key === 'active_status') this.filters.active_status = '';
+    } else if (key === 'country') {
+      this.selectedCountries = [];
+      this.filters.country = '';
+      this.filters.state = '';
+      this.filters.city = '';
+      this.states = [];
+      this.cities = [];
+    } else if (key === 'industry') {
+      this.selectedIndustries = [];
+      this.selectedSectors = [];
+      this.filters.industry = '';
+      this.filters.sector = '';
+    } else if (key === 'sector') {
+      this.selectedSectors = [];
+      this.filters.sector = '';
+    } else if (key === 'active_status') {
+      this.selectedActiveStatuses = [];
+      this.filters.active_status = '';
+    } else if (key === 'name') {
+      this.filters.name = '';
+    } else if (key === 'department') {
+      this.filters.department = [];
+      this.filters.team = [];
+    } else if (key === 'team') {
+      this.filters.team = [];
+    }
     this.pageIndex = 0;
     this.refreshInstituteScope();
     this.refreshAfterFilterChipChange();
   }
+
 
   clearAppliedFilters() { this.resetFilters(); }
 
@@ -546,7 +739,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const url = `${API_BASE}/get-users`;
     // build query params from filters (prefer explicit institute param, then filter model, then selectedInstitute)
     const params: any = { _ts: Date.now() };
-    const instituteParam = (typeof instituteId !== 'undefined' && instituteId !== null) ? instituteId : (this.filters.institute || this.selectedInstitute);
+    // Replace lines 686-687 in loadUsers():
+    const instituteParam = (typeof instituteId !== 'undefined' && instituteId !== null)
+      ? instituteId
+      : (this.selectedInstitutes?.length ? this.selectedInstitutes.join(',') : (this.filters.institute || this.selectedInstitute));
+    if (instituteParam) params.institute_id = instituteParam;
+
     if (instituteParam) params.institute_id = instituteParam;
     if (this.filters.name) params.name = this.filters.name;
     if (Array.isArray(this.filters.department)) {
@@ -640,6 +838,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const hasDept = Array.isArray(this.filters.department) ? this.filters.department.length > 0 : !!this.filters.department;
     const hasTeam = Array.isArray(this.filters.team) ? this.filters.team.length > 0 : !!this.filters.team;
     return !!(
+      (this.selectedInstitutes && this.selectedInstitutes.length) ||
+      (this.selectedCountries && this.selectedCountries.length) ||
+      (this.selectedIndustries && this.selectedIndustries.length) ||
+      (this.selectedSectors && this.selectedSectors.length) ||
+      (this.selectedActiveStatuses && this.selectedActiveStatuses.length) ||
       this.filters.institute ||
       this.filters.name ||
       hasDept ||
@@ -667,10 +870,26 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   resetFilters() {
     this.pageIndex = 0;
     this.filters = { institute: '', name: '', department: [], team: [], joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
+
+    // --- Clear all multi-select array selections ---
+    this.selectedCountries = [];
+    this.selectedIndustries = [];
+    this.selectedSectors = [];
+    this.selectedInstitutes = [];
+    this.selectedActiveStatuses = [];
     this.selectedInstitute = '';
+
+    // --- Clear search inputs ---
+    this.countryFilterSearch = '';
+    this.industryFilterSearch = '';
+    this.sectorFilterSearch = '';
+    this.instituteFilterSearch = '';
+    this.departmentFilterSearch = '';
+    this.teamFilterSearch = '';
     this.instituteSearch = '';
     this.departmentSearch = '';
     this.teamSearch = '';
+
     this.filter = '';
     this.dataSource.filter = '';
     this.states = [];
@@ -698,7 +917,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.dataSource.data = [];
     this.totalCount = 0;
     this.hasAppliedFilters = false;
+
   }
+
 
   onPageEvent(ev: PageEvent) {
     try {
