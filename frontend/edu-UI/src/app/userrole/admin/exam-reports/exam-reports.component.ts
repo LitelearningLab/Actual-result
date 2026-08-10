@@ -257,9 +257,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   onInstituteSelectionChange() {
-    const iid = this.selectedInstitutes[0] || '';
+    const iid =
+      typeof this.userFilters.institute_id === 'string'
+        ? this.userFilters.institute_id
+        : this.selectedInstitutes[0] || '';
+    this.selectedInstituteId = iid || null;
+    this.selectedInstitutes = iid ? [iid] : [];
     this.userFilters.institute_id = iid;
-    this.selectedInstituteId = iid || this.selectedInstituteId;
     this.onInstituteChange(iid);
   }
 
@@ -484,6 +488,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         )
           .toLowerCase()
           .trim();
+        if (!itemDept) {
+          const userMatch =
+            Array.isArray(t.assigned_users) &&
+            t.assigned_users.some((u: any) => {
+              const uDept = String(u.department_id || u.department || u.department_name || '')
+                .toLowerCase()
+                .trim();
+              return selectedDepts.some((sd: string) => uDept.includes(sd));
+            });
+          return userMatch || true;
+        }
         return selectedDepts.some((sd: string) => itemDept.includes(sd));
       });
     }
@@ -497,6 +512,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         const itemTeam = String(t.team_id || t.team || t.team_name || t.teams || '')
           .toLowerCase()
           .trim();
+        if (!itemTeam) {
+          const userMatch =
+            Array.isArray(t.assigned_users) &&
+            t.assigned_users.some((u: any) => {
+              const uTeam = String(u.team_id || u.team || u.team_name || '')
+                .toLowerCase()
+                .trim();
+              return selectedTeams.some((st: string) => uTeam.includes(st));
+            });
+          return userMatch || true;
+        }
         return selectedTeams.some((st: string) => itemTeam.includes(st));
       });
     }
@@ -930,15 +956,25 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     const answerID = q.answer_id || null;
 
-    const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+    const raw =
+      sessionStorage.getItem('user_profile') ||
+      sessionStorage.getItem('user') ||
+      sessionStorage.getItem('user_info') ||
+      localStorage.getItem('user_profile') ||
+      localStorage.getItem('user') ||
+      localStorage.getItem('user_info');
     let updatedBy = '';
-    let updatedByName = 'System';
+    let updatedByName = 'Admin User';
     if (raw) {
-      const u = JSON.parse(raw);
-      updatedBy = u.user_id || u.id || u.userId || u._id || '';
-      updatedByName = u.full_name || u.fullName || u.name || u.user_name || updatedBy || 'System';
+      try {
+        const u = JSON.parse(raw);
+        updatedBy = u.user_id || u.id || u.userId || u._id || '';
+        updatedByName =
+          u.full_name || u.fullName || u.name || u.user_name || updatedBy || 'Admin User';
+      } catch (e) {}
     }
 
+    
     if (!answerID) {
       console.warn('[saveMarks] Missing answer ID:', { answerID });
       this._snack.open('Missing answer ID', 'Close', { duration: 3000 });
@@ -1164,6 +1200,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   applyFiltersPanel() {
+    if (!this.selectedInstituteId && !this.userFilters.institute_id) {
+      this._snack.open('Please select an Institute first', 'Close', { duration: 3000 });
+      return;
+    }
+    if (!this.userFilters.schedule_id && !this.selectedExam) {
+      this._snack.open('Please select a Test Name to view reports', 'Close', { duration: 3000 });
+      return;
+    }
     if (!this.isGlobalInstituteActive && this.userFilters.institute_id) {
       if (this.selectedInstituteId !== this.userFilters.institute_id) {
         this.selectedInstituteId = this.userFilters.institute_id;
@@ -1213,6 +1257,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   refreshTestReports() {
     this.selectedExam = null;
+    this.selectedInstitutes = []; // <-- Clear selected institute dropdown array
+    this.instituteFilterSearch = '';
+    this.departmentFilterSearch = '';
+    this.teamFilterSearch = '';
+
     if (!this.isGlobalInstituteActive) {
       this.selectedInstituteId = null;
       this.userFilters.institute_id = '';
@@ -1221,7 +1270,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       } catch (e) {}
     } else {
       this.userFilters.institute_id = this.globalContextService.activeInstituteId || '';
+      if (this.globalContextService.activeInstituteId) {
+        this.selectedInstitutes = [this.globalContextService.activeInstituteId];
+      }
     }
+
+    // Reset all filter controls
     this.userFilters.country_id = '';
     this.userFilters.city_id = '';
     this.userFilters.industry = '';
@@ -1236,12 +1290,23 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.userFilters.created_by_me = false;
     this.userFilters.joined_after = null;
     this.userFilters.joined_before = null;
+
     Object.keys(this.searchQueries).forEach((k) => (this.searchQueries[k] = ''));
+
     try {
       this.examCtrl.setValue(null);
     } catch (e) {}
+
+    // Reset scheduled tests list and report tables
     this.allTests = [];
     this.scheduledTestsMessage = '';
+    this.reportsApplied = false;
+    this.appliedFilters = null;
+    this.userReportData = [];
+    this.userReportTotal = 0;
+    this.categoryAnalytics = [];
+    this.questionSummary = [];
+    this.wrongDistribution = [];
   }
 
   resetFiltersAndReload() {
@@ -1409,18 +1474,83 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   loadCountries() {
-    const url = `${API_BASE}/location-hierarchy`;
-    this.http.get<any>(url).subscribe({
-      next: (res: any) => {
-        try {
-          const countries = res?.data?.countries || res?.countries || res?.data || [];
-          this.countries = countries.map((c: any) => ({
-            code: c.country_code || c.code || c.id,
-            name: c.country_name || c.name || c.country,
-          }));
-        } catch (e) {
-          this.countries = [];
-        }
+    this.countries = [];
+    this.http.get<any>(`${API_BASE}/location-hierarchy`).subscribe({
+      next: (locRes: any) => {
+        const locationCountries =
+          locRes?.data?.countries || locRes?.countries || locRes?.data || [];
+        this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
+          next: (instRes: any) => {
+            try {
+              const institutes = Array.isArray(instRes?.data)
+                ? instRes.data
+                : Array.isArray(instRes)
+                  ? instRes
+                  : [];
+              const hierarchyCountries = (locationCountries || [])
+                .map((country: any) => ({
+                  code: country.country_code || country.code || country.id,
+                  name: country.country_name || country.name || country.country,
+                }))
+                .filter((country: any) => country.code && country.name);
+
+              const registeredCountries: Array<{ code: string; name: string }> = [];
+              institutes.forEach((institute: any) => {
+                const locations = [
+                  institute,
+                  ...(Array.isArray(institute?.campuses) ? institute.campuses : []),
+                ];
+                locations.forEach((location: any) => {
+                  const rawCountry = location?.country;
+                  const countryCode =
+                    location?.country_id ||
+                    location?.country_code ||
+                    (typeof rawCountry === 'object'
+                      ? rawCountry?.country_id ||
+                        rawCountry?.id ||
+                        rawCountry?.country_code ||
+                        rawCountry?.code
+                      : rawCountry);
+                  const countryName =
+                    location?.country_name ||
+                    (typeof rawCountry === 'object'
+                      ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
+                      : rawCountry);
+                  const hierarchyMatch = hierarchyCountries.find(
+                    (country: any) =>
+                      (countryCode &&
+                        String(country.code).toLowerCase() === String(countryCode).toLowerCase()) ||
+                      (countryName &&
+                        String(country.name).trim().toLowerCase() ===
+                          String(countryName).trim().toLowerCase())
+                  );
+                  const resolved =
+                    hierarchyMatch ||
+                    (countryCode && countryName ? { code: countryCode, name: countryName } : null);
+                  if (resolved)
+                    registeredCountries.push({
+                      code: String(resolved.code),
+                      name: String(resolved.name).trim(),
+                    });
+                });
+              });
+
+              const uniqueByName = new Map<string, { code: string; name: string }>();
+              registeredCountries.forEach((country) => {
+                const key = country.name.toLowerCase();
+                if (!uniqueByName.has(key)) uniqueByName.set(key, country);
+              });
+              this.countries = Array.from(uniqueByName.values()).sort((a, b) =>
+                a.name.localeCompare(b.name)
+              );
+            } catch (e) {
+              this.countries = [];
+            }
+          },
+          error: () => {
+            this.countries = [];
+          },
+        });
       },
       error: () => {
         this.countries = [];

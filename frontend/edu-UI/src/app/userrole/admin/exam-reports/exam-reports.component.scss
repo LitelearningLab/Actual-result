@@ -1964,3 +1964,29 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
   margin-right: 0.5rem !important;
 }
 
+/* Mandatory Field Highlight Styling */
+.required-mark {
+  color: #ef4444;
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+:host ::ng-deep .mandatory-field {
+  .mat-mdc-text-field-wrapper {
+    background-color: #f0f7ff !important;
+    border-radius: 0.5rem;
+  }
+
+  .mdc-notched-outline__leading,
+  .mdc-notched-outline__notch,
+  .mdc-notched-outline__trailing {
+    border-color: #2563eb !important;
+    border-width: 1.5px !important;
+  }
+
+  .mat-mdc-floating-label {
+    color: #1e40af !important;
+    font-weight: 600 !important;
+  }
+}
+

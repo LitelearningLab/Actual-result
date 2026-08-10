@@ -1,8 +1,8 @@
 <div class="page exam-reports">
   <div class="toolbar">
     <div class="selections">
-      <mat-form-field appearance="outline" class="local-institute-field disabled-toolbar-field">
-        <mat-label>Institute</mat-label>
+      <mat-form-field appearance="outline" class="local-institute-field disabled-toolbar-field mandatory-field">
+        <mat-label>Institute <span class="required-mark">*</span></mat-label>
         <mat-icon matPrefix svgIcon="institute"></mat-icon>
         <input
           matInput
@@ -13,8 +13,8 @@
         />
       </mat-form-field>
 
-      <mat-form-field appearance="outline" class="scheduled-test-field" floatLabel="always">
-        <mat-label>Test</mat-label>
+      <mat-form-field appearance="outline" class="scheduled-test-field mandatory-field" floatLabel="always">
+        <mat-label>Test <span class="required-mark">*</span></mat-label>
         <mat-icon matPrefix svgIcon="exam"></mat-icon>
         <input
           type="text"
@@ -70,67 +70,6 @@
             <h4><mat-icon>tune</mat-icon> Filters</h4>
           </div>
           <div class="filter-block">
-            <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
-              <mat-label>Institute</mat-label>
-              <mat-select
-                multiple
-                [(ngModel)]="selectedInstitutes"
-                placeholder="Select institute"
-                (selectionChange)="onInstituteSelectionChange()"
-              >
-                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input
-                    matInput
-                    class="select-search-input"
-                    placeholder="Search institute..."
-                    [(ngModel)]="instituteFilterSearch"
-                    [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)"
-                  />
-                </mat-option>
-                <mat-option
-                  class="select-all-option"
-                  *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
-                  (click)="toggleSelectAllInstitutes()"
-                >
-                  <mat-icon
-                    class="select-all-checkbox-icon"
-                    [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'"
-                  >
-                    {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                  </mat-icon>
-                  <strong>Select All</strong>
-                </mat-option>
-                <mat-option *ngFor="let inst of filteredInstitutesForFilter" [value]="inst.id">
-                  {{ inst.name }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="filter-item">
-              <mat-label>Test Name</mat-label>
-              <input
-                matInput
-                placeholder="Test name"
-                [(ngModel)]="searchQueries.schedule"
-                [matAutocomplete]="testNameAuto"
-                aria-label="Filter by test name"
-              />
-              <mat-autocomplete
-                #testNameAuto="matAutocomplete"
-                [displayWith]="displayTest"
-                (optionSelected)="onTestFilterSelected($event.option.value)"
-              >
-                <mat-option value="">Any</mat-option>
-                <mat-option *ngFor="let exam of filteredScheduleList" [value]="exam">
-                  {{ getTestTitle(exam) }}
-                </mat-option>
-              </mat-autocomplete>
-            </mat-form-field>
-
             <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
               <mat-label>Country</mat-label>
               <mat-select
@@ -247,6 +186,34 @@
                 <mat-option value="">Any</mat-option>
                 <mat-option *ngFor="let sec of filteredSectorList" [value]="sec">
                   {{ sec }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="filter-item mandatory-field" *ngIf="isSuperAdmin">
+              <mat-label>Institute <span class="required-mark">*</span></mat-label>
+              <mat-select
+                [(ngModel)]="userFilters.institute_id"
+                name="filterInstitute"
+                placeholder="Select institute"
+                (selectionChange)="onInstituteSelectionChange()"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    matInput
+                    class="select-search-input"
+                    placeholder="Search institute..."
+                    [(ngModel)]="instituteFilterSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)"
+                  />
+                </div>
+                <mat-option value="">All</mat-option>
+                <mat-option *ngFor="let inst of filteredInstitutesForFilter" [value]="inst.id">
+                  {{ inst.name }}
                 </mat-option>
               </mat-select>
             </mat-form-field>
@@ -369,6 +336,37 @@
                 </mat-option>
                 <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t">
                   {{ t }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="filter-item mandatory-field">
+              <mat-label>Test Name <span class="required-mark">*</span></mat-label>
+              <mat-select
+                [(ngModel)]="userFilters.schedule_id"
+                name="filterTestName"
+                (openedChange)="onSelectOpened($event, 'schedule')"
+                (selectionChange)="onTestFilterSelected($event.value)"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    matInput
+                    class="select-search-input"
+                    placeholder="Search test name..."
+                    [(ngModel)]="searchQueries.schedule"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="$event.stopPropagation()"
+                    (keyup)="$event.stopPropagation()"
+                    (input)="$event.stopPropagation()"
+                  />
+                </div>
+                <mat-option value="">Any</mat-option>
+                <mat-option
+                  *ngFor="let exam of filteredScheduleList"
+                  [value]="exam.schedule_id || exam.id || exam.scheduleId"
+                >
+                  {{ getTestTitle(exam) }}
                 </mat-option>
               </mat-select>
             </mat-form-field>
@@ -1233,6 +1231,40 @@
                       </div>
                     </div>
 
+                    <!-- Marks History Section -->
+                    <div
+                      class="marks-history-container"
+                      *ngIf="
+                        (q.question_type || q.type) === 'descriptive' &&
+                        q.marks_history &&
+                        q.marks_history.length
+                      "
+                      style="margin-top: 12px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;"
+                    >
+                      <strong style="font-size: 0.85rem; color: #475569; display: flex; align-items: center; gap: 4px; margin-bottom: 8px;">
+                        <mat-icon style="font-size: 16px; width: 16px; height: 16px;">history</mat-icon>
+                        Marks History
+                      </strong>
+                      <div class="marks-history-list" style="display: flex; flex-direction: column; gap: 6px;">
+                        <div
+                          *ngFor="let mh of q.marks_history"
+                          class="marks-history-item"
+                          style="font-size: 0.8rem; background: #ffffff; padding: 8px 10px; border-radius: 6px; border-left: 3px solid #3b82f6; display: flex; flex-direction: column; gap: 2px;"
+                        >
+                          <div style="display: flex; justify-content: space-between; font-weight: 600; color: #1e293b;">
+                            <span>Marks: {{ mh.marks_awarded != null ? mh.marks_awarded : 0 }} / {{ q.question_marks || '-' }}</span>
+                            <span style="font-weight: 400; color: #64748b; font-size: 0.75rem;">{{ mh.updated_date ? (mh.updated_date | date:'medium') : '' }}</span>
+                          </div>
+                          <div style="color: #475569;" *ngIf="mh.updated_by">
+                            <span style="font-weight: 500;">By:</span> {{ mh.updated_by }}
+                          </div>
+                          <div style="color: #64748b; font-style: italic;" *ngIf="mh.edit_reason">
+                            <span style="font-weight: 500; font-style: normal;">Reason:</span> {{ mh.edit_reason }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <!-- Review Comments summary: split into three columns -->
                     <div
                       class="q-review-comments"
@@ -1812,7 +1844,7 @@
                           </div>
                           <div class="history-content">
                             <div class="history-card current">
-                              <div class="history-badge">Current</div>
+                              <div class="history-badge" *ngIf="q.updated_by && q.updated_by.toLowerCase() !== 'system'">Current</div>
                               <div class="history-marks">
                                 {{ q.marks_awarded }}
                                 <span class="marks-total">/ {{ q.question_marks || '-' }}</span>

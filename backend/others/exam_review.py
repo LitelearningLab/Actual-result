@@ -127,7 +127,8 @@ def review_user_exam(request, current_user=None):
         review_attempts = [requested_attempt] if requested_attempt else completed_attempts
         now = datetime.datetime.utcnow()
         review_available = bool(review_attempts) and (
-            review_mode == 'instant'
+            not is_student_request
+            or review_mode == 'instant'
             or (review_mode == 'after_schedule_ends' and exam_schedule.end_time and now >= exam_schedule.end_time)
             or (review_mode == 'after_everyone_finishes' and is_after_everyone_finished_available(session, exam_schedule, now))
             or (review_mode == 'scheduled' and exam_schedule.review_at and now >= exam_schedule.review_at and (not exam_schedule.review_end_at or now <= exam_schedule.review_end_at))
@@ -162,6 +163,12 @@ def review_user_exam(request, current_user=None):
         exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
         total_questions = exam.total_questions if exam else 0
 
+        # Admins viewing test reports must see all report data regardless of schedule settings
+        show_score = True if not is_student_request else bool(exam_schedule.show_score)
+        show_explanations = True if not is_student_request else bool(exam_schedule.show_explanations)
+        show_student_answers = True if not is_student_request else bool(exam_schedule.show_student_answers)
+        show_correct_answers = True if not is_student_request else bool(exam_schedule.show_correct_answers)
+
         attempt_reviews = []
         for attempt in review_attempts:
             review_data = {}
@@ -172,15 +179,22 @@ def review_user_exam(request, current_user=None):
             time_delta = attempt.submitted_date - attempt.started_date if attempt.submitted_date and attempt.started_date else None
             review_data["time_taken"] = str(time_delta) if time_delta else None
             review_data["status"] = attempt.status
-            review_data["score"] = attempt.score if exam_schedule.show_score else None
+            review_data["score"] = attempt.score if show_score else None
             review_data["total_questions"] = total_questions
-            review_data["percentage"] = round(attempt.percentage, 2) if exam_schedule.show_score and attempt.percentage is not None else None
-            review_data["result"] = attempt.feedback if exam_schedule.show_score and hasattr(attempt, 'feedback') else ""
+            review_data["percentage"] = round(attempt.percentage, 2) if show_score and attempt.percentage is not None else None
+            review_data["result"] = attempt.feedback if show_score and hasattr(attempt, 'feedback') else ""
             review_data["review"] = []
             
             # get question, selected option, and correct answer
-            question_list = (session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id)
-                .distinct(Answer.question_id).all())
+            all_answers = (session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id)
+                .order_by(Answer.created_date.desc()).all())
+            seen_qids = set()
+            question_list = []
+            for ans in all_answers:
+                if ans.question_id not in seen_qids:
+                    seen_qids.add(ans.question_id)
+                    question_list.append(ans)
+            question_list.reverse()
             total_marks = 0
             for question_answer in question_list:
 
@@ -277,35 +291,31 @@ def review_user_exam(request, current_user=None):
                     "question_id": question_answer.question_id,
                     "question_text": question.question_text  if question else "",
                     "question_type": question_type,
-                    "answer_id": question_answer.answer_id,
-                    "question_id": question_answer.question_id,
-                    "question_text": question.question_text  if question else "",
-                    "question_type": question_type,
-                    "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct if exam_schedule.show_correct_answers else 0} for opt in options_list],
-                    "selected_option": ([selected_option] if isinstance(selected_option, str) else selected_option) if exam_schedule.show_student_answers else [],
-                    "correct_option": correct_answer_data if exam_schedule.show_correct_answers else None,
-                    "review_comment": review_comment_dict if exam_schedule.show_explanations else {},
-                    "is_correct": (True if question_answer.is_correct == 1 else False) if exam_schedule.show_correct_answers else None,
-                    "marks_awarded": (question_answer.marks_awarded if question_answer.marks_awarded is not None else 0) if exam_schedule.show_score else None,
+                    "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct if show_correct_answers else 0} for opt in options_list],
+                    "selected_option": ([selected_option] if isinstance(selected_option, str) else selected_option) if show_student_answers else [],
+                    "correct_option": correct_answer_data if show_correct_answers else None,
+                    "review_comment": review_comment_dict if show_explanations else {},
+                    "is_correct": (True if question_answer.is_correct == 1 else False) if show_correct_answers else None,
+                    "marks_awarded": (question_answer.marks_awarded if question_answer.marks_awarded is not None else 0) if show_score else None,
                     "updated_by": updated_by.full_name if updated_by else question_answer.created_by,
                     "updated_date": question_answer.created_date,
                     "edit_reason": getattr(question_answer, 'edit_reason', None),
-                    "question_marks": question_marks if exam_schedule.show_score else None,
-                    "ai_marks": (question_answer.ai_marks if question_answer.ai_marks is not None else 0) if exam_schedule.show_explanations else None,
-                    "ai_confidence": question_answer.ai_confidence if exam_schedule.show_explanations else None,
-                    "needs_manual_review": (question_answer.ai_confidence is not None and question_answer.ai_confidence < ai_confidence_threshold) if exam_schedule.show_explanations and question_type == 'descriptive' else False,
-                    "ai_confidence_threshold": ai_confidence_threshold if exam_schedule.show_explanations and question_type == 'descriptive' else None,
-                    "manual_review_required": (True if question_answer.manual_review_required == 1 else False) if exam_schedule.show_explanations else None,
-                    "manual_marks": (question_answer.manual_marks if question_answer.manual_marks is not None else 0) if exam_schedule.show_explanations else None,
-                    "feedback": question_answer.feedback if exam_schedule.show_explanations and not evaluation_failed and hasattr(question_answer, 'feedback') else "",
-                    "evaluation_status": evaluation_status if exam_schedule.show_explanations else None,
-                    "evaluation_error": question_answer.feedback if exam_schedule.show_explanations and evaluation_failed else None
+                    "question_marks": question_marks if show_score else None,
+                    "ai_marks": (question_answer.ai_marks if question_answer.ai_marks is not None else 0) if show_explanations else None,
+                    "ai_confidence": question_answer.ai_confidence if show_explanations else None,
+                    "needs_manual_review": (question_answer.ai_confidence is not None and question_answer.ai_confidence < ai_confidence_threshold) if show_explanations and question_type == 'descriptive' else False,
+                    "ai_confidence_threshold": ai_confidence_threshold if show_explanations and question_type == 'descriptive' else None,
+                    "manual_review_required": (True if question_answer.manual_review_required == 1 else False) if show_explanations else None,
+                    "manual_marks": (question_answer.manual_marks if question_answer.manual_marks is not None else 0) if show_explanations else None,
+                    "feedback": question_answer.feedback if show_explanations and not evaluation_failed and hasattr(question_answer, 'feedback') else "",
+                    "evaluation_status": evaluation_status if show_explanations else None,
+                    "evaluation_error": question_answer.feedback if show_explanations and evaluation_failed else None
                 })
                 # marks history can also be added here if needed by fetching from MarksHistory table
                 marks_history = session.query(MarksHistory).filter(
                     MarksHistory.answer_id == question_answer.answer_id
                 ).order_by(MarksHistory.updated_date.desc()).all()
-                if marks_history and exam_schedule.show_score:
+                if marks_history and show_score:
                     current_item = review_data["review"][-1]
                     # If answer_record.edit_reason was missing (legacy records), use latest history source for current item
                     if not current_item.get("edit_reason") and marks_history:
@@ -326,7 +336,7 @@ def review_user_exam(request, current_user=None):
                         })
                     current_item["marks_history"] = history_list
                 
-            review_data["total_marks"] = total_marks if exam_schedule.show_score else None
+            review_data["total_marks"] = total_marks if show_score else None
             attempt_reviews.append(review_data)
 
         if is_student_request:
@@ -654,10 +664,15 @@ def update_descriptive_marks(request, current_user=None):
         updated_by = None
         if updated_by_raw and str(updated_by_raw).strip():
             u_exist = session.query(User).filter(User.user_id == str(updated_by_raw).strip()).first()
+            if not u_exist:
+                u_exist = session.query(User).filter(
+                    (User.full_name == str(updated_by_raw).strip()) |
+                    (User.user_name == str(updated_by_raw).strip())
+                ).first()
             if u_exist:
-                updated_by = str(updated_by_raw).strip()
+                updated_by = str(u_exist.user_id)
         if not updated_by and current_user and getattr(current_user, 'user_id', None):
-            updated_by = getattr(current_user, 'user_id')
+            updated_by = str(getattr(current_user, 'user_id'))
 
         answer_record = session.query(Answer).filter(Answer.answer_id == answer_id).first()
         if not answer_record:
