@@ -19,12 +19,86 @@
                 <div class="step-content">
 
                     <div class="section-block">
-                        <div class="section-header">
+                        <!-- Header with Filter Button -->
+                        <div class="section-header question-bank-header">
                             <mat-icon class="section-icon">category</mat-icon>
                             <div class="section-header-text">
                                 <h2 class="section-heading">Question Bank Information</h2>
                                 <p class="section-desc">Basic details for this question bank.</p>
                             </div>
+
+                            <!-- Filter Popover Anchor & Button -->
+                            <div class="question-bank-filter-anchor" (click)="$event.stopPropagation()">
+                                <button mat-stroked-button color="primary" type="button" class="question-bank-filter-btn" (click)="toggleQuestionBankFilters()">
+                                    <mat-icon>filter_list</mat-icon>
+                                    <span>Filters</span>
+                                </button>
+
+                                <!-- Filter Popup Panel -->
+                                <div class="question-bank-filter-panel filters-panel" *ngIf="questionBankFilterOpen" (click)="$event.stopPropagation()">
+                                    <div class="filters-panel-header">
+                                        <h4><mat-icon>tune</mat-icon> Filters</h4>
+                                    </div>
+
+                                    <div class="filter-block filter-grid">
+                                        <div class="filter-col">
+                                            <!-- Country Filter -->
+                                            <mat-form-field appearance="outline" class="filter-item">
+                                                <mat-label>Country</mat-label>
+                                                <mat-select multiple [(ngModel)]="selectedCountries" placeholder="Select Country">
+                                                    <mat-option *ngFor="let c of countries" [value]="c.code">{{ c.name }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+
+                                            <!-- City Filter -->
+                                            <mat-form-field appearance="outline" class="filter-item">
+                                                <mat-label>City</mat-label>
+                                                <input matInput placeholder="City name" [(ngModel)]="filterCity" />
+                                            </mat-form-field>
+
+                                            <!-- Industry Filter -->
+                                            <mat-form-field appearance="outline" class="filter-item">
+                                                <mat-label>Industry</mat-label>
+                                                <mat-select multiple [(ngModel)]="selectedIndustries" placeholder="Select Industry">
+                                                    <mat-option *ngFor="let ind of industryTypes" [value]="ind">{{ ind }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+
+                                            <!-- Sector Filter -->
+                                            <mat-form-field appearance="outline" class="filter-item">
+                                                <mat-label>Sector</mat-label>
+                                                <mat-select multiple [(ngModel)]="selectedSectors" placeholder="Select Sector">
+                                                    <mat-option *ngFor="let sec of sectors" [value]="sec">{{ sec }}</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                        </div>
+                                    </div>
+
+                                    <!-- Panel Actions -->
+                                    <div class="filter-panel-actions">
+                                        <button mat-flat-button type="button" class="filter-apply-btn" (click)="applyQuestionBankFilters()">
+                                            <mat-icon>check</mat-icon>
+                                            <span>Apply</span>
+                                        </button>
+                                        <button mat-flat-button type="button" class="filter-reset-btn" (click)="resetQuestionBankFilters()">
+                                            <mat-icon>refresh</mat-icon>
+                                            <span>Reset</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Applied Filters Chips Bar -->
+                        <div class="applied-filters" *ngIf="appliedFilterChips.length" style="margin-bottom: 1rem;">
+                            <span class="applied-filters-title">Applied filters</span>
+                            <button type="button" class="applied-filter-chip" *ngFor="let chip of appliedFilterChips" (click)="removeAppliedFilter(chip.key)">
+                                <span>{{ chip.label }}</span>
+                                <mat-icon>close</mat-icon>
+                            </button>
+                            <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">
+                                Clear all
+                            </button>
                         </div>
 
                         <div class="field-row">
@@ -38,13 +112,23 @@
                                     required.</mat-hint>
                             </mat-form-field>
 
+                            <!-- Typable & Dropdown Institute Field -->
                             <mat-form-field appearance="outline" class="field-half local-institute-field">
                                 <mat-label>Institute</mat-label>
                                 <mat-icon matPrefix>school</mat-icon>
-                                <mat-select required [value]="institute" [disabled]="!isSuperAdmin || isEditing"
-                                    (selectionChange)="setInstitute($event.value)">
-                                    <mat-option *ngFor="let i of institutesList" [value]="i.id">{{i.name}}</mat-option>
-                                </mat-select>
+                                <input matInput required
+                                    id="institute-select"
+                                    title="Institute"
+                                    placeholder="Search or select institute"
+                                    #instTrigger="matAutocompleteTrigger"
+                                    [disabled]="!isSuperAdmin || isEditing"
+                                    [(ngModel)]="instituteSearch"
+                                    (ngModelChange)="onInstituteSearchChange($event)"
+                                    (focus)="instTrigger.openPanel()"
+                                    [matAutocomplete]="instituteAuto" />
+                                <mat-autocomplete #instituteAuto="matAutocomplete" [autoActiveFirstOption]="true" [displayWith]="displayInstitute" (optionSelected)="onInstituteAutocompleteSelected($event.option.value)">
+                                    <mat-option *ngFor="let i of filteredInstitutes()" [value]="i.id">{{ i.name }}</mat-option>
+                                </mat-autocomplete>
                                 <mat-hint class="field-error" *ngIf="formSubmitted && isInstituteInvalid()">Institute is
                                     required.</mat-hint>
                             </mat-form-field>

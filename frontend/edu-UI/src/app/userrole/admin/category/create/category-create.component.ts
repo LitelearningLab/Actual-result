@@ -14,10 +14,14 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 
+import { FormsModule } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatTooltipModule } from '@angular/material/tooltip';
+
 @Component({
   selector: 'app-category-create',
   standalone: true,
-  imports: [CommonModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatSelectModule, MatSlideToggleModule, MatStepperModule, HttpClientModule, MatSnackBarModule],
+  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatSelectModule, MatAutocompleteModule, MatTooltipModule, MatSlideToggleModule, MatStepperModule, HttpClientModule, MatSnackBarModule],
   templateUrl: './category-create.component.html',
   styleUrls: ['./category-create.component.scss']
 })
@@ -40,7 +44,27 @@ export class CategoryCreateComponent {
   categoryInfoSubmitted = false;
   accessInfoSubmitted = false;
 
-  institutesList: Array<{ id: string; name: string }> = [];
+  institutesList: Array<{ id: string; name: string; country?: string; city?: string; industry?: string; sector?: string }> = [];
+  instituteSearch = '';
+  questionBankFilterOpen = false;
+
+  selectedCountries: string[] = [];
+  countrySearch = '';
+  filterCity = '';
+  selectedIndustries: string[] = [];
+  industrySearch = '';
+  selectedSectors: string[] = [];
+  sectorSearch = '';
+
+  countries: Array<{ code: string; name: string }> = [
+    { code: 'IN', name: 'India' },
+    { code: 'US', name: 'United States' },
+    { code: 'UK', name: 'United Kingdom' },
+    { code: 'CA', name: 'Canada' },
+    { code: 'AU', name: 'Australia' }
+  ];
+  industryTypes: string[] = ['Education', 'Technology', 'Healthcare', 'Finance', 'Manufacturing'];
+  sectors: string[] = ['Private', 'Public', 'Government', 'Non-Profit'];
   typeOptions = [{ id: 'objective', name: 'Objective' }, { id: 'descriptive', name: 'Descriptive' }];
   whoInputOptions = [{ id: 'instructor', name: 'Instructor' }, { id: 'student', name: 'Student' }];
   evaluationOptions = [{ id: 'auto', name: 'Automatic' }, { id: 'manual', name: 'Manual' }];
@@ -253,7 +277,88 @@ export class CategoryCreateComponent {
   setDescription(v: string) {
     this.description = (v || '').slice(0, 250);
   }
-  setInstitute(v: string) { this.institute = v || ''; this.loadDepartments(); this.loadTeams(); }
+  setInstitute(v: string) {
+    this.institute = v || '';
+    const found = this.institutesList.find((i) => String(i.id) === String(this.institute));
+    if (found) {
+      this.instituteSearch = found.name;
+    }
+    this.loadDepartments();
+    this.loadTeams();
+  }
+
+  toggleQuestionBankFilters(): void {
+    this.questionBankFilterOpen = !this.questionBankFilterOpen;
+  }
+
+  displayInstitute = (instId: any): string => {
+    if (!instId) return '';
+    const inst = this.institutesList.find((i) => String(i.id) === String(instId));
+    return inst ? inst.name : (this.instituteSearch || '');
+  };
+
+  onInstituteSearchChange(val: string): void {
+    this.instituteSearch = val;
+    if (!val) {
+      this.institute = '';
+    }
+  }
+
+  onInstituteAutocompleteSelected(id: string): void {
+    this.setInstitute(id);
+  }
+
+  filteredInstitutes(): Array<{ id: string; name: string }> {
+    const term = (this.instituteSearch || '').trim().toLowerCase();
+    return this.institutesList.filter((inst: any) => {
+      const matchesSearch = !term || (inst.name || '').toLowerCase().includes(term);
+      const matchesCountry = !this.selectedCountries.length || (inst.country && this.selectedCountries.includes(inst.country));
+      const matchesCity = !this.filterCity || (inst.city && inst.city.toLowerCase().includes(this.filterCity.toLowerCase()));
+      const matchesIndustry = !this.selectedIndustries.length || (inst.industry && this.selectedIndustries.includes(inst.industry));
+      const matchesSector = !this.selectedSectors.length || (inst.sector && this.selectedSectors.includes(inst.sector));
+
+      return matchesSearch && matchesCountry && matchesCity && matchesIndustry && matchesSector;
+    });
+  }
+
+  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
+    const chips: Array<{ key: string; label: string; removable: boolean }> = [];
+    if (this.selectedCountries.length) {
+      chips.push({ key: 'country', label: `Country (${this.selectedCountries.length})`, removable: true });
+    }
+    if (this.filterCity) {
+      chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
+    }
+    if (this.selectedIndustries.length) {
+      chips.push({ key: 'industry', label: `Industry (${this.selectedIndustries.length})`, removable: true });
+    }
+    if (this.selectedSectors.length) {
+      chips.push({ key: 'sector', label: `Sector (${this.selectedSectors.length})`, removable: true });
+    }
+    return chips;
+  }
+
+  removeAppliedFilter(key: string): void {
+    if (key === 'country') this.selectedCountries = [];
+    if (key === 'city') this.filterCity = '';
+    if (key === 'industry') this.selectedIndustries = [];
+    if (key === 'sector') this.selectedSectors = [];
+  }
+
+  clearAppliedFilters(): void {
+    this.selectedCountries = [];
+    this.filterCity = '';
+    this.selectedIndustries = [];
+    this.selectedSectors = [];
+  }
+
+  applyQuestionBankFilters(): void {
+    this.questionBankFilterOpen = false;
+  }
+
+  resetQuestionBankFilters(): void {
+    this.clearAppliedFilters();
+  }
   setType(v: string) { this.type = v || ''; }
   setWhoInputs(v: string) { this.whoInputs = v || ''; }
   setEvaluation(v: string) { this.evaluation = v || ''; }
