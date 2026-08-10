@@ -19,9 +19,25 @@ class SQLiteDB:
             database = os.getenv('SQL_DATABASE', 'actual-result-prod')
             username = os.getenv('SQL_USER', 'sa')
             password = os.getenv('SQL_PASSWORD', 'YourStrong!Passw0rd')
-            driver = os.getenv('DRIVER','ODBC Driver 17 for SQL Server')
+            req_driver = os.getenv('DRIVER', 'ODBC Driver 17 for SQL Server')
+            driver = req_driver
+            try:
+                import pyodbc
+                available = pyodbc.drivers()
+                if req_driver not in available:
+                    odbc_drivers = [d for d in available if d.startswith('ODBC Driver')]
+                    sql_drivers = [d for d in available if 'sql server' in d.lower()]
+                    candidates = odbc_drivers if odbc_drivers else sql_drivers
+                    if candidates:
+                        candidates.sort(reverse=True)
+                        driver = candidates[0]
+                        print(f"Driver '{req_driver}' not found. Auto-selected installed driver: '{driver}'")
+                    else:
+                        print(f"WARNING: No SQL Server driver found. Available drivers: {available}")
+            except Exception as _d_err:
+                pass
 
-            # # SQL Server connection string
+            # SQL Server connection string
             params = quote_plus(
                 f"DRIVER={{{driver}}};"
                 f"SERVER={server};"
@@ -32,7 +48,6 @@ class SQLiteDB:
             )
 
             db_url = f"mssql+pyodbc:///?odbc_connect={params}"
-            # db_url = f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver=ODBC+Driver+17+for+SQL+Server"
 
 
         print(f"Connecting to SQL Server at {server}, database {database}")

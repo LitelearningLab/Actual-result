@@ -356,6 +356,201 @@ def delete_exam(exam_id, deleted_by):
         session.query(ExamQuestionMapping).filter_by(exam_id=exam_id).delete()
         # delete exam mappings
         session.query(ExamMapping).filter_by(exam_id=exam_id).delete()
+        start_time = _to_naive_utc_datetime(start_time_str) if start_time_str else None
+        end_time = _to_naive_utc_datetime(end_time_str) if end_time_str else None
+    except Exception:
+        return {"statusMessage": "Invalid exam date/time", "status": False}, 400
+
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    try:
+        add_exam = Exam(
+            title=title,
+            description= description,
+            institute_id=institute_id,
+            duration_mins=duration_mins,
+            total_questions=total_questions,
+            number_of_attempts=number_of_attempts,
+            pass_mark= pass_mark,
+            start_time=start_time,
+            end_time=end_time,
+            created_by=created_by
+        )
+        session.add(add_exam)
+        session.flush()
+
+        exam_id = str(add_exam.exam_id) if add_exam.exam_id else None
+        categories_list = data.get("categories",[])
+        for category in categories_list:
+            category_id = category.get("category_id")
+            if not category_id:
+                continue
+            number_of_questions = category.get("questions", 0)
+            randomize_questions = category.get("randomize_questions", 0)
+            if randomize_questions == True:
+                randomize_questions = 1
+            else:
+                randomize_questions = 0
+
+            pool_count = len(_category_pool_question_ids(session, category_id))
+            if number_of_questions and pool_count < number_of_questions:
+                session.rollback()
+                return {
+                    "statusMessage": f"Question bank does not have enough questions (requested {number_of_questions}, available {pool_count})",
+                    "status": False
+                }, 400
+
+            new_mapping = ExamMapping(
+                exam_id=exam_id,
+                category_id=category_id,
+                number_of_questions=number_of_questions,
+                randomize_questions=randomize_questions,
+                created_by=created_by
+            )
+            session.add(new_mapping)
+            if randomize_questions == 0:
+                questions_list = _resolve_fixed_question_ids(session, category_id, number_of_questions, category.get("question_ids", []))
+                for question_id in questions_list:
+                    add_exam_question_mapping = ExamQuestionMapping(
+                        exam_id=exam_id,
+                        category_id=category_id,
+                        question_id=question_id
+                    )
+                    session.add(add_exam_question_mapping)
+
+        session.commit()
+        json_data = {
+            "statusMessage": "Exam inserted successfully",
+            "status": True
+        }
+        return json_data, 200
+    except Exception as e:
+        session.rollback()
+        import traceback
+        traceback.print_exc()
+        print(f"{e} occurred while inserting exam at line {sys.exc_info()[-1].tb_lineno}")
+        json_data = {
+            "statusMessage": f"Error inserting exam: {str(e)}",
+            "status": False,
+        }
+        return json_data, 500
+
+
+def update_exam(request):
+    data = request.json
+    exam_id = data.get('exam_id') or data.get('id')
+    if not exam_id:
+        return {"statusMessage": "Missing exam_id", "status": False}, 400
+
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    try:
+        exam = session.query(Exam).filter(Exam.exam_id == exam_id).first()
+        if not exam:
+            return {"statusMessage": "Exam not found", "status": False}, 404
+
+        if is_exam_active_or_attended(session, exam_id):
+            return {
+                "statusMessage": "This test cannot be edited because it is currently active or is being attended by users.",
+                "status": False
+            }, 400
+
+        # update scalar fields
+        exam.title = data.get('title', exam.title)
+        exam.description = data.get('description', exam.description)
+        exam.institute_id = data.get('institute_id', exam.institute_id)
+        exam.duration_mins = data.get('duration_minutes', exam.duration_mins)
+        exam.total_questions = data.get('total_questions', exam.total_questions)
+        exam.pass_mark = data.get('pass_mark', exam.pass_mark)
+        exam.number_of_attempts = data.get('number_of_attempts', exam.number_of_attempts)
+
+        # handle optional start/end times
+        start_time_str = data.get('start_time', None)
+        end_time_str = data.get('end_time', None)
+
+        # updated_by and updated_date
+        exam.updated_by = data.get('updated_by', exam.updated_by)
+        exam.updated_date = datetime.utcnow()
+        
+        if start_time_str:
+            try:
+                exam.start_time = _to_naive_utc_datetime(start_time_str)
+            except Exception:
+                pass
+        if end_time_str:
+            try:
+                exam.end_time = _to_naive_utc_datetime(end_time_str)
+            except Exception:
+                pass
+
+        # rebuild mappings: remove existing mappings for this exam and recreate from payload
+        # remove ExamMapping and ExamQuestionMapping rows for this exam
+        session.query(ExamMapping).filter(ExamMapping.exam_id == exam_id).delete(synchronize_session=False)
+        session.query(ExamQuestionMapping).filter(ExamQuestionMapping.exam_id == exam_id).delete(synchronize_session=False)
+
+        categories_list = data.get('categories', [])
+        for category in categories_list:
+            category_id = category.get('category_id')
+            number_of_questions = category.get('questions', 0)
+            randomize_questions = category.get('randomize_questions', 0)
+            if randomize_questions == True:
+                randomize_questions = 1
+            else:
+                randomize_questions = 0
+
+            pool_count = len(_category_pool_question_ids(session, category_id))
+            if number_of_questions and pool_count < number_of_questions:
+                session.rollback()
+                return {
+                    "statusMessage": f"Question bank does not have enough questions (requested {number_of_questions}, available {pool_count})",
+                    "status": False
+                }, 400
+
+            new_mapping = ExamMapping(
+                exam_id=exam_id,
+                category_id=category_id,
+                number_of_questions=number_of_questions,
+                randomize_questions=randomize_questions
+            )
+            session.add(new_mapping)
+            if randomize_questions == 0:
+                questions_list = _resolve_fixed_question_ids(session, category_id, number_of_questions, category.get('question_ids', []))
+                for question_id in questions_list:
+                    add_exam_question_mapping = ExamQuestionMapping(
+                        exam_id=exam_id,
+                        category_id=category_id,
+                        question_id=question_id
+                    )
+                    session.add(add_exam_question_mapping)
+
+        session.commit()
+        return {"statusMessage": "Exam updated successfully", "status": True}, 200
+    except Exception as e:
+        print(f"{e} occurred while updating exam at line {sys.exc_info()[-1].tb_lineno}")
+        session.rollback()
+        return {"statusMessage": "Error updating exam", "status": False}, 500
+
+def delete_exam(exam_id, deleted_by):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    exam = session.query(Exam).filter_by(exam_id=exam_id).first()
+    if not exam:
+        return {"statusMessage": "Exam not found", "status": False}, 404
+
+    try:
+        # delete exam question mappings
+        session.query(ExamQuestionMapping).filter_by(exam_id=exam_id).delete()
+        # delete exam mappings
+        session.query(ExamMapping).filter_by(exam_id=exam_id).delete()
         # delete the exam
         session.delete(exam)
         session.commit()
@@ -364,7 +559,7 @@ def delete_exam(exam_id, deleted_by):
         session.rollback()
         print(f"{e} occurred while deleting exam at line {sys.exc_info()[-1].tb_lineno}")
         return {"statusMessage": f"Error deleting exam: {str(e)}", "status": False}, 500
-    
+
 def get_exam_details(request):
     db = SQLiteDB()
     session = db.connect()
@@ -375,22 +570,27 @@ def get_exam_details(request):
         filter = []
         args = getattr(request, "args", {})
         if args.get("institute_id", None):
-            filter.append(Exam.institute_id == args["institute_id"])
+            inst_val = str(args["institute_id"]).strip()
+            if "," in inst_val:
+                inst_ids = [i.strip() for i in inst_val.split(",") if i.strip()]
+                filter.append(Exam.institute_id.in_(inst_ids))
+            else:
+                filter.append(Exam.institute_id == inst_val)
         if args.get("name", None):
             filter.append(Exam.title.ilike(f"%{args.get('name')}%"))
         if args.get("created_before", None):
             created_before = datetime.fromisoformat(args["created_before"].replace("Z", "+00:00"))
             filter.append(Exam.created_date <= created_before)
-        # created after a specific date
         if args.get("created_after", None):
             created_after = datetime.fromisoformat(args["created_after"].replace("Z", "+00:00"))
             filter.append(Exam.created_date >= created_after)
         created_by = args.get("created_by", None)
         if created_by:
-            # get user id from username
-            user = session.query(User).filter(User.username == created_by).first()
+            user = session.query(User).filter(or_(User.user_id == created_by, User.username == created_by)).first()
             if user:
                 filter.append(Exam.created_by == user.user_id)
+            else:
+                filter.append(Exam.created_by == created_by)
         if args.get('exam_id', None):
             filter.append(Exam.exam_id == args['exam_id'])
 

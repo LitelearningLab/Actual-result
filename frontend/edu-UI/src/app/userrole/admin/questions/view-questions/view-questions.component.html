@@ -48,8 +48,8 @@
     <div class="applied-filters" *ngIf="appliedFilterChips.length">
         <span class="applied-filters-title">Applied filters</span>
         <button type="button" class="applied-filter-chip" *ngFor="let chip of appliedFilterChips"
-            [class.applied-filter-chip--locked]="!chip.removable"
-            (click)="chip.removable && removeAppliedFilter(chip.key)">
+            [class.applied-filter-chip--locked]="!chip.removable" [matTooltip]="chip.tooltip || ''"
+            [matTooltipDisabled]="!chip.tooltip" (click)="chip.removable && removeAppliedFilter(chip.key)">
             <span>{{ chip.label }}</span>
             <!-- <mat-icon *ngIf="chip.removable">close</mat-icon> -->
         </button>
@@ -71,9 +71,9 @@
 
                         <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
                             <mat-label>Country</mat-label>
-                            <mat-select [(ngModel)]="filterCountry"
+                            <mat-select multiple [(ngModel)]="selectedCountries"
                                 (openedChange)="onFilterSelectOpened($event, 'country')"
-                                (selectionChange)="onCountryFilterChange()">
+                                (selectionChange)="onCountryFilterChange()" placeholder="Select Country">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                                     <input matInput class="select-search-input" placeholder="Search country"
                                         [(ngModel)]="countrySearch" [ngModelOptions]="{standalone: true}"
@@ -81,20 +81,28 @@
                                         (keyup)="stopFilterSearchEvent($event)"
                                         (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
-                                <mat-option value="">Any</mat-option>
+                                <mat-option class="select-all-option"
+                                    *ngIf="filteredCountries.length && !countrySearch?.trim()"
+                                    (click)="toggleSelectAllCountries()">
+                                    <mat-icon class="select-all-checkbox-icon"
+                                        [style.color]="isAllCountriesSelected() ? '#2563eb' : '#64748b'">
+                                        {{ isAllCountriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                    </mat-icon>
+                                    <strong>Select All</strong>
+                                </mat-option>
                                 <mat-option *ngFor="let c of filteredCountries" [value]="c.code">{{c.name}}</mat-option>
                             </mat-select>
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
                             <mat-label>City</mat-label>
-                            <input matInput placeholder="Any" [disabled]="!filterCountry" [(ngModel)]="filterCity"
-                                (blur)="onCityFilterChange()" />
+                            <input matInput placeholder="Any" [disabled]="!selectedCountries.length && !filterCountry"
+                                [(ngModel)]="filterCity" (blur)="onCityFilterChange()" />
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
                             <mat-label>Industry</mat-label>
-                            <mat-select [(ngModel)]="filterIndustry" placeholder="Industry type"
+                            <mat-select multiple [(ngModel)]="selectedIndustries" placeholder="Select Industry"
                                 (openedChange)="onFilterSelectOpened($event, 'industry')"
                                 (selectionChange)="onIndustryFilterChange()">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
@@ -104,15 +112,24 @@
                                         (keyup)="stopFilterSearchEvent($event)"
                                         (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
-                                <mat-option value="">Any</mat-option>
+                                <mat-option class="select-all-option"
+                                    *ngIf="filteredIndustryTypes.length && !industrySearch?.trim()"
+                                    (click)="toggleSelectAllIndustries()">
+                                    <mat-icon class="select-all-checkbox-icon"
+                                        [style.color]="isAllIndustriesSelected() ? '#2563eb' : '#64748b'">
+                                        {{ isAllIndustriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                    </mat-icon>
+                                    <strong>Select All</strong>
+                                </mat-option>
                                 <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{t}}</mat-option>
                             </mat-select>
                         </mat-form-field>
 
                         <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
                             <mat-label>Sector</mat-label>
-                            <mat-select [(ngModel)]="filterSector" placeholder="Industry sector"
-                                [disabled]="!filterIndustry" (openedChange)="onFilterSelectOpened($event, 'sector')"
+                            <mat-select multiple [(ngModel)]="selectedSectors" placeholder="Select Sector"
+                                [disabled]="!selectedIndustries.length && !filterIndustry"
+                                (openedChange)="onFilterSelectOpened($event, 'sector')"
                                 (selectionChange)="onSectorFilterChange()">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                                     <input matInput class="select-search-input" placeholder="Search sector"
@@ -121,7 +138,15 @@
                                         (keyup)="stopFilterSearchEvent($event)"
                                         (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
-                                <mat-option value="">Any</mat-option>
+                                <mat-option class="select-all-option"
+                                    *ngIf="filteredSectors.length && !sectorSearch?.trim()"
+                                    (click)="toggleSelectAllSectors()">
+                                    <mat-icon class="select-all-checkbox-icon"
+                                        [style.color]="isAllSectorsSelected() ? '#2563eb' : '#64748b'">
+                                        {{ isAllSectorsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                    </mat-icon>
+                                    <strong>Select All</strong>
+                                </mat-option>
                                 <mat-option *ngFor="let s of filteredSectors" [value]="s">{{s}}</mat-option>
                             </mat-select>
                         </mat-form-field>
@@ -148,9 +173,11 @@
                                         (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
                                 <!-- Select All Option for Institute -->
-                                <mat-option class="select-all-option" *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
+                                <mat-option class="select-all-option"
+                                    *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
                                     (click)="toggleSelectAllInstitutes()">
-                                    <mat-icon class="select-all-checkbox-icon" [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'">
+                                    <mat-icon class="select-all-checkbox-icon"
+                                        [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'">
                                         {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
                                     </mat-icon>
                                     <strong>Select All</strong>
@@ -162,78 +189,42 @@
                             </mat-select>
                         </mat-form-field>
 
-                        <!-- 2. Question Bank Field -->
+                        <!-- 2. Question Bank Field (Multi-Select with Search & Select All) -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-icon matPrefix>category</mat-icon>
                             <mat-label>Question Bank</mat-label>
-                            <input matInput [formControl]="categoryCtrl" [matAutocomplete]="categoryAuto"
-                                [placeholder]="(selectedInstitutes.length || selectedInstitute || !isSuperAdmin) ? 'Pick a question bank' : 'Select an institute first'" />
-                            <mat-autocomplete #categoryAuto="matAutocomplete" [displayWith]="displayCategory"
-                                (optionSelected)="onCategorySelected($event.option.value)">
-                                <mat-option *ngFor="let c of (filteredCategories$ | async)" [value]="c"
-                                    [class.question-bank-option-row--active]="isQuestionSectionSelected(c)">
-                                    <span class="question-bank-option-row">
-                                        <span class="question-bank-option-row__label">{{ c.name || c.category_name
-                                            }}</span>
-                                    </span>
-                                </mat-option>
-                            </mat-autocomplete>
-                        </mat-form-field>
-
-                        <!-- 3. Departments Field (Multi-Select with Search) -->
-                        <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Departments</mat-label>
-                            <mat-select multiple [(ngModel)]="selectedDepartments"
+                            <mat-select multiple [(ngModel)]="selectedCategories"
                                 [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
-                                placeholder="Select departments"
-                                (openedChange)="onFilterDepartmentOpenedChange($event)">
-                                <!-- Embedded Search Bar -->
+                                placeholder="Select question bank">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input matInput class="select-search-input" placeholder="Search department"
-                                        [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                    <input matInput class="select-search-input" placeholder="Search question bank"
+                                        [(ngModel)]="categorySearch" [ngModelOptions]="{standalone: true}"
                                         (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
                                         (keyup)="stopFilterSearchEvent($event)"
                                         (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
-                                <!-- Select All Option for Department -->
-                                <mat-option class="select-all-option" *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
-                                    (click)="toggleSelectAllDepartments()">
-                                    <mat-icon class="select-all-checkbox-icon" [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
-                                        {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                <mat-option class="select-all-option"
+                                    *ngIf="filteredCategoriesForFilter.length && !categorySearch?.trim()"
+                                    (click)="toggleSelectAllCategories()">
+                                    <mat-icon class="select-all-checkbox-icon"
+                                        [style.color]="isAllCategoriesSelected() ? '#2563eb' : '#64748b'">
+                                        {{ isAllCategoriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
                                     </mat-icon>
                                     <strong>Select All</strong>
                                 </mat-option>
-
-                                <mat-option *ngFor="let d of filteredDepartmentsForFilter"
-                                    [value]="d.id">{{d.name}}</mat-option>
+                                <mat-option *ngFor="let c of filteredCategoriesForFilter"
+                                    [value]="c.category_id || c.id || c._id">
+                                    {{ c.name || c.category_name }}
+                                </mat-option>
                             </mat-select>
                         </mat-form-field>
 
-                        <!-- 4. Teams Field (Multi-Select with Search) -->
+                        <!-- Question Type Dropdown -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Teams</mat-label>
-                            <mat-select multiple [(ngModel)]="selectedTeams"
-                                [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
-                                placeholder="Select teams" (openedChange)="onFilterTeamOpenedChange($event)">
-                                <!-- Embedded Search Bar -->
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input matInput class="select-search-input" placeholder="Search team"
-                                        [(ngModel)]="teamFilterSearch" [ngModelOptions]="{ standalone: true }"
-                                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                                        (keyup)="stopFilterSearchEvent($event)"
-                                        (input)="stopFilterSearchEvent($event)" />
-                                </mat-option>
-                                <!-- Select All Option for Team -->
-                                <mat-option class="select-all-option" *ngIf="filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
-                                    (click)="toggleSelectAllTeams()">
-                                    <mat-icon class="select-all-checkbox-icon" [style.color]="isAllTeamsSelected() ? '#2563eb' : '#64748b'">
-                                        {{ isAllTeamsSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                                    </mat-icon>
-                                    <strong>Select All</strong>
-                                </mat-option>
-
-                                <mat-option *ngFor="let t of filteredTeamsForFilter"
-                                    [value]="t.id">{{t.name}}</mat-option>
+                            <mat-label>Question Type</mat-label>
+                            <mat-select [(ngModel)]="filterQuestionType" placeholder="Select Type">
+                                <mat-option value="">Any</mat-option>
+                                <mat-option value="objective">Objective</mat-option>
+                                <mat-option value="descriptive">Descriptive</mat-option>
                             </mat-select>
                         </mat-form-field>
 

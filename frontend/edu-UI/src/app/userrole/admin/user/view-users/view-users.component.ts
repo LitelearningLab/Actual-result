@@ -1225,6 +1225,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   onIndustryFilterChange() {
+    this.selectedSectors = [];
     this.filters.sector = '';
     this.refreshInstituteScope();
   }
@@ -1248,11 +1249,17 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     // Super Admins continue to use the normal page-level institute filters.
     if (this.isGlobalInstituteActive && this.activeInstituteId) return;
     const params: any = { _ts: Date.now() };
-    if (this.filters.country) params.country = this.filters.country;
+    if (this.selectedCountries && this.selectedCountries.length) params.country = this.selectedCountries.join(',');
+    else if (this.filters.country) params.country = this.filters.country;
+
     const cityName = String(this.filters.city || '').trim();
     if (cityName) params.city = cityName;
-    if (this.filters.industry) params.industry = this.filters.industry;
-    if (this.filters.sector) params.sector = this.filters.sector;
+
+    if (this.selectedIndustries && this.selectedIndustries.length) params.industry = this.selectedIndustries.join(',');
+    else if (this.filters.industry) params.industry = this.filters.industry;
+
+    if (this.selectedSectors && this.selectedSectors.length) params.sector = this.selectedSectors.join(',');
+    else if (this.filters.sector) params.sector = this.filters.sector;
 
     if (!Object.keys(params).length) {
       this.loadInstitutes();

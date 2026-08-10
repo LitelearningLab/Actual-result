@@ -227,11 +227,15 @@ def get_questions_details(request):
         institute_scope = _resolve_institute_scope(request)
 
         if institute_scope:
-            Category_data = session.query(Categories).filter(Categories.institute_id == institute_scope, active_cat_filter).all()
+            if "," in str(institute_scope):
+                inst_ids = [i.strip() for i in str(institute_scope).split(",") if i.strip()]
+                Category_data = session.query(Categories).filter(Categories.institute_id.in_(inst_ids), active_cat_filter).all()
+            else:
+                Category_data = session.query(Categories).filter(Categories.institute_id == institute_scope, active_cat_filter).all()
             Category_list = [c.category_id for c in Category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(Category_list)).all()
             question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list))
+            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("category_name"):
             category_query = session.query(Categories).filter(Categories.name == f"{args.get('category_name')}", active_cat_filter)
             if public_access_arg is not None:
@@ -286,6 +290,15 @@ def get_questions_details(request):
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list))
+
+        if args.get("type"):
+            t_val = str(args.get("type")).strip().lower()
+            if t_val == "objective":
+                filter.append(Question.question_type.in_(["choose", "multi", "fill"]))
+            elif t_val == "descriptive":
+                filter.append(Question.question_type.in_(["descriptive", "paragraph"]))
+            else:
+                filter.append(Question.question_type.ilike(f"%{t_val}%"))
 
         questions = session.query(Question).filter(*filter).all()
         question_list = []

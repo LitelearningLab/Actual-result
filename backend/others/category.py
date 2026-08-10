@@ -1,8 +1,8 @@
-from db.models import Categories, CategoriesDepartments, CategoriesTeams, Institute,User, InstituteDepartment, InstituteTeam
+from db.models import Categories, CategoriesDepartments, CategoriesTeams, Institute, User, InstituteDepartment, InstituteTeam, Question, QuestionMapping
 from db.db import SQLiteDB
 from datetime import datetime
 # pyrefly: ignore [missing-import]
-from sqlalchemy import func, text
+from sqlalchemy import func, text, or_
 # pyrefly: ignore [missing-import]
 from sqlalchemy.exc import IntegrityError
 import uuid
@@ -168,6 +168,29 @@ def get_category_details(request):
         filter.append(Categories.created_date >= args.get("created_after"))
     if args.get("created_before"):
         filter.append(Categories.created_date <= args.get("created_before"))
+
+    if args.get("type"):
+        t_val = str(args.get("type")).strip().lower()
+        types = [t.strip() for t in t_val.split(",") if t.strip()] if "," in t_val else [t_val]
+        q_types = []
+        if "objective" in types:
+            q_types.extend(["choose", "multi", "fill", "objective"])
+        if "descriptive" in types:
+            q_types.extend(["descriptive", "paragraph"])
+
+        matching_cat_ids = [
+            r[0] for r in session.query(QuestionMapping.category_id)
+            .join(Question, Question.question_id == QuestionMapping.question_id)
+            .filter(Question.question_type.in_(q_types)).all()
+        ]
+
+        type_conditions = [Categories.type.ilike(f"%{tp}%") for tp in types]
+        if matching_cat_ids:
+            type_conditions.append(Categories.category_id.in_(matching_cat_ids))
+
+        filter.append(or_(*type_conditions))
+
+
 
     if args.get("departments"):
         category_details = session.query(Categories).join(CategoriesDepartments, Categories.category_id == CategoriesDepartments.category_id).filter(*filter).order_by(Categories.created_date.desc()).all()

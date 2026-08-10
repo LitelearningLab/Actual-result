@@ -33,12 +33,10 @@ from others.settings import get_ai_confidence_threshold_response, update_ai_conf
 
 from dotenv import load_dotenv
 import os
-if load_dotenv():
-    load_dotenv()
-else:
-    # load_dotenv(dotenv_path=r".\backend\.env")
-    env_path = "/opt/ActualResults/backend/.env"
-    load_dotenv(dotenv_path=env_path)
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(base_dir, ".env")
+load_dotenv(dotenv_path=env_path)
 
 # read jwt_secret
 jwt_secret = os.getenv('jwt_secret', 'your_jwt_secret')
@@ -693,12 +691,12 @@ def dashboard_users_route():
 
 @edu_blueprint.route('/login', methods=['POST'])
 def login():
-    data = request.json
+    data = request.get_json(silent=True) or {}
 
     jwt_validator = JWTValidator(jwt_secret) 
 
     login_status, status_code = jwt_validator.login(data)
-    return  jsonify(login_status), status_code
+    return jsonify(login_status), status_code
 
 
 @edu_blueprint.route('/refresh-token', methods=['POST'])
@@ -710,7 +708,7 @@ def refresh_token_route():
 @edu_blueprint.route('/logout', methods=['POST'])
 # @jwt_required
 def logout():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     jwt_validator = JWTValidator(jwt_secret)
     logout_status, status_code = jwt_validator.logout(data)
     return jsonify(logout_status), status_code
