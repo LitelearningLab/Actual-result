@@ -315,6 +315,16 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
   text-align: center;
 }
 
+.premium-table .mat-column-publish,
+.premium-table .mat-column-manual_review {
+  text-align: center;
+}
+
+.premium-table th.mat-column-publish,
+.premium-table th.mat-column-manual_review {
+  text-align: center;
+}
+
 
 .premium-table .mat-column-title {
   width: var(--title-column-width);
@@ -406,6 +416,13 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
 
 .custom-toggle[data-state="checked"] {
   background: var(--button-1);
+}
+
+.custom-toggle[disabled],
+button.custom-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+  pointer-events: none;
 }
 
 .toggle-thumb {

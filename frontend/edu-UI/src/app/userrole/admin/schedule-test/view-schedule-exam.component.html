@@ -303,6 +303,22 @@
                     </td>
                 </ng-container>
 
+                <!-- Manual Review Column -->
+                <ng-container matColumnDef="manual_review">
+                    <th mat-header-cell *matHeaderCellDef class="text-center">Manual Review</th>
+                    <td mat-cell *matCellDef="let s" class="text-center">
+                        <button type="button" role="switch"
+                            [attr.aria-checked]="s.manual_review_enabled ? 'true' : 'false'"
+                            [attr.data-state]="s.manual_review_enabled ? 'checked' : 'unchecked'"
+                            [disabled]="!isManualReview(s)"
+                            (click)="toggleManualReview(s)"
+                            class="custom-toggle peer inline-flex"
+                            [title]="isManualReview(s) ? 'Toggle Manual Review' : 'Manual Review mode was not enabled when scheduling this test'">
+                            <span class="toggle-thumb" [attr.data-state]="s.manual_review_enabled ? 'checked' : 'unchecked'"></span>
+                        </button>
+                    </td>
+                </ng-container>
+
                 <!-- Actions Column -->
                 <ng-container matColumnDef="actions">
                     <th mat-header-cell *matHeaderCellDef>Actions</th>

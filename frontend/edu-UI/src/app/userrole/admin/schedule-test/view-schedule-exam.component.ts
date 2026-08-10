@@ -92,7 +92,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   schedules: any[] = [];
   dataSource = new MatTableDataSource<any>([]);
   hasAppliedFilters = false;
-  columns: string[] = ['sno', 'title', 'institute', 'schedule', 'publish', 'actions'];
+  columns: string[] = ['sno', 'title', 'institute', 'schedule', 'publish', 'manual_review', 'actions'];
   selectedSchedule: any = null;
 
   private baseUrl = API_BASE;
@@ -951,6 +951,8 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
             start: formatDate(s.start_time || s.startDateTime || s.start || null),
             end: formatDate(s.end_time || s.endDateTime || s.end || null),
             publish: typeof s.publish !== 'undefined' ? s.publish : (typeof s.published !== 'undefined' ? !!s.published : false),
+            manual_review_enabled: typeof s.manual_review_enabled !== 'undefined' ? !!s.manual_review_enabled : (typeof s.manualReviewEnabled !== 'undefined' ? !!s.manualReviewEnabled : false),
+            review_mode: (s.review_mode || s.reviewMode || s.settings?.review_mode || '').toString().toLowerCase(),
             started_student_count: Number(s.started_student_count ?? 0),
             assigned_users: Array.isArray(s.assigned_users) ? s.assigned_users : [],
             raw: s
@@ -1225,6 +1227,43 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
           try { notify(msg, 'error'); } catch (e) { }
         }
       });
+    });
+  }
+
+  isManualReview(s: any): boolean {
+    const mode = (s?.review_mode || s?.reviewMode || s?.raw?.review_mode || s?.raw?.reviewMode || '').toString().toLowerCase();
+    return mode === 'manual';
+  }
+
+  toggleManualReview(row: any) {
+    if (!this.isManualReview(row)) return;
+
+    const newState = !row.manual_review_enabled;
+    const prev = row.manual_review_enabled;
+    row.manual_review_enabled = newState;
+    if (row.raw) {
+      row.raw.manual_review_enabled = newState;
+    }
+
+    const payload = {
+      id: row.id || row.schedule_id || row.raw?.id || row.raw?.schedule_id,
+      schedule_id: row.id || row.schedule_id || row.raw?.id || row.raw?.schedule_id,
+      manual_review_enabled: newState
+    };
+
+    this.http.post<any>(`${this.baseUrl}/update-exam-schedule`, payload).subscribe({
+      next: (res) => {
+        try { notify(res?.statusMessage || 'Manual review status updated', 'success'); } catch (e) { }
+      },
+      error: (err) => {
+        console.error('Failed to update manual review status', err);
+        row.manual_review_enabled = prev;
+        if (row.raw) {
+          row.raw.manual_review_enabled = prev;
+        }
+        const msg = err?.error?.statusMessage || err?.message || 'Failed to update manual review status';
+        try { notify(msg, 'error'); } catch (e) { }
+      }
     });
   }
 
