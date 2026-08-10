@@ -25,9 +25,10 @@ def get_user_wise_report(request):
         page_size = 25
 
     try:
-        # find distinct users who have attempts for this schedule
-        user_ids = session.query(Exam_Attempt.user_id).filter(Exam_Attempt.schedule_id == schedule_id).distinct().all()
-        user_ids = [u[0] for u in user_ids]
+        # find distinct users who have attempts or answers for this schedule
+        ans_users = session.query(Answer.user_id).filter(Answer.schedule_id == schedule_id).distinct().all()
+        att_users = session.query(Exam_Attempt.user_id).filter(Exam_Attempt.schedule_id == schedule_id).distinct().all()
+        user_ids = list(set([u[0] for u in ans_users if u and u[0]] + [u[0] for u in att_users if u and u[0]]))
 
         rows = []
         # get pass_mark from schedule
