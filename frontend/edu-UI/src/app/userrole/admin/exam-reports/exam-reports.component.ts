@@ -126,6 +126,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   innerAnalyticsTabIndex = 0;
   userFilterOpen = false;
   isGlobalInstituteActive = false;
+  get showLocationAndIndustryFilters(): boolean {
+    return this.isSuperAdmin && !this.isGlobalInstituteActive;
+  }
   userFilters: any = {
     country_id: '',
     city_id: '',

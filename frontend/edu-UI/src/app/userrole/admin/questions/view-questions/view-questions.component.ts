@@ -592,8 +592,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     removable: boolean;
     tooltip?: string;
   }> {
-    const globalInstituteId = this.activeInstituteId;
-    if (!this.hasAppliedFilters && !globalInstituteId) return [];
+    if (!this.hasAppliedFilters) return [];
     const chips: Array<{ key: string; label: string; removable: boolean; tooltip?: string }> = [];
 
     // Country
@@ -695,7 +694,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         chips.push({
           key: 'institute',
           label: `Institute: ${instName}`,
-          removable: this.isSuperAdmin && !globalInstituteId,
+          removable: this.isSuperAdmin && !this.isGlobalInstituteActive,
           tooltip: instName,
         });
       } else {
@@ -705,18 +704,17 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         chips.push({
           key: 'institute',
           label: `Institutes: ${this.selectedInstitutes.length} selected`,
-          removable: this.isSuperAdmin && !globalInstituteId,
+          removable: this.isSuperAdmin && !this.isGlobalInstituteActive,
           tooltip: instNames.join(', '),
         });
       }
-    } else {
-      const instituteId = globalInstituteId || this.selectedInstitute;
-      if (instituteId) {
-        const instName = this.getInstituteLabel(instituteId);
+    } else if (this.selectedInstitute && !this.isGlobalInstituteActive) {
+      const instName = this.getInstituteLabel(this.selectedInstitute);
+      if (instName) {
         chips.push({
           key: 'institute',
           label: `Institute: ${instName}`,
-          removable: this.isSuperAdmin && !globalInstituteId,
+          removable: this.isSuperAdmin,
           tooltip: instName,
         });
       }

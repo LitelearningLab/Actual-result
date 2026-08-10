@@ -93,7 +93,7 @@
   <div class="list-card">
     <!-- Filters panel -->
     <ng-template #filtersPanel>
-      <div class="filters-panel view-questions-filters-panel" [class.admin-single-col]="!showLocationAndIndustryFilters && !isSuperAdmin" (click)="$event.stopPropagation()">
+      <div class="filters-panel view-questions-filters-panel" [class.admin-single-col]="!showLocationAndIndustryFilters" (click)="$event.stopPropagation()">
         <div class="filters-panel-header">
           <h4><mat-icon>tune</mat-icon> Filters</h4>
         </div>
@@ -254,7 +254,7 @@
             <mat-form-field
               appearance="outline"
               class="filter-item local-institute-field"
-              *ngIf="isSuperAdmin"
+              *ngIf="isSuperAdmin && !isGlobalInstituteActive"
             >
               <mat-label>Institute</mat-label>
               <mat-select

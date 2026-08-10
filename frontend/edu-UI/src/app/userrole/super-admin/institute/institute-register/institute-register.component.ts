@@ -4,7 +4,16 @@ import { of, Subscription } from 'rxjs';
 import { finalize, switchMap, tap } from 'rxjs/operators';
 import { LocationService, Country, State, City } from '../../../../services/location.service';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators, FormGroup, FormArray, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  Validators,
+  FormGroup,
+  FormArray,
+  AbstractControl,
+  ValidationErrors,
+  ValidatorFn,
+} from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -24,22 +33,32 @@ import { RouterModule } from '@angular/router';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 
-const subscriptionDateRangeValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+const subscriptionDateRangeValidator: ValidatorFn = (
+  control: AbstractControl
+): ValidationErrors | null => {
   const start = control.get('subscription_start')?.value;
   const end = control.get('subscription_end')?.value;
-  if (!(start instanceof Date) || !(end instanceof Date) || isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+  if (
+    !(start instanceof Date) ||
+    !(end instanceof Date) ||
+    isNaN(start.getTime()) ||
+    isNaN(end.getTime())
+  )
+    return null;
   return end.getTime() > start.getTime() ? null : { subscriptionDateRange: true };
 };
 
-const headOfficeOrCampusRequiredValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+const headOfficeOrCampusRequiredValidator: ValidatorFn = (
+  control: AbstractControl
+): ValidationErrors | null => {
   const headOffice = control.get('headOffice')?.value || {};
   const campuses = control.get('campuses')?.value || [];
   // Country/state can be auto-selected when only one option exists, so they do
   // not by themselves count as location details entered by the user.
   const locationFields = ['name', 'address', 'pincode', 'city', 'email', 'phone'];
-  const hasHeadOffice = locationFields.some(field => String(headOffice[field] ?? '').trim());
+  const hasHeadOffice = locationFields.some((field) => String(headOffice[field] ?? '').trim());
   const hasCampus = campuses.some((campus: any) =>
-    locationFields.some(field => String(campus?.[field] ?? '').trim())
+    locationFields.some((field) => String(campus?.[field] ?? '').trim())
   );
 
   return hasHeadOffice || hasCampus ? null : { headOfficeOrCampusRequired: true };
@@ -48,9 +67,26 @@ const headOfficeOrCampusRequiredValidator: ValidatorFn = (control: AbstractContr
 @Component({
   selector: 'app-institute-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSnackBarModule, MatSelectModule, MatSlideToggleModule, MatIconModule, MatChipsModule, MatExpansionModule, MatCheckboxModule, MatStepperModule, MatDatepickerModule, RouterModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatSnackBarModule,
+    MatSelectModule,
+    MatSlideToggleModule,
+    MatIconModule,
+    MatChipsModule,
+    MatExpansionModule,
+    MatCheckboxModule,
+    MatStepperModule,
+    MatDatepickerModule,
+    RouterModule,
+  ],
   templateUrl: './institute-register.component.html',
-  styleUrls: ['./institute-register.component.scss']
+  styleUrls: ['./institute-register.component.scss'],
 })
 export class InstituteRegisterComponent {
   private explicitSubmitRequested = false;
@@ -60,40 +96,49 @@ export class InstituteRegisterComponent {
   headOfficeCampusId: string | null = null;
   // index of the expansion panel that should be expanded (helps open newly added campus)
   expandedIndex: number | null = null;
-  form = this.fb.group({
-    name: ['', Validators.required],
-    short_name: ['', Validators.required],
-    // Head office block
-    headOffice: this.fb.group({
-      address: [''],
-      pincode: [''],
-      city: [''],
-      state: [''],
+  form = this.fb.group(
+    {
+      name: ['', Validators.required],
+      short_name: ['', Validators.required],
+      // Head office block
+      headOffice: this.fb.group({
+        address: [''],
+        pincode: [''],
+        city: [''],
+        state: [''],
+        country: [''],
+        email: ['', [Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
+        phone: ['', [Validators.pattern(/^\d{0,15}$/)]],
+        website: [''],
+      }),
+      // pincode: ['', [Validators.required, Validators.pattern('^[0-9A-Za-z -]{3,10}$')]],
+      // kept for backwards compatibility but not required (headOffice.country is used in the form)
       country: [''],
-      email: ['', [Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
-      phone: ['', [Validators.pattern(/^\d{0,15}$/)]],
-      website: ['']
-    }),
-    // pincode: ['', [Validators.required, Validators.pattern('^[0-9A-Za-z -]{3,10}$')]],
-    // kept for backwards compatibility but not required (headOffice.country is used in the form)
-    country: [''],
-    contact_email: ['', [Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
-    contact_phone: ['', [Validators.pattern(/^\+?[0-9\s\-()]{7,20}$/)]],
-    primary_contact_phone: ['', [Validators.pattern(/^\d{7,15}$/)]],
-    website: ['', [Validators.pattern('.+')]],
-    primary_contact_person: ['', Validators.required],
-    primary_contact_email: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
-    industry_type: [null as string | null, Validators.required],
-    industry_sector: [{ value: null as string | null, disabled: true }, Validators.required],
-    department: ['' as string | null],
-    branch: ['' as string | null],
-    team: ['' as string | null],
-    max_users: [null as number | null, [Validators.min(1)]],
-    subscription_start: [null as Date | null, Validators.required],
-    subscription_end: [null as Date | null, Validators.required],
-    active: [true],
-    campuses: this.fb.array([])
-  }, { validators: [subscriptionDateRangeValidator, headOfficeOrCampusRequiredValidator] });
+      contact_email: ['', [Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
+      contact_phone: ['', [Validators.pattern(/^\+?[0-9\s\-()]{7,20}$/)]],
+      primary_contact_phone: ['', [Validators.pattern(/^\d{7,15}$/)]],
+      website: ['', [Validators.pattern('.+')]],
+      primary_contact_person: ['', Validators.required],
+      primary_contact_email: [
+        '',
+        [
+          Validators.required,
+          Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/),
+        ],
+      ],
+      industry_type: [null as string | null, Validators.required],
+      industry_sector: [{ value: null as string | null, disabled: true }, Validators.required],
+      department: ['' as string | null],
+      branch: ['' as string | null],
+      team: ['' as string | null],
+      max_users: [null as number | null, [Validators.min(1)]],
+      subscription_start: [null as Date | null, Validators.required],
+      subscription_end: [null as Date | null, Validators.required],
+      active: [true],
+      campuses: this.fb.array([]),
+    },
+    { validators: [subscriptionDateRangeValidator, headOfficeOrCampusRequiredValidator] }
+  );
 
   get minimumSubscriptionEndDate(): Date | null {
     const value: unknown = this.form.get('subscription_start')?.value;
@@ -140,14 +185,22 @@ export class InstituteRegisterComponent {
   readonly separatorKeysCodes: number[] = [13, 188]; // Enter, Comma
 
   private sectorMap: Record<string, string[]> = {
-    'School': ['School'],
-    'College': ['Engineering', 'Arts'],
-    'BPO': ['Healthcare', 'Finance'],
-    'Bank': ['Bank'],
-    'IT': ['IT']
+    School: ['School'],
+    College: ['Engineering', 'Arts'],
+    BPO: ['Healthcare', 'Finance'],
+    Bank: ['Bank'],
+    IT: ['IT'],
   };
 
-  constructor(private fb: FormBuilder, private _snack: MatSnackBar, private http: HttpClient, private cd: ChangeDetectorRef, private locationService: LocationService, private pageMetaService: PageMetaService, private router: Router) { }
+  constructor(
+    private fb: FormBuilder,
+    private _snack: MatSnackBar,
+    private http: HttpClient,
+    private cd: ChangeDetectorRef,
+    private locationService: LocationService,
+    private pageMetaService: PageMetaService,
+    private router: Router
+  ) {}
 
   preventSignedMaxUsersInput(event: KeyboardEvent): void {
     if (['-', '+', 'e', 'E'].includes(event.key)) {
@@ -168,7 +221,7 @@ export class InstituteRegisterComponent {
     if (containsInvalidCharacter) {
       this.form.controls.primary_contact_phone.setErrors({
         ...this.form.controls.primary_contact_phone.errors,
-        invalidCharacter: true
+        invalidCharacter: true,
       });
     }
   }
@@ -182,7 +235,7 @@ export class InstituteRegisterComponent {
       event.preventDefault();
       this.form.controls.primary_contact_phone.setErrors({
         ...this.form.controls.primary_contact_phone.errors,
-        invalidCharacter: true
+        invalidCharacter: true,
       });
       this.form.controls.primary_contact_phone.markAsTouched();
       return;
@@ -217,11 +270,11 @@ export class InstituteRegisterComponent {
       this.form.controls.short_name,
       this.form.controls.primary_contact_person,
       this.form.controls.primary_contact_email,
-      this.form.controls.primary_contact_phone
+      this.form.controls.primary_contact_phone,
     ];
 
-    stepOneControls.forEach(control => control.markAsTouched());
-    if (stepOneControls.some(control => control.invalid)) return;
+    stepOneControls.forEach((control) => control.markAsTouched());
+    if (stepOneControls.some((control) => control.invalid)) return;
 
     stepper.next();
   }
@@ -232,7 +285,6 @@ export class InstituteRegisterComponent {
   get filteredHeadOfficeCountries(): Country[] {
     return this.filterCountries(this.headOfficeCountrySearch);
   }
-
   get filteredHeadOfficeStates(): State[] {
     return this.filterStates(this.stateOptions, this.headOfficeStateSearch);
   }
@@ -240,13 +292,13 @@ export class InstituteRegisterComponent {
   private filterCountries(searchText: string | null | undefined): Country[] {
     const term = (searchText || '').trim().toLowerCase();
     if (!term) return this.countries;
-    return this.countries.filter(country => (country.name || '').toLowerCase().includes(term));
+    return this.countries.filter((country) => (country.name || '').toLowerCase().includes(term));
   }
 
   private filterStates(states: State[], searchText: string | null | undefined): State[] {
     const term = (searchText || '').trim().toLowerCase();
     if (!term) return states;
-    return states.filter(state => (state.name || '').toLowerCase().includes(term));
+    return states.filter((state) => (state.name || '').toLowerCase().includes(term));
   }
 
   private isPrimaryCampus(campus: any): boolean {
@@ -259,7 +311,10 @@ export class InstituteRegisterComponent {
 
   private isHeadOfficeCampus(campus: any, institute: any): boolean {
     const campusName = (campus?.name || '').toString().trim().toLowerCase();
-    const shortName = (institute?.short_name || institute?.short || '').toString().trim().toLowerCase();
+    const shortName = (institute?.short_name || institute?.short || '')
+      .toString()
+      .trim()
+      .toLowerCase();
     // Backend-created Head Office rows are stored as primary campuses named with the institute short name.
     return this.isPrimaryCampus(campus) && !!shortName && campusName === shortName;
   }
@@ -287,19 +342,27 @@ export class InstituteRegisterComponent {
   private focusLocationSearchInput() {
     setTimeout(() => {
       try {
-        const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+        const input = document.querySelector(
+          '.cdk-overlay-pane .select-search-input'
+        ) as HTMLInputElement | null;
         input?.focus();
-      } catch (e) { /* ignore non-browser environments */ }
+      } catch (e) {
+        /* ignore non-browser environments */
+      }
     });
   }
 
   private campusControlId(control: AbstractControl | any): string {
-    try { return control?.get('_cid')?.value || ''; } catch (e) { return ''; }
+    try {
+      return control?.get('_cid')?.value || '';
+    } catch (e) {
+      return '';
+    }
   }
 
   getCampusCountrySearch(control: AbstractControl | any): string {
     const cid = this.campusControlId(control);
-    return cid ? (this.campusCountrySearch[cid] || '') : '';
+    return cid ? this.campusCountrySearch[cid] || '' : '';
   }
 
   setCampusCountrySearch(control: AbstractControl | any, value: string) {
@@ -313,17 +376,16 @@ export class InstituteRegisterComponent {
   }
 
   onCampusCountryOpened(control: AbstractControl | any, opened: boolean) {
-    if (opened) {
-      this.focusLocationSearchInput();
-      return;
-    }
     const cid = this.campusControlId(control);
     if (cid) this.campusCountrySearch[cid] = '';
+    if (opened) {
+      this.focusLocationSearchInput();
+    }
   }
 
   getCampusStateSearch(control: AbstractControl | any): string {
     const cid = this.campusControlId(control);
-    return cid ? (this.campusStateSearch[cid] || '') : '';
+    return cid ? this.campusStateSearch[cid] || '' : '';
   }
 
   setCampusStateSearch(control: AbstractControl | any, value: string) {
@@ -334,17 +396,16 @@ export class InstituteRegisterComponent {
 
   getFilteredCampusStates(control: AbstractControl | any): State[] {
     const cid = this.campusControlId(control);
-    const states = cid ? (this.campusStateOptions[cid] || []) : [];
+    const states = cid ? this.campusStateOptions[cid] || [] : [];
     return this.filterStates(states, this.getCampusStateSearch(control));
   }
 
   onCampusStateOpened(control: AbstractControl | any, opened: boolean) {
-    if (opened) {
-      this.focusLocationSearchInput();
-      return;
-    }
     const cid = this.campusControlId(control);
     if (cid) this.campusStateSearch[cid] = '';
+    if (opened) {
+      this.focusLocationSearchInput();
+    }
   }
 
   ngAfterViewInit(): void {
@@ -359,9 +420,16 @@ export class InstituteRegisterComponent {
         // populate simple fields
         this.form.patchValue({
           // Keep missing industry values as null so required validation works consistently.
-          name: obj.name || '', short_name: obj.short_name || obj.short || '', industry_type: obj.industry_type || null, industry_sector: obj.industry_sector || null,
-          primary_contact_person: obj.primary_contact_person || '', primary_contact_email: obj.primary_contact_email || '', primary_contact_phone: obj.primary_contact_phone || '',
-          website: obj.website || '', max_users: obj.max_users || null, active: !!obj.active_status
+          name: obj.name || '',
+          short_name: obj.short_name || obj.short || '',
+          industry_type: obj.industry_type || null,
+          industry_sector: obj.industry_sector || null,
+          primary_contact_person: obj.primary_contact_person || '',
+          primary_contact_email: obj.primary_contact_email || '',
+          primary_contact_phone: obj.primary_contact_phone || '',
+          website: obj.website || '',
+          max_users: obj.max_users || null,
+          active: !!obj.active_status,
         });
 
         // If the stored institute has subscription dates, convert them to Date objects for the datepicker
@@ -374,19 +442,37 @@ export class InstituteRegisterComponent {
             const e = new Date(obj.subscription_end);
             if (!isNaN(e.getTime())) this.form.get('subscription_end')?.setValue(e as any);
           }
-        } catch (e) { /* ignore conversion errors */ }
+        } catch (e) {
+          /* ignore conversion errors */
+        }
         const campusesData = Array.isArray(obj.campuses) ? obj.campuses : [];
         // Backend stores Head Office as the primary campus, so split it out before filling the campus UI.
-        const headOfficeCampus = campusesData.find((campus: any) => this.isHeadOfficeCampus(campus, obj));
+        const headOfficeCampus = campusesData.find((campus: any) =>
+          this.isHeadOfficeCampus(campus, obj)
+        );
 
         // headOffice prefill: try explicit head office fields first, then fallback to the primary campus.
         try {
           const ho = obj.headOffice || obj.head_office || obj.head || headOfficeCampus || {};
           if (ho && Object.keys(ho).length) {
             this.headOfficeCampusId = ho.campus_id || ho.id || ho._id || null;
-            const countryId = ho.country?.country_id || ho.country?.countryId || ho.country || ho.country_id || ho.country_code || '';
-            const stateId = ho.state?.state_id || ho.state?.stateId || ho.state || ho.state_id || '';
-            const cityId = ho.city?.city_name || ho.city_name || ho.city?.city_id || ho.city?.cityId || ho.city || ho.city_id || '';
+            const countryId =
+              ho.country?.country_id ||
+              ho.country?.countryId ||
+              ho.country ||
+              ho.country_id ||
+              ho.country_code ||
+              '';
+            const stateId =
+              ho.state?.state_id || ho.state?.stateId || ho.state || ho.state_id || '';
+            const cityId =
+              ho.city?.city_name ||
+              ho.city_name ||
+              ho.city?.city_id ||
+              ho.city?.cityId ||
+              ho.city ||
+              ho.city_id ||
+              '';
             this.form.get('headOffice')?.patchValue({
               address: ho.address || ho.addr || '',
               pincode: ho.pin_code || ho.pincode || ho.postal_code || '',
@@ -395,24 +481,34 @@ export class InstituteRegisterComponent {
               city: cityId || '',
               email: ho.email || '',
               phone: ho.phone || ho.contact_no || '',
-              website: ho.website || ''
+              website: ho.website || '',
             });
 
             // load states/cities for headOffice if country/state provided
             if (countryId) {
-              this.locationService.getStatesForCountry(countryId).subscribe(states => {
-                this.stateOptions = states || [];
-                // if stateId present, ensure it's selected (patchValue already set it)
-                if (stateId) {
-                  // load cities for that state
-                  this.locationService.getCitiesForState(stateId).subscribe(cities => {
-                    this.cityOptions = cities || [];
-                  }, () => { this.cityOptions = []; });
+              this.locationService.getStatesForCountry(countryId).subscribe(
+                (states) => {
+                  this.stateOptions = states || [];
+                  // if stateId present, ensure it's selected (patchValue already set it)
+                  if (stateId) {
+                    // load cities for that state
+                    this.locationService.getCitiesForState(stateId).subscribe(
+                      (cities) => {
+                        this.cityOptions = cities || [];
+                      },
+                      () => {
+                        this.cityOptions = [];
+                      }
+                    );
+                  }
+                },
+                () => {
+                  this.stateOptions = [];
                 }
-              }, () => { this.stateOptions = []; });
+              );
             }
           }
-        } catch (e) { }
+        } catch (e) {}
         // departments and teams to chips
         this.departmentList = (obj.departments || []).map((d: any) => d.name || '');
         this.teamList = (obj.teams || []).map((t: any) => t.name || '');
@@ -420,7 +516,9 @@ export class InstituteRegisterComponent {
         this.form.get('team')?.setValue(this.teamList.join(','));
         // campuses
         if (campusesData.length) {
-          for (const cp of campusesData.filter((campus: any) => !this.isHeadOfficeCampus(campus, obj))) {
+          for (const cp of campusesData.filter(
+            (campus: any) => !this.isHeadOfficeCampus(campus, obj)
+          )) {
             this.addCampus({
               campus_id: cp.campus_id || cp.id || cp._id || null,
               name: cp.name,
@@ -432,14 +530,14 @@ export class InstituteRegisterComponent {
               email: cp.email,
               phone: cp.phone,
               isPrimary: !!cp.is_primary,
-              isActive: !!cp.active_status
+              isActive: !!cp.active_status,
             });
           }
         }
         // remove stored edit marker
         sessionStorage.removeItem('edit_institute');
       }
-    } catch (e) { }
+    } catch (e) {}
   }
 
   // FormArray helpers for campuses
@@ -449,7 +547,7 @@ export class InstituteRegisterComponent {
 
   createCampus(data?: any) {
     // attach a stable unique id (_cid) to each campus form so we can key option maps and subscriptions
-    const cid = (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+    const cid = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     return this.fb.group({
       campus_id: [data?.campus_id || data?.id || data?._id || null],
       _cid: [cid],
@@ -462,7 +560,7 @@ export class InstituteRegisterComponent {
       email: [data?.email || '', Validators.email],
       phone: [data?.phone || '', [Validators.pattern(/^\d{0,15}$/)]],
       isPrimary: [!!data?.isPrimary],
-      isActive: [data?.isActive ?? true]
+      isActive: [data?.isActive ?? true],
     });
   }
 
@@ -483,23 +581,39 @@ export class InstituteRegisterComponent {
           const stateId = initial.state?.state_id || initial.state || '';
           const cityId = initial.city?.city_id || initial.city || '';
           if (countryId) {
-            this.locationService.getStatesForCountry(countryId).subscribe(states => {
-              this.campusStateOptions[cid] = states || [];
-              if (stateId) {
-                this.locationService.getCitiesForState(stateId).subscribe(cities => {
-                  this.campusCityOptions[cid] = cities || [];
-                }, () => { this.campusCityOptions[cid] = []; });
+            this.locationService.getStatesForCountry(countryId).subscribe(
+              (states) => {
+                this.campusStateOptions[cid] = states || [];
+                if (stateId) {
+                  this.locationService.getCitiesForState(stateId).subscribe(
+                    (cities) => {
+                      this.campusCityOptions[cid] = cities || [];
+                    },
+                    () => {
+                      this.campusCityOptions[cid] = [];
+                    }
+                  );
+                }
+              },
+              () => {
+                this.campusStateOptions[cid] = [];
               }
-            }, () => { this.campusStateOptions[cid] = []; });
+            );
           }
         }
       }
-    } catch (e) { /* ignore in non-browser env */ }
+    } catch (e) {
+      /* ignore in non-browser env */
+    }
     // ensure Angular applies the new DOM nodes
     this.cd.detectChanges();
     // wait a bit for the expansion animation to finish, then force a reflow and focus the first input
     setTimeout(() => {
-      try { window.dispatchEvent(new Event('resize')); } catch (e) { /* ignore in non-browser env */ }
+      try {
+        window.dispatchEvent(new Event('resize'));
+      } catch (e) {
+        /* ignore in non-browser env */
+      }
       try {
         const panels = document.querySelectorAll('mat-expansion-panel');
         const panel = panels[newIndex] as HTMLElement | undefined;
@@ -528,7 +642,7 @@ export class InstituteRegisterComponent {
         delete this.campusLoadingStates[cid];
         delete this.campusLoadingCities[cid];
       }
-    } catch (e) { }
+    } catch (e) {}
     this.campuses.removeAt(index);
   }
 
@@ -547,36 +661,44 @@ export class InstituteRegisterComponent {
     const cityCtrl = group.get('city');
 
     if (countryCtrl) {
-      const s1 = countryCtrl.valueChanges.pipe(
-        tap(() => {
-          this.campusStateOptions[cid] = [];
-          this.campusCityOptions[cid] = [];
-          stateCtrl?.setValue('');
-          cityCtrl?.setValue('');
-          this.campusLoadingStates[cid] = true;
-        }),
-        switchMap((countryId: string | null) => countryId ? this.locationService.getStatesForCountry(countryId) : of([]))
-      ).subscribe(states => {
-        this.campusLoadingStates[cid] = false;
-        this.campusStateOptions[cid] = states;
-        if (states.length === 1) stateCtrl?.setValue(states[0].id);
-      });
+      const s1 = countryCtrl.valueChanges
+        .pipe(
+          tap(() => {
+            this.campusStateOptions[cid] = [];
+            this.campusCityOptions[cid] = [];
+            stateCtrl?.setValue('');
+            cityCtrl?.setValue('');
+            this.campusLoadingStates[cid] = true;
+          }),
+          switchMap((countryId: string | null) =>
+            countryId ? this.locationService.getStatesForCountry(countryId) : of([])
+          )
+        )
+        .subscribe((states) => {
+          this.campusLoadingStates[cid] = false;
+          this.campusStateOptions[cid] = states;
+          if (states.length === 1) stateCtrl?.setValue(states[0].id);
+        });
       sub.add(s1);
     }
 
     if (stateCtrl) {
-      const s2 = stateCtrl.valueChanges.pipe(
-        tap(() => {
-          this.campusCityOptions[cid] = [];
-          cityCtrl?.setValue('');
-          this.campusLoadingCities[cid] = true;
-        }),
-        switchMap((stateId: string | null) => stateId ? this.locationService.getCitiesForState(stateId) : of([]))
-      ).subscribe(cities => {
-        this.campusLoadingCities[cid] = false;
-        this.campusCityOptions[cid] = cities;
-        if (cities.length === 1) cityCtrl?.setValue(cities[0].id);
-      });
+      const s2 = stateCtrl.valueChanges
+        .pipe(
+          tap(() => {
+            this.campusCityOptions[cid] = [];
+            cityCtrl?.setValue('');
+            this.campusLoadingCities[cid] = true;
+          }),
+          switchMap((stateId: string | null) =>
+            stateId ? this.locationService.getCitiesForState(stateId) : of([])
+          )
+        )
+        .subscribe((cities) => {
+          this.campusLoadingCities[cid] = false;
+          this.campusCityOptions[cid] = cities;
+          if (cities.length === 1) cityCtrl?.setValue(cities[0].id);
+        });
       sub.add(s2);
     }
 
@@ -590,13 +712,20 @@ export class InstituteRegisterComponent {
 
   ngOnInit(): void {
     // Determine if we're editing by checking for an edit marker in sessionStorage
-    try{
+    try {
       const raw = sessionStorage.getItem('edit_institute');
       if (raw) this.isEditing = true;
-    } catch(e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
 
     // set page title (PageMetaService.setMeta expects a string)
-    this.pageMetaService.setMeta(this.isEditing ? 'Edit Institute' : 'Register Institute', this.isEditing ? 'Update the institute details and save changes.' : 'Register a new institute to start creating tests and managing users.');
+    this.pageMetaService.setMeta(
+      this.isEditing ? 'Edit Institute' : 'Register Institute',
+      this.isEditing
+        ? 'Update the institute details and save changes.'
+        : 'Register a new institute to start creating tests and managing users.'
+    );
 
     // initialize sector options based on any pre-filled industry_type
     const current = this.form.get('industry_type')?.value;
@@ -611,40 +740,50 @@ export class InstituteRegisterComponent {
     // load countries once
     // Always reload location masters when this form opens. Country/state data may
     // be synchronized while the Angular session is still holding a cached hierarchy.
-    this.locationService.getCountries(true).subscribe(list => {
+    this.locationService.getCountries(true).subscribe((list) => {
       this.countries = list;
       if (list.length === 1) this.form.get('headOffice.country')?.setValue(list[0].id);
     });
 
     // when country changes -> load states
-    this.form.get('headOffice.country')!.valueChanges.pipe(
-      tap(() => {
-        this.stateOptions = [];
-        this.cityOptions = [];
-        this.form.get('headOffice.state')!.setValue('');
-        this.form.get('headOffice.city')!.setValue('');
-        this.loadingStates = true;
-      }),
-      switchMap((countryId: string | null) => countryId ? this.locationService.getStatesForCountry(countryId) : of([]))
-    ).subscribe(states => {
-      this.loadingStates = false;
-      this.stateOptions = states;
-      if (states.length === 1) this.form.get('headOffice.state')!.setValue(states[0].id);
-    });
+    this.form
+      .get('headOffice.country')!
+      .valueChanges.pipe(
+        tap(() => {
+          this.stateOptions = [];
+          this.cityOptions = [];
+          this.form.get('headOffice.state')!.setValue('');
+          this.form.get('headOffice.city')!.setValue('');
+          this.loadingStates = true;
+        }),
+        switchMap((countryId: string | null) =>
+          countryId ? this.locationService.getStatesForCountry(countryId) : of([])
+        )
+      )
+      .subscribe((states) => {
+        this.loadingStates = false;
+        this.stateOptions = states;
+        if (states.length === 1) this.form.get('headOffice.state')!.setValue(states[0].id);
+      });
 
     // when state changes -> load cities
-    this.form.get('headOffice.state')!.valueChanges.pipe(
-      tap(() => {
-        this.cityOptions = [];
-        this.form.get('headOffice.city')!.setValue('');
-        this.loadingCities = true;
-      }),
-      switchMap((stateId: string | null) => stateId ? this.locationService.getCitiesForState(stateId) : of([]))
-    ).subscribe(cities => {
-      this.loadingCities = false;
-      this.cityOptions = cities;
-      // City is now a free-text input in the Head Office form, so do not auto-fill it from dropdown data.
-    });
+    this.form
+      .get('headOffice.state')!
+      .valueChanges.pipe(
+        tap(() => {
+          this.cityOptions = [];
+          this.form.get('headOffice.city')!.setValue('');
+          this.loadingCities = true;
+        }),
+        switchMap((stateId: string | null) =>
+          stateId ? this.locationService.getCitiesForState(stateId) : of([])
+        )
+      )
+      .subscribe((cities) => {
+        this.loadingCities = false;
+        this.cityOptions = cities;
+        // City is now a free-text input in the Head Office form, so do not auto-fill it from dropdown data.
+      });
 
     // set default subscription dates when creating a new institute
     if (!this.isEditing) {
@@ -654,7 +793,9 @@ export class InstituteRegisterComponent {
         sixMonths.setMonth(sixMonths.getMonth() + 6);
         this.form.get('subscription_start')?.setValue(today as any);
         this.form.get('subscription_end')?.setValue(sixMonths as any);
-      } catch (e) { /* ignore date errors */ }
+      } catch (e) {
+        /* ignore date errors */
+      }
     }
   }
 
@@ -730,7 +871,14 @@ export class InstituteRegisterComponent {
     industrySectorCtrl?.updateValueAndValidity();
 
     this.form.updateValueAndValidity();
-    if (industryTypeCtrl?.invalid || industrySectorCtrl?.invalid || subscriptionStartCtrl?.invalid || subscriptionEndCtrl?.invalid || this.form.hasError('subscriptionDateRange')) return;
+    if (
+      industryTypeCtrl?.invalid ||
+      industrySectorCtrl?.invalid ||
+      subscriptionStartCtrl?.invalid ||
+      subscriptionEndCtrl?.invalid ||
+      this.form.hasError('subscriptionDateRange')
+    )
+      return;
 
     stepper.next();
   }
@@ -745,7 +893,12 @@ export class InstituteRegisterComponent {
     campuses?.updateValueAndValidity();
     this.form.updateValueAndValidity();
 
-    if (headOffice?.invalid || campuses?.invalid || this.form.hasError('headOfficeOrCampusRequired')) return;
+    if (
+      headOffice?.invalid ||
+      campuses?.invalid ||
+      this.form.hasError('headOfficeOrCampusRequired')
+    )
+      return;
 
     stepper.next();
   }
@@ -769,7 +922,11 @@ export class InstituteRegisterComponent {
     // prepare payload: include current user and arrays for department/team/branch
     const currentUserRaw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
     let current_user: any = null;
-    try { current_user = currentUserRaw ? JSON.parse(currentUserRaw) : null; } catch (e) { current_user = currentUserRaw || null; }
+    try {
+      current_user = currentUserRaw ? JSON.parse(currentUserRaw) : null;
+    } catch (e) {
+      current_user = currentUserRaw || null;
+    }
 
     const base = this.form.value;
     // prepare payload: remove fields not required by update API and simplify current_user
@@ -785,7 +942,10 @@ export class InstituteRegisterComponent {
       department: this.departmentList.slice(),
       team: this.teamList.slice(),
       // send only current user's id
-      current_user: (current_user && (current_user.user_id || current_user.id)) ? (current_user.user_id || current_user.id) : null
+      current_user:
+        current_user && (current_user.user_id || current_user.id)
+          ? current_user.user_id || current_user.id
+          : null,
     };
     // if editing, include the institute id expected by the update API
     if (this.isEditing && this.editingInstituteId) {
@@ -793,15 +953,29 @@ export class InstituteRegisterComponent {
     }
     // Send only campus rows that have actual user-entered data; empty rows can make the update fail.
     try {
-      payload.campuses = (base.campuses || []).filter((campus: any) =>
-        campus.name || campus.address || campus.country || campus.state || campus.city || campus.pincode || campus.email || campus.phone
+      payload.campuses = (base.campuses || []).filter(
+        (campus: any) =>
+          campus.name ||
+          campus.address ||
+          campus.country ||
+          campus.state ||
+          campus.city ||
+          campus.pincode ||
+          campus.email ||
+          campus.phone
       );
-    } catch(e) { payload.campuses = []; }
-    const unnamedCampusIndex = payload.campuses.findIndex((campus: any) => !String(campus?.name || '').trim());
+    } catch (e) {
+      payload.campuses = [];
+    }
+    const unnamedCampusIndex = payload.campuses.findIndex(
+      (campus: any) => !String(campus?.name || '').trim()
+    );
     if (unnamedCampusIndex >= 0) {
       this.campuses.at(unnamedCampusIndex)?.get('name')?.markAsTouched();
       this.expandedIndex = unnamedCampusIndex;
-      this._snack.open(`Campus ${unnamedCampusIndex + 1} requires a name.`, 'Close', { duration: 5000 });
+      this._snack.open(`Campus ${unnamedCampusIndex + 1} requires a name.`, 'Close', {
+        duration: 5000,
+      });
       this.isSubmitting = false;
       return;
     }
@@ -822,9 +996,9 @@ export class InstituteRegisterComponent {
             email: headOffice.email || '',
             phone: headOffice.phone || '',
             isPrimary: true,
-            isActive: true
+            isActive: true,
           },
-          ...payload.campuses
+          ...payload.campuses,
         ];
       }
     }
@@ -835,28 +1009,37 @@ export class InstituteRegisterComponent {
 
     // Convert Date objects to ISO date strings (YYYY-MM-DD) for the API
     try {
-      if (payload.subscription_start instanceof Date) payload.subscription_start = payload.subscription_start.toISOString().split('T')[0];
-      if (payload.subscription_end instanceof Date) payload.subscription_end = payload.subscription_end.toISOString().split('T')[0];
-    } catch (e) { /* ignore conversion errors */ }
+      if (payload.subscription_start instanceof Date)
+        payload.subscription_start = payload.subscription_start.toISOString().split('T')[0];
+      if (payload.subscription_end instanceof Date)
+        payload.subscription_end = payload.subscription_end.toISOString().split('T')[0];
+    } catch (e) {
+      /* ignore conversion errors */
+    }
 
-    const req$ = this.isEditing ? this.http.put(url, payload, { headers, observe: 'response' }) : this.http.post(url, payload, { headers, observe: 'response' });
-    req$.pipe(finalize(() => this.isSubmitting = false)).subscribe({
+    const req$ = this.isEditing
+      ? this.http.put(url, payload, { headers, observe: 'response' })
+      : this.http.post(url, payload, { headers, observe: 'response' });
+    req$.pipe(finalize(() => (this.isSubmitting = false))).subscribe({
       next: (res) => {
-        const msg = this.isEditing ? 'Institute updated successfully.' : 'Institute registered successfully.';
+        const msg = this.isEditing
+          ? 'Institute updated successfully.'
+          : 'Institute registered successfully.';
         this._snack.open(msg, 'Close', { duration: 3500 });
         this.form.reset();
         this.isEditing = false;
         // navigate back to list/view page after success
         try {
           this.router.navigate(['/view-institutes']);
-        } catch (e) { /* ignore navigation errors */ }
+        } catch (e) {
+          /* ignore navigation errors */
+        }
       },
       error: (err) => {
         // Keep registration failures distinguishable from edit failures in browser diagnostics.
         const responseBody = err?.error;
-        const responseText = typeof responseBody === 'string'
-          ? responseBody
-          : JSON.stringify(responseBody || {});
+        const responseText =
+          typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody || {});
         console.error(
           this.isEditing ? 'Update institute failed:' : 'Register institute failed:',
           `HTTP ${err?.status || 0}`,
@@ -864,14 +1047,24 @@ export class InstituteRegisterComponent {
           responseText
         );
         // fallback: store locally and notify
-        try { sessionStorage.setItem('institute_new', JSON.stringify(payload)); } catch (e) { }
-        const serverMsg = err?.error?.statusMessage || err?.error?.message || err?.message || (this.isEditing ? 'Update failed. Please check server logs.' : 'Register failed. Please check server logs.');
+        try {
+          sessionStorage.setItem('institute_new', JSON.stringify(payload));
+        } catch (e) {}
+        const serverMsg =
+          err?.error?.statusMessage ||
+          err?.error?.message ||
+          err?.message ||
+          (this.isEditing
+            ? 'Update failed. Please check server logs.'
+            : 'Register failed. Please check server logs.');
         this._snack.open(serverMsg, 'Close', { duration: 5000 });
-      }
+      },
     });
   }
 
-  onReset() { this.form.reset(); }
+  onReset() {
+    this.form.reset();
+  }
 
   addDepartment(event: Event) {
     const ke = event as KeyboardEvent;
@@ -886,7 +1079,10 @@ export class InstituteRegisterComponent {
       return;
     }
     // support comma-separated paste or multiple entries
-    const parts = raw.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    const parts = raw
+      .split(',')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
     for (const p of parts) {
       this.departmentList.push(p);
     }
@@ -912,7 +1108,10 @@ export class InstituteRegisterComponent {
       input.value = this.teamList.join(', ');
       return;
     }
-    const parts = raw.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    const parts = raw
+      .split(',')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
     for (const p of parts) {
       this.teamList.push(p);
     }
@@ -926,7 +1125,10 @@ export class InstituteRegisterComponent {
     const value = (event.value || '').trim();
     if (value) {
       // split comma-separated values if user pasted multiple
-      const parts = value.split(',').map(p => p.trim()).filter(p => p.length);
+      const parts = value
+        .split(',')
+        .map((p) => p.trim())
+        .filter((p) => p.length);
       for (const p of parts) this.departmentList.push(p);
       this.form.get('department')?.setValue(this.departmentList.join(','));
     }
@@ -937,7 +1139,10 @@ export class InstituteRegisterComponent {
     const input = event.input;
     const value = (event.value || '').trim();
     if (value) {
-      const parts = value.split(',').map(p => p.trim()).filter(p => p.length);
+      const parts = value
+        .split(',')
+        .map((p) => p.trim())
+        .filter((p) => p.length);
       for (const p of parts) this.teamList.push(p);
       this.form.get('team')?.setValue(this.teamList.join(','));
     }
@@ -949,7 +1154,10 @@ export class InstituteRegisterComponent {
     const input = event.input;
     const raw = (event.value || '').trim();
     if (raw) {
-      const parts = raw.split(',').map(p => p.trim()).filter(p => p.length);
+      const parts = raw
+        .split(',')
+        .map((p) => p.trim())
+        .filter((p) => p.length);
       for (const p of parts) {
         // if a department is selected for the branch, prefix it for clarity
         const item = this.selectedBranchDepartment ? `${this.selectedBranchDepartment} - ${p}` : p;
@@ -981,12 +1189,16 @@ export class InstituteRegisterComponent {
     if (!value) return '-';
     // If it's an object with a name property
     if (typeof value === 'object') {
-      return (value.name || value.label || value.country_name || value.country || '').toString() || '-';
+      return (
+        (value.name || value.label || value.country_name || value.country || '').toString() || '-'
+      );
     }
     // if it's a string id or name, try to find in countries
     const str = value.toString();
-    const found = this.countries.find(c => (c.id && c.id.toString() === str) || (c.name && c.name.toString() === str));
-    return found ? (found.name || str) : (str || '-');
+    const found = this.countries.find(
+      (c) => (c.id && c.id.toString() === str) || (c.name && c.name.toString() === str)
+    );
+    return found ? found.name || str : str || '-';
   }
 
   resolveStateName(value: any, cid?: string): string {
@@ -997,12 +1209,16 @@ export class InstituteRegisterComponent {
     const str = value.toString();
     // prefer per-campus state options when available
     if (cid && this.campusStateOptions[cid] && this.campusStateOptions[cid].length) {
-      const found = this.campusStateOptions[cid].find(s => (s.id && s.id.toString() === str) || (s.name && s.name.toString() === str));
+      const found = this.campusStateOptions[cid].find(
+        (s) => (s.id && s.id.toString() === str) || (s.name && s.name.toString() === str)
+      );
       if (found) return found.name || str;
     }
     // fallback to global stateOptions
-    const found = this.stateOptions.find(s => (s.id && s.id.toString() === str) || (s.name && s.name.toString() === str));
-    return found ? (found.name || str) : (str || '-');
+    const found = this.stateOptions.find(
+      (s) => (s.id && s.id.toString() === str) || (s.name && s.name.toString() === str)
+    );
+    return found ? found.name || str : str || '-';
   }
 
   resolveCityName(value: any, cid?: string): string {
@@ -1013,24 +1229,42 @@ export class InstituteRegisterComponent {
     const str = value.toString();
     // prefer per-campus city options when available
     if (cid && this.campusCityOptions[cid] && this.campusCityOptions[cid].length) {
-      const found = this.campusCityOptions[cid].find(c => (c.id && c.id.toString() === str) || (c.name && c.name.toString() === str));
+      const found = this.campusCityOptions[cid].find(
+        (c) => (c.id && c.id.toString() === str) || (c.name && c.name.toString() === str)
+      );
       if (found) return found.name || str;
     }
     // fallback to global cityOptions
-    const found = this.cityOptions.find(c => (c.id && c.id.toString() === str) || (c.name && c.name.toString() === str));
-    return found ? (found.name || str) : (str || '-');
+    const found = this.cityOptions.find(
+      (c) => (c.id && c.id.toString() === str) || (c.name && c.name.toString() === str)
+    );
+    return found ? found.name || str : str || '-';
   }
 
   getCampusCountryName(c: AbstractControl | any): string {
-    try { return this.resolveCountryName(c?.get('country')?.value); } catch (e) { return '-'; }
+    try {
+      return this.resolveCountryName(c?.get('country')?.value);
+    } catch (e) {
+      return '-';
+    }
   }
 
   getCampusStateName(c: AbstractControl | any): string {
-    try { const cid = c?.get('_cid')?.value; return this.resolveStateName(c?.get('state')?.value, cid); } catch (e) { return '-'; }
+    try {
+      const cid = c?.get('_cid')?.value;
+      return this.resolveStateName(c?.get('state')?.value, cid);
+    } catch (e) {
+      return '-';
+    }
   }
 
   getCampusCityName(c: AbstractControl | any): string {
-    try { const cid = c?.get('_cid')?.value; return this.resolveCityName(c?.get('city')?.value, cid); } catch (e) { return '-'; }
+    try {
+      const cid = c?.get('_cid')?.value;
+      return this.resolveCityName(c?.get('city')?.value, cid);
+    } catch (e) {
+      return '-';
+    }
   }
 
   // focus/blur helpers to safely read/write input.value (avoids template EventTarget typing issues)

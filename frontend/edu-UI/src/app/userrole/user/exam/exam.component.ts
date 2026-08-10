@@ -21,6 +21,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { AuthService } from 'src/app/home/service/auth.service';
+import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 
 export interface UserTestRow {
   test_id?: string;
@@ -201,7 +202,24 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   private launchUrl = `${API_BASE}/launch-exam`;
   private reviewRefreshTimer?: ReturnType<typeof setInterval>;
 
-  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService, private router: Router, private dialog: MatDialog, private auth: AuthService ){
+  isGlobalInstituteActive = false;
+
+  constructor(
+    private http: HttpClient,
+    private pageMeta: PageMetaService,
+    private loader: LoaderService,
+    private router: Router,
+    private dialog: MatDialog,
+    private auth: AuthService,
+    private globalInstituteContext: GlobalInstituteContextService
+  ) {
+    try {
+      this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
+      this.globalInstituteContext.activeInstitute$.subscribe(() => {
+        this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
+      });
+    } catch (e) {}
+
     // try to read institute id from sessionStorage
     try{
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');

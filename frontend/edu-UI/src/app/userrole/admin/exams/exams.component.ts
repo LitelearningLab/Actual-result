@@ -101,6 +101,9 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   private apiUrl = `${API_BASE}/get-institute-list`;
 
   isSuperAdmin = false;
+  isGlobalInstituteActive = false;
+ 
+
   constructor(private http: HttpClient, private auth: AuthService, private loader: LoaderService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private confirmService: ConfirmService, private router: Router, private globalInstituteContext: GlobalInstituteContextService, private dialog: MatDialog) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
@@ -112,6 +115,12 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
         this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
       } catch (e) { this.isSuperAdmin = false; }
     });
+    try {
+      this.globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe(() => {
+        this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
+      });
+      this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
+    } catch (e) {}
   }
 
   get filteredInstitutesForFilter(): Array<{ institute_id?: string; institute_name?: string; name?: string }> {

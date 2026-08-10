@@ -65,12 +65,12 @@
       </div>
       <!-- Filter fields (rendered into overlay) -->
       <ng-template #filtersPanel>
-        <div class="filters-panel" (click)="$event.stopPropagation()">
+        <div class="filters-panel" [class.admin-single-col]="!showLocationAndIndustryFilters" (click)="$event.stopPropagation()">
           <div class="filters-panel-header">
             <h4><mat-icon>tune</mat-icon> Filters</h4>
           </div>
           <div class="filter-block">
-            <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
+            <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
               <mat-label>Country</mat-label>
               <mat-select
                 [(ngModel)]="userFilters.country_id"
@@ -98,7 +98,7 @@
               </mat-select>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
+            <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
               <mat-label>City</mat-label>
               <mat-select
                 [(ngModel)]="userFilters.city_id"
@@ -190,7 +190,7 @@
               </mat-select>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="filter-item mandatory-field" *ngIf="isSuperAdmin">
+            <mat-form-field appearance="outline" class="filter-item mandatory-field" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
               <mat-label>Institute <span class="required-mark">*</span></mat-label>
               <mat-select
                 [(ngModel)]="userFilters.institute_id"
@@ -1232,7 +1232,7 @@
                     </div>
 
                     <!-- Marks History Section -->
-                    <div
+                    <!-- <div
                       class="marks-history-container"
                       *ngIf="
                         (q.question_type || q.type) === 'descriptive' &&
@@ -1263,7 +1263,7 @@
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </div> -->
 
                     <!-- Review Comments summary: split into three columns -->
                     <div

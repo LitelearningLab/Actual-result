@@ -55,7 +55,7 @@
             <!-- Filter Popup Panel -->
             <div
               class="question-bank-filter-panel filters-panel view-questions-filters-panel"
-              [class.admin-single-col]="!isSuperAdmin"
+              [class.admin-single-col]="!showLocationAndIndustryFilters"
               *ngIf="questionBankFilterOpen"
               (click)="$event.stopPropagation()"
             >
@@ -67,7 +67,7 @@
                 <!-- Left Column: Country, City, Industry, Sector -->
                 <div class="filter-col">
                   <!-- Country Filter -->
-                  <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
+                  <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
                     <mat-label>Country</mat-label>
                     <mat-select
                       multiple
@@ -109,7 +109,7 @@
                   </mat-form-field>
 
                   <!-- City Filter -->
-                  <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
+                  <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
                     <mat-label>City</mat-label>
                     <input
                       matInput
@@ -121,7 +121,7 @@
                   </mat-form-field>
 
                   <!-- Industry Filter -->
-                  <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
+                  <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
                     <mat-label>Industry</mat-label>
                     <mat-select
                       multiple
@@ -163,7 +163,7 @@
                   </mat-form-field>
 
                   <!-- Sector Filter -->
-                  <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
+                  <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
                     <mat-label>Sector</mat-label>
                     <mat-select
                       multiple
@@ -287,7 +287,7 @@
         </div>
 
         <div class="field-row">
-          <mat-form-field appearance="outline" class="field-half local-institute-field" *ngIf="isSuperAdmin">
+          <mat-form-field appearance="outline" class="field-half local-institute-field" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
             <mat-icon matPrefix>school</mat-icon>
             <mat-label>Institute</mat-label>
             <input

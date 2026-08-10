@@ -10,6 +10,7 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
 import { GlobalInstituteContext, GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import { notify } from 'src/app/shared/global-notify';
 
@@ -24,7 +25,7 @@ interface DashboardInstituteOption {
 @Component({
   selector: 'app-super-dashboard',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, FormsModule, DynamicChartComponent, MatIconModule, MatButtonModule, MatFormFieldModule, MatSelectModule],
+  imports: [CommonModule, HttpClientModule, FormsModule, DynamicChartComponent, MatIconModule, MatButtonModule, MatFormFieldModule, MatSelectModule, MatInputModule],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
 })
@@ -55,6 +56,24 @@ export class SuperDashboardComponent implements OnInit {
   instituteOptions: DashboardInstituteOption[] = [];
   isFilterLoading = false;
   filterLoadError = '';
+
+  industrySearch = '';
+  countrySearch = '';
+  citySearch = '';
+  instituteSearch = '';
+
+  stopFilterSearchEvent(event: Event): void {
+    event.stopPropagation();
+  }
+
+  onFilterSelectOpened(opened: boolean, field: string): void {
+    if (!opened) {
+      if (field === 'industry') this.industrySearch = '';
+      else if (field === 'country') this.countrySearch = '';
+      else if (field === 'city') this.citySearch = '';
+      else if (field === 'institute') this.instituteSearch = '';
+    }
+  }
   
   private apiUrl = `${API_BASE}/superadmin-dashboard`;
 
@@ -89,8 +108,22 @@ export class SuperDashboardComponent implements OnInit {
     ]);
   }
 
+  get filteredIndustryOptionsList(): string[] {
+    const q = (this.industrySearch || '').trim().toLowerCase();
+    return q
+      ? this.industryOptions.filter(i => i.toLowerCase().includes(q))
+      : this.industryOptions;
+  }
+
   get countryOptions(): string[] {
     return this.uniqueSorted(this.filteredByIndustry().map(i => i.country));
+  }
+
+  get filteredCountryOptionsList(): string[] {
+    const q = (this.countrySearch || '').trim().toLowerCase();
+    return q
+      ? this.countryOptions.filter(c => c.toLowerCase().includes(q))
+      : this.countryOptions;
   }
 
   get cityOptions(): string[] {
@@ -100,8 +133,23 @@ export class SuperDashboardComponent implements OnInit {
       .map(i => i.city));
   }
 
+  get filteredCityOptionsList(): string[] {
+    const q = (this.citySearch || '').trim().toLowerCase();
+    return q
+      ? this.cityOptions.filter(c => c.toLowerCase().includes(q))
+      : this.cityOptions;
+  }
+
   get filteredInstituteOptions(): DashboardInstituteOption[] {
     return this.filteredByCity().sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  get filteredInstituteOptionsList(): DashboardInstituteOption[] {
+    const q = (this.instituteSearch || '').trim().toLowerCase();
+    const list = this.filteredInstituteOptions;
+    return q
+      ? list.filter(i => (i.name || '').toLowerCase().includes(q))
+      : list;
   }
 
   get canApplyFilter(): boolean {
@@ -131,17 +179,23 @@ export class SuperDashboardComponent implements OnInit {
     this.filterModel.country = '';
     this.filterModel.city = '';
     this.filterModel.institute_id = '';
+    this.countrySearch = '';
+    this.citySearch = '';
+    this.instituteSearch = '';
     this.instituteContext.clearPendingInstitute();
   }
 
   onCountryChange(): void {
     this.filterModel.city = '';
     this.filterModel.institute_id = '';
+    this.citySearch = '';
+    this.instituteSearch = '';
     this.instituteContext.clearPendingInstitute();
   }
 
   onCityChange(): void {
     this.filterModel.institute_id = '';
+    this.instituteSearch = '';
     this.instituteContext.clearPendingInstitute();
   }
 
@@ -183,6 +237,10 @@ export class SuperDashboardComponent implements OnInit {
   clearGlobalFilter(): void {
     this.instituteContext.clearInstitute();
     this.filterModel = { industry: '', country: '', city: '', institute_id: '' };
+    this.industrySearch = '';
+    this.countrySearch = '';
+    this.citySearch = '';
+    this.instituteSearch = '';
     try { notify('Institute filter cleared', 'info'); } catch (e) {}
   }
 

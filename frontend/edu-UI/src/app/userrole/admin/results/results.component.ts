@@ -37,6 +37,14 @@ export class AdminResultsComponent implements OnInit {
   selectedInstituteId: string | null = null;
   isSuperAdmin = false;
 
+  get isGlobalInstituteActive(): boolean {
+    try {
+      return !!sessionStorage.getItem('global_institute_id');
+    } catch (e) {
+      return false;
+    }
+  }
+
   private apiUrl = `${API_BASE}/admin-dashboard`;
 
   constructor(private http: HttpClient, private pageMeta: PageMetaService,private loader: LoaderService) {}

@@ -140,7 +140,7 @@
 
           </ng-container>
 
-          <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin">
+          <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
             <mat-label>Institute</mat-label>
             <mat-select multiple [(ngModel)]="selectedInstitutes" placeholder="Select institute"
               (selectionChange)="onInstituteSelectionChange()">

@@ -186,15 +186,19 @@ def review_user_exam(request, current_user=None):
             review_data["review"] = []
             
             # get question, selected option, and correct answer
-            all_answers = (session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id)
-                .order_by(Answer.created_date.desc()).all())
-            seen_qids = set()
-            question_list = []
+            all_answers = session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id).all()
+            latest_answers_by_qid = {}
+            first_seen_order = []
             for ans in all_answers:
-                if ans.question_id not in seen_qids:
-                    seen_qids.add(ans.question_id)
-                    question_list.append(ans)
-            question_list.reverse()
+                if ans.question_id not in latest_answers_by_qid:
+                    first_seen_order.append(ans.question_id)
+                    latest_answers_by_qid[ans.question_id] = ans
+                else:
+                    existing = latest_answers_by_qid[ans.question_id]
+                    if ans.created_date and (not existing.created_date or ans.created_date > existing.created_date):
+                        latest_answers_by_qid[ans.question_id] = ans
+            question_list = [latest_answers_by_qid[qid] for qid in first_seen_order]
+
             total_marks = 0
             for question_answer in question_list:
 

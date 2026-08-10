@@ -254,6 +254,14 @@ export class AdminQuestionsComponent {
     }
   }
 
+  get isGlobalInstituteActive(): boolean {
+    return !!this.globalInstituteId;
+  }
+
+  get showLocationAndIndustryFilters(): boolean {
+    return this.isSuperAdmin && !this.isGlobalInstituteActive;
+  }
+
   private apiUrl = `${API_BASE}/add-question`;
   // Use the rich institute endpoint so industry/sector/country/city filters can scope the dropdown.
   private institutesUrl = `${API_BASE}/get-institutes`;

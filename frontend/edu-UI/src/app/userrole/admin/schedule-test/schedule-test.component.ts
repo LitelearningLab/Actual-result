@@ -6,6 +6,8 @@ import {
   TemplateRef,
   ViewContainerRef,
   HostListener,
+  OnInit,
+  OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -40,11 +42,12 @@ import {
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { API_BASE } from 'src/app/shared/api.config';
-import { BehaviorSubject, combineLatest, Observable, of } from 'rxjs';
+import { BehaviorSubject, combineLatest, Observable, of, Subscription } from 'rxjs';
 import { startWith, map, retry } from 'rxjs/operators';
 import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
+import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 
 @Component({
   selector: 'app-admin-schedule-test',
@@ -74,8 +77,10 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
   templateUrl: './schedule-test.component.html',
   styleUrls: ['./schedule-test.component.scss'],
 })
-export class AdminScheduleTestComponent {
+export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   @ViewChild('testInput') testInput?: ElementRef<HTMLInputElement>;
+  isGlobalInstituteActive = false;
+  private _globalInstituteSub?: Subscription;
   // institute list will be fetched from backend
   institutes: Array<{ name: string; institute_id?: string; short_name?: string }> = [];
   // autocomplete controls for institute/exam
@@ -211,6 +216,14 @@ export class AdminScheduleTestComponent {
     } catch (e) {
       /* ignore if service not available */
     }
+    this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
+    this._globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe(() => {
+      this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this._globalInstituteSub?.unsubscribe();
   }
   // Load users from backend using filters (reuses get-users endpoint conventions)
   loadUsers() {
@@ -429,7 +442,8 @@ export class AdminScheduleTestComponent {
     private overlay: Overlay,
     private vcr: ViewContainerRef,
     private fb: FormBuilder,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private globalInstituteContext: GlobalInstituteContextService
   ) {
     this.loadInstitutes();
     this.loadCountries();
@@ -1758,7 +1772,6 @@ export class AdminScheduleTestComponent {
     }
   }
 
-
   displayFilterInstitute(value: any): string {
     if (!value) return '';
     if (typeof value === 'object') return value.name || '';
@@ -2114,12 +2127,14 @@ export class AdminScheduleTestComponent {
   get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
     if (!this.hasAppliedFilters) return [];
     const chips: Array<{ key: string; label: string; removable: boolean }> = [];
-    if (this.filterInstitute)
+    if (this.filterInstitute && !this.isGlobalInstituteActive) {
       chips.push({
         key: 'filter_institute',
         label: `Institute: ${this.getInstituteName(this.filterInstitute)}`,
         removable: true,
       });
+    }
+
     if (this.filterExamName)
       chips.push({
         key: 'filter_exam_name',
@@ -2304,7 +2319,6 @@ export class AdminScheduleTestComponent {
       this.filterCreatedByMe
     );
   }
-
 
   // Called when Apply button is clicked (explicit apply wrapper)
   applyFilters() {

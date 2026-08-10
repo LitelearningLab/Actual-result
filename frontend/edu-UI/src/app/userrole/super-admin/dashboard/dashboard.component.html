@@ -52,40 +52,63 @@
         <!-- Keep the primary location filters together in the first row. -->
         <div class="filter-row filter-row--location">
           <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Industry</mat-label>
-          <mat-select [(ngModel)]="filterModel.industry" (selectionChange)="onIndustryChange()" [disabled]="isFilterLoading">
-            <mat-option value="">All Industries</mat-option>
-            <mat-option *ngFor="let industry of industryOptions" [value]="industry">{{ industry }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+            <mat-label>Industry</mat-label>
+            <mat-select [(ngModel)]="filterModel.industry" (selectionChange)="onIndustryChange()" [disabled]="isFilterLoading" (openedChange)="onFilterSelectOpened($event, 'industry')">
+              <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                <input matInput class="select-search-input" placeholder="Search industry..." [(ngModel)]="industrySearch"
+                  [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                  (input)="stopFilterSearchEvent($event)" />
+              </mat-option>
+              <mat-option value="">All Industries</mat-option>
+              <mat-option *ngFor="let industry of filteredIndustryOptionsList" [value]="industry">{{ industry }}</mat-option>
+            </mat-select>
+          </mat-form-field>
 
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Country</mat-label>
-          <mat-select [(ngModel)]="filterModel.country" (selectionChange)="onCountryChange()" [disabled]="isFilterLoading">
-            <mat-option value="">Select Country</mat-option>
-            <mat-option *ngFor="let country of countryOptions" [value]="country">{{ country }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+          <mat-form-field appearance="outline" class="filter-field">
+            <mat-label>Country</mat-label>
+            <mat-select [(ngModel)]="filterModel.country" (selectionChange)="onCountryChange()" [disabled]="isFilterLoading" (openedChange)="onFilterSelectOpened($event, 'country')">
+              <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                <input matInput class="select-search-input" placeholder="Search country..." [(ngModel)]="countrySearch"
+                  [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                  (input)="stopFilterSearchEvent($event)" />
+              </mat-option>
+              <mat-option value="">Select Country</mat-option>
+              <mat-option *ngFor="let country of filteredCountryOptionsList" [value]="country">{{ country }}</mat-option>
+            </mat-select>
+          </mat-form-field>
 
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>City</mat-label>
-          <mat-select [(ngModel)]="filterModel.city" (selectionChange)="onCityChange()" [disabled]="isFilterLoading || !filterModel.country">
-            <mat-option value="">Select City</mat-option>
-            <mat-option *ngFor="let city of cityOptions" [value]="city">{{ city }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-
+          <mat-form-field appearance="outline" class="filter-field">
+            <mat-label>City</mat-label>
+            <mat-select [(ngModel)]="filterModel.city" (selectionChange)="onCityChange()" [disabled]="isFilterLoading || !filterModel.country" (openedChange)="onFilterSelectOpened($event, 'city')">
+              <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                <input matInput class="select-search-input" placeholder="Search city..." [(ngModel)]="citySearch"
+                  [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                  (input)="stopFilterSearchEvent($event)" />
+              </mat-option>
+              <mat-option value="">Select City</mat-option>
+              <mat-option *ngFor="let city of filteredCityOptionsList" [value]="city">{{ city }}</mat-option>
+            </mat-select>
+          </mat-form-field>
         </div>
 
         <div class="filter-row filter-row--institute">
           <mat-form-field appearance="outline" class="filter-field filter-field--institute">
-            <mat-label>Institute Name</mat-label>
-          <mat-select [(ngModel)]="filterModel.institute_id" (selectionChange)="onInstituteSelectionChange()" [disabled]="isFilterLoading">
-            <mat-option value="">Select Institute</mat-option>
-            <mat-option *ngFor="let institute of filteredInstituteOptions" [value]="institute.id">{{ institute.name }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-
+            <mat-label>Institute Name <span style="color: #ef4444; font-weight: bold;">*</span></mat-label>
+            <mat-select [(ngModel)]="filterModel.institute_id" (selectionChange)="onInstituteSelectionChange()" [disabled]="isFilterLoading" required (openedChange)="onFilterSelectOpened($event, 'institute')">
+              <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                <input matInput class="select-search-input" placeholder="Search institute..." [(ngModel)]="instituteSearch"
+                  [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                  (input)="stopFilterSearchEvent($event)" />
+              </mat-option>
+              <mat-option value="">Select Institute</mat-option>
+              <mat-option *ngFor="let institute of filteredInstituteOptionsList" [value]="institute.id">{{ institute.name }}</mat-option>
+            </mat-select>
+            <mat-hint *ngIf="!filterModel.institute_id" style="color: #64748b; font-size: 0.75rem;">Institute selection is mandatory to apply filter</mat-hint>
+          </mat-form-field>
         </div>
 
         <div class="global-filter-actions">

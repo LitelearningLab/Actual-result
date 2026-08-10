@@ -1,4 +1,13 @@
-import { Component, OnInit, ViewChild, OnDestroy, AfterViewInit, ElementRef, TemplateRef, ViewContainerRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  ViewChild,
+  OnDestroy,
+  AfterViewInit,
+  ElementRef,
+  TemplateRef,
+  ViewContainerRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
@@ -48,9 +57,29 @@ export interface UserRow {
 @Component({
   selector: 'app-view-users',
   standalone: true,
-  imports: [CommonModule, MatTableModule, MatIconModule, MatButtonModule, MatSlideToggleModule, MatInputModule, MatTabsModule, MatFormFieldModule, MatSelectModule, MatAutocompleteModule, FormsModule, RouterModule, HttpClientModule, MatPaginatorModule, MatSortModule, MatTooltipModule, OverlayModule, PortalModule, SharedModule],
+  imports: [
+    CommonModule,
+    MatTableModule,
+    MatIconModule,
+    MatButtonModule,
+    MatSlideToggleModule,
+    MatInputModule,
+    MatTabsModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatAutocompleteModule,
+    FormsModule,
+    RouterModule,
+    HttpClientModule,
+    MatPaginatorModule,
+    MatSortModule,
+    MatTooltipModule,
+    OverlayModule,
+    PortalModule,
+    SharedModule,
+  ],
   templateUrl: './view-users.component.html',
-  styleUrls: ['./view-users.component.scss']
+  styleUrls: ['./view-users.component.scss'],
 })
 export class ViewUsersComponent implements OnDestroy, OnInit {
   // loading = false;
@@ -65,14 +94,26 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   hasAppliedFilters = false;
   rawRecords: any[] = [];
 
-
   // pagination
   pageSize = 25;
   pageIndex = 0; // zero-based index for MatPaginator
   totalCount = 0; // total records from API
 
   // filter model and lists (match fields in the filters panel)
-  filters: any = { institute: '', name: '', department: [], team: [], joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
+  filters: any = {
+    institute: '',
+    name: '',
+    department: [],
+    team: [],
+    joining_from: '',
+    joining_to: '',
+    active_status: '',
+    country: '',
+    state: '',
+    city: '',
+    industry: '',
+    sector: '',
+  };
   // institutes: Array<{ id: string; name: string }> = [];
   institutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
   // `code` is the Country table primary key used by /get-users. `countryCode`
@@ -94,11 +135,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   industryTypes = ['School', 'College', 'BPO', 'Bank', 'IT'];
   industrySectors = ['School', 'Engineering', 'Arts', 'Healthcare', 'Finance', 'Banking', 'IT'];
   private sectorMap: Record<string, string[]> = {
-    'School': ['School'],
-    'College': ['Engineering', 'Arts'],
-    'BPO': ['Healthcare', 'Finance'],
-    'Bank': ['Bank'],
-    'IT': ['IT']
+    School: ['School'],
+    College: ['Engineering', 'Arts'],
+    BPO: ['Healthcare', 'Finance'],
+    Bank: ['Bank'],
+    IT: ['IT'],
   };
 
   selectedCountries: string[] = [];
@@ -112,7 +153,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   sectorFilterSearch = '';
   activeStatusOptions = [
     { label: 'Active', value: true },
-    { label: 'Inactive', value: false }
+    { label: 'Inactive', value: false },
   ];
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -134,28 +175,46 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   private _subs: Subscription | null = null;
   private _globalInstituteSub: Subscription | null = null;
   private activeInstituteId = '';
-  constructor(private http: HttpClient, private router: Router, private loading: LoaderService, private auth: AuthService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private confirmService: ConfirmService, private globalInstituteContext: GlobalInstituteContextService) {
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+    private loading: LoaderService,
+    private auth: AuthService,
+    private overlay: Overlay,
+    private vcr: ViewContainerRef,
+    private pageMeta: PageMetaService,
+    private confirmService: ConfirmService,
+    private globalInstituteContext: GlobalInstituteContextService
+  ) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
       this.isSuperAdmin = this.checkSuperAdmin(this.auth.currentUserValue);
-    } catch (e) { this.isSuperAdmin = false; }
+    } catch (e) {
+      this.isSuperAdmin = false;
+    }
     try {
       this._subs = this.auth.user$.subscribe((user: any) => {
         this.isSuperAdmin = this.checkSuperAdmin(user);
       });
-    } catch (e) { /* ignore in tests */ }
+    } catch (e) {
+      /* ignore in tests */
+    }
     try {
-      this._globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe(context => {
-        this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
-        const instituteId = context?.institute_id || '';
-        if (instituteId) {
-          if (instituteId === this.activeInstituteId) return;
-          this.resetForInstituteChange(instituteId);
-          return;
+      this._globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe(
+        (context) => {
+          this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
+          const instituteId = context?.institute_id || '';
+          if (instituteId) {
+            if (instituteId === this.activeInstituteId) return;
+            this.resetForInstituteChange(instituteId);
+            return;
+          }
+          if (this.activeInstituteId) this.resetAfterGlobalInstituteClear();
         }
-        if (this.activeInstituteId) this.resetAfterGlobalInstituteClear();
-      });
-    } catch (e) { /* ignore in tests */ }
+      );
+    } catch (e) {
+      /* ignore in tests */
+    }
   }
 
   private checkSuperAdmin(user: any): boolean {
@@ -163,12 +222,21 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       let rawUser = user || this.auth.currentUserValue;
       if (!rawUser) {
         try {
-          const profileRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+          const profileRaw =
+            sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
           if (profileRaw) rawUser = JSON.parse(profileRaw);
-        } catch (e) { }
+        } catch (e) {}
       }
       if (rawUser?.is_super_admin === true || !!rawUser?.isSuperAdmin) return true;
-      const role = (rawUser?.role || rawUser?.user_role || sessionStorage.getItem('userRole') || sessionStorage.getItem('role') || '').toString().toLowerCase();
+      const role = (
+        rawUser?.role ||
+        rawUser?.user_role ||
+        sessionStorage.getItem('userRole') ||
+        sessionStorage.getItem('role') ||
+        ''
+      )
+        .toString()
+        .toLowerCase();
       return ['super_admin', 'superadmin', 'super-admin'].includes(role);
     } catch (e) {
       return false;
@@ -176,8 +244,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   ngOnDestroy(): void {
-    try { this._subs?.unsubscribe(); } catch (e) { /* ignore */ }
-    try { this._globalInstituteSub?.unsubscribe(); } catch (e) { /* ignore */ }
+    try {
+      this._subs?.unsubscribe();
+    } catch (e) {
+      /* ignore */
+    }
+    try {
+      this._globalInstituteSub?.unsubscribe();
+    } catch (e) {
+      /* ignore */
+    }
     this.saveUsersReturnState();
   }
   private filtersOverlayRef: OverlayRef | null = null;
@@ -189,7 +265,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.restoreUsersReturnState();
     // this.loadCities();
 
-    try { } catch (e) { }
+    try {
+    } catch (e) {}
   }
 
   onInstituteChange(iid: string) {
@@ -212,11 +289,14 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         this.departments = [];
         this.teams = [];
       }
-    } catch (e) { }
+    } catch (e) {}
   }
 
   onDepartmentFilterChange() {
-    if (!this.filters.department || (Array.isArray(this.filters.department) && !this.filters.department.length)) {
+    if (
+      !this.filters.department ||
+      (Array.isArray(this.filters.department) && !this.filters.department.length)
+    ) {
       this.filters.team = [];
     }
   }
@@ -226,7 +306,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const term = (this.countryFilterSearch || '').trim().toLowerCase();
     let list = this.countries || [];
     if (term) {
-      list = list.filter(c => (c.name || '').toLowerCase().includes(term) || (this.selectedCountries || []).includes(c.name));
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(term) ||
+          (this.selectedCountries || []).includes(c.name)
+      );
     }
     return [...list].sort((a, b) => {
       const aSel = (this.selectedCountries || []).includes(a.name);
@@ -239,7 +323,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   isAllCountriesSelected(): boolean {
     const items = this.filteredCountriesForFilter || [];
-    return items.length > 0 && items.every(c => (this.selectedCountries || []).includes(c.name));
+    return items.length > 0 && items.every((c) => (this.selectedCountries || []).includes(c.name));
   }
 
   toggleSelectAllCountries(): void {
@@ -247,7 +331,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.isAllCountriesSelected()) {
       this.selectedCountries = [];
     } else {
-      this.selectedCountries = items.map(c => c.name);
+      this.selectedCountries = items.map((c) => c.name);
     }
   }
 
@@ -256,7 +340,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const term = (this.industryFilterSearch || '').trim().toLowerCase();
     let list = this.industryTypes || [];
     if (term) {
-      list = list.filter(t => t.toLowerCase().includes(term) || (this.selectedIndustries || []).includes(t));
+      list = list.filter(
+        (t) => t.toLowerCase().includes(term) || (this.selectedIndustries || []).includes(t)
+      );
     }
     return [...list].sort((a, b) => {
       const aSel = (this.selectedIndustries || []).includes(a);
@@ -269,7 +355,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   isAllIndustriesSelected(): boolean {
     const items = this.filteredIndustryTypesForFilter || [];
-    return items.length > 0 && items.every(t => (this.selectedIndustries || []).includes(t));
+    return items.length > 0 && items.every((t) => (this.selectedIndustries || []).includes(t));
   }
 
   toggleSelectAllIndustries(): void {
@@ -289,7 +375,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const sectorsSet = new Set<string>();
     for (const ind of this.selectedIndustries) {
       const list = this.sectorMap[ind] || [];
-      list.forEach(s => sectorsSet.add(s));
+      list.forEach((s) => sectorsSet.add(s));
     }
     return Array.from(sectorsSet);
   }
@@ -299,7 +385,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const term = (this.sectorFilterSearch || '').trim().toLowerCase();
     let list = scoped;
     if (term) {
-      list = list.filter(s => s.toLowerCase().includes(term) || (this.selectedSectors || []).includes(s));
+      list = list.filter(
+        (s) => s.toLowerCase().includes(term) || (this.selectedSectors || []).includes(s)
+      );
     }
     return [...list].sort((a, b) => {
       const aSel = (this.selectedSectors || []).includes(a);
@@ -312,7 +400,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   isAllSectorsSelected(): boolean {
     const items = this.filteredSectorsForFilter || [];
-    return items.length > 0 && items.every(s => (this.selectedSectors || []).includes(s));
+    return items.length > 0 && items.every((s) => (this.selectedSectors || []).includes(s));
   }
 
   toggleSelectAllSectors(): void {
@@ -326,27 +414,28 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   // --- Active Status Logic ---
   isAllActiveStatusesSelected(): boolean {
-    return this.activeStatusOptions.length > 0 && this.activeStatusOptions.every(o => (this.selectedActiveStatuses || []).includes(o.value));
+    return (
+      this.activeStatusOptions.length > 0 &&
+      this.activeStatusOptions.every((o) => (this.selectedActiveStatuses || []).includes(o.value))
+    );
   }
 
   toggleSelectAllActiveStatuses(): void {
     if (this.isAllActiveStatusesSelected()) {
       this.selectedActiveStatuses = [];
     } else {
-      this.selectedActiveStatuses = this.activeStatusOptions.map(o => o.value);
+      this.selectedActiveStatuses = this.activeStatusOptions.map((o) => o.value);
     }
   }
-
-
-
 
   get filteredInstitutesForFilter() {
     const term = (this.instituteFilterSearch || '').trim().toLowerCase();
     let list = this.institutes || [];
     if (term) {
-      list = list.filter(i =>
-        (i.institute_name || (i as any).name || '').toLowerCase().includes(term) ||
-        (!!i.institute_id && this.selectedInstitutes.includes(i.institute_id))
+      list = list.filter(
+        (i) =>
+          (i.institute_name || (i as any).name || '').toLowerCase().includes(term) ||
+          (!!i.institute_id && this.selectedInstitutes.includes(i.institute_id))
       );
     }
     return [...list].sort((a, b) => {
@@ -354,7 +443,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       const bSel = !!b.institute_id && this.selectedInstitutes.includes(b.institute_id);
       if (aSel && !bSel) return -1;
       if (!aSel && bSel) return 1;
-      return (a.institute_name || (a as any).name || '').localeCompare(b.institute_name || (b as any).name || '');
+      return (a.institute_name || (a as any).name || '').localeCompare(
+        b.institute_name || (b as any).name || ''
+      );
     });
   }
 
@@ -362,9 +453,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const term = (this.departmentFilterSearch || '').trim().toLowerCase();
     let list = this.departments || [];
     if (term) {
-      list = list.filter(d =>
-        (d.name || '').toLowerCase().includes(term) ||
-        (Array.isArray(this.filters.department) && this.filters.department.includes(d.id))
+      list = list.filter(
+        (d) =>
+          (d.name || '').toLowerCase().includes(term) ||
+          (Array.isArray(this.filters.department) && this.filters.department.includes(d.id))
       );
     }
     return [...list].sort((a, b) => {
@@ -380,9 +472,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const term = (this.teamFilterSearch || '').trim().toLowerCase();
     let list = this.teams || [];
     if (term) {
-      list = list.filter(t =>
-        (t.name || '').toLowerCase().includes(term) ||
-        (Array.isArray(this.filters.team) && this.filters.team.includes(t.id))
+      list = list.filter(
+        (t) =>
+          (t.name || '').toLowerCase().includes(term) ||
+          (Array.isArray(this.filters.team) && this.filters.team.includes(t.id))
       );
     }
     return [...list].sort((a, b) => {
@@ -395,12 +488,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   isAllInstitutesSelected(): boolean {
-    const ids: string[] = (this.filteredInstitutesForFilter || []).map(i => i.institute_id || '').filter((id): id is string => !!id);
-    return ids.length > 0 && ids.every(id => (this.selectedInstitutes || []).includes(id));
+    const ids: string[] = (this.filteredInstitutesForFilter || [])
+      .map((i) => i.institute_id || '')
+      .filter((id): id is string => !!id);
+    return ids.length > 0 && ids.every((id) => (this.selectedInstitutes || []).includes(id));
   }
 
   toggleSelectAllInstitutes() {
-    const ids: string[] = (this.filteredInstitutesForFilter || []).map(i => i.institute_id || '').filter((id): id is string => !!id);
+    const ids: string[] = (this.filteredInstitutesForFilter || [])
+      .map((i) => i.institute_id || '')
+      .filter((id): id is string => !!id);
     if (this.isAllInstitutesSelected()) {
       this.selectedInstitutes = [];
     } else {
@@ -410,13 +507,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   isAllDepartmentsSelected(): boolean {
-    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    const ids = (this.filteredDepartmentsForFilter || []).map((d) => d.id).filter(Boolean);
     const selected = Array.isArray(this.filters.department) ? this.filters.department : [];
-    return ids.length > 0 && ids.every(id => selected.includes(id));
+    return ids.length > 0 && ids.every((id) => selected.includes(id));
   }
 
   toggleSelectAllDepartments() {
-    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    const ids = (this.filteredDepartmentsForFilter || []).map((d) => d.id).filter(Boolean);
     if (this.isAllDepartmentsSelected()) {
       this.filters.department = [];
     } else {
@@ -425,13 +522,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   isAllTeamsSelected(): boolean {
-    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    const ids = (this.filteredTeamsForFilter || []).map((t) => t.id).filter(Boolean);
     const selected = Array.isArray(this.filters.team) ? this.filters.team : [];
-    return ids.length > 0 && ids.every(id => selected.includes(id));
+    return ids.length > 0 && ids.every((id) => selected.includes(id));
   }
 
   toggleSelectAllTeams() {
-    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    const ids = (this.filteredTeamsForFilter || []).map((t) => t.id).filter(Boolean);
     if (this.isAllTeamsSelected()) {
       this.filters.team = [];
     } else {
@@ -456,20 +553,20 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     }
   }
 
-
-
   filteredDepartments() {
     const query = (this.departmentSearch || '').trim().toLowerCase();
-    return query ? this.departments.filter(d => d.name.toLowerCase().includes(query)) : this.departments;
+    return query
+      ? this.departments.filter((d) => d.name.toLowerCase().includes(query))
+      : this.departments;
   }
 
   filteredTeams() {
     const query = (this.teamSearch || '').trim().toLowerCase();
-    return query ? this.teams.filter(t => t.name.toLowerCase().includes(query)) : this.teams;
+    return query ? this.teams.filter((t) => t.name.toLowerCase().includes(query)) : this.teams;
   }
 
   onDepartmentSearchChange() {
-    const selected = this.departments.find(d => String(d.id) === String(this.filters.department));
+    const selected = this.departments.find((d) => String(d.id) === String(this.filters.department));
     if (selected?.name !== this.departmentSearch) {
       this.filters.department = '';
       this.filters.team = '';
@@ -478,7 +575,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   onTeamSearchChange() {
-    const selected = this.teams.find(t => String(t.id) === String(this.filters.team));
+    const selected = this.teams.find((t) => String(t.id) === String(this.filters.team));
     if (selected?.name !== this.teamSearch) this.filters.team = '';
   }
   onDepartmentSelected(departmentName: string | null) {
@@ -490,7 +587,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.onDepartmentFilterChange();
       return;
     }
-    const department = this.departments.find(d => d.name === departmentName);
+    const department = this.departments.find((d) => d.name === departmentName);
     if (!department) return;
     this.filters.department = department.id;
     this.departmentSearch = department.name;
@@ -504,7 +601,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.teamSearch = 'Any';
       return;
     }
-    const team = this.teams.find(t => t.name === teamName);
+    const team = this.teams.find((t) => t.name === teamName);
     if (!team) return;
     this.filters.team = team.id;
     this.teamSearch = team.name;
@@ -512,27 +609,38 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   // load departments for the selected institute(s)
   loadDepartments(instituteIdsStr: string) {
-    const ids = (instituteIdsStr || '').split(',').map(s => s.trim()).filter(Boolean);
-    if (!ids.length) { this.departments = []; return; }
-    const requests = ids.map(id =>
+    const ids = (instituteIdsStr || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!ids.length) {
+      this.departments = [];
+      return;
+    }
+    const requests = ids.map((id) =>
       this.http.get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: id } })
     );
     forkJoin(requests).subscribe({
       next: (responses) => {
         const allDepts: any[] = [];
-        responses.forEach(res => {
+        responses.forEach((res) => {
           const data = res?.data || [];
-          allDepts.push(...data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name })));
+          allDepts.push(
+            ...data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name }))
+          );
         });
         // Deduplicate by department ID
         const unique = new Map<string, any>();
-        allDepts.forEach(d => { if (d.id && !unique.has(d.id)) unique.set(d.id, d); });
+        allDepts.forEach((d) => {
+          if (d.id && !unique.has(d.id)) unique.set(d.id, d);
+        });
         this.departments = Array.from(unique.values());
       },
-      error: () => { this.departments = []; }
+      error: () => {
+        this.departments = [];
+      },
     });
   }
-
 
   // load teams for the selected institute(s)
   loadTeams(instituteId: string) {
@@ -547,19 +655,21 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           this.teamSearch = '';
         }
       },
-      error: () => { this.teams = []; }
+      error: () => {
+        this.teams = [];
+      },
     });
   }
-
 
   ngAfterViewInit(): void {
     // Do NOT assign paginator to dataSource for server-side pagination
     // this.dataSource.paginator = this.paginator; // This enables client-side pagination - REMOVE IT
-    try { this.dataSource.sort = this.sort; } catch (e) { }
+    try {
+      this.dataSource.sort = this.sort;
+    } catch (e) {}
     // Load initial data
     // this.loadUsers();
   }
-
 
   applyFilter(value: string) {
     const q = (value || '').trim().toLowerCase();
@@ -574,16 +684,22 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   get filtered() {
     const q = (this.filter || '').toLowerCase();
     if (!q) return this.users;
-    return this.users.filter(u =>
-      (u.name || '').toLowerCase().includes(q) ||
-      (u.email || '').toLowerCase().includes(q) ||
-      (u.institute || '').toLowerCase().includes(q) ||
-      (u.phone || '').toLowerCase().includes(q) ||
-      (u.role || '').toLowerCase().includes(q)
+    return this.users.filter(
+      (u) =>
+        (u.name || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.institute || '').toLowerCase().includes(q) ||
+        (u.phone || '').toLowerCase().includes(q) ||
+        (u.role || '').toLowerCase().includes(q)
     );
   }
 
-  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean; tooltip?: string }> {
+  get appliedFilterChips(): Array<{
+    key: string;
+    label: string;
+    removable: boolean;
+    tooltip?: string;
+  }> {
     if (!this.hasAppliedFilters) return [];
     const chips: Array<{ key: string; label: string; removable: boolean; tooltip?: string }> = [];
 
@@ -591,64 +707,113 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.selectedInstitutes && this.selectedInstitutes.length) {
       if (this.selectedInstitutes.length === 1) {
         const name = this.getInstituteLabel(this.selectedInstitutes[0]);
-        chips.push({ key: 'institute', label: `Institute: ${name}`, removable: this.isSuperAdmin, tooltip: name });
+        chips.push({
+          key: 'institute',
+          label: `Institute: ${name}`,
+          removable: this.isSuperAdmin,
+          tooltip: name,
+        });
       } else {
-        const labels = this.selectedInstitutes.map(id => this.getInstituteLabel(id)).filter(Boolean);
-        chips.push({ key: 'institute', label: `Institutes: ${this.selectedInstitutes.length} selected`, removable: this.isSuperAdmin, tooltip: labels.join(', ') });
+        const labels = this.selectedInstitutes
+          .map((id) => this.getInstituteLabel(id))
+          .filter(Boolean);
+        chips.push({
+          key: 'institute',
+          label: `Institutes: ${this.selectedInstitutes.length} selected`,
+          removable: this.isSuperAdmin,
+          tooltip: labels.join(', '),
+        });
       }
     } else if (this.filters.institute || this.selectedInstitute) {
       const instId = this.filters.institute || this.selectedInstitute;
       const name = this.getInstituteLabel(instId);
-      chips.push({ key: 'institute', label: `Institute: ${name}`, removable: this.isSuperAdmin, tooltip: name });
+      chips.push({
+        key: 'institute',
+        label: `Institute: ${name}`,
+        removable: this.isSuperAdmin,
+        tooltip: name,
+      });
     }
 
     // Country Chip
     if (this.selectedCountries && this.selectedCountries.length) {
-      chips.push({ key: 'country', label: `Country: ${this.selectedCountries.join(', ')}`, removable: true });
+      chips.push({
+        key: 'country',
+        label: `Country: ${this.selectedCountries.join(', ')}`,
+        removable: true,
+      });
     } else if (this.filters.country) {
-      chips.push({ key: 'country', label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`, removable: true });
+      chips.push({
+        key: 'country',
+        label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`,
+        removable: true,
+      });
     }
 
     // Industry Chip
     if (this.selectedIndustries && this.selectedIndustries.length) {
-      chips.push({ key: 'industry', label: `Industry: ${this.selectedIndustries.join(', ')}`, removable: true });
+      chips.push({
+        key: 'industry',
+        label: `Industry: ${this.selectedIndustries.join(', ')}`,
+        removable: true,
+      });
     } else if (this.filters.industry) {
       chips.push({ key: 'industry', label: `Industry: ${this.filters.industry}`, removable: true });
     }
 
     // Sector Chip
     if (this.selectedSectors && this.selectedSectors.length) {
-      chips.push({ key: 'sector', label: `Sector: ${this.selectedSectors.join(', ')}`, removable: true });
+      chips.push({
+        key: 'sector',
+        label: `Sector: ${this.selectedSectors.join(', ')}`,
+        removable: true,
+      });
     } else if (this.filters.sector) {
       chips.push({ key: 'sector', label: `Sector: ${this.filters.sector}`, removable: true });
     }
 
     // Active Status Chip
     if (this.selectedActiveStatuses && this.selectedActiveStatuses.length) {
-      const statusLabels = this.selectedActiveStatuses.map(s => s ? 'Active' : 'Inactive');
-      chips.push({ key: 'active_status', label: `Status: ${statusLabels.join(', ')}`, removable: true });
+      const statusLabels = this.selectedActiveStatuses.map((s) => (s ? 'Active' : 'Inactive'));
+      chips.push({
+        key: 'active_status',
+        label: `Status: ${statusLabels.join(', ')}`,
+        removable: true,
+      });
     } else if (this.filters.active_status !== '') {
-      chips.push({ key: 'active_status', label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`, removable: true });
+      chips.push({
+        key: 'active_status',
+        label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`,
+        removable: true,
+      });
     }
 
     // Name Chip
-    if (this.filters.name) chips.push({ key: 'name', label: `Name: ${this.filters.name}`, removable: true });
+    if (this.filters.name)
+      chips.push({ key: 'name', label: `Name: ${this.filters.name}`, removable: true });
 
     // Department Chip
     if (Array.isArray(this.filters.department) && this.filters.department.length) {
-      const labels = this.filters.department.map((id: any) => this.getSelectedName(this.departments, id)).filter(Boolean);
-      chips.push({ key: 'department', label: `Departments: ${labels.join(', ')}`, removable: true });
+      const labels = this.filters.department
+        .map((id: any) => this.getSelectedName(this.departments, id))
+        .filter(Boolean);
+      chips.push({
+        key: 'department',
+        label: `Departments: ${labels.join(', ')}`,
+        removable: true,
+      });
     }
 
     // Team Chip
     if (Array.isArray(this.filters.team) && this.filters.team.length) {
-      const labels = this.filters.team.map((id: any) => this.getSelectedName(this.teams, id)).filter(Boolean);
+      const labels = this.filters.team
+        .map((id: any) => this.getSelectedName(this.teams, id))
+        .filter(Boolean);
       chips.push({ key: 'team', label: `Teams: ${labels.join(', ')}`, removable: true });
     }
 
     return chips;
   }
-
 
   removeAppliedFilter(key: string) {
     if (!key) return;
@@ -694,52 +859,90 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.refreshAfterFilterChipChange();
   }
 
-
-  clearAppliedFilters() { this.resetFilters(); }
+  clearAppliedFilters() {
+    this.resetFilters();
+  }
 
   private refreshAfterFilterChipChange() {
     if (this.appliedFilterChips.length) this.loadUsers();
-    else { this.hasAppliedFilters = false; this.users = []; this.rawRecords = []; this.dataSource.data = []; this.totalCount = 0; }
+    else {
+      this.hasAppliedFilters = false;
+      this.users = [];
+      this.rawRecords = [];
+      this.dataSource.data = [];
+      this.totalCount = 0;
+    }
   }
 
   private getInstituteLabel(id: any): string {
-    const found = this.institutes.find(i => String(i.institute_id) === String(id));
+    const found = this.institutes.find((i) => String(i.institute_id) === String(id));
     return found?.institute_name || found?.short_name || String(id || '');
   }
 
   private getSelectedName(list: any[], selectedId: any, idKey: string = 'id'): string {
-    const found = (list || []).find(item => String(item?.[idKey]) === String(selectedId));
+    const found = (list || []).find((item) => String(item?.[idKey]) === String(selectedId));
     return found?.name || String(selectedId || '');
   }
   toggleActive(u: UserRow) {
     const newState = !u.active;
     const action = newState ? 'Activate' : 'Deactivate';
-    this.confirmService.confirm({ title: `${action} User`, message: `${action} user ${u.name}?`, confirmText: action, cancelText: 'Cancel' }).subscribe(ok => {
-      if (!ok) return;
-      // optimistic update
-      const prev = u.active;
-      u.active = newState;
-      this.loading.show();
-      const id = u.id || (u.raw && (u.raw.user_id || u.raw.id));
-      if (!id) { try { notify('User id missing', 'error'); } catch (e) { }; u.active = prev; return; }
-      const url = `${API_BASE}/user/${newState ? 'activate' : 'deactivate'}/${encodeURIComponent(String(id))}`;
-      const currentUserRaw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
-      let current_user: any = null;
-      try { current_user = currentUserRaw ? JSON.parse(currentUserRaw) : null; } catch (e) { current_user = currentUserRaw || null; }
-      this.http.put<any>(url, { current_user: current_user.user_id || '' }).subscribe({
-        next: (res) => { try { notify(`User ${newState ? 'activated' : 'deactivated'}`, 'success'); } catch (e) { } },
-        error: (err) => { console.error('Failed toggling user active', err); try { notify('Failed to update user status', 'error'); } catch (e) { }; u.active = prev; },
-        complete: () => this.loading.hide()
+    this.confirmService
+      .confirm({
+        title: `${action} User`,
+        message: `${action} user ${u.name}?`,
+        confirmText: action,
+        cancelText: 'Cancel',
+      })
+      .subscribe((ok) => {
+        if (!ok) return;
+        // optimistic update
+        const prev = u.active;
+        u.active = newState;
+        this.loading.show();
+        const id = u.id || (u.raw && (u.raw.user_id || u.raw.id));
+        if (!id) {
+          try {
+            notify('User id missing', 'error');
+          } catch (e) {}
+          u.active = prev;
+          return;
+        }
+        const url = `${API_BASE}/user/${newState ? 'activate' : 'deactivate'}/${encodeURIComponent(String(id))}`;
+        const currentUserRaw =
+          sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
+        let current_user: any = null;
+        try {
+          current_user = currentUserRaw ? JSON.parse(currentUserRaw) : null;
+        } catch (e) {
+          current_user = currentUserRaw || null;
+        }
+        this.http.put<any>(url, { current_user: current_user.user_id || '' }).subscribe({
+          next: (res) => {
+            try {
+              notify(`User ${newState ? 'activated' : 'deactivated'}`, 'success');
+            } catch (e) {}
+          },
+          error: (err) => {
+            console.error('Failed toggling user active', err);
+            try {
+              notify('Failed to update user status', 'error');
+            } catch (e) {}
+            u.active = prev;
+          },
+          complete: () => this.loading.hide(),
+        });
       });
-    });
   }
-
 
   loadUsers(instituteId?: string) {
     // if an instituteId was explicitly provided, prefer it and keep local state in sync
     if (typeof instituteId !== 'undefined' && instituteId !== null) {
-      try { this.selectedInstitute = instituteId as any; } catch (e) { }
-      try { this.filters.institute = String(instituteId); } catch (e) { }
+      try {
+        this.selectedInstitute = instituteId as any;
+      } catch (e) {}
+      try {
+        this.filters.institute = String(instituteId);
+      } catch (e) {}
     }
 
     this.loading.show();
@@ -747,9 +950,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     // build query params from filters (prefer explicit institute param, then filter model, then selectedInstitute)
     const params: any = { _ts: Date.now() };
     // Replace lines 686-687 in loadUsers():
-    const instituteParam = (typeof instituteId !== 'undefined' && instituteId !== null)
-      ? instituteId
-      : (this.selectedInstitutes?.length ? this.selectedInstitutes.join(',') : (this.filters.institute || this.selectedInstitute));
+    const instituteParam =
+      typeof instituteId !== 'undefined' && instituteId !== null
+        ? instituteId
+        : this.selectedInstitutes?.length
+          ? this.selectedInstitutes.join(',')
+          : this.filters.institute || this.selectedInstitute;
     if (instituteParam) params.institute_id = instituteParam;
 
     if (instituteParam) params.institute_id = instituteParam;
@@ -776,7 +982,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     try {
       params.pageNumber = (this.pageIndex || 0) + 1; // send 1-based page number
       params.pageSize = this.pageSize || 25;
-    } catch (e) { }
+    } catch (e) {}
 
     this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
@@ -785,24 +991,46 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           const dataCandidate = res?.data?.users ?? res?.users ?? res?.data ?? res;
           const data = Array.isArray(dataCandidate) ? dataCandidate : [];
           // total count may be provided as totalCount or total_count
-          this.totalCount = Number(res?.totalCount ?? res?.total_count ?? res?.data?.totalCount ?? res?.data?.total_count ?? res?.total ?? data.length) || 0;
+          this.totalCount =
+            Number(
+              res?.totalCount ??
+                res?.total_count ??
+                res?.data?.totalCount ??
+                res?.data?.total_count ??
+                res?.total ??
+                data.length
+            ) || 0;
           // map API user shape to UserRow expected by the table
           this.rawRecords = data;
           this.users = data.map((u: any) => ({
             id: u.user_id || u.id,
             // prefer API full_name when available
-            name: u.full_name || u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+            name:
+              u.full_name ||
+              u.name ||
+              `${u.first_name || ''} ${u.last_name || ''}`.trim() ||
+              u.email,
             user_name: u.user_name,
             email: u.email,
-            institute: (u.institute && (u.institute.institute_name || u.institute.short_name)) || u.institute_name || '',
-            active: (typeof u.active_status === 'boolean') ? u.active_status : (u.active_status === 1 || u.active_status === '1'),
+            institute:
+              (u.institute && (u.institute.institute_name || u.institute.short_name)) ||
+              u.institute_name ||
+              '',
+            active:
+              typeof u.active_status === 'boolean'
+                ? u.active_status
+                : u.active_status === 1 || u.active_status === '1',
             phone: u.contact_no || u.phone || '',
             role: u.user_role || u.role || '',
             joining_date: u.joining_date || u.joining || '',
-            department: (u.department && (u.department.department_name || u.department.name)) || u.department_name || '',
+            department:
+              (u.department && (u.department.department_name || u.department.name)) ||
+              u.department_name ||
+              '',
             team: (u.team && (u.team.team_name || u.team.name)) || u.team_name || '',
             campus: (u.campus && (u.campus.campus_name || u.campus.name)) || u.campus_name || '',
-            country: (u.country && (u.country.country_name || u.country.name)) || u.country_name || '',
+            country:
+              (u.country && (u.country.country_name || u.country.name)) || u.country_name || '',
             state: (u.state && (u.state.state_name || u.state.name)) || u.state_name || '',
             city: (u.city && (u.city.city_name || u.city.name)) || u.city_name || '',
             created_by: u.created_by || '',
@@ -817,17 +1045,26 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
               can_delete: !!p.can_delete,
               can_edit: !!p.can_edit,
               can_view: !!p.can_view,
-              raw: p
+              raw: p,
             })),
             user_privileges: u.user_privileges || u.privileges || [],
-            raw: u
+            raw: u,
           }));
           this.dataSource.data = this.users;
           this.dataSource.filterPredicate = (d: UserRow, filter: string) => {
             const q = (filter || '').toLowerCase();
-            return (d.name || '').toLowerCase().includes(q) || (d.email || '').toLowerCase().includes(q) || (d.institute || '').toLowerCase().includes(q) || (d.department || '').toLowerCase().includes(q) || (d.team || '').toLowerCase().includes(q);
+            return (
+              (d.name || '').toLowerCase().includes(q) ||
+              (d.email || '').toLowerCase().includes(q) ||
+              (d.institute || '').toLowerCase().includes(q) ||
+              (d.department || '').toLowerCase().includes(q) ||
+              (d.team || '').toLowerCase().includes(q)
+            );
           };
-        } catch (e) { console.error('Error mapping users', e); this.users = []; }
+        } catch (e) {
+          console.error('Error mapping users', e);
+          this.users = [];
+        }
         this.loading.hide();
       },
       error: (err) => {
@@ -837,13 +1074,19 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         this.rawRecords = [];
         this.dataSource.data = [];
         this.totalCount = 0;
-        try { notify(err?.error?.statusMessage || 'Failed to load users. Please try again.', 'error'); } catch (e) { }
-      }
+        try {
+          notify(err?.error?.statusMessage || 'Failed to load users. Please try again.', 'error');
+        } catch (e) {}
+      },
     });
   }
   private hasFilterValues(): boolean {
-    const hasDept = Array.isArray(this.filters.department) ? this.filters.department.length > 0 : !!this.filters.department;
-    const hasTeam = Array.isArray(this.filters.team) ? this.filters.team.length > 0 : !!this.filters.team;
+    const hasDept = Array.isArray(this.filters.department)
+      ? this.filters.department.length > 0
+      : !!this.filters.department;
+    const hasTeam = Array.isArray(this.filters.team)
+      ? this.filters.team.length > 0
+      : !!this.filters.team;
     return !!(
       (this.selectedInstitutes && this.selectedInstitutes.length) ||
       (this.selectedCountries && this.selectedCountries.length) ||
@@ -865,7 +1108,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   applyFilters() {
     if (!this.hasFilterValues()) {
-      try { notify('Please add filters in the filter form.', 'info'); } catch (e) { }
+      try {
+        notify('Please add filters in the filter form.', 'info');
+      } catch (e) {}
       return;
     }
     this.pageIndex = 0;
@@ -876,7 +1121,20 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   resetFilters() {
     this.pageIndex = 0;
-    this.filters = { institute: '', name: '', department: [], team: [], joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
+    this.filters = {
+      institute: '',
+      name: '',
+      department: [],
+      team: [],
+      joining_from: '',
+      joining_to: '',
+      active_status: '',
+      country: '',
+      state: '',
+      city: '',
+      industry: '',
+      sector: '',
+    };
 
     // --- Clear all multi-select array selections ---
     this.selectedCountries = [];
@@ -917,7 +1175,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           this.loadTeams(instId);
           this.loadCountries(instId);
         }
-      } catch (e) { /* ignore malformed session data */ }
+      } catch (e) {
+        /* ignore malformed session data */
+      }
     }
     this.users = [];
     this.rawRecords = [];
@@ -925,12 +1185,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.totalCount = 0;
     this.hasAppliedFilters = false;
 
-       // --- Close filter overlay modal ---
+    // --- Close filter overlay modal ---
     this.closeFiltersOverlay();
-
-
   }
-
 
   onPageEvent(ev: PageEvent) {
     try {
@@ -938,7 +1195,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.pageSize = ev.pageSize || this.pageSize;
       if (!this.hasAppliedFilters) return;
       this.loadUsers();
-    } catch (e) { }
+    } catch (e) {}
   }
 
   // load all cities (not scoped to a country) so city dropdown can show global options
@@ -956,14 +1213,29 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             const countries = res?.data?.countries || res?.countries || [];
             let agg: any[] = [];
             if (Array.isArray(countries)) {
-              countries.forEach((c: any) => { if (Array.isArray(c.cities)) agg = agg.concat(c.cities); if (Array.isArray(c.states)) c.states.forEach((s: any) => { if (Array.isArray(s.cities)) agg = agg.concat(s.cities); }); });
+              countries.forEach((c: any) => {
+                if (Array.isArray(c.cities)) agg = agg.concat(c.cities);
+                if (Array.isArray(c.states))
+                  c.states.forEach((s: any) => {
+                    if (Array.isArray(s.cities)) agg = agg.concat(s.cities);
+                  });
+              });
             }
             citiesRaw = agg;
           }
-          this.cities = (citiesRaw || []).map((c: any) => ({ code: c.city_code || c.code || c.id, name: c.city_name || c.name || c.city }));
-        } catch (e) { this.cities = []; }
+          this.cities = (citiesRaw || []).map((c: any) => ({
+            code: c.city_code || c.code || c.id,
+            name: c.city_name || c.name || c.city,
+          }));
+        } catch (e) {
+          this.cities = [];
+        }
         this.loading.hide();
-      }, error: () => { this.cities = []; this.loading.hide(); }
+      },
+      error: () => {
+        this.cities = [];
+        this.loading.hide();
+      },
     });
   }
 
@@ -974,15 +1246,25 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       next: (res) => {
         const data = res?.data || [];
         // ensure each institute object includes an institute_id property so session-based lookup works
-        this.institutes = data.map((i: any) => ({ institute_id: i.institute_id || i.id || i._id || '', institute_name: i.institute_name || i.name || i.short_name || '', short_name: i.short_name || i.institute_name || i.name || '' }));
+        this.institutes = data.map((i: any) => ({
+          institute_id: i.institute_id || i.id || i._id || '',
+          institute_name: i.institute_name || i.name || i.short_name || '',
+          short_name: i.short_name || i.institute_name || i.name || '',
+        }));
         // If a selectedInstitute is already set (e.g. via route/session), prefer that
         try {
           if (this.selectedInstitute) {
-            const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute));
+            const found = this.institutes.find(
+              (i) => String(i.institute_id) === String(this.selectedInstitute)
+            );
             if (found) {
               // ensure exact match type/value and load schedules
               this.selectedInstitute = found.institute_id as any;
-              try { this.filters.institute = String(this.selectedInstitute); } catch (e) { /* ignore */ }
+              try {
+                this.filters.institute = String(this.selectedInstitute);
+              } catch (e) {
+                /* ignore */
+              }
               this.syncInstituteSearch();
               this.loadDepartments(this.selectedInstitute);
               this.loadTeams(this.selectedInstitute);
@@ -990,7 +1272,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
               return;
             }
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+          /* ignore */
+        }
 
         // Fallback: try reading user's institute from sessionStorage and apply it
         try {
@@ -999,10 +1283,14 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             const u = JSON.parse(raw);
             const instId = u?.institute_id || u?.instituteId || u?.institute || '';
             if (instId) {
-              const found = this.institutes.find(i => String(i.institute_id) === String(instId));
+              const found = this.institutes.find((i) => String(i.institute_id) === String(instId));
               if (found) {
                 this.selectedInstitute = found.institute_id as any;
-                try { this.filters.institute = String(this.selectedInstitute); } catch (e) { /* ignore */ }
+                try {
+                  this.filters.institute = String(this.selectedInstitute);
+                } catch (e) {
+                  /* ignore */
+                }
                 this.syncInstituteSearch();
                 this.loadDepartments(this.selectedInstitute);
                 this.loadTeams(this.selectedInstitute);
@@ -1010,28 +1298,40 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
               } else {
                 // institute list shape didn't match or id not present in fetched list - still set and load using raw instId
                 this.selectedInstitute = instId as any;
-                try { this.filters.institute = String(instId); } catch (e) { /* ignore */ }
+                try {
+                  this.filters.institute = String(instId);
+                } catch (e) {
+                  /* ignore */
+                }
                 this.syncInstituteSearch();
                 this.loadCountries(this.selectedInstitute);
               }
             }
           }
-        } catch (e) { /* ignore malformed session data */ }
-      }, error: () => { this.institutes = []; this.loading.hide(); }
+        } catch (e) {
+          /* ignore malformed session data */
+        }
+      },
+      error: () => {
+        this.institutes = [];
+        this.loading.hide();
+      },
     });
     this.loading.hide();
   }
 
   displayInstitute = (value: string | null): string => {
     if (!value) return '';
-    const found = this.institutes.find(i => String(i.institute_id) === String(value));
+    const found = this.institutes.find((i) => String(i.institute_id) === String(value));
     return found ? found.institute_name : String(value);
   };
 
   filteredInstitutes() {
     const q = (this.instituteSearchTerm || '').trim().toLowerCase();
     if (!q) return this.institutes;
-    return this.institutes.filter((i: any) => (i.institute_name || i.short_name || '').toLowerCase().includes(q));
+    return this.institutes.filter((i: any) =>
+      (i.institute_name || i.short_name || '').toLowerCase().includes(q)
+    );
   }
 
   onInstituteInputFocus() {
@@ -1062,15 +1362,15 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   onInstituteAutocompleteSelected(id: string) {
     this.selectedInstitute = id || '';
     this.filters.institute = this.selectedInstitute;
-    this.syncInstituteSearch();    // Sets display text box (instituteSearch) to institute name
+    this.syncInstituteSearch(); // Sets display text box (instituteSearch) to institute name
     this.instituteSearchTerm = ''; // Resets search query so ALL institutes show when reopening!
     this.onInstituteChange(this.selectedInstitute);
   }
 
-
-
   private syncInstituteSearch() {
-    const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute || ''));
+    const found = this.institutes.find(
+      (i) => String(i.institute_id) === String(this.selectedInstitute || '')
+    );
     this.instituteSearch = found ? found.institute_name : '';
   }
 
@@ -1081,57 +1381,92 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.http.get<any>(hierarchyUrl).subscribe({
       next: (hierarchyRes) => {
         try {
-          const locationCountries = hierarchyRes?.data?.countries || hierarchyRes?.countries || hierarchyRes?.data || [];
-          const hierarchyCountries = (Array.isArray(locationCountries) ? locationCountries : []).map((country: any) => ({
-            // /get-users compares the selected value with User.country_id, so
-            // never replace the database id with an ISO country code.
-            id: country.country_id || country.id,
-            countryCode: country.country_code || country.code,
-            name: country.country_name || country.name || country.country
-          })).filter((country: any) => country.id && country.name);
+          const locationCountries =
+            hierarchyRes?.data?.countries || hierarchyRes?.countries || hierarchyRes?.data || [];
+          const hierarchyCountries = (Array.isArray(locationCountries) ? locationCountries : [])
+            .map((country: any) => ({
+              // /get-users compares the selected value with User.country_id, so
+              // never replace the database id with an ISO country code.
+              id: country.country_id || country.id,
+              countryCode: country.country_code || country.code,
+              name: country.country_name || country.name || country.country,
+            }))
+            .filter((country: any) => country.id && country.name);
 
           this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
             next: (instituteRes) => {
               try {
                 const institutes = Array.isArray(instituteRes?.data) ? instituteRes.data : [];
-                const registeredCountries: Array<{ code: string; name: string; countryCode?: string }> = [];
+                const registeredCountries: Array<{
+                  code: string;
+                  name: string;
+                  countryCode?: string;
+                }> = [];
                 institutes.forEach((institute: any) => {
-                  const locations = [institute, ...(Array.isArray(institute?.campuses) ? institute.campuses : [])];
+                  const locations = [
+                    institute,
+                    ...(Array.isArray(institute?.campuses) ? institute.campuses : []),
+                  ];
                   locations.forEach((location: any) => {
                     const rawCountry = location?.country;
-                    const countryId = location?.country_id
-                      || (typeof rawCountry === 'object' ? rawCountry?.country_id || rawCountry?.id : null);
-                    const countryCode = location?.country_code
-                      || (typeof rawCountry === 'object' ? rawCountry?.country_code || rawCountry?.code : rawCountry);
-                    const countryName = location?.country_name
-                      || (typeof rawCountry === 'object' ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country : rawCountry);
-                    const hierarchyMatch = hierarchyCountries.find((country: any) =>
-                      (countryId && String(country.id).toLowerCase() === String(countryId).toLowerCase())
-                      || (countryCode && String(country.countryCode).toLowerCase() === String(countryCode).toLowerCase())
-                      || (countryName && String(country.name).trim().toLowerCase() === String(countryName).trim().toLowerCase())
+                    const countryId =
+                      location?.country_id ||
+                      (typeof rawCountry === 'object'
+                        ? rawCountry?.country_id || rawCountry?.id
+                        : null);
+                    const countryCode =
+                      location?.country_code ||
+                      (typeof rawCountry === 'object'
+                        ? rawCountry?.country_code || rawCountry?.code
+                        : rawCountry);
+                    const countryName =
+                      location?.country_name ||
+                      (typeof rawCountry === 'object'
+                        ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
+                        : rawCountry);
+                    const hierarchyMatch = hierarchyCountries.find(
+                      (country: any) =>
+                        (countryId &&
+                          String(country.id).toLowerCase() === String(countryId).toLowerCase()) ||
+                        (countryCode &&
+                          String(country.countryCode).toLowerCase() ===
+                            String(countryCode).toLowerCase()) ||
+                        (countryName &&
+                          String(country.name).trim().toLowerCase() ===
+                            String(countryName).trim().toLowerCase())
                     );
-                    const resolved = hierarchyMatch || (countryId && countryName ? { id: countryId, countryCode, name: countryName } : null);
-                    if (resolved) registeredCountries.push({
-                      code: String(resolved.id),
-                      name: String(resolved.name).trim(),
-                      countryCode: resolved.countryCode ? String(resolved.countryCode) : undefined
-                    });
+                    const resolved =
+                      hierarchyMatch ||
+                      (countryId && countryName
+                        ? { id: countryId, countryCode, name: countryName }
+                        : null);
+                    if (resolved)
+                      registeredCountries.push({
+                        code: String(resolved.id),
+                        name: String(resolved.name).trim(),
+                        countryCode: resolved.countryCode
+                          ? String(resolved.countryCode)
+                          : undefined,
+                      });
                   });
                 });
                 const uniqueByName = new Map<string, { code: string; name: string }>();
-                registeredCountries.forEach(country => {
+                registeredCountries.forEach((country) => {
                   const key = country.name.toLowerCase();
                   if (!uniqueByName.has(key)) uniqueByName.set(key, country);
                 });
-                this.countries = Array.from(uniqueByName.values()).sort((a, b) => a.name.localeCompare(b.name));
+                this.countries = Array.from(uniqueByName.values()).sort((a, b) =>
+                  a.name.localeCompare(b.name)
+                );
                 // Return-state from older builds may contain an ISO code. Remap
                 // it to the Country primary key instead of issuing an empty query.
                 if (this.filters.country) {
                   const selected = String(this.filters.country).trim().toLowerCase();
-                  const canonical = this.countries.find(country =>
-                    country.code.toLowerCase() === selected
-                    || String(country.countryCode || '').toLowerCase() === selected
-                    || country.name.toLowerCase() === selected
+                  const canonical = this.countries.find(
+                    (country) =>
+                      country.code.toLowerCase() === selected ||
+                      String(country.countryCode || '').toLowerCase() === selected ||
+                      country.name.toLowerCase() === selected
                   );
                   this.filters.country = canonical?.code || '';
                 }
@@ -1139,13 +1474,17 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                 this.countries = [];
               }
             },
-            error: () => { this.countries = []; }
+            error: () => {
+              this.countries = [];
+            },
           });
         } catch (e) {
           this.countries = [];
         }
       },
-      error: () => { this.countries = []; }
+      error: () => {
+        this.countries = [];
+      },
     });
   }
   // load states and cities for a selected country (aggregate from countries payload or request country scoped)
@@ -1154,7 +1493,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.cities = [];
     this.filters.state = '';
     this.filters.city = '';
-    if (!this.filters.country) { this.refreshInstituteScope(); return; }
+    if (!this.filters.country) {
+      this.refreshInstituteScope();
+      return;
+    }
     const url = `${API_BASE}/location-hierarchy`;
     const selectedCountry = this.filters.country;
     this.http.get<any>(url, { params: { country_id: selectedCountry } }).subscribe({
@@ -1162,7 +1504,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         try {
           // states: prefer top-level states array
           const statesRaw = res?.data?.states || res?.states || [];
-          this.states = (Array.isArray(statesRaw) ? statesRaw : []).map((s: any) => ({ code: s.state_code || s.code || s.id, name: s.state_name || s.name || s.state }));
+          this.states = (Array.isArray(statesRaw) ? statesRaw : []).map((s: any) => ({
+            code: s.state_code || s.code || s.id,
+            name: s.state_name || s.name || s.state,
+          }));
 
           // cities: try top-level cities first (they may include state_id references)
           let citiesRaw = res?.data?.cities || res?.cities || [];
@@ -1170,9 +1515,15 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
           if (Array.isArray(citiesRaw) && citiesRaw.length > 0) {
             // filter top-level cities to those whose state belongs to the selected country
-            const stateIds = (Array.isArray(statesRaw) ? statesRaw.map((s: any) => (s.id || s.state_id || s.code || s.state_code)).filter(Boolean) : []);
+            const stateIds = Array.isArray(statesRaw)
+              ? statesRaw
+                  .map((s: any) => s.id || s.state_id || s.code || s.state_code)
+                  .filter(Boolean)
+              : [];
             if (stateIds.length > 0) {
-              allCities = citiesRaw.filter((c: any) => stateIds.includes(c.state_id || c.state || c.stateId || c.state_code));
+              allCities = citiesRaw.filter((c: any) =>
+                stateIds.includes(c.state_id || c.state || c.stateId || c.state_code)
+              );
             } else {
               // no states returned; include all top-level cities as a fallback
               allCities = citiesRaw;
@@ -1181,15 +1532,26 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             // aggregate from countries -> cities and countries -> states -> cities, preferring the selected country
             const countries = res?.data?.countries || res?.countries || [];
             if (Array.isArray(countries) && countries.length > 0) {
-              const foundCountry = countries.find((ct: any) => String(ct.id || ct.country_id || ct.country_code || ct.code) === String(selectedCountry));
+              const foundCountry = countries.find(
+                (ct: any) =>
+                  String(ct.id || ct.country_id || ct.country_code || ct.code) ===
+                  String(selectedCountry)
+              );
               if (foundCountry) {
-                if (Array.isArray(foundCountry.cities)) allCities = allCities.concat(foundCountry.cities);
-                if (Array.isArray(foundCountry.states)) foundCountry.states.forEach((s: any) => { if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities); });
+                if (Array.isArray(foundCountry.cities))
+                  allCities = allCities.concat(foundCountry.cities);
+                if (Array.isArray(foundCountry.states))
+                  foundCountry.states.forEach((s: any) => {
+                    if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities);
+                  });
               } else {
                 // fallback: aggregate all countries
                 countries.forEach((c: any) => {
                   if (Array.isArray(c.cities)) allCities = allCities.concat(c.cities);
-                  if (Array.isArray(c.states)) c.states.forEach((s: any) => { if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities); });
+                  if (Array.isArray(c.states))
+                    c.states.forEach((s: any) => {
+                      if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities);
+                    });
                 });
               }
             } else {
@@ -1197,26 +1559,46 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             }
           }
 
-          this.cities = (allCities || []).map((c: any) => ({ code: c.city_code || c.code || c.id, name: c.city_name || c.name || c.city }));
-        } catch (e) { this.states = []; this.cities = []; }
+          this.cities = (allCities || []).map((c: any) => ({
+            code: c.city_code || c.code || c.id,
+            name: c.city_name || c.name || c.city,
+          }));
+        } catch (e) {
+          this.states = [];
+          this.cities = [];
+        }
         this.refreshInstituteScope();
-      }, error: () => { this.states = []; this.cities = []; this.refreshInstituteScope(); }
+      },
+      error: () => {
+        this.states = [];
+        this.cities = [];
+        this.refreshInstituteScope();
+      },
     });
   }
 
   // City is a free-text/autocomplete field; suggestions are filtered by whatever the user typed.
   filteredCities() {
-    const q = String(this.filters.city || '').trim().toLowerCase();
+    const q = String(this.filters.city || '')
+      .trim()
+      .toLowerCase();
     if (!q) return this.cities;
-    return this.cities.filter(c => (c.name || '').toLowerCase().includes(q));
+    return this.cities.filter((c) => (c.name || '').toLowerCase().includes(q));
   }
 
   // The backend's city filter (get-users / get-institutes) expects a city id, not a name, so
   // resolve the typed/selected city name back to its id here.
   private resolveCityId(cityName: string): string {
-    const name = String(cityName || '').trim().toLowerCase();
+    const name = String(cityName || '')
+      .trim()
+      .toLowerCase();
     if (!name) return '';
-    const found = this.cities.find(c => String(c.name || '').trim().toLowerCase() === name);
+    const found = this.cities.find(
+      (c) =>
+        String(c.name || '')
+          .trim()
+          .toLowerCase() === name
+    );
     return found ? String(found.code) : '';
   }
 
@@ -1249,16 +1631,19 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     // Super Admins continue to use the normal page-level institute filters.
     if (this.isGlobalInstituteActive && this.activeInstituteId) return;
     const params: any = { _ts: Date.now() };
-    if (this.selectedCountries && this.selectedCountries.length) params.country = this.selectedCountries.join(',');
+    if (this.selectedCountries && this.selectedCountries.length)
+      params.country = this.selectedCountries.join(',');
     else if (this.filters.country) params.country = this.filters.country;
 
     const cityName = String(this.filters.city || '').trim();
     if (cityName) params.city = cityName;
 
-    if (this.selectedIndustries && this.selectedIndustries.length) params.industry = this.selectedIndustries.join(',');
+    if (this.selectedIndustries && this.selectedIndustries.length)
+      params.industry = this.selectedIndustries.join(',');
     else if (this.filters.industry) params.industry = this.filters.industry;
 
-    if (this.selectedSectors && this.selectedSectors.length) params.sector = this.selectedSectors.join(',');
+    if (this.selectedSectors && this.selectedSectors.length)
+      params.sector = this.selectedSectors.join(',');
     else if (this.filters.sector) params.sector = this.filters.sector;
 
     if (!Object.keys(params).length) {
@@ -1273,61 +1658,99 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           this.institutes = data.map((r: any) => ({
             institute_id: r.institute_id || r.id || r._id || '',
             institute_name: r.institute_name || r.name || r.short_name || '',
-            short_name: r.short_name || r.institute_name || r.name || ''
+            short_name: r.short_name || r.institute_name || r.name || '',
           }));
         } catch (e) {
           this.institutes = [];
         }
-        if (this.selectedInstitute && !this.institutes.some(i => String(i.institute_id) === String(this.selectedInstitute))) {
+        if (
+          this.selectedInstitute &&
+          !this.institutes.some((i) => String(i.institute_id) === String(this.selectedInstitute))
+        ) {
           this.onInstituteChange('');
         }
       },
-      error: () => { this.institutes = []; }
+      error: () => {
+        this.institutes = [];
+      },
     });
   }
 
   onStateChange() {
     this.cities = [];
     this.filters.city = '';
-    if (!this.filters.state) { this.refreshInstituteScope(); return; }
+    if (!this.filters.state) {
+      this.refreshInstituteScope();
+      return;
+    }
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url, { params: { state_id: this.filters.state } }).subscribe({
       next: (res) => {
         try {
           const cities = res?.data?.cities || res?.cities || [];
-          this.cities = (Array.isArray(cities) ? cities : []).map((c: any) => ({ code: c.city_code || c.code || c.id, name: c.city_name || c.name || c.city }));
-        } catch (e) { this.cities = []; }
+          this.cities = (Array.isArray(cities) ? cities : []).map((c: any) => ({
+            code: c.city_code || c.code || c.id,
+            name: c.city_name || c.name || c.city,
+          }));
+        } catch (e) {
+          this.cities = [];
+        }
         this.refreshInstituteScope();
       },
-      error: () => { this.cities = []; this.refreshInstituteScope(); }
+      error: () => {
+        this.cities = [];
+        this.refreshInstituteScope();
+      },
     });
   }
 
   openFiltersOverlay() {
     if (!this.filtersBtn) return;
-    if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; }
+    if (this.filtersOverlayRef) {
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (e) {}
+      this.filtersOverlayRef = null;
+    }
 
-    const positionStrategy = this.overlay.position()
+    const positionStrategy = this.overlay
+      .position()
       .flexibleConnectedTo(this.filtersBtn)
       .withPositions([
         { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
-        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 }
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
       ])
       .withPush(true);
 
-    this.filtersOverlayRef = this.overlay.create({ positionStrategy, hasBackdrop: true, backdropClass: 'cdk-overlay-transparent-backdrop', scrollStrategy: this.overlay.scrollStrategies.reposition() });
+    this.filtersOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+    });
     this.filtersOverlayRef.backdropClick().subscribe(() => this.closeFiltersOverlay());
-    this.filtersOverlayRef.keydownEvents().subscribe((ev: any) => { if (ev.key === 'Escape') this.closeFiltersOverlay(); });
+    this.filtersOverlayRef.keydownEvents().subscribe((ev: any) => {
+      if (ev.key === 'Escape') this.closeFiltersOverlay();
+    });
 
     const portal = new TemplatePortal(this.filtersPanelTpl, this.vcr);
     this.filtersOverlayRef.attach(portal);
   }
 
-  closeFiltersOverlay() { if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; } }
+  closeFiltersOverlay() {
+    if (this.filtersOverlayRef) {
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (e) {}
+      this.filtersOverlayRef = null;
+    }
+  }
 
   refresh() {
     if (!this.hasAppliedFilters) {
-      try { notify('Apply filters to fetch users', 'info'); } catch (e) { }
+      try {
+        notify('Apply filters to fetch users', 'info');
+      } catch (e) {}
       return;
     }
     this.loadUsers();
@@ -1338,8 +1761,19 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     // store a lightweight view payload for future features (matches institutes behavior)
     const payload: any = { ...u };
     // ensure privileges are included in the view payload (prefer normalized privileges)
-    try { payload.user_privileges = u.privileges && u.privileges.length ? u.privileges : (u.raw && u.raw.user_privileges) ? u.raw.user_privileges : (u.user_privileges || []); } catch (e) { payload.user_privileges = (u.user_privileges || []); }
-    try { sessionStorage.setItem('view_user', JSON.stringify(payload)); } catch (e) { }
+    try {
+      payload.user_privileges =
+        u.privileges && u.privileges.length
+          ? u.privileges
+          : u.raw && u.raw.user_privileges
+            ? u.raw.user_privileges
+            : u.user_privileges || [];
+    } catch (e) {
+      payload.user_privileges = u.user_privileges || [];
+    }
+    try {
+      sessionStorage.setItem('view_user', JSON.stringify(payload));
+    } catch (e) {}
     // open detail modal using the prepared payload so normalized privileges are visible
     this.selectedUser = payload;
   }
@@ -1351,7 +1785,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       // normalize common alternate field names so the register form can patch correctly
       const payload: any = { ...raw };
       // ensure campus object or id fields
-      payload.campus = payload.campus || (payload.campus_id ? { campus_id: payload.campus_id } : payload.campus);
+      payload.campus =
+        payload.campus || (payload.campus_id ? { campus_id: payload.campus_id } : payload.campus);
 
       // Helper: produce YYYY-MM-DD from various date-like fields
       const fmtDate = (val: any) => {
@@ -1362,12 +1797,27 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           // ISO-like or timestamp prefixed values
           if (s.length >= 10) return s.substring(0, 10);
           return s;
-        } catch (e) { return val; }
+        } catch (e) {
+          return val;
+        }
       };
 
       // ensure joining_date available as string YYYY-MM-DD (try many keys)
       if (!payload.joining_date) {
-        payload.joining_date = fmtDate(payload.joining_date || payload.joining || payload.joiningDate || payload.joined_at || payload.joinedAt || payload.created_at || payload.createdAt || payload.joined_on || payload.joinedOn || payload.created_date || payload.createdDate || '');
+        payload.joining_date = fmtDate(
+          payload.joining_date ||
+            payload.joining ||
+            payload.joiningDate ||
+            payload.joined_at ||
+            payload.joinedAt ||
+            payload.created_at ||
+            payload.createdAt ||
+            payload.joined_on ||
+            payload.joinedOn ||
+            payload.created_date ||
+            payload.createdDate ||
+            ''
+        );
       } else {
         payload.joining_date = fmtDate(payload.joining_date);
       }
@@ -1382,49 +1832,106 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             const v = obj && obj[k];
             if (v !== undefined && v !== null && String(v) !== '') return String(v);
           }
-        } catch (e) { }
+        } catch (e) {}
         return '';
       };
 
       // country
       if (!payload.country || String(payload.country).length === 0) {
-        payload.country = pickId(payload, ['country_id', 'countryCode', 'country_code', 'code', 'id']);
-        if (!payload.country) payload.country = pickId(payload.country || payload, ['country_id', 'countryCode', 'country_code', 'code', 'id']);
-        if (!payload.country) payload.country = pickId(payload.campus?.country || {}, ['country_id', 'countryCode', 'country_code', 'code', 'id']);
+        payload.country = pickId(payload, [
+          'country_id',
+          'countryCode',
+          'country_code',
+          'code',
+          'id',
+        ]);
+        if (!payload.country)
+          payload.country = pickId(payload.country || payload, [
+            'country_id',
+            'countryCode',
+            'country_code',
+            'code',
+            'id',
+          ]);
+        if (!payload.country)
+          payload.country = pickId(payload.campus?.country || {}, [
+            'country_id',
+            'countryCode',
+            'country_code',
+            'code',
+            'id',
+          ]);
       }
 
       // state
       if (!payload.state || String(payload.state).length === 0) {
         payload.state = pickId(payload, ['state_id', 'stateCode', 'state_code', 'code', 'id']);
-        if (!payload.state) payload.state = pickId(payload.state || payload, ['state_id', 'stateCode', 'state_code', 'code', 'id']);
-        if (!payload.state) payload.state = pickId(payload.campus?.state || {}, ['state_id', 'stateCode', 'state_code', 'code', 'id']);
+        if (!payload.state)
+          payload.state = pickId(payload.state || payload, [
+            'state_id',
+            'stateCode',
+            'state_code',
+            'code',
+            'id',
+          ]);
+        if (!payload.state)
+          payload.state = pickId(payload.campus?.state || {}, [
+            'state_id',
+            'stateCode',
+            'state_code',
+            'code',
+            'id',
+          ]);
       }
 
       // city
       if (!payload.city || String(payload.city).length === 0) {
         payload.city = pickId(payload, ['city_id', 'cityCode', 'city_code', 'code', 'id']);
-        if (!payload.city) payload.city = pickId(payload.city || payload, ['city_id', 'cityCode', 'city_code', 'code', 'id']);
-        if (!payload.city) payload.city = pickId(payload.campus?.city || {}, ['city_id', 'cityCode', 'city_code', 'code', 'id']);
+        if (!payload.city)
+          payload.city = pickId(payload.city || payload, [
+            'city_id',
+            'cityCode',
+            'city_code',
+            'code',
+            'id',
+          ]);
+        if (!payload.city)
+          payload.city = pickId(payload.campus?.city || {}, [
+            'city_id',
+            'cityCode',
+            'city_code',
+            'code',
+            'id',
+          ]);
       }
       // ensure privileges are preserved when navigating to edit form (keep raw and also produce page_access for register form)
       try {
-        if (!payload.user_privileges || payload.user_privileges.length === 0) payload.user_privileges = (u.privileges && u.privileges.length) ? u.privileges : (raw.user_privileges || raw.privileges || []);
-      } catch (e) { payload.user_privileges = (raw.user_privileges || raw.privileges || []); }
+        if (!payload.user_privileges || payload.user_privileges.length === 0)
+          payload.user_privileges =
+            u.privileges && u.privileges.length
+              ? u.privileges
+              : raw.user_privileges || raw.privileges || [];
+      } catch (e) {
+        payload.user_privileges = raw.user_privileges || raw.privileges || [];
+      }
       try {
         const ups = payload.user_privileges || [];
         if (Array.isArray(ups) && ups.length > 0) {
           // convert to page_access array expected by user-register (page_key + view/add/edit/delete)
           payload.page_access = ups.map((p: any) => ({
-            page_key: p.page_id || p.pageId || p.page || p.page_key || p.key || p.page_name || p.pageName,
+            page_key:
+              p.page_id || p.pageId || p.page || p.page_key || p.key || p.page_name || p.pageName,
             view: !!(p.can_view || p.canView || p.view),
             add: !!(p.can_add || p.canAdd || p.add),
             edit: !!(p.can_edit || p.canEdit || p.edit),
-            delete: !!(p.can_delete || p.canDelete || p.delete)
+            delete: !!(p.can_delete || p.canDelete || p.delete),
           }));
           // also provide a 'pages' alias in case some code looks there
           payload.pages = payload.page_access;
         }
-      } catch (e) { /* ignore privilege shaping errors */ }
+      } catch (e) {
+        /* ignore privilege shaping errors */
+      }
 
       // Normalize joining_date: convert common formats like DD-MM-YYYY or DD/MM/YYYY to YYYY-MM-DD
       const normalizeJoiningDate = (val: any) => {
@@ -1445,98 +1952,174 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           const dt = new Date(s);
           if (!isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
           return s.length >= 10 ? s.substring(0, 10) : s;
-        } catch (e) { return val; }
+        } catch (e) {
+          return val;
+        }
       };
-      try { payload.joining_date = normalizeJoiningDate(payload.joining_date || payload.joining || payload.joiningDate || payload.joined_at || payload.joinedAt || payload.created_at || payload.createdAt || payload.joined_on || payload.joinedOn || payload.created_date || payload.createdDate || ''); } catch (e) { /* ignore */ }
+      try {
+        payload.joining_date = normalizeJoiningDate(
+          payload.joining_date ||
+            payload.joining ||
+            payload.joiningDate ||
+            payload.joined_at ||
+            payload.joinedAt ||
+            payload.created_at ||
+            payload.createdAt ||
+            payload.joined_on ||
+            payload.joinedOn ||
+            payload.created_date ||
+            payload.createdDate ||
+            ''
+        );
+      } catch (e) {
+        /* ignore */
+      }
 
       // Ensure top-level id fields for country/state/city/campus so user-register can patch selects
       try {
         // campus
-        const campusId = (payload.campus && (payload.campus.campus_id || payload.campus.id)) || payload.campus_id || payload.campus || '';
+        const campusId =
+          (payload.campus && (payload.campus.campus_id || payload.campus.id)) ||
+          payload.campus_id ||
+          payload.campus ||
+          '';
         if (campusId) {
           payload.campus_id = String(campusId);
-          if (!payload.campus || typeof payload.campus !== 'object') payload.campus = { campus_id: payload.campus_id };
-          else payload.campus.campus_id = payload.campus.campus_id || payload.campus.id || payload.campus_id;
+          if (!payload.campus || typeof payload.campus !== 'object')
+            payload.campus = { campus_id: payload.campus_id };
+          else
+            payload.campus.campus_id =
+              payload.campus.campus_id || payload.campus.id || payload.campus_id;
         }
 
         // country
-        const countryId = (payload.country && (payload.country.country_id || payload.country.id)) || payload.country_id || payload.country || '';
+        const countryId =
+          (payload.country && (payload.country.country_id || payload.country.id)) ||
+          payload.country_id ||
+          payload.country ||
+          '';
         if (countryId) {
           payload.country_id = String(countryId);
           payload.country = payload.country_id;
         }
 
         // state
-        const stateId = (payload.state && (payload.state.state_id || payload.state.id)) || payload.state_id || payload.state || '';
+        const stateId =
+          (payload.state && (payload.state.state_id || payload.state.id)) ||
+          payload.state_id ||
+          payload.state ||
+          '';
         if (stateId) {
           payload.state_id = String(stateId);
           payload.state = payload.state_id;
         }
 
         // city
-        const cityId = (payload.city && (payload.city.city_id || payload.city.id)) || payload.city_id || payload.city || '';
+        const cityId =
+          (payload.city && (payload.city.city_id || payload.city.id)) ||
+          payload.city_id ||
+          payload.city ||
+          '';
         if (cityId) {
           payload.city_id = String(cityId);
           payload.city = payload.city_id;
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) {
+        /* ignore */
+      }
 
       sessionStorage.setItem('edit_user', JSON.stringify(payload));
-    } catch (e) { }
+    } catch (e) {}
     this.saveUsersReturnState();
     this.router.navigate(['/user-register']);
   }
 
   saveEditUser() {
     if (!this.editableUser) return;
-    const idx = this.users.findIndex(x => x.id === (this.editableUser.user_id || this.editableUser.id));
+    const idx = this.users.findIndex(
+      (x) => x.id === (this.editableUser.user_id || this.editableUser.id)
+    );
     if (idx >= 0) {
-      this.users[idx] = { ...this.users[idx], name: this.editableUser.user_name, email: this.editableUser.email, phone: this.editableUser.contact_no, role: this.editableUser.user_role, active: !!this.editableUser.active_status, raw: this.editableUser };
+      this.users[idx] = {
+        ...this.users[idx],
+        name: this.editableUser.user_name,
+        email: this.editableUser.email,
+        phone: this.editableUser.contact_no,
+        role: this.editableUser.user_role,
+        active: !!this.editableUser.active_status,
+        raw: this.editableUser,
+      };
     }
     this.closeModal();
   }
 
   deleteUser(u: UserRow) {
     try {
-      this.confirmService.confirm({ title: 'Delete User', message: `Delete user ${u.name}? This action cannot be undone.`, confirmText: 'Delete', cancelText: 'Cancel' }).subscribe((ok) => {
-        if (!ok) return;
-        const uuid = u.id || (u.raw && (u.raw.user_id || u.raw.id || u.raw._id));
-        if (!uuid) {
-          // remove locally if no uuid
-          this.users = this.users.filter(x => x.id !== u.id);
-          try { notify('User removed locally', 'info'); } catch (e) { }
-          return;
-        }
-        // let current_user= '';
-        const current_user = sessionStorage.getItem('user_id')
-        const url = `${API_BASE}/delete/user/${encodeURIComponent(String(uuid))}?current_user=${encodeURIComponent(String(current_user))}`;
-        try { this.loading.show(); } catch (e) { }
-        this.http.delete<any>(url, { observe: 'response' }).subscribe({
-          next: (res) => {
-            try { this.loading.hide(); } catch (e) { }
-            // remove from list
-            this.users = this.users.filter(x => (x.id !== uuid && x.id !== u.id));
-            try { notify('User deleted successfully', 'success'); } catch (e) { }
-            // reload current list to reflect server state
-            try { if (this.hasAppliedFilters) this.loadUsers(this.selectedInstitute); } catch (e) { }
-          },
-          error: (err) => {
-            try { this.loading.hide(); } catch (e) { }
-            console.error('Failed to delete user', err);
+      this.confirmService
+        .confirm({
+          title: 'Delete User',
+          message: `Delete user ${u.name}? This action cannot be undone.`,
+          confirmText: 'Delete',
+          cancelText: 'Cancel',
+        })
+        .subscribe((ok) => {
+          if (!ok) return;
+          const uuid = u.id || (u.raw && (u.raw.user_id || u.raw.id || u.raw._id));
+          if (!uuid) {
+            // remove locally if no uuid
+            this.users = this.users.filter((x) => x.id !== u.id);
             try {
-              if (err && (err.status === 0 || err.status === 502 || err.status === 503)) {
-                notify('Network error: cannot reach backend. Check server and network connection.', 'error');
-              } else {
-                notify('Failed to delete user. Please try again later.', 'error');
-              }
-            } catch (e) { }
+              notify('User removed locally', 'info');
+            } catch (e) {}
+            return;
           }
+          // let current_user= '';
+          const current_user = sessionStorage.getItem('user_id');
+          const url = `${API_BASE}/delete/user/${encodeURIComponent(String(uuid))}?current_user=${encodeURIComponent(String(current_user))}`;
+          try {
+            this.loading.show();
+          } catch (e) {}
+          this.http.delete<any>(url, { observe: 'response' }).subscribe({
+            next: (res) => {
+              try {
+                this.loading.hide();
+              } catch (e) {}
+              // remove from list
+              this.users = this.users.filter((x) => x.id !== uuid && x.id !== u.id);
+              try {
+                notify('User deleted successfully', 'success');
+              } catch (e) {}
+              // reload current list to reflect server state
+              try {
+                if (this.hasAppliedFilters) this.loadUsers(this.selectedInstitute);
+              } catch (e) {}
+            },
+            error: (err) => {
+              try {
+                this.loading.hide();
+              } catch (e) {}
+              console.error('Failed to delete user', err);
+              try {
+                if (err && (err.status === 0 || err.status === 502 || err.status === 503)) {
+                  notify(
+                    'Network error: cannot reach backend. Check server and network connection.',
+                    'error'
+                  );
+                } else {
+                  notify('Failed to delete user. Please try again later.', 'error');
+                }
+              } catch (e) {}
+            },
+          });
         });
-      });
-    } catch (e) { }
+    } catch (e) {}
   }
 
-  closeModal() { this.selectedUser = null; this.editing = false; this.editableUser = null }
+  closeModal() {
+    this.selectedUser = null;
+    this.editing = false;
+    this.editableUser = null;
+  }
   openUserRegister(): void {
     this.saveUsersReturnState();
     this.router.navigate(['/user-register']);
@@ -1544,21 +2127,25 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   saveUsersReturnState(): void {
     try {
-      sessionStorage.setItem('users_return_state', JSON.stringify({
-        instituteId: this.globalInstituteContext.activeInstituteId || this.selectedInstitute || '',
-        globalInstituteActive: this.globalInstituteContext.isGlobalFilterActive(),
-        filter: this.filter,
-        selectedInstitute: this.selectedInstitute,
-        instituteSearch: this.instituteSearch,
-        filters: this.filters,
-        users: this.users,
-        rawRecords: this.rawRecords,
-        hasAppliedFilters: this.hasAppliedFilters,
-        pageSize: this.pageSize,
-        pageIndex: this.pageIndex,
-        totalCount: this.totalCount
-      }));
-    } catch (e) { }
+      sessionStorage.setItem(
+        'users_return_state',
+        JSON.stringify({
+          instituteId:
+            this.globalInstituteContext.activeInstituteId || this.selectedInstitute || '',
+          globalInstituteActive: this.globalInstituteContext.isGlobalFilterActive(),
+          filter: this.filter,
+          selectedInstitute: this.selectedInstitute,
+          instituteSearch: this.instituteSearch,
+          filters: this.filters,
+          users: this.users,
+          rawRecords: this.rawRecords,
+          hasAppliedFilters: this.hasAppliedFilters,
+          pageSize: this.pageSize,
+          pageIndex: this.pageIndex,
+          totalCount: this.totalCount,
+        })
+      );
+    } catch (e) {}
   }
 
   private restoreUsersReturnState(): void {
@@ -1568,13 +2155,20 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       sessionStorage.removeItem('users_return_state');
       const state = JSON.parse(raw);
       const activeInstituteId = this.globalInstituteContext.activeInstituteId;
-      if (activeInstituteId && String(state?.instituteId || '') !== String(activeInstituteId)) return;
+      if (activeInstituteId && String(state?.instituteId || '') !== String(activeInstituteId))
+        return;
       if (activeInstituteId && state?.globalInstituteActive !== true) return;
       if (!activeInstituteId && state?.globalInstituteActive === true) return;
-      if (!activeInstituteId && typeof state?.globalInstituteActive === 'undefined' && state?.instituteId) return;
+      if (
+        !activeInstituteId &&
+        typeof state?.globalInstituteActive === 'undefined' &&
+        state?.instituteId
+      )
+        return;
       const restoredInstitute = state?.filters?.institute || state?.selectedInstitute || '';
       const globalInstitute = this.globalInstituteContext.activeContext;
-      const globalInstituteChanged = !!globalInstitute?.institute_id &&
+      const globalInstituteChanged =
+        !!globalInstitute?.institute_id &&
         String(restoredInstitute) !== String(globalInstitute.institute_id);
       this.filter = state?.filter || '';
       this.selectedInstitute = state?.selectedInstitute || '';
@@ -1587,34 +2181,70 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         this.instituteSearch = globalInstitute.institute_name || '';
       }
       this.users = !globalInstituteChanged && Array.isArray(state?.users) ? state.users : [];
-      this.rawRecords = !globalInstituteChanged && Array.isArray(state?.rawRecords) ? state.rawRecords : [];
+      this.rawRecords =
+        !globalInstituteChanged && Array.isArray(state?.rawRecords) ? state.rawRecords : [];
       this.hasAppliedFilters = !!state?.hasAppliedFilters;
       this.pageSize = Number(state?.pageSize || this.pageSize);
       this.pageIndex = Number(state?.pageIndex || 0);
       this.totalCount = Number(state?.totalCount || this.users.length || 0);
       this.dataSource.data = this.users;
       this.applyFilter(this.filter || '');
-      if (globalInstituteChanged && this.hasAppliedFilters) this.loadUsers(globalInstitute!.institute_id);
+      // if (globalInstituteChanged && this.hasAppliedFilters) this.loadUsers(globalInstitute!.institute_id);
     } catch (e) {
-      try { sessionStorage.removeItem('users_return_state'); } catch (_) { }
+      try {
+        sessionStorage.removeItem('users_return_state');
+      } catch (_) {}
     }
   }
 
   private resetForInstituteChange(instituteId: string): void {
     this.activeInstituteId = instituteId;
-    this.selectedInstitute = instituteId;
-    this.filters = { ...this.filters, institute: instituteId, name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
-    // Clear institute-specific state immediately to prevent cross-institute data leakage.
-    this.users = []; this.rawRecords = []; this.dataSource.data = []; this.totalCount = 0;
-    this.departments = []; this.teams = []; this.departmentSearch = ''; this.teamSearch = '';
-    this.filter = ''; this.dataSource.filter = ''; this.pageIndex = 0; this.hasAppliedFilters = false;
-    this.selectedUser = null; this.editing = false; this.editableUser = null;
-    try { sessionStorage.removeItem('users_return_state'); } catch (e) { }
-    this.loadDepartments(instituteId); this.loadTeams(instituteId); this.loadCountries(instituteId);
-    // The global institute is already an applied scope, so fetch its users
-    // immediately. Page-level filters can still narrow these results afterward.
-    this.hasAppliedFilters = true;
-    this.loadUsers(instituteId);
+    this.selectedInstitute = '';
+    this.filters = {
+      ...this.filters,
+      institute: '',
+      name: '',
+      department: '',
+      team: '',
+      joining_from: '',
+      joining_to: '',
+      active_status: '',
+      country: '',
+      state: '',
+      city: '',
+      industry: '',
+      sector: '',
+    };
+
+    // Clear table data & state
+    this.users = [];
+    this.rawRecords = [];
+    this.dataSource.data = [];
+    this.totalCount = 0;
+    this.departments = [];
+    this.teams = [];
+    this.departmentSearch = '';
+    this.teamSearch = '';
+    this.filter = '';
+    this.dataSource.filter = '';
+    this.pageIndex = 0;
+    this.hasAppliedFilters = false; // Do not apply filter by default
+    this.selectedUser = null;
+    this.editing = false;
+    this.editableUser = null;
+
+    try {
+      sessionStorage.removeItem('users_return_state');
+    } catch (e) {}
+
+    // Optionally load dropdown metadata (departments/teams/countries) without fetching users
+    this.loadDepartments(instituteId);
+    this.loadTeams(instituteId);
+    this.loadCountries(instituteId);
+
+    // REMOVED:
+    // this.hasAppliedFilters = true;
+    // this.loadUsers(instituteId);
   }
 
   private resetAfterGlobalInstituteClear(): void {
@@ -1622,14 +2252,46 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.selectedInstitute = '';
     this.instituteSearch = '';
     // Clear all global-scope UI data while preserving the normal filter workflow.
-    this.users = []; this.rawRecords = []; this.dataSource.data = []; this.totalCount = 0;
-    this.filters = { institute: '', name: '', department: '', team: '', joining_from: '', joining_to: '', active_status: '', country: '', state: '', city: '', industry: '', sector: '' };
-    this.departments = []; this.teams = []; this.countries = []; this.states = []; this.cities = [];
-    this.departmentSearch = ''; this.teamSearch = ''; this.filter = ''; this.dataSource.filter = '';
-    this.pageIndex = 0; this.hasAppliedFilters = false; this.selectedUser = null; this.editing = false; this.editableUser = null;
-    if (this.paginator) { this.paginator.firstPage(); this.paginator.length = 0; }
+    this.users = [];
+    this.rawRecords = [];
+    this.dataSource.data = [];
+    this.totalCount = 0;
+    this.filters = {
+      institute: '',
+      name: '',
+      department: '',
+      team: '',
+      joining_from: '',
+      joining_to: '',
+      active_status: '',
+      country: '',
+      state: '',
+      city: '',
+      industry: '',
+      sector: '',
+    };
+    this.departments = [];
+    this.teams = [];
+    this.countries = [];
+    this.states = [];
+    this.cities = [];
+    this.departmentSearch = '';
+    this.teamSearch = '';
+    this.filter = '';
+    this.dataSource.filter = '';
+    this.pageIndex = 0;
+    this.hasAppliedFilters = false;
+    this.selectedUser = null;
+    this.editing = false;
+    this.editableUser = null;
+    if (this.paginator) {
+      this.paginator.firstPage();
+      this.paginator.length = 0;
+    }
     this.closeFiltersOverlay();
-    try { sessionStorage.removeItem('users_return_state'); } catch (e) { }
+    try {
+      sessionStorage.removeItem('users_return_state');
+    } catch (e) {}
     this.loadInstitutes();
     this.loadCountries();
   }

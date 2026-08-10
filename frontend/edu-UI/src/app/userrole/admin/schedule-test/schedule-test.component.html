@@ -67,7 +67,7 @@
                 <!-- Institute + Filters toggle -->
                 <div class="field-row schedule-lock-row"
                   [class.schedule-lock-row--inactive]="isSuperAdmin && !filterInstitute">
-                  <mat-form-field *ngIf="isSuperAdmin" appearance="outline" class="field-half schedule-institute-field"
+                  <mat-form-field *ngIf="isSuperAdmin && !isGlobalInstituteActive" appearance="outline" class="field-half schedule-institute-field"
                     [class.institute-disabled]="instituteDisabled">
                     <mat-icon matPrefix>apartment</mat-icon>
                     <mat-label>Institute*</mat-label>
@@ -790,7 +790,7 @@
             <!-- Right Column: Institute, Departments, Teams, Test Name -->
             <div class="filter-col">
               <!-- 5. Institute -->
-              <mat-form-field appearance="outline" class="filter-item">
+              <mat-form-field appearance="outline" class="filter-item" *ngIf="!isGlobalInstituteActive">
                 <mat-icon matPrefix>apartment</mat-icon>
                 <mat-label>Institute</mat-label>
                 <mat-select [(ngModel)]="filterInstitute" (selectionChange)="onFilterInstituteSelected($event.value)"
