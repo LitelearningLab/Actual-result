@@ -1,4 +1,28 @@
 // ============================================
+// Enterprise – Exams
+// ============================================
+
+.view-questions-filters-panel.admin-single-col {
+  min-width: 22rem !important;
+  max-width: 26rem !important;
+
+  .filter-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+
+  .filter-col:first-child {
+    display: none !important;
+  }
+
+  .filter-col,
+  .filter-item {
+    width: 100% !important;
+  }
+}
+
+// ============================================
 // Enterprise – Exams View
 // ============================================
 

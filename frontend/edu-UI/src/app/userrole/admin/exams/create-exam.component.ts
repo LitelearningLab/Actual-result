@@ -69,6 +69,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   // filter state for categories
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
+  selectedQuestionTypes: string[] = [];
   filterCreationDateAfter: Date | null = null;
   filterCreationDate: Date | null = null;
   filterCreatedByMe: boolean = false;
@@ -886,6 +887,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (filters.teams && filters.teams.length) params.push(`teams=${encodeURIComponent(filters.teams.join(','))}`);
     if (filters.created_after) params.push(`created_after=${encodeURIComponent(filters.created_after)}`);
     if (filters.created_before) params.push(`created_before=${encodeURIComponent(filters.created_before)}`);
+    if (filters.type) params.push(`type=${encodeURIComponent(filters.type)}`);
     if (typeof filters.created_by !== 'undefined' && filters.created_by && currentUser) params.push(`created_by=${encodeURIComponent(String(currentUser))}`);
     if (typeof filters.public_access !== 'undefined' && filters.public_access !== null) params.push(`public_access=${encodeURIComponent(String(filters.public_access))}`);
     const url = params.length ? `${base}?${params.join('&')}` : base;
@@ -960,7 +962,23 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
               matchesPublicAccess = isPublic;
             }
 
-            return matchesName && matchesDate && matchesCreatedBy && matchesPublicAccess;
+            // 5. Question Bank Type match
+            let matchesType = true;
+            if (this.selectedQuestionTypes && this.selectedQuestionTypes.length > 0) {
+              const catType = (c.type || '').toLowerCase();
+              matchesType = this.selectedQuestionTypes.some((selectedType) => {
+                const st = selectedType.toLowerCase();
+                if (st === 'objective') {
+                  return ['objective', 'choose', 'multi', 'fill', 'mcq'].some((t) => catType.includes(t));
+                }
+                if (st === 'descriptive') {
+                  return ['descriptive', 'paragraph', 'subjective'].some((t) => catType.includes(t));
+                }
+                return catType.includes(st);
+              });
+            }
+
+            return matchesName && matchesDate && matchesCreatedBy && matchesPublicAccess && matchesType;
           });
         })
       );
@@ -974,7 +992,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.filterCreationDateAfter ||
       this.filterCreationDate ||
       this.filterCreatedByMe ||
-      this.filterPublicAccess
+      this.filterPublicAccess ||
+      (this.selectedQuestionTypes && this.selectedQuestionTypes.length > 0)
     );
   }
 
@@ -1027,6 +1046,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       const rangeDisplay = this.getCreatedDateRangeDisplay();
       if (rangeDisplay) labels.push(`Created: ${rangeDisplay}`);
     }
+    if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
+      const typesFormatted = this.selectedQuestionTypes.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ');
+      labels.push(`Type: ${typesFormatted}`);
+    }
     if (this.filterCreatedByMe) labels.push('Created by me');
     if (this.filterPublicAccess) labels.push('Public access');
     return labels;
@@ -1039,6 +1062,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const filters: any = { institute_id: this.institute };
     if (this.filterCreationDateAfter) filters.created_after = (this.filterCreationDateAfter as Date).toISOString().slice(0, 10);
     if (this.filterCreationDate) filters.created_before = (this.filterCreationDate as Date).toISOString().slice(0, 10);
+    if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) filters.type = this.selectedQuestionTypes.join(',');
     if (this.filterCreatedByMe) filters.created_by = true;
     if (this.filterPublicAccess) filters.public_access = true;
     this.appliedQuestionBankFilters = this.getQuestionBankFilterLabels();
@@ -1048,6 +1072,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   onReset() {
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
+    this.selectedQuestionTypes = [];
     this.filterCreatedByMe = false;
     this.filterPublicAccess = false;
     this.appliedQuestionBankFilters = [];

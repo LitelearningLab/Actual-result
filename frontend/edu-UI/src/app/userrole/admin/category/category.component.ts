@@ -644,14 +644,16 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private getInstituteLabel(id: any): string {
     if (!id) return '';
-    const pool =
+    const pool: any[] =
       this.allInstitutes && this.allInstitutes.length ? this.allInstitutes : this.institutes;
-    const found = pool.find((i) => String(i.institute_id) === String(id));
-    return found?.institute_name || found?.short_name || String(id);
+    const found = (pool || []).find((i: any) => String(i.institute_id || i.id || i._id) === String(id));
+    return found?.institute_name || found?.short_name || found?.name || (pool && pool.length ? String(id) : '');
   }
 
   private getSelectedName(list: Array<{ id: string; name: string }>, selectedId: string): string {
-    return list.find((item) => String(item.id) === String(selectedId))?.name || String(selectedId);
+    if (!selectedId || !list || !list.length) return '';
+    const found = (list || []).find((item: any) => String(item?.id || item?.dept_id || item?.team_id || item?.deptId || item?.teamId) === String(selectedId));
+    return found ? (found.name || (found as any).dept_name || (found as any).team_name || String(selectedId)) : '';
   }
 
   private formatFilterDate(value: Date): string {

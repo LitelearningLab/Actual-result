@@ -44,7 +44,7 @@
     </div>
 
     <ng-template #filtersPanel>
-        <div class="filters-panel view-questions-filters-panel" role="region" aria-label="Filter options"
+        <div class="filters-panel view-questions-filters-panel" [class.admin-single-col]="!showLocationAndIndustryFilters && !isSuperAdmin" role="region" aria-label="Filter options"
             (click)="$event.stopPropagation()">
             <div class="filters-panel-header">
                 <h4><mat-icon>tune</mat-icon> Filters</h4>

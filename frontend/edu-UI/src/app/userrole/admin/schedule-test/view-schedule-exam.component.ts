@@ -596,10 +596,19 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     if (this.filterCity) chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
     if (this.filterIndustry) chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true });
     if (this.filterSector) chips.push({ key: 'sector', label: `Sector: ${this.filterSector}`, removable: true });
-    if (this.selectedInstitute) chips.push({ key: 'institute', label: `Institute: ${this.getInstituteLabel(this.selectedInstitute)}`, removable: this.isSuperAdmin });
+    if (this.selectedInstitute) {
+      const instName = this.getInstituteLabel(this.selectedInstitute);
+      if (instName) chips.push({ key: 'institute', label: `Institute: ${instName}`, removable: this.isSuperAdmin });
+    }
     if (this.filterName) chips.push({ key: 'name', label: `Schedule: ${this.filterName}`, removable: true });
-    (this.selectedDepartments || []).forEach(id => chips.push({ key: `department:${id}`, label: `Department: ${this.getSelectedName(this.departments, id)}`, removable: true }));
-    (this.selectedTeams || []).forEach(id => chips.push({ key: `team:${id}`, label: `Team: ${this.getSelectedName(this.teams, id)}`, removable: true }));
+    (this.selectedDepartments || []).forEach(id => {
+      const deptName = this.getSelectedName(this.departments, id);
+      if (deptName) chips.push({ key: `department:${id}`, label: `Department: ${deptName}`, removable: true });
+    });
+    (this.selectedTeams || []).forEach(id => {
+      const teamName = this.getSelectedName(this.teams, id);
+      if (teamName) chips.push({ key: `team:${id}`, label: `Team: ${teamName}`, removable: true });
+    });
     if (this.filterCreationDateAfter) chips.push({ key: 'created_after', label: `Created after: ${this.formatFilterDate(this.filterCreationDateAfter)}`, removable: true });
     if (this.filterCreationDate) chips.push({ key: 'created_before', label: `Created before: ${this.formatFilterDate(this.filterCreationDate)}`, removable: true });
     if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') chips.push({ key: 'active_status', label: `Status: ${this.filterActiveStatus ? 'Active' : 'Inactive'}`, removable: true });
@@ -626,8 +635,16 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
   clearAppliedFilters() { this.onReset(); }
   private refreshAfterFilterChipChange() { if (this.appliedFilterChips.length) this.loadSchedules(this.selectedInstitute || undefined); else { this.hasAppliedFilters = false; this.schedules = []; this.dataSource.data = []; } }
-  private getInstituteLabel(id: any): string { const found = this.institutes.find(i => String(i.institute_id) === String(id)); return found?.name || String(id || ''); }
-  private getSelectedName(list: any[], selectedId: any): string { const found = (list || []).find(item => String(item?.id) === String(selectedId)); return found?.name || String(selectedId || ''); }
+  private getInstituteLabel(id: any): string {
+    if (!id) return '';
+    const found = (this.institutes || []).find(i => String(i.institute_id || (i as any).id || (i as any)._id) === String(id));
+    return found?.name || (this.institutes && this.institutes.length ? String(id || '') : '');
+  }
+  private getSelectedName(list: any[], selectedId: any): string {
+    if (!selectedId || !list || !list.length) return '';
+    const found = (list || []).find(item => String(item?.id || item?.dept_id || item?.team_id || item?.deptId || item?.teamId) === String(selectedId));
+    return found ? (found.name || found.dept_name || found.team_name || String(selectedId)) : '';
+  }
 
   private toApiDateString(value: Date): string {
     const pad = (n: number) => String(n).padStart(2, '0');

@@ -811,8 +811,16 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   clearAppliedFilters() { this.onReset(); }
   private refreshAfterFilterChipChange() { if (this.appliedFilterChips.length) this.loadExamsForInstitute(this.selectedInstitute || undefined); else { this.hasAppliedFilters = false; } }
   private getCountryLabel(code: string): string { const found = (this.countries || []).find(c => String(c.code).toLowerCase() === String(code).toLowerCase()); return found?.name || code; }
-  private getInstituteLabel(id: any): string { const found = this.institutes.find(i => String(i.institute_id) === String(id)); return found?.institute_name || found?.short_name || String(id || ''); }
-  private getSelectedName(list: any[], selectedId: any): string { const found = (list || []).find(item => String(item?.id) === String(selectedId)); return found?.name || String(selectedId || ''); }
+  private getInstituteLabel(id: any): string {
+    if (!id) return '';
+    const found: any = (this.institutes || []).find((i: any) => String(i.institute_id || i.id || i._id) === String(id));
+    return found?.institute_name || found?.short_name || found?.name || (this.institutes && this.institutes.length ? String(id || '') : '');
+  }
+  private getSelectedName(list: any[], selectedId: any): string {
+    if (!selectedId || !list || !list.length) return '';
+    const found = (list || []).find(item => String(item?.id || item?.dept_id || item?.team_id || item?.deptId || item?.teamId) === String(selectedId));
+    return found ? (found.name || found.dept_name || found.team_name || String(selectedId)) : '';
+  }
   private formatFilterDate(value: Date): string { try { return value.toISOString().slice(0, 10); } catch (e) { return String(value || ''); } }
   private toNumber(value: any): number | null {
     if (value === null || value === undefined || value === '') return null;

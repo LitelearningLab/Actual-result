@@ -1,4 +1,13 @@
-import { Component, ViewChild, AfterViewInit, OnDestroy, OnInit, ElementRef, TemplateRef, ViewContainerRef } from '@angular/core';
+import {
+  Component,
+  ViewChild,
+  AfterViewInit,
+  OnDestroy,
+  OnInit,
+  ElementRef,
+  TemplateRef,
+  ViewContainerRef,
+} from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { startWith, map } from 'rxjs/operators';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -30,7 +39,10 @@ import { OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule } from '@angular/cdk/portal';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { MatDialog } from '@angular/material/dialog';
-import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
+import {
+  DateRangePickerDialogComponent,
+  DateRangeDialogResult,
+} from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
@@ -61,9 +73,32 @@ export interface QuestionRow {
 @Component({
   selector: 'app-view-questions',
   standalone: true,
-  imports: [CommonModule, SharedModule, MatCardModule, MatIconModule, MatButtonModule, MatInputModule, MatFormFieldModule, MatSelectModule, MatTableModule, MatPaginatorModule, FormsModule, RouterModule, HttpClientModule, MatDatepickerModule, MatTabsModule, MatCheckboxModule, MatSortModule, MatTooltipModule, OverlayModule, PortalModule, ReactiveFormsModule, MatAutocompleteModule],
+  imports: [
+    CommonModule,
+    SharedModule,
+    MatCardModule,
+    MatIconModule,
+    MatButtonModule,
+    MatInputModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatTableModule,
+    MatPaginatorModule,
+    FormsModule,
+    RouterModule,
+    HttpClientModule,
+    MatDatepickerModule,
+    MatTabsModule,
+    MatCheckboxModule,
+    MatSortModule,
+    MatTooltipModule,
+    OverlayModule,
+    PortalModule,
+    ReactiveFormsModule,
+    MatAutocompleteModule,
+  ],
   templateUrl: './view-questions.component.html',
-  styleUrls: ['./view-questions.component.scss']
+  styleUrls: ['./view-questions.component.scss'],
 })
 export class ViewQuestionsComponent implements OnDestroy, OnInit {
   // currently selected question for the details modal
@@ -80,6 +115,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
   filterQuestionType: string = '';
 
+  selectedQuestionTypes: string[] = [];
+
+  get isInstituteSelected(): boolean {
+    if (!this.isSuperAdmin) return true;
+    return !!this.getScopedInstituteId();
+  }
 
   instituteSearch = '';
   instituteSearchTerm = '';
@@ -90,7 +131,15 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   // value used for the "select all" pseudo-option
   selectAllValue = '__SELECT_ALL_CATEGORIES__';
   questions: QuestionRow[] = [];
-  displayedColumns: string[] = ['select', 'sno', 'question', 'category', 'type', 'marks', 'actions'];
+  displayedColumns: string[] = [
+    'select',
+    'sno',
+    'question',
+    'category',
+    'type',
+    'marks',
+    'actions',
+  ];
   dataSource = new MatTableDataSource<QuestionRow>([]);
   hasAppliedFilters = false;
   // selection for batch operations
@@ -103,7 +152,6 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
-
 
   private _subs: Subscription | null = null;
   private _globalInstituteSub: Subscription | null = null;
@@ -144,11 +192,11 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   industrySectors = ['School', 'Engineering', 'Arts', 'Healthcare', 'Finance', 'Banking', 'IT'];
   // Industry -> Sector dependency map (mirrors institute-register.component.ts / view-institutes.component.ts)
   private sectorMap: Record<string, string[]> = {
-    'School': ['School'],
-    'College': ['Engineering', 'Arts'],
-    'BPO': ['Healthcare', 'Finance'],
-    'Bank': ['Bank'],
-    'IT': ['IT']
+    School: ['School'],
+    College: ['Engineering', 'Arts'],
+    BPO: ['Healthcare', 'Finance'],
+    Bank: ['Bank'],
+    IT: ['IT'],
   };
   countrySearch = '';
   industrySearch = '';
@@ -158,9 +206,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const term = (this.instituteFilterSearch || '').trim().toLowerCase();
     let list = this.institutes || [];
     if (term) {
-      list = list.filter(i =>
-        (i.name || '').toLowerCase().includes(term) ||
-        (i.institute_id && this.selectedInstitutes.includes(i.institute_id))
+      list = list.filter(
+        (i) =>
+          (i.name || '').toLowerCase().includes(term) ||
+          (i.institute_id && this.selectedInstitutes.includes(i.institute_id))
       );
     }
     return [...list].sort((a, b) => {
@@ -176,9 +225,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const term = (this.departmentFilterSearch || '').trim().toLowerCase();
     let list = this.departments || [];
     if (term) {
-      list = list.filter(d =>
-        (d.name || '').toLowerCase().includes(term) ||
-        this.selectedDepartments.includes(d.id)
+      list = list.filter(
+        (d) =>
+          (d.name || '').toLowerCase().includes(term) || this.selectedDepartments.includes(d.id)
       );
     }
     return [...list].sort((a, b) => {
@@ -194,9 +243,8 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const term = (this.teamFilterSearch || '').trim().toLowerCase();
     let list = this.teams || [];
     if (term) {
-      list = list.filter(t =>
-        (t.name || '').toLowerCase().includes(term) ||
-        this.selectedTeams.includes(t.id)
+      list = list.filter(
+        (t) => (t.name || '').toLowerCase().includes(term) || this.selectedTeams.includes(t.id)
       );
     }
     return [...list].sort((a, b) => {
@@ -208,13 +256,16 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     });
   }
 
-
   // --- Country Multi-Select & Sorting Logic ---
   get filteredCountries(): Array<{ code: string; name: string }> {
     const term = (this.countrySearch || '').trim().toLowerCase();
     let list = this.countries || [];
     if (term) {
-      list = list.filter(c => (c.name || '').toLowerCase().includes(term) || (this.selectedCountries || []).includes(c.code));
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(term) ||
+          (this.selectedCountries || []).includes(c.code)
+      );
     }
     return [...list].sort((a, b) => {
       const aSel = (this.selectedCountries || []).includes(a.code);
@@ -226,14 +277,14 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
   isAllCountriesSelected(): boolean {
     const items = this.filteredCountries || [];
-    return items.length > 0 && items.every(c => (this.selectedCountries || []).includes(c.code));
+    return items.length > 0 && items.every((c) => (this.selectedCountries || []).includes(c.code));
   }
   toggleSelectAllCountries(): void {
     const items = this.filteredCountries || [];
     if (this.isAllCountriesSelected()) {
       this.selectedCountries = [];
     } else {
-      this.selectedCountries = items.map(c => c.code);
+      this.selectedCountries = items.map((c) => c.code);
     }
     this.onCountryFilterChange();
   }
@@ -243,7 +294,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const term = (this.industrySearch || '').trim().toLowerCase();
     let list = this.industryTypes || [];
     if (term) {
-      list = list.filter(t => t.toLowerCase().includes(term) || (this.selectedIndustries || []).includes(t));
+      list = list.filter(
+        (t) => t.toLowerCase().includes(term) || (this.selectedIndustries || []).includes(t)
+      );
     }
     return [...list].sort((a, b) => {
       const aSel = (this.selectedIndustries || []).includes(a);
@@ -255,7 +308,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
   isAllIndustriesSelected(): boolean {
     const items = this.filteredIndustryTypes || [];
-    return items.length > 0 && items.every(t => (this.selectedIndustries || []).includes(t));
+    return items.length > 0 && items.every((t) => (this.selectedIndustries || []).includes(t));
   }
   toggleSelectAllIndustries(): void {
     const items = this.filteredIndustryTypes || [];
@@ -273,7 +326,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       const sectorsSet = new Set<string>();
       for (const ind of this.selectedIndustries) {
         const list = this.sectorMap[ind] || [];
-        list.forEach(s => sectorsSet.add(s));
+        list.forEach((s) => sectorsSet.add(s));
       }
       return Array.from(sectorsSet);
     }
@@ -288,7 +341,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const term = (this.sectorSearch || '').trim().toLowerCase();
     let list = scoped;
     if (term) {
-      list = list.filter(s => s.toLowerCase().includes(term) || (this.selectedSectors || []).includes(s));
+      list = list.filter(
+        (s) => s.toLowerCase().includes(term) || (this.selectedSectors || []).includes(s)
+      );
     }
     return [...list].sort((a, b) => {
       const aSel = (this.selectedSectors || []).includes(a);
@@ -300,7 +355,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
   isAllSectorsSelected(): boolean {
     const items = this.filteredSectors || [];
-    return items.length > 0 && items.every(s => (this.selectedSectors || []).includes(s));
+    return items.length > 0 && items.every((s) => (this.selectedSectors || []).includes(s));
   }
   toggleSelectAllSectors(): void {
     const items = this.filteredSectors || [];
@@ -317,9 +372,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const term = (this.categorySearch || '').trim().toLowerCase();
     let list = this.categories || [];
     if (term) {
-      list = list.filter(c =>
-        (c.name || c.category_name || '').toLowerCase().includes(term) ||
-        (this.selectedCategories || []).includes(String(c.id || c.category_id || c._id))
+      list = list.filter(
+        (c) =>
+          (c.name || c.category_name || '').toLowerCase().includes(term) ||
+          (this.selectedCategories || []).includes(String(c.id || c.category_id || c._id))
       );
     }
     return [...list].sort((a, b) => {
@@ -336,16 +392,24 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   get filteredCategories() {
     const q = (this.categorySearch || '').toLowerCase();
     if (!q) return this.categories;
-    return this.categories.filter((c: any) => (c.name || '').toLowerCase().includes(q) || (c.category_name || '').toLowerCase().includes(q));
+    return this.categories.filter(
+      (c: any) =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.category_name || '').toLowerCase().includes(q)
+    );
   }
 
   // --- Select All: Institute ---
   isAllInstitutesSelected(): boolean {
-    const ids = (this.filteredInstitutesForFilter || []).map(i => i.institute_id!).filter(Boolean);
-    return ids.length > 0 && ids.every(id => (this.selectedInstitutes || []).includes(id));
+    const ids = (this.filteredInstitutesForFilter || [])
+      .map((i) => i.institute_id!)
+      .filter(Boolean);
+    return ids.length > 0 && ids.every((id) => (this.selectedInstitutes || []).includes(id));
   }
   toggleSelectAllInstitutes() {
-    const ids = (this.filteredInstitutesForFilter || []).map(i => i.institute_id!).filter(Boolean);
+    const ids = (this.filteredInstitutesForFilter || [])
+      .map((i) => i.institute_id!)
+      .filter(Boolean);
     if (this.isAllInstitutesSelected()) {
       this.selectedInstitutes = [];
     } else {
@@ -356,12 +420,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
   // --- Select All: Department ---
   isAllDepartmentsSelected(): boolean {
-    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
-    return ids.length > 0 && ids.every(id => (this.selectedDepartments || []).includes(id));
+    const ids = (this.filteredDepartmentsForFilter || []).map((d) => d.id).filter(Boolean);
+    return ids.length > 0 && ids.every((id) => (this.selectedDepartments || []).includes(id));
   }
 
   toggleSelectAllDepartments() {
-    const ids = (this.filteredDepartmentsForFilter || []).map(d => d.id).filter(Boolean);
+    const ids = (this.filteredDepartmentsForFilter || []).map((d) => d.id).filter(Boolean);
     if (this.isAllDepartmentsSelected()) {
       this.selectedDepartments = [];
     } else {
@@ -371,12 +435,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
   // --- Select All: Team ---
   isAllTeamsSelected(): boolean {
-    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
-    return ids.length > 0 && ids.every(id => (this.selectedTeams || []).includes(id));
+    const ids = (this.filteredTeamsForFilter || []).map((t) => t.id).filter(Boolean);
+    return ids.length > 0 && ids.every((id) => (this.selectedTeams || []).includes(id));
   }
 
   toggleSelectAllTeams() {
-    const ids = (this.filteredTeamsForFilter || []).map(t => t.id).filter(Boolean);
+    const ids = (this.filteredTeamsForFilter || []).map((t) => t.id).filter(Boolean);
     if (this.isAllTeamsSelected()) {
       this.selectedTeams = [];
     } else {
@@ -394,7 +458,11 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   ngAfterViewInit(): void {
     this.dataSource.sort = this.sort;
     // this.dataSource.paginator = this.paginator;
-    try { this.dataSource.paginator = this.paginator; } catch (e) { /* ignore during tests */ }
+    try {
+      this.dataSource.paginator = this.paginator;
+    } catch (e) {
+      /* ignore during tests */
+    }
   }
 
   isSuperAdmin = false;
@@ -403,15 +471,34 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     return this.isSuperAdmin && !this.isGlobalInstituteActive;
   }
   private loginInstituteId: string | null = null;
-  constructor(private http: HttpClient, private router: Router, private loading: LoaderService, private auth: AuthService, private overlay: Overlay, private vcr: ViewContainerRef, private pageMeta: PageMetaService, private confirmService: ConfirmService, private globalInstituteContext: GlobalInstituteContextService, private dialog: MatDialog) {
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+    private loading: LoaderService,
+    private auth: AuthService,
+    private overlay: Overlay,
+    private vcr: ViewContainerRef,
+    private pageMeta: PageMetaService,
+    private confirmService: ConfirmService,
+    private globalInstituteContext: GlobalInstituteContextService,
+    private dialog: MatDialog
+  ) {
     this.initializeInstituteScopeFromSession();
 
     // subscribe to isSuperAdmin observable so UI stays reactive to role changes
     try {
       this._subs = this.auth.user$.subscribe((user: any) => {
-        this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
+        this.isSuperAdmin =
+          !!user &&
+          ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
         if (!this.isSuperAdmin && user) {
-          const instId = sessionStorage.getItem('global_institute_id') || user?.institute_id || user?.instituteId || user?.institute?.institute_id || user?.institute?.id || (typeof user?.institute === 'string' ? user.institute : '');
+          const instId =
+            sessionStorage.getItem('global_institute_id') ||
+            user?.institute_id ||
+            user?.instituteId ||
+            user?.institute?.institute_id ||
+            user?.institute?.id ||
+            (typeof user?.institute === 'string' ? user.institute : '');
           if (instId) {
             this.loginInstituteId = String(instId);
             this.selectedInstitute = this.loginInstituteId;
@@ -420,23 +507,29 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
           }
         }
       });
-    } catch (e) { /* ignore in tests */ }
+    } catch (e) {
+      /* ignore in tests */
+    }
 
     // http is optional for tests; if present, load institutes
     if (this.http) this.loadInstitutes();
     if (this.http) this.loadCountries();
     try {
-      this._globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe(context => {
-        this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
-        const instituteId = context?.institute_id || '';
-        if (instituteId) {
-          if (instituteId === this.activeInstituteId) return;
-          this.resetForInstituteChange(instituteId);
-          return;
+      this._globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe(
+        (context) => {
+          this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
+          const instituteId = context?.institute_id || '';
+          if (instituteId) {
+            if (instituteId === this.activeInstituteId) return;
+            this.resetForInstituteChange(instituteId);
+            return;
+          }
+          if (this.activeInstituteId) this.resetAfterGlobalInstituteClear();
         }
-        if (this.activeInstituteId) this.resetAfterGlobalInstituteClear();
-      });
-    } catch (e) { /* ignore in tests */ }
+      );
+    } catch (e) {
+      /* ignore in tests */
+    }
     // also load categories list for the Category filter, scoped for admins
     if (this.http) this.loadCategories(this.getScopedInstituteId());
   }
@@ -446,8 +539,8 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       width: '520px',
       data: {
         startDate: this.filterCreationDateAfter,
-        endDate: this.filterCreationDate
-      }
+        endDate: this.filterCreationDate,
+      },
     });
 
     dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
@@ -480,12 +573,25 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
 
   ngOnDestroy(): void {
-    try { this._subs?.unsubscribe(); } catch (e) { /* ignore */ }
-    try { this._globalInstituteSub?.unsubscribe(); } catch (e) { /* ignore */ }
+    try {
+      this._subs?.unsubscribe();
+    } catch (e) {
+      /* ignore */
+    }
+    try {
+      this._globalInstituteSub?.unsubscribe();
+    } catch (e) {
+      /* ignore */
+    }
     this.saveQuestionsReturnState();
   }
 
-  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean; tooltip?: string }> {
+  get appliedFilterChips(): Array<{
+    key: string;
+    label: string;
+    removable: boolean;
+    tooltip?: string;
+  }> {
     const globalInstituteId = this.activeInstituteId;
     if (!this.hasAppliedFilters && !globalInstituteId) return [];
     const chips: Array<{ key: string; label: string; removable: boolean; tooltip?: string }> = [];
@@ -493,55 +599,126 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     // Country
     if (this.selectedCountries && this.selectedCountries.length) {
       if (this.selectedCountries.length === 1) {
-        const cName = this.getSelectedName(this.countries.map(c => ({ id: c.code, name: c.name })), this.selectedCountries[0]);
+        const cName = this.getSelectedName(
+          this.countries.map((c) => ({ id: c.code, name: c.name })),
+          this.selectedCountries[0]
+        );
         chips.push({ key: 'country', label: `Country: ${cName}`, removable: true, tooltip: cName });
       } else {
-        const cNames = this.selectedCountries.map(code => this.getSelectedName(this.countries.map(c => ({ id: c.code, name: c.name })), code)).filter(Boolean);
-        chips.push({ key: 'country', label: `Country: ${this.selectedCountries.length} selected`, removable: true, tooltip: cNames.join(', ') });
+        const cNames = this.selectedCountries
+          .map((code) =>
+            this.getSelectedName(
+              this.countries.map((c) => ({ id: c.code, name: c.name })),
+              code
+            )
+          )
+          .filter(Boolean);
+        chips.push({
+          key: 'country',
+          label: `Country: ${this.selectedCountries.length} selected`,
+          removable: true,
+          tooltip: cNames.join(', '),
+        });
       }
     } else if (this.filterCountry) {
-      const cName = this.getSelectedName(this.countries.map(c => ({ id: c.code, name: c.name })), this.filterCountry);
+      const cName = this.getSelectedName(
+        this.countries.map((c) => ({ id: c.code, name: c.name })),
+        this.filterCountry
+      );
       chips.push({ key: 'country', label: `Country: ${cName}`, removable: true, tooltip: cName });
     }
 
-    if (this.filterCity) chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true, tooltip: this.filterCity });
+    if (this.filterCity)
+      chips.push({
+        key: 'city',
+        label: `City: ${this.filterCity}`,
+        removable: true,
+        tooltip: this.filterCity,
+      });
 
     // Industry
     if (this.selectedIndustries && this.selectedIndustries.length) {
       if (this.selectedIndustries.length === 1) {
-        chips.push({ key: 'industry', label: `Industry: ${this.selectedIndustries[0]}`, removable: true, tooltip: this.selectedIndustries[0] });
+        chips.push({
+          key: 'industry',
+          label: `Industry: ${this.selectedIndustries[0]}`,
+          removable: true,
+          tooltip: this.selectedIndustries[0],
+        });
       } else {
-        chips.push({ key: 'industry', label: `Industry: ${this.selectedIndustries.length} selected`, removable: true, tooltip: this.selectedIndustries.join(', ') });
+        chips.push({
+          key: 'industry',
+          label: `Industry: ${this.selectedIndustries.length} selected`,
+          removable: true,
+          tooltip: this.selectedIndustries.join(', '),
+        });
       }
     } else if (this.filterIndustry) {
-      chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true, tooltip: this.filterIndustry });
+      chips.push({
+        key: 'industry',
+        label: `Industry: ${this.filterIndustry}`,
+        removable: true,
+        tooltip: this.filterIndustry,
+      });
     }
 
     // Sector
     if (this.selectedSectors && this.selectedSectors.length) {
       if (this.selectedSectors.length === 1) {
-        chips.push({ key: 'sector', label: `Sector: ${this.selectedSectors[0]}`, removable: true, tooltip: this.selectedSectors[0] });
+        chips.push({
+          key: 'sector',
+          label: `Sector: ${this.selectedSectors[0]}`,
+          removable: true,
+          tooltip: this.selectedSectors[0],
+        });
       } else {
-        chips.push({ key: 'sector', label: `Sector: ${this.selectedSectors.length} selected`, removable: true, tooltip: this.selectedSectors.join(', ') });
+        chips.push({
+          key: 'sector',
+          label: `Sector: ${this.selectedSectors.length} selected`,
+          removable: true,
+          tooltip: this.selectedSectors.join(', '),
+        });
       }
     } else if (this.filterSector) {
-      chips.push({ key: 'sector', label: `Sector: ${this.filterSector}`, removable: true, tooltip: this.filterSector });
+      chips.push({
+        key: 'sector',
+        label: `Sector: ${this.filterSector}`,
+        removable: true,
+        tooltip: this.filterSector,
+      });
     }
 
     // Institute
     if (this.selectedInstitutes && this.selectedInstitutes.length) {
       if (this.selectedInstitutes.length === 1) {
         const instName = this.getInstituteLabel(this.selectedInstitutes[0]);
-        chips.push({ key: 'institute', label: `Institute: ${instName}`, removable: this.isSuperAdmin && !globalInstituteId, tooltip: instName });
+        chips.push({
+          key: 'institute',
+          label: `Institute: ${instName}`,
+          removable: this.isSuperAdmin && !globalInstituteId,
+          tooltip: instName,
+        });
       } else {
-        const instNames = this.selectedInstitutes.map(id => this.getInstituteLabel(id)).filter(Boolean);
-        chips.push({ key: 'institute', label: `Institutes: ${this.selectedInstitutes.length} selected`, removable: this.isSuperAdmin && !globalInstituteId, tooltip: instNames.join(', ') });
+        const instNames = this.selectedInstitutes
+          .map((id) => this.getInstituteLabel(id))
+          .filter(Boolean);
+        chips.push({
+          key: 'institute',
+          label: `Institutes: ${this.selectedInstitutes.length} selected`,
+          removable: this.isSuperAdmin && !globalInstituteId,
+          tooltip: instNames.join(', '),
+        });
       }
     } else {
       const instituteId = globalInstituteId || this.selectedInstitute;
       if (instituteId) {
         const instName = this.getInstituteLabel(instituteId);
-        chips.push({ key: 'institute', label: `Institute: ${instName}`, removable: this.isSuperAdmin && !globalInstituteId, tooltip: instName });
+        chips.push({
+          key: 'institute',
+          label: `Institute: ${instName}`,
+          removable: this.isSuperAdmin && !globalInstituteId,
+          tooltip: instName,
+        });
       }
     }
 
@@ -549,42 +726,149 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     if (this.selectedCategories && this.selectedCategories.length) {
       if (this.selectedCategories.length === 1) {
         const catName = this.getCategoryLabel(this.selectedCategories[0]);
-        chips.push({ key: 'category', label: `Question Bank: ${catName}`, removable: true, tooltip: catName });
+        chips.push({
+          key: 'category',
+          label: `Question Bank: ${catName}`,
+          removable: true,
+          tooltip: catName,
+        });
       } else {
-        const catNames = this.selectedCategories.map(id => this.getCategoryLabel(id)).filter(Boolean);
-        chips.push({ key: 'category', label: `Question Banks: ${this.selectedCategories.length} selected`, removable: true, tooltip: catNames.join(', ') });
+        const catNames = this.selectedCategories
+          .map((id) => this.getCategoryLabel(id))
+          .filter(Boolean);
+        chips.push({
+          key: 'category',
+          label: `Question Banks: ${this.selectedCategories.length} selected`,
+          removable: true,
+          tooltip: catNames.join(', '),
+        });
       }
     } else if (this.categoryFilterName) {
-      chips.push({ key: 'category_name', label: `Question Bank: ${this.categoryFilterName}`, removable: true, tooltip: this.categoryFilterName });
+      chips.push({
+        key: 'category_name',
+        label: `Question Bank: ${this.categoryFilterName}`,
+        removable: true,
+        tooltip: this.categoryFilterName,
+      });
     }
 
-    (this.selectedDepartments || []).forEach(id => chips.push({ key: `department:${id}`, label: `Department: ${this.getSelectedName(this.departments, id)}`, removable: true }));
-    (this.selectedTeams || []).forEach(id => chips.push({ key: `team:${id}`, label: `Team: ${this.getSelectedName(this.teams, id)}`, removable: true }));
-    if (this.filterQuestionType) {
-      const typeLabel = this.filterQuestionType === 'objective' ? 'Objective' : (this.filterQuestionType === 'descriptive' ? 'Descriptive' : this.filterQuestionType);
-      chips.push({ key: 'question_type', label: `Type: ${typeLabel}`, removable: true, tooltip: typeLabel });
+    (this.selectedDepartments || []).forEach((id) =>
+      chips.push({
+        key: `department:${id}`,
+        label: `Department: ${this.getSelectedName(this.departments, id)}`,
+        removable: true,
+      })
+    );
+    (this.selectedTeams || []).forEach((id) =>
+      chips.push({
+        key: `team:${id}`,
+        label: `Team: ${this.getSelectedName(this.teams, id)}`,
+        removable: true,
+      })
+    );
+    if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
+      const labels = this.selectedQuestionTypes.map((t) =>
+        t === 'objective' ? 'Objective' : t === 'descriptive' ? 'Descriptive' : t
+      );
+      chips.push({
+        key: 'question_type',
+        label: `Type: ${labels.join(', ')}`,
+        removable: true,
+        tooltip: labels.join(', '),
+      });
+    } else if (this.filterQuestionType) {
+      const typeLabel =
+        this.filterQuestionType === 'objective'
+          ? 'Objective'
+          : this.filterQuestionType === 'descriptive'
+            ? 'Descriptive'
+            : this.filterQuestionType;
+      chips.push({
+        key: 'question_type',
+        label: `Type: ${typeLabel}`,
+        removable: true,
+        tooltip: typeLabel,
+      });
     }
-    if (this.filterCreationDateAfter) chips.push({ key: 'created_after', label: `Created after: ${this.formatFilterDate(this.filterCreationDateAfter)}`, removable: true });
-    if (this.filterCreationDate) chips.push({ key: 'created_before', label: `Created before: ${this.formatFilterDate(this.filterCreationDate)}`, removable: true });
-    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') chips.push({ key: 'active_status', label: `Status: ${this.filterActiveStatus ? 'Active' : 'Inactive'}`, removable: true });
-    if (this.filterCreatedByMe) chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
-    if (this.filterPublicAccess) chips.push({ key: 'public_access', label: 'Public access', removable: true });
+    if (this.filterCreationDateAfter)
+      chips.push({
+        key: 'created_after',
+        label: `Created after: ${this.formatFilterDate(this.filterCreationDateAfter)}`,
+        removable: true,
+      });
+    if (this.filterCreationDate)
+      chips.push({
+        key: 'created_before',
+        label: `Created before: ${this.formatFilterDate(this.filterCreationDate)}`,
+        removable: true,
+      });
+    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined')
+      chips.push({
+        key: 'active_status',
+        label: `Status: ${this.filterActiveStatus ? 'Active' : 'Inactive'}`,
+        removable: true,
+      });
+    if (this.filterCreatedByMe)
+      chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
+    if (this.filterPublicAccess)
+      chips.push({ key: 'public_access', label: 'Public access', removable: true });
     return chips;
   }
 
   removeAppliedFilter(key: string) {
     if (!key) return;
-    if (key === 'country') { this.selectedCountries = []; this.filterCountry = ''; this.filterCity = ''; this.filterCityOptions = []; this.refreshInstituteScope(); }
-    else if (key === 'city') { this.filterCity = ''; this.refreshInstituteScope(); }
-    else if (key === 'industry') { this.selectedIndustries = []; this.filterIndustry = ''; this.selectedSectors = []; this.filterSector = ''; this.refreshInstituteScope(); }
-    else if (key === 'sector') { this.selectedSectors = []; this.filterSector = ''; this.refreshInstituteScope(); }
-    else if (key === 'institute' && this.isSuperAdmin) { this.selectedInstitutes = []; this.selectedInstitute = ''; this.instituteSearch = ''; this.selectedCategories = []; this.categoryFilterName = ''; this.categorySearch = ''; this.categoryCtrl.setValue(''); this.categoryCtrl.disable({ emitEvent: false }); this.departments = []; this.teams = []; this.loadCategories(); }
-    else if (key === 'category' || key === 'category_name') { this.selectedCategories = []; this.categoryFilterName = ''; this.categorySearch = ''; }
-    else if (key.startsWith('category:')) this.selectedCategories = this.selectedCategories.filter(id => String(id) !== key.substring('category:'.length));
-    else if (key.startsWith('department:')) this.selectedDepartments = this.selectedDepartments.filter(id => String(id) !== key.substring('department:'.length));
-    else if (key.startsWith('team:')) this.selectedTeams = this.selectedTeams.filter(id => String(id) !== key.substring('team:'.length));
-    else if (key === 'question_type') this.filterQuestionType = '';
-    else if (key === 'created_after') this.filterCreationDateAfter = null;
+    if (key === 'country') {
+      this.selectedCountries = [];
+      this.filterCountry = '';
+      this.filterCity = '';
+      this.filterCityOptions = [];
+      this.refreshInstituteScope();
+    } else if (key === 'city') {
+      this.filterCity = '';
+      this.refreshInstituteScope();
+    } else if (key === 'industry') {
+      this.selectedIndustries = [];
+      this.filterIndustry = '';
+      this.selectedSectors = [];
+      this.filterSector = '';
+      this.refreshInstituteScope();
+    } else if (key === 'sector') {
+      this.selectedSectors = [];
+      this.filterSector = '';
+      this.refreshInstituteScope();
+    } else if (key === 'institute' && this.isSuperAdmin) {
+      this.selectedInstitutes = [];
+      this.selectedInstitute = '';
+      this.instituteSearch = '';
+      this.selectedCategories = [];
+      this.selectedQuestionTypes = [];
+      this.categoryFilterName = '';
+      this.categorySearch = '';
+      this.categoryCtrl.setValue('');
+      this.categoryCtrl.disable({ emitEvent: false });
+      this.departments = [];
+      this.teams = [];
+      this.loadCategories();
+    } else if (key === 'category' || key === 'category_name') {
+      this.selectedCategories = [];
+      this.categoryFilterName = '';
+      this.categorySearch = '';
+    } else if (key.startsWith('category:'))
+      this.selectedCategories = this.selectedCategories.filter(
+        (id) => String(id) !== key.substring('category:'.length)
+      );
+    else if (key.startsWith('department:'))
+      this.selectedDepartments = this.selectedDepartments.filter(
+        (id) => String(id) !== key.substring('department:'.length)
+      );
+    else if (key.startsWith('team:'))
+      this.selectedTeams = this.selectedTeams.filter(
+        (id) => String(id) !== key.substring('team:'.length)
+      );
+    else if (key === 'question_type') {
+      this.filterQuestionType = '';
+      this.selectedQuestionTypes = [];
+    } else if (key === 'created_after') this.filterCreationDateAfter = null;
     else if (key === 'created_before') this.filterCreationDate = null;
     else if (key === 'active_status') this.filterActiveStatus = null;
     else if (key === 'created_by_me') this.filterCreatedByMe = false;
@@ -592,11 +876,18 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     this.refreshAfterFilterChipChange();
   }
 
-  clearAppliedFilters() { this.onReset(); }
+  clearAppliedFilters() {
+    this.onReset();
+  }
 
   private refreshAfterFilterChipChange() {
     if (this.appliedFilterChips.length) this.loadQuestions();
-    else { this.hasAppliedFilters = false; this.questions = []; this.dataSource.data = []; this.selectedQuestionIds.clear(); }
+    else {
+      this.hasAppliedFilters = false;
+      this.questions = [];
+      this.dataSource.data = [];
+      this.selectedQuestionIds.clear();
+    }
   }
 
   private initializeInstituteScopeFromSession(): void {
@@ -604,8 +895,17 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       const user = raw ? JSON.parse(raw) : null;
       const role = String(user?.role || user?.user_role || user?.role_name || '').toLowerCase();
-      this.isSuperAdmin = ['super_admin', 'superadmin', 'super-admin'].includes(role) || user?.is_super_admin === true || !!user?.isSuperAdmin;
-      const instId = sessionStorage.getItem('global_institute_id') || user?.institute_id || user?.instituteId || user?.institute?.institute_id || user?.institute?.id || (typeof user?.institute === 'string' ? user.institute : '');
+      this.isSuperAdmin =
+        ['super_admin', 'superadmin', 'super-admin'].includes(role) ||
+        user?.is_super_admin === true ||
+        !!user?.isSuperAdmin;
+      const instId =
+        sessionStorage.getItem('global_institute_id') ||
+        user?.institute_id ||
+        user?.instituteId ||
+        user?.institute?.institute_id ||
+        user?.institute?.id ||
+        (typeof user?.institute === 'string' ? user.institute : '');
       if (instId) {
         this.loginInstituteId = String(instId);
         if (!this.isSuperAdmin) {
@@ -613,7 +913,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
           this.instituteSearch = '';
         }
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   }
 
   private getScopedInstituteId(instId?: string): string {
@@ -627,12 +929,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   private getItemInstituteId(item: any): string {
     return String(
       item?.institute_id ??
-      item?.instituteId ??
-      item?.institute?.institute_id ??
-      item?.institute?.id ??
-      item?.institutes?.institute_id ??
-      item?.institutes?.id ??
-      ''
+        item?.instituteId ??
+        item?.institute?.institute_id ??
+        item?.institute?.id ??
+        item?.institutes?.institute_id ??
+        item?.institutes?.id ??
+        ''
     );
   }
 
@@ -640,56 +942,108 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     if (this.isSuperAdmin || !scopedInstitute) return true;
     const itemInstId = this.getItemInstituteId(item);
     if (scopedInstitute.includes(',')) {
-      const allowed = scopedInstitute.split(',').map(s => s.trim());
+      const allowed = scopedInstitute.split(',').map((s) => s.trim());
       return allowed.includes(String(itemInstId));
     }
     return itemInstId === String(scopedInstitute);
   }
-  private getInstituteLabel(id: any): string { const found = this.institutes.find(i => String(i.institute_id) === String(id)); return found?.name || String(id || ''); }
-  private getCategoryLabel(id: any): string { const found = (this.categories || []).find((c: any) => String(c.category_id || c.id || c._id) === String(id)); return found?.name || found?.category_name || String(id || ''); }
-  private getSelectedName(list: any[], selectedId: any): string { const found = (list || []).find(item => String(item?.id) === String(selectedId)); return found?.name || String(selectedId || ''); }
-  private formatFilterDate(value: Date): string { try { return value.toISOString().slice(0, 10); } catch (e) { return String(value || ''); } }
+  private getInstituteLabel(id: any): string {
+    if (!id) return '';
+    const found: any = (this.institutes || []).find((i: any) => String(i.institute_id || i.id || i._id) === String(id));
+    return found?.name || found?.institute_name || (this.institutes && this.institutes.length ? String(id || '') : '');
+  }
+  private getCategoryLabel(id: any): string {
+    if (!id) return '';
+    const found = (this.categories || []).find(
+      (c: any) => String(c.category_id || c.id || c._id) === String(id)
+    );
+    return found?.name || found?.category_name || (this.categories && this.categories.length ? String(id || '') : '');
+  }
+  private getSelectedName(list: any[], selectedId: any): string {
+    if (!selectedId || !list || !list.length) return '';
+    const found = (list || []).find((item) => String(item?.id || item?.dept_id || item?.team_id || item?.deptId || item?.teamId) === String(selectedId));
+    return found ? (found.name || found.dept_name || found.team_name || String(selectedId)) : '';
+  }
+  private formatFilterDate(value: Date): string {
+    try {
+      return value.toISOString().slice(0, 10);
+    } catch (e) {
+      return String(value || '');
+    }
+  }
   openFiltersOverlay() {
     if (!this.filtersBtn) return;
-    if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; }
+    if (this.filtersOverlayRef) {
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (e) {}
+      this.filtersOverlayRef = null;
+    }
 
-    const positionStrategy = this.overlay.position()
+    const positionStrategy = this.overlay
+      .position()
       .flexibleConnectedTo(this.filtersBtn)
       .withPositions([
         { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
-        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 }
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
       ])
       .withPush(true);
 
-    this.filtersOverlayRef = this.overlay.create({ positionStrategy, hasBackdrop: true, backdropClass: 'cdk-overlay-transparent-backdrop', scrollStrategy: this.overlay.scrollStrategies.reposition() });
+    this.filtersOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+    });
     this.filtersOverlayRef.backdropClick().subscribe(() => this.closeFiltersOverlay());
-    this.filtersOverlayRef.keydownEvents().subscribe((ev: any) => { if (ev.key === 'Escape') this.closeFiltersOverlay(); });
+    this.filtersOverlayRef.keydownEvents().subscribe((ev: any) => {
+      if (ev.key === 'Escape') this.closeFiltersOverlay();
+    });
 
     const portal = new TemplatePortal(this.filtersPanelTpl, this.vcr);
     this.filtersOverlayRef.attach(portal);
   }
 
-  closeFiltersOverlay() { if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; } }
+  closeFiltersOverlay() {
+    if (this.filtersOverlayRef) {
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (e) {}
+      this.filtersOverlayRef = null;
+    }
+  }
 
   refresh() {
     if (!this.hasAppliedFilters) {
-      try { notify('Apply filters to fetch questions', 'info'); } catch (e) { }
+      try {
+        notify('Apply filters to fetch questions', 'info');
+      } catch (e) {}
       return;
     }
     this.loadQuestions();
   }
 
+  onQuestionTypeChange() {
+    this.selectedCategories = [];
+    this.loadCategories();
+  }
+
   loadInstitutes() {
     this.http!.get<any>(this.institutesUrl).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
         // Prefer the full API name; short_name remains a fallback for legacy responses.
-        this.institutes = arr.map((r: any) => ({ name: r.institute_name || r.name || r.short_name || '', institute_id: r.institute_id || r.id }));
+        this.institutes = arr.map((r: any) => ({
+          name: r.institute_name || r.name || r.short_name || '',
+          institute_id: r.institute_id || r.id,
+        }));
         this.allInstitutes = [...this.institutes];
         // If a selectedInstitute is already set (e.g. via route/session), prefer that
         try {
           if (this.selectedInstitute) {
-            const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute));
+            const found = this.institutes.find(
+              (i) => String(i.institute_id) === String(this.selectedInstitute)
+            );
             if (found) {
               // ensure exact match type/value and load schedules
               this.selectedInstitute = found.institute_id as any;
@@ -701,16 +1055,24 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
               return;
             }
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+          /* ignore */
+        }
 
         // Fallback: try reading user's institute from sessionStorage and apply it
         try {
           const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
           if (!this.isSuperAdmin && raw) {
             const u = JSON.parse(raw);
-            const instId = sessionStorage.getItem('global_institute_id') || u?.institute_id || u?.instituteId || u?.institute?.institute_id || u?.institute?.id || (typeof u?.institute === 'string' ? u.institute : '');
+            const instId =
+              sessionStorage.getItem('global_institute_id') ||
+              u?.institute_id ||
+              u?.instituteId ||
+              u?.institute?.institute_id ||
+              u?.institute?.id ||
+              (typeof u?.institute === 'string' ? u.institute : '');
             if (instId) {
-              const found = this.institutes.find(i => String(i.institute_id) === String(instId));
+              const found = this.institutes.find((i) => String(i.institute_id) === String(instId));
               if (found) {
                 this.selectedInstitute = found.institute_id as any;
                 this.syncInstituteSearch();
@@ -722,27 +1084,34 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
               }
             }
           }
-        } catch (e) { /* ignore malformed session data */ }
+        } catch (e) {
+          /* ignore malformed session data */
+        }
       },
-      error: (err) => console.warn('Failed to load institutes', err)
+      error: (err) => console.warn('Failed to load institutes', err),
     });
   }
 
   // ---- Country / City / Industry / Sector cascade (mirrors view-institutes.component.ts / category.component.ts) ----
 
-  onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector') {
+  onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector' | 'questionBank') {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { /* ignore non-browser environments */ }
+        } catch (e) {
+          /* ignore non-browser environments */
+        }
       });
       return;
     }
     if (field === 'country') this.countrySearch = '';
     else if (field === 'industry') this.industrySearch = '';
     else if (field === 'sector') this.sectorSearch = '';
+    else if (field === 'questionBank') this.categorySearch = '';
   }
 
   stopFilterSearchEvent(event: Event) {
@@ -759,9 +1128,13 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
           const countries = res?.data?.countries || res?.countries || res?.data || [];
           this.locationHierarchyRaw = Array.isArray(countries) ? countries : [];
           this.loadRegisteredInstituteCountries(this.locationHierarchyRaw);
-        } catch (e) { this.countries = []; }
+        } catch (e) {
+          this.countries = [];
+        }
       },
-      error: () => { this.countries = []; }
+      error: () => {
+        this.countries = [];
+      },
     });
   }
 
@@ -771,38 +1144,67 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       next: (res) => {
         try {
           const institutes = Array.isArray(res?.data) ? res.data : [];
-          const hierarchyCountries = (locationCountries || []).map((country: any) => ({
-            code: country.country_code || country.code || country.id,
-            name: country.country_name || country.name || country.country
-          })).filter((country: any) => country.code && country.name);
+          const hierarchyCountries = (locationCountries || [])
+            .map((country: any) => ({
+              code: country.country_code || country.code || country.id,
+              name: country.country_name || country.name || country.country,
+            }))
+            .filter((country: any) => country.code && country.name);
           const registeredCountries: Array<{ code: string; name: string }> = [];
           institutes.forEach((institute: any) => {
-            const locations = [institute, ...(Array.isArray(institute?.campuses) ? institute.campuses : [])];
+            const locations = [
+              institute,
+              ...(Array.isArray(institute?.campuses) ? institute.campuses : []),
+            ];
             locations.forEach((location: any) => {
               const rawCountry = location?.country;
-              const countryCode = location?.country_id || location?.country_code
-                || (typeof rawCountry === 'object' ? rawCountry?.country_id || rawCountry?.id || rawCountry?.country_code || rawCountry?.code : rawCountry);
-              const countryName = location?.country_name
-                || (typeof rawCountry === 'object' ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country : rawCountry);
-              const hierarchyMatch = hierarchyCountries.find((country: any) =>
-                (countryCode && String(country.code).toLowerCase() === String(countryCode).toLowerCase())
-                || (countryName && String(country.name).trim().toLowerCase() === String(countryName).trim().toLowerCase())
+              const countryCode =
+                location?.country_id ||
+                location?.country_code ||
+                (typeof rawCountry === 'object'
+                  ? rawCountry?.country_id ||
+                    rawCountry?.id ||
+                    rawCountry?.country_code ||
+                    rawCountry?.code
+                  : rawCountry);
+              const countryName =
+                location?.country_name ||
+                (typeof rawCountry === 'object'
+                  ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
+                  : rawCountry);
+              const hierarchyMatch = hierarchyCountries.find(
+                (country: any) =>
+                  (countryCode &&
+                    String(country.code).toLowerCase() === String(countryCode).toLowerCase()) ||
+                  (countryName &&
+                    String(country.name).trim().toLowerCase() ===
+                      String(countryName).trim().toLowerCase())
               );
-              const resolved = hierarchyMatch || (countryCode && countryName ? { code: countryCode, name: countryName } : null);
-              if (resolved) registeredCountries.push({ code: String(resolved.code), name: String(resolved.name).trim() });
+              const resolved =
+                hierarchyMatch ||
+                (countryCode && countryName ? { code: countryCode, name: countryName } : null);
+              if (resolved)
+                registeredCountries.push({
+                  code: String(resolved.code),
+                  name: String(resolved.name).trim(),
+                });
             });
           });
           const uniqueByName = new Map<string, { code: string; name: string }>();
-          registeredCountries.forEach(country => {
+          registeredCountries.forEach((country) => {
             const key = country.name.toLowerCase();
             if (!uniqueByName.has(key)) uniqueByName.set(key, country);
           });
-          this.countries = Array.from(uniqueByName.values()).sort((a, b) => a.name.localeCompare(b.name));
+          this.countries = Array.from(uniqueByName.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
         } catch (e) {
           this.countries = [];
         }
       },
-      error: () => { this.countries = []; }
+      error: () => {
+        this.countries = [];
+      },
     });
   }
 
@@ -814,22 +1216,36 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       next: (res) => {
         try {
           const data = Array.isArray(res?.data?.cities) ? res.data.cities : [];
-          this.filterCityOptions = data.map((city: any) => ({
-            code: city.id ?? city.city_id ?? city.city_code ?? city.code,
-            name: city.name ?? city.city_name ?? city.city
-          })).filter((city: any) => city.code && city.name).sort((a: any, b: any) => a.name.localeCompare(b.name));
-        } catch (e) { this.filterCityOptions = []; }
+          this.filterCityOptions = data
+            .map((city: any) => ({
+              code: city.id ?? city.city_id ?? city.city_code ?? city.code,
+              name: city.name ?? city.city_name ?? city.city,
+            }))
+            .filter((city: any) => city.code && city.name)
+            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+        } catch (e) {
+          this.filterCityOptions = [];
+        }
       },
-      error: () => { this.filterCityOptions = []; }
+      error: () => {
+        this.filterCityOptions = [];
+      },
     });
   }
 
   // City is a free-text field holding the display name; resolve it back to its code
   // (the backend's city filter expects an id) before sending it to get-institutes.
   private resolveCityId(cityName: string): string {
-    const name = String(cityName || '').trim().toLowerCase();
+    const name = String(cityName || '')
+      .trim()
+      .toLowerCase();
     if (!name) return '';
-    const found = this.filterCityOptions.find(c => String(c.name || '').trim().toLowerCase() === name);
+    const found = this.filterCityOptions.find(
+      (c) =>
+        String(c.name || '')
+          .trim()
+          .toLowerCase() === name
+    );
     return found ? String(found.code) : '';
   }
 
@@ -856,9 +1272,11 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { }
+        } catch (e) {}
       });
     } else {
       this.instituteFilterSearch = '';
@@ -869,9 +1287,11 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { }
+        } catch (e) {}
       });
     } else {
       this.departmentFilterSearch = '';
@@ -882,9 +1302,11 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { }
+        } catch (e) {}
       });
     } else {
       this.teamFilterSearch = '';
@@ -904,43 +1326,52 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
     this.loadCategories(institutes.join(','));
 
-    const deptRequests = institutes.map(id =>
+    const deptRequests = institutes.map((id) =>
       this.http.get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: id } })
     );
     forkJoin(deptRequests).subscribe({
       next: (responses) => {
         let combined: any[] = [];
-        responses.forEach(res => {
-          const arr = Array.isArray(res) ? res : (res?.data || []);
+        responses.forEach((res) => {
+          const arr = Array.isArray(res) ? res : res?.data || [];
           combined = combined.concat(arr);
         });
         const seen = new Set();
         this.departments = combined
-          .map((d: any) => ({ id: d.dept_id || d.id || d.deptId || '', name: d.name || d.dept_name || '' }))
-          .filter(d => d.id && !seen.has(d.id) && seen.add(d.id));
+          .map((d: any) => ({
+            id: d.dept_id || d.id || d.deptId || '',
+            name: d.name || d.dept_name || '',
+          }))
+          .filter((d) => d.id && !seen.has(d.id) && seen.add(d.id));
       },
-      error: () => { this.departments = []; }
+      error: () => {
+        this.departments = [];
+      },
     });
 
-    const teamRequests = institutes.map(id =>
+    const teamRequests = institutes.map((id) =>
       this.http.get<any>(`${API_BASE}/get-teams-list`, { params: { institute_id: id } })
     );
     forkJoin(teamRequests).subscribe({
       next: (responses) => {
         let combined: any[] = [];
-        responses.forEach(res => {
-          const arr = Array.isArray(res) ? res : (res?.data || []);
+        responses.forEach((res) => {
+          const arr = Array.isArray(res) ? res : res?.data || [];
           combined = combined.concat(arr);
         });
         const seen = new Set();
         this.teams = combined
-          .map((t: any) => ({ id: t.team_id || t.id || t.teamId || '', name: t.name || t.team_name || '' }))
-          .filter(t => t.id && !seen.has(t.id) && seen.add(t.id));
+          .map((t: any) => ({
+            id: t.team_id || t.id || t.teamId || '',
+            name: t.name || t.team_name || '',
+          }))
+          .filter((t) => t.id && !seen.has(t.id) && seen.add(t.id));
       },
-      error: () => { this.teams = []; }
+      error: () => {
+        this.teams = [];
+      },
     });
   }
-
 
   // Reload the Institute options scoped to the currently selected Country/City/Industry/Sector.
   // Falls back to the full institute list (get-institute-list) when none of those are selected.
@@ -954,7 +1385,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     if (this.filterSector) params.sector = this.filterSector;
 
     const clearStaleInstituteSelection = () => {
-      if (this.selectedInstitute && !this.institutes.some(i => String(i.institute_id) === String(this.selectedInstitute))) {
+      if (
+        this.selectedInstitute &&
+        !this.institutes.some((i) => String(i.institute_id) === String(this.selectedInstitute))
+      ) {
         this.onInstituteAutocompleteSelected('');
       }
     };
@@ -966,26 +1400,39 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
     this.http.get<any>(`${API_BASE}/get-institutes`, { params }).subscribe({
       next: (res) => {
-        const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-        this.institutes = (data || []).map((r: any) => ({
-          name: r.institute_name || r.name || r.short_name || '',
-          institute_id: r.institute_id || r.id || r._id || ''
-        })).filter((i: any) => !!i.institute_id);
+        const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        this.institutes = (data || [])
+          .map((r: any) => ({
+            name: r.institute_name || r.name || r.short_name || '',
+            institute_id: r.institute_id || r.id || r._id || '',
+          }))
+          .filter((i: any) => !!i.institute_id);
         clearStaleInstituteSelection();
       },
-      error: () => { this.institutes = []; }
+      error: () => {
+        this.institutes = [];
+      },
     });
   }
 
   loadExams(instId: string) {
-    if (!instId) { this.exams = []; return; }
+    if (!instId) {
+      this.exams = [];
+      return;
+    }
     const url = `${this.examsUrl}?institute_id=${encodeURIComponent(instId)}`;
     this.http!.get<any>(url).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.exams = arr.map((e: any) => ({ title: e.title || e.name || '', exam_id: e.exam_id || e.id || e.examId }));
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
+        this.exams = arr.map((e: any) => ({
+          title: e.title || e.name || '',
+          exam_id: e.exam_id || e.id || e.examId,
+        }));
       },
-      error: (err) => { console.warn('Failed to load tests', err); this.exams = []; }
+      error: (err) => {
+        console.warn('Failed to load tests', err);
+        this.exams = [];
+      },
     });
   }
 
@@ -1015,24 +1462,44 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
 
   loadDepartments(instId?: string) {
-    if (!instId) { this.departments = []; return; }
+    if (!instId) {
+      this.departments = [];
+      return;
+    }
     const url = `${API_BASE}/get-department-list`;
     this.http!.get<any>(url, { params: { institute_id: instId } }).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.departments = arr.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name || d.dept_name || d.title || '' }));
-      }, error: (err) => { console.warn('Failed to load departments', err); this.departments = []; }
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
+        this.departments = arr.map((d: any) => ({
+          id: d.dept_id || d.id || d.deptId,
+          name: d.name || d.dept_name || d.title || '',
+        }));
+      },
+      error: (err) => {
+        console.warn('Failed to load departments', err);
+        this.departments = [];
+      },
     });
   }
 
   loadTeams(instId?: string) {
-    if (!instId) { this.teams = []; return; }
+    if (!instId) {
+      this.teams = [];
+      return;
+    }
     const url = `${API_BASE}/get-teams-list`;
     this.http!.get<any>(url, { params: { institute_id: instId } }).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.teams = arr.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name || t.team_name || t.title || '' }));
-      }, error: (err) => { console.warn('Failed to load teams', err); this.teams = []; }
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
+        this.teams = arr.map((t: any) => ({
+          id: t.team_id || t.id || t.teamId,
+          name: t.name || t.team_name || t.title || '',
+        }));
+      },
+      error: (err) => {
+        console.warn('Failed to load teams', err);
+        this.teams = [];
+      },
     });
   }
 
@@ -1040,35 +1507,43 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     // value for multi-select will be array when multiple selected
     if (Array.isArray(value)) {
       // filter out any internal sentinel values (like selectAllValue)
-      this.selectedCategories = value.filter(v => v !== this.selectAllValue);
+      this.selectedCategories = value.filter((v) => v !== this.selectAllValue);
     } else {
-      this.selectedCategories = value ? [value].filter(v => v !== this.selectAllValue) : [];
+      this.selectedCategories = value ? [value].filter((v) => v !== this.selectAllValue) : [];
     }
   }
 
   isAllCategoriesSelected(): boolean {
-    const ids = (this.filteredCategories || []).map((c: any) => String(c.category_id || c.id || c._id));
+    const ids = (this.filteredCategories || []).map((c: any) =>
+      String(c.category_id || c.id || c._id)
+    );
     if (!ids.length) return false;
     const sel = (this.selectedCategories || []).map(String);
-    return ids.every(id => sel.includes(id));
+    return ids.every((id) => sel.includes(id));
   }
 
   isPartialCategorySelection(): boolean {
-    const ids = (this.filteredCategories || []).map((c: any) => String(c.category_id || c.id || c._id));
+    const ids = (this.filteredCategories || []).map((c: any) =>
+      String(c.category_id || c.id || c._id)
+    );
     const sel = (this.selectedCategories || []).map(String);
     return sel.length > 0 && sel.length < ids.length;
   }
 
   toggleSelectAllCategories() {
-    const ids = (this.filteredCategories || []).map((c: any) => String(c.category_id || c.id || c._id));
+    const ids = (this.filteredCategories || []).map((c: any) =>
+      String(c.category_id || c.id || c._id)
+    );
     if (!ids.length) return;
     if (this.isAllCategoriesSelected()) {
       // deselect all filtered
-      this.selectedCategories = (this.selectedCategories || []).filter(s => !ids.includes(String(s)));
+      this.selectedCategories = (this.selectedCategories || []).filter(
+        (s) => !ids.includes(String(s))
+      );
     } else {
       // select all filtered (merge)
       const set = new Set<string>((this.selectedCategories || []).map(String));
-      ids.forEach(id => set.add(id));
+      ids.forEach((id) => set.add(id));
       this.selectedCategories = Array.from(set);
     }
   }
@@ -1083,13 +1558,24 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const params: string[] = [];
     const scopedInstitute = this.getScopedInstituteId();
     if (scopedInstitute) params.push(`institute_id=${encodeURIComponent(scopedInstitute)}`);
-    if (this.selectedCategories && this.selectedCategories.length) params.push(`category_id=${encodeURIComponent(this.selectedCategories.join(','))}`);
-    else if (this.categoryFilterName) params.push(`category_name=${encodeURIComponent(this.categoryFilterName)}`);
-    if (this.selectedDepartments && this.selectedDepartments.length) params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
-    if (this.selectedTeams && this.selectedTeams.length) params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
-    if (this.filterCreationDateAfter) params.push(`created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`);
-    if (this.filterCreationDate) params.push(`created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`);
-    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') params.push(`active_status=${encodeURIComponent(String(this.filterActiveStatus))}`);
+    if (this.selectedCategories && this.selectedCategories.length)
+      params.push(`category_id=${encodeURIComponent(this.selectedCategories.join(','))}`);
+    else if (this.categoryFilterName)
+      params.push(`category_name=${encodeURIComponent(this.categoryFilterName)}`);
+    if (this.selectedDepartments && this.selectedDepartments.length)
+      params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
+    if (this.selectedTeams && this.selectedTeams.length)
+      params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
+    if (this.filterCreationDateAfter)
+      params.push(
+        `created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`
+      );
+    if (this.filterCreationDate)
+      params.push(
+        `created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`
+      );
+    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined')
+      params.push(`active_status=${encodeURIComponent(String(this.filterActiveStatus))}`);
 
     if (this.filterCreatedByMe) {
       try {
@@ -1101,16 +1587,20 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
             params.push(`created_by=${encodeURIComponent(String(userId))}`);
           }
         }
-      } catch (e) { }
+      } catch (e) {}
     }
 
-    if (this.filterQuestionType) params.push(`type=${encodeURIComponent(this.filterQuestionType)}`);
+    if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
+      params.push(`type=${encodeURIComponent(this.selectedQuestionTypes.join(','))}`);
+    } else if (this.filterQuestionType) {
+      params.push(`type=${encodeURIComponent(this.filterQuestionType)}`);
+    }
     if (this.filterPublicAccess) params.push('public_access=true');
     params.push(`_ts=${Date.now()}`);
     const url = `${this.questionsUrl}?${params.join('&')}`;
     this.http!.get<any>(url).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
         const scopedInstitute = this.getScopedInstituteId();
         const filteredArr = arr.filter((q: any) => {
           const itemInstituteId = this.getItemInstituteId(q);
@@ -1122,7 +1612,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
           this.loading.hide();
         });
       },
-      error: (err) => { console.warn('Failed to load questions', err); this.questions = []; this.dataSource.data = []; this.loading.hide(); }
+      error: (err) => {
+        console.warn('Failed to load questions', err);
+        this.questions = [];
+        this.dataSource.data = [];
+        this.loading.hide();
+      },
     });
   }
 
@@ -1137,9 +1632,25 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       answer: this.getAnswerText(q),
       category: q.category || q.category_name || '',
       category_description: q.category_description || '',
-      category_id: q.category_id || q.categoryId || q.categoryID || q.category?.category_id || q.category?.id || q.category?._id || '',
-      institute_id: q.institute_id || q.instituteId || q.instituteID || q.institute?.institute_id || q.institute?.id || q.institute?._id || this.selectedInstitute || '',
-      exam_id: q.exam_id || q.examId || q.examID || q.exam?.exam_id || q.exam?.id || q.exam?._id || ''
+      category_id:
+        q.category_id ||
+        q.categoryId ||
+        q.categoryID ||
+        q.category?.category_id ||
+        q.category?.id ||
+        q.category?._id ||
+        '',
+      institute_id:
+        q.institute_id ||
+        q.instituteId ||
+        q.instituteID ||
+        q.institute?.institute_id ||
+        q.institute?.id ||
+        q.institute?._id ||
+        this.selectedInstitute ||
+        '',
+      exam_id:
+        q.exam_id || q.examId || q.examID || q.exam?.exam_id || q.exam?.id || q.exam?._id || '',
     };
     const bankMark = this.resolveQuestionBankMark(row);
     row.marks = bankMark ?? this.toNumber(q.marks ?? q.points) ?? 0;
@@ -1151,22 +1662,37 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const scopedInstitute = this.getScopedInstituteId();
     if (scopedInstitute) params.push(`institute_id=${encodeURIComponent(scopedInstitute)}`);
     if (this.categoryFilterName) params.push(`name=${encodeURIComponent(this.categoryFilterName)}`);
-    const url = params.length ? `${this.categoryDetailsUrl}?${params.join('&')}&_ts=${Date.now()}` : `${this.categoryDetailsUrl}?_ts=${Date.now()}`;
+    const url = params.length
+      ? `${this.categoryDetailsUrl}?${params.join('&')}&_ts=${Date.now()}`
+      : `${this.categoryDetailsUrl}?_ts=${Date.now()}`;
     this.http!.get<any>(url).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
         const scopedInstitute = this.getScopedInstituteId();
-        const normalized = arr.filter((c: any) => this.isAllowedForInstitute(c, scopedInstitute)).map((c: any) => ({
-          name: c.name || c.category_name || '',
-          category_id: c.category_id || c.id || c._id,
-          mark_each_question: (typeof c.mark_each_question !== 'undefined') ? c.mark_each_question : (c.mark_for_each_question ?? c.question_mark ?? c.marks ?? null),
-          mark_for_each_question: c.mark_for_each_question ?? c.mark_each_question ?? c.question_mark ?? c.marks ?? null,
-          institute: c.institute || { institute_id: c.institute_id || c.instituteId || null }
-        }));
+        const normalized = arr
+          .filter((c: any) => this.isAllowedForInstitute(c, scopedInstitute))
+          .map((c: any) => ({
+            name: c.name || c.category_name || '',
+            category_id: c.category_id || c.id || c._id,
+            mark_each_question:
+              typeof c.mark_each_question !== 'undefined'
+                ? c.mark_each_question
+                : (c.mark_for_each_question ?? c.question_mark ?? c.marks ?? null),
+            mark_for_each_question:
+              c.mark_for_each_question ??
+              c.mark_each_question ??
+              c.question_mark ??
+              c.marks ??
+              null,
+            institute: c.institute || { institute_id: c.institute_id || c.instituteId || null },
+          }));
         this.rebuildQuestionBankMarkLookup(normalized);
       },
-      error: (err) => { console.warn('Failed to load question bank marks', err); done(); },
-      complete: () => done()
+      error: (err) => {
+        console.warn('Failed to load question bank marks', err);
+        done();
+      },
+      complete: () => done(),
     });
   }
 
@@ -1178,7 +1704,8 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       if (mark === null) return;
       const id = category?.category_id || category?.id || category?._id;
       const name = category?.name || category?.category_name;
-      if (id !== undefined && id !== null && id !== '') this.questionBankMarksById.set(String(id), mark);
+      if (id !== undefined && id !== null && id !== '')
+        this.questionBankMarksById.set(String(id), mark);
       if (name) this.questionBankMarksByName.set(String(name).trim().toLowerCase(), mark);
     });
   }
@@ -1186,15 +1713,29 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   private resolveQuestionBankMark(q: any): number | null {
     const direct = this.getQuestionBankMark(q);
     if (direct !== null) return direct;
-    const id = q?.category_id || q?.categoryId || q?.categoryID || q?.category?.category_id || q?.category?.id || q?.category?._id;
-    if (id !== undefined && id !== null && this.questionBankMarksById.has(String(id))) return this.questionBankMarksById.get(String(id)) ?? null;
+    const id =
+      q?.category_id ||
+      q?.categoryId ||
+      q?.categoryID ||
+      q?.category?.category_id ||
+      q?.category?.id ||
+      q?.category?._id;
+    if (id !== undefined && id !== null && this.questionBankMarksById.has(String(id)))
+      return this.questionBankMarksById.get(String(id)) ?? null;
     const name = q?.category || q?.category_name || q?.category?.name;
     if (name) return this.questionBankMarksByName.get(String(name).trim().toLowerCase()) ?? null;
     return null;
   }
 
   private getQuestionBankMark(value: any): number | null {
-    const raw = value?.mark_each_question ?? value?.mark_for_each_question ?? value?.question_mark ?? value?.category_mark ?? value?.category_marks ?? value?.marks_per_question ?? null;
+    const raw =
+      value?.mark_each_question ??
+      value?.mark_for_each_question ??
+      value?.question_mark ??
+      value?.category_mark ??
+      value?.category_marks ??
+      value?.marks_per_question ??
+      null;
     return this.toNumber(raw);
   }
 
@@ -1205,7 +1746,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
   displayInstitute = (value: string | null): string => {
     if (!value) return '';
-    const found = this.institutes.find(i => String(i.institute_id) === String(value));
+    const found = this.institutes.find((i) => String(i.institute_id) === String(value));
     return found ? found.name : String(value);
   };
   filteredInstitutes() {
@@ -1222,7 +1763,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
 
   private syncInstituteSearch() {
-    const found = this.institutes.find(i => String(i.institute_id) === String(this.selectedInstitute || ''));
+    const found = this.institutes.find(
+      (i) => String(i.institute_id) === String(this.selectedInstitute || '')
+    );
     this.instituteSearch = found ? found.name : '';
   }
 
@@ -1243,15 +1786,56 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     }
     let url = this.categoryDetailsUrl;
     if (scopedInstitute) url += `?institute_id=${encodeURIComponent(scopedInstitute)}`;
+
+    // ADD: Pass selected types as query param
+    if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
+      url +=
+        (url.includes('?') ? '&' : '?') +
+        `type=${encodeURIComponent(this.selectedQuestionTypes.join(','))}`;
+    }
+
     this.http!.get<any>(url).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.categories = arr.filter((c: any) => this.isAllowedForInstitute(c, scopedInstitute)).map((c: any) => ({
-          name: c.name || c.category_name || '',
-          category_id: c.category_id || c.id || c._id,
-          mark_each_question: (typeof c.mark_each_question !== 'undefined') ? c.mark_each_question : (c.mark_for_each_question ?? c.question_mark ?? c.marks ?? null),
-          mark_for_each_question: c.mark_for_each_question ?? c.mark_each_question ?? c.question_mark ?? c.marks ?? null
-        }));
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
+        this.categories = arr
+          .filter((c: any) => {
+            if (!this.isAllowedForInstitute(c, scopedInstitute)) return false;
+
+            // ADD: Client-side filter for selected question type(s)
+            if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
+              const catType = (c.type || '').toLowerCase();
+              const matchesType = this.selectedQuestionTypes.some((selectedType) => {
+                const st = selectedType.toLowerCase();
+                if (st === 'objective') {
+                  return ['objective', 'choose', 'multi', 'fill', 'mcq'].some((t) =>
+                    catType.includes(t)
+                  );
+                }
+                if (st === 'descriptive') {
+                  return ['descriptive', 'paragraph', 'subjective'].some((t) =>
+                    catType.includes(t)
+                  );
+                }
+                return catType.includes(st);
+              });
+              if (!matchesType) return false;
+            }
+            return true;
+          })
+          .map((c: any) => ({
+            name: c.name || c.category_name || '',
+            category_id: c.category_id || c.id || c._id,
+            mark_each_question:
+              typeof c.mark_each_question !== 'undefined'
+                ? c.mark_each_question
+                : (c.mark_for_each_question ?? c.question_mark ?? c.marks ?? null),
+            mark_for_each_question:
+              c.mark_for_each_question ??
+              c.mark_each_question ??
+              c.question_mark ??
+              c.marks ??
+              null,
+          }));
         this.rebuildQuestionBankMarkLookup(this.categories);
         this.categoryCtrl.enable({ emitEvent: false });
         try {
@@ -1260,11 +1844,20 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
             map((val: any) => {
               if (val && typeof val === 'object') return (this.categories || []).slice();
               const q = String(val || '').toLowerCase();
-              return (this.categories || []).filter((c: any) => (c.name || '').toLowerCase().includes(q));
+              return (this.categories || []).filter((c: any) =>
+                (c.name || '').toLowerCase().includes(q)
+              );
             })
           );
-        } catch (e) { this.filteredCategories$ = of(this.categories || []); }
-      }, error: (err) => { console.warn('Failed to load categories', err); this.categories = []; this.filteredCategories$ = of([]); }
+        } catch (e) {
+          this.filteredCategories$ = of(this.categories || []);
+        }
+      },
+      error: (err) => {
+        console.warn('Failed to load categories', err);
+        this.categories = [];
+        this.filteredCategories$ = of([]);
+      },
     });
   }
 
@@ -1280,12 +1873,22 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     this.copyMoveInProgress = true;
     try {
       const url = `${API_BASE}/copy-questions-to-category`;
-      await this.http.post<any>(url, { question_ids: ids, target_category_id: categoryId }).toPromise();
-      try { notify('Questions copied', 'success'); } catch (e) { }
+      await this.http
+        .post<any>(url, { question_ids: ids, target_category_id: categoryId })
+        .toPromise();
+      try {
+        notify('Questions copied', 'success');
+      } catch (e) {}
       this.selectedQuestionIds.clear();
       this.loadQuestions();
-    } catch (e) { console.warn('Failed to copy questions', e); try { notify('Failed to copy questions', 'error'); } catch (e) { } }
-    finally { this.copyMoveInProgress = false; }
+    } catch (e) {
+      console.warn('Failed to copy questions', e);
+      try {
+        notify('Failed to copy questions', 'error');
+      } catch (e) {}
+    } finally {
+      this.copyMoveInProgress = false;
+    }
   }
 
   async moveSelectedQuestionsToCategory(categoryId: string | null) {
@@ -1294,30 +1897,49 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     this.copyMoveInProgress = true;
     try {
       const url = `${API_BASE}/move-questions-to-category`;
-      await this.http.post<any>(url, { question_ids: ids, target_category_id: categoryId }).toPromise();
-      try { notify('Questions moved', 'success'); } catch (e) { }
+      await this.http
+        .post<any>(url, { question_ids: ids, target_category_id: categoryId })
+        .toPromise();
+      try {
+        notify('Questions moved', 'success');
+      } catch (e) {}
       this.selectedQuestionIds.clear();
       this.loadQuestions();
-    } catch (e) { console.warn('Failed to move questions', e); try { notify('Failed to move questions', 'error'); } catch (e) { } }
-    finally { this.copyMoveInProgress = false; }
-  }
-
-  // Template-friendly wrappers to avoid passing nullable values directly from the template
-  copySelected() { this.copySelectedQuestionsToCategory(this.selectedTargetCategory); }
-  moveSelected() { this.moveSelectedQuestionsToCategory(this.selectedTargetCategory); }
-
-  toggleSelectAll(checked: boolean) {
-    if (checked) {
-      (this.dataSource.data || []).forEach(r => this.selectedQuestionIds.add(r.id as any));
-    } else {
-      (this.dataSource.data || []).forEach(r => this.selectedQuestionIds.delete(r.id as any));
+    } catch (e) {
+      console.warn('Failed to move questions', e);
+      try {
+        notify('Failed to move questions', 'error');
+      } catch (e) {}
+    } finally {
+      this.copyMoveInProgress = false;
     }
   }
 
-  displayCategory(c: any) { return c ? (c.name || c.category_name || '') : ''; }
+  // Template-friendly wrappers to avoid passing nullable values directly from the template
+  copySelected() {
+    this.copySelectedQuestionsToCategory(this.selectedTargetCategory);
+  }
+  moveSelected() {
+    this.moveSelectedQuestionsToCategory(this.selectedTargetCategory);
+  }
+
+  toggleSelectAll(checked: boolean) {
+    if (checked) {
+      (this.dataSource.data || []).forEach((r) => this.selectedQuestionIds.add(r.id as any));
+    } else {
+      (this.dataSource.data || []).forEach((r) => this.selectedQuestionIds.delete(r.id as any));
+    }
+  }
+
+  displayCategory(c: any) {
+    return c ? c.name || c.category_name || '' : '';
+  }
 
   isQuestionSectionSelected(c: any): boolean {
-    const current = this.selectedCategories && this.selectedCategories.length ? String(this.selectedCategories[0]) : '';
+    const current =
+      this.selectedCategories && this.selectedCategories.length
+        ? String(this.selectedCategories[0])
+        : '';
     const catId = String(c?.category_id || c?.id || c?._id || '');
     return !!current && !!catId && current === catId;
   }
@@ -1333,7 +1955,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     if (categoryId) {
       this.selectedCategories = [String(categoryId)];
       this.categoryFilterName = '';
-      try { this.categoryCtrl.setValue(c, { emitEvent: false }); } catch (e) { }
+      try {
+        this.categoryCtrl.setValue(c, { emitEvent: false });
+      } catch (e) {}
       return;
     }
     this.selectedCategories = [];
@@ -1343,49 +1967,74 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   editQuestion(q: QuestionRow) {
     // store the question into session storage and navigate to the editor
     this.saveQuestionsReturnState();
-    try { sessionStorage.setItem('edit_question', JSON.stringify(q)); } catch (e) { /* ignore */ }
+    try {
+      sessionStorage.setItem('edit_question', JSON.stringify(q));
+    } catch (e) {
+      /* ignore */
+    }
     this.viewedQuestion = null;
     // navigate to the questions editor route - reuse same route as Insert Question
     if (this.router) {
       this.router.navigate(['/questions']);
     } else {
-      try { notify('Open the question editor to edit this question.', 'info'); } catch (e) { }
+      try {
+        notify('Open the question editor to edit this question.', 'info');
+      } catch (e) {}
     }
   }
 
   deleteQuestion(q: QuestionRow) {
-    this.confirmService.confirm({ title: 'Delete Question', message: 'Delete this question? This action cannot be undone.', confirmText: 'Delete', cancelText: 'Cancel' }).subscribe(ok => {
-      if (!ok) return;
-      const url = `${API_BASE}/delete/question/${encodeURIComponent(String(q.id))}`;
-      this.http!.delete<any>(url).subscribe({
-        next: (res) => {
-          // remove from local array
-          this.questions = this.questions.filter(x => x.id !== q.id);
-          try {
-            notify('Question deleted', 'success');
-            this.loadQuestions();
-          } catch (e) { }
-        },
-        error: (err) => { console.warn('Failed to delete question', err); try { notify('Failed to delete question', 'error'); } catch (e) { } }
+    this.confirmService
+      .confirm({
+        title: 'Delete Question',
+        message: 'Delete this question? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+      })
+      .subscribe((ok) => {
+        if (!ok) return;
+        const url = `${API_BASE}/delete/question/${encodeURIComponent(String(q.id))}`;
+        this.http!.delete<any>(url).subscribe({
+          next: (res) => {
+            // remove from local array
+            this.questions = this.questions.filter((x) => x.id !== q.id);
+            try {
+              notify('Question deleted', 'success');
+              this.loadQuestions();
+            } catch (e) {}
+          },
+          error: (err) => {
+            console.warn('Failed to delete question', err);
+            try {
+              notify('Failed to delete question', 'error');
+            } catch (e) {}
+          },
+        });
       });
-    });
   }
 
   // Apply fetches with filters; reset clears filters and leaves the table empty.
   private hasFilterValues(): boolean {
-    const rawCategoryCtrlVal = typeof this.categoryCtrl?.value === 'string' ? this.categoryCtrl.value.trim() : '';
+    const rawCategoryCtrlVal =
+      typeof this.categoryCtrl?.value === 'string' ? this.categoryCtrl.value.trim() : '';
     return !!(
       this.filterCountry ||
+      (this.selectedCountries && this.selectedCountries.length) || // Add this line
       this.filterCity ||
       this.filterIndustry ||
+      (this.selectedIndustries && this.selectedIndustries.length) || // Add this line
       this.filterSector ||
-      (this.selectedInstitutes && this.selectedInstitutes.length) || this.selectedInstitute ||
+      (this.selectedSectors && this.selectedSectors.length) || // Add this line
+      (this.selectedInstitutes && this.selectedInstitutes.length) ||
+      this.selectedInstitute ||
       this.selectedCategories.length ||
       this.categoryFilterName ||
       this.categorySearch ||
       rawCategoryCtrlVal ||
       this.selectedDepartments.length ||
       this.selectedTeams.length ||
+      (this.selectedQuestionTypes && this.selectedQuestionTypes.length) ||
+      this.filterQuestionType ||
       this.filterCreationDateAfter ||
       this.filterCreationDate ||
       this.filterActiveStatus !== null ||
@@ -1396,7 +2045,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
   onApply() {
     if (!this.hasFilterValues()) {
-      try { notify('Please add filters in the filter form.', 'info'); } catch (e) { }
+      try {
+        notify('Please add filters in the filter form.', 'info');
+      } catch (e) {}
       return;
     }
     if (!this.selectedCategories.length && typeof this.categoryCtrl?.value === 'string') {
@@ -1416,6 +2067,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     this.selectedDepartments = [];
     this.selectedTeams = [];
     this.filterQuestionType = '';
+    this.selectedQuestionTypes = [];
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
     this.filterActiveStatus = null;
@@ -1451,40 +2103,58 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
     // --- Close filter overlay modal ---
     this.closeFiltersOverlay();
-
   }
 
   get filtered() {
     const q = (this.filter || '').toLowerCase();
     if (!q) return this.questions;
-    return this.questions.filter(x => x.question.toLowerCase().includes(q) || (x.type || '').toLowerCase().includes(q));
+    return this.questions.filter(
+      (x) => x.question.toLowerCase().includes(q) || (x.type || '').toLowerCase().includes(q)
+    );
   }
 
   applyFilter(value: string) {
     const q = (value || '').trim().toLowerCase();
     this.filter = q;
     this.dataSource.filterPredicate = (d: QuestionRow, filter: string) => {
-      return (d.question || '').toLowerCase().includes(filter) || (d.type || '').toLowerCase().includes(filter);
+      return (
+        (d.question || '').toLowerCase().includes(filter) ||
+        (d.type || '').toLowerCase().includes(filter)
+      );
     };
     this.dataSource.filter = q;
   }
 
   viewDetails(q: QuestionRow) {
-    try { sessionStorage.setItem('view_question', JSON.stringify(q)); } catch (e) { }
+    try {
+      sessionStorage.setItem('view_question', JSON.stringify(q));
+    } catch (e) {}
     // set the viewed question so the modal in the template becomes visible
-    try { this.viewedQuestion = (q as any).raw || q || null; } catch (e) { this.viewedQuestion = q || null; }
-    try { notify(`Q: ${q.question}\nType: ${q.type}\nAnswer: ${q.answer || '—'}`, 'info'); } catch (e) { try { console.warn(`Q: ${q.question}\nType: ${q.type}\nAnswer: ${q.answer || '—'}`); } catch (_) { } }
+    try {
+      this.viewedQuestion = (q as any).raw || q || null;
+    } catch (e) {
+      this.viewedQuestion = q || null;
+    }
+    try {
+      notify(`Q: ${q.question}\nType: ${q.type}\nAnswer: ${q.answer || '—'}`, 'info');
+    } catch (e) {
+      try {
+        console.warn(`Q: ${q.question}\nType: ${q.type}\nAnswer: ${q.answer || '—'}`);
+      } catch (_) {}
+    }
   }
 
-  closeViewModal() { this.viewedQuestion = null; }
+  closeViewModal() {
+    this.viewedQuestion = null;
+  }
 
   formatQuestionType(type: string | undefined | null): string {
     if (!type) return '—';
     const typeMap: { [key: string]: string } = {
-      'choose': 'Single Choice',
-      'multi': 'Multiple Choice',
-      'fill': 'Fill In The Blank',
-      'descriptive': 'Descriptive'
+      choose: 'Single Choice',
+      multi: 'Multiple Choice',
+      fill: 'Fill In The Blank',
+      descriptive: 'Descriptive',
     };
     const lowerType = type.toLowerCase();
     return typeMap[lowerType] || this.toTitleCase(type);
@@ -1492,7 +2162,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
   isAnswerType(type: string | undefined | null): boolean {
     const normalized = String(type || '').toLowerCase();
-    return normalized === 'fill' || normalized === 'descriptive' || normalized === 'subjective' || normalized === 'essay';
+    return (
+      normalized === 'fill' ||
+      normalized === 'descriptive' ||
+      normalized === 'subjective' ||
+      normalized === 'essay'
+    );
   }
 
   getAnswerText(q: any): string {
@@ -1504,8 +2179,26 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       const first = q.options[0];
       if (typeof first === 'string') return first;
       if (first && typeof first === 'object') {
-        const correctOpt = q.options.find((o: any) => o && typeof o === 'object' && (o.is_correct === 1 || o.is_correct === true || o.is_correct === '1'));
-        return (correctOpt ? (correctOpt.text || correctOpt.option_text || correctOpt.option || correctOpt.value || '') : '') || (first.text || first.option_text || first.option || first.value || '');
+        const correctOpt = q.options.find(
+          (o: any) =>
+            o &&
+            typeof o === 'object' &&
+            (o.is_correct === 1 || o.is_correct === true || o.is_correct === '1')
+        );
+        return (
+          (correctOpt
+            ? correctOpt.text ||
+              correctOpt.option_text ||
+              correctOpt.option ||
+              correctOpt.value ||
+              ''
+            : '') ||
+          first.text ||
+          first.option_text ||
+          first.option ||
+          first.value ||
+          ''
+        );
       }
     }
     return '—';
@@ -1518,7 +2211,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
 
   private toTitleCase(str: string): string {
-    return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+    return str.replace(
+      /\w\S*/g,
+      (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+    );
   }
 
   openAddQuestions(): void {
@@ -1542,16 +2238,20 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         categorySearch: this.categorySearch,
         selectedDepartments: this.selectedDepartments,
         selectedTeams: this.selectedTeams,
-        filterCreationDateAfter: this.filterCreationDateAfter ? this.filterCreationDateAfter.toISOString() : null,
+        filterCreationDateAfter: this.filterCreationDateAfter
+          ? this.filterCreationDateAfter.toISOString()
+          : null,
         filterCreationDate: this.filterCreationDate ? this.filterCreationDate.toISOString() : null,
         filterActiveStatus: this.filterActiveStatus,
         filterCreatedByMe: this.filterCreatedByMe,
         filterPublicAccess: this.filterPublicAccess,
         hasAppliedFilters: this.hasAppliedFilters,
-        questions: this.questions
+        questions: this.questions,
       };
       sessionStorage.setItem(this.questionsReturnStateKey, JSON.stringify(state));
-    } catch (e) { /* ignore storage errors */ }
+    } catch (e) {
+      /* ignore storage errors */
+    }
   }
 
   private restoreQuestionsReturnState(): void {
@@ -1561,11 +2261,17 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       const state = JSON.parse(raw);
       sessionStorage.removeItem(this.questionsReturnStateKey);
       const activeInstituteId = this.globalInstituteContext.activeInstituteId;
-      if (activeInstituteId && String(state?.instituteId || '') !== String(activeInstituteId)) return;
+      if (activeInstituteId && String(state?.instituteId || '') !== String(activeInstituteId))
+        return;
       if (activeInstituteId && state?.globalInstituteActive !== true) return;
       if (!activeInstituteId && state?.globalInstituteActive === true) return;
       // Discard legacy institute-bound cache once; newly saved normal-filter state remains restorable.
-      if (!activeInstituteId && typeof state?.globalInstituteActive === 'undefined' && state?.instituteId) return;
+      if (
+        !activeInstituteId &&
+        typeof state?.globalInstituteActive === 'undefined' &&
+        state?.instituteId
+      )
+        return;
 
       // Do not restore filter values into the form UI; the panel should open blank.
       // Keep only the result set and applied-state flags so the page can still recover
@@ -1576,23 +2282,33 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       this.filterSector = '';
       this.selectedInstitute = state?.selectedInstitute || '';
       this.instituteSearch = '';
-      this.selectedCategories = Array.isArray(state?.selectedCategories) ? state.selectedCategories : [];
+      this.selectedCategories = Array.isArray(state?.selectedCategories)
+        ? state.selectedCategories
+        : [];
       this.categoryFilterName = state?.categoryFilterName || '';
       this.categorySearch = state?.categorySearch || '';
       this.categoryCtrl.setValue(this.categoryFilterName || '');
-      this.selectedDepartments = Array.isArray(state?.selectedDepartments) ? state.selectedDepartments : [];
+      this.selectedDepartments = Array.isArray(state?.selectedDepartments)
+        ? state.selectedDepartments
+        : [];
       this.selectedTeams = Array.isArray(state?.selectedTeams) ? state.selectedTeams : [];
-      this.filterCreationDateAfter = state?.filterCreationDateAfter ? new Date(state.filterCreationDateAfter) : null;
-      this.filterCreationDate = state?.filterCreationDate ? new Date(state.filterCreationDate) : null;
-      this.filterActiveStatus = typeof state?.filterActiveStatus === 'undefined' ? null : state.filterActiveStatus;
+      this.filterCreationDateAfter = state?.filterCreationDateAfter
+        ? new Date(state.filterCreationDateAfter)
+        : null;
+      this.filterCreationDate = state?.filterCreationDate
+        ? new Date(state.filterCreationDate)
+        : null;
+      this.filterActiveStatus =
+        typeof state?.filterActiveStatus === 'undefined' ? null : state.filterActiveStatus;
       this.filterCreatedByMe = !!state?.filterCreatedByMe;
-      this.filterPublicAccess = typeof state?.filterPublicAccess === 'undefined' ? null : state.filterPublicAccess;
+      this.filterPublicAccess =
+        typeof state?.filterPublicAccess === 'undefined' ? null : state.filterPublicAccess;
       this.hasAppliedFilters = !!state?.hasAppliedFilters;
       // Change lines 1200-1201 to:
       const rawQuestions = Array.isArray(state?.questions) ? state.questions : [];
       this.questions = rawQuestions.map((q: any) => ({
         ...q,
-        question: q.question || q.question_text || q.text || ''
+        question: q.question || q.question_text || q.text || '',
       }));
       this.dataSource.data = this.questions;
 
@@ -1605,10 +2321,13 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         this.categoryCtrl.disable({ emitEvent: false });
       }
       if (this.filterCountry) this.loadCitiesForCountry(this.filterCountry);
-      if (this.filterCountry || this.filterCity || this.filterIndustry || this.filterSector) this.refreshInstituteScope();
+      if (this.filterCountry || this.filterCity || this.filterIndustry || this.filterSector)
+        this.refreshInstituteScope();
       this.applyFilter(state?.filter || '');
     } catch (e) {
-      try { sessionStorage.removeItem(this.questionsReturnStateKey); } catch (_) { }
+      try {
+        sessionStorage.removeItem(this.questionsReturnStateKey);
+      } catch (_) {}
     }
   }
 
@@ -1616,14 +2335,25 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     this.activeInstituteId = instituteId;
     this.selectedInstitute = instituteId;
     // Clear institute-specific state immediately to prevent cross-institute data leakage.
-    this.questions = []; this.dataSource.data = []; this.selectedQuestionIds.clear();
-    this.selectedCategories = []; this.selectedDepartments = []; this.selectedTeams = [];
-    this.departments = []; this.teams = []; this.categoryFilterName = ''; this.categorySearch = '';
+    this.questions = [];
+    this.dataSource.data = [];
+    this.selectedQuestionIds.clear();
+    this.selectedCategories = [];
+    this.selectedDepartments = [];
+    this.selectedTeams = [];
+    this.departments = [];
+    this.teams = [];
+    this.categoryFilterName = '';
+    this.categorySearch = '';
     this.hasAppliedFilters = false;
-    try { sessionStorage.removeItem(this.questionsReturnStateKey); } catch (e) { }
+    try {
+      sessionStorage.removeItem(this.questionsReturnStateKey);
+    } catch (e) {}
     this.categoryCtrl.enable({ emitEvent: false });
     // Reload filter options only; records remain empty until the user applies filters.
-    this.loadDepartments(instituteId); this.loadTeams(instituteId); this.loadCategories(instituteId);
+    this.loadDepartments(instituteId);
+    this.loadTeams(instituteId);
+    this.loadCategories(instituteId);
   }
 
   private resetAfterGlobalInstituteClear(): void {
@@ -1631,23 +2361,45 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     this.selectedInstitute = '';
     this.instituteSearch = '';
     // Clear only global-scope UI state so normal Super Admin filtering remains available.
-    this.questions = []; this.dataSource.data = []; this.selectedQuestionIds.clear();
-    this.selectedCategories = []; this.selectedDepartments = []; this.selectedTeams = [];
-    this.categories = []; this.departments = []; this.teams = [];
-    this.filter = ''; this.dataSource.filter = ''; this.categoryFilterName = ''; this.categorySearch = '';
-    this.filterCountry = ''; this.filterCity = ''; this.filterIndustry = ''; this.filterSector = '';
-    this.filterCityOptions = []; this.countrySearch = ''; this.industrySearch = ''; this.sectorSearch = '';
-    this.filterCreationDateAfter = null; this.filterCreationDate = null; this.filterActiveStatus = null;
-    this.filterCreatedByMe = false; this.filterPublicAccess = null; this.hasAppliedFilters = false;
+    this.questions = [];
+    this.dataSource.data = [];
+    this.selectedQuestionIds.clear();
+    this.selectedCategories = [];
+    this.selectedDepartments = [];
+    this.selectedTeams = [];
+    this.categories = [];
+    this.departments = [];
+    this.teams = [];
+    this.filter = '';
+    this.dataSource.filter = '';
+    this.categoryFilterName = '';
+    this.categorySearch = '';
+    this.filterCountry = '';
+    this.filterCity = '';
+    this.filterIndustry = '';
+    this.filterSector = '';
+    this.filterCityOptions = [];
+    this.countrySearch = '';
+    this.industrySearch = '';
+    this.sectorSearch = '';
+    this.filterCreationDateAfter = null;
+    this.filterCreationDate = null;
+    this.filterActiveStatus = null;
+    this.filterCreatedByMe = false;
+    this.filterPublicAccess = null;
+    this.hasAppliedFilters = false;
     this.viewedQuestion = null;
     this.categoryCtrl.setValue('', { emitEvent: false });
     this.categoryCtrl.disable({ emitEvent: false });
-    if (this.paginator) { this.paginator.firstPage(); this.paginator.length = 0; }
+    if (this.paginator) {
+      this.paginator.firstPage();
+      this.paginator.length = 0;
+    }
     this.closeFiltersOverlay();
-    try { sessionStorage.removeItem(this.questionsReturnStateKey); } catch (e) { }
+    try {
+      sessionStorage.removeItem(this.questionsReturnStateKey);
+    } catch (e) {}
     this.loadInstitutes();
     this.loadCategories();
   }
 }
-
-

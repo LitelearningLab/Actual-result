@@ -167,6 +167,26 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
   gap: 0 1rem;
 }
 
+.view-questions-filters-panel.admin-single-col {
+  min-width: 22rem;
+  max-width: 26rem;
+
+  .filter-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .filter-col:first-child {
+    display: none;
+  }
+
+  .filter-col,
+  .filter-item {
+    width: 100%;
+  }
+}
+
 .view-questions-filters-panel .filter-col {
   display: flex;
   flex-direction: column;

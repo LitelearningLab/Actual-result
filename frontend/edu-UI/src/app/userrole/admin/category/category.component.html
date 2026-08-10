@@ -55,7 +55,7 @@
 
     <div class="list-card">
         <ng-template #filtersPanel>
-            <div class="filters-panel category-filters-panel" (click)="$event.stopPropagation()">
+            <div class="filters-panel category-filters-panel" [class.admin-single-col]="!showLocationAndIndustryFilters && !isSuperAdmin" (click)="$event.stopPropagation()">
                 <div class="filters-panel-header">
                     <h4><mat-icon>tune</mat-icon> Filters</h4>
                 </div>

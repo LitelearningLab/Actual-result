@@ -266,6 +266,19 @@
                                             <div class="filter-section-divider"></div>
 
                                             <div class="filter-section">
+                                                <span class="filter-section-title">TYPE</span>
+                                                <mat-form-field appearance="outline" class="filter-item full">
+                                                    <mat-label>Type</mat-label>
+                                                    <mat-select multiple [(ngModel)]="selectedQuestionTypes" placeholder="Select Type">
+                                                        <mat-option value="objective">Objective</mat-option>
+                                                        <mat-option value="descriptive">Descriptive</mat-option>
+                                                    </mat-select>
+                                                </mat-form-field>
+                                            </div>
+
+                                            <div class="filter-section-divider"></div>
+
+                                            <div class="filter-section">
                                                 <span class="filter-section-title">ACCESS & OWNERSHIP</span>
                                                 <div class="checkboxes-vertical">
                                                     <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by
@@ -489,13 +502,6 @@
                                         class="question-count question-count--selected"><span>Selected</span><strong>{{selectedQuestionIds.length}}</strong></span>
                                 </div>
                                 <div class="question-list">
-                                    <div class="review-item"><span class="review-label">Departments</span><span
-                                            class="review-value">{{ selectedDepartments.length ?
-                                            selectedDepartments.length + ' selected' : 'All' }}</span></div>
-                                    <div class="review-item"><span class="review-label">Teams</span><span
-                                            class="review-value">{{ selectedTeams.length ? selectedTeams.length + '
-                                            selected' : 'All' }}</span></div>
-
                                     <mat-list *ngIf="questionsForCategory.length">
                                         <mat-list-item *ngFor="let q of questionsForCategory" class="question-row">
                                             <mat-checkbox [checked]="selectedQuestionIds.indexOf(q.id+'')>=0"

@@ -1,4 +1,11 @@
-import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, HostListener } from '@angular/core';
+import {
+  Component,
+  ViewChild,
+  ElementRef,
+  OnInit,
+  AfterViewInit,
+  HostListener,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatRadioModule } from '@angular/material/radio';
@@ -14,18 +21,43 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { API_BASE } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
+import {
+  DateRangePickerDialogComponent,
+  DateRangeDialogResult,
+} from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 @Component({
   selector: 'app-admin-questions',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatRadioModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatExpansionModule, HttpClientModule, RouterModule, MatIconModule, MatButtonModule, MatSelectModule, MatAutocompleteModule, MatDatepickerModule, MatButtonToggleModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    MatRadioModule,
+    MatCheckboxModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatExpansionModule,
+    HttpClientModule,
+    RouterModule,
+    MatIconModule,
+    MatButtonModule,
+    MatSelectModule,
+    MatAutocompleteModule,
+    MatDatepickerModule,
+    MatButtonToggleModule,
+    MatDialogModule,
+    MatTooltipModule,
+  ],
   templateUrl: './questions.component.html',
-  styleUrls: ['./questions.component.scss']
+  styleUrls: ['./questions.component.scss'],
 })
 export class AdminQuestionsComponent {
   // implement AfterViewInit to trigger initial resize
@@ -38,20 +70,22 @@ export class AdminQuestionsComponent {
     { value: 'choose', label: 'Single choice' },
     { value: 'multi', label: 'Multiple choice' },
     { value: 'fill', label: 'Fill in the blank' },
-    { value: 'descriptive', label: 'Descriptive' }
+    { value: 'descriptive', label: 'Descriptive' },
   ];
 
   // allow multiple question blocks; institute and exam are global for the batch
-  questions: Array<any> = [{
-    type: '',
-    text: '',
-    marks: 1,
-    options: ['',''],
-    correct: null as number | null | number[],
-    answerText: '',
-    _expanded: true,
-    showFineTune: false
-  }];
+  questions: Array<any> = [
+    {
+      type: '',
+      text: '',
+      marks: 1,
+      options: ['', ''],
+      correct: null as number | null | number[],
+      answerText: '',
+      _expanded: true,
+      showFineTune: false,
+    },
+  ];
 
   // UI mode: 'manual' (default) or 'bulk'
   mode: 'manual' | 'bulk' = 'manual';
@@ -75,12 +109,12 @@ export class AdminQuestionsComponent {
     { value: 'de', label: 'German' },
     { value: 'es', label: 'Spanish' },
     { value: 'ta', label: 'Tamil' },
-    { value: 'hi', label: 'Hindi' }
+    { value: 'hi', label: 'Hindi' },
   ];
   complexityLevels = [
     { value: 'easy', label: 'Easy' },
     { value: 'medium', label: 'Medium' },
-    { value: 'hard', label: 'Hard' }
+    { value: 'hard', label: 'Hard' },
   ];
   aiIndustry: string = '';
   aiUserRole: string = '';
@@ -94,21 +128,27 @@ export class AdminQuestionsComponent {
   showPreview: boolean = true;
 
   // convenience boolean binding for a compact checkbox UI in the template
-  get bulkMode(): boolean { return this.mode === 'bulk'; }
-  set bulkMode(v: boolean) { this.mode = v ? 'bulk' : 'manual'; }
-
-  onManualModeToggle(){
-    // when manualMode checkbox changes, ensure bulkMode is false and mode sync
-    try{ this.mode = this.manualMode ? 'manual' : 'bulk'; }catch(e){}
+  get bulkMode(): boolean {
+    return this.mode === 'bulk';
+  }
+  set bulkMode(v: boolean) {
+    this.mode = v ? 'bulk' : 'manual';
   }
 
-  onModeChange(val: string){
-    try{
+  onManualModeToggle() {
+    // when manualMode checkbox changes, ensure bulkMode is false and mode sync
+    try {
+      this.mode = this.manualMode ? 'manual' : 'bulk';
+    } catch (e) {}
+  }
+
+  onModeChange(val: string) {
+    try {
       this.activeMode = val;
-      this.mode = (val === 'bulk') ? 'bulk' : 'manual';
-      this.aiMode = (val === 'ai');
-      this.manualMode = (val === 'manual');
-    }catch(e){}
+      this.mode = val === 'bulk' ? 'bulk' : 'manual';
+      this.aiMode = val === 'ai';
+      this.manualMode = val === 'manual';
+    } catch (e) {}
   }
 
   // bulk upload state
@@ -118,26 +158,68 @@ export class AdminQuestionsComponent {
   private bulkUploadUrl = `${API_BASE}/upload-questions`;
 
   // convenience getters targeting the first question for legacy bindings if needed
-  get model(){ return this.questions[0]; }
+  get model() {
+    return this.questions[0];
+  }
 
-  institutes: Array<{ name: string; institute_id?: string; industry_type?: string; industry_sector?: string; country?: string; city?: string }> = [];
-  private allInstitutes: Array<{ name: string; institute_id?: string; industry_type?: string; industry_sector?: string; country?: string; city?: string }> = [];
+  institutes: Array<{
+    name: string;
+    institute_id?: string;
+    industry_type?: string;
+    industry_sector?: string;
+    country?: string;
+    city?: string;
+  }> = [];
+  private allInstitutes: Array<{
+    name: string;
+    institute_id?: string;
+    industry_type?: string;
+    industry_sector?: string;
+    country?: string;
+    city?: string;
+  }> = [];
   isSuperAdmin: boolean = false;
   private loginInstituteId: string | null = null;
-  categories: Array<{ name: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any }> = [];
-  private allCategories: Array<{ name: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any }> = [];
+  categories: Array<{
+    name: string;
+    category_id?: string;
+    description?: string;
+    type?: string;
+    mark_each_question?: any;
+    mark_for_each_question?: any;
+  }> = [];
+  private allCategories: Array<{
+    name: string;
+    category_id?: string;
+    description?: string;
+    type?: string;
+    mark_each_question?: any;
+    mark_for_each_question?: any;
+  }> = [];
   // reactive control + filtered observable for autocomplete
   categoryCtrl: FormControl = new FormControl('');
   categorySearchText = '';
   // currently selected category object (for showing description)
-  selectedCategory: { name?: string; category_id?: string; description?: string; type?: string; mark_each_question?: any; mark_for_each_question?: any } | null = null;
+  selectedCategory: {
+    name?: string;
+    category_id?: string;
+    description?: string;
+    type?: string;
+    mark_each_question?: any;
+    mark_for_each_question?: any;
+  } | null = null;
   exams: Array<{ title: string; exam_id?: string }> = [];
   questionBankFilterOpen = false;
   questionBankFiltersApplied = false;
+  showQuestionBankFilterError = false;
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
+  selectedCountries: string[] = [];
+  selectedIndustries: string[] = [];
+  selectedSectors: string[] = [];
+  selectedCategoryTypes: string[] = [];
   filterCreationDateAfter: Date | null = null;
   filterCreationDate: Date | null = null;
   filterCreatedByMe = false;
@@ -154,18 +236,22 @@ export class AdminQuestionsComponent {
   industrySectors = ['School', 'Engineering', 'Arts', 'Healthcare', 'Finance', 'Banking', 'IT'];
   // Industry -> Sector dependency map (mirrors institute-register.component.ts / view-institutes.component.ts)
   private sectorMap: Record<string, string[]> = {
-    'School': ['School'],
-    'College': ['Engineering', 'Arts'],
-    'BPO': ['Healthcare', 'Finance'],
-    'Bank': ['Bank'],
-    'IT': ['IT']
+    School: ['School'],
+    College: ['Engineering', 'Arts'],
+    BPO: ['Healthcare', 'Finance'],
+    Bank: ['Bank'],
+    IT: ['IT'],
   };
   countrySearch = '';
   industrySearch = '';
   sectorSearch = '';
   instituteSearch = '';
   get globalInstituteId(): string {
-    try { return String(sessionStorage.getItem('global_institute_id') || ''); } catch (e) { return ''; }
+    try {
+      return String(sessionStorage.getItem('global_institute_id') || '');
+    } catch (e) {
+      return '';
+    }
   }
 
   private apiUrl = `${API_BASE}/add-question`;
@@ -174,21 +260,43 @@ export class AdminQuestionsComponent {
   private examsUrl = `${API_BASE}/get-exams-list`;
   private categoriesUrl = `${API_BASE}/get-categories-list`;
   private categoryDetailsUrl = `${API_BASE}/category-details`;
-  constructor(private http: HttpClient,private pageMeta: PageMetaService, private loader: LoaderService, private router: Router) {
+  constructor(
+    private http: HttpClient,
+    private pageMeta: PageMetaService,
+    private loader: LoaderService,
+    private router: Router,
+    private dialog: MatDialog
+  ) {
     // infer super-admin role and default institute from session data when available
     try {
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       if (raw) {
         const u = JSON.parse(raw);
-        this.isSuperAdmin = !!(u && (u.is_super_admin === true || u.isSuperAdmin || u.role === 'super_admin' || u.user_role === 'super_admin'));
-        const instId = sessionStorage.getItem('global_institute_id') || u?.institute_id || u?.instituteId || u?.institute?.institute_id || u?.institute?.id || (typeof u?.institute === 'string' ? u.institute : '');
+        this.isSuperAdmin = !!(
+          u &&
+          (u.is_super_admin === true ||
+            u.isSuperAdmin ||
+            u.role === 'super_admin' ||
+            u.user_role === 'super_admin')
+        );
+        const instId =
+          sessionStorage.getItem('global_institute_id') ||
+          u?.institute_id ||
+          u?.instituteId ||
+          u?.institute?.institute_id ||
+          u?.institute?.id ||
+          (typeof u?.institute === 'string' ? u.institute : '');
         if (instId) {
           this.loginInstituteId = String(instId);
           // prefill the first question's institute selection so the template select shows the user's institute
-          try { this.questions[0].institute_id = String(instId); } catch(e){}
+          try {
+            this.questions[0].institute_id = String(instId);
+          } catch (e) {}
         }
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
 
     // call to populate institutes dropdown; loadCategories will be triggered after institutes load if an institute is prefilled
     this.loadInstitutes();
@@ -208,7 +316,10 @@ export class AdminQuestionsComponent {
   }
 
   ngOnInit(): void {
-    this.pageMeta.setMeta(this.isEditing ? 'Edit question':'Add question', this.isEditing ? 'Edit and update the question' : 'Add a new question to question bank ');
+    this.pageMeta.setMeta(
+      this.isEditing ? 'Edit question' : 'Add question',
+      this.isEditing ? 'Edit and update the question' : 'Add a new question to question bank '
+    );
     // if arrived here from the questions list edit flow, prefill the form
     try {
       const raw = sessionStorage.getItem('edit_question');
@@ -219,7 +330,8 @@ export class AdminQuestionsComponent {
         if (Array.isArray(q.options)) {
           for (const o of q.options) {
             if (typeof o === 'string') opts.push(o);
-            else if (o && (o.text || o.option || o.value || o.label)) opts.push(o.text || o.option || o.value || o.label);
+            else if (o && (o.text || o.option || o.value || o.label))
+              opts.push(o.text || o.option || o.value || o.label);
             else opts.push(String(o));
           }
         }
@@ -229,12 +341,22 @@ export class AdminQuestionsComponent {
         if (q.correct !== undefined && q.correct !== null) {
           if (Array.isArray(q.correct)) correct = q.correct;
           else if (typeof q.correct === 'number') correct = q.correct;
-        } else if (Array.isArray(q.options) && q.options.length && typeof q.options[0] === 'object') {
+        } else if (
+          Array.isArray(q.options) &&
+          q.options.length &&
+          typeof q.options[0] === 'object'
+        ) {
           // options may have is_correct flags
           const correctIdxs: number[] = [];
           for (let i = 0; i < q.options.length; i++) {
             const o = q.options[i];
-            if (o && (o.is_correct === 1 || o.is_correct === true || o.is_correct === '1' || o.is_correct === 'true')) {
+            if (
+              o &&
+              (o.is_correct === 1 ||
+                o.is_correct === true ||
+                o.is_correct === '1' ||
+                o.is_correct === 'true')
+            ) {
               correctIdxs.push(i);
             }
           }
@@ -245,25 +367,63 @@ export class AdminQuestionsComponent {
         const rawQuestionType = q.type || q.originalType || q.question_type || q.questionType || '';
         const questionType = this.normalizeQuestionType(rawQuestionType, q);
         let optionAnswer = '';
-        if ((questionType === 'fill' || questionType === 'descriptive') && Array.isArray(q.options)) {
-          const answerOption = q.options.find((o: any) => o && typeof o === 'object' && (o.is_correct === 1 || o.is_correct === true || o.is_correct === '1' || o.is_correct === 'true')) || q.options[0];
+        if (
+          (questionType === 'fill' || questionType === 'descriptive') &&
+          Array.isArray(q.options)
+        ) {
+          const answerOption =
+            q.options.find(
+              (o: any) =>
+                o &&
+                typeof o === 'object' &&
+                (o.is_correct === 1 ||
+                  o.is_correct === true ||
+                  o.is_correct === '1' ||
+                  o.is_correct === 'true')
+            ) || q.options[0];
           if (typeof answerOption === 'string') optionAnswer = answerOption;
-          else if (answerOption && typeof answerOption === 'object') optionAnswer = answerOption.text || answerOption.option_text || answerOption.option || answerOption.value || answerOption.label || '';
+          else if (answerOption && typeof answerOption === 'object')
+            optionAnswer =
+              answerOption.text ||
+              answerOption.option_text ||
+              answerOption.option ||
+              answerOption.value ||
+              answerOption.label ||
+              '';
         }
 
         const first: any = {
           type: questionType,
           text: q.question || q.text || q.title || '',
           marks: q.marks || q.points || this.getCategoryQuestionMark() || 1,
-          options: opts.length ? opts : ['',''],
+          options: opts.length ? opts : ['', ''],
           correct: correct,
-          answerText: q.answer || q.answerText || optionAnswer || (typeof q.correct === 'string' ? q.correct : ''),
+          answerText:
+            q.answer ||
+            q.answerText ||
+            optionAnswer ||
+            (typeof q.correct === 'string' ? q.correct : ''),
           // copy global selections if provided
-          institute_id: q.institute_id || q.instituteId || q.instituteID || (q.institute && (q.institute.institute_id || q.institute.id || q.institute._id)) || '',
-          exam_id: q.exam_id || q.examId || q.examID || (q.exam && (q.exam.exam_id || q.exam.id || q.exam._id)) || '',
-          category_id: q.category_id || q.categoryId || q.categoryID || (q.category && (q.category.category_id || q.category.id || q.category._id)) || '',
+          institute_id:
+            q.institute_id ||
+            q.instituteId ||
+            q.instituteID ||
+            (q.institute && (q.institute.institute_id || q.institute.id || q.institute._id)) ||
+            '',
+          exam_id:
+            q.exam_id ||
+            q.examId ||
+            q.examID ||
+            (q.exam && (q.exam.exam_id || q.exam.id || q.exam._id)) ||
+            '',
+          category_id:
+            q.category_id ||
+            q.categoryId ||
+            q.categoryID ||
+            (q.category && (q.category.category_id || q.category.id || q.category._id)) ||
+            '',
           // keep original id for reference if backend uses it
-          id: q.id || q.question_id || q._id || undefined
+          id: q.id || q.question_id || q._id || undefined,
         };
 
         // replace the first question block with the prefilled data
@@ -282,20 +442,28 @@ export class AdminQuestionsComponent {
     // ensure at least the first panel is expanded on initial load
     try {
       if (this.questions && this.questions.length) {
-        this.questions.forEach((qq, idx) => qq._expanded = (idx === 0));
+        this.questions.forEach((qq, idx) => (qq._expanded = idx === 0));
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
     // ensure any programmatically set textarea content is measured after init
-    setTimeout(() => { try{ this.resizeAll(); }catch(e){} }, 50);
+    setTimeout(() => {
+      try {
+        this.resizeAll();
+      } catch (e) {}
+    }, 50);
     // if a category was prefilled, set selectedCategory and control value for description display
     try {
       const cid = this.questions && this.questions[0] && (this.questions[0].category_id || '');
       if (cid) {
         // will populate when categories are loaded
       }
-    } catch(e) {}
+    } catch (e) {}
     // Ensure languages array has unique entries to prevent duplicates in dropdown
-    this.languages = this.languages.filter((lang, index, self) => self.findIndex(l => l.label === lang.label) === index);
+    this.languages = this.languages.filter(
+      (lang, index, self) => self.findIndex((l) => l.label === lang.label) === index
+    );
   }
 
   @ViewChild('hiddenFileInput') hiddenFileInput?: ElementRef<HTMLInputElement>;
@@ -303,44 +471,80 @@ export class AdminQuestionsComponent {
   @ViewChild('sourceTextArea') sourceTextArea?: ElementRef<HTMLTextAreaElement>;
 
   // Auto-resize textarea to fit content (used by template via (input))
-  autoResize(el: HTMLTextAreaElement | any){
-    try{
+  autoResize(el: HTMLTextAreaElement | any) {
+    try {
       if (!el) return;
       // if passed event target, ensure it's a textarea
       const ta: HTMLTextAreaElement = el as HTMLTextAreaElement;
       ta.style.height = 'auto';
       const newHeight = ta.scrollHeight;
       if (newHeight) ta.style.height = newHeight + 'px';
-    }catch(e){ /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   }
 
   // Resize all textareas currently in the component DOM (use after data is loaded)
-  resizeAll(){
-    try{
+  resizeAll() {
+    try {
       // select textareas within component root
       const els = Array.from(document.querySelectorAll('textarea')) as HTMLTextAreaElement[];
       els.forEach((ta) => this.autoResize(ta));
-    }catch(e){ }
+    } catch (e) {}
   }
 
   ngAfterViewInit(): void {
     // ensure initial resize once the view is ready
-    setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} }, 50);
+    setTimeout(() => {
+      try {
+        this.resizeAll();
+      } catch (e) {}
+    }, 50);
   }
 
   downloadTemplate(templateType: 'objective' | 'descriptive') {
-    const headers = ['Question', 'Type', 'Correct_answer', 'marks', 'option_1', 'option_2', 'option_3', 'option_4'];
-    const sample = templateType === 'objective'
-      ? [
-          ['What is 2+2?', 'choose', '3', '1', '2', '3', '4', '5'],
-          ['Select prime numbers', 'multi', '1,2', '1', '2', '3', '4', '5'],
-          ['The capital of France is ___.', 'fill', 'Paris', '1', '', '', '', '']
-        ]
-      : [
-          ['Describe the water cycle.', 'descriptive', 'Evaporation, condensation, and precipitation move water through the environment.', '5', '', '', '', ''],
-          ['Explain the importance of photosynthesis.', 'descriptive', 'Photosynthesis helps plants make food and releases oxygen.', '5', '', '', '', '']
-        ];
-    const rows = [headers, ...sample].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const headers = [
+      'Question',
+      'Type',
+      'Correct_answer',
+      'marks',
+      'option_1',
+      'option_2',
+      'option_3',
+      'option_4',
+    ];
+    const sample =
+      templateType === 'objective'
+        ? [
+            ['What is 2+2?', 'choose', '3', '1', '2', '3', '4', '5'],
+            ['Select prime numbers', 'multi', '1,2', '1', '2', '3', '4', '5'],
+            ['The capital of France is ___.', 'fill', 'Paris', '1', '', '', '', ''],
+          ]
+        : [
+            [
+              'Describe the water cycle.',
+              'descriptive',
+              'Evaporation, condensation, and precipitation move water through the environment.',
+              '5',
+              '',
+              '',
+              '',
+              '',
+            ],
+            [
+              'Explain the importance of photosynthesis.',
+              'descriptive',
+              'Photosynthesis helps plants make food and releases oxygen.',
+              '5',
+              '',
+              '',
+              '',
+              '',
+            ],
+          ];
+    const rows = [headers, ...sample]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
     const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -351,55 +555,93 @@ export class AdminQuestionsComponent {
     a.remove();
     window.URL.revokeObjectURL(url);
   }
-  
-  triggerFileSelect(){
-    try{ this.hiddenFileInput?.nativeElement.click(); }catch(e){ console.warn('triggerFileSelect failed', e); }
+
+  triggerFileSelect() {
+    try {
+      this.hiddenFileInput?.nativeElement.click();
+    } catch (e) {
+      console.warn('triggerFileSelect failed', e);
+    }
   }
 
-  triggerSourceFileSelect(){
-    try{ this.hiddenSourceFileInput?.nativeElement.click(); }catch(e){ console.warn('triggerSourceFileSelect failed', e); }
+  triggerSourceFileSelect() {
+    try {
+      this.hiddenSourceFileInput?.nativeElement.click();
+    } catch (e) {
+      console.warn('triggerSourceFileSelect failed', e);
+    }
   }
 
-  focusSourceTextArea(){
-    try{
+  focusSourceTextArea() {
+    try {
       this.plaintextEditor = true;
       // small timeout to ensure DOM focus if called from keyboard activation
-      setTimeout(()=>{ this.sourceTextArea?.nativeElement.focus(); }, 30);
-    }catch(e){ console.warn('focusSourceTextArea failed', e); }
+      setTimeout(() => {
+        this.sourceTextArea?.nativeElement.focus();
+      }, 30);
+    } catch (e) {
+      console.warn('focusSourceTextArea failed', e);
+    }
   }
 
-  onSourceFileSelected(ev: Event){
+  onSourceFileSelected(ev: Event) {
     const input = ev.target as HTMLInputElement;
-    if (input && input.files && input.files.length){
+    if (input && input.files && input.files.length) {
       this.selectedSourceFile = input.files[0];
     } else {
       this.selectedSourceFile = null;
     }
   }
 
-  applyGeneratedToEditor(){
+  applyGeneratedToEditor() {
     if (!this.generatedQuestions || !this.generatedQuestions.length) return;
     // Simple behaviour: insert first generated question into editor sourceText for editing
-    try{ this.sourceText = (this.generatedQuestions[0].text || '') + "\n\n" + this.sourceText; }catch(e){}
+    try {
+      this.sourceText = (this.generatedQuestions[0].text || '') + '\n\n' + this.sourceText;
+    } catch (e) {}
     // resize textarea after programmatic content change
-    setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} }, 0);
+    setTimeout(() => {
+      try {
+        this.resizeAll();
+      } catch (e) {}
+    }, 0);
   }
 
-  insertGeneratedToQuestions(){
+  insertGeneratedToQuestions() {
     if (!this.generatedQuestions || !this.generatedQuestions.length) return;
     // Insert generated items into questions array and switch to manual mode for editing
-    try{
-      this.questions = (this.generatedQuestions.map((g:any) => ({ type: g.type || 'descriptive', text: g.text || '', marks: this.getCategoryQuestionMark() || g.marks || 1, options: g.options || [''], correct: null, answerText: '', _expanded: true }))).concat(this.questions || []);
+    try {
+      this.questions = this.generatedQuestions
+        .map((g: any) => ({
+          type: g.type || 'descriptive',
+          text: g.text || '',
+          marks: this.getCategoryQuestionMark() || g.marks || 1,
+          options: g.options || [''],
+          correct: null,
+          answerText: '',
+          _expanded: true,
+        }))
+        .concat(this.questions || []);
       this.mode = 'manual';
-      setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} }, 0);
-    }catch(e){}
+      setTimeout(() => {
+        try {
+          this.resizeAll();
+        } catch (e) {}
+      }, 0);
+    } catch (e) {}
   }
 
   private getCorrectFromGeneratedOptions(options: any): any {
     if (!Array.isArray(options)) return null;
     const correctIndexes: number[] = [];
     options.forEach((option: any, index: number) => {
-      if (option && (option.is_correct === 1 || option.is_correct === true || option.is_correct === '1' || option.is_correct === 'true')) {
+      if (
+        option &&
+        (option.is_correct === 1 ||
+          option.is_correct === true ||
+          option.is_correct === '1' ||
+          option.is_correct === 'true')
+      ) {
         correctIndexes.push(index);
       }
     });
@@ -411,32 +653,67 @@ export class AdminQuestionsComponent {
   private extractGeneratedQuestions(value: any, depth = 0): any[] {
     if (value == null || depth > 6) return [];
     if (typeof value === 'string') {
-      const cleaned = value.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      const cleaned = value
+        .trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '');
       if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) return [];
-      try { return this.extractGeneratedQuestions(JSON.parse(cleaned), depth + 1); } catch { return []; }
+      try {
+        return this.extractGeneratedQuestions(JSON.parse(cleaned), depth + 1);
+      } catch {
+        return [];
+      }
     }
     if (Array.isArray(value)) {
-      const questionItems = value.filter((item: any) => item && typeof item === 'object' &&
-        (typeof item.question_text === 'string' || typeof item.questionText === 'string' ||
-         typeof item.question === 'string' || typeof item.text === 'string'));
+      const questionItems = value.filter(
+        (item: any) =>
+          item &&
+          typeof item === 'object' &&
+          (typeof item.question_text === 'string' ||
+            typeof item.questionText === 'string' ||
+            typeof item.question === 'string' ||
+            typeof item.text === 'string')
+      );
       if (questionItems.length) return questionItems;
       return value.flatMap((item: any) => this.extractGeneratedQuestions(item, depth + 1));
     }
     if (typeof value !== 'object') return [];
-    if (typeof value.question_text === 'string' || typeof value.questionText === 'string' ||
-        typeof value.question === 'string' || typeof value.text === 'string') return [value];
-    for (const key of ['questions', 'data', 'result', 'results', 'output', 'question', 'content', 'message', 'choices']) {
+    if (
+      typeof value.question_text === 'string' ||
+      typeof value.questionText === 'string' ||
+      typeof value.question === 'string' ||
+      typeof value.text === 'string'
+    )
+      return [value];
+    for (const key of [
+      'questions',
+      'data',
+      'result',
+      'results',
+      'output',
+      'question',
+      'content',
+      'message',
+      'choices',
+    ]) {
       const found = this.extractGeneratedQuestions(value[key], depth + 1);
       if (found.length) return found;
     }
     return [];
   }
 
-  private resolveGeneratedCorrectValue(qtype: string, options: any[], correctValue: any): number | number[] | null {
+  private resolveGeneratedCorrectValue(
+    qtype: string,
+    options: any[],
+    correctValue: any
+  ): number | number[] | null {
     if (qtype === 'choose') {
       if (typeof correctValue === 'number') return correctValue;
       if (typeof correctValue === 'string') {
-        const idx = options.findIndex((option: any) => String(option).trim().toLowerCase() === String(correctValue).trim().toLowerCase());
+        const idx = options.findIndex(
+          (option: any) =>
+            String(option).trim().toLowerCase() === String(correctValue).trim().toLowerCase()
+        );
         return idx >= 0 ? idx : null;
       }
     }
@@ -444,7 +721,12 @@ export class AdminQuestionsComponent {
       if (Array.isArray(correctValue)) {
         if (correctValue.length && typeof correctValue[0] === 'number') return correctValue;
         return correctValue
-          .map((value: any) => options.findIndex((option: any) => String(option).trim().toLowerCase() === String(value).trim().toLowerCase()))
+          .map((value: any) =>
+            options.findIndex(
+              (option: any) =>
+                String(option).trim().toLowerCase() === String(value).trim().toLowerCase()
+            )
+          )
           .filter((idx: number) => idx >= 0);
       }
       if (typeof correctValue === 'string') {
@@ -452,7 +734,11 @@ export class AdminQuestionsComponent {
           .split(',')
           .map((value: string) => value.trim())
           .filter(Boolean)
-          .map((value: string) => options.findIndex((option: any) => String(option).trim().toLowerCase() === value.toLowerCase()))
+          .map((value: string) =>
+            options.findIndex(
+              (option: any) => String(option).trim().toLowerCase() === value.toLowerCase()
+            )
+          )
           .filter((idx: number) => idx >= 0);
       }
     }
@@ -460,41 +746,63 @@ export class AdminQuestionsComponent {
   }
 
   private applyGeneratedAnswersToQuestions(): boolean {
-    if (!this.aiAnswerGenerationPending || !this.generatedQuestions?.length || !this.questions?.length) return false;
+    if (
+      !this.aiAnswerGenerationPending ||
+      !this.generatedQuestions?.length ||
+      !this.questions?.length
+    )
+      return false;
     this.questions.forEach((question: any, index: number) => {
       const generated = this.generatedQuestions[index];
       if (!generated) return;
       const qtype = question.type || generated.type || 'descriptive';
-      const generatedAnswer = generated.answerText || generated.answer || generated.explanation || '';
+      const generatedAnswer =
+        generated.answerText || generated.answer || generated.explanation || '';
       const correctValue = generated.correct ?? generated.correct_answer ?? generatedAnswer;
       if (qtype === 'fill' || qtype === 'descriptive') {
-        question.answerText = generatedAnswer || (typeof correctValue === 'string' ? correctValue : '');
+        question.answerText =
+          generatedAnswer || (typeof correctValue === 'string' ? correctValue : '');
       } else {
-        question.correct = this.resolveGeneratedCorrectValue(qtype, question.options || [], correctValue);
+        question.correct = this.resolveGeneratedCorrectValue(
+          qtype,
+          question.options || [],
+          correctValue
+        );
       }
     });
     this.aiAnswerGenerationPending = false;
-    try { notify('Answers generated for the current questions', 'success'); } catch(e) {}
+    try {
+      notify('Answers generated for the current questions', 'success');
+    } catch (e) {}
     return true;
   }
 
   // Generate simple placeholder questions from AI inputs (stub implementation)
-  generateAIQuestions(){
+  generateAIQuestions() {
     if (this.applyGeneratedAnswersToQuestions()) return;
     this.loader.show();
-    if (!this.aiQuestionType || !this.aiQuestionNumber || this.aiQuestionNumber < 1){
-      try { notify('Select a question type and set number of questions', 'error'); } catch(e){}
+    if (!this.aiQuestionType || !this.aiQuestionNumber || this.aiQuestionNumber < 1) {
+      try {
+        notify('Select a question type and set number of questions', 'error');
+      } catch (e) {}
       this.loader.hide();
       return;
     }
 
     // Build FormData to support file upload and parameters
     const fd = new FormData();
-    if (this.selectedSourceFile) fd.append('file', this.selectedSourceFile as Blob, (this.selectedSourceFile as File).name);
-    const raw = sessionStorage.getItem('user')
+    if (this.selectedSourceFile)
+      fd.append('file', this.selectedSourceFile as Blob, (this.selectedSourceFile as File).name);
+    const raw = sessionStorage.getItem('user');
     if (raw) {
       const u = JSON.parse(raw);
-      const instId = sessionStorage.getItem('global_institute_id') || u?.institute_id || u?.instituteId || u?.institute?.institute_id || u?.institute?.id || (typeof u?.institute === 'string' ? u.institute : '');
+      const instId =
+        sessionStorage.getItem('global_institute_id') ||
+        u?.institute_id ||
+        u?.instituteId ||
+        u?.institute?.institute_id ||
+        u?.institute?.id ||
+        (typeof u?.institute === 'string' ? u.institute : '');
       if (instId) {
         fd.append('institute_id', String(instId));
       }
@@ -504,7 +812,7 @@ export class AdminQuestionsComponent {
       }
     }
     // fd.append('language', this.aiQuestionLanguage || 'English');
-    fd.append('language','English');
+    fd.append('language', 'English');
     fd.append('type', this.aiQuestionType || 'Descriptive');
     fd.append('number_of_questions', String(this.aiQuestionNumber || 1));
     const categoryQuestionMark = this.getCategoryQuestionMark() || this.aiMarksPerQuestion || 5;
@@ -520,49 +828,116 @@ export class AdminQuestionsComponent {
     const url = `${API_BASE}/create-question-using-ai`;
     this.http.post<any>(url, fd).subscribe({
       next: (res) => {
-        try{
+        try {
           const rawQuestions = this.extractGeneratedQuestions(res);
           if (rawQuestions.length) {
             // backend returns a single question object or an array — normalize
             // if response includes question_text/options etc, map to our internal shape
-            const normalized = rawQuestions.map((r:any) => ({ type: r.type || r.question_type || r.questionType || 'descriptive', text: r.question_text || r.questionText || r.question || r.text || '', marks: this.getCategoryQuestionMark() || r.mark || r.marks || 1, options: Array.isArray(r.options) ? r.options.slice() : (r.options && typeof r.options === 'string' ? r.options.split('|').map((s:string)=>s.trim()) : []), correct: r.correct_answer ?? r.correctAnswer ?? r.correct ?? this.getCorrectFromGeneratedOptions(r.options), answerText: r.explanation || r.answer_text || r.answerText || r.answer || '' }));
+            const normalized = rawQuestions.map((r: any) => ({
+              type: r.type || r.question_type || r.questionType || 'descriptive',
+              text: r.question_text || r.questionText || r.question || r.text || '',
+              marks: this.getCategoryQuestionMark() || r.mark || r.marks || 1,
+              options: Array.isArray(r.options)
+                ? r.options.slice()
+                : r.options && typeof r.options === 'string'
+                  ? r.options.split('|').map((s: string) => s.trim())
+                  : [],
+              correct:
+                r.correct_answer ??
+                r.correctAnswer ??
+                r.correct ??
+                this.getCorrectFromGeneratedOptions(r.options),
+              answerText: r.explanation || r.answer_text || r.answerText || r.answer || '',
+            }));
             this.generatedQuestions = normalized;
             // Also immediately load generated questions into the editable questions list so they appear in the questions-list
-            try{
+            try {
               const selectedInstituteId = this.questions?.[0]?.institute_id || '';
               const selectedCategoryId = this.questions?.[0]?.category_id || '';
-              this.questions = normalized.map((g:any) => {
-                const qtype = (g.type || 'descriptive');
-                const opts = Array.isArray(g.options) ? g.options.map((o:any)=> typeof o === 'string' ? o : (o.option_text || o.text || String(o))) : [];
+              this.questions = normalized.map((g: any) => {
+                const qtype = g.type || 'descriptive';
+                const opts = Array.isArray(g.options)
+                  ? g.options.map((o: any) =>
+                      typeof o === 'string' ? o : o.option_text || o.text || String(o)
+                    )
+                  : [];
                 // ensure at least two option placeholders for choice types
-                if ((qtype === 'choose' || qtype === 'multi') && opts.length < 2) { while(opts.length < 2) opts.push(''); }
-                return { type: qtype, text: g.text || '', marks: this.getCategoryQuestionMark() || g.marks || 1, options: opts.length ? opts : ['',''], correct: null, answerText: '', institute_id: selectedInstituteId, category_id: selectedCategoryId, _expanded: true };
+                if ((qtype === 'choose' || qtype === 'multi') && opts.length < 2) {
+                  while (opts.length < 2) opts.push('');
+                }
+                return {
+                  type: qtype,
+                  text: g.text || '',
+                  marks: this.getCategoryQuestionMark() || g.marks || 1,
+                  options: opts.length ? opts : ['', ''],
+                  correct: null,
+                  answerText: '',
+                  institute_id: selectedInstituteId,
+                  category_id: selectedCategoryId,
+                  _expanded: true,
+                };
               });
               this.aiAnswerGenerationPending = true;
               this.mode = 'manual';
               // this.aiMode = false;
               this.activeMode = 'manual';
-                // ensure new question textareas resize to fit generated content
-                setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} }, 0);
-            }catch(e){ console.warn('Failed to apply generated questions to editor', e); }
+              // ensure new question textareas resize to fit generated content
+              setTimeout(() => {
+                try {
+                  this.resizeAll();
+                } catch (e) {}
+              }, 0);
+            } catch (e) {
+              console.warn('Failed to apply generated questions to editor', e);
+            }
 
             this.showPreview = true;
             notify('AI generated questions received', 'success');
           } else {
-            notify(res?.error || res?.statusMessage || res?.message || 'Failed to generate questions', 'error');
+            notify(
+              res?.error || res?.statusMessage || res?.message || 'Failed to generate questions',
+              'error'
+            );
           }
-        }catch(e){ console.error('Failed to process AI response', e); notify('Failed to generate questions', 'error'); }
+        } catch (e) {
+          console.error('Failed to process AI response', e);
+          notify('Failed to generate questions', 'error');
+        }
         this.loader.hide();
       },
-      complete: () => { this.loader.hide(); },
-      error: (err) => { console.error('AI generation failed', err); try { notify(err?.error?.error || err?.error?.statusMessage || err?.error?.message || 'AI generation failed', 'error'); } catch(e){} this.loader.hide(); }
+      complete: () => {
+        this.loader.hide();
+      },
+      error: (err) => {
+        console.error('AI generation failed', err);
+        try {
+          notify(
+            err?.error?.error ||
+              err?.error?.statusMessage ||
+              err?.error?.message ||
+              'AI generation failed',
+            'error'
+          );
+        } catch (e) {}
+        this.loader.hide();
+      },
     });
   }
 
   addQuestion() {
     // collapse other panels and expand newly added one
-    if (this.questions && this.questions.length) this.questions.forEach(q => q._expanded = false);
-    this.questions.push({ type: '', text: '', marks: this.getCategoryQuestionMark() || 1, options: ['',''], correct: null, answerText: '', _expanded: true, showFineTune: false });
+    if (this.questions && this.questions.length)
+      this.questions.forEach((q) => (q._expanded = false));
+    this.questions.push({
+      type: '',
+      text: '',
+      marks: this.getCategoryQuestionMark() || 1,
+      options: ['', ''],
+      correct: null,
+      answerText: '',
+      _expanded: true,
+      showFineTune: false,
+    });
   }
 
   removeQuestion(index: number) {
@@ -577,36 +952,64 @@ export class AdminQuestionsComponent {
     this.questions.splice(index, 1);
   }
 
-  resetAll(){
+  resetAll() {
     // clear institute/exam selection stored on first block and reset to single empty block
     if (this.questions && this.questions.length) {
       this.questions[0].institute_id = sessionStorage.getItem('global_institute_id') || '';
       this.questions[0].exam_id = '';
     }
-    this.questions = [{ type: '', text: '', marks: this.getCategoryQuestionMark() || 1, options: ['',''], correct: null, answerText: '', showFineTune: false }];
-    setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} },0);
+    this.questions = [
+      {
+        type: '',
+        text: '',
+        marks: this.getCategoryQuestionMark() || 1,
+        options: ['', ''],
+        correct: null,
+        answerText: '',
+        showFineTune: false,
+      },
+    ];
+    setTimeout(() => {
+      try {
+        this.resizeAll();
+      } catch (e) {}
+    }, 0);
   }
 
-  onBulkFileSelected(ev: Event){
+  onBulkFileSelected(ev: Event) {
     const input = ev.target as HTMLInputElement;
-    if (input && input.files && input.files.length){
+    if (input && input.files && input.files.length) {
       this.selectedBulkFile = input.files[0];
     } else {
       this.selectedBulkFile = null;
     }
   }
 
-  clearSelectedBulkFile(){
+  clearSelectedBulkFile() {
     this.selectedBulkFile = null;
-    try{ if (this.hiddenFileInput && this.hiddenFileInput.nativeElement) { this.hiddenFileInput.nativeElement.value = ''; } }catch(e){}
+    try {
+      if (this.hiddenFileInput && this.hiddenFileInput.nativeElement) {
+        this.hiddenFileInput.nativeElement.value = '';
+      }
+    } catch (e) {}
   }
   // improved drag handling to allow visual feedback
-  onDragOver(ev: DragEvent, markActive = true){ ev.preventDefault(); ev.stopPropagation(); if (markActive) this.dragActive = true; }
-  onDragLeave(ev: DragEvent){ ev.preventDefault(); ev.stopPropagation(); this.dragActive = false; }
-  onDrop(ev: DragEvent){
-    ev.preventDefault(); ev.stopPropagation(); this.dragActive = false;
+  onDragOver(ev: DragEvent, markActive = true) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (markActive) this.dragActive = true;
+  }
+  onDragLeave(ev: DragEvent) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.dragActive = false;
+  }
+  onDrop(ev: DragEvent) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.dragActive = false;
     const files = ev.dataTransfer && ev.dataTransfer.files;
-    if (files && files.length){
+    if (files && files.length) {
       this.selectedBulkFile = files[0];
     }
   }
@@ -619,12 +1022,12 @@ export class AdminQuestionsComponent {
   private getCategoryInstituteId(item: any): string {
     return String(
       item?.institute_id ??
-      item?.instituteId ??
-      item?.institute?.institute_id ??
-      item?.institute?.id ??
-      item?.institutes?.institute_id ??
-      item?.institutes?.id ??
-      ''
+        item?.instituteId ??
+        item?.institute?.institute_id ??
+        item?.institute?.id ??
+        item?.institutes?.institute_id ??
+        item?.institutes?.id ??
+        ''
     );
   }
 
@@ -632,7 +1035,7 @@ export class AdminQuestionsComponent {
     if (this.isSuperAdmin || !scopedInstitute) return true;
     return this.getCategoryInstituteId(item) === String(scopedInstitute);
   }
-  loadInstitutes(onLoaded?: () => void){
+  loadInstitutes(onLoaded?: () => void) {
     this.loader.show();
     const params: any = { _ts: Date.now() };
     if (this.filterCountry) params.country = this.filterCountry;
@@ -640,30 +1043,44 @@ export class AdminQuestionsComponent {
     if (this.filterIndustry) params.industry = this.filterIndustry;
     if (this.filterSector) params.sector = this.filterSector;
 
-    this.http.get<any>(this.institutesUrl, { params: Object.keys(params).length ? params : undefined }).subscribe({
-      next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        const mappedInstitutes = arr.map((r:any) => ({
-          name: r.name || r.institute_name || r.short_name || '',
-          institute_id: r.institute_id || r.id,
-          industry_type: r.industry_type || r.industry || '',
-          industry_sector: r.industry_sector || r.sector || '',
-          country: r.country || r.country_name || r.country_code || '',
-          city: r.city || r.city_name || r.city_code || ''
-        }))
-          .filter((item: any) => !!item.institute_id);
-        this.allInstitutes = mappedInstitutes;
-        this.institutes = mappedInstitutes;
-        this.syncInstituteSearch();
-        // If an institute was prefilled (from session), ensure categories load for it
-        try{ const pre = this.questions && this.questions[0] && (this.questions[0].institute_id || ''); if(pre) { this.loadDepartments(pre); this.loadTeams(pre); this.loadCategories(pre); } }catch(e){}
-        if (onLoaded) onLoaded();
-      },
-      complete: () => { this.loader.hide(); },
-      error: (err) => { this.loader.hide();
-        console.warn('Failed to load institutes', err);
-      }
-    });
+    this.http
+      .get<any>(this.institutesUrl, { params: Object.keys(params).length ? params : undefined })
+      .subscribe({
+        next: (res) => {
+          const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
+          const mappedInstitutes = arr
+            .map((r: any) => ({
+              name: r.name || r.institute_name || r.short_name || '',
+              institute_id: r.institute_id || r.id,
+              industry_type: r.industry_type || r.industry || '',
+              industry_sector: r.industry_sector || r.sector || '',
+              country: r.country || r.country_name || r.country_code || '',
+              city: r.city || r.city_name || r.city_code || '',
+            }))
+            .filter((item: any) => !!item.institute_id);
+          this.allInstitutes = mappedInstitutes;
+          this.institutes = mappedInstitutes;
+          this.syncInstituteSearch();
+          // If an institute was prefilled (from session), ensure categories load for it
+          try {
+            const pre =
+              this.questions && this.questions[0] && (this.questions[0].institute_id || '');
+            if (pre) {
+              this.loadDepartments(pre);
+              this.loadTeams(pre);
+              this.loadCategories(pre);
+            }
+          } catch (e) {}
+          if (onLoaded) onLoaded();
+        },
+        complete: () => {
+          this.loader.hide();
+        },
+        error: (err) => {
+          this.loader.hide();
+          console.warn('Failed to load institutes', err);
+        },
+      });
   }
 
   // ---- Country / City / Industry / Sector cascade (mirrors view-institutes.component.ts / category.component.ts) ----
@@ -671,17 +1088,54 @@ export class AdminQuestionsComponent {
   get filteredCountries(): Array<{ code: string; name: string }> {
     const term = (this.countrySearch || '').trim().toLowerCase();
     if (!term) return this.countries;
-    return this.countries.filter(c => (c.name || '').toLowerCase().includes(term));
+    return this.countries.filter((c) => (c.name || '').toLowerCase().includes(term));
+  }
+
+  isAllCountriesSelected(): boolean {
+    const items = this.filteredCountries || [];
+    return items.length > 0 && items.every((c) => (this.selectedCountries || []).includes(c.code));
+  }
+
+  toggleSelectAllCountries(): void {
+    const items = this.filteredCountries || [];
+    if (this.isAllCountriesSelected()) {
+      this.selectedCountries = [];
+    } else {
+      this.selectedCountries = items.map((c) => c.code);
+    }
+    this.onCountryFilterChange();
   }
 
   get filteredIndustryTypes(): string[] {
     const term = (this.industrySearch || '').trim().toLowerCase();
     if (!term) return this.industryTypes;
-    return this.industryTypes.filter(t => t.toLowerCase().includes(term));
+    return this.industryTypes.filter((t) => t.toLowerCase().includes(term));
   }
 
-  // Sectors scoped to the selected industry; empty until an industry is selected.
+  isAllIndustriesSelected(): boolean {
+    const items = this.filteredIndustryTypes || [];
+    return items.length > 0 && items.every((t) => (this.selectedIndustries || []).includes(t));
+  }
+
+  toggleSelectAllIndustries(): void {
+    const items = this.filteredIndustryTypes || [];
+    if (this.isAllIndustriesSelected()) {
+      this.selectedIndustries = [];
+    } else {
+      this.selectedIndustries = [...items];
+    }
+    this.onIndustryFilterChange();
+  }
+
+  // Sectors scoped to the selected industry or multi-selected industries
   private get scopedSectors(): string[] {
+    if (this.selectedIndustries && this.selectedIndustries.length > 0) {
+      const set = new Set<string>();
+      for (const ind of this.selectedIndustries) {
+        (this.sectorMap[ind] || []).forEach((s) => set.add(s));
+      }
+      return Array.from(set);
+    }
     if (!this.filterIndustry) return [];
     return this.sectorMap[this.filterIndustry] || [];
   }
@@ -690,16 +1144,35 @@ export class AdminQuestionsComponent {
     const scoped = this.scopedSectors;
     const term = (this.sectorSearch || '').trim().toLowerCase();
     if (!term) return scoped;
-    return scoped.filter(s => s.toLowerCase().includes(term));
+    return scoped.filter((s) => s.toLowerCase().includes(term));
+  }
+
+  isAllSectorsSelected(): boolean {
+    const items = this.filteredSectors || [];
+    return items.length > 0 && items.every((s) => (this.selectedSectors || []).includes(s));
+  }
+
+  toggleSelectAllSectors(): void {
+    const items = this.filteredSectors || [];
+    if (this.isAllSectorsSelected()) {
+      this.selectedSectors = [];
+    } else {
+      this.selectedSectors = [...items];
+    }
+    this.onSectorFilterChange();
   }
 
   onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector') {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { /* ignore non-browser environments */ }
+        } catch (e) {
+          /* ignore non-browser environments */
+        }
       });
       return;
     }
@@ -714,7 +1187,7 @@ export class AdminQuestionsComponent {
 
   // Only show countries that have at least one registered institute (mirrors
   // view-institutes.component.ts loadRegisteredInstituteCountries), not the full world hierarchy.
-  loadCountries(){
+  loadCountries() {
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -722,9 +1195,13 @@ export class AdminQuestionsComponent {
           const countries = res?.data?.countries || res?.countries || res?.data || [];
           this.locationHierarchyRaw = Array.isArray(countries) ? countries : [];
           this.loadRegisteredInstituteCountries(this.locationHierarchyRaw);
-        } catch (e) { this.countries = []; }
+        } catch (e) {
+          this.countries = [];
+        }
       },
-      error: () => { this.countries = []; }
+      error: () => {
+        this.countries = [];
+      },
     });
   }
 
@@ -734,38 +1211,67 @@ export class AdminQuestionsComponent {
       next: (res) => {
         try {
           const institutes = Array.isArray(res?.data) ? res.data : [];
-          const hierarchyCountries = (locationCountries || []).map((country: any) => ({
-            code: country.country_code || country.code || country.id,
-            name: country.country_name || country.name || country.country
-          })).filter((country: any) => country.code && country.name);
+          const hierarchyCountries = (locationCountries || [])
+            .map((country: any) => ({
+              code: country.country_code || country.code || country.id,
+              name: country.country_name || country.name || country.country,
+            }))
+            .filter((country: any) => country.code && country.name);
           const registeredCountries: Array<{ code: string; name: string }> = [];
           institutes.forEach((institute: any) => {
-            const locations = [institute, ...(Array.isArray(institute?.campuses) ? institute.campuses : [])];
+            const locations = [
+              institute,
+              ...(Array.isArray(institute?.campuses) ? institute.campuses : []),
+            ];
             locations.forEach((location: any) => {
               const rawCountry = location?.country;
-              const countryCode = location?.country_id || location?.country_code
-                || (typeof rawCountry === 'object' ? rawCountry?.country_id || rawCountry?.id || rawCountry?.country_code || rawCountry?.code : rawCountry);
-              const countryName = location?.country_name
-                || (typeof rawCountry === 'object' ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country : rawCountry);
-              const hierarchyMatch = hierarchyCountries.find((country: any) =>
-                (countryCode && String(country.code).toLowerCase() === String(countryCode).toLowerCase())
-                || (countryName && String(country.name).trim().toLowerCase() === String(countryName).trim().toLowerCase())
+              const countryCode =
+                location?.country_id ||
+                location?.country_code ||
+                (typeof rawCountry === 'object'
+                  ? rawCountry?.country_id ||
+                    rawCountry?.id ||
+                    rawCountry?.country_code ||
+                    rawCountry?.code
+                  : rawCountry);
+              const countryName =
+                location?.country_name ||
+                (typeof rawCountry === 'object'
+                  ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
+                  : rawCountry);
+              const hierarchyMatch = hierarchyCountries.find(
+                (country: any) =>
+                  (countryCode &&
+                    String(country.code).toLowerCase() === String(countryCode).toLowerCase()) ||
+                  (countryName &&
+                    String(country.name).trim().toLowerCase() ===
+                      String(countryName).trim().toLowerCase())
               );
-              const resolved = hierarchyMatch || (countryCode && countryName ? { code: countryCode, name: countryName } : null);
-              if (resolved) registeredCountries.push({ code: String(resolved.code), name: String(resolved.name).trim() });
+              const resolved =
+                hierarchyMatch ||
+                (countryCode && countryName ? { code: countryCode, name: countryName } : null);
+              if (resolved)
+                registeredCountries.push({
+                  code: String(resolved.code),
+                  name: String(resolved.name).trim(),
+                });
             });
           });
           const uniqueByName = new Map<string, { code: string; name: string }>();
-          registeredCountries.forEach(country => {
+          registeredCountries.forEach((country) => {
             const key = country.name.toLowerCase();
             if (!uniqueByName.has(key)) uniqueByName.set(key, country);
           });
-          this.countries = Array.from(uniqueByName.values()).sort((a, b) => a.name.localeCompare(b.name));
+          this.countries = Array.from(uniqueByName.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
         } catch (e) {
           this.countries = [];
         }
       },
-      error: () => { this.countries = []; }
+      error: () => {
+        this.countries = [];
+      },
     });
   }
 
@@ -777,46 +1283,57 @@ export class AdminQuestionsComponent {
       next: (res) => {
         try {
           const data = Array.isArray(res?.data?.cities) ? res.data.cities : [];
-          this.filterCityOptions = data.map((city: any) => ({
-            code: city.id ?? city.city_id ?? city.city_code ?? city.code,
-            name: city.name ?? city.city_name ?? city.city
-          })).filter((city: any) => city.code && city.name).sort((a: any, b: any) => a.name.localeCompare(b.name));
-        } catch (e) { this.filterCityOptions = []; }
+          this.filterCityOptions = data
+            .map((city: any) => ({
+              code: city.id ?? city.city_id ?? city.city_code ?? city.code,
+              name: city.name ?? city.city_name ?? city.city,
+            }))
+            .filter((city: any) => city.code && city.name)
+            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+        } catch (e) {
+          this.filterCityOptions = [];
+        }
       },
-      error: () => { this.filterCityOptions = []; }
+      error: () => {
+        this.filterCityOptions = [];
+      },
     });
   }
 
   // City is a free-text field holding the display name; resolve it back to its code
   // (the backend's city filter expects an id) before sending it to get-institutes.
   private resolveCityId(cityName: string): string {
-    const name = String(cityName || '').trim().toLowerCase();
+    const name = String(cityName || '')
+      .trim()
+      .toLowerCase();
     if (!name) return '';
-    const found = this.filterCityOptions.find(c => String(c.name || '').trim().toLowerCase() === name);
+    const found = this.filterCityOptions.find(
+      (c) =>
+        String(c.name || '')
+          .trim()
+          .toLowerCase() === name
+    );
     return found ? String(found.code) : '';
   }
 
   onCountryFilterChange() {
     this.filterCity = '';
     this.loadCitiesForCountry(this.filterCountry);
-    this.refreshInstituteScope();
   }
 
   onCountryAutocompleteSelected(countryCode: string) {
-    const found = this.filteredCountries.find(c => String(c.code) === String(countryCode));
+    const found = this.filteredCountries.find((c) => String(c.code) === String(countryCode));
     this.filterCountry = countryCode || '';
     this.countrySearch = found ? found.name : '';
     this.onCountryFilterChange();
   }
 
   onCityFilterChange() {
-    this.refreshInstituteScope();
   }
 
   onIndustryFilterChange() {
     this.filterSector = '';
     this.sectorSearch = '';
-    this.refreshInstituteScope();
   }
 
   onIndustryAutocompleteSelected(industry: string) {
@@ -826,7 +1343,6 @@ export class AdminQuestionsComponent {
   }
 
   onSectorFilterChange() {
-    this.refreshInstituteScope();
   }
 
   onSectorAutocompleteSelected(sector: string) {
@@ -841,7 +1357,7 @@ export class AdminQuestionsComponent {
   private refreshInstituteScope() {
     this.loadInstitutes(() => {
       const current = this.questions?.[0]?.institute_id;
-      if (current && !this.institutes.some(i => String(i.institute_id) === String(current))) {
+      if (current && !this.institutes.some((i) => String(i.institute_id) === String(current))) {
         this.onQuestionInstituteChange('');
       }
       this.syncInstituteSearch();
@@ -854,7 +1370,7 @@ export class AdminQuestionsComponent {
 
   displayInstitute = (value: string | null): string => {
     if (!value) return '';
-    const found = this.allInstitutes.find(i => String(i.institute_id) === String(value));
+    const found = this.allInstitutes.find((i) => String(i.institute_id) === String(value));
     return found ? found.name : String(value);
   };
 
@@ -878,7 +1394,7 @@ export class AdminQuestionsComponent {
 
   private syncInstituteSearch() {
     const current = this.questions?.[0]?.institute_id || '';
-    const found = this.institutes.find(i => String(i.institute_id) === String(current));
+    const found = this.institutes.find((i) => String(i.institute_id) === String(current));
     if (!this.instituteSearch || !current) {
       this.instituteSearch = found ? found.name : '';
       return;
@@ -899,19 +1415,23 @@ export class AdminQuestionsComponent {
       this.loadDepartments(instId);
       this.loadTeams(instId);
       this.clearQuestionTypes();
-    } catch(e) {}
+    } catch (e) {}
     this.loadCategories(instId);
   }
 
-  loadCategories(instId?: string, showLoader: boolean = true){
+  loadCategories(instId?: string, showLoader: boolean = true) {
     if (showLoader) this.loader.show();
     instId = this.getScopedInstituteId(instId);
-    if (!instId) {
+    if (!instId || (!this.questionBankFiltersApplied && !this.isEditing)) {
       this.categories = [];
       this.allCategories = [];
       this.selectedCategory = null;
-      try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
-      try { this.categoryCtrl.setValue(''); } catch(e) {}
+      try {
+        if (this.questions && this.questions[0]) this.questions[0].category_id = '';
+      } catch (e) {}
+      try {
+        this.categoryCtrl.setValue('');
+      } catch (e) {}
       if (showLoader) this.loader.hide();
       return;
     }
@@ -919,32 +1439,49 @@ export class AdminQuestionsComponent {
     const url = `${this.categoryDetailsUrl}?${params.join('&')}&_ts=${Date.now()}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
         const scopedInstitute = this.getScopedInstituteId(instId);
         const mapped = arr
           .filter((r: any) => this.isAllowedCategoryForInstitute(r, scopedInstitute))
-          .map((r:any) => ({
+          .map((r: any) => ({
             name: r.name || r.category_name || '',
             category_id: r.category_id || r.id,
             description: r.description || r.desc || '',
             type: r.type || r.category_type || '',
-            mark_each_question: (typeof r.mark_each_question !== 'undefined') ? r.mark_each_question : (r.mark_for_each_question ?? r.question_mark ?? r.marks ?? null),
-            mark_for_each_question: r.mark_for_each_question ?? r.mark_each_question ?? r.question_mark ?? r.marks ?? null,
-            institute: r.institute || { institute_id: r.institute_id || r.instituteId || null }
+            mark_each_question:
+              typeof r.mark_each_question !== 'undefined'
+                ? r.mark_each_question
+                : (r.mark_for_each_question ?? r.question_mark ?? r.marks ?? null),
+            mark_for_each_question:
+              r.mark_for_each_question ??
+              r.mark_each_question ??
+              r.question_mark ??
+              r.marks ??
+              null,
+            institute: r.institute || { institute_id: r.institute_id || r.instituteId || null },
           }));
         const cid = this.questions && this.questions[0] && (this.questions[0].category_id || '');
-        const currentCategory = cid ? (this.selectedCategory || this.categories.find(c => String(c.category_id) === String(cid)) || null) : null;
+        const currentCategory = cid
+          ? this.selectedCategory ||
+            this.categories.find((c) => String(c.category_id) === String(cid)) ||
+            null
+          : null;
         // Keep the active question bank visible in the dropdown even if a filter refresh
         // returns a list that doesn't include it.
-        if (currentCategory && !mapped.some((c: any) => String(c.category_id) === String(currentCategory?.category_id))) {
+        if (
+          currentCategory &&
+          !mapped.some((c: any) => String(c.category_id) === String(currentCategory?.category_id))
+        ) {
           mapped.unshift({
             name: currentCategory.name || '',
             category_id: currentCategory.category_id || '',
             description: currentCategory.description || '',
             type: currentCategory.type || '',
-            mark_each_question: currentCategory.mark_each_question ?? currentCategory.mark_for_each_question ?? null,
-            mark_for_each_question: currentCategory.mark_for_each_question ?? currentCategory.mark_each_question ?? null,
-            institute: { institute_id: scopedInstitute || null }
+            mark_each_question:
+              currentCategory.mark_each_question ?? currentCategory.mark_for_each_question ?? null,
+            mark_for_each_question:
+              currentCategory.mark_for_each_question ?? currentCategory.mark_each_question ?? null,
+            institute: { institute_id: scopedInstitute || null },
           });
         }
         this.allCategories = mapped.slice();
@@ -952,21 +1489,26 @@ export class AdminQuestionsComponent {
         // if a category was prefilled on the first question, set control to that object so autocomplete shows it
         try {
           if (cid) {
-            const found = this.allCategories.find(c => String(c.category_id) === String(cid));
+            const found = this.allCategories.find((c) => String(c.category_id) === String(cid));
             if (found) {
               this.selectedCategory = found as any;
-              try { this.categoryCtrl.setValue(found); } catch(e) {}
+              try {
+                this.categoryCtrl.setValue(found);
+              } catch (e) {}
               this.enforceQuestionTypeForSelectedCategory();
               this.syncQuestionMarksToCategory();
               this.loadCategorySettings(found.category_id);
             }
           }
-        } catch(e) {}
+        } catch (e) {}
       },
-      complete: () => { if (showLoader) this.loader.hide(); },
-      error: (err) => { if (showLoader) this.loader.hide();
+      complete: () => {
+        if (showLoader) this.loader.hide();
+      },
+      error: (err) => {
+        if (showLoader) this.loader.hide();
         console.warn('Failed to load categories', err);
-      }
+      },
     });
   }
 
@@ -981,7 +1523,14 @@ export class AdminQuestionsComponent {
     try {
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       const user = raw ? JSON.parse(raw) : null;
-      return String(user?.user_id || user?.id || user?.userId || user?._id || sessionStorage.getItem('user_id') || '');
+      return String(
+        user?.user_id ||
+          user?.id ||
+          user?.userId ||
+          user?._id ||
+          sessionStorage.getItem('user_id') ||
+          ''
+      );
     } catch (e) {
       return String(sessionStorage.getItem('user_id') || '');
     }
@@ -990,8 +1539,13 @@ export class AdminQuestionsComponent {
   private buildCategoryFilterParams(instId?: string): string[] {
     const params: string[] = [];
     if (instId) params.push(`institute_id=${encodeURIComponent(instId)}`);
-    if (this.selectedDepartments.length) params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
-    if (this.selectedTeams.length) params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
+    if (this.selectedDepartments.length)
+      params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
+    if (this.selectedTeams.length)
+      params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
+    if (this.selectedCategoryTypes && this.selectedCategoryTypes.length) {
+      params.push(`type=${encodeURIComponent(this.selectedCategoryTypes.join(','))}`);
+    }
     const createdAfter = this.formatFilterDate(this.filterCreationDateAfter);
     const createdBefore = this.formatFilterDate(this.filterCreationDate);
     if (createdAfter) params.push(`created_after=${encodeURIComponent(createdAfter)}`);
@@ -1005,29 +1559,52 @@ export class AdminQuestionsComponent {
   }
 
   loadDepartments(instId?: string) {
-    if (!instId) { this.departments = []; return; }
+    if (!instId) {
+      this.departments = [];
+      return;
+    }
     const url = `${API_BASE}/get-department-list`;
     this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.departments = arr.map((d: any) => ({ id: String(d.department_id || d.dept_id || d.id || d.deptId || ''), name: d.name || d.department_name || d.dept_name || d.title || '' })).filter((d: any) => d.id);
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
+        this.departments = arr
+          .map((d: any) => ({
+            id: String(d.department_id || d.dept_id || d.id || d.deptId || ''),
+            name: d.name || d.department_name || d.dept_name || d.title || '',
+          }))
+          .filter((d: any) => d.id);
       },
-      error: (err) => { console.warn('Failed to load departments', err); this.departments = []; }
+      error: (err) => {
+        console.warn('Failed to load departments', err);
+        this.departments = [];
+      },
     });
   }
 
   loadTeams(instId?: string) {
-    if (!instId) { this.teams = []; return; }
+    if (!instId) {
+      this.teams = [];
+      return;
+    }
     const url = `${API_BASE}/get-teams-list`;
     this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.teams = arr.map((t: any) => ({ id: String(t.team_id || t.teams_id || t.id || t.teamId || ''), name: t.name || t.team_name || t.title || '' })).filter((t: any) => t.id);
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
+        this.teams = arr
+          .map((t: any) => ({
+            id: String(t.team_id || t.teams_id || t.id || t.teamId || ''),
+            name: t.name || t.team_name || t.title || '',
+          }))
+          .filter((t: any) => t.id);
       },
-      error: (err) => { console.warn('Failed to load teams', err); this.teams = []; }
+      error: (err) => {
+        console.warn('Failed to load teams', err);
+        this.teams = [];
+      },
     });
   }
 
+  // Toggle filter popup
   toggleQuestionBankFilters() {
     this.questionBankFilterOpen = !this.questionBankFilterOpen;
     if (this.questionBankFilterOpen) {
@@ -1039,18 +1616,156 @@ export class AdminQuestionsComponent {
     }
   }
 
+  // Apply filters to scope Question Banks dropdown & dismiss popup
   applyQuestionBankFilters() {
+    this.showQuestionBankFilterError = false;
     this.questionBankFiltersApplied = true;
     this.selectedCategory = null;
-    try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
-    try { this.categoryCtrl.setValue(''); } catch(e) {}
+    try {
+      if (this.questions && this.questions[0]) this.questions[0].category_id = '';
+    } catch (e) {}
+    try {
+      this.categoryCtrl.setValue('');
+    } catch (e) {}
+    this.refreshInstituteScope();
     this.loadCategories(this.questions?.[0]?.institute_id || '', true);
+
+    // Close the popup after applying
     this.questionBankFilterOpen = false;
   }
 
+  openCreatedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.filterCreationDateAfter,
+        endDate: this.filterCreationDate,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.filterCreationDateAfter = res.startDate;
+        this.filterCreationDate = res.endDate;
+      }
+    });
+  }
+
+  getCreatedDateRangeDisplay(): string {
+    const start = this.filterCreationDateAfter;
+    const end = this.filterCreationDate;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(start);
+    const endStr = format(end);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `From ${startStr}`;
+    if (endStr) return `Until ${endStr}`;
+    return '';
+  }
+
+  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean; tooltip?: string }> {
+    if (!this.questionBankFiltersApplied) return [];
+    const chips: Array<{ key: string; label: string; removable: boolean; tooltip?: string }> = [];
+
+    if (this.selectedCountries && this.selectedCountries.length) {
+      if (this.selectedCountries.length === 1) {
+        const countryName = this.countries.find((c) => String(c.code) === String(this.selectedCountries[0]))?.name || this.selectedCountries[0];
+        chips.push({ key: 'country', label: `Country: ${countryName}`, removable: true, tooltip: countryName });
+      } else {
+        chips.push({ key: 'country', label: `Countries: ${this.selectedCountries.length} selected`, removable: true });
+      }
+    }
+    if (this.filterCity) {
+      chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
+    }
+    if (this.selectedIndustries && this.selectedIndustries.length) {
+      if (this.selectedIndustries.length === 1) {
+        chips.push({ key: 'industry', label: `Industry: ${this.selectedIndustries[0]}`, removable: true });
+      } else {
+        chips.push({ key: 'industry', label: `Industries: ${this.selectedIndustries.length} selected`, removable: true });
+      }
+    }
+    if (this.selectedSectors && this.selectedSectors.length) {
+      if (this.selectedSectors.length === 1) {
+        chips.push({ key: 'sector', label: `Sector: ${this.selectedSectors[0]}`, removable: true });
+      } else {
+        chips.push({ key: 'sector', label: `Sectors: ${this.selectedSectors.length} selected`, removable: true });
+      }
+    }
+    if (this.selectedCategoryTypes && this.selectedCategoryTypes.length) {
+      const typeLabels = this.selectedCategoryTypes.map((t) => (t === 'choose' ? 'Objective' : t === 'multi' ? 'Multiple Choice' : t === 'descriptive' ? 'Descriptive' : t));
+      chips.push({ key: 'type', label: `Type: ${typeLabels.join(', ')}`, removable: true });
+    }
+    const createdAfter = this.formatFilterDate(this.filterCreationDateAfter);
+    const createdBefore = this.formatFilterDate(this.filterCreationDate);
+    if (createdAfter && createdBefore) {
+      chips.push({ key: 'created_date', label: `Created: ${createdAfter} - ${createdBefore}`, removable: true });
+    } else if (createdAfter) {
+      chips.push({ key: 'created_after', label: `Created after: ${createdAfter}`, removable: true });
+    } else if (createdBefore) {
+      chips.push({ key: 'created_before', label: `Created before: ${createdBefore}`, removable: true });
+    }
+    if (this.filterCreatedByMe) {
+      chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
+    }
+    if (this.filterPublicAccess) {
+      chips.push({ key: 'public_access', label: 'Public access', removable: true });
+    }
+
+    return chips;
+  }
+
+  removeAppliedFilter(key: string) {
+    if (!key) return;
+    if (key === 'country') {
+      this.selectedCountries = [];
+      this.filterCountry = '';
+      this.countrySearch = '';
+    } else if (key === 'city') {
+      this.filterCity = '';
+    } else if (key === 'industry') {
+      this.selectedIndustries = [];
+      this.industrySearch = '';
+      this.selectedSectors = [];
+      this.sectorSearch = '';
+    } else if (key === 'sector') {
+      this.selectedSectors = [];
+      this.sectorSearch = '';
+    } else if (key === 'type') {
+      this.selectedCategoryTypes = [];
+    } else if (key === 'created_date' || key === 'created_after' || key === 'created_before') {
+      this.filterCreationDateAfter = null;
+      this.filterCreationDate = null;
+    } else if (key === 'created_by_me') {
+      this.filterCreatedByMe = false;
+    } else if (key === 'public_access') {
+      this.filterPublicAccess = false;
+    }
+    this.applyQuestionBankFilters();
+  }
+
+  clearAppliedFilters() {
+    this.resetQuestionBankFilters(true);
+  }
+
+  // Reset filters & dismiss popup
   resetQuestionBankFilters(reload: boolean = true) {
+    this.showQuestionBankFilterError = false;
     this.selectedDepartments = [];
     this.selectedTeams = [];
+    this.selectedCountries = [];
+    this.selectedIndustries = [];
+    this.selectedSectors = [];
+    this.selectedCategoryTypes = [];
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
     this.filterCreatedByMe = false;
@@ -1067,14 +1782,25 @@ export class AdminQuestionsComponent {
       this.sectorSearch = '';
       if (!this.globalInstituteId) this.loadInstitutes();
       this.selectedCategory = null;
-      try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
-      try { this.categoryCtrl.setValue(''); } catch(e) {}
+      try {
+        if (this.questions && this.questions[0]) this.questions[0].category_id = '';
+      } catch (e) {}
+      try {
+        this.categoryCtrl.setValue('');
+      } catch (e) {}
       this.loadCategories(this.questions?.[0]?.institute_id || '', true);
     }
+    // Close the popup after resetting
     this.questionBankFilterOpen = false;
   }
   refreshCategoriesOnCategoryOpen(opened: boolean) {
     if (!opened) return;
+    if (!this.questionBankFiltersApplied && !this.isEditing) {
+      this.showQuestionBankFilterError = true;
+      this.categories = [];
+      return;
+    }
+    this.showQuestionBankFilterError = false;
     const instId = this.questions && this.questions[0] && this.questions[0].institute_id;
     if (!instId) return;
     this.categorySearchText = '';
@@ -1085,13 +1811,21 @@ export class AdminQuestionsComponent {
     this.categorySearchText = String(value || '');
     if (!value) {
       this.selectedCategory = null;
-      try { if (this.questions && this.questions[0]) this.questions[0].category_id = ''; } catch(e) {}
+      try {
+        if (this.questions && this.questions[0]) this.questions[0].category_id = '';
+      } catch (e) {}
     }
   }
-  onCategoryAutocompleteSelected(cat: any){
-    if (!cat) { this.selectedCategory = null; this.questions[0].category_id = ''; return; }
+  onCategoryAutocompleteSelected(cat: any) {
+    if (!cat) {
+      this.selectedCategory = null;
+      this.questions[0].category_id = '';
+      return;
+    }
     this.selectedCategory = cat;
-    try { this.questions[0].category_id = cat.category_id; } catch(e) {}
+    try {
+      this.questions[0].category_id = cat.category_id;
+    } catch (e) {}
     this.categorySearchText = '';
     this.enforceQuestionTypeForSelectedCategory();
     this.syncQuestionMarksToCategory();
@@ -1099,19 +1833,29 @@ export class AdminQuestionsComponent {
   }
 
   get filteredCategories() {
-    const q = String(this.categorySearchText || '').trim().toLowerCase();
+    const q = String(this.categorySearchText || '')
+      .trim()
+      .toLowerCase();
     const source = this.allCategories.length ? this.allCategories : this.categories;
     if (!q) return source.slice();
-    return source.filter(c => (c.name || '').toLowerCase().includes(q));
+    return source.filter((c) => (c.name || '').toLowerCase().includes(q));
   }
 
-  displayCategory(cat: any){ return cat && cat.name ? cat.name : ''; }
+  displayCategory(cat: any) {
+    return cat && cat.name ? cat.name : '';
+  }
 
   onCategorySelected(categoryId: string) {
-    const found = (this.allCategories || this.categories || []).find(c => String(c.category_id) === String(categoryId));
+    const found = (this.allCategories || this.categories || []).find(
+      (c) => String(c.category_id) === String(categoryId)
+    );
     this.selectedCategory = found || null;
-    try { this.questions[0].category_id = found?.category_id || ''; } catch(e) {}
-    try { this.categoryCtrl.setValue(found || ''); } catch(e) {}
+    try {
+      this.questions[0].category_id = found?.category_id || '';
+    } catch (e) {}
+    try {
+      this.categoryCtrl.setValue(found || '');
+    } catch (e) {}
     this.enforceQuestionTypeForSelectedCategory();
     this.syncQuestionMarksToCategory();
     if (categoryId) this.loadCategorySettings(categoryId);
@@ -1122,8 +1866,13 @@ export class AdminQuestionsComponent {
     const url = `${this.categoryDetailsUrl}?category_id=${encodeURIComponent(String(categoryId))}&_ts=${Date.now()}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        const items = Array.isArray(res) ? res : (res?.data || []);
-        const detail = Array.isArray(items) && items.length ? items[0] : (res?.data && !Array.isArray(res.data) ? res.data : res);
+        const items = Array.isArray(res) ? res : res?.data || [];
+        const detail =
+          Array.isArray(items) && items.length
+            ? items[0]
+            : res?.data && !Array.isArray(res.data)
+              ? res.data
+              : res;
         if (!detail) return;
         const current: any = this.selectedCategory || {};
         this.selectedCategory = {
@@ -1132,45 +1881,73 @@ export class AdminQuestionsComponent {
           category_id: detail.category_id || detail.id || detail._id || current.category_id,
           description: detail.description || detail.desc || current.description,
           type: detail.type || detail.category_type || current.type,
-          mark_each_question: (typeof detail.mark_each_question !== 'undefined') ? detail.mark_each_question : (detail.mark_for_each_question ?? detail.question_mark ?? detail.marks ?? current.mark_each_question),
-          mark_for_each_question: detail.mark_for_each_question ?? detail.mark_each_question ?? detail.question_mark ?? detail.marks ?? current.mark_for_each_question
+          mark_each_question:
+            typeof detail.mark_each_question !== 'undefined'
+              ? detail.mark_each_question
+              : (detail.mark_for_each_question ??
+                detail.question_mark ??
+                detail.marks ??
+                current.mark_each_question),
+          mark_for_each_question:
+            detail.mark_for_each_question ??
+            detail.mark_each_question ??
+            detail.question_mark ??
+            detail.marks ??
+            current.mark_for_each_question,
         };
         this.enforceQuestionTypeForSelectedCategory();
         this.syncQuestionMarksToCategory();
       },
-      error: (err) => { console.warn('Failed to load category settings', err); }
+      error: (err) => {
+        console.warn('Failed to load category settings', err);
+      },
     });
   }
   get filteredQuestionTypes() {
     const type = this.normalizeCategoryType(this.selectedCategory?.type);
-    if (type === 'descriptive') return this.questionTypes.filter(t => t.value === 'descriptive');
-    if (type === 'objective') return this.questionTypes.filter(t => t.value !== 'descriptive');
+    if (type === 'descriptive') return this.questionTypes.filter((t) => t.value === 'descriptive');
+    if (type === 'objective') return this.questionTypes.filter((t) => t.value !== 'descriptive');
     return this.questionTypes;
   }
 
   getQuestionTypeOptions(q: any) {
     const options = this.isEditing ? [...this.questionTypes] : [...this.filteredQuestionTypes];
     const currentType = q?.type ? this.normalizeQuestionType(q.type, q) : '';
-    if (currentType && !options.some(t => t.value === currentType)) {
-      const found = (this.questionTypes || []).find(t => t.value === currentType);
+    if (currentType && !options.some((t) => t.value === currentType)) {
+      const found = (this.questionTypes || []).find((t) => t.value === currentType);
       if (found) options.unshift(found);
     }
     return options;
   }
 
   private normalizeCategoryType(type: any): string {
-    const normalized = String(type || '').trim().toLowerCase();
+    const normalized = String(type || '')
+      .trim()
+      .toLowerCase();
     if (normalized === 'descriptive') return 'descriptive';
     if (normalized === 'objective') return 'objective';
     return normalized;
   }
 
   private normalizeQuestionType(type: any, question?: any): string {
-    const normalized = String(type || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-    if (['choose', 'single', 'single_choice', 'singlechoice', 'mcq', 'objective'].includes(normalized)) return 'choose';
-    if (['multi', 'multiple', 'multiple_choice', 'multiplechoice', 'multi_choice'].includes(normalized)) return 'multi';
-    if (['fill', 'fill_blank', 'fill_in_the_blank', 'fillintheblank', 'blank'].includes(normalized)) return 'fill';
-    if (['descriptive', 'description', 'subjective', 'essay', 'long_answer'].includes(normalized)) return 'descriptive';
+    const normalized = String(type || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, '_');
+    if (
+      ['choose', 'single', 'single_choice', 'singlechoice', 'mcq', 'objective'].includes(normalized)
+    )
+      return 'choose';
+    if (
+      ['multi', 'multiple', 'multiple_choice', 'multiplechoice', 'multi_choice'].includes(
+        normalized
+      )
+    )
+      return 'multi';
+    if (['fill', 'fill_blank', 'fill_in_the_blank', 'fillintheblank', 'blank'].includes(normalized))
+      return 'fill';
+    if (['descriptive', 'description', 'subjective', 'essay', 'long_answer'].includes(normalized))
+      return 'descriptive';
     if (question && Array.isArray(question.options) && question.options.length) return 'choose';
     return normalized;
   }
@@ -1180,7 +1957,12 @@ export class AdminQuestionsComponent {
   }
   getCategoryQuestionMark(): number | null {
     const cat: any = this.selectedCategory;
-    const raw = cat?.mark_each_question ?? cat?.mark_for_each_question ?? cat?.question_mark ?? cat?.marks ?? null;
+    const raw =
+      cat?.mark_each_question ??
+      cat?.mark_for_each_question ??
+      cat?.question_mark ??
+      cat?.marks ??
+      null;
     if (raw === null || raw === undefined || raw === '') return null;
     const mark = Number(raw);
     return isNaN(mark) ? null : mark;
@@ -1191,100 +1973,116 @@ export class AdminQuestionsComponent {
     if (mark === null) return;
     try {
       this.aiMarksPerQuestion = mark;
-      (this.questions || []).forEach((q: any) => q.marks = mark);
-    } catch(e) {}
+      (this.questions || []).forEach((q: any) => (q.marks = mark));
+    } catch (e) {}
   }
   private enforceQuestionTypeForSelectedCategory() {
-    const allowed = new Set(this.filteredQuestionTypes.map(t => t.value));
+    const allowed = new Set(this.filteredQuestionTypes.map((t) => t.value));
     try {
       if (this.aiQuestionType && !allowed.has(this.aiQuestionType)) this.aiQuestionType = '';
       (this.questions || []).forEach((q: any) => {
         if (!this.isEditing && q?.type && !allowed.has(q.type)) q.type = '';
       });
-    } catch(e) {}
+    } catch (e) {}
   }
 
   private clearQuestionTypes() {
     try {
       this.aiQuestionType = '';
-      (this.questions || []).forEach((q: any) => q.type = '');
-    } catch(e) {}
+      (this.questions || []).forEach((q: any) => (q.type = ''));
+    } catch (e) {}
   }
 
-  getQuestionTypeLabel(value: string | undefined | null){
-    try{
+  getQuestionTypeLabel(value: string | undefined | null) {
+    try {
       if (!value) return '—';
-      const found = (this.questionTypes || []).find(t => t.value === value);
-      return (found && found.label) ? found.label : (value || '—');
-    }catch(e){ return value || '—'; }
+      const found = (this.questionTypes || []).find((t) => t.value === value);
+      return found && found.label ? found.label : value || '—';
+    } catch (e) {
+      return value || '—';
+    }
   }
 
-  getComplexityLabel(value: string | undefined | null){
-    try{
+  getComplexityLabel(value: string | undefined | null) {
+    try {
       if (!value) return '';
-      const found = (this.complexityLevels || []).find(c => c.value === value);
-      return (found && found.label) ? found.label : (value || '');
-    }catch(e){ return value || ''; }
+      const found = (this.complexityLevels || []).find((c) => c.value === value);
+      return found && found.label ? found.label : value || '';
+    } catch (e) {
+      return value || '';
+    }
   }
 
-  openFineTuningDialog(index: number){
-    try{
+  openFineTuningDialog(index: number) {
+    try {
       const q = this.questions && this.questions[index];
       if (!q) return;
       q.showFineTune = !q.showFineTune;
-    }catch(e){ /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   }
 
-  countWords(text: string | null | undefined){
+  countWords(text: string | null | undefined) {
     if (!text) return 0;
     return String(text).trim().split(/\s+/).filter(Boolean).length;
   }
 
-  loadExams(instituteId: string){
+  loadExams(instituteId: string) {
     this.loader.show();
-    if(!instituteId){ this.exams = []; return; }
+    if (!instituteId) {
+      this.exams = [];
+      return;
+    }
     const url = `${this.examsUrl}?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
-        this.exams = arr.map((e:any) => ({ title: e.title || e.name || '', exam_id: e.exam_id || e.id || e.examId }));
+        const arr = Array.isArray(res) ? res : res && Array.isArray(res.data) ? res.data : [];
+        this.exams = arr.map((e: any) => ({
+          title: e.title || e.name || '',
+          exam_id: e.exam_id || e.id || e.examId,
+        }));
       },
-      complete: () => { this.loader.hide(); },
+      complete: () => {
+        this.loader.hide();
+      },
       error: (err) => {
         this.loader.hide();
         console.warn('Failed to load tests', err);
         this.exams = [];
-      }
+      },
     });
   }
 
-  addOption(qIndex: number){
+  addOption(qIndex: number) {
     this.questions[qIndex].options.push('');
   }
 
   // trackBy function to keep option input DOM stable when option values change
-  trackByIndex(index: number, item: any) { return index; }
+  trackByIndex(index: number, item: any) {
+    return index;
+  }
 
-  removeOption(qIndex:number, i:number){
+  removeOption(qIndex: number, i: number) {
     const q = this.questions[qIndex];
     if (!q || !Array.isArray(q.options) || i < 0 || i >= q.options.length) return;
-    q.options.splice(i,1);
+    q.options.splice(i, 1);
     // Keep selected correct indexes aligned with the remaining option rows.
     if (q.type === 'choose') {
       if (q.correct === i) q.correct = null;
       else if (typeof q.correct === 'number' && q.correct > i) q.correct = q.correct - 1;
     }
-    if (q.type === 'multi' && Array.isArray(q.correct)){
+    if (q.type === 'multi' && Array.isArray(q.correct)) {
       q.correct = q.correct
         .filter((idx: number) => idx !== i)
-        .map((idx: number) => idx > i ? idx - 1 : idx);
+        .map((idx: number) => (idx > i ? idx - 1 : idx));
     }
   }
 
   onPanelOpened(q: any, index: number) {
     // mark opened, collapse others
     try {
-      this.questions.forEach((qq, idx) => qq._expanded = (idx === index));
+      this.questions.forEach((qq, idx) => (qq._expanded = idx === index));
     } catch (e) {}
   }
 
@@ -1292,28 +2090,29 @@ export class AdminQuestionsComponent {
     // mark closed; keep at least one expanded (if all closed, re-open first)
     try {
       q._expanded = false;
-      const anyOpen = this.questions.some((qq:any) => qq._expanded);
+      const anyOpen = this.questions.some((qq: any) => qq._expanded);
       if (!anyOpen && this.questions.length) this.questions[0]._expanded = true;
     } catch (e) {}
   }
 
-  setSingleCorrect(qIndex:number, i:number){
+  setSingleCorrect(qIndex: number, i: number) {
     this.questions[qIndex].correct = i;
   }
 
-  toggleMultiCorrect(qIndex:number, i:number, checked: boolean){
+  toggleMultiCorrect(qIndex: number, i: number, checked: boolean) {
     const q = this.questions[qIndex];
     if (!Array.isArray(q.correct)) q.correct = [];
     const arr: number[] = q.correct as number[];
     const idx = arr.indexOf(i);
     if (checked && idx === -1) arr.push(i);
-    if (!checked && idx > -1) arr.splice(idx,1);
+    if (!checked && idx > -1) arr.splice(idx, 1);
   }
 
-  isOptionCorrect(qIndex:number, i:number){
+  isOptionCorrect(qIndex: number, i: number) {
     const q = this.questions[qIndex];
     if (q.type === 'choose') return q.correct === i;
-    if (q.type === 'multi') return Array.isArray(q.correct) && (q.correct as number[]).indexOf(i) > -1;
+    if (q.type === 'multi')
+      return Array.isArray(q.correct) && (q.correct as number[]).indexOf(i) > -1;
     return false;
   }
 
@@ -1339,106 +2138,175 @@ export class AdminQuestionsComponent {
   }
 
   // Call backend fine-tune endpoint to improve question/answer pair
-  generateModelAnswer(qIndex:number, qText:string, answerText:string, finetuneInstructions?:string){
+  generateModelAnswer(
+    qIndex: number,
+    qText: string,
+    answerText: string,
+    finetuneInstructions?: string
+  ) {
     this.loader.show();
-    try{
+    try {
       const payload: any = {
         question_text: qText || '',
-        answer_text: answerText || ''
+        answer_text: answerText || '',
       };
       if (finetuneInstructions) payload.additional_instructions = finetuneInstructions;
       // include question id if available so backend can map
-      try{ const q = this.questions && this.questions[qIndex]; if (q && (q.id || q.question_id)) payload.question_id = q.id || q.question_id; }catch(e){}
+      try {
+        const q = this.questions && this.questions[qIndex];
+        if (q && (q.id || q.question_id)) payload.question_id = q.id || q.question_id;
+      } catch (e) {}
 
       const url = `${API_BASE}/fine-tune-question`;
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
-          try{
-            if (res && (res.status === true || typeof res.status === 'undefined')){
+          try {
+            if (res && (res.status === true || typeof res.status === 'undefined')) {
               const data = res.data || res;
               // Replace question text and answer for the target block if present in response
-              if (data && (data.question_text || data.answer_text)){
+              if (data && (data.question_text || data.answer_text)) {
                 const target = this.questions && this.questions[qIndex];
-                if (target){
+                if (target) {
                   if (data.question_text) target.text = data.question_text;
                   if (data.answer_text) target.answerText = data.answer_text;
                 }
-                try{ notify('Fine-tuned question applied', 'success'); }catch(e){}
+                try {
+                  notify('Fine-tuned question applied', 'success');
+                } catch (e) {}
                 return;
               }
             }
-            notify(res?.statusMessage || res?.message || 'Fine-tune did not return improved content', 'error');
-          }catch(e){ console.error('Failed to process fine-tune response', e); try{ notify('Failed to apply fine-tune', 'error'); }catch(_){} }
+            notify(
+              res?.statusMessage || res?.message || 'Fine-tune did not return improved content',
+              'error'
+            );
+          } catch (e) {
+            console.error('Failed to process fine-tune response', e);
+            try {
+              notify('Failed to apply fine-tune', 'error');
+            } catch (_) {}
+          }
         },
-        complete: () => { this.loader.hide(); },
-        error: (err) => { console.error('Fine-tune request failed', err); try{ notify(err?.error?.message || 'Fine-tune failed', 'error'); }catch(e){} this.loader.hide(); }
+        complete: () => {
+          this.loader.hide();
+        },
+        error: (err) => {
+          console.error('Fine-tune request failed', err);
+          try {
+            notify(err?.error?.message || 'Fine-tune failed', 'error');
+          } catch (e) {}
+          this.loader.hide();
+        },
       });
-    }catch(e){ console.error('generateModelAnswer failed', e); try{ notify('Fine-tune request failed', 'error'); }catch(_){} }
+    } catch (e) {
+      console.error('generateModelAnswer failed', e);
+      try {
+        notify('Fine-tune request failed', 'error');
+      } catch (_) {}
+    }
   }
 
-  submit(){
+  submit() {
     this.loader.show();
     // get user_id for created_by and updated_by fields if needed
-    const raw = sessionStorage.getItem('user')
+    const raw = sessionStorage.getItem('user');
     let userId = '';
     try {
       if (raw) {
         const u = JSON.parse(raw);
         userId = u?.user_id || u?.id || u?.userId || '';
       }
-    } catch (e) { /* ignore */ }
-    if (this.mode === 'bulk'){
+    } catch (e) {
+      /* ignore */
+    }
+    if (this.mode === 'bulk') {
       // use selected file and submit via FormData
-      if (!this.selectedBulkFile){ this.loader.hide(); try { notify('Please select a file to upload', 'error'); } catch(e){}; return; }
+      if (!this.selectedBulkFile) {
+        this.loader.hide();
+        try {
+          notify('Please select a file to upload', 'error');
+        } catch (e) {}
+        return;
+      }
       const fd = new FormData();
       fd.append('file', this.selectedBulkFile);
-      if (this.questions[0] && this.questions[0].institute_id) fd.append('institute_id', this.questions[0].institute_id);
-      if (this.questions[0] && this.questions[0].category_id) fd.append('category_id', this.questions[0].category_id);
+      if (this.questions[0] && this.questions[0].institute_id)
+        fd.append('institute_id', this.questions[0].institute_id);
+      if (this.questions[0] && this.questions[0].category_id)
+        fd.append('category_id', this.questions[0].category_id);
       this.http.post<any>(this.bulkUploadUrl, fd).subscribe({
         next: (res) => {
           try {
             const msg = res?.statusMessage || res?.message || 'Bulk upload completed';
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
             notify(msg, ok ? 'success' : 'error');
-          } catch(e) {}
+          } catch (e) {}
           this.selectedBulkFile = null;
         },
-        complete: () => { this.loader.hide(); },
-        error: (err) => { console.error('Bulk upload failed', err); try { notify(err?.error?.statusMessage || err?.error?.message || 'Bulk upload failed', 'error'); } catch(e){} this.loader.hide(); }
+        complete: () => {
+          this.loader.hide();
+        },
+        error: (err) => {
+          console.error('Bulk upload failed', err);
+          try {
+            notify(
+              err?.error?.statusMessage || err?.error?.message || 'Bulk upload failed',
+              'error'
+            );
+          } catch (e) {}
+          this.loader.hide();
+        },
       });
       return;
     }
 
-    if (this.isEditing && this.pendingDeletedQuestionId && (!this.questions || this.questions.length === 0)) {
+    if (
+      this.isEditing &&
+      this.pendingDeletedQuestionId &&
+      (!this.questions || this.questions.length === 0)
+    ) {
       const deleteId = this.pendingDeletedQuestionId;
       const url = `${API_BASE}/delete/question/${encodeURIComponent(String(deleteId))}`;
       this.http.delete<any>(url).subscribe({
         next: (res) => {
           try {
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
-            const msg = ok ? 'Question deleted successfully.' : (res?.statusMessage || res?.message || 'Failed to delete question.');
+            const msg = ok
+              ? 'Question deleted successfully.'
+              : res?.statusMessage || res?.message || 'Failed to delete question.';
             notify(msg, ok ? 'success' : 'error');
             if (ok) {
               this.pendingDeletedQuestionId = undefined;
               this.editId = undefined;
               this.isEditing = false;
             }
-          } catch(e){}
+          } catch (e) {}
         },
         error: (err) => {
           console.error('Failed to delete question', err);
-          try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to delete question.', 'error'); } catch(e){}
+          try {
+            notify(
+              err?.error?.statusMessage || err?.error?.message || 'Failed to delete question.',
+              'error'
+            );
+          } catch (e) {}
           this.loader.hide();
         },
-        complete: () => { this.loader.hide(); }
+        complete: () => {
+          this.loader.hide();
+        },
       });
       return;
     }
-    const selectedInstituteId = this.questions && this.questions[0] && (this.questions[0] as any).institute_id;
-    const selectedCategoryId = this.questions && this.questions[0] && (this.questions[0] as any).category_id;
+    const selectedInstituteId =
+      this.questions && this.questions[0] && (this.questions[0] as any).institute_id;
+    const selectedCategoryId =
+      this.questions && this.questions[0] && (this.questions[0] as any).category_id;
     if (!this.isEditing && (!selectedInstituteId || !selectedCategoryId)) {
       this.loader.hide();
-      try { notify('Please select an Institution and Question Bank before saving.', 'error'); } catch(e){}
+      try {
+        notify('Please select an Institution and Question Bank before saving.', 'error');
+      } catch (e) {}
       return;
     }
 
@@ -1447,31 +2315,53 @@ export class AdminQuestionsComponent {
     const validQuestions = (this.questions || []).filter((q: any) => this.isValidQuestion(q));
     if (!validQuestions.length) {
       this.loader.hide();
-      try { notify('Please add at least one question before saving.', 'error'); } catch(e){}
+      try {
+        notify('Please add at least one question before saving.', 'error');
+      } catch (e) {}
       return;
     }
 
     // Submit all questions as a batch; basic validation per question
-    for (let q of validQuestions){
+    for (let q of validQuestions) {
       const optionCount = Array.isArray(q.options) ? q.options.length : 0;
-      if (q.type === 'choose' && optionCount > 0 && (q.correct === null || q.correct === undefined)){
-        try { notify('Please select the correct option for single choice in all question blocks', 'error'); } catch(e){}
+      if (
+        q.type === 'choose' &&
+        optionCount > 0 &&
+        (q.correct === null || q.correct === undefined)
+      ) {
+        try {
+          notify(
+            'Please select the correct option for single choice in all question blocks',
+            'error'
+          );
+        } catch (e) {}
         this.loader.hide();
         return;
       }
-      if (q.type === 'multi' && optionCount > 0 && (!Array.isArray(q.correct) || (q.correct as number[]).length === 0)){
-        try { notify('Please select one or more correct options for multiple choice in all question blocks', 'error'); } catch(e){}
+      if (
+        q.type === 'multi' &&
+        optionCount > 0 &&
+        (!Array.isArray(q.correct) || (q.correct as number[]).length === 0)
+      ) {
+        try {
+          notify(
+            'Please select one or more correct options for multiple choice in all question blocks',
+            'error'
+          );
+        } catch (e) {}
         this.loader.hide();
         return;
       }
       if (!this.hasRequiredAnswer(q)) {
-        try { notify('Answer is required for all question blocks', 'error'); } catch(e){}
+        try {
+          notify('Answer is required for all question blocks', 'error');
+        } catch (e) {}
         this.loader.hide();
         return;
       }
     }
 
-    const payload = validQuestions.map((q:any) => {
+    const payload = validQuestions.map((q: any) => {
       const p = JSON.parse(JSON.stringify(q));
       if (q.type === 'fill' || q.type === 'descriptive') {
         p.options = [q.answerText || ''];
@@ -1481,17 +2371,21 @@ export class AdminQuestionsComponent {
       } else {
         p.options = Array.isArray(q.options) ? q.options.slice() : [];
       }
-      if (q.type === 'choose' && typeof q.correct === 'number' && p.options[q.correct] !== undefined){
+      if (
+        q.type === 'choose' &&
+        typeof q.correct === 'number' &&
+        p.options[q.correct] !== undefined
+      ) {
         p.correct_indices = [q.correct];
         p.correct_values = [p.options[q.correct]];
       } else if (q.type === 'choose') {
         p.correct_indices = [];
         p.correct_values = [];
       }
-      if (q.type === 'multi' && Array.isArray(q.correct)){
-        const validCorrect = q.correct.filter((i:number) => p.options[i] !== undefined);
+      if (q.type === 'multi' && Array.isArray(q.correct)) {
+        const validCorrect = q.correct.filter((i: number) => p.options[i] !== undefined);
         p.correct_indices = validCorrect;
-        p.correct_values = validCorrect.map((i:number) => p.options[i]);
+        p.correct_values = validCorrect.map((i: number) => p.options[i]);
       } else if (q.type === 'multi') {
         p.correct_indices = [];
         p.correct_values = [];
@@ -1506,29 +2400,42 @@ export class AdminQuestionsComponent {
       exam_id: (this.questions[0] as any).exam_id || undefined,
       category_id: (this.questions[0] as any).category_id || undefined,
       created_by: userId || undefined,
-      questions: payload
+      questions: payload,
     };
 
     if (this.isEditing && this.editId) {
       // update single question
       const q = payload[0];
       // ensure hidden global selections are kept on update when available
-      if (!q.institute_id && (this.questions[0] as any).institute_id) q.institute_id = (this.questions[0] as any).institute_id;
-      if (!q.category_id && (this.questions[0] as any).category_id) q.category_id = (this.questions[0] as any).category_id;
+      if (!q.institute_id && (this.questions[0] as any).institute_id)
+        q.institute_id = (this.questions[0] as any).institute_id;
+      if (!q.category_id && (this.questions[0] as any).category_id)
+        q.category_id = (this.questions[0] as any).category_id;
       q.updated_by = userId || undefined;
       const url = `${API_BASE}/update-question/${encodeURIComponent(String(this.editId))}`;
-      this.http.put<any>(url, q).subscribe({ next: (res) => {
-        try {
-          const msg = res?.statusMessage || res?.message || 'Question updated';
-          const ok = typeof res?.status === 'undefined' ? true : !!res.status;
-          notify(msg, ok ? 'success' : 'error');
-        } catch(e){}
-        // Keep edit mode active so the user stays on the same page after update.
-      }, error: (err) => {
-        console.error('Failed to update question', err);
-        try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to update question', 'error'); } catch(e){}
-        this.loader.hide();
-      }, complete: () => { this.loader.hide(); } });
+      this.http.put<any>(url, q).subscribe({
+        next: (res) => {
+          try {
+            const msg = res?.statusMessage || res?.message || 'Question updated';
+            const ok = typeof res?.status === 'undefined' ? true : !!res.status;
+            notify(msg, ok ? 'success' : 'error');
+          } catch (e) {}
+          // Keep edit mode active so the user stays on the same page after update.
+        },
+        error: (err) => {
+          console.error('Failed to update question', err);
+          try {
+            notify(
+              err?.error?.statusMessage || err?.error?.message || 'Failed to update question',
+              'error'
+            );
+          } catch (e) {}
+          this.loader.hide();
+        },
+        complete: () => {
+          this.loader.hide();
+        },
+      });
     } else {
       this.http.post<any>(this.apiUrl, body).subscribe({
         next: (res) => {
@@ -1536,17 +2443,40 @@ export class AdminQuestionsComponent {
             const msg = res?.statusMessage || res?.message || 'Questions saved successfully';
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
             notify(msg, ok ? 'success' : 'error');
-          } catch(e){}
+          } catch (e) {}
           // reset to a single empty block
-          this.questions = [{ type: '', text: '', marks: this.getCategoryQuestionMark() || 1, options: ['',''], correct: null, answerText: '', showFineTune: false }];
-          setTimeout(()=>{ try{ this.resizeAll(); }catch(e){} },0);
+          this.questions = [
+            {
+              type: '',
+              text: '',
+              marks: this.getCategoryQuestionMark() || 1,
+              options: ['', ''],
+              correct: null,
+              answerText: '',
+              showFineTune: false,
+            },
+          ];
+          setTimeout(() => {
+            try {
+              this.resizeAll();
+            } catch (e) {}
+          }, 0);
         },
         error: (err) => {
           console.error('Failed to save questions', err);
-          try { notify(err?.error?.statusMessage || err?.error?.message || 'Failed to save questions. See console for details.', 'error'); } catch(e){}
+          try {
+            notify(
+              err?.error?.statusMessage ||
+                err?.error?.message ||
+                'Failed to save questions. See console for details.',
+              'error'
+            );
+          } catch (e) {}
           this.loader.hide();
         },
-        complete: () => { this.loader.hide(); }
+        complete: () => {
+          this.loader.hide();
+        },
       });
     }
   }

@@ -708,150 +708,219 @@
           <h4><mat-icon>tune</mat-icon> Filters</h4>
         </div>
         <div class="filter-block filter-grid">
-          <!-- Left Column: Institute, Country, City, Industry -->
-          <div class="filter-col">
-            <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
-              <mat-icon matPrefix>apartment</mat-icon>
-              <mat-label>Institute</mat-label>
-              <mat-select [(ngModel)]="filterInstitute" (selectionChange)="onFilterInstituteSelected($event.value)"
-                (openedChange)="onFilterSelectOpened($event, 'country')">
-                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search institute"
-                    [(ngModel)]="filterInstituteSearch" [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
-                </mat-option>
-                <mat-option value="">Any</mat-option>
-                <mat-option *ngFor="let inst of filteredInstitutesForFilter()" [value]="inst.institute_id">
-                  {{ inst.name }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
+          <!-- Super Admin Layout -->
+          <ng-container *ngIf="isSuperAdmin">
+            <!-- Left Column: Country, City, Industry, Sector -->
+            <div class="filter-col">
+              <!-- 1. Country -->
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>public</mat-icon>
+                <mat-label>Country</mat-label>
+                <mat-select [(ngModel)]="filterCountry" (selectionChange)="onCountryFilterChange()"
+                  (openedChange)="onFilterSelectOpened($event, 'country')">
+                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                    <input matInput class="select-search-input" placeholder="Search country" [(ngModel)]="countrySearch"
+                      [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)" />
+                  </mat-option>
+                  <mat-option value="">Any</mat-option>
+                  <mat-option *ngFor="let c of examFilteredCountries" [value]="c.code">{{
+                    c.name
+                    }}</mat-option>
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="filter-item">
-              <mat-icon matPrefix>public</mat-icon>
-              <mat-label>Country</mat-label>
-              <mat-select [(ngModel)]="filterCountry" (selectionChange)="onCountryFilterChange()"
-                (openedChange)="onFilterSelectOpened($event, 'country')">
-                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search country" [(ngModel)]="countrySearch"
-                    [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)" />
-                </mat-option>
-                <mat-option value="">Any</mat-option>
-                <mat-option *ngFor="let c of examFilteredCountries" [value]="c.code">{{
-                  c.name
-                  }}</mat-option>
-              </mat-select>
-            </mat-form-field>
+              <!-- 2. City -->
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>location_city</mat-icon>
+                <mat-label>City</mat-label>
+                <mat-select [(ngModel)]="filterCity" [disabled]="!filterCountry" (selectionChange)="loadInstitutes()"
+                  (openedChange)="onFilterSelectOpened($event, 'city')">
+                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                    <input matInput class="select-search-input" placeholder="Search city" [(ngModel)]="citySearch"
+                      [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)" />
+                  </mat-option>
+                  <mat-option value="">Any</mat-option>
+                  <mat-option *ngFor="let c of examFilteredCities" [value]="c.name">{{
+                    c.name
+                    }}</mat-option>
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="filter-item">
-              <mat-icon matPrefix>location_city</mat-icon>
-              <mat-label>City</mat-label>
-              <mat-select [(ngModel)]="filterCity" [disabled]="!filterCountry" (selectionChange)="loadInstitutes()"
-                (openedChange)="onFilterSelectOpened($event, 'city')">
-                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search city" [(ngModel)]="citySearch"
-                    [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)" />
-                </mat-option>
-                <mat-option value="">Any</mat-option>
-                <mat-option *ngFor="let c of examFilteredCities" [value]="c.name">{{
-                  c.name
-                  }}</mat-option>
-              </mat-select>
-            </mat-form-field>
+              <!-- 3. Industry -->
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>work</mat-icon>
+                <mat-label>Industry</mat-label>
+                <mat-select [(ngModel)]="filterIndustry" placeholder="Industry type"
+                  (selectionChange)="onIndustryFilterChange()" (openedChange)="onFilterSelectOpened($event, 'industry')">
+                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                    <input matInput class="select-search-input" placeholder="Search industry" [(ngModel)]="industrySearch"
+                      [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)" />
+                  </mat-option>
+                  <mat-option value="">Any</mat-option>
+                  <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{ t }}</mat-option>
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="filter-item">
-              <mat-icon matPrefix>work</mat-icon>
-              <mat-label>Industry</mat-label>
-              <mat-select [(ngModel)]="filterIndustry" placeholder="Industry type"
-                (selectionChange)="onIndustryFilterChange()" (openedChange)="onFilterSelectOpened($event, 'industry')">
-                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search industry" [(ngModel)]="industrySearch"
-                    [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)" />
-                </mat-option>
-                <mat-option value="">Any</mat-option>
-                <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{ t }}</mat-option>
-              </mat-select>
-            </mat-form-field>
+              <!-- 4. Sector -->
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>category</mat-icon>
+                <mat-label>Sector</mat-label>
+                <mat-select [(ngModel)]="filterSector" placeholder="Industry sector" [disabled]="!filterIndustry"
+                  (openedChange)="onFilterSelectOpened($event, 'sector')" (selectionChange)="loadInstitutes()">
+                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                    <input matInput class="select-search-input" placeholder="Search sector" [(ngModel)]="sectorSearch"
+                      [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)" />
+                  </mat-option>
+                  <mat-option value="">Any</mat-option>
+                  <mat-option *ngFor="let s of filteredSectorsForExam" [value]="s">{{
+                    s
+                    }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
 
-            <mat-form-field appearance="outline" class="filter-item">
-              <mat-icon matPrefix>category</mat-icon>
-              <mat-label>Sector</mat-label>
-              <mat-select [(ngModel)]="filterSector" placeholder="Industry sector" [disabled]="!filterIndustry"
-                (openedChange)="onFilterSelectOpened($event, 'sector')" (selectionChange)="loadInstitutes()">
-                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search sector" [(ngModel)]="sectorSearch"
-                    [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)" />
-                </mat-option>
-                <mat-option value="">Any</mat-option>
-                <mat-option *ngFor="let s of filteredSectorsForExam" [value]="s">{{
-                  s
-                  }}</mat-option>
-              </mat-select>
-            </mat-form-field>
+            <!-- Right Column: Institute, Departments, Teams, Test Name -->
+            <div class="filter-col">
+              <!-- 5. Institute -->
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>apartment</mat-icon>
+                <mat-label>Institute</mat-label>
+                <mat-select [(ngModel)]="filterInstitute" (selectionChange)="onFilterInstituteSelected($event.value)"
+                  (openedChange)="onFilterSelectOpened($event, 'country')">
+                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                    <input matInput class="select-search-input" placeholder="Search institute"
+                      [(ngModel)]="filterInstituteSearch" [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                  </mat-option>
+                  <mat-option value="">Any</mat-option>
+                  <mat-option *ngFor="let inst of filteredInstitutesForFilter()" [value]="inst.institute_id">
+                    {{ inst.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="filter-item">
-              <mat-icon matPrefix>assignment</mat-icon>
-              <mat-label>Test Name</mat-label>
-              <mat-select [(ngModel)]="filterExamName" [disabled]="isSuperAdmin && !filterInstitute" (selectionChange)="
-                  loadTestOptions(filterInstitute || model.institute);
-                  loadExams(filterInstitute || model.institute)
-                ">
-                <mat-option value="">Any</mat-option>
-                <mat-option *ngFor="let name of filteredExamNamesForFilter()" [value]="name">{{
-                  name
-                  }}</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
+              <!-- 6. Departments -->
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>business_center</mat-icon>
+                <mat-label>Departments</mat-label>
+                <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select departments"
+                  (selectionChange)="onDepartmentSelectionChange()"
+                  (openedChange)="onFilterDepartmentOpenedChange($event)">
+                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                    <input matInput class="select-search-input" placeholder="Search department"
+                      [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                  </mat-option>
 
-          <!-- Right Column: Departments, Teams -->
-          <div class="filter-col">
-            <mat-form-field appearance="outline" class="filter-item">
-              <mat-icon matPrefix>business_center</mat-icon>
-              <mat-label>Departments</mat-label>
-              <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select departments"
-                (selectionChange)="onDepartmentSelectionChange()"
-                (openedChange)="onFilterDepartmentOpenedChange($event)">
-                <!-- Embedded Search Bar -->
-                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search department"
-                    [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
-                </mat-option>
+                  <mat-option [value]="'__all__'">All the above</mat-option>
+                  <mat-option *ngFor="let d of filteredDepartmentsForFilter" [value]="d.id">{{ d.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
 
-                <mat-option [value]="'__all__'">All the above</mat-option>
-                <mat-option *ngFor="let d of filteredDepartmentsForFilter" [value]="d.id">{{ d.name }}</mat-option>
-              </mat-select>
-            </mat-form-field>
+              <!-- 7. Teams -->
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>groups</mat-icon>
+                <mat-label>Teams</mat-label>
+                <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select teams"
+                  (selectionChange)="onTeamSelectionChange()" (openedChange)="onFilterTeamOpenedChange($event)">
+                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                    <input matInput class="select-search-input" placeholder="Search team" [(ngModel)]="teamFilterSearch"
+                      [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)" />
+                  </mat-option>
 
-            <mat-form-field appearance="outline" class="filter-item">
-              <mat-icon matPrefix>groups</mat-icon>
-              <mat-label>Teams</mat-label>
-              <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select teams"
-                (selectionChange)="onTeamSelectionChange()" (openedChange)="onFilterTeamOpenedChange($event)">
-                <!-- Embedded Search Bar -->
-                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search team" [(ngModel)]="teamFilterSearch"
-                    [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)" />
-                </mat-option>
+                  <mat-option [value]="'__all__'">All the above</mat-option>
+                  <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id">{{ t.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
 
-                <mat-option [value]="'__all__'">All the above</mat-option>
-                <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id">{{ t.name }}</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
+              <!-- 8. Test Name -->
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>assignment</mat-icon>
+                <mat-label>Test Name</mat-label>
+                <mat-select [(ngModel)]="filterExamName" (selectionChange)="
+                    loadTestOptions(filterInstitute || model.institute);
+                    loadExams(filterInstitute || model.institute)
+                  ">
+                  <mat-option value="">Any</mat-option>
+                  <mat-option *ngFor="let name of filteredExamNamesForFilter()" [value]="name">{{
+                    name
+                    }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </ng-container>
+
+          <!-- Admin Layout (Balanced Alignment) -->
+          <ng-container *ngIf="!isSuperAdmin">
+            <!-- Row 1: Test Name (Full Width) -->
+            <div class="filter-col-full">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>assignment</mat-icon>
+                <mat-label>Test Name</mat-label>
+                <mat-select [(ngModel)]="filterExamName" (selectionChange)="
+                    loadTestOptions(model.institute);
+                    loadExams(model.institute)
+                  ">
+                  <mat-option value="">Any</mat-option>
+                  <mat-option *ngFor="let name of filteredExamNamesForFilter()" [value]="name">{{
+                    name
+                    }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Row 2: Departments & Teams (Side by side 2 columns) -->
+            <div class="filter-col">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>business_center</mat-icon>
+                <mat-label>Departments</mat-label>
+                <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select departments"
+                  (selectionChange)="onDepartmentSelectionChange()"
+                  (openedChange)="onFilterDepartmentOpenedChange($event)">
+                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                    <input matInput class="select-search-input" placeholder="Search department"
+                      [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                  </mat-option>
+
+                  <mat-option [value]="'__all__'">All the above</mat-option>
+                  <mat-option *ngFor="let d of filteredDepartmentsForFilter" [value]="d.id">{{ d.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="filter-col">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-icon matPrefix>groups</mat-icon>
+                <mat-label>Teams</mat-label>
+                <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select teams"
+                  (selectionChange)="onTeamSelectionChange()" (openedChange)="onFilterTeamOpenedChange($event)">
+                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                    <input matInput class="select-search-input" placeholder="Search team" [(ngModel)]="teamFilterSearch"
+                      [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)" />
+                  </mat-option>
+
+                  <mat-option [value]="'__all__'">All the above</mat-option>
+                  <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id">{{ t.name }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </ng-container>
 
 
           <!-- Full Width Row: Created Date -->
