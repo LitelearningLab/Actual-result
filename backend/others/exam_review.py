@@ -655,7 +655,10 @@ def update_descriptive_marks(request, current_user=None):
     try:
         data = request.json or {}
         answer_id = data.get("answer_id", "")
-        marks_awarded = data.get("marks_awarded", 0)
+        try:
+            marks_awarded = float(data.get("marks_awarded", 0))
+        except (ValueError, TypeError):
+            marks_awarded = 0.0
         updated_by_raw = data.get("updated_by", "")
         edit_reason = str(data.get("edit_reason", "") or "").strip()
 
