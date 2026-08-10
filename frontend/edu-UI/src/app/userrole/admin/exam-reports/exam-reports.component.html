@@ -486,7 +486,11 @@
         (selectedTabChange)="onTabChange($event)"
         (selectedIndexChange)="activeMainTabIndex = $event"
       >
-        <mat-tab label="Analytics Report">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-label-icon">analytics</mat-icon>
+            <span>Analytics Report</span>
+          </ng-template>
           <div class="analytics-section">
             <div class="report-summary-grid analytics-summary-grid">
               <div class="summary-card">
@@ -791,7 +795,11 @@
                                    </div> -->
           </div>
         </mat-tab>
-        <mat-tab label="User Report">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-label-icon">person</mat-icon>
+            <span>User Report</span>
+          </ng-template>
           <div class="report-summary-grid">
             <div class="summary-card">
               <div class="summary-icon summary-icon--students"><mat-icon>groups</mat-icon></div>
