@@ -22,6 +22,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
+import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 export interface UserTestRow {
   test_id?: string;
@@ -193,7 +194,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   filterScheduleName = '';
   filterCreatedAfter: Date | null = null;
   filterCreatedBefore: Date | null = null;
-  filterCreatedByMe = false;
+  selectedTabIndex = 0;
   private currentUserId = '';
 
   @ViewChild(MatSort) sort!: MatSort;
@@ -303,9 +304,64 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     this.filterScheduleName = '';
     this.filterCreatedAfter = null;
     this.filterCreatedBefore = null;
-    this.filterCreatedByMe = false;
     this.applyFilter();
   }
+
+  get availableScheduleNames(): string[] {
+    const baseList: UserTestRow[] = this.selectedTabIndex === 0
+      ? (this.activeSource?.data || [])
+      : (this.completeSource?.data || []);
+
+    const afterTime = this.filterCreatedAfter ? new Date(this.filterCreatedAfter).setHours(0, 0, 0, 0) : null;
+    const beforeTime = this.filterCreatedBefore ? new Date(this.filterCreatedBefore).setHours(23, 59, 59, 999) : null;
+
+    const filtered = baseList.filter(row => {
+      const createdTime = row.created_date ? new Date(row.created_date).getTime() : NaN;
+      const byAfter = afterTime === null || (!isNaN(createdTime) && createdTime >= afterTime);
+      const byBefore = beforeTime === null || (!isNaN(createdTime) && createdTime <= beforeTime);
+      return byAfter && byBefore;
+    });
+
+    const titles = filtered.map(item => item.title || '').filter((t): t is string => !!t.trim());
+    return Array.from(new Set(titles)).sort();
+  }
+
+  openCreatedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.filterCreatedAfter,
+        endDate: this.filterCreatedBefore,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.filterCreatedAfter = res.startDate;
+        this.filterCreatedBefore = res.endDate;
+      }
+    });
+  }
+
+  getCreatedDateRangeDisplay(): string {
+    const start = this.filterCreatedAfter;
+    const end = this.filterCreatedBefore;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    if (start && end) return `${format(start)} - ${format(end)}`;
+    if (start) return `${format(start)} - `;
+    if (end) return ` - ${format(end)}`;
+    return '';
+  }
+
 
   toggleFilters(event: MouseEvent): void {
     event.stopPropagation();
@@ -736,8 +792,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
       const beforeTime = this.filterCreatedBefore ? new Date(this.filterCreatedBefore).setHours(23, 59, 59, 999) : null;
       const byCreatedAfter = afterTime === null || (!isNaN(createdTime) && createdTime >= afterTime);
       const byCreatedBefore = beforeTime === null || (!isNaN(createdTime) && createdTime <= beforeTime);
-      const byCreator = !this.filterCreatedByMe || String(row.created_by || '').toLowerCase() === this.currentUserId.toLowerCase();
-      return byText && byPublished && byInstitute && byScheduleName && byCreatedAfter && byCreatedBefore && byCreator;
+      return byText && byPublished && byInstitute && byScheduleName && byCreatedAfter && byCreatedBefore;
     };
     [this.dataSource, this.activeSource, this.completeSource].forEach(ds => {
       ds.filterPredicate = predicate;
