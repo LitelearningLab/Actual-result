@@ -14,6 +14,7 @@ import { TemplatePortal } from '@angular/cdk/portal';
 import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
+import { AuthService } from 'src/app/home/service/auth.service';
 
 @Component({
   selector: 'app-exam-reports',
@@ -21,6 +22,35 @@ import { GlobalInstituteContextService } from 'src/app/shared/services/global-in
   styleUrls: ['./exam-reports.component.scss']
 })
 export class ExamReportsComponent implements OnInit, OnDestroy {
+  @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
+  @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
+  isSuperAdmin = false;
+  private filtersOverlayRef: OverlayRef | null = null;
+  private _subs: Subscription | null = null;
+  resetFilters: any = {};
+
+  constructor(
+    private http: HttpClient,
+    private loading: LoaderService,
+    private overlay: Overlay,
+    private vcr: ViewContainerRef,
+    private pageMeta: PageMetaService,
+    private _snack: MatSnackBar,
+    private confirm: ConfirmService,
+    private globalContextService: GlobalInstituteContextService,
+    private dialog: MatDialog,
+    private auth: AuthService
+  ) {
+    try {
+      this.isSuperAdmin = !!this.auth.currentUserValue && ['super_admin', 'superadmin', 'super-admin'].includes((this.auth.currentUserValue.role || '').toLowerCase());
+    } catch (e) { this.isSuperAdmin = false; }
+    this.auth.user$.subscribe((user: any) => {
+      try {
+        this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
+      } catch (e) { this.isSuperAdmin = false; }
+    });
+  }
+
   reportsApplied = false;
   appliedFilters: any = null;
   categoryAnalytics: any[] = [];
@@ -371,22 +401,20 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Filter by department if selected
+    // Filter strictly by department if selected
     if (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length) {
       const selectedDepts: string[] = this.userFilters.department_id.map((d: any) => String(d).toLowerCase().trim());
       list = list.filter(t => {
         const itemDept = String(t.department_id || t.department || t.department_name || t.departments || '').toLowerCase().trim();
-        if (!itemDept) return true;
         return selectedDepts.some((sd: string) => itemDept.includes(sd));
       });
     }
 
-    // Filter by team if selected
+    // Filter strictly by team if selected
     if (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length) {
       const selectedTeams: string[] = this.userFilters.teams_id.map((tm: any) => String(tm).toLowerCase().trim());
       list = list.filter(t => {
         const itemTeam = String(t.team_id || t.team || t.team_name || t.teams || '').toLowerCase().trim();
-        if (!itemTeam) return true;
         return selectedTeams.some((st: string) => itemTeam.includes(st));
       });
     }
@@ -413,9 +441,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     } catch(e) {}
   }
 
-  @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
-  @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
-  
   // simple pagination controls without MatPaginator binding
   loadingUserReport = false;
 
@@ -448,25 +473,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   selectedCategoryFilterName: string = '';
 
-  /**
-   * Open question summary filtered to a specific category. If analytics data isn't loaded yet,
-   * request it first and apply a pending filter.
-   */
   openCategoryQuestionSummary(category: any){
     if(!category) return;
     const cid = String(category.category_id || category.id || category._id || category.categoryId || '');
     if(!cid) return;
     this.selectedCategoryFilterName = category.category_name || category.name || 'Selected Category';
-    // ensure main tab is analytics
     this.activeMainTabIndex = 1;
-    this.questionCurrentPage = 1; // Reset to page 1
-    // if question summary already loaded, filter immediately
+    this.questionCurrentPage = 1;
     if(this.questionSummary && this.questionSummary.length){
       this.filteredQuestionSummary = (this.questionSummary || []).filter((q:any) => this._getQuestionCategoryId(q) === cid);
-      this.innerAnalyticsTabIndex = 1; // switch inner tab to Question Summary
+      this.innerAnalyticsTabIndex = 1;
       return;
     }
-    // otherwise, request analytics and apply filter after load
     this._pendingCategoryFilter = cid;
     this.loadAnalytics();
   }
@@ -475,24 +493,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.filteredQuestionSummary = [];
     this.selectedCategoryFilterName = '';
     this._pendingCategoryFilter = null;
-    this.questionCurrentPage = 1; // Reset to page 1
+    this.questionCurrentPage = 1;
   }
-
-  private filtersOverlayRef: OverlayRef | null = null;
-  private _subs: Subscription | null = null;
-  resetFilters: any = {};
-
-  constructor(
-    private http: HttpClient,
-    private loading: LoaderService,
-    private overlay: Overlay,
-    private vcr: ViewContainerRef,
-    private pageMeta: PageMetaService,
-    private _snack: MatSnackBar,
-    private confirm: ConfirmService,
-    private globalContextService: GlobalInstituteContextService,
-    private dialog: MatDialog
-  ) {}
 
   openCreatedDateRangePicker(): void {
     const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
@@ -537,14 +539,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   // Robustly extract a category id from different question shapes.
   private _getQuestionCategoryId(q: any): string {
     if (!q) return '';
-    // If question has a nested `category` object, try common id fields
     const cat = q.category;
     if (cat && typeof cat === 'object') {
       return String(cat.id || cat._id || cat.category_id || cat.categoryId || cat.cat_id || '').trim();
     }
-    // If category_id is an array, take first element
     if (Array.isArray(q.category_id) && q.category_id.length) return String(q.category_id[0]).trim();
-    // Try several flat fields
     return String(q.category_id ?? q.category ?? q.categoryId ?? q.cat_id ?? q.catId ?? '').trim();
   }
 
@@ -553,7 +552,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  // Normalize selected_option into an array of trimmed strings.
   private _normalizeSelectedOption(selected: any): string[] {
     if (!selected && selected !== 0) return [];
     try {
@@ -575,8 +573,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Return review comments for a question filtered by one or more categories.
-  // `categories` can be a string or an array of strings. Comparison is case-insensitive.
   reviewComments(q: any, categories: string | string[]): any[] {
     try {
       const comments = (q && q.review_comment && Array.isArray(q.review_comment.comments)) ? q.review_comment.comments : [];
@@ -589,11 +585,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Open user review by calling backend API /review-user-exam
   openUserReview(row: any){
     if(!row) return;
     this.currentReviewRow = row;
-    // set header fields used in template
     try{
       this.selectedUserName = row.student_name || row.name || row.user_name || row.full_name || null;
       this.selectedUserScore = row.marks_obtained ?? row.score ?? row.marks ?? null;
@@ -608,7 +602,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if(!userId || !scheduleId) return;
     const params: any = { user_id: String(userId), scheduler_id: scheduleId };
     this.currentReviewParams = params;
-    // if browser is offline, show a retry snackbar instead of firing the request
     if(typeof navigator !== 'undefined' && !navigator.onLine){
       const snack = this._snack.open('You appear to be offline. Retry?', 'Retry', { duration: 10000 });
       snack.onAction().subscribe(() => this.fetchUserReview(params));
@@ -623,7 +616,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     attempt._retryingEvaluation = true;
     if (q) q._retryingEvaluation = true;
     this.http.post<any>(`${API_BASE}/validate-answers/${attemptId}`, {}).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         attempt._retryingEvaluation = false;
         if (q) q._retryingEvaluation = false;
         const message = res?.status === false
@@ -632,7 +625,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this._snack.open(message, 'Close', { duration: res?.status === false ? 5000 : 3000 });
         if (this.currentReviewParams) this.fetchUserReview(this.currentReviewParams);
       },
-      error: (err) => {
+      error: (err: any) => {
         attempt._retryingEvaluation = false;
         if (q) q._retryingEvaluation = false;
         const message = err?.error?.statusMessage || 'AI evaluation could not be completed.';
@@ -653,7 +646,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.userReviewLoading = true;
     this.loading.show();
     this.http.get<any>(`${API_BASE}/review-user-exam`, { params }).subscribe({
-      next: (res)=>{
+      next: (res: any)=>{
         try{
           const body = res || {};
           let attempts: any[] = [];
@@ -681,7 +674,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             return { ...a, review: normalizedReview };
           });
 
-          // Always synchronize selectedUserScore, selectedUserResult, and main table row with response
           if(this.userReviewAttempts && this.userReviewAttempts.length){
             const first = this.userReviewAttempts[0] || {};
             const fetchedScore = first.score ?? first.marks ?? first.marks_obtained;
@@ -721,7 +713,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.showUserReviewPanel = true;
         }
       },
-      error: (err)=>{
+      error: (err: any)=>{
         console.error('[TestReports] review-user-exam failed', err);
         this.userReviewLoading = false;
         this.userReviewAttempts = [];
@@ -747,7 +739,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.currentReviewRow = null;
   }
 
-  // Marks editing helpers for descriptive questions
   startEditMarks(q: any){
     if(!q) return;
     q._editingMarks = true;
@@ -786,10 +777,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
     q._marksReasonError = false;
 
-    // Get required IDs
     const answerID = q.answer_id || null;
     
-    // Get user ID from current context
     const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
     let updatedBy = '';
     let updatedByName = 'System';
@@ -814,9 +803,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     this.loading.show();
     this.http.post<any>(`${API_BASE}/update-descriptive-marks`, payload).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         this.loading.hide();
-        // Update local state
         const oldMarks = q.marks_awarded || 0;
         const oldReason = q.edit_reason || '';
         q.marks_history = Array.isArray(q.marks_history) ? q.marks_history : [];
@@ -835,7 +823,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         q._marksEditReason = undefined;
         q._marksReasonTouched = undefined;
         
-        // Update total score if available
         if(this.selectedUserScore !== null && typeof this.selectedUserScore === 'number'){
           this.selectedUserScore = this.selectedUserScore - oldMarks + newMarks;
         }
@@ -846,7 +833,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.fetchUserReview(this.currentReviewParams);
         }
       },
-      error: (err) => {
+      error: (err: any) => {
         this.loading.hide();
         console.error('Failed to update marks', err);
         const msg = err?.error?.statusMessage || err?.message || 'Failed to update marks.';
@@ -855,10 +842,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Begin review comment editing helpers
   startEditComment(rc: any){
     if(!rc) return;
-    // mark this comment as being edited and store original text
     rc._editing = true;
     rc._editedText = rc.comment_text || rc.comment || '';
     rc._editReason = '';
@@ -870,7 +855,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     rc._editing = false;
     rc._editedText = undefined;
     rc._editReason = undefined;
-    // if no other comment is being edited, clear global flag
     this.commentEdit = !!this.userReviewAttempts?.some((att:any) => (att.review || []).some((q:any) => (q.review_comment?.comments || []).some((c:any)=>c._editing)));
   }
 
@@ -914,7 +898,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   confirmDeleteComment(rc: any){
     if(!rc) return;
-    this.confirm.confirm({ title: 'Delete comment', message: 'Are you sure you want to delete this review comment?' }).subscribe(confirmed => {
+    this.confirm.confirm({ title: 'Delete comment', message: 'Are you sure you want to delete this review comment?' }).subscribe((confirmed: any) => {
       if(confirmed) this.updateReviewComment('delete', rc, rc._editedText || rc.comment_text || rc.comment || '');
     });
   }
@@ -924,7 +908,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const commentId = rc.comment_id || rc.id || rc._id || rc.commentId || rc.cid || null;
     if(!commentId) { this._snack.open('Comment id not found', 'Close', { duration: 3000 }); return; }
     const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || sessionStorage.getItem('user_info');
-    // history_id required for delete action
     const historyId = rc.history_id || rc.hid || rc._hid || null;
     let userId = '';
     let userName = 'Instructor';
@@ -937,14 +920,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const payload: any = { comment_id: String(commentId), history_id: historyId ? String(historyId) : '', text: text || '', updated_by: this.updatedBy, edit_reason: editReason };
     this.loading.show();
     this.http.post<any>(`${API_BASE}/update-review-comments/${action}`, payload).subscribe({
-      next: (res)=>{
+      next: (res: any)=>{
         this.loading.hide();
         this._snack.open(action === 'edit' ? 'Comment updated' : 'Comment deleted', 'Close', { duration: 3000 });
         if(this.currentReviewParams){
           this.fetchUserReview(this.currentReviewParams);
         }
       },
-      error: (err)=>{
+      error: (err: any)=>{
         this.loading.hide();
         console.error('Failed to update review comment', err);
         const msg = (err && err.error && err.error.statusMessage) ? err.error.statusMessage : (err && err.message) ? err.message : 'Failed to update comment.';
@@ -961,7 +944,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       answer_id: q.answer_id,
       manual_review_required: q.manual_review_required
     }).subscribe({
-      error: (err) => {
+      error: (err: any) => {
         q.manual_review_required = previous;
         this._snack.open(err?.error?.statusMessage || 'Failed to update manual check', 'Close', { duration: 4000 });
       }
@@ -981,7 +964,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.wrongDistribution = [];
   }
 
-  // Apply filters from overlay panel
   applyFiltersPanel() {
     if (!this.isGlobalInstituteActive && this.userFilters.institute_id) {
       if (this.selectedInstituteId !== this.userFilters.institute_id) {
@@ -1046,7 +1028,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.scheduledTestsMessage = '';
   }
 
-  // Reset filters to empty and return to initial empty state, then close overlay.
   resetFiltersAndReload() {
     this.refreshTestReports();
     this.closeFiltersOverlay();
@@ -1058,8 +1039,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (exam) {
       this.userFilters.schedule_id = String(exam.schedule_id || exam.id || exam.scheduleId || '');
     }
-    this.questionCurrentPage = 1; // Reset question page index
-    // auto-load report for the currently active main tab
+    this.questionCurrentPage = 1;
     if(this.activeMainTabIndex === 0){
       this.loadUserReport(1);
     } else if(this.activeMainTabIndex === 1){
@@ -1077,7 +1057,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.userFilters.sector) params.sector = this.userFilters.sector;
 
     this.http.get<any>(url, { params }).subscribe({
-      next: (res)=>{
+      next: (res: any)=>{
         const list = Array.isArray(res) ? res : (res?.institutes || res?.data || []);
         this.institutes = (list || []).map((i:any)=>({
           id: String(i.id || i.institute_id || i._id || ''),
@@ -1108,6 +1088,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.isGlobalInstituteActive = true;
           this.selectedInstituteId = globalInstId;
           this.userFilters.institute_id = globalInstId;
+          this.onInstituteChange(globalInstId);
+        } else if (!this.isSuperAdmin && this.institutes && this.institutes.length > 0) {
+          const defaultInstId = this.institutes[0].id;
+          this.selectedInstituteId = defaultInstId;
+          this.userFilters.institute_id = defaultInstId;
+          this.onInstituteChange(defaultInstId);
         } else if (!this.userFilters.institute_id) {
           this.isGlobalInstituteActive = false;
           this.selectedInstituteId = null;
@@ -1118,7 +1104,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           if(selected){ try{ this.instituteCtrl.setValue(selected as any); }catch(e){} }
         }
       },
-      error: (err)=> console.warn('Failed to load institutes', err)
+      error: (err: any)=> console.warn('Failed to load institutes', err)
     });
   }
 
@@ -1156,7 +1142,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   loadCountries() {
     const url = `${API_BASE}/location-hierarchy`;
-    this.http.get<any>(url).subscribe({ next: (res) => { try { const countries = res?.data?.countries || res?.countries || res?.data || []; this.countries = countries.map((c: any) => ({ code: c.country_code || c.code || c.id, name: c.country_name || c.name || c.country })); } catch (e) { this.countries = []; } }, error: () => { this.countries = []; } });
+    this.http.get<any>(url).subscribe({ next: (res: any) => { try { const countries = res?.data?.countries || res?.countries || res?.data || []; this.countries = countries.map((c: any) => ({ code: c.country_code || c.code || c.id, name: c.country_name || c.name || c.country })); } catch (e) { this.countries = []; } }, error: () => { this.countries = []; } });
   }
 
   onCountryChange() {
@@ -1165,7 +1151,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!this.userFilters.country_id) return;
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url, { params: { country: this.userFilters.country_id } }).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         try {
           let allCities: any[] = [];
           const countries = res?.data?.countries || res?.countries || [];
@@ -1184,10 +1170,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!instituteId) return;
     const url = `${API_BASE}/get-department-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.departmentList = arr.map((d: any) => (d.name || d.department_name || d.department || d).toString()).filter((s: any) => !!s);
-      }, error: (err) => { console.warn('Failed to load department list', err); this.departmentList = []; }
+      }, error: (err: any) => { console.warn('Failed to load department list', err); this.departmentList = []; }
     });
   }
 
@@ -1196,10 +1182,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!instituteId) return;
     const url = `${API_BASE}/get-teams-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.teamList = arr.map((t: any) => (t.name || t.team_name || t.team || t).toString()).filter((s: any) => !!s);
-      }, error: (err) => { console.warn('Failed to load teams list', err); this.teamList = []; }
+      }, error: (err: any) => { console.warn('Failed to load teams list', err); this.teamList = []; }
     });
   }
 
@@ -1208,13 +1194,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!instituteId) return;
     const url = `${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         console.debug('[TestReports] get-campus-list response for', instituteId, res);
         const arr = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         this.campusList = arr.map((c: any) => (c.name || c.campus_name || c.campus || c).toString()).filter((s: any) => !!s);
-      }, error: (err) => { console.warn('Failed to load campus list', err); this.campusList = []; }
+      }, error: (err: any) => { console.warn('Failed to load campus list', err); this.campusList = []; }
     });
   }
+
   private resetSelectedExam(): void {
     this.selectedExam = null;
     this.examCtrl.setValue('');
@@ -1257,7 +1244,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
 
     this.http.get<any>(url, { params }).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         if (requestId !== this.scheduledTestsRequestId || instituteId !== this.selectedInstituteId) return;
         try{
           const items = Array.isArray(res) ? res : (res?.data || res?.schedules || []);
@@ -1276,7 +1263,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.scheduledTestsLoading = false;
         try { this.loading.hide(); } catch(e){}
       },
-      error: (err) => {
+      error: (err: any) => {
         if (requestId !== this.scheduledTestsRequestId || instituteId !== this.selectedInstituteId) return;
         this.allTests = [];
         this.filteredTests$ = of([]);
@@ -1297,7 +1284,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     try { this.loadCountries(); } catch(e){}
 
     try {
-      const sub = this.globalContextService.activeInstitute$.subscribe(context => {
+      const sub = this.globalContextService.activeInstitute$.subscribe((context: any) => {
         if (context && context.institute_id) {
           this.isGlobalInstituteActive = true;
           this.selectedInstituteId = context.institute_id;
@@ -1331,11 +1318,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
     Object.keys(this.searchQueries).forEach(k => this.searchQueries[k] = '');
 
+    const targetEl = this.filtersBtn?.nativeElement || (this.filtersBtn as any)?._elementRef?.nativeElement || this.filtersBtn;
+
     const positionStrategy = this.overlay.position()
-      .flexibleConnectedTo(this.filtersBtn)
+      .flexibleConnectedTo(targetEl)
       .withPositions([
-        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
-        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 }
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
+        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 }
       ])
       .withPush(true);
 
@@ -1398,11 +1387,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.loadingUserReport = true;
     try { this.loading.show(); } catch(e){}
     this.http.get<any>(`${API_BASE}/get-exam-user-report`, { params }).subscribe({
-      next: (res)=>{
+      next: (res: any)=>{
         console.debug('[TestReports] get-exam-user-report response:', res);
         try{
           const body = res || {};
-          const payload = body.data || body; // support responses with { data: { items: [...] } }
+          const payload = body.data || body;
           if(payload && Array.isArray(payload.items)){
             this.userReportData = payload.items;
             this.userReportTotal = Number(payload.total ?? payload.count ?? (payload.items || []).length);
@@ -1410,7 +1399,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             this.userReportData = payload;
             this.userReportTotal = this.userReportData.length;
           } else {
-            // fallback
             this.userReportData = [];
             this.userReportTotal = 0;
           }
@@ -1423,7 +1411,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           try { this.loading.hide(); } catch(e){}
         }
       },
-      error: (err)=>{ console.error('[TestReports] Failed to load user report', err); this.userReportData = []; this.userReportTotal = 0; this.loadingUserReport = false; try { this.loading.hide(); } catch(e){} },
+      error: (err: any)=>{ console.error('[TestReports] Failed to load user report', err); this.userReportData = []; this.userReportTotal = 0; this.loadingUserReport = false; try { this.loading.hide(); } catch(e){} },
       complete: ()=>{ try { this.loading.hide(); } catch(e){} }
     });
   }
@@ -1465,7 +1453,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const params: any = { schedule_id: String(this.selectedExam.schedule_id || this.selectedExam.id || '') };
     try { this.loading.show(); } catch(e){}
     this.http.get<any>(`${API_BASE}/get-exam-analytics`, { params }).subscribe({
-      next: (res)=>{
+      next: (res: any)=>{
         console.debug('[TestReports] get-exam-analytics response:', res);
         try{
           const body = res || {};
@@ -1473,13 +1461,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.categoryAnalytics = Array.isArray(payload.category_report) ? payload.category_report : (payload.category_report || payload.categories || []);
           this.questionSummary = Array.isArray(payload.question_summary) ? payload.question_summary : (payload.question_summary || payload.questions || []);
           this.wrongDistribution = Array.isArray(payload.wrong_answer_distribution) ? payload.wrong_answer_distribution : (payload.wrong_answer_distribution || payload.distribution || []);
-          this.questionCurrentPage = 1; // Reset page on new load
-          // If a category filter was requested while loading, apply it now
+          this.questionCurrentPage = 1;
           if(this._pendingCategoryFilter){
             const cid = String(this._pendingCategoryFilter);
             this.filteredQuestionSummary = (this.questionSummary || []).filter((q:any) => this._getQuestionCategoryId(q) === cid);
             this._pendingCategoryFilter = null;
-            // ensure UI switches to analytics -> Question Summary tab
             try{ this.activeMainTabIndex = 1; this.innerAnalyticsTabIndex = 1; }catch(e){}
           } else {
             this.filteredQuestionSummary = [];
@@ -1493,34 +1479,27 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           try { this.loading.hide(); } catch(e){}
         }
       },
-      error: (err)=>{ console.error('[TestReports] Failed to load analytics', err); this.categoryAnalytics = []; this.questionSummary = []; this.wrongDistribution = []; try{ this.loading.hide(); }catch(e){} },
+      error: (err: any)=>{ console.error('[TestReports] Failed to load analytics', err); this.categoryAnalytics = []; this.questionSummary = []; this.wrongDistribution = []; try{ this.loading.hide(); }catch(e){} },
       complete: ()=>{ try { this.loading.hide(); } catch(e){} }
     });
   }
 
-  // Open a small modal-like inline panel to show wrong answer summary for a question
   openWrongAnswerSummary(question: any){
     if(!question) return;
     this.selectedQuestionForWrongSummary = question;
-    // Find wrong answers for the question from wrongDistribution
-    // wrongDistribution may be an array of { question_id, wrong_answers: [{ answer, count, pct }] }
     const qid = question.id || question.question_id || question.sno || question.qid || null;
     let entries: any[] = [];
     try{
       if(Array.isArray(this.wrongDistribution) && this.wrongDistribution.length){
-        // try multiple shapes
-        // shape1: [{ question_id: '123', wrong_answers: [{ answer: 'A', count: 3, pct: '11%' }, ...] }, ...]
         const byQ = this.wrongDistribution.find((d:any) => String(d.question_id || d.qid || d.id || d.sno || '') === String(qid));
         if(byQ){
           entries = byQ.wrong_answers || byQ.wrong || byQ.answers || byQ.distribution || [];
         } else {
-          // shape2: flat list of wrong answers with question ref
           entries = (this.wrongDistribution || []).filter((d:any) => String(d.question_id || d.qid || d.schedule_question_id || '') === String(qid));
         }
       }
     }catch(e){ entries = []; }
 
-    // Normalize entries to { answer, count, pct }
     this.selectedWrongAnswers = (entries || []).map((en:any, idx:number) => {
       if(typeof en === 'string') return { answer: en, count: null, pct: null };
       return {
@@ -1533,26 +1512,24 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       };
     });
 
-    // If no entries found locally, attempt to fetch per-question distribution from backend
     if(!this.selectedWrongAnswers.length){
       const params: any = { schedule_id: String(this.selectedExam?.schedule_id || this.selectedExam?.id || ''), question_id: String(question.question_id || question.id || question.qid || '') };
       if(params.schedule_id && params.question_id){
         this.http.get<any>(`${API_BASE}/get-question-wrong-answers`, { params }).subscribe({
-          next: (res)=>{
+          next: (res: any)=>{
             const body = res || {};
             const payload = body.data || body;
             const dist = payload?.distribution || [];
             this.selectedWrongAnswers = (dist || []).map((d:any)=>({ answer: d.option_text || d.option || d.answer || d.text || 'Answer', option_id: d.option_id || d.options_id || d.optionId || null, answer_id: d.answer_id || d.answerId || null, count: d.count || d.selected_count || 0, pct: (d.percentage !== undefined ? (String(d.percentage) + '%') : (d.pct || null)) }));
             if(!this.selectedWrongAnswers.length){
-              // fallback to raw list
               const raw = payload?.raw || [];
               this.selectedWrongAnswers = (raw || []).map((r:any)=>({ answer: r.text || r.option_text || 'Answer', count: r.count || 0, pct: null }));
             }
             this.showWrongAnswerSummary = true;
           },
-          error: (err)=>{
+          error: (err: any)=>{
             console.warn('Failed to load question wrong answers', err);
-            this.showWrongAnswerSummary = true; // show panel even if empty
+            this.showWrongAnswerSummary = true;
           }
         });
         return;
@@ -1569,44 +1546,37 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   closeWrongAnswerSummary(){ this.showWrongAnswerSummary = false; this.selectedQuestionForWrongSummary = null; this.selectedWrongAnswers = []; }
 
-  // Fetch resources for a specific wrong answer (option) and show central panel
   openResourcesForWrongAnswer(question: any, wa: any){
     if(!question || !wa) return;
     this.selectedResourceContext = { question, wa };
     this.selectedResources = [];
 
-    // build params including schedule and answer identifiers
     const params: any = { schedule_id: String(this.selectedExam?.schedule_id || this.selectedExam?.id || '') };
     if(wa.option_id) params.option_id = wa.option_id;
     else if(wa.optionId) params.option_id = wa.optionId;
     if(wa.answer_id) params.answer_id = wa.answer_id;
     else if(wa.answerId) params.answer_id = wa.answerId;
-    // if written/free-text answer value is present, send it as answer_value
     if(wa.answer && typeof wa.answer === 'string' && !params.answer_id){ params.answer_value = wa.answer; }
-    // ensure question_id fallback
     if(!params.question_id) params.question_id = String(question.question_id || question.id || question.qid || '');
 
     this.http.get<any>(`${API_BASE}/get-answer-resources`, { params }).subscribe({
-      next: (res)=>{
+      next: (res: any) => {
         const body = res || {};
         const payload = body.data || body;
-        // backend returns either an array or an object with data/context
         if(Array.isArray(payload)) this.selectedResources = payload;
         else if(Array.isArray(body.data)) this.selectedResources = body.data;
         else if(Array.isArray(payload.resources)) this.selectedResources = payload.resources;
         else if(Array.isArray(body.data?.data)) this.selectedResources = body.data.data;
         else this.selectedResources = payload || [];
-        // optional context
         if(body.context) this.selectedResourceContext = body.context;
         this.showResourcePanel = true;
       },
-      error: (err)=>{ console.warn('Failed to fetch resources', err); this.showResourcePanel = true; }
+      error: (err: any) => { console.warn('Failed to fetch resources', err); this.showResourcePanel = true; }
     });
   }
 
   closeResourcePanel(){ this.showResourcePanel = false; this.selectedResources = []; this.selectedResourceContext = null; }
 
-  // Format a date dynamically converting GMT/UTC timezone offsets to IST
   formatDate(dateLike: any): string {
     if (!dateLike) return '';
     try {
@@ -1645,7 +1615,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Convert string to Title Case
   toTitleCase(str: string | null | undefined): string {
     if (!str) return '';
     return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());

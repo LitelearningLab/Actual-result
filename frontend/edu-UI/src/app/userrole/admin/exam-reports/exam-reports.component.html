@@ -51,7 +51,7 @@
                           </div>
                           <div class="filter-block">
 
-                               <mat-form-field appearance="outline" class="filter-item">
+                               <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
                                     <mat-label>Institute</mat-label>
                                     <mat-select multiple [(ngModel)]="selectedInstitutes" placeholder="Select institute"
                                          (selectionChange)="onInstituteSelectionChange()">
@@ -90,7 +90,7 @@
                                     </mat-autocomplete>
                                </mat-form-field>
 
-                               <mat-form-field appearance="outline" class="filter-item">
+                               <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
                                     <mat-label>Country</mat-label>
                                     <mat-select [(ngModel)]="userFilters.country_id" name="filterCountry" (openedChange)="onSelectOpened($event, 'country')" (selectionChange)="onCountryChange()">
                                          <div class="select-search-option" (click)="$event.stopPropagation()">
@@ -103,7 +103,7 @@
                                     </mat-select>
                                </mat-form-field>
 
-                               <mat-form-field appearance="outline" class="filter-item">
+                               <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin">
                                     <mat-label>City</mat-label>
                                     <mat-select [(ngModel)]="userFilters.city_id" name="filterCity" (openedChange)="onSelectOpened($event, 'city')">
                                          <div class="select-search-option" (click)="$event.stopPropagation()">
@@ -116,7 +116,7 @@
                                     </mat-select>
                                </mat-form-field>
 
-                               <mat-form-field appearance="outline" class="filter-item" *ngIf="!isGlobalInstituteActive">
+                               <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
                                     <mat-label>Industry</mat-label>
                                     <mat-select [(ngModel)]="userFilters.industry" name="filterIndustry" (openedChange)="onSelectOpened($event, 'industry')" (selectionChange)="onIndustryChange()">
                                          <div class="select-search-option" (click)="$event.stopPropagation()">
@@ -129,7 +129,7 @@
                                     </mat-select>
                                </mat-form-field>
 
-                               <mat-form-field appearance="outline" class="filter-item" *ngIf="!isGlobalInstituteActive">
+                               <mat-form-field appearance="outline" class="filter-item" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
                                     <mat-label>Sector</mat-label>
                                     <mat-select [(ngModel)]="userFilters.sector" name="filterSector" [disabled]="!userFilters.industry" (openedChange)="onSelectOpened($event, 'sector')" (selectionChange)="onSectorChange()">
                                          <div class="select-search-option" (click)="$event.stopPropagation()">
@@ -157,7 +157,7 @@
 
                                <mat-form-field appearance="outline" class="filter-item">
                                     <mat-label>Department</mat-label>
-                                    <mat-select [(ngModel)]="userFilters.department_id" name="filterDepartment" multiple [disabled]="!userFilters.institute_id && !userFilters.campus_id" (openedChange)="onSelectOpened($event, 'department')" (selectionChange)="onFilterSelectionChange()">
+                                    <mat-select [(ngModel)]="userFilters.department_id" name="filterDepartment" multiple [disabled]="!userFilters.institute_id && !selectedInstituteId && !userFilters.campus_id" (openedChange)="onSelectOpened($event, 'department')" (selectionChange)="onFilterSelectionChange()">
                                          <div class="select-search-option select-search-option--multi" (click)="$event.stopPropagation()">
                                               <input matInput class="select-search-input" placeholder="Search department..." [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
                                          </div>
@@ -175,7 +175,7 @@
 
                                <mat-form-field appearance="outline" class="filter-item">
                                     <mat-label>Team</mat-label>
-                                    <mat-select [(ngModel)]="userFilters.teams_id" name="filterTeam" multiple [disabled]="!userFilters.institute_id && !userFilters.campus_id" (openedChange)="onSelectOpened($event, 'team')" (selectionChange)="onFilterSelectionChange()">
+                                    <mat-select [(ngModel)]="userFilters.teams_id" name="filterTeam" multiple [disabled]="!userFilters.institute_id && !selectedInstituteId && !userFilters.campus_id" (openedChange)="onSelectOpened($event, 'team')" (selectionChange)="onFilterSelectionChange()">
                                          <div class="select-search-option select-search-option--multi" (click)="$event.stopPropagation()">
                                               <input matInput class="select-search-input" placeholder="Search team..." [(ngModel)]="teamFilterSearch" [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
                                          </div>
