@@ -485,6 +485,13 @@ def get_institute_details(request):
     filters = []
     args = getattr(request, "args", {})
     filters.append(Institute.is_deleted == 0)
+    inst_param = args.get("institute_id") or args.get("institute_ids") or args.get("id")
+    if inst_param:
+        inst_val = str(inst_param).strip()
+        if ',' in inst_val:
+            filters.append(Institute.institute_id.in_([i.strip() for i in inst_val.split(',') if i.strip()]))
+        else:
+            filters.append(Institute.institute_id == inst_val)
     if args.get("name"):
         name_filter = f"%{args.get('name')}%"
         filters.append(or_(Institute.name.ilike(name_filter), Institute.short_name.ilike(name_filter)))

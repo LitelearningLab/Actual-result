@@ -87,8 +87,10 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
   letter-spacing: -0.01em;
 }
 :host ::ng-deep .toolbar .selections mat-form-field input::placeholder { 
-  color: #94a3b8; 
-  font-weight: 400; 
+  color: #94a3b8 !important; 
+  font-weight: 400 !important; 
+  opacity: 1 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
 }
 :host ::ng-deep .toolbar .selections mat-form-field mat-icon[matPrefix] {
   color: #94a3b8;

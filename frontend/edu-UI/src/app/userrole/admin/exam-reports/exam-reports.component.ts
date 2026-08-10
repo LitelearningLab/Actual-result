@@ -388,8 +388,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return (this.teamList || []).filter(t => t.toLowerCase().includes(q));
   }
 
+  getTestTitle = (exam: any): string => {
+    if (!exam) return '';
+    if (typeof exam === 'string') {
+      return exam.replace(/^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}\s*-\s*/, '').trim();
+    }
+    const rawTitle = exam.exam?.title || exam.exam_title || exam.test_name || exam.title || exam.name || '';
+    return String(rawTitle).replace(/^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}\s*-\s*/, '').trim();
+  };
+
   get filteredScheduleList(): any[] {
-    const q = (this.searchQueries.schedule || '').toLowerCase().trim();
+    const q = (typeof this.searchQueries.schedule === 'string' ? this.searchQueries.schedule : this.getTestTitle(this.searchQueries.schedule)).toLowerCase().trim();
     let list = this.allTests || [];
 
     // Filter by campus if selected
@@ -420,7 +429,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
 
     if (!q) return list;
-    return list.filter(t => (t.title || t.name || '').toLowerCase().includes(q));
+    return list.filter(t => this.getTestTitle(t).toLowerCase().includes(q));
   }
 
   get filteredActiveStatusList(): Array<{ value: string; label: string }> {
@@ -1033,7 +1042,26 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.closeFiltersOverlay();
   }
 
-  displayTest(exam: any) { return exam ? (exam.title || exam.name || '') : ''; }
+  displayTest = (exam: any): string => {
+    return this.getTestTitle(exam);
+  };
+
+  onTestFilterSelected(val: any) {
+    if (!val) {
+      this.userFilters.schedule_id = '';
+      this.searchQueries.schedule = '';
+    } else if (typeof val === 'object') {
+      this.userFilters.schedule_id = String(val.schedule_id || val.id || val.scheduleId || '');
+      this.searchQueries.schedule = val;
+    } else {
+      this.userFilters.schedule_id = String(val);
+      const found = (this.allTests || []).find(t => String(t.schedule_id || t.id || t.scheduleId) === String(val));
+      if (found) {
+        this.searchQueries.schedule = found;
+      }
+    }
+  }
+
   onTestAutocompleteSelected(exam: any) {
     this.selectedExam = exam; 
     if (exam) {
@@ -1254,8 +1282,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             this.filteredTests$ = this.examCtrl.valueChanges.pipe(
               startWith(''),
               map((val:any) => {
-                const q = (typeof val === 'string' ? val : (val?.title || val?.name || '')).toLowerCase();
-                return (this.allTests || []).filter((it:any) => (it.title || it.name || '').toLowerCase().includes(q));
+                const q = (typeof val === 'string' ? val : this.getTestTitle(val)).toLowerCase();
+                return (this.allTests || []).filter((it:any) => this.getTestTitle(it).toLowerCase().includes(q));
               })
             );
           }catch(e){ this.filteredTests$ = of(this.allTests || []); }
@@ -1315,8 +1343,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.userFilters.institute_id = this.selectedInstituteId || '';
     if (this.selectedExam) {
       this.userFilters.schedule_id = String(this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || '');
+      this.searchQueries.schedule = this.selectedExam;
     }
-    Object.keys(this.searchQueries).forEach(k => this.searchQueries[k] = '');
+    Object.keys(this.searchQueries).forEach(k => {
+      if (k !== 'schedule' || !this.selectedExam) {
+        this.searchQueries[k] = '';
+      }
+    });
 
     const targetEl = this.filtersBtn?.nativeElement || (this.filtersBtn as any)?._elementRef?.nativeElement || this.filtersBtn;
 
