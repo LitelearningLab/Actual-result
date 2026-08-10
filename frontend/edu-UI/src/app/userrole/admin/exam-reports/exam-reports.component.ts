@@ -609,7 +609,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!cid) return;
     this.selectedCategoryFilterName =
       category.category_name || category.name || 'Selected Category';
-    this.activeMainTabIndex = 1;
+    this.activeMainTabIndex = 0;
     this.questionCurrentPage = 1;
     if (this.questionSummary && this.questionSummary.length) {
       this.filteredQuestionSummary = (this.questionSummary || []).filter(
@@ -979,7 +979,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       } catch (e) {}
     }
 
-    
     if (!answerID) {
       console.warn('[saveMarks] Missing answer ID:', { answerID });
       this._snack.open('Missing answer ID', 'Close', { duration: 3000 });
@@ -990,7 +989,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       question_id: q.question_id,
       answer_id: answerID,
       editedMarks: newMarks,
-      reason: editReason
+      reason: editReason,
     });
 
     const payload = {
@@ -1261,9 +1260,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     if (this.selectedExam) {
       if (this.activeMainTabIndex === 0) {
-        this.loadUserReport(1);
-      } else {
         this.loadAnalytics();
+      } else {
+        this.loadUserReport(1);
       }
     }
 
@@ -1358,9 +1357,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
     this.questionCurrentPage = 1;
     if (this.activeMainTabIndex === 0) {
-      this.loadUserReport(1);
-    } else if (this.activeMainTabIndex === 1) {
       this.loadAnalytics();
+    } else if (this.activeMainTabIndex === 1) {
+      this.loadUserReport(1);
     }
   }
   closeUserFilter() {
@@ -1877,9 +1876,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       return;
     }
     if (idx === 0) {
-      this.loadUserReport(1);
-    } else if (idx === 1) {
       this.loadAnalytics();
+    } else if (idx === 1) {
+      this.loadUserReport(1);
     }
   }
 
@@ -2064,7 +2063,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
             this._pendingCategoryFilter = null;
             try {
-              this.activeMainTabIndex = 1;
+              this.activeMainTabIndex = 0;
               this.innerAnalyticsTabIndex = 1;
             } catch (e) {}
           } else {
