@@ -655,10 +655,14 @@ def update_descriptive_marks(request, current_user=None):
         updated_by_raw = data.get("updated_by", "")
         edit_reason = str(data.get("edit_reason", "") or "").strip()
 
+        print(f"[update_descriptive_marks] Payload received: answer_id={answer_id}, marks={marks_awarded}, updated_by={updated_by_raw}, reason='{edit_reason}'")
+
         if not answer_id:
+            print("[update_descriptive_marks] ERROR: answer_id is missing")
             return {"statusMessage": "answer_id is required", "status": False}, 400
 
         if not edit_reason:
+            print("[update_descriptive_marks] ERROR: edit_reason is empty")
             return {"statusMessage": "Description (reason for change) is required when updating marks", "status": False}, 400
 
         updated_by = None
@@ -676,15 +680,18 @@ def update_descriptive_marks(request, current_user=None):
 
         answer_record = session.query(Answer).filter(Answer.answer_id == answer_id).first()
         if not answer_record:
+            print(f"[update_descriptive_marks] ERROR: Answer record not found for answer_id={answer_id}")
             return {"statusMessage": "Answer record not found", "status": False}, 404
         
+        print(f"[update_descriptive_marks] Found DB Answer record: answer_id={answer_record.answer_id}, old_marks={answer_record.marks_awarded}")
+        
         # Save snapshot of previous state to MarksHistory
-        prev_reason = getattr(answer_record, 'edit_reason', None)
+        prev_reason = getattr(answer_record, 'edit_reason', None) or getattr(answer_record, 'feedback', None)
         answer_history_record = MarksHistory(
             answer_id=answer_id,
             question_id=answer_record.question_id,
             marks_awarded=answer_record.marks_awarded,
-            source=prev_reason,
+            source='manual',
             edit_reason=prev_reason,
             updated_by=answer_record.created_by,
             updated_date=answer_record.created_date or func.now()
@@ -709,7 +716,8 @@ def update_descriptive_marks(request, current_user=None):
             total_possible_marks = session.query(Question).join(Answer, Answer.question_id == Question.question_id).filter(
                 Answer.attempt_id == answer_record.attempt_id
             ).with_entities(func.sum(Question.marks)).scalar() or 0
-            passing_score = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first().pass_mark
+            sched = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first()
+            passing_score = getattr(sched, 'pass_mark', 50) if sched else 50
             if total_possible_marks > 0 and (total_score / total_possible_marks * 100) >= passing_score:
                 attempt.feedback = 'Pass'
             else:
@@ -717,6 +725,8 @@ def update_descriptive_marks(request, current_user=None):
             attempt.percentage = (total_score / total_possible_marks * 100) if total_possible_marks > 0 else 0
             session.add(attempt)
             session.commit()
+            print(f"[update_descriptive_marks] Successfully updated DB: answer_id={answer_record.answer_id} -> new_marks={marks_awarded}, new_attempt_score={attempt.score}")
+            return {"statusMessage": "Descriptive marks updated successfully", "status": True}, 200
 
     except Exception as e:
         session.rollback()
@@ -724,7 +734,6 @@ def update_descriptive_marks(request, current_user=None):
         return {"statusMessage": f"Error updating descriptive marks: {str(e)}", "status": False}, 500
     finally:
         session.close()
-        return {"statusMessage": "Descriptive marks updated successfully", "status": True}, 200
 
 
 if __name__ == "__main__":

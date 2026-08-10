@@ -799,10 +799,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   private fetchUserReview(params: any) {
+    console.log('[fetchUserReview] Re-fetching review with params:', params);
     this.userReviewLoading = true;
     this.loading.show();
     this.http.get<any>(`${API_BASE}/review-user-exam`, { params }).subscribe({
       next: (res: any) => {
+        console.log('[fetchUserReview] Received review data response:', res);
         try {
           const body = res || {};
           let attempts: any[] = [];
@@ -981,6 +983,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       return;
     }
 
+    console.log('[saveMarks] Triggered with item:', {
+      question_id: q.question_id,
+      answer_id: answerID,
+      editedMarks: newMarks,
+      reason: editReason
+    });
+
     const payload = {
       answer_id: String(answerID),
       marks_awarded: newMarks,
@@ -988,9 +997,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       edit_reason: editReason,
     };
 
+    console.log('[saveMarks] Sending payload to /update-descriptive-marks:', payload);
+
     this.loading.show();
     this.http.post<any>(`${API_BASE}/update-descriptive-marks`, payload).subscribe({
       next: (res: any) => {
+        console.log('[saveMarks] Backend responded SUCCESS:', res);
         this.loading.hide();
         const oldMarks = q.marks_awarded || 0;
         const oldReason = q.edit_reason || '';

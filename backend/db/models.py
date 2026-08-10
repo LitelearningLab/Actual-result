@@ -389,6 +389,7 @@ class MarksHistory(Base):
      question_id = Column(String, nullable=True)
      marks_awarded = Column(Integer, nullable=True)
      source = Column(String, nullable=True)
+     edit_reason = Column(Text, nullable=True)
      updated_by = Column(String, ForeignKey('Users.user_id'), nullable=True)
      updated_date = Column(DateTime, default=datetime.datetime.utcnow)
 
