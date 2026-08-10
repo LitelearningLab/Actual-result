@@ -38,7 +38,7 @@
       <div class="filter-row">
          <mat-form-field *ngIf="isSuperAdmin && !isGlobalInstituteActive" appearance="outline" class="mandatory-field">
             <mat-label>Institute <span class="required-star">*</span></mat-label>
-            <mat-select multiple [(ngModel)]="selectedInstitutes" placeholder="Select institute" required>
+            <mat-select multiple [(ngModel)]="selectedInstitutes" placeholder="Select institute">
                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                   <input matInput class="select-search-input" placeholder="Search institute"
                      [(ngModel)]="instituteFilterSearch" [ngModelOptions]="{ standalone: true }"
