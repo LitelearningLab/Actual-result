@@ -2322,6 +2322,12 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   // Called when Apply button is clicked (explicit apply wrapper)
   applyFilters() {
+    if (this.isSuperAdmin && !this.isGlobalInstituteActive && !this.filterInstitute) {
+      try {
+        notify('Please select an institute', 'info');
+      } catch (e) {}
+      return;
+    }
     if (!this.hasExamFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');

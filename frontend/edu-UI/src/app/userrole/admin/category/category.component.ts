@@ -1446,6 +1446,12 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onApply() {
+    if (this.isSuperAdmin && !this.isGlobalInstituteActive && (!this.selectedInstitutes || !this.selectedInstitutes.length) && !this.selectedInstitute) {
+      try {
+        notify('Please select an institute', 'info');
+      } catch (e) {}
+      return;
+    }
     if (!this.hasFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');

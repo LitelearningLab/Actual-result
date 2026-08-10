@@ -196,6 +196,7 @@
                 [(ngModel)]="userFilters.institute_id"
                 name="filterInstitute"
                 placeholder="Select institute"
+                required
                 (selectionChange)="onInstituteSelectionChange()"
               >
                 <div class="select-search-option" (click)="$event.stopPropagation()">

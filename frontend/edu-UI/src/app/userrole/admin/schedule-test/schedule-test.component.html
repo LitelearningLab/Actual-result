@@ -790,10 +790,10 @@
             <!-- Right Column: Institute, Departments, Teams, Test Name -->
             <div class="filter-col">
               <!-- 5. Institute -->
-              <mat-form-field appearance="outline" class="filter-item" *ngIf="!isGlobalInstituteActive">
+              <mat-form-field appearance="outline" class="filter-item mandatory-field" *ngIf="!isGlobalInstituteActive">
                 <mat-icon matPrefix>apartment</mat-icon>
-                <mat-label>Institute</mat-label>
-                <mat-select [(ngModel)]="filterInstitute" (selectionChange)="onFilterInstituteSelected($event.value)"
+                <mat-label>Institute <span class="required-star">*</span></mat-label>
+                <mat-select [(ngModel)]="filterInstitute" required (selectionChange)="onFilterInstituteSelected($event.value)"
                   (openedChange)="onFilterSelectOpened($event, 'country')">
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                     <input matInput class="select-search-input" placeholder="Search institute"

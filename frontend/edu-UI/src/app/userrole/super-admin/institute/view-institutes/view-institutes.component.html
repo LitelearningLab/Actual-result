@@ -215,11 +215,12 @@
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="filter-item">
-          <mat-label>Institute</mat-label>
+        <mat-form-field appearance="outline" class="filter-item mandatory-field">
+          <mat-label>Institute <span class="required-star">*</span></mat-label>
           <mat-select
             multiple
             [(ngModel)]="selectedInstitutes"
+            required
             placeholder="Select institute"
             (openedChange)="onFilterSelectOpened($event, 'institute')"
           >

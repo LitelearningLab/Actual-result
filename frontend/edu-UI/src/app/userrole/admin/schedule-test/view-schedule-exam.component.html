@@ -109,9 +109,9 @@
 
                 <!-- Right Column: Institute, Schedule Name, Departments, Teams, Created Before -->
                 <div class="filter-col">
-                    <mat-form-field appearance="outline" class="filter-item local-institute-field" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
-                        <mat-label>Institute</mat-label>
-                        <mat-select multiple [(ngModel)]="selectedInstitutes"
+                    <mat-form-field appearance="outline" class="filter-item local-institute-field mandatory-field" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
+                        <mat-label>Institute <span class="required-star">*</span></mat-label>
+                        <mat-select multiple [(ngModel)]="selectedInstitutes" required
                             (selectionChange)="onInstituteSelectionChange()" placeholder="Select institute"
                             (openedChange)="onFilterInstituteOpenedChange($event)">
 

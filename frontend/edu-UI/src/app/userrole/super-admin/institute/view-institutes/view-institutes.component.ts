@@ -412,6 +412,10 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
 
 
   applyFilters() {
+    if (!this.selectedInstitutes || !this.selectedInstitutes.length) {
+      try { notify('Please select an institute', 'info'); } catch (e) { }
+      return;
+    }
     if (!this.hasFilterValues()) {
       try { notify('Please add filters in the filter form.', 'info'); } catch (e) { }
       return;

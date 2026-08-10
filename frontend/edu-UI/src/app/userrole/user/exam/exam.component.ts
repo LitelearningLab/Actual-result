@@ -719,6 +719,12 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   }
 
   applyFilter(){
+    if (this.isSuperAdmin && !this.isGlobalInstituteActive && (!this.selectedInstitutes || !this.selectedInstitutes.length) && !this.filterInstitute) {
+      try {
+        notify('Please select an institute', 'info');
+      } catch (e) {}
+      return;
+    }
     const q = (this.search || '').trim().toLowerCase();
     const predicate = (row: UserTestRow) => {
       const byText = (row.title || '').toLowerCase().includes(q) || (row.test_id || '').toLowerCase().includes(q);

@@ -954,6 +954,12 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   onApply() {
+    if (this.isSuperAdmin && !this.isGlobalInstituteActive && (!this.selectedInstitutes || !this.selectedInstitutes.length) && !this.selectedInstitute) {
+      try {
+        notify('Please select an institute', 'info');
+      } catch (e) {}
+      return;
+    }
     if (this.isSuperAdmin && this.instituteSearchTerm.trim()) {
       const typedInstitute = this.instituteSearchTerm.trim().toLowerCase();
       const matchedInstitute = this.institutes.find(
