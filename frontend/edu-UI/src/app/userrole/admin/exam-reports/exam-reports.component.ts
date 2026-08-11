@@ -146,6 +146,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     joined_after: null as Date | string | null,
     joined_before: null as Date | string | null,
   };
+  selectedCountries: string[] = [];
   selectedCities: string[] = [];
   citySearch = '';
   searchQueries: any = {
@@ -342,8 +343,36 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   get filteredCountriesList(): any[] {
     const q = (this.searchQueries.country || '').toLowerCase().trim();
-    if (!q) return this.countries;
-    return (this.countries || []).filter((c) => (c.name || '').toLowerCase().includes(q));
+    let list = this.countries || [];
+    if (q) {
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(q) ||
+          (this.selectedCountries || []).includes(c.code)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCountries || []).includes(a.code);
+      const bSel = (this.selectedCountries || []).includes(b.code);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllCountriesSelected(): boolean {
+    const items = this.filteredCountriesList || [];
+    return items.length > 0 && items.every((c) => (this.selectedCountries || []).includes(c.code));
+  }
+
+  toggleSelectAllCountries(): void {
+    const items = this.filteredCountriesList || [];
+    if (this.isAllCountriesSelected()) {
+      this.selectedCountries = [];
+    } else {
+      this.selectedCountries = items.map((c) => c.code);
+    }
+    this.onCountryChange();
   }
 
   get filteredCitiesList(): any[] {
@@ -1364,7 +1393,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   private loadInstitutes() {
     const url = `${API_BASE}/institutes/list`;
     const params: any = {};
-    if (this.userFilters.country_id) params.country = this.userFilters.country_id;
+    if (this.selectedCountries && this.selectedCountries.length) {
+      params.country = this.selectedCountries.join(',');
+    } else if (this.userFilters.country_id) {
+      params.country = this.userFilters.country_id;
+    }
     if (this.selectedCities && this.selectedCities.length) {
       params.city = this.selectedCities.join(',');
     } else if (this.userFilters.city_id) {
@@ -1591,25 +1624,39 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.cities = [];
     this.selectedCities = [];
     this.userFilters.city_id = '';
-    if (!this.userFilters.country_id) return;
+    const selectedCountryCodes =
+      this.selectedCountries && this.selectedCountries.length
+        ? this.selectedCountries
+        : this.userFilters.country_id
+        ? [this.userFilters.country_id]
+        : [];
+
+    if (!selectedCountryCodes.length) {
+      this.loadInstitutes();
+      return;
+    }
 
     const toTitleCase = (str: string) =>
       str ? str.trim().replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()) : '';
 
-    const url = `${API_BASE}/location-hierarchy`;
-    this.http.get<any>(url, { params: { country_id: this.userFilters.country_id } }).subscribe({
-      next: (res: any) => {
-        let rawCities: any[] = res?.data?.cities || res?.cities || [];
-        const uniqueMap = new Map<string, { code: string; name: string }>();
+    const requests = selectedCountryCodes.map((code) =>
+      this.http.get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: code } })
+    );
 
-        (rawCities || []).forEach((c: any) => {
-          const rawName = c.city_name || c.name || c.city || '';
-          if (rawName) {
-            const formatted = toTitleCase(rawName);
-            if (!uniqueMap.has(formatted.toLowerCase())) {
-              uniqueMap.set(formatted.toLowerCase(), { code: formatted, name: formatted });
+    forkJoin(requests).subscribe({
+      next: (responses: any[]) => {
+        const uniqueMap = new Map<string, { code: string; name: string }>();
+        responses.forEach((res: any) => {
+          let rawCities: any[] = res?.data?.cities || res?.cities || [];
+          (rawCities || []).forEach((c: any) => {
+            const rawName = c.city_name || c.name || c.city || '';
+            if (rawName) {
+              const formatted = toTitleCase(rawName);
+              if (!uniqueMap.has(formatted.toLowerCase())) {
+                uniqueMap.set(formatted.toLowerCase(), { code: formatted, name: formatted });
+              }
             }
-          }
+          });
         });
 
         this.cities = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name));

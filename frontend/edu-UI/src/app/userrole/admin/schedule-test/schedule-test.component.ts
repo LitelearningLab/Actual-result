@@ -1105,8 +1105,40 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   get examFilteredCities(): Array<{ code: string; name: string }> {
     const term = (this.citySearch || '').trim().toLowerCase();
-    if (!term) return this.cities;
-    return this.cities.filter((c) => (c.name || '').toLowerCase().includes(term));
+    let list = this.cities || [];
+    if (term) {
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(term) ||
+          (this.selectedCities || []).includes(c.name)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCities || []).includes(a.name);
+      const bSel = (this.selectedCities || []).includes(b.name);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllCitiesSelected(): boolean {
+    const items = this.examFilteredCities || [];
+    return items.length > 0 && items.every((c) => (this.selectedCities || []).includes(c.name));
+  }
+
+  toggleSelectAllCities(): void {
+    const items = this.examFilteredCities || [];
+    if (this.isAllCitiesSelected()) {
+      this.selectedCities = [];
+    } else {
+      this.selectedCities = items.map((c) => c.name);
+    }
+    this.onCityFilterChange();
+  }
+
+  onCityFilterChange() {
+    this.loadInstitutes();
   }
 
   onCountryChange() {
@@ -1279,7 +1311,11 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     this.institutesLoadFailed = false;
     const params: any = {};
     if (this.filterCountry) params.country = this.filterCountry;
-    if (this.filterCity) params.city = this.filterCity;
+    if (this.selectedCities && this.selectedCities.length) {
+      params.city = this.selectedCities.join(',');
+    } else if (this.filterCity) {
+      params.city = this.filterCity;
+    }
     if (this.filterIndustry) params.industry = this.filterIndustry;
     if (this.filterSector) params.sector = this.filterSector;
 
@@ -1678,6 +1714,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   // New exam filter properties
   countrySearch = '';
   selectedCountries: string[] = [];
+  selectedCities: string[] = [];
   industrySearch = '';
   sectorSearch = '';
   filterCityOptions: Array<{ code: string; name: string }> = [];

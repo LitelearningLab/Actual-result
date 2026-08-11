@@ -699,4 +699,13 @@ button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon {
   }
 }
 
+/* Hide Angular Material's native pseudo checkbox on Select All option */
+.select-all-option .mat-pseudo-checkbox,
+.select-all-option .mat-mdc-option-pseudo-checkbox,
+::ng-deep .select-all-option .mat-pseudo-checkbox,
+::ng-deep .select-all-option .mat-mdc-option-pseudo-checkbox {
+  display: none !important;
+}
+
+
 

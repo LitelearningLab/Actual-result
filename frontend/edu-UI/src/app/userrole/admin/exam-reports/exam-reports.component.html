@@ -88,25 +88,43 @@
             >
               <mat-label>Country</mat-label>
               <mat-select
-                [(ngModel)]="userFilters.country_id"
-                name="filterCountry"
+                multiple
+                [(ngModel)]="selectedCountries"
+                placeholder="Select Country"
                 (openedChange)="onSelectOpened($event, 'country')"
                 (selectionChange)="onCountryChange()"
               >
-                <div class="select-search-option" (click)="$event.stopPropagation()">
+                <!-- Search Country Input -->
+                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                   <input
                     matInput
                     class="select-search-input"
-                    placeholder="Search country..."
+                    placeholder="Search country"
                     [(ngModel)]="searchQueries.country"
                     [ngModelOptions]="{ standalone: true }"
                     (click)="$event.stopPropagation()"
-                    (keydown)="$event.stopPropagation()"
-                    (keyup)="$event.stopPropagation()"
-                    (input)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)"
                   />
-                </div>
-                <mat-option value="">All</mat-option>
+                </mat-option>
+
+                <!-- Select All Checkbox Option -->
+                <mat-option
+                  class="select-all-option"
+                  *ngIf="filteredCountriesList.length && !searchQueries.country?.trim()"
+                  (click)="toggleSelectAllCountries()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllCountriesSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllCountriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </mat-option>
+
+                <!-- Country Options with Checkboxes -->
                 <mat-option *ngFor="let c of filteredCountriesList" [value]="c.code">
                   {{ c.name }}
                 </mat-option>
