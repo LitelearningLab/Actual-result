@@ -47,10 +47,16 @@ def get_location_hierarchy_details(request):
                 else:
                     cities = session.query(City).filter(City.country_id.in_(country_ids)).all()
         elif "country_id" in args:
-            countries = session.query(Country).filter(Country.country_id == args["country_id"]).all()
-            # Query distinct non-null city names from registered campuses under this country_id
-            states = session.query(State).filter(State.country_id == args["country_id"]).all()
-            registered_cities = session.query(InstituteCampus.city_name).filter(InstituteCampus.country_id == args["country_id"]).all()
+            country_arg = str(args["country_id"] or '').strip()
+            if ',' in country_arg:
+                c_ids = [c.strip() for c in country_arg.split(',') if c.strip()]
+                countries = session.query(Country).filter(Country.country_id.in_(c_ids)).all()
+                states = session.query(State).filter(State.country_id.in_(c_ids)).all()
+                registered_cities = session.query(InstituteCampus.city_name).filter(InstituteCampus.country_id.in_(c_ids)).all()
+            else:
+                countries = session.query(Country).filter(Country.country_id == country_arg).all()
+                states = session.query(State).filter(State.country_id == country_arg).all()
+                registered_cities = session.query(InstituteCampus.city_name).filter(InstituteCampus.country_id == country_arg).all()
             
             # Deduplicate and title-case
             unique_names = sorted(list({c[0].strip().title() for c in registered_cities if c[0] and c[0].strip()}))

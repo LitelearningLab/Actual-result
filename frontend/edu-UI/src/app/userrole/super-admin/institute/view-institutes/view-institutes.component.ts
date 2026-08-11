@@ -168,6 +168,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
 
   private filtersOverlayRef: OverlayRef | null = null;
+  private appliedStateSnapshot: any = null;
 
   constructor(
     private http: HttpClient,
@@ -353,9 +354,12 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     }
 
     if (this.selectedCountries && this.selectedCountries.length) {
+      const countryNames = this.selectedCountries.map((code) =>
+        this.getSelectedName(this.countries, code, 'code')
+      );
       chips.push({
         key: 'country',
-        label: `Country: ${this.selectedCountries.join(', ')}`,
+        label: `Country: ${countryNames.join(', ')}`,
         removable: true,
       });
     } else if (this.filters.country) {
@@ -633,7 +637,28 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     this.showFilters = !this.showFilters;
   }
 
+  saveAppliedStateSnapshot() {
+    this.appliedStateSnapshot = {
+      filters: { ...this.filters },
+      selectedCountries: [...(this.selectedCountries || [])],
+      selectedIndustries: [...(this.selectedIndustries || [])],
+      selectedSectors: [...(this.selectedSectors || [])],
+      selectedInstitutes: [...(this.selectedInstitutes || [])],
+      selectedActiveStatuses: [...(this.selectedActiveStatuses || [])],
+    };
+  }
+
   openFiltersOverlay() {
+    // Save snapshot of currently applied filter state
+    this.saveAppliedStateSnapshot();
+    // Ensure city options are loaded if a country is already selected
+    const selectedCountryCode = this.selectedCountries?.length
+      ? this.selectedCountries.join(',')
+      : this.filters.country;
+    if (selectedCountryCode) {
+      this.loadCitiesForCountry(selectedCountryCode);
+    }
+
     if (!this.filtersBtn) return;
     if (this.filtersOverlayRef) {
       try {
@@ -665,7 +690,6 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     const portal = new TemplatePortal(this.filtersPanelTpl, this.vcr);
     this.filtersOverlayRef.attach(portal);
   }
-
   closeFiltersOverlay() {
     if (this.filtersOverlayRef) {
       try {
@@ -678,8 +702,24 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   // country -> city filtering removed: we now load all cities in loadCountries()
 
   loadInstituteOptions() {
+    const params: any = {};
+    if (this.selectedCountries && this.selectedCountries.length)
+      params.country = this.selectedCountries.join(',');
+    else if (this.filters.country) params.country = this.filters.country;
+
+    const cityName = String(this.filters.city || '').trim();
+    if (cityName) params.city = cityName;
+
+    if (this.selectedIndustries && this.selectedIndustries.length)
+      params.industry = this.selectedIndustries.join(',');
+    else if (this.filters.industry) params.industry = this.filters.industry;
+
+    if (this.selectedSectors && this.selectedSectors.length)
+      params.sector = this.selectedSectors.join(',');
+    else if (this.filters.sector) params.sector = this.filters.sector;
+
     const url = `${API_BASE}/get-institute-list`;
-    this.http.get<any>(url).subscribe({
+    this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
         try {
           const data = Array.isArray(res?.data) ? res.data : [];
@@ -701,8 +741,8 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   filteredInstituteOptions() {
-    // Institute options become available when either parent scope is selected.
-    if (!this.filters.country && !this.filters.industry) return [];
+    // Institute options become available when any parent scope (country, city, industry) is selected.
+    if (!this.filters.country && !this.filters.industry && !this.filters.city) return [];
     const q = String(this.filters.name || '')
       .trim()
       .toLowerCase();
@@ -976,13 +1016,14 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
       return;
     }
 
-    this.http.get<any>(this.apiUrl, { params }).subscribe({
+    const url = `${API_BASE}/get-institute-list`;
+    this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
         try {
           const data = Array.isArray(res?.data) ? res.data : [];
           this.instituteOptions = data
             .map((r: any) => ({
-              id: r.institute_id || r.id || r._id || r.name || '',
+              id: r.institute_id || r.id || r._id || r.name || r.institute_name || '',
               name: r.institute_name || r.name || r.short_name || '',
             }))
             .filter((i: any) => !!i.name);

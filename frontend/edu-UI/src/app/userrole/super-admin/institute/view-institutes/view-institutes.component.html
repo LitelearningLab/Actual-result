@@ -304,8 +304,8 @@
         <button mat-flat-button (click)="applyFilters()" class="filter-apply-btn">
           <mat-icon svgIcon="apply"></mat-icon> Apply
         </button>
-        <button mat-flat-button (click)="resetFilters()" class="filter-reset-btn">
-          <mat-icon svgIcon="reset_settings"></mat-icon> Reset
+        <button type="button" mat-button (click)="resetFilters()">
+          <mat-icon>rotate_left</mat-icon> Reset
         </button>
       </div>
     </div>

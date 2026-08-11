@@ -520,7 +520,11 @@ def get_institute_details(request):
     if args.get("city"):
         city_val = str(args.get("city") or '').strip()
         if city_val:
-            filters.append(InstituteCampus.city_name.ilike(f"%{city_val}%"))
+            if ',' in city_val:
+                city_list = [c.strip() for c in city_val.split(',') if c.strip()]
+                filters.append(or_(*[InstituteCampus.city_name.ilike(f"%{c}%") for c in city_list]))
+            else:
+                filters.append(InstituteCampus.city_name.ilike(f"%{city_val}%"))
 
     # If country or city filters are present, join with InstituteCampus
     if any(arg in args for arg in ["country", "city"]):
@@ -665,11 +669,20 @@ def get_institute_list(current_user=None, request=None):
     if args.get("country") or args.get("city"):
         query = query.join(InstituteCampus, Institute.institute_id == InstituteCampus.institute_id)
         if args.get("country"):
-            query = query.filter(InstituteCampus.country_id == args.get("country"))
+            country_val = str(args.get("country")).strip()
+            if ',' in country_val:
+                country_list = [c.strip() for c in country_val.split(',') if c.strip()]
+                query = query.filter(InstituteCampus.country_id.in_(country_list))
+            else:
+                query = query.filter(InstituteCampus.country_id == country_val)
         if args.get("city"):
             city_val = str(args.get("city") or '').strip()
             if city_val:
-                query = query.filter(InstituteCampus.city_name.ilike(f"%{city_val}%"))
+                if ',' in city_val:
+                    city_list = [c.strip() for c in city_val.split(',') if c.strip()]
+                    query = query.filter(or_(*[InstituteCampus.city_name.ilike(f"%{c}%") for c in city_list]))
+                else:
+                    query = query.filter(InstituteCampus.city_name.ilike(f"%{city_val}%"))
 
     active_institutes = query.distinct().all()
     result = []
