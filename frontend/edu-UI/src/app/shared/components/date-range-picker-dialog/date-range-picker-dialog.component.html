@@ -7,6 +7,8 @@
     <button type="button" class="preset-item" [class.active]="activePreset === 'last_week'" (click)="selectPreset('last_week')">Last week</button>
     <button type="button" class="preset-item" [class.active]="activePreset === 'this_month'" (click)="selectPreset('this_month')">This month</button>
     <button type="button" class="preset-item" [class.active]="activePreset === 'last_month'" (click)="selectPreset('last_month')">Last month</button>
+    <button type="button" class="preset-item" [class.active]="activePreset === 'last_3_months'" (click)="selectPreset('last_3_months')">Last 3 months</button>
+    <button type="button" class="preset-item" [class.active]="activePreset === 'last_6_months'" (click)="selectPreset('last_6_months')">Last 6 months</button>
     <button type="button" class="preset-item" [class.active]="activePreset === 'this_year'" (click)="selectPreset('this_year')">This year</button>
     <button type="button" class="preset-item" [class.active]="activePreset === 'last_year'" (click)="selectPreset('last_year')">Last year</button>
   </div>

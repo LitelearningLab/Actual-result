@@ -151,6 +151,20 @@ export class DateRangePickerDialogComponent implements OnInit {
         this.selectedEnd = lastDay;
         break;
       }
+      case 'last_3_months': {
+        const start = new Date(today);
+        start.setMonth(today.getMonth() - 3);
+        this.selectedStart = start;
+        this.selectedEnd = today;
+        break;
+      }
+      case 'last_6_months': {
+        const start = new Date(today);
+        start.setMonth(today.getMonth() - 6);
+        this.selectedStart = start;
+        this.selectedEnd = today;
+        break;
+      }
       case 'this_year': {
         const firstDay = new Date(today.getFullYear(), 0, 1);
         const lastDay = new Date(today.getFullYear(), 11, 31);
