@@ -663,9 +663,22 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
 /* Hide default pseudo-checkbox on search row and select-all row */
 ::ng-deep .select-search-option .mat-pseudo-checkbox,
 ::ng-deep .select-search-option .mat-mdc-option-pseudo-checkbox,
+::ng-deep .select-search-option .mat-pseudo-checkbox-minimal,
 ::ng-deep .select-search-option .mdc-checkbox,
+::ng-deep .select-search-option .mat-mdc-checkbox,
+::ng-deep .select-search-option .mdc-list-item__graphic,
+::ng-deep .select-search-option .mat-mdc-option-graphic,
+::ng-deep .select-search-option .mdc-list-item__start,
+::ng-deep .select-search-option .mdc-list-item__end,
 ::ng-deep .select-all-option .mat-pseudo-checkbox,
-::ng-deep .select-all-option .mat-mdc-option-pseudo-checkbox {
+::ng-deep .select-all-option .mat-mdc-option-pseudo-checkbox,
+::ng-deep .select-all-option .mat-pseudo-checkbox-minimal,
+::ng-deep .select-all-option .mdc-checkbox,
+::ng-deep .select-all-option .mat-mdc-checkbox,
+::ng-deep .select-all-option .mdc-list-item__graphic,
+::ng-deep .select-all-option .mat-mdc-option-graphic,
+::ng-deep .select-all-option .mdc-list-item__start,
+::ng-deep .select-all-option .mdc-list-item__end {
   display: none !important;
 }
 

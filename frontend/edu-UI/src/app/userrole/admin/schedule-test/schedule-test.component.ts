@@ -42,7 +42,7 @@ import {
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { API_BASE } from 'src/app/shared/api.config';
-import { BehaviorSubject, combineLatest, Observable, of, Subscription } from 'rxjs';
+import { BehaviorSubject, combineLatest, Observable, of, Subscription, forkJoin } from 'rxjs';
 import { startWith, map, retry } from 'rxjs/operators';
 import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
@@ -1080,8 +1080,12 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   filterCitiesByCountry() {
     this.cities = [];
-    if (!this.filterCountry) {
-      // If no country is selected, show all registered cities uniquely
+    const targetCodes = (this.selectedCountries && this.selectedCountries.length > 0)
+      ? this.selectedCountries
+      : (this.filterCountry ? [this.filterCountry] : []);
+
+    if (!targetCodes.length) {
+      // If no country is selected, show all registered cities
       const uniqueCities = new Map<string, { code: string; name: string }>();
       this.allRegisteredCities.forEach((city) => {
         const key = city.name.toLowerCase();
@@ -1089,10 +1093,11 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       });
       this.cities = Array.from(uniqueCities.values()).sort((a, b) => a.name.localeCompare(b.name));
     } else {
-      // Filter by selected country
-      const filtered = this.allRegisteredCities.filter(
-        (city) =>
-          String(city.countryCode).toLowerCase() === String(this.filterCountry).toLowerCase()
+      // Filter cities matching selected country code(s)
+      const filtered = this.allRegisteredCities.filter((city) =>
+        targetCodes.some(
+          (code) => String(city.countryCode).toLowerCase() === String(code).toLowerCase()
+        )
       );
       const uniqueCities = new Map<string, { code: string; name: string }>();
       filtered.forEach((city) => {
@@ -1900,21 +1905,53 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadCitiesForCountry(countryCode: string) {
+  loadCitiesForCountry(countryCodes: string | string[]) {
     this.filterCityOptions = [];
-    if (!countryCode) return;
-    const url = `${API_BASE}/location-hierarchy`;
-    this.http.get<any>(url, { params: { country_id: countryCode } }).subscribe({
-      next: (res) => {
+    const codes = (Array.isArray(countryCodes) ? countryCodes : [countryCodes]).filter(Boolean);
+    if (!codes.length) return;
+
+    const requests = codes.map((code) =>
+      this.http.get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: code } })
+    );
+
+    forkJoin(requests).subscribe({
+      next: (responses) => {
         try {
-          const data = Array.isArray(res?.data?.cities) ? res.data.cities : [];
-          this.filterCityOptions = data
-            .map((city: any) => ({
-              code: city.id ?? city.city_id ?? city.city_code ?? city.code,
-              name: city.name ?? city.city_name ?? city.city,
-            }))
-            .filter((city: any) => city.code && city.name)
-            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          const uniqueSet = new Map<string, { code: string; name: string }>();
+          responses.forEach((res, idx) => {
+            const countryCode = codes[idx];
+            let citiesRaw = res?.data?.cities || res?.cities || res?.data || [];
+            if (!Array.isArray(citiesRaw) || !citiesRaw.length) {
+              const countries = res?.data?.countries || res?.countries || [];
+              if (Array.isArray(countries) && countries.length > 0) {
+                const foundCountry = countries.find(
+                  (ct: any) =>
+                    String(ct.id || ct.country_id || ct.country_code || ct.code) ===
+                    String(countryCode)
+                );
+                if (foundCountry && Array.isArray(foundCountry.cities)) {
+                  citiesRaw = foundCountry.cities;
+                }
+              }
+            }
+            (Array.isArray(citiesRaw) ? citiesRaw : []).forEach((c: any) => {
+              const rawName = c.city_name || c.name || c.city || '';
+              if (rawName) {
+                const formattedName = rawName
+                  .trim()
+                  .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                if (!uniqueSet.has(formattedName.toLowerCase())) {
+                  uniqueSet.set(formattedName.toLowerCase(), {
+                    code: String(c.city_code || c.code || c.id || formattedName),
+                    name: formattedName,
+                  });
+                }
+              }
+            });
+          });
+          this.filterCityOptions = Array.from(uniqueSet.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
         } catch (e) {
           this.filterCityOptions = [];
         }
@@ -1927,6 +1964,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   onCountryFilterChange() {
     this.filterCity = '';
+    this.selectedCities = [];
     this.filterCitiesByCountry();
     this.loadInstitutes();
   }
