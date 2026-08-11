@@ -143,12 +143,14 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   };
 
   selectedCountries: string[] = [];
+  selectedCities: string[] = [];
   selectedIndustries: string[] = [];
   selectedSectors: string[] = [];
   selectedActiveStatuses: boolean[] = [];
 
   // Filter search terms
   countryFilterSearch = '';
+  cityFilterSearch = '';
   industryFilterSearch = '';
   sectorFilterSearch = '';
   activeStatusOptions = [
@@ -334,6 +336,40 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.selectedCountries = items.map((c) => c.code);
     }
     this.onCountryChange();
+  }
+
+  get filteredCitiesForFilter(): Array<{ code: string; name: string }> {
+    const term = (this.cityFilterSearch || '').trim().toLowerCase();
+    let list = this.cities || [];
+    if (term) {
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(term) ||
+          (this.selectedCities || []).includes(c.name)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCities || []).includes(a.name);
+      const bSel = (this.selectedCities || []).includes(b.name);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllCitiesSelected(): boolean {
+    const items = this.filteredCitiesForFilter || [];
+    return items.length > 0 && items.every((c) => (this.selectedCities || []).includes(c.name));
+  }
+
+  toggleSelectAllCities(): void {
+    const items = this.filteredCitiesForFilter || [];
+    if (this.isAllCitiesSelected()) {
+      this.selectedCities = [];
+    } else {
+      this.selectedCities = items.map((c) => c.name);
+    }
+    this.onCityFilterChange();
   }
 
   // --- Industry Logic ---
@@ -796,6 +832,17 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.filters.name)
       chips.push({ key: 'name', label: `Name: ${this.filters.name}`, removable: true });
 
+    // City Chip
+    if (this.selectedCities && this.selectedCities.length) {
+      chips.push({
+        key: 'city',
+        label: `City: ${this.selectedCities.join(', ')}`,
+        removable: true,
+      });
+    } else if (this.filters.city) {
+      chips.push({ key: 'city', label: `City: ${this.filters.city}`, removable: true });
+    }
+
     // Department Chip
     if (Array.isArray(this.filters.department) && this.filters.department.length) {
       const labels = this.filters.department
@@ -834,11 +881,15 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.cities = [];
     } else if (key === 'country') {
       this.selectedCountries = [];
+      this.selectedCities = [];
       this.filters.country = '';
       this.filters.state = '';
       this.filters.city = '';
       this.states = [];
       this.cities = [];
+    } else if (key === 'city') {
+      this.selectedCities = [];
+      this.filters.city = '';
     } else if (key === 'industry') {
       this.selectedIndustries = [];
       this.selectedSectors = [];
@@ -976,8 +1027,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     }
     if (this.filters.country) params.country = this.filters.country;
     if (this.filters.state) params.state = this.filters.state;
-    const cityName = String(this.filters.city || '').trim();
-    if (cityName) params.city = cityName;
+    if (this.selectedCities && this.selectedCities.length)
+      params.city = this.selectedCities.join(',');
+    else {
+      const cityName = String(this.filters.city || '').trim();
+      if (cityName) params.city = cityName;
+    }
     if (this.filters.campus) params.campus = this.filters.campus;
     if (this.filters.joining_from) params.joining_from = this.filters.joining_from;
     if (this.filters.joining_to) params.joining_to = this.filters.joining_to;
@@ -1252,7 +1307,21 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   loadInstitutes() {
     this.loading.show();
     const url = `${API_BASE}/get-institute-list`;
-    this.http.get<any>(url).subscribe({
+    const params: any = {};
+
+    if (this.selectedCountries && this.selectedCountries.length) {
+      params.country = this.selectedCountries.join(',');
+    } else if (this.filters.country) {
+      params.country = this.filters.country;
+    }
+
+    if (this.selectedCities && this.selectedCities.length) {
+      params.city = this.selectedCities.join(',');
+    } else if (this.filters.city) {
+      params.city = this.filters.city;
+    }
+
+    this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
         const data = res?.data || [];
         // ensure each institute object includes an institute_id property so session-based lookup works
@@ -1358,8 +1427,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   onFilterSelectOpened(isOpen: boolean, type: string) {
-    if (!isOpen && type === 'userInstitute') {
-      this.instituteSearch = '';
+    if (!isOpen) {
+      if (type === 'userInstitute') this.instituteSearch = '';
+      else if (type === 'city') this.cityFilterSearch = '';
     }
   }
   stopFilterSearchEvent(event: Event) {
@@ -1501,6 +1571,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   onCountryChange() {
     this.states = [];
     this.cities = [];
+    this.selectedCities = [];
     this.filters.state = '';
     this.filters.city = '';
     if (this.selectedCountries && this.selectedCountries.length) {
@@ -1527,27 +1598,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             name: s.state_name || s.name || s.state,
           }));
 
-          // cities: try top-level cities first (they may include state_id references)
+          // Extract cities directly returned for the selected country (matching ViewInstitutes logic)
           let citiesRaw = res?.data?.cities || res?.cities || [];
-          let allCities: any[] = [];
-
-          if (Array.isArray(citiesRaw) && citiesRaw.length > 0) {
-            // filter top-level cities to those whose state belongs to the selected country
-            const stateIds = Array.isArray(statesRaw)
-              ? statesRaw
-                  .map((s: any) => s.id || s.state_id || s.code || s.state_code)
-                  .filter(Boolean)
-              : [];
-            if (stateIds.length > 0) {
-              allCities = citiesRaw.filter((c: any) =>
-                stateIds.includes(c.state_id || c.state || c.stateId || c.state_code)
-              );
-            } else {
-              // no states returned; include all top-level cities as a fallback
-              allCities = citiesRaw;
-            }
-          } else {
-            // aggregate from countries -> cities and countries -> states -> cities, preferring the selected country
+          if (!Array.isArray(citiesRaw) || !citiesRaw.length) {
             const countries = res?.data?.countries || res?.countries || [];
             if (Array.isArray(countries) && countries.length > 0) {
               const foundCountry = countries.find(
@@ -1556,31 +1609,30 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                   String(selectedCountry)
               );
               if (foundCountry) {
-                if (Array.isArray(foundCountry.cities))
-                  allCities = allCities.concat(foundCountry.cities);
-                if (Array.isArray(foundCountry.states))
-                  foundCountry.states.forEach((s: any) => {
-                    if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities);
-                  });
-              } else {
-                // fallback: aggregate all countries
-                countries.forEach((c: any) => {
-                  if (Array.isArray(c.cities)) allCities = allCities.concat(c.cities);
-                  if (Array.isArray(c.states))
-                    c.states.forEach((s: any) => {
-                      if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities);
-                    });
-                });
+                if (Array.isArray(foundCountry.cities)) citiesRaw = foundCountry.cities;
               }
-            } else {
-              allCities = res?.data?.cities || res?.cities || [];
             }
           }
 
-          this.cities = (allCities || []).map((c: any) => ({
-            code: c.city_code || c.code || c.id,
-            name: c.city_name || c.name || c.city,
-          }));
+          const uniqueCities = new Map<string, { code: string; name: string }>();
+          (Array.isArray(citiesRaw) ? citiesRaw : []).forEach((c: any) => {
+            const rawName = c.city_name || c.name || c.city || '';
+            if (rawName) {
+              const formattedName = rawName
+                .trim()
+                .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+              if (!uniqueCities.has(formattedName.toLowerCase())) {
+                uniqueCities.set(formattedName.toLowerCase(), {
+                  code: String(c.city_code || c.code || c.id || formattedName),
+                  name: formattedName,
+                });
+              }
+            }
+          });
+
+          this.cities = Array.from(uniqueCities.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
         } catch (e) {
           this.states = [];
           this.cities = [];
@@ -1653,8 +1705,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       params.country = this.selectedCountries.join(',');
     else if (this.filters.country) params.country = this.filters.country;
 
-    const cityName = String(this.filters.city || '').trim();
-    if (cityName) params.city = cityName;
+    if (this.selectedCities && this.selectedCities.length)
+      params.city = this.selectedCities.join(',');
+    else {
+      const cityName = String(this.filters.city || '').trim();
+      if (cityName) params.city = cityName;
+    }
 
     if (this.selectedIndustries && this.selectedIndustries.length)
       params.industry = this.selectedIndustries.join(',');

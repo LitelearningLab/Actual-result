@@ -128,18 +128,15 @@
         <mat-form-field appearance="outline" class="filter-item">
           <mat-label>City</mat-label>
           <mat-select
-            [(ngModel)]="filters.city"
+            multiple
+            [(ngModel)]="selectedCities"
             placeholder="Select City"
             [disabled]="(!selectedCountries || !selectedCountries.length) && !filters.country"
             (openedChange)="onFilterSelectOpened($event, 'city')"
             (selectionChange)="onCityFilterChange()"
           >
-            <!-- Optional search field within city dropdown -->
-            <mat-option
-              class="select-search-option"
-              (click)="$event.stopPropagation()"
-              *ngIf="filterCityOptions.length > 5"
-            >
+            <!-- Search field within city dropdown -->
+            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
               <input
                 matInput
                 class="select-search-input"
@@ -151,6 +148,21 @@
                 (keyup)="stopFilterSearchEvent($event)"
                 (input)="stopFilterSearchEvent($event)"
               />
+            </mat-option>
+
+            <!-- Select All Checkbox Option -->
+            <mat-option
+              class="select-all-option"
+              *ngIf="filteredCities.length && !citySearch?.trim()"
+              (click)="toggleSelectAllCities()"
+            >
+              <mat-icon
+                class="select-all-checkbox-icon"
+                [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'"
+              >
+                {{ isAllCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+              </mat-icon>
+              <strong>Select All</strong>
             </mat-option>
 
             <!-- No cities available fallback -->
