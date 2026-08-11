@@ -1677,6 +1677,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   // New exam filter properties
   countrySearch = '';
+  selectedCountries: string[] = [];
   industrySearch = '';
   sectorSearch = '';
   filterCityOptions: Array<{ code: string; name: string }> = [];
@@ -1686,8 +1687,36 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   get examFilteredCountries(): Array<{ code: string; name: string }> {
     const term = (this.countrySearch || '').trim().toLowerCase();
-    if (!term) return this.countries;
-    return this.countries.filter((c) => (c.name || '').toLowerCase().includes(term));
+    let list = this.countries || [];
+    if (term) {
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(term) ||
+          (this.selectedCountries || []).includes(c.code)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCountries || []).includes(a.code);
+      const bSel = (this.selectedCountries || []).includes(b.code);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllCountriesSelected(): boolean {
+    const items = this.examFilteredCountries || [];
+    return items.length > 0 && items.every((c) => (this.selectedCountries || []).includes(c.code));
+  }
+
+  toggleSelectAllCountries(): void {
+    const items = this.examFilteredCountries || [];
+    if (this.isAllCountriesSelected()) {
+      this.selectedCountries = [];
+    } else {
+      this.selectedCountries = items.map((c) => c.code);
+    }
+    this.onCountryFilterChange();
   }
 
   get filteredIndustryTypes(): string[] {

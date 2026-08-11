@@ -89,7 +89,10 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
   // Location, Industry & Filter fields
   filterCountry = '';
+  selectedCountries: string[] = [];
   filterCity = '';
+  selectedCities: string[] = [];
+  citySearch = '';
   filterIndustry = '';
   filterSector = '';
   countrySearch = '';
@@ -323,8 +326,36 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
   get filteredCountries(): Array<{ code: string; name: string }> {
     const term = (this.countrySearch || '').trim().toLowerCase();
-    if (!term) return this.countries;
-    return this.countries.filter((c) => (c.name || '').toLowerCase().includes(term));
+    let list = this.countries || [];
+    if (term) {
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(term) ||
+          (this.selectedCountries || []).includes(c.code)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCountries || []).includes(a.code);
+      const bSel = (this.selectedCountries || []).includes(b.code);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllCountriesSelected(): boolean {
+    const items = this.filteredCountries || [];
+    return items.length > 0 && items.every((c) => (this.selectedCountries || []).includes(c.code));
+  }
+
+  toggleSelectAllCountries(): void {
+    const items = this.filteredCountries || [];
+    if (this.isAllCountriesSelected()) {
+      this.selectedCountries = [];
+    } else {
+      this.selectedCountries = items.map((c) => c.code);
+    }
+    this.onCountryFilterChange();
   }
 
   get filteredIndustryTypes(): string[] {
@@ -345,7 +376,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     return scoped.filter((s) => s.toLowerCase().includes(term));
   }
 
-  onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector') {
+  onFilterSelectOpened(opened: boolean, field: 'country' | 'city' | 'industry' | 'sector') {
     if (opened) {
       setTimeout(() => {
         try {
@@ -569,21 +600,53 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     });
   }
 
-  private loadCitiesForCountry(countryCode: string) {
+  private loadCitiesForCountry(countryCodes: string | string[]) {
     this.filterCityOptions = [];
-    if (!countryCode) return;
-    const url = `${API_BASE}/location-hierarchy`;
-    this.http.get<any>(url, { params: { country_id: countryCode } }).subscribe({
-      next: (res) => {
+    const codes = (Array.isArray(countryCodes) ? countryCodes : [countryCodes]).filter(Boolean);
+    if (!codes.length) return;
+
+    const requests = codes.map((code) =>
+      this.http.get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: code } })
+    );
+
+    forkJoin(requests).subscribe({
+      next: (responses) => {
         try {
-          const data = Array.isArray(res?.data?.cities) ? res.data.cities : [];
-          this.filterCityOptions = data
-            .map((city: any) => ({
-              code: city.id ?? city.city_id ?? city.city_code ?? city.code,
-              name: city.name ?? city.city_name ?? city.city,
-            }))
-            .filter((city: any) => city.code && city.name)
-            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          const uniqueSet = new Map<string, { code: string; name: string }>();
+          responses.forEach((res, idx) => {
+            const countryCode = codes[idx];
+            let citiesRaw = res?.data?.cities || res?.cities || res?.data || [];
+            if (!Array.isArray(citiesRaw) || !citiesRaw.length) {
+              const countries = res?.data?.countries || res?.countries || [];
+              if (Array.isArray(countries) && countries.length > 0) {
+                const foundCountry = countries.find(
+                  (ct: any) =>
+                    String(ct.id || ct.country_id || ct.country_code || ct.code) ===
+                    String(countryCode)
+                );
+                if (foundCountry && Array.isArray(foundCountry.cities)) {
+                  citiesRaw = foundCountry.cities;
+                }
+              }
+            }
+            (Array.isArray(citiesRaw) ? citiesRaw : []).forEach((c: any) => {
+              const rawName = c.city_name || c.name || c.city || '';
+              if (rawName) {
+                const formattedName = rawName
+                  .trim()
+                  .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                if (!uniqueSet.has(formattedName.toLowerCase())) {
+                  uniqueSet.set(formattedName.toLowerCase(), {
+                    code: String(c.city_code || c.code || c.id || formattedName),
+                    name: formattedName,
+                  });
+                }
+              }
+            });
+          });
+          this.filterCityOptions = Array.from(uniqueSet.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
         } catch (e) {
           this.filterCityOptions = [];
         }
@@ -605,17 +668,57 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
           .trim()
           .toLowerCase() === name
     );
-    return found ? String(found.code) : '';
+    return found ? String(found.code) : cityName;
   }
 
   onCountryFilterChange() {
     this.filterCity = '';
-    this.loadCitiesForCountry(this.filterCountry);
+    this.selectedCities = [];
+    const countryCodes = this.selectedCountries?.length
+      ? this.selectedCountries
+      : this.filterCountry
+      ? [this.filterCountry]
+      : [];
+    this.loadCitiesForCountry(countryCodes);
     this.refreshInstituteScope();
   }
 
   onCityFilterChange() {
     this.refreshInstituteScope();
+  }
+
+  get filteredCities(): Array<{ code: string; name: string }> {
+    const term = (this.citySearch || '').trim().toLowerCase();
+    let list = this.filterCityOptions || [];
+    if (term) {
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(term) ||
+          (this.selectedCities || []).includes(c.name)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCities || []).includes(a.name);
+      const bSel = (this.selectedCities || []).includes(b.name);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllCitiesSelected(): boolean {
+    const items = this.filteredCities || [];
+    return items.length > 0 && items.every((c) => (this.selectedCities || []).includes(c.name));
+  }
+
+  toggleSelectAllCities(): void {
+    const items = this.filteredCities || [];
+    if (this.isAllCitiesSelected()) {
+      this.selectedCities = [];
+    } else {
+      this.selectedCities = items.map((c) => c.name);
+    }
+    this.onCityFilterChange();
   }
 
   onIndustryFilterChange() {
@@ -631,8 +734,15 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     if (!this.isSuperAdmin) return;
     const params: any = {};
     if (this.filterCountry) params.country = this.filterCountry;
-    const cityId = this.resolveCityId(this.filterCity);
-    if (cityId) params.city = cityId;
+    if (this.selectedCities && this.selectedCities.length) {
+      const cityCodes = this.selectedCities
+        .map((name) => this.resolveCityId(name) || name)
+        .filter(Boolean);
+      if (cityCodes.length) params.city = cityCodes.join(',');
+    } else {
+      const cityId = this.resolveCityId(this.filterCity);
+      if (cityId) params.city = cityId;
+    }
     if (this.filterIndustry) params.industry = this.filterIndustry;
     if (this.filterSector) params.sector = this.filterSector;
 
@@ -754,8 +864,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
         label: `Country: ${this.getCountryLabel(this.filterCountry)}`,
         removable: true,
       });
-    if (this.filterCity)
+    if (this.selectedCities && this.selectedCities.length) {
+      chips.push({ key: 'city', label: `City: ${this.selectedCities.join(', ')}`, removable: true });
+    } else if (this.filterCity) {
       chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
+    }
     if (this.filterIndustry)
       chips.push({ key: 'industry', label: `Industry: ${this.filterIndustry}`, removable: true });
     if (this.filterSector)
@@ -807,12 +920,16 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   removeAppliedFilter(key: string) {
     if (!key) return;
     if (key === 'country') {
+      this.selectedCountries = [];
+      this.selectedCities = [];
       this.filterCountry = '';
       this.filterCity = '';
-      this.onCountryFilterChange();
+      this.filterCityOptions = [];
+      this.refreshInstituteScope();
     } else if (key === 'city') {
+      this.selectedCities = [];
       this.filterCity = '';
-      this.onCityFilterChange();
+      this.refreshInstituteScope();
     } else if (key === 'industry') {
       this.filterIndustry = '';
       this.filterSector = '';

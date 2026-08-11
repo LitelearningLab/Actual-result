@@ -716,18 +716,47 @@
               <mat-form-field appearance="outline" class="filter-item">
                 <mat-icon matPrefix>public</mat-icon>
                 <mat-label>Country</mat-label>
-                <mat-select [(ngModel)]="filterCountry" (selectionChange)="onCountryFilterChange()"
-                  (openedChange)="onFilterSelectOpened($event, 'country')">
+                <mat-select
+                  multiple
+                  [(ngModel)]="selectedCountries"
+                  placeholder="Select Country"
+                  (selectionChange)="onCountryFilterChange()"
+                  (openedChange)="onFilterSelectOpened($event, 'country')"
+                >
+                  <!-- Search Country Input -->
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                    <input matInput class="select-search-input" placeholder="Search country" [(ngModel)]="countrySearch"
-                      [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
-                      (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
-                      (input)="stopFilterSearchEvent($event)" />
+                    <input
+                      matInput
+                      class="select-search-input"
+                      placeholder="Search country"
+                      [(ngModel)]="countrySearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
+                    />
                   </mat-option>
-                  <mat-option value="">Any</mat-option>
-                  <mat-option *ngFor="let c of examFilteredCountries" [value]="c.code">{{
-                    c.name
-                    }}</mat-option>
+
+                  <!-- Select All Checkbox Option -->
+                  <mat-option
+                    class="select-all-option"
+                    *ngIf="examFilteredCountries.length && !countrySearch?.trim()"
+                    (click)="toggleSelectAllCountries()"
+                  >
+                    <mat-icon
+                      class="select-all-checkbox-icon"
+                      [style.color]="isAllCountriesSelected() ? '#2563eb' : '#64748b'"
+                    >
+                      {{ isAllCountriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                    </mat-icon>
+                    <strong>Select All</strong>
+                  </mat-option>
+
+                  <!-- Options with Checkboxes -->
+                  <mat-option *ngFor="let c of examFilteredCountries" [value]="c.code">
+                    {{ c.name }}
+                  </mat-option>
                 </mat-select>
               </mat-form-field>
 

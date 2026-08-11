@@ -8,7 +8,7 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { Observable, of, Subscription } from 'rxjs';
+import { Observable, of, Subscription, forkJoin } from 'rxjs';
 import { startWith, map } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
@@ -146,6 +146,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     joined_after: null as Date | string | null,
     joined_before: null as Date | string | null,
   };
+  selectedCities: string[] = [];
+  citySearch = '';
   searchQueries: any = {
     country: '',
     city: '',
@@ -1363,7 +1365,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const url = `${API_BASE}/institutes/list`;
     const params: any = {};
     if (this.userFilters.country_id) params.country = this.userFilters.country_id;
-    if (this.userFilters.city_id) params.city = this.userFilters.city_id;
+    if (this.selectedCities && this.selectedCities.length) {
+      params.city = this.selectedCities.join(',');
+    } else if (this.userFilters.city_id) {
+      params.city = this.userFilters.city_id;
+    }
     if (this.userFilters.industry) params.industry = this.userFilters.industry;
     if (this.userFilters.sector) params.sector = this.userFilters.sector;
 
@@ -1582,36 +1588,77 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   onCountryChange() {
-  this.cities = [];
-  this.userFilters.city_id = '';
-  if (!this.userFilters.country_id) return;
+    this.cities = [];
+    this.selectedCities = [];
+    this.userFilters.city_id = '';
+    if (!this.userFilters.country_id) return;
 
-  const toTitleCase = (str: string) =>
-    str ? str.trim().replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()) : '';
+    const toTitleCase = (str: string) =>
+      str ? str.trim().replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()) : '';
 
-  const url = `${API_BASE}/location-hierarchy`;
-  this.http.get<any>(url, { params: { country_id: this.userFilters.country_id } }).subscribe({
-    next: (res: any) => {
-      let rawCities: any[] = res?.data?.cities || res?.cities || [];
-      const uniqueMap = new Map<string, { code: string; name: string }>();
+    const url = `${API_BASE}/location-hierarchy`;
+    this.http.get<any>(url, { params: { country_id: this.userFilters.country_id } }).subscribe({
+      next: (res: any) => {
+        let rawCities: any[] = res?.data?.cities || res?.cities || [];
+        const uniqueMap = new Map<string, { code: string; name: string }>();
 
-      (rawCities || []).forEach((c: any) => {
-        const rawName = c.city_name || c.name || c.city || '';
-        if (rawName) {
-          const formatted = toTitleCase(rawName);
-          if (!uniqueMap.has(formatted.toLowerCase())) {
-            uniqueMap.set(formatted.toLowerCase(), { code: formatted, name: formatted });
+        (rawCities || []).forEach((c: any) => {
+          const rawName = c.city_name || c.name || c.city || '';
+          if (rawName) {
+            const formatted = toTitleCase(rawName);
+            if (!uniqueMap.has(formatted.toLowerCase())) {
+              uniqueMap.set(formatted.toLowerCase(), { code: formatted, name: formatted });
+            }
           }
-        }
-      });
+        });
 
-      this.cities = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-    },
-    error: () => {
-      this.cities = [];
+        this.cities = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+        this.loadInstitutes();
+      },
+      error: () => {
+        this.cities = [];
+        this.loadInstitutes();
+      }
+    });
+  }
+
+  get filteredCities(): Array<{ code: string; name: string }> {
+    const term = (this.citySearch || '').trim().toLowerCase();
+    let list = this.cities || [];
+    if (term) {
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(term) ||
+          (this.selectedCities || []).includes(c.name)
+      );
     }
-  });
-}
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCities || []).includes(a.name);
+      const bSel = (this.selectedCities || []).includes(b.name);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllCitiesSelected(): boolean {
+    const items = this.filteredCities || [];
+    return items.length > 0 && items.every((c) => (this.selectedCities || []).includes(c.name));
+  }
+
+  toggleSelectAllCities(): void {
+    const items = this.filteredCities || [];
+    if (this.isAllCitiesSelected()) {
+      this.selectedCities = [];
+    } else {
+      this.selectedCities = items.map((c) => c.name);
+    }
+    this.onCityFilterChange();
+  }
+
+  onCityFilterChange() {
+    this.loadInstitutes();
+  }
 
 
   loadDepartmentList(instituteId: string | null) {

@@ -120,26 +120,48 @@
             >
               <mat-label>City</mat-label>
               <mat-select
-                [(ngModel)]="userFilters.city_id"
-                name="filterCity"
+                multiple
+                [(ngModel)]="selectedCities"
+                placeholder="Select City"
                 (openedChange)="onSelectOpened($event, 'city')"
+                (selectionChange)="onCityFilterChange()"
               >
-                <div class="select-search-option" (click)="$event.stopPropagation()">
+                <!-- Search city input -->
+                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                   <input
                     matInput
                     class="select-search-input"
-                    placeholder="Search city..."
-                    [(ngModel)]="searchQueries.city"
+                    placeholder="Search city"
+                    [(ngModel)]="citySearch"
                     [ngModelOptions]="{ standalone: true }"
                     (click)="$event.stopPropagation()"
-                    (keydown)="$event.stopPropagation()"
-                    (keyup)="$event.stopPropagation()"
-                    (input)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)"
                   />
-                </div>
-                <mat-option value="">All</mat-option>
-                <mat-option *ngFor="let c of filteredCitiesList" [value]="c.code">
-                  {{ c.name }}
+                </mat-option>
+
+                <!-- Select All Checkbox Option -->
+                <mat-option
+                  class="select-all-option"
+                  *ngIf="filteredCities.length && !citySearch?.trim()"
+                  (click)="toggleSelectAllCities()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </mat-option>
+
+                <!-- Fallback when no cities available -->
+                <mat-option *ngIf="!filteredCities.length" disabled> No cities available </mat-option>
+
+                <!-- City Options with Checkboxes -->
+                <mat-option *ngFor="let city of filteredCities" [value]="city.name">
+                  {{ city.name }}
                 </mat-option>
               </mat-select>
             </mat-form-field>
