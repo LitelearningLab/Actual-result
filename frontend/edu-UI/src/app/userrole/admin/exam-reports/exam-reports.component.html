@@ -385,6 +385,12 @@
                   />
                 </div>
                 <mat-option value="">Any</mat-option>
+                <mat-option disabled *ngIf="!selectedInstituteId">
+                  Select an institute first
+                </mat-option>
+                <mat-option disabled *ngIf="selectedInstituteId && !filteredScheduleList.length && !scheduledTestsLoading">
+                  No tests found for this institute
+                </mat-option>
                 <mat-option
                   *ngFor="let exam of filteredScheduleList"
                   [value]="exam.schedule_id || exam.id || exam.scheduleId"
@@ -453,6 +459,60 @@
           </div>
         </div>
       </ng-template>
+    </div>
+  </div>
+
+  <!-- Applied Filters Summary Bar -->
+  <div
+    class="applied-filters-bar"
+    *ngIf="
+      selectedInstituteName ||
+      selectedExam ||
+      userFilters.campus_id ||
+      (userFilters.department_id && userFilters.department_id.length) ||
+      (userFilters.teams_id && userFilters.teams_id.length) ||
+      userFilters.active_status ||
+      userFilters.created_by_me
+    "
+  >
+    <div class="applied-filters-header">
+      <mat-icon class="filter-icon">filter_alt</mat-icon>
+      <span class="filter-title">Applied Filters:</span>
+    </div>
+    <div class="applied-chips-wrapper">
+      <span class="filter-chip" *ngIf="selectedInstituteName">
+        <span class="chip-label">Institute:</span> {{ selectedInstituteName }}
+      </span>
+      <span class="filter-chip" *ngIf="selectedExam">
+        <span class="chip-label">Test:</span> {{ getTestTitle(selectedExam) }}
+      </span>
+      <span class="filter-chip" *ngIf="userFilters.campus_id">
+        <span class="chip-label">Campus:</span> {{ userFilters.campus_id }}
+      </span>
+      <span
+        class="filter-chip"
+        *ngIf="userFilters.department_id && userFilters.department_id.length"
+      >
+        <span class="chip-label">Dept:</span> {{ userFilters.department_id.join(', ') }}
+      </span>
+      <span class="filter-chip" *ngIf="userFilters.teams_id && userFilters.teams_id.length">
+        <span class="chip-label">Team:</span> {{ userFilters.teams_id.join(', ') }}
+      </span>
+      <span class="filter-chip" *ngIf="userFilters.active_status">
+        <span class="chip-label">Status:</span> {{ userFilters.active_status }}
+      </span>
+      <span class="filter-chip" *ngIf="userFilters.created_by_me">
+        <span class="chip-label">Created by Me</span>
+      </span>
+      <button
+        mat-button
+        type="button"
+        class="clear-filters-btn"
+        (click)="resetFiltersAndReload()"
+        title="Reset & Clear all filters"
+      >
+        <mat-icon>close</mat-icon> Clear All
+      </button>
     </div>
   </div>
 
@@ -711,19 +771,15 @@
                           {{ q.question_text || q.text }}
                         </td>
                       </ng-container>
-                      <!-- User Attempts -->
-                      <ng-container matColumnDef="user_attempts">
-                        <th mat-header-cell *matHeaderCellDef>Users Attempted</th>
-                        <td mat-cell *matCellDef="let q" class="cell-num">
-                          {{ q.user_attempts || 0 }}
-                        </td>
-                      </ng-container>
+                      <!-- Attempts Column -->
                       <ng-container matColumnDef="attempts">
                         <th mat-header-cell *matHeaderCellDef>Attempts</th>
                         <td mat-cell *matCellDef="let q" class="cell-num">{{ q.attempts || 0 }}</td>
                       </ng-container>
+
+                      <!-- No Of Mistakes Column -->
                       <ng-container matColumnDef="mistakes">
-                        <th mat-header-cell *matHeaderCellDef>Mistakes</th>
+                        <th mat-header-cell *matHeaderCellDef>No Of Mistakes</th>
                         <td mat-cell *matCellDef="let q">
                           <a
                             *ngIf="(q.mistakes || 0) > 0; else noMistakes"
@@ -739,21 +795,28 @@
                         </td>
                       </ng-container>
 
+                      <!-- Error% Column -->
+                      <ng-container matColumnDef="error_pct">
+                        <th mat-header-cell *matHeaderCellDef>Error%</th>
+                        <td mat-cell *matCellDef="let q" class="cell-num">
+                          {{
+                            q.error_pct ||
+                              (q.attempts
+                                ? (((q.mistakes || 0) / q.attempts) * 100).toFixed(2)
+                                : 0)
+                          }}%
+                        </td>
+                      </ng-container>
+
                       <tr
                         mat-header-row
-                        *matHeaderRowDef="[
-                          'sno',
-                          'question',
-                          'user_attempts',
-                          'attempts',
-                          'mistakes',
-                        ]"
+                        *matHeaderRowDef="['sno', 'question', 'attempts', 'mistakes', 'error_pct']"
                       ></tr>
                       <tr
                         mat-row
                         *matRowDef="
                           let row;
-                          columns: ['sno', 'question', 'user_attempts', 'attempts', 'mistakes']
+                          columns: ['sno', 'question', 'attempts', 'mistakes', 'error_pct']
                         "
                       ></tr>
                     </table>

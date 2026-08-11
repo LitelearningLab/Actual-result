@@ -463,7 +463,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const q = (
       typeof this.searchQueries.schedule === 'string'
         ? this.searchQueries.schedule
-        : this.getTestTitle(this.searchQueries.schedule)
+        : ''
     )
       .toLowerCase()
       .trim();
@@ -547,9 +547,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   onFilterSelectionChange() {
-    try {
-      this.loadScheduledTest();
-    } catch (e) {}
+    // Draft filter state in panel; filters applied on click of Apply button
   }
 
   // simple pagination controls without MatPaginator binding
@@ -1338,15 +1336,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.searchQueries.schedule = '';
     } else if (typeof val === 'object') {
       this.userFilters.schedule_id = String(val.schedule_id || val.id || val.scheduleId || '');
-      this.searchQueries.schedule = val;
+      this.searchQueries.schedule = '';
     } else {
       this.userFilters.schedule_id = String(val);
-      const found = (this.allTests || []).find(
-        (t) => String(t.schedule_id || t.id || t.scheduleId) === String(val)
-      );
-      if (found) {
-        this.searchQueries.schedule = found;
-      }
+      this.searchQueries.schedule = '';
     }
   }
 
@@ -1409,16 +1402,32 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         }
 
         const globalInstId = this.globalContextService.activeInstituteId;
+        const userInstId =
+          this.auth.currentUserValue?.institute_id ||
+          sessionStorage.getItem('global_institute_id') ||
+          sessionStorage.getItem('institute_id') ||
+          sessionStorage.getItem('instituteId') ||
+          localStorage.getItem('institute_id');
+
         if (globalInstId) {
           this.isGlobalInstituteActive = true;
-          this.selectedInstituteId = globalInstId;
-          this.userFilters.institute_id = globalInstId;
-          this.onInstituteChange(globalInstId);
-        } else if (!this.isSuperAdmin && this.institutes && this.institutes.length > 0) {
-          const defaultInstId = this.institutes[0].id;
-          this.selectedInstituteId = defaultInstId;
-          this.userFilters.institute_id = defaultInstId;
-          this.onInstituteChange(defaultInstId);
+          this.selectedInstituteId = String(globalInstId);
+          this.userFilters.institute_id = String(globalInstId);
+          this.onInstituteChange(String(globalInstId));
+        } else if (!this.isSuperAdmin) {
+          const defaultInstId = userInstId
+            ? String(userInstId)
+            : this.institutes && this.institutes.length > 0
+            ? this.institutes[0].id
+            : '';
+          if (defaultInstId) {
+            this.selectedInstituteId = defaultInstId;
+            this.userFilters.institute_id = defaultInstId;
+            this.onInstituteChange(defaultInstId);
+          }
+        } else if (this.userFilters.institute_id) {
+          this.selectedInstituteId = this.userFilters.institute_id;
+          this.onInstituteChange(this.userFilters.institute_id);
         } else if (!this.userFilters.institute_id) {
           this.isGlobalInstituteActive = false;
           this.selectedInstituteId = null;
@@ -1815,12 +1824,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.userFilters.schedule_id = String(
         this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || ''
       );
-      this.searchQueries.schedule = this.selectedExam;
     }
     Object.keys(this.searchQueries).forEach((k) => {
-      if (k !== 'schedule' || !this.selectedExam) {
-        this.searchQueries[k] = '';
-      }
+      this.searchQueries[k] = '';
     });
 
     const targetEl =
