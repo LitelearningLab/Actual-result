@@ -1219,41 +1219,49 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     });
   }
 
-  private loadCitiesForCountry(countryCode: string) {
+  private loadCitiesForCountry(countryCodes: string | string[]) {
     this.filterCityOptions = [];
-    if (!countryCode) return;
-    const url = `${API_BASE}/location-hierarchy`;
-    this.http.get<any>(url, { params: { country_id: countryCode } }).subscribe({
-      next: (res) => {
+    const codes = (Array.isArray(countryCodes) ? countryCodes : [countryCodes]).filter(Boolean);
+    if (!codes.length) return;
+
+    const requests = codes.map((code) =>
+      this.http.get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: code } })
+    );
+
+    forkJoin(requests).subscribe({
+      next: (responses) => {
         try {
-          let citiesRaw = res?.data?.cities || res?.cities || res?.data || [];
-          if (!Array.isArray(citiesRaw) || !citiesRaw.length) {
-            const countries = res?.data?.countries || res?.countries || [];
-            if (Array.isArray(countries) && countries.length > 0) {
-              const foundCountry = countries.find(
-                (ct: any) =>
-                  String(ct.id || ct.country_id || ct.country_code || ct.code) ===
-                  String(countryCode)
-              );
-              if (foundCountry && Array.isArray(foundCountry.cities)) {
-                citiesRaw = foundCountry.cities;
-              }
-            }
-          }
           const uniqueSet = new Map<string, { code: string; name: string }>();
-          (Array.isArray(citiesRaw) ? citiesRaw : []).forEach((c: any) => {
-            const rawName = c.city_name || c.name || c.city || '';
-            if (rawName) {
-              const formattedName = rawName
-                .trim()
-                .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
-              if (!uniqueSet.has(formattedName.toLowerCase())) {
-                uniqueSet.set(formattedName.toLowerCase(), {
-                  code: String(c.city_code || c.code || c.id || formattedName),
-                  name: formattedName,
-                });
+          responses.forEach((res, idx) => {
+            const countryCode = codes[idx];
+            let citiesRaw = res?.data?.cities || res?.cities || res?.data || [];
+            if (!Array.isArray(citiesRaw) || !citiesRaw.length) {
+              const countries = res?.data?.countries || res?.countries || [];
+              if (Array.isArray(countries) && countries.length > 0) {
+                const foundCountry = countries.find(
+                  (ct: any) =>
+                    String(ct.id || ct.country_id || ct.country_code || ct.code) ===
+                    String(countryCode)
+                );
+                if (foundCountry && Array.isArray(foundCountry.cities)) {
+                  citiesRaw = foundCountry.cities;
+                }
               }
             }
+            (Array.isArray(citiesRaw) ? citiesRaw : []).forEach((c: any) => {
+              const rawName = c.city_name || c.name || c.city || '';
+              if (rawName) {
+                const formattedName = rawName
+                  .trim()
+                  .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                if (!uniqueSet.has(formattedName.toLowerCase())) {
+                  uniqueSet.set(formattedName.toLowerCase(), {
+                    code: String(c.city_code || c.code || c.id || formattedName),
+                    name: formattedName,
+                  });
+                }
+              }
+            });
           });
           this.filterCityOptions = Array.from(uniqueSet.values()).sort((a, b) =>
             a.name.localeCompare(b.name)
@@ -1281,16 +1289,18 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
           .trim()
           .toLowerCase() === name
     );
-    return found ? String(found.code) : '';
+    return found ? String(found.code) : cityName;
   }
 
   onCountryFilterChange() {
     this.filterCity = '';
     this.selectedCities = [];
-    const countryCode = this.selectedCountries?.length
-      ? this.selectedCountries[0]
-      : this.filterCountry;
-    this.loadCitiesForCountry(countryCode);
+    const countryCodes = this.selectedCountries?.length
+      ? this.selectedCountries
+      : this.filterCountry
+      ? [this.filterCountry]
+      : [];
+    this.loadCitiesForCountry(countryCodes);
     this.refreshInstituteScope();
   }
 
@@ -1453,7 +1463,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const params: any = {};
     if (this.filterCountry) params.country = this.filterCountry;
     if (this.selectedCities && this.selectedCities.length) {
-      params.city = this.selectedCities.join(',');
+      const cityCodes = this.selectedCities
+        .map((name) => this.resolveCityId(name) || name)
+        .filter(Boolean);
+      if (cityCodes.length) params.city = cityCodes.join(',');
     } else {
       const cityId = this.resolveCityId(this.filterCity);
       if (cityId) params.city = cityId;

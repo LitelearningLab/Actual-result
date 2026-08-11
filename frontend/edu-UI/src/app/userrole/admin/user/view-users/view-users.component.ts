@@ -1574,62 +1574,73 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.selectedCities = [];
     this.filters.state = '';
     this.filters.city = '';
-    if (this.selectedCountries && this.selectedCountries.length) {
-      this.filters.country = this.selectedCountries[0];
-    } else if (!this.selectedCountries || !this.selectedCountries.length) {
-      this.filters.country = '';
-    }
-    const selectedCountry =
+    const selectedCountryCodes =
       this.selectedCountries && this.selectedCountries.length
-        ? this.selectedCountries[0]
-        : this.filters.country;
-    if (!selectedCountry) {
+        ? this.selectedCountries
+        : this.filters.country
+        ? [this.filters.country]
+        : [];
+
+    if (!selectedCountryCodes.length) {
       this.refreshInstituteScope();
       return;
     }
-    const url = `${API_BASE}/location-hierarchy`;
-    this.http.get<any>(url, { params: { country_id: selectedCountry } }).subscribe({
-      next: (res) => {
+
+    const requests = selectedCountryCodes.map((code) =>
+      this.http.get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: code } })
+    );
+
+    forkJoin(requests).subscribe({
+      next: (responses) => {
         try {
-          // states: prefer top-level states array
-          const statesRaw = res?.data?.states || res?.states || [];
-          this.states = (Array.isArray(statesRaw) ? statesRaw : []).map((s: any) => ({
-            code: s.state_code || s.code || s.id,
-            name: s.state_name || s.name || s.state,
-          }));
-
-          // Extract cities directly returned for the selected country (matching ViewInstitutes logic)
-          let citiesRaw = res?.data?.cities || res?.cities || [];
-          if (!Array.isArray(citiesRaw) || !citiesRaw.length) {
-            const countries = res?.data?.countries || res?.countries || [];
-            if (Array.isArray(countries) && countries.length > 0) {
-              const foundCountry = countries.find(
-                (ct: any) =>
-                  String(ct.id || ct.country_id || ct.country_code || ct.code) ===
-                  String(selectedCountry)
-              );
-              if (foundCountry) {
-                if (Array.isArray(foundCountry.cities)) citiesRaw = foundCountry.cities;
-              }
-            }
-          }
-
+          const uniqueStates = new Map<string, { code: string; name: string }>();
           const uniqueCities = new Map<string, { code: string; name: string }>();
-          (Array.isArray(citiesRaw) ? citiesRaw : []).forEach((c: any) => {
-            const rawName = c.city_name || c.name || c.city || '';
-            if (rawName) {
-              const formattedName = rawName
-                .trim()
-                .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
-              if (!uniqueCities.has(formattedName.toLowerCase())) {
-                uniqueCities.set(formattedName.toLowerCase(), {
-                  code: String(c.city_code || c.code || c.id || formattedName),
-                  name: formattedName,
-                });
+
+          responses.forEach((res, idx) => {
+            const selectedCountry = selectedCountryCodes[idx];
+            const statesRaw = res?.data?.states || res?.states || [];
+            (Array.isArray(statesRaw) ? statesRaw : []).forEach((s: any) => {
+              const code = s.state_code || s.code || s.id;
+              const name = s.state_name || s.name || s.state;
+              if (name && !uniqueStates.has(name.toLowerCase())) {
+                uniqueStates.set(name.toLowerCase(), { code, name });
+              }
+            });
+
+            let citiesRaw = res?.data?.cities || res?.cities || [];
+            if (!Array.isArray(citiesRaw) || !citiesRaw.length) {
+              const countries = res?.data?.countries || res?.countries || [];
+              if (Array.isArray(countries) && countries.length > 0) {
+                const foundCountry = countries.find(
+                  (ct: any) =>
+                    String(ct.id || ct.country_id || ct.country_code || ct.code) ===
+                    String(selectedCountry)
+                );
+                if (foundCountry && Array.isArray(foundCountry.cities)) {
+                  citiesRaw = foundCountry.cities;
+                }
               }
             }
+
+            (Array.isArray(citiesRaw) ? citiesRaw : []).forEach((c: any) => {
+              const rawName = c.city_name || c.name || c.city || '';
+              if (rawName) {
+                const formattedName = rawName
+                  .trim()
+                  .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                if (!uniqueCities.has(formattedName.toLowerCase())) {
+                  uniqueCities.set(formattedName.toLowerCase(), {
+                    code: String(c.city_code || c.code || c.id || formattedName),
+                    name: formattedName,
+                  });
+                }
+              }
+            });
           });
 
+          this.states = Array.from(uniqueStates.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
           this.cities = Array.from(uniqueCities.values()).sort((a, b) =>
             a.name.localeCompare(b.name)
           );
