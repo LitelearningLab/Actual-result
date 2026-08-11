@@ -127,13 +127,40 @@
 
         <mat-form-field appearance="outline" class="filter-item">
           <mat-label>City</mat-label>
-          <input
-            matInput
-            placeholder="Any"
-            [disabled]="!filters.country"
+          <mat-select
             [(ngModel)]="filters.city"
-            (blur)="onCityFilterChange()"
-          />
+            placeholder="Select City"
+            [disabled]="(!selectedCountries || !selectedCountries.length) && !filters.country"
+            (openedChange)="onFilterSelectOpened($event, 'city')"
+            (selectionChange)="onCityFilterChange()"
+          >
+            <!-- Optional search field within city dropdown -->
+            <mat-option
+              class="select-search-option"
+              (click)="$event.stopPropagation()"
+              *ngIf="filterCityOptions.length > 5"
+            >
+              <input
+                matInput
+                class="select-search-input"
+                placeholder="Search city"
+                [(ngModel)]="citySearch"
+                [ngModelOptions]="{ standalone: true }"
+                (click)="$event.stopPropagation()"
+                (keydown)="stopFilterSearchEvent($event)"
+                (keyup)="stopFilterSearchEvent($event)"
+                (input)="stopFilterSearchEvent($event)"
+              />
+            </mat-option>
+
+            <!-- No cities available fallback -->
+            <mat-option *ngIf="!filteredCities.length" disabled> No cities available </mat-option>
+
+            <!-- Dynamically loaded cities for the selected country -->
+            <mat-option *ngFor="let city of filteredCities" [value]="city.name">
+              {{ city.name }}
+            </mat-option>
+          </mat-select>
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="filter-item">

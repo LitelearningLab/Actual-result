@@ -309,12 +309,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       list = list.filter(
         (c) =>
           (c.name || '').toLowerCase().includes(term) ||
-          (this.selectedCountries || []).includes(c.name)
+          (this.selectedCountries || []).includes(c.code)
       );
     }
     return [...list].sort((a, b) => {
-      const aSel = (this.selectedCountries || []).includes(a.name);
-      const bSel = (this.selectedCountries || []).includes(b.name);
+      const aSel = (this.selectedCountries || []).includes(a.code);
+      const bSel = (this.selectedCountries || []).includes(b.code);
       if (aSel && !bSel) return -1;
       if (!aSel && bSel) return 1;
       return (a.name || '').localeCompare(b.name || '');
@@ -323,7 +323,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   isAllCountriesSelected(): boolean {
     const items = this.filteredCountriesForFilter || [];
-    return items.length > 0 && items.every((c) => (this.selectedCountries || []).includes(c.name));
+    return items.length > 0 && items.every((c) => (this.selectedCountries || []).includes(c.code));
   }
 
   toggleSelectAllCountries(): void {
@@ -331,8 +331,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.isAllCountriesSelected()) {
       this.selectedCountries = [];
     } else {
-      this.selectedCountries = items.map((c) => c.name);
+      this.selectedCountries = items.map((c) => c.code);
     }
+    this.onCountryChange();
   }
 
   // --- Industry Logic ---
@@ -737,9 +738,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
     // Country Chip
     if (this.selectedCountries && this.selectedCountries.length) {
+      const countryNames = this.selectedCountries.map((code) =>
+        this.getSelectedName(this.countries, code, 'code')
+      );
       chips.push({
         key: 'country',
-        label: `Country: ${this.selectedCountries.join(', ')}`,
+        label: `Country: ${countryNames.join(', ')}`,
         removable: true,
       });
     } else if (this.filters.country) {
@@ -1499,12 +1503,20 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.cities = [];
     this.filters.state = '';
     this.filters.city = '';
-    if (!this.filters.country) {
+    if (this.selectedCountries && this.selectedCountries.length) {
+      this.filters.country = this.selectedCountries[0];
+    } else if (!this.selectedCountries || !this.selectedCountries.length) {
+      this.filters.country = '';
+    }
+    const selectedCountry =
+      this.selectedCountries && this.selectedCountries.length
+        ? this.selectedCountries[0]
+        : this.filters.country;
+    if (!selectedCountry) {
       this.refreshInstituteScope();
       return;
     }
     const url = `${API_BASE}/location-hierarchy`;
-    const selectedCountry = this.filters.country;
     this.http.get<any>(url, { params: { country_id: selectedCountry } }).subscribe({
       next: (res) => {
         try {

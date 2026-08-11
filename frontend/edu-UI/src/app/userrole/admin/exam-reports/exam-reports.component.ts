@@ -1582,39 +1582,37 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   onCountryChange() {
-    this.cities = [];
-    this.userFilters.city_id = '';
-    if (!this.userFilters.country_id) return;
-    const url = `${API_BASE}/location-hierarchy`;
-    this.http.get<any>(url, { params: { country: this.userFilters.country_id } }).subscribe({
-      next: (res: any) => {
-        try {
-          let allCities: any[] = [];
-          const countries = res?.data?.countries || res?.countries || [];
-          if (Array.isArray(countries)) {
-            countries.forEach((c: any) => {
-              if (Array.isArray(c.cities)) allCities = allCities.concat(c.cities);
-              if (Array.isArray(c.states))
-                c.states.forEach((s: any) => {
-                  if (Array.isArray(s.cities)) allCities = allCities.concat(s.cities);
-                });
-            });
+  this.cities = [];
+  this.userFilters.city_id = '';
+  if (!this.userFilters.country_id) return;
+
+  const toTitleCase = (str: string) =>
+    str ? str.trim().replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()) : '';
+
+  const url = `${API_BASE}/location-hierarchy`;
+  this.http.get<any>(url, { params: { country_id: this.userFilters.country_id } }).subscribe({
+    next: (res: any) => {
+      let rawCities: any[] = res?.data?.cities || res?.cities || [];
+      const uniqueMap = new Map<string, { code: string; name: string }>();
+
+      (rawCities || []).forEach((c: any) => {
+        const rawName = c.city_name || c.name || c.city || '';
+        if (rawName) {
+          const formatted = toTitleCase(rawName);
+          if (!uniqueMap.has(formatted.toLowerCase())) {
+            uniqueMap.set(formatted.toLowerCase(), { code: formatted, name: formatted });
           }
-          if (allCities.length === 0 && (res?.data?.cities || res?.cities))
-            allCities = res?.data?.cities || res?.cities || [];
-          this.cities = (allCities || []).map((c: any) => ({
-            code: c.city_code || c.code || c.id,
-            name: c.city_name || c.name || c.city,
-          }));
-        } catch (e) {
-          this.cities = [];
         }
-      },
-      error: () => {
-        this.cities = [];
-      },
-    });
-  }
+      });
+
+      this.cities = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    },
+    error: () => {
+      this.cities = [];
+    }
+  });
+}
+
 
   loadDepartmentList(instituteId: string | null) {
     this.departmentList = [];

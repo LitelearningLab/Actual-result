@@ -53,11 +53,13 @@ def _ensure_institute_registration_schema(session):
 
 
 def _campus_city_values(session, value):
-    """Store city as normalized free text; it is not master data or a foreign key."""
+    """Store city as normalized Title Case free text (e.g., 'chennai' -> 'Chennai')."""
     city_value = str(value or '').strip()
     if not city_value:
         return None, None
-    return None, city_value
+    # Capitalize first letter of each word
+    return None, city_value.title()
+
 
 def get_pagination(request):
     return (request.args.get('pageNumber', 1, type=int),

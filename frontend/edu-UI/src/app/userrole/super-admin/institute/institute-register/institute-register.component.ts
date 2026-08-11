@@ -524,9 +524,14 @@ export class InstituteRegisterComponent {
               name: cp.name,
               address: cp.address,
               pincode: cp.pin_code || cp.pincode,
-              country: cp.country?.country_id || cp.country?.country_id || cp.country,
-              state: cp.state?.state_id || cp.state?.state_id || cp.state,
-              city: cp.city?.city_id || cp.city?.city_id || cp.city,
+              country: this.resolveCountryId(cp.country),
+              state: this.resolveStateId(cp.state),
+              city:
+                cp.city?.city_name ||
+                cp.city_name ||
+                cp.city?.city_id ||
+                (typeof cp.city === 'string' ? cp.city : ''),
+
               email: cp.email,
               phone: cp.phone,
               isPrimary: !!cp.is_primary,
@@ -577,23 +582,31 @@ export class InstituteRegisterComponent {
         this.wireCampusLocationControls(group, cid);
         // if initial data provided with country/state, pre-load options
         if (initial && (initial.country || (initial.country && initial.country.country_id))) {
-          const countryId = initial.country?.country_id || initial.country || '';
-          const stateId = initial.state?.state_id || initial.state || '';
-          const cityId = initial.city?.city_id || initial.city || '';
+          const countryId = this.resolveCountryId(initial.country);
+          const stateId = this.resolveStateId(initial.state, cid);
+          const cityId =
+            initial.city?.city_id || (typeof initial.city === 'string' ? initial.city : '');
+
           if (countryId) {
             this.locationService.getStatesForCountry(countryId).subscribe(
               (states) => {
                 this.campusStateOptions[cid] = states || [];
-                if (stateId) {
-                  this.locationService.getCitiesForState(stateId).subscribe(
+
+                // Resolve stateId AFTER state options arrive over HTTP so state name matches state ID
+                const resolvedStateId = this.resolveStateId(initial?.state, cid);
+                if (resolvedStateId) {
+                  group.get('state')?.patchValue(resolvedStateId, { emitEvent: false });
+                  this.locationService.getCitiesForState(resolvedStateId).subscribe(
                     (cities) => {
                       this.campusCityOptions[cid] = cities || [];
+                      this.cd.detectChanges();
                     },
                     () => {
                       this.campusCityOptions[cid] = [];
                     }
                   );
                 }
+                this.cd.detectChanges();
               },
               () => {
                 this.campusStateOptions[cid] = [];
@@ -687,7 +700,7 @@ export class InstituteRegisterComponent {
         .pipe(
           tap(() => {
             this.campusCityOptions[cid] = [];
-            cityCtrl?.setValue('');
+            
             this.campusLoadingCities[cid] = true;
           }),
           switchMap((stateId: string | null) =>
@@ -743,6 +756,14 @@ export class InstituteRegisterComponent {
     this.locationService.getCountries(true).subscribe((list) => {
       this.countries = list;
       if (list.length === 1) this.form.get('headOffice.country')?.setValue(list[0].id);
+      // Re-patch campus countries so mat-select updates its display text after HTTP request completes
+      if (this.campuses && this.campuses.length) {
+        this.campuses.controls.forEach((c) => {
+          const val = c.get('country')?.value;
+          if (val) c.get('country')?.patchValue(val, { emitEvent: false });
+        });
+      }
+      this.cd.detectChanges();
     });
 
     // when country changes -> load states
@@ -1199,6 +1220,35 @@ export class InstituteRegisterComponent {
       (c) => (c.id && c.id.toString() === str) || (c.name && c.name.toString() === str)
     );
     return found ? found.name || str : str || '-';
+  }
+
+  resolveCountryId(cp: any): string {
+    if (!cp) return '';
+    const val =
+      typeof cp === 'object' ? cp.country_id || cp.country_name || cp.id || cp.name || '' : cp;
+    if (!val) return '';
+    const str = val.toString().trim();
+    const found = this.countries.find(
+      (c) =>
+        (c.id && c.id.toString() === str) ||
+        (c.name && c.name.toString().toLowerCase() === str.toLowerCase())
+    );
+    return found ? found.id : str;
+  }
+
+  resolveStateId(sp: any, cid?: string): string {
+    if (!sp) return '';
+    const val =
+      typeof sp === 'object' ? sp.state_id || sp.state_name || sp.id || sp.name || '' : sp;
+    if (!val) return '';
+    const str = val.toString().trim();
+    const options = (cid && this.campusStateOptions[cid]) || this.stateOptions || [];
+    const found = options.find(
+      (s) =>
+        (s.id && s.id.toString() === str) ||
+        (s.name && s.name.toString().toLowerCase() === str.toLowerCase())
+    );
+    return found ? found.id : str;
   }
 
   resolveStateName(value: any, cid?: string): string {
