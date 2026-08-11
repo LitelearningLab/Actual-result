@@ -183,6 +183,8 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   filterIndustry: string = '';
   filterSector: string = '';
   selectedCountries: string[] = [];
+  selectedCities: string[] = [];
+  citySearch: string = '';
   selectedIndustries: string[] = [];
   selectedSectors: string[] = [];
   countries: Array<{ code: string; name: string }> = [];
@@ -627,13 +629,21 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       chips.push({ key: 'country', label: `Country: ${cName}`, removable: true, tooltip: cName });
     }
 
-    if (this.filterCity)
+    if (this.selectedCities && this.selectedCities.length) {
+      chips.push({
+        key: 'city',
+        label: `City: ${this.selectedCities.join(', ')}`,
+        removable: true,
+        tooltip: this.selectedCities.join(', '),
+      });
+    } else if (this.filterCity) {
       chips.push({
         key: 'city',
         label: `City: ${this.filterCity}`,
         removable: true,
         tooltip: this.filterCity,
       });
+    }
 
     // Industry
     if (this.selectedIndustries && this.selectedIndustries.length) {
@@ -816,12 +826,14 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   removeAppliedFilter(key: string) {
     if (!key) return;
     if (key === 'country') {
-      this.selectedCountries = [];
       this.filterCountry = '';
+      this.selectedCountries = [];
+      this.selectedCities = [];
       this.filterCity = '';
       this.filterCityOptions = [];
       this.refreshInstituteScope();
     } else if (key === 'city') {
+      this.selectedCities = [];
       this.filterCity = '';
       this.refreshInstituteScope();
     } else if (key === 'industry') {
@@ -1092,7 +1104,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
   // ---- Country / City / Industry / Sector cascade (mirrors view-institutes.component.ts / category.component.ts) ----
 
-  onFilterSelectOpened(opened: boolean, field: 'country' | 'industry' | 'sector' | 'questionBank') {
+  onFilterSelectOpened(opened: boolean, field: 'country' | 'city' | 'industry' | 'sector' | 'questionBank') {
     if (opened) {
       setTimeout(() => {
         try {
@@ -1107,6 +1119,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       return;
     }
     if (field === 'country') this.countrySearch = '';
+    else if (field === 'city') this.citySearch = '';
     else if (field === 'industry') this.industrySearch = '';
     else if (field === 'sector') this.sectorSearch = '';
     else if (field === 'questionBank') this.categorySearch = '';
@@ -1213,14 +1226,38 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     this.http.get<any>(url, { params: { country_id: countryCode } }).subscribe({
       next: (res) => {
         try {
-          const data = Array.isArray(res?.data?.cities) ? res.data.cities : [];
-          this.filterCityOptions = data
-            .map((city: any) => ({
-              code: city.id ?? city.city_id ?? city.city_code ?? city.code,
-              name: city.name ?? city.city_name ?? city.city,
-            }))
-            .filter((city: any) => city.code && city.name)
-            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          let citiesRaw = res?.data?.cities || res?.cities || res?.data || [];
+          if (!Array.isArray(citiesRaw) || !citiesRaw.length) {
+            const countries = res?.data?.countries || res?.countries || [];
+            if (Array.isArray(countries) && countries.length > 0) {
+              const foundCountry = countries.find(
+                (ct: any) =>
+                  String(ct.id || ct.country_id || ct.country_code || ct.code) ===
+                  String(countryCode)
+              );
+              if (foundCountry && Array.isArray(foundCountry.cities)) {
+                citiesRaw = foundCountry.cities;
+              }
+            }
+          }
+          const uniqueSet = new Map<string, { code: string; name: string }>();
+          (Array.isArray(citiesRaw) ? citiesRaw : []).forEach((c: any) => {
+            const rawName = c.city_name || c.name || c.city || '';
+            if (rawName) {
+              const formattedName = rawName
+                .trim()
+                .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+              if (!uniqueSet.has(formattedName.toLowerCase())) {
+                uniqueSet.set(formattedName.toLowerCase(), {
+                  code: String(c.city_code || c.code || c.id || formattedName),
+                  name: formattedName,
+                });
+              }
+            }
+          });
+          this.filterCityOptions = Array.from(uniqueSet.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
         } catch (e) {
           this.filterCityOptions = [];
         }
@@ -1249,12 +1286,50 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
   onCountryFilterChange() {
     this.filterCity = '';
-    this.loadCitiesForCountry(this.filterCountry);
+    this.selectedCities = [];
+    const countryCode = this.selectedCountries?.length
+      ? this.selectedCountries[0]
+      : this.filterCountry;
+    this.loadCitiesForCountry(countryCode);
     this.refreshInstituteScope();
   }
 
   onCityFilterChange() {
     this.refreshInstituteScope();
+  }
+
+  get filteredCities(): Array<{ code: string; name: string }> {
+    const term = (this.citySearch || '').trim().toLowerCase();
+    let list = this.filterCityOptions || [];
+    if (term) {
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(term) ||
+          (this.selectedCities || []).includes(c.name)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCities || []).includes(a.name);
+      const bSel = (this.selectedCities || []).includes(b.name);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllCitiesSelected(): boolean {
+    const items = this.filteredCities || [];
+    return items.length > 0 && items.every((c) => (this.selectedCities || []).includes(c.name));
+  }
+
+  toggleSelectAllCities(): void {
+    const items = this.filteredCities || [];
+    if (this.isAllCitiesSelected()) {
+      this.selectedCities = [];
+    } else {
+      this.selectedCities = items.map((c) => c.name);
+    }
+    this.onCityFilterChange();
   }
 
   onIndustryFilterChange() {
@@ -1377,8 +1452,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     if (!this.isSuperAdmin) return;
     const params: any = {};
     if (this.filterCountry) params.country = this.filterCountry;
-    const cityId = this.resolveCityId(this.filterCity);
-    if (cityId) params.city = cityId;
+    if (this.selectedCities && this.selectedCities.length) {
+      params.city = this.selectedCities.join(',');
+    } else {
+      const cityId = this.resolveCityId(this.filterCity);
+      if (cityId) params.city = cityId;
+    }
     if (this.filterIndustry) params.industry = this.filterIndustry;
     if (this.filterSector) params.sector = this.filterSector;
 
