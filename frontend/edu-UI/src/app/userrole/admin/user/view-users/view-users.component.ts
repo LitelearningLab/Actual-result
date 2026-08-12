@@ -38,6 +38,7 @@ import { TemplatePortal } from '@angular/cdk/portal';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 export interface UserRow {
   id: string;
@@ -77,6 +78,7 @@ export interface UserRow {
     OverlayModule,
     PortalModule,
     SharedModule,
+    MatCheckboxModule,
   ],
   templateUrl: './view-users.component.html',
   styleUrls: ['./view-users.component.scss'],
@@ -126,6 +128,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   departmentSearch = '';
   teamSearch = '';
 
+  campuses: Array<{ id: string; name: string }> = [];
+  selectedCampuses: string[] = [];
+  campusFilterSearch = '';
+  campusSearch = '';
+
   selectedInstitutes: string[] = [];
   instituteFilterSearch = '';
   departmentFilterSearch = '';
@@ -141,6 +148,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     Bank: ['Bank'],
     IT: ['IT'],
   };
+  isActive: boolean = true;
 
   selectedCountries: string[] = [];
   selectedCities: string[] = [];
@@ -573,6 +581,31 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     }
   }
 
+  get filteredCampusesForFilter() {
+    const query = (this.campusFilterSearch || '').trim().toLowerCase();
+    return query
+      ? this.campuses.filter((c) => c.name.toLowerCase().includes(query))
+      : this.campuses;
+  }
+
+  isAllCampusesSelected(): boolean {
+    const items = this.filteredCampusesForFilter || [];
+    return items.length > 0 && items.every((c) => (this.selectedCampuses || []).includes(c.id));
+  }
+
+  toggleSelectAllCampuses(): void {
+    const items = this.filteredCampusesForFilter || [];
+    if (this.isAllCampusesSelected()) {
+      this.selectedCampuses = [];
+    } else {
+      this.selectedCampuses = items.map((c) => c.id);
+    }
+  }
+
+  onCampusFilterChange() {
+    this.pageIndex = 0;
+  }
+
   onInstituteSelectionChange() {
     const iids = (this.selectedInstitutes || []).join(',');
     this.selectedInstitute = this.selectedInstitutes[0] || '';
@@ -582,11 +615,14 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (iids) {
       this.loadDepartments(iids);
       this.loadTeams(iids);
+      this.loadCampuses(iids);
     } else {
       this.departments = [];
       this.teams = [];
+      this.campuses = [];
       this.filters.department = [];
       this.filters.team = [];
+      this.selectedCampuses = [];
     }
   }
 
@@ -694,6 +730,28 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       },
       error: () => {
         this.teams = [];
+      },
+    });
+  }
+
+  // load campuses for the selected institute(s)
+  loadCampuses(instituteId: string) {
+    const url = `${API_BASE}/get-campus-list`;
+    this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
+      next: (res) => {
+        try {
+          const data = res?.data || res?.campuses || [];
+          this.campuses = data.map((c: any) => ({
+            id: String(c.campus_id || c.id),
+            name: c.campus_name || c.name,
+          }));
+        } catch (e) {
+          this.campuses = [];
+          this.campusSearch = '';
+        }
+      },
+      error: () => {
+        this.campuses = [];
       },
     });
   }
@@ -813,17 +871,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     }
 
     // Active Status Chip
-    if (this.selectedActiveStatuses && this.selectedActiveStatuses.length) {
-      const statusLabels = this.selectedActiveStatuses.map((s) => (s ? 'Active' : 'Inactive'));
+    if (this.isActive) {
       chips.push({
         key: 'active_status',
-        label: `Status: ${statusLabels.join(', ')}`,
-        removable: true,
-      });
-    } else if (this.filters.active_status !== '') {
-      chips.push({
-        key: 'active_status',
-        label: `Status: ${this.filters.active_status ? 'Active' : 'Inactive'}`,
+        label: `Status: Active`,
         removable: true,
       });
     }
@@ -863,6 +914,14 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       chips.push({ key: 'team', label: `Teams: ${labels.join(', ')}`, removable: true });
     }
 
+    // Campus Chip
+    if (this.selectedCampuses && this.selectedCampuses.length) {
+      const labels = this.selectedCampuses
+        .map((id: any) => this.getSelectedName(this.campuses, id))
+        .filter(Boolean);
+      chips.push({ key: 'campus', label: `Campus: ${labels.join(', ')}`, removable: true });
+    }
+
     return chips;
   }
 
@@ -899,7 +958,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.selectedSectors = [];
       this.filters.sector = '';
     } else if (key === 'active_status') {
-      this.selectedActiveStatuses = [];
+      this.isActive = false;
       this.filters.active_status = '';
     } else if (key === 'name') {
       this.filters.name = '';
@@ -908,6 +967,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.filters.team = [];
     } else if (key === 'team') {
       this.filters.team = [];
+    } else if (key === 'campus') {
+      this.selectedCampuses = [];
+      this.filters.campus = '';
     }
     this.pageIndex = 0;
     this.refreshInstituteScope();
@@ -1033,10 +1095,14 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       const cityName = String(this.filters.city || '').trim();
       if (cityName) params.city = cityName;
     }
-    if (this.filters.campus) params.campus = this.filters.campus;
+    if (this.selectedCampuses && this.selectedCampuses.length) {
+      params.campus = this.selectedCampuses.join(',');
+    } else if (this.filters.campus) {
+      params.campus = this.filters.campus;
+    }
     if (this.filters.joining_from) params.joining_from = this.filters.joining_from;
     if (this.filters.joining_to) params.joining_to = this.filters.joining_to;
-    if (this.filters.active_status !== '') params.active_status = this.filters.active_status;
+    if (this.isActive !== undefined) params.active_status = this.isActive;
     // include pagination params (API expects pageNumber and pageSize)
     try {
       params.pageNumber = (this.pageIndex || 0) + 1; // send 1-based page number
@@ -1152,6 +1218,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       (this.selectedIndustries && this.selectedIndustries.length) ||
       (this.selectedSectors && this.selectedSectors.length) ||
       (this.selectedActiveStatuses && this.selectedActiveStatuses.length) ||
+      (this.selectedCampuses && this.selectedCampuses.length) ||
+      this.isActive ||
       this.filters.institute ||
       this.filters.name ||
       hasDept ||
@@ -1166,7 +1234,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   applyFilters() {
-    if (this.isSuperAdmin && !this.isGlobalInstituteActive && (!this.selectedInstitutes || !this.selectedInstitutes.length) && !this.selectedInstitute) {
+    if (
+      this.isSuperAdmin &&
+      !this.isGlobalInstituteActive &&
+      (!this.selectedInstitutes || !this.selectedInstitutes.length) &&
+      !this.selectedInstitute
+    ) {
       try {
         notify('Please select an institute', 'info');
       } catch (e) {}
@@ -1207,7 +1280,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.selectedSectors = [];
     this.selectedInstitutes = [];
     this.selectedActiveStatuses = [];
+    this.selectedCampuses = [];
     this.selectedInstitute = '';
+    this.isActive = true;
 
     // --- Clear search inputs ---
     this.countryFilterSearch = '';
@@ -1216,9 +1291,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.instituteFilterSearch = '';
     this.departmentFilterSearch = '';
     this.teamFilterSearch = '';
+    this.campusFilterSearch = '';
     this.instituteSearch = '';
     this.departmentSearch = '';
     this.teamSearch = '';
+    this.campusSearch = '';
 
     this.filter = '';
     this.dataSource.filter = '';
@@ -1578,8 +1655,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.selectedCountries && this.selectedCountries.length
         ? this.selectedCountries
         : this.filters.country
-        ? [this.filters.country]
-        : [];
+          ? [this.filters.country]
+          : [];
 
     if (!selectedCountryCodes.length) {
       this.refreshInstituteScope();
@@ -1627,7 +1704,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
               if (rawName) {
                 const formattedName = rawName
                   .trim()
-                  .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                  .replace(
+                    /\w\S*/g,
+                    (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+                  );
                 if (!uniqueCities.has(formattedName.toLowerCase())) {
                   uniqueCities.set(formattedName.toLowerCase(), {
                     code: String(c.city_code || c.code || c.id || formattedName),

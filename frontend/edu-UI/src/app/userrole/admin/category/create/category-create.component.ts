@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -21,9 +22,23 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 @Component({
   selector: 'app-category-create',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatSelectModule, MatAutocompleteModule, MatTooltipModule, MatSlideToggleModule, MatStepperModule, HttpClientModule, MatSnackBarModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatIconModule,
+    MatSelectModule,
+    MatAutocompleteModule,
+    MatTooltipModule,
+    MatSlideToggleModule,
+    MatStepperModule,
+    HttpClientModule,
+    MatSnackBarModule,
+  ],
   templateUrl: './category-create.component.html',
-  styleUrls: ['./category-create.component.scss']
+  styleUrls: ['./category-create.component.scss'],
 })
 export class CategoryCreateComponent {
   name = '';
@@ -44,50 +59,89 @@ export class CategoryCreateComponent {
   categoryInfoSubmitted = false;
   accessInfoSubmitted = false;
 
-  institutesList: Array<{ id: string; name: string; country?: string; city?: string; industry?: string; sector?: string }> = [];
+  institutesList: Array<{
+    id: string;
+    name: string;
+    country?: string;
+    city?: string;
+    industry?: string;
+    sector?: string;
+  }> = [];
   instituteSearch = '';
   questionBankFilterOpen = false;
+  selectedInstitutes: string[] = [];
+  selectedInstitute: string = '';
+  instituteFilterSearch = '';
 
   selectedCountries: string[] = [];
   countrySearch = '';
-  filterCity = '';
+  selectedCities: string[] = [];
+  citySearch = '';
+  filterCityOptions: Array<{ code: string; name: string }> = [];
   selectedIndustries: string[] = [];
   industrySearch = '';
   selectedSectors: string[] = [];
   sectorSearch = '';
 
-  countries: Array<{ code: string; name: string }> = [
-    { code: 'IN', name: 'India' },
-    { code: 'US', name: 'United States' },
-    { code: 'UK', name: 'United Kingdom' },
-    { code: 'CA', name: 'Canada' },
-    { code: 'AU', name: 'Australia' }
+  countries: Array<{ code: string; name: string }> = [];
+
+  industryTypes: string[] = ['School', 'College', 'BPO', 'Bank', 'IT'];
+  sectors: string[] = ['School', 'Engineering', 'Arts', 'Healthcare', 'Finance', 'Banking', 'IT'];
+
+  typeOptions = [
+    { id: 'objective', name: 'Objective' },
+    { id: 'descriptive', name: 'Descriptive' },
   ];
-  industryTypes: string[] = ['Education', 'Technology', 'Healthcare', 'Finance', 'Manufacturing'];
-  sectors: string[] = ['Private', 'Public', 'Government', 'Non-Profit'];
-  typeOptions = [{ id: 'objective', name: 'Objective' }, { id: 'descriptive', name: 'Descriptive' }];
-  whoInputOptions = [{ id: 'instructor', name: 'Instructor' }, { id: 'student', name: 'Student' }];
-  evaluationOptions = [{ id: 'auto', name: 'Automatic' }, { id: 'manual', name: 'Manual' }];
-  statusOptions = [{ id: 'true', name: 'Active' }, { id: 'false', name: 'Inactive' }];
+  whoInputOptions = [
+    { id: 'instructor', name: 'Instructor' },
+    { id: 'student', name: 'Student' },
+  ];
+  evaluationOptions = [
+    { id: 'auto', name: 'Automatic' },
+    { id: 'manual', name: 'Manual' },
+  ];
+  statusOptions = [
+    { id: 'true', name: 'Active' },
+    { id: 'false', name: 'Inactive' },
+  ];
 
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
   isSuperAdmin: boolean = false;
   currentUserId: string | null = null;
 
-  constructor(private router: Router, private http: HttpClient, private loader: LoaderService, private pageMeta: PageMetaService, private snack: MatSnackBar) { }
+  constructor(
+    private router: Router,
+    private http: HttpClient,
+    private loader: LoaderService,
+    private pageMeta: PageMetaService,
+    private snack: MatSnackBar
+  ) {}
 
   ngOnInit(): void {
     try {
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       if (raw) {
         const u = JSON.parse(raw);
-        this.isSuperAdmin = !!(u && (u.is_super_admin === true || u.isSuperAdmin || u.role === 'super_admin' || u.user_role === 'super_admin'));
+        this.isSuperAdmin = !!(
+          u &&
+          (u.is_super_admin === true ||
+            u.isSuperAdmin ||
+            u.role === 'super_admin' ||
+            u.user_role === 'super_admin')
+        );
         this.currentUserId = u?.user_id || u?.id || u?.userId || null;
-        const instId = sessionStorage.getItem('global_institute_id') || u?.institute_id || u?.instituteId || u?.institute || '';
+        const instId =
+          sessionStorage.getItem('global_institute_id') ||
+          u?.institute_id ||
+          u?.instituteId ||
+          u?.institute ||
+          '';
         if (instId) this.institute = String(instId);
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
 
     // if we are editing an existing category, load it from sessionStorage
     try {
@@ -96,16 +150,26 @@ export class CategoryCreateComponent {
         const c = JSON.parse(raw);
         this.applyEditCategory(c);
         // remove to avoid accidental reuse
-        try { sessionStorage.removeItem('edit_category'); } catch (e) { }
+        try {
+          sessionStorage.removeItem('edit_category');
+        } catch (e) {}
       }
-    } catch (e) { /* ignore parse errors */ }
+    } catch (e) {
+      /* ignore parse errors */
+    }
 
-    this.pageMeta.setMeta(this.isEditing ? 'Edit question bank' : 'Create question bank', this.isEditing ? 'Update the question bank details and click Update to save changes.' : 'Add a new question bank. Fill required fields and save.');
+    this.pageMeta.setMeta(
+      this.isEditing ? 'Edit question bank' : 'Create question bank',
+      this.isEditing
+        ? 'Update the question bank details and click Update to save changes.'
+        : 'Add a new question bank. Fill required fields and save.'
+    );
     this.loadInstitutes();
     if (this.institute) {
       this.loadDepartments();
       this.loadTeams();
     }
+    this.loadCountries();
   }
 
   private applyEditCategory(c: any): void {
@@ -123,23 +187,32 @@ export class CategoryCreateComponent {
     this.type = c.type || '';
     this.whoInputs = c.answer_by || c.who_inputs || '';
     this.evaluation = c.evaluation || '';
-    this.status = (typeof c.active_status !== 'undefined') ? String(c.active_status) : (c.status || '');
-    this.markForEachQuestion = (typeof c.mark_each_question !== 'undefined') ? c.mark_each_question : (c.mark_for_each_question || null);
+    this.status = typeof c.active_status !== 'undefined' ? String(c.active_status) : c.status || '';
+    this.markForEachQuestion =
+      typeof c.mark_each_question !== 'undefined'
+        ? c.mark_each_question
+        : c.mark_for_each_question || null;
     this.publicAccess = !!c.public_access;
-    this.selectedDepartments = this.normalizeEntityIds(c.departments || c.department_ids, 'department');
+    this.selectedDepartments = this.normalizeEntityIds(
+      c.departments || c.department_ids,
+      'department'
+    );
     this.selectedTeams = this.normalizeEntityIds(c.teams || c.team_ids, 'team');
   }
 
   private normalizeEntityIds(value: any, kind: 'department' | 'team'): string[] {
-    const idKeys = kind === 'department'
-      ? ['department_id', 'dept_id', 'id', '_id']
-      : ['team_id', 'id', '_id'];
-    const list = Array.isArray(value) ? value : (value && typeof value === 'object' ? Object.values(value) : []);
+    const idKeys =
+      kind === 'department' ? ['department_id', 'dept_id', 'id', '_id'] : ['team_id', 'id', '_id'];
+    const list = Array.isArray(value)
+      ? value
+      : value && typeof value === 'object'
+        ? Object.values(value)
+        : [];
     return list
       .map((item: any) => {
         if (!item) return '';
         if (typeof item !== 'object') return String(item);
-        const foundKey = idKeys.find(key => item[key]);
+        const foundKey = idKeys.find((key) => item[key]);
         return foundKey ? String(item[foundKey]) : '';
       })
       .filter((id: string) => !!id);
@@ -151,18 +224,29 @@ export class CategoryCreateComponent {
       next: (res) => {
         const data = res?.data || [];
         this.institutesList = (Array.isArray(data) ? data : [])
-          .map((i: any) => ({ id: i.institute_id || i.id || i.code, name: i.short_name || i.institute_name || i.name }))
+          .map((i: any) => ({
+            id: i.institute_id || i.id || i.code,
+            name: i.institute_name || i.college_name || i.name || i.short_name,
+          }))
           .filter((i: any) => !!i.id);
+
         if (!this.institute && !this.isSuperAdmin && this.institutesList.length === 1) {
           this.setInstitute(String(this.institutesList[0].id));
           return;
         }
-        // if institute was prefilled from sessionStorage, trigger setInstitute to load dependent lists
-        try { if (this.institute) this.setInstitute(this.institute); } catch (e) { }
-      }, error: () => {
+        // if institute was prefilled from sessionStorage, trigger setInstitute for non-superadmin to load dependent lists
+        try {
+          if (this.institute && !this.isSuperAdmin) this.setInstitute(this.institute);
+        } catch (e) {}
+      },
+      error: () => {
         this.institutesList = [];
-        this.snack.open('Unable to load institutes. Please refresh and try again.', 'Close', { duration: 5000, horizontalPosition: 'right', verticalPosition: 'top' });
-      }
+        this.snack.open('Unable to load institutes. Please refresh and try again.', 'Close', {
+          duration: 5000,
+          horizontalPosition: 'right',
+          verticalPosition: 'top',
+        });
+      },
     });
   }
 
@@ -174,13 +258,20 @@ export class CategoryCreateComponent {
       next: (res) => {
         const data = res?.data || res || [];
         this.departments = (Array.isArray(data) ? data : [])
-          .map((d: any) => ({ id: d.department_id || d.id || d.code, name: d.department_name || d.name }))
+          .map((d: any) => ({
+            id: d.department_id || d.id || d.code,
+            name: d.department_name || d.name,
+          }))
           .filter((d: any) => !!d.id);
-        this.selectedDepartments = this.onlyAvailableIds(this.selectedDepartments, this.departments);
-      }, error: () => {
+        this.selectedDepartments = this.onlyAvailableIds(
+          this.selectedDepartments,
+          this.departments
+        );
+      },
+      error: () => {
         this.departments = [];
         this.selectedDepartments = [];
-      }
+      },
     });
   }
 
@@ -195,10 +286,11 @@ export class CategoryCreateComponent {
           .map((t: any) => ({ id: t.team_id || t.id || t.code, name: t.team_name || t.name }))
           .filter((t: any) => !!t.id);
         this.selectedTeams = this.onlyAvailableIds(this.selectedTeams, this.teams);
-      }, error: () => {
+      },
+      error: () => {
         this.teams = [];
         this.selectedTeams = [];
-      }
+      },
     });
   }
 
@@ -208,16 +300,52 @@ export class CategoryCreateComponent {
     this.loader.show();
     if (this.isNameInvalid()) {
       this.loader.hide();
-      this.snack.open('Name is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' });
+      this.snack.open('Name is required.', 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
       return;
     }
-    if (this.isInstituteInvalid()) { this.loader.hide(); this.snack.open('Institute is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
-    if (!this.type) { this.loader.hide(); this.snack.open('Type is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
+    if (this.isInstituteInvalid()) {
+      this.loader.hide();
+      this.snack.open('Institute is required.', 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
+      return;
+    }
+    if (!this.type) {
+      this.loader.hide();
+      this.snack.open('Type is required.', 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
+      return;
+    }
 
     // if (!this.whoInputs) { this.loader.hide(); this.snack.open('Who inputs the answer is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
     // if (!this.evaluation) { this.loader.hide(); this.snack.open('Evaluation is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
-    if (!this.status) { this.loader.hide(); this.snack.open('Status is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
-    if (this.isMarkInvalid()) { this.loader.hide(); this.snack.open('Mark for each question is required and must be a number.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' }); return; }
+    if (!this.status) {
+      this.loader.hide();
+      this.snack.open('Status is required.', 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
+      return;
+    }
+    if (this.isMarkInvalid()) {
+      this.loader.hide();
+      this.snack.open('Mark for each question is required and must be a number.', 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
+      return;
+    }
 
     const payload: any = {
       name: String(this.name).trim(),
@@ -231,7 +359,6 @@ export class CategoryCreateComponent {
       // public access flag
       public_access: !!this.publicAccess,
       mark_for_each_question: Number(this.markForEachQuestion),
-
     };
 
     if (this.isEditing && this.editId) {
@@ -240,18 +367,60 @@ export class CategoryCreateComponent {
       const url = `${API_BASE}/update-category/${encodeURIComponent(String(this.editId))}`;
       this.http.put<any>(url, payload).subscribe({
         next: (res) => {
-          this.snack.open(res?.message || 'Question Bank updated successfully', 'Close', { duration: 3000, horizontalPosition: 'right', verticalPosition: 'top' });
+          this.snack.open(res?.message || 'Question Bank updated successfully', 'Close', {
+            duration: 3000,
+            horizontalPosition: 'right',
+            verticalPosition: 'top',
+          });
           this.router.navigate(['/category']);
-        }, complete: () => { this.loader.hide(); }, error: (err) => { this.loader.hide(); console.error('Failed to update question bank', err); const msg = err?.error?.statusMessage || err?.error?.message || err?.message || 'Failed to update question bank'; this.snack.open(msg, 'Close', { duration: 5000, horizontalPosition: 'right', verticalPosition: 'top' }); }
+        },
+        complete: () => {
+          this.loader.hide();
+        },
+        error: (err) => {
+          this.loader.hide();
+          console.error('Failed to update question bank', err);
+          const msg =
+            err?.error?.statusMessage ||
+            err?.error?.message ||
+            err?.message ||
+            'Failed to update question bank';
+          this.snack.open(msg, 'Close', {
+            duration: 5000,
+            horizontalPosition: 'right',
+            verticalPosition: 'top',
+          });
+        },
       });
     } else {
       if (this.currentUserId) payload.created_by = this.currentUserId;
       const url = `${API_BASE}/add-categories`;
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
-          this.snack.open(res?.message || 'Question Bank saved successfully', 'Close', { duration: 3000, horizontalPosition: 'right', verticalPosition: 'top' });
+          this.snack.open(res?.message || 'Question Bank saved successfully', 'Close', {
+            duration: 3000,
+            horizontalPosition: 'right',
+            verticalPosition: 'top',
+          });
           this.router.navigate(['/category']);
-        }, complete: () => { this.loader.hide(); }, error: (err) => { this.loader.hide(); console.error('Failed to save question bank', err); const msg = err?.error?.statusMessage || err?.error?.message || err?.message || 'Failed to save question bank'; this.snack.open(msg, 'Close', { duration: 5000, horizontalPosition: 'right', verticalPosition: 'top' }); }
+        },
+        complete: () => {
+          this.loader.hide();
+        },
+        error: (err) => {
+          this.loader.hide();
+          console.error('Failed to save question bank', err);
+          const msg =
+            err?.error?.statusMessage ||
+            err?.error?.message ||
+            err?.message ||
+            'Failed to save question bank';
+          this.snack.open(msg, 'Close', {
+            duration: 5000,
+            horizontalPosition: 'right',
+            verticalPosition: 'top',
+          });
+        },
       });
     }
   }
@@ -259,7 +428,12 @@ export class CategoryCreateComponent {
   reset(): void {
     this.name = '';
     this.description = '';
-    this.institute = sessionStorage.getItem('global_institute_id') || '';
+    if (this.isSuperAdmin) {
+      this.institute = '';
+      this.instituteSearch = '';
+    } else {
+      this.institute = sessionStorage.getItem('global_institute_id') || '';
+    }
     this.type = '';
     this.whoInputs = '';
     this.evaluation = '';
@@ -272,8 +446,12 @@ export class CategoryCreateComponent {
     this.categoryInfoSubmitted = false;
     this.accessInfoSubmitted = false;
   }
-  cancel() { this.router.navigate(['/category']); }
-  setName(v: string) { this.name = v || ''; }
+  cancel() {
+    this.router.navigate(['/category']);
+  }
+  setName(v: string) {
+    this.name = v || '';
+  }
   setDescription(v: string) {
     this.description = (v || '').slice(0, 250);
   }
@@ -287,6 +465,13 @@ export class CategoryCreateComponent {
     this.loadTeams();
   }
 
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.questionBankFilterOpen) {
+      this.questionBankFilterOpen = false;
+    }
+  }
+
   toggleQuestionBankFilters(): void {
     this.questionBankFilterOpen = !this.questionBankFilterOpen;
   }
@@ -294,7 +479,7 @@ export class CategoryCreateComponent {
   displayInstitute = (instId: any): string => {
     if (!instId) return '';
     const inst = this.institutesList.find((i) => String(i.id) === String(instId));
-    return inst ? inst.name : (this.instituteSearch || '');
+    return inst ? inst.name : this.instituteSearch || '';
   };
 
   onInstituteSearchChange(val: string): void {
@@ -308,73 +493,456 @@ export class CategoryCreateComponent {
     this.setInstitute(id);
   }
 
+  stopFilterSearchEvent(event: KeyboardEvent | Event): void {
+    event.stopPropagation();
+  }
+
+  get filteredInstitutesForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.instituteFilterSearch || '').trim().toLowerCase();
+    if (!term) return this.institutesList;
+    return this.institutesList.filter((i) => (i.name || '').toLowerCase().includes(term));
+  }
+
+  isAllInstitutesSelected(): boolean {
+    const ids = (this.filteredInstitutesForFilter || []).map((i) => String(i.id)).filter(Boolean);
+    return ids.length > 0 && ids.every((id) => (this.selectedInstitutes || []).includes(id));
+  }
+
+  toggleSelectAllInstitutes(): void {
+    const ids = (this.filteredInstitutesForFilter || []).map((i) => String(i.id)).filter(Boolean);
+    if (this.isAllInstitutesSelected()) {
+      this.selectedInstitutes = [];
+    } else {
+      this.selectedInstitutes = [...ids];
+    }
+  }
+
+  loadCountries(): void {
+    const url = `${API_BASE}/location-hierarchy`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        const countriesRaw = res?.data?.countries || res?.countries || res?.data || [];
+        this.loadRegisteredInstituteCountries(Array.isArray(countriesRaw) ? countriesRaw : []);
+      },
+      error: () => {
+        this.countries = [];
+      },
+    });
+  }
+
+  private loadRegisteredInstituteCountries(locationCountries: any[]): void {
+    this.countries = [];
+    this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
+      next: (res) => {
+        try {
+          const institutes = Array.isArray(res?.data) ? res.data : [];
+          const hierarchyCountries = (locationCountries || [])
+            .map((country: any) => ({
+              code: country.country_code || country.code || country.id,
+              name: country.country_name || country.name || country.country,
+            }))
+            .filter((country: any) => country.code && country.name);
+
+          const registeredCountries: Array<{ code: string; name: string }> = [];
+
+          institutes.forEach((institute: any) => {
+            const locations = [
+              institute,
+              ...(Array.isArray(institute?.campuses) ? institute.campuses : []),
+            ];
+            locations.forEach((location: any) => {
+              const rawCountry = location?.country;
+              const countryCode =
+                location?.country_id ||
+                location?.country_code ||
+                (typeof rawCountry === 'object'
+                  ? rawCountry?.country_id ||
+                    rawCountry?.id ||
+                    rawCountry?.country_code ||
+                    rawCountry?.code
+                  : rawCountry);
+              const countryName =
+                location?.country_name ||
+                (typeof rawCountry === 'object'
+                  ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
+                  : rawCountry);
+
+              const hierarchyMatch = hierarchyCountries.find(
+                (country: any) =>
+                  (countryCode &&
+                    String(country.code).toLowerCase() === String(countryCode).toLowerCase()) ||
+                  (countryName &&
+                    String(country.name).trim().toLowerCase() ===
+                      String(countryName).trim().toLowerCase())
+              );
+
+              const resolved =
+                hierarchyMatch ||
+                (countryCode && countryName
+                  ? { code: String(countryCode), name: String(countryName).trim() }
+                  : null);
+
+              if (resolved) {
+                registeredCountries.push({
+                  code: String(resolved.code),
+                  name: String(resolved.name).trim(),
+                });
+              }
+            });
+          });
+
+          const uniqueByName = new Map<string, { code: string; name: string }>();
+          registeredCountries.forEach((country) => {
+            const key = country.name.toLowerCase();
+            if (!uniqueByName.has(key)) uniqueByName.set(key, country);
+          });
+
+          this.countries = Array.from(uniqueByName.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+        } catch (e) {
+          this.countries = [];
+        }
+      },
+      error: () => {
+        this.countries = [];
+      },
+    });
+  }
+
+  get filteredCountries(): Array<{ code: string; name: string }> {
+    const term = (this.countrySearch || '').trim().toLowerCase();
+    if (!term) return this.countries;
+    return this.countries.filter((c) => c.name.toLowerCase().includes(term));
+  }
+
+  isAllCountriesSelected(): boolean {
+    const codes = (this.filteredCountries || []).map((c) => c.code).filter(Boolean);
+    return codes.length > 0 && codes.every((code) => (this.selectedCountries || []).includes(code));
+  }
+
+  toggleSelectAllCountries(): void {
+    const codes = (this.filteredCountries || []).map((c) => c.code).filter(Boolean);
+    if (this.isAllCountriesSelected()) {
+      this.selectedCountries = [];
+    } else {
+      this.selectedCountries = [...codes];
+    }
+    this.onCountryFilterChange();
+  }
+
+  onCountryFilterChange(): void {
+    this.selectedCities = [];
+    this.citySearch = '';
+    this.loadCitiesForCountry(this.selectedCountries);
+  }
+
+  private loadCitiesForCountry(countryCodes: string[]): void {
+    this.filterCityOptions = [];
+    const codes = (countryCodes || []).filter(Boolean);
+    if (!codes.length) return;
+
+    const requests = codes.map((code) =>
+      this.http.get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: code } })
+    );
+
+    forkJoin(requests).subscribe({
+      next: (responses) => {
+        try {
+          const uniqueSet = new Map<string, { code: string; name: string }>();
+          responses.forEach((res, idx) => {
+            const countryCode = codes[idx];
+            let citiesRaw = res?.data?.cities || res?.cities || res?.data || [];
+            if (!Array.isArray(citiesRaw) || !citiesRaw.length) {
+              const countries = res?.data?.countries || res?.countries || [];
+              if (Array.isArray(countries) && countries.length > 0) {
+                const foundCountry = countries.find(
+                  (ct: any) =>
+                    String(ct.id || ct.country_id || ct.country_code || ct.code) ===
+                    String(countryCode)
+                );
+                if (foundCountry && Array.isArray(foundCountry.cities)) {
+                  citiesRaw = foundCountry.cities;
+                }
+              }
+            }
+            (Array.isArray(citiesRaw) ? citiesRaw : []).forEach((c: any) => {
+              const rawName = c.city_name || c.name || c.city || '';
+              if (rawName) {
+                const formattedName = rawName
+                  .trim()
+                  .replace(
+                    /\w\S*/g,
+                    (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+                  );
+                if (!uniqueSet.has(formattedName.toLowerCase())) {
+                  uniqueSet.set(formattedName.toLowerCase(), {
+                    code: String(c.city_code || c.code || c.id || formattedName),
+                    name: formattedName,
+                  });
+                }
+              }
+            });
+          });
+          this.filterCityOptions = Array.from(uniqueSet.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+        } catch (e) {
+          this.filterCityOptions = [];
+        }
+      },
+      error: () => {
+        this.filterCityOptions = [];
+      },
+    });
+  }
+
+  get filteredCities(): Array<{ code: string; name: string }> {
+    const term = (this.citySearch || '').trim().toLowerCase();
+    if (!term) return this.filterCityOptions;
+    return this.filterCityOptions.filter((c) => c.name.toLowerCase().includes(term));
+  }
+
+  isAllCitiesSelected(): boolean {
+    const names = (this.filteredCities || []).map((c) => c.name).filter(Boolean);
+    return names.length > 0 && names.every((n) => (this.selectedCities || []).includes(n));
+  }
+
+  toggleSelectAllCities(): void {
+    const names = (this.filteredCities || []).map((c) => c.name).filter(Boolean);
+    if (this.isAllCitiesSelected()) {
+      this.selectedCities = [];
+    } else {
+      this.selectedCities = [...names];
+    }
+  }
+
+  get filteredIndustryTypes(): string[] {
+    const term = (this.industrySearch || '').trim().toLowerCase();
+    if (!term) return this.industryTypes;
+    return this.industryTypes.filter((ind) => ind.toLowerCase().includes(term));
+  }
+
+  isAllIndustriesSelected(): boolean {
+    const items = this.filteredIndustryTypes || [];
+    return items.length > 0 && items.every((i) => (this.selectedIndustries || []).includes(i));
+  }
+
+  toggleSelectAllIndustries(): void {
+    const items = this.filteredIndustryTypes || [];
+    if (this.isAllIndustriesSelected()) {
+      this.selectedIndustries = [];
+    } else {
+      this.selectedIndustries = [...items];
+    }
+  }
+
+  get filteredSectors(): string[] {
+    const term = (this.sectorSearch || '').trim().toLowerCase();
+    if (!term) return this.sectors;
+    return this.sectors.filter((sec) => sec.toLowerCase().includes(term));
+  }
+
+  isAllSectorsSelected(): boolean {
+    const items = this.filteredSectors || [];
+    return items.length > 0 && items.every((s) => (this.selectedSectors || []).includes(s));
+  }
+
+  toggleSelectAllSectors(): void {
+    const items = this.filteredSectors || [];
+    if (this.isAllSectorsSelected()) {
+      this.selectedSectors = [];
+    } else {
+      this.selectedSectors = [...items];
+    }
+  }
+
   filteredInstitutes(): Array<{ id: string; name: string }> {
     const term = (this.instituteSearch || '').trim().toLowerCase();
-    return this.institutesList.filter((inst: any) => {
-      const matchesSearch = !term || (inst.name || '').toLowerCase().includes(term);
-      const matchesCountry = !this.selectedCountries.length || (inst.country && this.selectedCountries.includes(inst.country));
-      const matchesCity = !this.filterCity || (inst.city && inst.city.toLowerCase().includes(this.filterCity.toLowerCase()));
-      const matchesIndustry = !this.selectedIndustries.length || (inst.industry && this.selectedIndustries.includes(inst.industry));
-      const matchesSector = !this.selectedSectors.length || (inst.sector && this.selectedSectors.includes(inst.sector));
+    const filterInstId =
+      this.selectedInstitute ||
+      (this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes[0] : '');
 
-      return matchesSearch && matchesCountry && matchesCity && matchesIndustry && matchesSector;
+    return this.institutesList.filter((inst: any) => {
+      // 1. If an institute is chosen in the popover filter, show ONLY that institute in the dropdown
+      const matchesSelected = !filterInstId || String(inst.id) === String(filterInstId);
+
+      const matchesSearch = !term || (inst.name || '').toLowerCase().includes(term);
+      const matchesCountry =
+        !this.selectedCountries.length ||
+        (inst.country && this.selectedCountries.includes(inst.country));
+      const matchesCity =
+        !this.selectedCities.length ||
+        (inst.city &&
+          this.selectedCities.some((sc) => sc.toLowerCase() === inst.city.toLowerCase()));
+      const matchesIndustry =
+        !this.selectedIndustries.length ||
+        (inst.industry && this.selectedIndustries.includes(inst.industry));
+      const matchesSector =
+        !this.selectedSectors.length || (inst.sector && this.selectedSectors.includes(inst.sector));
+
+      return (
+        matchesSelected &&
+        matchesSearch &&
+        matchesCountry &&
+        matchesCity &&
+        matchesIndustry &&
+        matchesSector
+      );
     });
   }
 
   get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
     const chips: Array<{ key: string; label: string; removable: boolean }> = [];
     if (this.selectedCountries.length) {
-      chips.push({ key: 'country', label: `Country (${this.selectedCountries.length})`, removable: true });
+      const countryNames = this.selectedCountries
+        .map((code) => {
+          const found = this.countries.find((c) => String(c.code) === String(code));
+          return found ? found.name : code;
+        })
+        .filter(Boolean);
+
+      const countryLabel =
+        countryNames.length === 1
+          ? `Country: ${countryNames[0]}`
+          : `Country: ${countryNames.join(', ')}`;
+
+      chips.push({
+        key: 'country',
+        label: countryLabel,
+        removable: true,
+      });
     }
-    if (this.filterCity) {
-      chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
+
+    if (this.institute) {
+      const instObj = this.institutesList.find((i) => String(i.id) === String(this.institute));
+      chips.push({
+        key: 'institute',
+        label: `Institute: ${instObj ? instObj.name : this.instituteSearch || 'Selected'}`,
+        removable: true,
+      });
+    }
+
+    if (this.selectedCities.length) {
+      chips.push({
+        key: 'city',
+        label: `City (${this.selectedCities.length})`,
+        removable: true,
+      });
     }
     if (this.selectedIndustries.length) {
-      chips.push({ key: 'industry', label: `Industry (${this.selectedIndustries.length})`, removable: true });
+      chips.push({
+        key: 'industry',
+        label: `Industry (${this.selectedIndustries.length})`,
+        removable: true,
+      });
     }
     if (this.selectedSectors.length) {
-      chips.push({ key: 'sector', label: `Sector (${this.selectedSectors.length})`, removable: true });
+      chips.push({
+        key: 'sector',
+        label: `Sector (${this.selectedSectors.length})`,
+        removable: true,
+      });
     }
     return chips;
   }
 
   removeAppliedFilter(key: string): void {
-    if (key === 'country') this.selectedCountries = [];
-    if (key === 'city') this.filterCity = '';
+    if (key === 'institute') {
+      this.selectedInstitutes = [];
+      this.selectedInstitute = '';
+      this.institute = '';
+      this.instituteSearch = '';
+    }
+
+    if (key === 'country') {
+      this.selectedCountries = [];
+      this.onCountryFilterChange();
+    }
+    if (key === 'city') this.selectedCities = [];
     if (key === 'industry') this.selectedIndustries = [];
     if (key === 'sector') this.selectedSectors = [];
   }
 
   clearAppliedFilters(): void {
     this.selectedCountries = [];
-    this.filterCity = '';
+    this.selectedCities = [];
+    this.filterCityOptions = [];
     this.selectedIndustries = [];
     this.selectedSectors = [];
+    this.selectedInstitutes = [];
+    this.selectedInstitute = '';
+    this.institute = '';
+    this.instituteSearch = '';
+  }
+
+  onFilterInstituteSelectionChange(selectedId: any): void {
+    const id = Array.isArray(selectedId) ? selectedId[selectedId.length - 1] : selectedId;
+    if (id) {
+      this.selectedInstitute = String(id);
+      this.selectedInstitutes = [String(id)];
+    }
   }
 
   applyQuestionBankFilters(): void {
+    const id =
+      this.selectedInstitute || (this.selectedInstitutes.length ? this.selectedInstitutes[0] : '');
+
+    if (!id) {
+      this.snack.open('Please select an institute before applying filters.', 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
+      return;
+    }
+
+    this.setInstitute(String(id));
     this.questionBankFilterOpen = false;
   }
 
   resetQuestionBankFilters(): void {
     this.clearAppliedFilters();
   }
-  setType(v: string) { this.type = v || ''; }
-  setWhoInputs(v: string) { this.whoInputs = v || ''; }
-  setEvaluation(v: string) { this.evaluation = v || ''; }
-  setStatus(v: string) { this.status = v || ''; }
-  setMark(v: string) { const n = Number(v); this.markForEachQuestion = isNaN(n) ? null : n; }
-  setDepartments(v: string[]) { this.selectedDepartments = this.onlyAvailableIds(v, this.departments); }
-  setTeams(v: string[]) { this.selectedTeams = this.onlyAvailableIds(v, this.teams); }
+  setType(v: string) {
+    this.type = v || '';
+  }
+  setWhoInputs(v: string) {
+    this.whoInputs = v || '';
+  }
+  setEvaluation(v: string) {
+    this.evaluation = v || '';
+  }
+  setStatus(v: string) {
+    this.status = v || '';
+  }
+  setMark(v: string) {
+    const n = Number(v);
+    this.markForEachQuestion = isNaN(n) ? null : n;
+  }
+  setDepartments(v: string[]) {
+    this.selectedDepartments = this.onlyAvailableIds(v, this.departments);
+  }
+  setTeams(v: string[]) {
+    this.selectedTeams = this.onlyAvailableIds(v, this.teams);
+  }
 
   goToAccessStep(stepper: any): void {
     this.categoryInfoSubmitted = true;
     if (this.isNameInvalid()) {
-      this.snack.open('Name is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' });
+      this.snack.open('Name is required.', 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
       return;
     }
     if (this.isTypeInvalid()) {
-      this.snack.open('Type is required.', 'Close', { duration: 4000, horizontalPosition: 'right', verticalPosition: 'top' });
+      this.snack.open('Type is required.', 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
       return;
     }
     stepper.next();
@@ -388,13 +956,22 @@ export class CategoryCreateComponent {
     stepper.next();
   }
 
+  isNameInvalid(): boolean {
+    return !this.name || !this.name.trim();
+  }
+  isInstituteInvalid(): boolean {
+    return !this.institute;
+  }
+  isTypeInvalid(): boolean {
+    return !this.type;
+  }
 
-  isNameInvalid(): boolean { return !this.name || !this.name.trim(); }
-  isInstituteInvalid(): boolean { return !this.institute; }
-  isTypeInvalid(): boolean { return !this.type; }
-
-  isStatusInvalid(): boolean { return !this.status; }
-  isMarkInvalid(): boolean { return this.markForEachQuestion === null || isNaN(Number(this.markForEachQuestion)); }
+  isStatusInvalid(): boolean {
+    return !this.status;
+  }
+  isMarkInvalid(): boolean {
+    return this.markForEachQuestion === null || isNaN(Number(this.markForEachQuestion));
+  }
 
   get departmentSelectValue(): string[] {
     return this.withAllOption(this.selectedDepartments, this.departments);
@@ -416,32 +993,50 @@ export class CategoryCreateComponent {
 
   setDepartmentOption(id: string, event: any) {
     if (!event?.isUserInput) return;
-    this.selectedDepartments = this.updateOptionSelection(this.selectedDepartments, id, !!event?.source?.selected);
+    this.selectedDepartments = this.updateOptionSelection(
+      this.selectedDepartments,
+      id,
+      !!event?.source?.selected
+    );
   }
 
   setTeamOption(id: string, event: any) {
     if (!event?.isUserInput) return;
-    this.selectedTeams = this.updateOptionSelection(this.selectedTeams, id, !!event?.source?.selected);
+    this.selectedTeams = this.updateOptionSelection(
+      this.selectedTeams,
+      id,
+      !!event?.source?.selected
+    );
   }
 
   private getOptionIds(options: Array<{ id: string; name: string }>): string[] {
-    return (options || []).map(o => String(o.id)).filter(id => !!id);
+    return (options || []).map((o) => String(o.id)).filter((id) => !!id);
   }
 
-  private onlyAvailableIds(values: string[], options: Array<{ id: string; name: string }>): string[] {
+  private onlyAvailableIds(
+    values: string[],
+    options: Array<{ id: string; name: string }>
+  ): string[] {
     const allowed = new Set(this.getOptionIds(options));
-    return (Array.isArray(values) ? values : []).map(v => String(v)).filter(v => allowed.has(v));
+    return (Array.isArray(values) ? values : [])
+      .map((v) => String(v))
+      .filter((v) => allowed.has(v));
   }
 
-  private withAllOption(selected: string[], options: Array<{ id: string; name: string }>): string[] {
+  private withAllOption(
+    selected: string[],
+    options: Array<{ id: string; name: string }>
+  ): string[] {
     const selectedIds = this.onlyAvailableIds(selected, options);
     const optionIds = this.getOptionIds(options);
-    const allSelected = optionIds.length > 0 && optionIds.every(id => selectedIds.includes(id));
+    const allSelected = optionIds.length > 0 && optionIds.every((id) => selectedIds.includes(id));
     return allSelected ? [this.ALL_OPTION_VALUE, ...selectedIds] : selectedIds;
   }
 
   private updateOptionSelection(selected: string[], id: string, isSelected: boolean): string[] {
-    const selectedIds = new Set((selected || []).map(v => String(v)).filter(v => v !== this.ALL_OPTION_VALUE));
+    const selectedIds = new Set(
+      (selected || []).map((v) => String(v)).filter((v) => v !== this.ALL_OPTION_VALUE)
+    );
     const optionId = String(id || '');
     if (!optionId) return Array.from(selectedIds);
     if (isSelected) selectedIds.add(optionId);
@@ -452,27 +1047,26 @@ export class CategoryCreateComponent {
   // Helper: get display name for institute id
   getInstituteName(id: string | null | undefined): string {
     if (!id) return '';
-    const found = (this.institutesList || []).find(i => String(i.id) === String(id));
+    const found = (this.institutesList || []).find((i) => String(i.id) === String(id));
     return found ? found.name : String(id);
   }
 
   // Helper: get option label from a list of {id,name}
-  getOptionName(list: Array<{ id: any, name: string }> | null | undefined, id: any): string {
+  getOptionName(list: Array<{ id: any; name: string }> | null | undefined, id: any): string {
     if (!list || !id) return '';
-    const f = list.find(x => String(x.id) === String(id));
+    const f = list.find((x) => String(x.id) === String(id));
     return f ? f.name : String(id);
   }
 
   getDepartmentName(id: string | null | undefined): string {
     if (!id) return '';
-    const f = (this.departments || []).find(d => String(d.id) === String(id));
+    const f = (this.departments || []).find((d) => String(d.id) === String(id));
     return f ? f.name : String(id);
   }
 
   getTeamName(id: string | null | undefined): string {
     if (!id) return '';
-    const f = (this.teams || []).find(t => String(t.id) === String(id));
+    const f = (this.teams || []).find((t) => String(t.id) === String(id));
     return f ? f.name : String(id);
   }
 }
-

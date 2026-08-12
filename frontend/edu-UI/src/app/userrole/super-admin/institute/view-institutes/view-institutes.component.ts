@@ -17,6 +17,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatSortModule, MatSort } from '@angular/material/sort';
@@ -71,6 +72,7 @@ export interface Institute {
     MatIconModule,
     SharedModule,
     MatButtonModule,
+    MatCheckboxModule,
     MatSlideToggleModule,
     MatTabsModule,
     MatInputModule,
@@ -135,7 +137,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   sectorSearch = '';
   instituteFilterSearch = '';
   selectedInstitutes: string[] = [];
-
+  isActive: boolean = true;
   selectedCountries: string[] = [];
   selectedCities: string[] = [];
   selectedActiveStatuses: boolean[] = [];

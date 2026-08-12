@@ -3,10 +3,20 @@
     <div class="search">
       <mat-form-field appearance="outline" class="search-field">
         <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
-        <input matInput placeholder="First filter users, then search within results for name" [(ngModel)]="filter"
-          (ngModelChange)="applyFilter($event)" aria-label="Search users" />
-        <button mat-icon-button matSuffix *ngIf="filter" (click)="filter = ''; applyFilter('')"
-          aria-label="Clear search">
+        <input
+          matInput
+          placeholder="First filter users, then search within results for name"
+          [(ngModel)]="filter"
+          (ngModelChange)="applyFilter($event)"
+          aria-label="Search users"
+        />
+        <button
+          mat-icon-button
+          matSuffix
+          *ngIf="filter"
+          (click)="filter = ''; applyFilter('')"
+          aria-label="Clear search"
+        >
           <mat-icon>close</mat-icon>
         </button>
       </mat-form-field>
@@ -14,18 +24,36 @@
 
     <div class="controls">
       <div class="action-row">
-        <button #filtersBtn mat-flat-button type="button" (click)="openFiltersOverlay(); $event.stopPropagation()"
-          class="button-one" title="Open filters">
+        <button
+          #filtersBtn
+          mat-flat-button
+          type="button"
+          (click)="openFiltersOverlay(); $event.stopPropagation()"
+          class="button-one"
+          title="Open filters"
+        >
           <mat-icon svgIcon="filter"></mat-icon>
           <span>Filter Users</span>
         </button>
-        <button mat-flat-button color="primary" type="button" (click)="refresh(); $event.stopPropagation()"
-          class="button-one" title="Refresh filtered results">
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          (click)="refresh(); $event.stopPropagation()"
+          class="button-one"
+          title="Refresh filtered results"
+        >
           <mat-icon svgIcon="refresh"></mat-icon>
           <span>Refresh</span>
         </button>
-        <button *hasAccess="'Users'; hasAccessAction: 'add'" type="button" mat-flat-button color="primary"
-          class="button-one register-btn" (click)="openUserRegister()">
+        <button
+          *hasAccess="'Users'; hasAccessAction: 'add'"
+          type="button"
+          mat-flat-button
+          color="primary"
+          class="button-one register-btn"
+          (click)="openUserRegister()"
+        >
           <mat-icon>person_add</mat-icon>
           <span>Register User</span>
         </button>
@@ -35,15 +63,21 @@
 
   <div class="applied-filters" *ngIf="appliedFilterChips.length">
     <span class="applied-filters-title">Applied filters</span>
-    <button type="button" class="applied-filter-chip" *ngFor="let chip of appliedFilterChips"
+    <button
+      type="button"
+      class="applied-filter-chip"
+      *ngFor="let chip of appliedFilterChips"
       [class.applied-filter-chip--locked]="!chip.removable"
       [matTooltip]="chip.tooltip || ''"
       [matTooltipDisabled]="!chip.tooltip"
-      (click)="chip.removable && removeAppliedFilter(chip.key)">
+      (click)="chip.removable && removeAppliedFilter(chip.key)"
+    >
       <span>{{ chip.label }}</span>
       <!-- <mat-icon *ngIf="chip.removable">close</mat-icon> -->
     </button>
-    <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">Clear all</button>
+    <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">
+      Clear all
+    </button>
   </div>
   <div class="list-card">
     <!-- Filters panel -->
@@ -53,35 +87,91 @@
           <h4><mat-icon>tune</mat-icon> Filters</h4>
         </div>
         <div class="filter-block">
+          <mat-form-field
+            appearance="outline"
+            class="filter-item local-institute-field mandatory-field filter-col-full"
+            *ngIf="isSuperAdmin && !isGlobalInstituteActive"
+          >
+            <mat-label>Institute <span class="required-star">*</span></mat-label>
+            <mat-select
+              multiple
+              [(ngModel)]="selectedInstitutes"
+              placeholder="Select institute"
+              (selectionChange)="onInstituteSelectionChange()"
+            >
+              <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                <input
+                  matInput
+                  class="select-search-input"
+                  placeholder="Search institute"
+                  [(ngModel)]="instituteFilterSearch"
+                  [ngModelOptions]="{ standalone: true }"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)"
+                  (keyup)="stopFilterSearchEvent($event)"
+                  (input)="stopFilterSearchEvent($event)"
+                />
+              </mat-option>
+              <mat-option
+                class="select-all-option"
+                *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
+                (click)="toggleSelectAllInstitutes()"
+              >
+                <mat-icon
+                  class="select-all-checkbox-icon"
+                  [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'"
+                >
+                  {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                </mat-icon>
+                <strong>Select All</strong>
+              </mat-option>
+              <mat-option
+                *ngFor="let inst of filteredInstitutesForFilter"
+                [value]="inst.institute_id"
+                >{{ inst.institute_name }}</mat-option
+              >
+            </mat-select>
+          </mat-form-field>
+
           <ng-container *ngIf="showLocationAndIndustryFilters">
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>Country</mat-label>
-              <mat-select multiple [(ngModel)]="selectedCountries" placeholder="Select Country"
-                (selectionChange)="onCountryChange()">
+              <mat-select
+                multiple
+                [(ngModel)]="selectedCountries"
+                placeholder="Select Country"
+                (selectionChange)="onCountryChange()"
+              >
                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search country"
-                    [(ngModel)]="countryFilterSearch" [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                  <input
+                    matInput
+                    class="select-search-input"
+                    placeholder="Search country"
+                    [(ngModel)]="countryFilterSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)"
+                  />
                 </mat-option>
-                <mat-option class="select-all-option"
+                <mat-option
+                  class="select-all-option"
                   *ngIf="filteredCountriesForFilter.length && !countryFilterSearch?.trim()"
-                  (click)="toggleSelectAllCountries()">
-                  <mat-icon class="select-all-checkbox-icon"
-                    [style.color]="isAllCountriesSelected() ? '#2563eb' : '#64748b'">
+                  (click)="toggleSelectAllCountries()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllCountriesSelected() ? '#2563eb' : '#64748b'"
+                  >
                     {{ isAllCountriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
                   </mat-icon>
                   <strong>Select All</strong>
                 </mat-option>
-                <mat-option *ngFor="let c of filteredCountriesForFilter" [value]="c.code">{{c.name}}</mat-option>
+                <mat-option *ngFor="let c of filteredCountriesForFilter" [value]="c.code">{{
+                  c.name
+                }}</mat-option>
               </mat-select>
-            </mat-form-field>
-
-
-            <mat-form-field appearance="outline" class="filter-item">
-              <mat-label>State</mat-label>
-              <input matInput placeholder="Any" [disabled]="!filters.country" [(ngModel)]="filters.state"
-                (ngModelChange)="onStateChange()" />
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-item">
@@ -125,7 +215,9 @@
                 </mat-option>
 
                 <!-- Fallback when no cities available -->
-                <mat-option *ngIf="!filteredCitiesForFilter.length" disabled> No cities available </mat-option>
+                <mat-option *ngIf="!filteredCitiesForFilter.length" disabled>
+                  No cities available
+                </mat-option>
 
                 <!-- City Options with Checkboxes -->
                 <mat-option *ngFor="let city of filteredCitiesForFilter" [value]="city.name">
@@ -136,119 +228,210 @@
 
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>Industry</mat-label>
-              <mat-select multiple [(ngModel)]="selectedIndustries" placeholder="Select Industry"
-                (selectionChange)="onIndustryFilterChange()">
+              <mat-select
+                multiple
+                [(ngModel)]="selectedIndustries"
+                placeholder="Select Industry"
+                (selectionChange)="onIndustryFilterChange()"
+              >
                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search industry"
-                    [(ngModel)]="industryFilterSearch" [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                  <input
+                    matInput
+                    class="select-search-input"
+                    placeholder="Search industry"
+                    [(ngModel)]="industryFilterSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)"
+                  />
                 </mat-option>
-                <mat-option class="select-all-option"
+                <mat-option
+                  class="select-all-option"
                   *ngIf="filteredIndustryTypesForFilter.length && !industryFilterSearch?.trim()"
-                  (click)="toggleSelectAllIndustries()">
-                  <mat-icon class="select-all-checkbox-icon"
-                    [style.color]="isAllIndustriesSelected() ? '#2563eb' : '#64748b'">
+                  (click)="toggleSelectAllIndustries()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllIndustriesSelected() ? '#2563eb' : '#64748b'"
+                  >
                     {{ isAllIndustriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
                   </mat-icon>
                   <strong>Select All</strong>
                 </mat-option>
-                <mat-option *ngFor="let t of filteredIndustryTypesForFilter" [value]="t">{{t}}</mat-option>
+                <mat-option *ngFor="let t of filteredIndustryTypesForFilter" [value]="t">{{
+                  t
+                }}</mat-option>
               </mat-select>
             </mat-form-field>
 
-
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>Sector</mat-label>
-              <mat-select multiple [(ngModel)]="selectedSectors" placeholder="Select Sector"
-                [disabled]="!selectedIndustries.length" (selectionChange)="onSectorFilterChange()">
+              <mat-select
+                multiple
+                [(ngModel)]="selectedSectors"
+                placeholder="Select Sector"
+                [disabled]="!selectedIndustries.length"
+                (selectionChange)="onSectorFilterChange()"
+              >
                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search sector"
-                    [(ngModel)]="sectorFilterSearch" [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                  <input
+                    matInput
+                    class="select-search-input"
+                    placeholder="Search sector"
+                    [(ngModel)]="sectorFilterSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)"
+                  />
                 </mat-option>
-                <mat-option class="select-all-option"
+                <mat-option
+                  class="select-all-option"
                   *ngIf="filteredSectorsForFilter.length && !sectorFilterSearch?.trim()"
-                  (click)="toggleSelectAllSectors()">
-                  <mat-icon class="select-all-checkbox-icon"
-                    [style.color]="isAllSectorsSelected() ? '#2563eb' : '#64748b'">
+                  (click)="toggleSelectAllSectors()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllSectorsSelected() ? '#2563eb' : '#64748b'"
+                  >
                     {{ isAllSectorsSelected() ? 'check_box' : 'check_box_outline_blank' }}
                   </mat-icon>
                   <strong>Select All</strong>
                 </mat-option>
-                <mat-option *ngFor="let s of filteredSectorsForFilter" [value]="s">{{s}}</mat-option>
+                <mat-option *ngFor="let s of filteredSectorsForFilter" [value]="s">{{
+                  s
+                }}</mat-option>
               </mat-select>
             </mat-form-field>
-
-
           </ng-container>
-
-          <mat-form-field appearance="outline" class="filter-item local-institute-field mandatory-field" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
-            <mat-label>Institute <span class="required-star">*</span></mat-label>
-            <mat-select multiple [(ngModel)]="selectedInstitutes" placeholder="Select institute"
-              (selectionChange)="onInstituteSelectionChange()">
-              <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                <input matInput class="select-search-input" placeholder="Search institute"
-                  [(ngModel)]="instituteFilterSearch" [ngModelOptions]="{ standalone: true }"
-                  (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                  (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
-              </mat-option>
-              <mat-option class="select-all-option"
-                *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
-                (click)="toggleSelectAllInstitutes()">
-                <mat-icon class="select-all-checkbox-icon"
-                  [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'">
-                  {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                </mat-icon>
-                <strong>Select All</strong>
-              </mat-option>
-              <mat-option *ngFor="let inst of filteredInstitutesForFilter"
-                [value]="inst.institute_id">{{inst.institute_name}}</mat-option>
-            </mat-select>
-          </mat-form-field>
 
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Departments</mat-label>
-            <mat-select multiple [(ngModel)]="filters.department" (selectionChange)="onDepartmentFilterChange()"
-              [disabled]="!selectedInstitute && !selectedInstitutes.length" placeholder="Select departments">
+            <mat-select
+              multiple
+              [(ngModel)]="filters.department"
+              (selectionChange)="onDepartmentFilterChange()"
+              [disabled]="!selectedInstitute && !selectedInstitutes.length"
+              placeholder="Select departments"
+            >
               <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                <input matInput class="select-search-input" placeholder="Search department"
-                  [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
-                  (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                  (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                <input
+                  matInput
+                  class="select-search-input"
+                  placeholder="Search department"
+                  [(ngModel)]="departmentFilterSearch"
+                  [ngModelOptions]="{ standalone: true }"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)"
+                  (keyup)="stopFilterSearchEvent($event)"
+                  (input)="stopFilterSearchEvent($event)"
+                />
               </mat-option>
-              <mat-option class="select-all-option"
+              <mat-option
+                class="select-all-option"
                 *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
-                (click)="toggleSelectAllDepartments()">
-                <mat-icon class="select-all-checkbox-icon"
-                  [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
+                (click)="toggleSelectAllDepartments()"
+              >
+                <mat-icon
+                  class="select-all-checkbox-icon"
+                  [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'"
+                >
                   {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
                 </mat-icon>
                 <strong>Select All</strong>
               </mat-option>
-              <mat-option *ngFor="let d of filteredDepartmentsForFilter" [value]="d.id">{{d.name}}</mat-option>
+              <mat-option *ngFor="let d of filteredDepartmentsForFilter" [value]="d.id">{{
+                d.name
+              }}</mat-option>
             </mat-select>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Teams</mat-label>
-            <mat-select multiple [(ngModel)]="filters.team"
-              [disabled]="!selectedInstitute && !selectedInstitutes.length" placeholder="Select teams">
+            <mat-select
+              multiple
+              [(ngModel)]="filters.team"
+              [disabled]="!selectedInstitute && !selectedInstitutes.length"
+              placeholder="Select teams"
+            >
               <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                <input matInput class="select-search-input" placeholder="Search team" [(ngModel)]="teamFilterSearch"
-                  [ngModelOptions]="{ standalone: true }" (click)="$event.stopPropagation()"
-                  (keydown)="stopFilterSearchEvent($event)" (keyup)="stopFilterSearchEvent($event)"
-                  (input)="stopFilterSearchEvent($event)" />
+                <input
+                  matInput
+                  class="select-search-input"
+                  placeholder="Search team"
+                  [(ngModel)]="teamFilterSearch"
+                  [ngModelOptions]="{ standalone: true }"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)"
+                  (keyup)="stopFilterSearchEvent($event)"
+                  (input)="stopFilterSearchEvent($event)"
+                />
               </mat-option>
-              <mat-option class="select-all-option" *ngIf="filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
-                (click)="toggleSelectAllTeams()">
-                <mat-icon class="select-all-checkbox-icon" [style.color]="isAllTeamsSelected() ? '#2563eb' : '#64748b'">
+              <mat-option
+                class="select-all-option"
+                *ngIf="filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
+                (click)="toggleSelectAllTeams()"
+              >
+                <mat-icon
+                  class="select-all-checkbox-icon"
+                  [style.color]="isAllTeamsSelected() ? '#2563eb' : '#64748b'"
+                >
                   {{ isAllTeamsSelected() ? 'check_box' : 'check_box_outline_blank' }}
                 </mat-icon>
                 <strong>Select All</strong>
               </mat-option>
-              <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id">{{t.name}}</mat-option>
+              <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id">{{
+                t.name
+              }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>Campus</mat-label>
+            <mat-select
+              multiple
+              [(ngModel)]="selectedCampuses"
+              [disabled]="!selectedInstitute && !selectedInstitutes.length"
+              placeholder="Select campus"
+              (selectionChange)="onCampusFilterChange()"
+            >
+              <!-- Search Input -->
+              <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                <input
+                  matInput
+                  class="select-search-input"
+                  placeholder="Search campus"
+                  [(ngModel)]="campusFilterSearch"
+                  [ngModelOptions]="{ standalone: true }"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)"
+                  (keyup)="stopFilterSearchEvent($event)"
+                  (input)="stopFilterSearchEvent($event)"
+                />
+              </mat-option>
+
+              <!-- Select All Checkbox Option -->
+              <mat-option
+                class="select-all-option"
+                *ngIf="filteredCampusesForFilter.length && !campusFilterSearch?.trim()"
+                (click)="toggleSelectAllCampuses()"
+              >
+                <mat-icon
+                  class="select-all-checkbox-icon"
+                  [style.color]="isAllCampusesSelected() ? '#2563eb' : '#64748b'"
+                >
+                  {{ isAllCampusesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                </mat-icon>
+                <strong>Select All</strong>
+              </mat-option>
+
+              <!-- Campus Options -->
+              <mat-option *ngFor="let c of filteredCampusesForFilter" [value]="c.id">
+                {{ c.name }}
+              </mat-option>
             </mat-select>
           </mat-form-field>
 
@@ -257,21 +440,12 @@
             <input matInput placeholder="Name or username" [(ngModel)]="filters.name" />
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>Active Status</mat-label>
-            <mat-select multiple [(ngModel)]="selectedActiveStatuses" placeholder="Select Status">
-              <mat-option class="select-all-option" (click)="toggleSelectAllActiveStatuses()">
-                <mat-icon class="select-all-checkbox-icon"
-                  [style.color]="isAllActiveStatusesSelected() ? '#2563eb' : '#64748b'">
-                  {{ isAllActiveStatusesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                </mat-icon>
-                <strong>Select All</strong>
-              </mat-option>
-              <mat-option *ngFor="let opt of activeStatusOptions" [value]="opt.value">{{opt.label}}</mat-option>
-            </mat-select>
-          </mat-form-field>
-
-
+          <div
+            class="filter-item filter-checkbox-item"
+            style="display: flex; align-items: center; padding: 0.5rem 0.75rem"
+          >
+            <mat-checkbox [(ngModel)]="isActive" color="primary"> Active Status </mat-checkbox>
+          </div>
         </div>
         <div class="filter-actions">
           <button mat-flat-button (click)="applyFilters()" class="filter-apply-btn">
@@ -285,17 +459,19 @@
     </ng-template>
 
     <div class="list-wrapper">
-      <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 compact premium-table" matSort>
+      <table
+        mat-table
+        [dataSource]="dataSource"
+        class="mat-elevation-z1 compact premium-table"
+        matSort
+      >
         <!-- S.No Column -->
         <ng-container matColumnDef="sno">
-          <th mat-header-cell *matHeaderCellDef> S.No </th>
+          <th mat-header-cell *matHeaderCellDef>S.No</th>
           <td mat-cell *matCellDef="let u; let i = index">
-            {{ (pageIndex * pageSize) + i + 1 }}
+            {{ pageIndex * pageSize + i + 1 }}
           </td>
         </ng-container>
-
-
-
 
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
@@ -303,8 +479,8 @@
             <div class="user-cell">
               <div class="user-avatar">{{ (u.name || '?').charAt(0).toUpperCase() }}</div>
               <div class="user-info">
-                <span class="user-name">{{u.name}}</span>
-                <span class="user-email" *ngIf="u.email">{{u.email}}</span>
+                <span class="user-name">{{ u.name }}</span>
+                <span class="user-email" *ngIf="u.email">{{ u.email }}</span>
               </div>
             </div>
           </td>
@@ -312,33 +488,41 @@
 
         <ng-container matColumnDef="institute">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Institute</th>
-          <td mat-cell *matCellDef="let u">{{u.institute}}</td>
+          <td mat-cell *matCellDef="let u">{{ u.institute }}</td>
         </ng-container>
 
         <ng-container matColumnDef="role">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Role</th>
           <td mat-cell *matCellDef="let u">
-            <span class="role-badge">{{u.role}}</span>
+            <span class="role-badge">{{ u.role }}</span>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="department">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Department</th>
-          <td mat-cell *matCellDef="let u">{{u.department || '—'}}</td>
+          <td mat-cell *matCellDef="let u">{{ u.department || '—' }}</td>
         </ng-container>
 
         <ng-container matColumnDef="team">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Team</th>
-          <td mat-cell *matCellDef="let u">{{u.team || '—'}}</td>
+          <td mat-cell *matCellDef="let u">{{ u.team || '—' }}</td>
         </ng-container>
 
         <ng-container matColumnDef="active">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Active</th>
           <td mat-cell *matCellDef="let u">
-            <button type="button" role="switch" [attr.aria-checked]="u.active ? 'true' : 'false'"
-              [attr.data-state]="u.active ? 'checked' : 'unchecked'" (click)="toggleActive(u)"
-              class="custom-toggle peer inline-flex">
-              <span class="toggle-thumb" [attr.data-state]="u.active ? 'checked' : 'unchecked'"></span>
+            <button
+              type="button"
+              role="switch"
+              [attr.aria-checked]="u.active ? 'true' : 'false'"
+              [attr.data-state]="u.active ? 'checked' : 'unchecked'"
+              (click)="toggleActive(u)"
+              class="custom-toggle peer inline-flex"
+            >
+              <span
+                class="toggle-thumb"
+                [attr.data-state]="u.active ? 'checked' : 'unchecked'"
+              ></span>
             </button>
           </td>
         </ng-container>
@@ -347,11 +531,25 @@
           <th mat-header-cell *matHeaderCellDef>Actions</th>
           <td mat-cell *matCellDef="let u">
             <div class="actions-inline">
-              <button *hasAccess="'Users'; hasAccessAction: 'view'" mat-icon-button color="primary"
-                (click)="viewDetails(u)" title="View details"><mat-icon svgIcon="view"></mat-icon></button>
-              <button *hasAccess="'Users'; hasAccessAction: 'delete'" mat-icon-button color="warn"
-                (click)="deleteUser(u)" title="Delete" class="delete-btn"><mat-icon
-                  svgIcon="delete"></mat-icon></button>
+              <button
+                *hasAccess="'Users'; hasAccessAction: 'view'"
+                mat-icon-button
+                color="primary"
+                (click)="viewDetails(u)"
+                title="View details"
+              >
+                <mat-icon svgIcon="view"></mat-icon>
+              </button>
+              <button
+                *hasAccess="'Users'; hasAccessAction: 'delete'"
+                mat-icon-button
+                color="warn"
+                (click)="deleteUser(u)"
+                title="Delete"
+                class="delete-btn"
+              >
+                <mat-icon svgIcon="delete"></mat-icon>
+              </button>
             </div>
           </td>
         </ng-container>
@@ -363,13 +561,24 @@
           <tr mat-row *matRowDef="let row; columns: columns"></tr>
           <tr class="mat-row" *matNoDataRow>
             <td class="mat-cell no-data-cell" [attr.colspan]="columns.length">
-              {{ hasAppliedFilters ? 'No users found for the selected filters.' : 'Apply filters to view users.' }}
+              {{
+                hasAppliedFilters
+                  ? 'No users found for the selected filters.'
+                  : 'Apply filters to view users.'
+              }}
             </td>
           </tr>
         </tbody>
       </table>
-      <mat-paginator [length]="totalCount" [pageSize]="pageSize" [pageIndex]="pageIndex" [pageSizeOptions]="[25,50,100]"
-        showFirstLastButtons class="custom-paginator" (page)="onPageEvent($event)"></mat-paginator>
+      <mat-paginator
+        [length]="totalCount"
+        [pageSize]="pageSize"
+        [pageIndex]="pageIndex"
+        [pageSizeOptions]="[25, 50, 100]"
+        showFirstLastButtons
+        class="custom-paginator"
+        (page)="onPageEvent($event)"
+      ></mat-paginator>
     </div>
   </div>
 </div>
@@ -383,13 +592,18 @@
           {{ (selectedUser.full_name || selectedUser.name || '?').charAt(0).toUpperCase() }}
         </div>
         <div class="modal-header-text">
-          <h1 class="modal-user-name">{{selectedUser.full_name || selectedUser.name}}</h1>
+          <h1 class="modal-user-name">{{ selectedUser.full_name || selectedUser.name }}</h1>
           <div class="modal-user-meta">
-            <span class="modal-role-badge">{{selectedUser.user_role || selectedUser.role || 'User'}}</span>
-            <span class="modal-status" [class.modal-status--active]="selectedUser.active || selectedUser.active_status"
-              [class.modal-status--inactive]="!(selectedUser.active || selectedUser.active_status)">
+            <span class="modal-role-badge">{{
+              selectedUser.user_role || selectedUser.role || 'User'
+            }}</span>
+            <span
+              class="modal-status"
+              [class.modal-status--active]="selectedUser.active || selectedUser.active_status"
+              [class.modal-status--inactive]="!(selectedUser.active || selectedUser.active_status)"
+            >
               <span class="status-dot"></span>
-              {{(selectedUser.active || selectedUser.active_status) ? 'Active' : 'Inactive'}}
+              {{ selectedUser.active || selectedUser.active_status ? 'Active' : 'Inactive' }}
             </span>
           </div>
         </div>
@@ -403,33 +617,38 @@
             <mat-tab label="Basic">
               <div class="detail-grid">
                 <div class="label"><mat-icon>account_circle</mat-icon> Full Name</div>
-                <div class="value">{{selectedUser.full_name || selectedUser.name}}</div>
+                <div class="value">{{ selectedUser.full_name || selectedUser.name }}</div>
 
                 <div class="label"><mat-icon>badge</mat-icon> Username</div>
-                <div class="value">{{selectedUser.user_name || '—'}}</div>
+                <div class="value">{{ selectedUser.user_name || '—' }}</div>
 
                 <div class="label"><mat-icon>email</mat-icon> Email</div>
-                <div class="value">{{selectedUser.email || '—'}}</div>
+                <div class="value">{{ selectedUser.email || '—' }}</div>
 
                 <div class="label"><mat-icon>phone</mat-icon> Contact</div>
-                <div class="value">{{selectedUser.contact_no || selectedUser.phone || '—'}}</div>
+                <div class="value">{{ selectedUser.contact_no || selectedUser.phone || '—' }}</div>
 
                 <div class="label"><mat-icon>event</mat-icon> Joining Date</div>
-                <div class="value">{{selectedUser.joining_date || '—'}}</div>
+                <div class="value">{{ selectedUser.joining_date || '—' }}</div>
 
                 <div class="label"><mat-icon>verified_user</mat-icon> Role</div>
                 <div class="value">
-                  <span class="role-badge role-badge--modal">{{selectedUser.user_role || selectedUser.role ||
-                    '—'}}</span>
+                  <span class="role-badge role-badge--modal">{{
+                    selectedUser.user_role || selectedUser.role || '—'
+                  }}</span>
                 </div>
 
                 <div class="label"><mat-icon>toggle_on</mat-icon> Status</div>
                 <div class="value">
-                  <span class="status-pill"
+                  <span
+                    class="status-pill"
                     [class.status-pill--active]="selectedUser.active || selectedUser.active_status"
-                    [class.status-pill--inactive]="!(selectedUser.active || selectedUser.active_status)">
+                    [class.status-pill--inactive]="
+                      !(selectedUser.active || selectedUser.active_status)
+                    "
+                  >
                     <span class="status-dot"></span>
-                    {{(selectedUser.active || selectedUser.active_status) ? 'Active' : 'Inactive'}}
+                    {{ selectedUser.active || selectedUser.active_status ? 'Active' : 'Inactive' }}
                   </span>
                 </div>
               </div>
@@ -438,37 +657,83 @@
             <mat-tab label="Affiliation">
               <div class="detail-grid">
                 <div class="label"><mat-icon>business</mat-icon> Institute</div>
-                <div class="value">{{selectedUser.institute?.institute_name || selectedUser.institute_name ||
-                  selectedUser.institute}}</div>
+                <div class="value">
+                  {{
+                    selectedUser.institute?.institute_name ||
+                      selectedUser.institute_name ||
+                      selectedUser.institute
+                  }}
+                </div>
 
                 <div class="label"><mat-icon>school</mat-icon> Department</div>
-                <div class="value">{{selectedUser.department?.department_name || selectedUser.department_name ||
-                  selectedUser.department || '—'}}</div>
+                <div class="value">
+                  {{
+                    selectedUser.department?.department_name ||
+                      selectedUser.department_name ||
+                      selectedUser.department ||
+                      '—'
+                  }}
+                </div>
 
                 <div class="label"><mat-icon>groups</mat-icon> Team</div>
-                <div class="value">{{selectedUser.team?.team_name || selectedUser.team_name || selectedUser.team ||
-                  '—'}}</div>
+                <div class="value">
+                  {{
+                    selectedUser.team?.team_name ||
+                      selectedUser.team_name ||
+                      selectedUser.team ||
+                      '—'
+                  }}
+                </div>
 
                 <div class="label"><mat-icon>apartment</mat-icon> Campus</div>
-                <div class="value">{{selectedUser.campus?.campus_name || selectedUser.campus_name || selectedUser.campus
-                  || '—'}}</div>
+                <div class="value">
+                  {{
+                    selectedUser.campus?.campus_name ||
+                      selectedUser.campus_name ||
+                      selectedUser.campus ||
+                      '—'
+                  }}
+                </div>
 
                 <div class="label"><mat-icon>location_city</mat-icon> City</div>
-                <div class="value">{{selectedUser.city?.city_name || selectedUser.city_name || selectedUser.city ||
-                  '—'}}</div>
+                <div class="value">
+                  {{
+                    selectedUser.city?.city_name ||
+                      selectedUser.city_name ||
+                      selectedUser.city ||
+                      '—'
+                  }}
+                </div>
 
                 <div class="label"><mat-icon>map</mat-icon> State</div>
-                <div class="value">{{selectedUser.state?.state_name || selectedUser.state_name || selectedUser.state ||
-                  '—'}}</div>
+                <div class="value">
+                  {{
+                    selectedUser.state?.state_name ||
+                      selectedUser.state_name ||
+                      selectedUser.state ||
+                      '—'
+                  }}
+                </div>
 
                 <div class="label"><mat-icon>public</mat-icon> Country</div>
-                <div class="value">{{selectedUser.country?.country_name || selectedUser.country_name ||
-                  selectedUser.country || '—'}}</div>
+                <div class="value">
+                  {{
+                    selectedUser.country?.country_name ||
+                      selectedUser.country_name ||
+                      selectedUser.country ||
+                      '—'
+                  }}
+                </div>
               </div>
             </mat-tab>
 
-            <mat-tab label="Privileges"
-              *ngIf="(selectedUser.user_privileges && selectedUser.user_privileges.length) || (selectedUser.privileges && selectedUser.privileges.length)">
+            <mat-tab
+              label="Privileges"
+              *ngIf="
+                (selectedUser.user_privileges && selectedUser.user_privileges.length) ||
+                (selectedUser.privileges && selectedUser.privileges.length)
+              "
+            >
               <div class="privileges-grid">
                 <div class="priv-col head">Page</div>
                 <div class="priv-col head"><mat-icon>visibility</mat-icon> View</div>
@@ -477,16 +742,31 @@
                 <div class="priv-col head"><mat-icon>delete</mat-icon> Delete</div>
 
                 <ng-container
-                  *ngFor="let p of (selectedUser.privileges && selectedUser.privileges.length ? selectedUser.privileges : (selectedUser.user_privileges || []))">
-                  <div class="priv-col name">{{p.page_name || p.pageName || p.page || p.page_name}}</div>
-                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_view">done</mat-icon> <mat-icon
-                      color="warn" *ngIf="!p.can_view">visibility_off</mat-icon> </div>
-                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_edit">done</mat-icon> <mat-icon
-                      color="warn" *ngIf="!p.can_edit">block</mat-icon> </div>
-                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_add">done</mat-icon> <mat-icon
-                      color="warn" *ngIf="!p.can_add">block</mat-icon> </div>
-                  <div class="priv-col"> <mat-icon color="primary" *ngIf="p.can_delete">done</mat-icon> <mat-icon
-                      color="warn" *ngIf="!p.can_delete">block</mat-icon> </div>
+                  *ngFor="
+                    let p of selectedUser.privileges && selectedUser.privileges.length
+                      ? selectedUser.privileges
+                      : selectedUser.user_privileges || []
+                  "
+                >
+                  <div class="priv-col name">
+                    {{ p.page_name || p.pageName || p.page || p.page_name }}
+                  </div>
+                  <div class="priv-col">
+                    <mat-icon color="primary" *ngIf="p.can_view">done</mat-icon>
+                    <mat-icon color="warn" *ngIf="!p.can_view">visibility_off</mat-icon>
+                  </div>
+                  <div class="priv-col">
+                    <mat-icon color="primary" *ngIf="p.can_edit">done</mat-icon>
+                    <mat-icon color="warn" *ngIf="!p.can_edit">block</mat-icon>
+                  </div>
+                  <div class="priv-col">
+                    <mat-icon color="primary" *ngIf="p.can_add">done</mat-icon>
+                    <mat-icon color="warn" *ngIf="!p.can_add">block</mat-icon>
+                  </div>
+                  <div class="priv-col">
+                    <mat-icon color="primary" *ngIf="p.can_delete">done</mat-icon>
+                    <mat-icon color="warn" *ngIf="!p.can_delete">block</mat-icon>
+                  </div>
                 </ng-container>
               </div>
             </mat-tab>
@@ -494,16 +774,20 @@
             <mat-tab label="Metadata">
               <div class="detail-grid">
                 <div class="label"><mat-icon>person</mat-icon> Created By</div>
-                <div class="value">{{selectedUser.created_by || '—'}}</div>
+                <div class="value">{{ selectedUser.created_by || '—' }}</div>
                 <div class="label"><mat-icon>calendar_today</mat-icon> Created Date</div>
-                <div class="value">{{selectedUser.created_date || selectedUser.created_at || '—'}}</div>
+                <div class="value">
+                  {{ selectedUser.created_date || selectedUser.created_at || '—' }}
+                </div>
                 <div class="label"><mat-icon>person</mat-icon> Updated By</div>
-                <div class="value">{{selectedUser.updated_by || '—'}}</div>
+                <div class="value">{{ selectedUser.updated_by || '—' }}</div>
                 <div class="label"><mat-icon>calendar_today</mat-icon> Updated Date</div>
-                <div class="value">{{selectedUser.updated_date || selectedUser.updated_at || '—'}}</div>
+                <div class="value">
+                  {{ selectedUser.updated_date || selectedUser.updated_at || '—' }}
+                </div>
 
                 <div class="label"><mat-icon>note</mat-icon> Notes</div>
-                <div class="value">{{selectedUser.notes || '—'}}</div>
+                <div class="value">{{ selectedUser.notes || '—' }}</div>
               </div>
             </mat-tab>
           </mat-tab-group>
