@@ -87,6 +87,13 @@ export class CategoryCreateComponent {
 
   industryTypes: string[] = ['School', 'College', 'BPO', 'Bank', 'IT'];
   sectors: string[] = ['School', 'Engineering', 'Arts', 'Healthcare', 'Finance', 'Banking', 'IT'];
+  private sectorMap: Record<string, string[]> = {
+    School: ['School'],
+    College: ['Engineering', 'Arts'],
+    BPO: ['Healthcare', 'Finance'],
+    Bank: ['Bank'],
+    IT: ['IT'],
+  };
 
   typeOptions = [
     { id: 'objective', name: 'Objective' },
@@ -227,6 +234,10 @@ export class CategoryCreateComponent {
           .map((i: any) => ({
             id: i.institute_id || i.id || i.code,
             name: i.institute_name || i.college_name || i.name || i.short_name,
+            country: i.country || i.country_code || i.country_name,
+            city: i.city || i.city_name,
+            industry: i.industry || i.industry_type || i.type,
+            sector: i.sector || i.sector_name,
           }))
           .filter((i: any) => !!i.id);
 
@@ -465,8 +476,16 @@ export class CategoryCreateComponent {
     this.loadTeams();
   }
 
-  @HostListener('document:click')
-  onDocumentClick(): void {
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    // Ignore clicks inside the filter container OR inside Angular Material dropdown overlays
+    if (
+      target &&
+      (target.closest('.question-bank-filter-anchor') || target.closest('.cdk-overlay-container'))
+    ) {
+      return;
+    }
     if (this.questionBankFilterOpen) {
       this.questionBankFilterOpen = false;
     }
@@ -499,8 +518,33 @@ export class CategoryCreateComponent {
 
   get filteredInstitutesForFilter(): Array<{ id: string; name: string }> {
     const term = (this.instituteFilterSearch || '').trim().toLowerCase();
-    if (!term) return this.institutesList;
-    return this.institutesList.filter((i) => (i.name || '').toLowerCase().includes(term));
+    return this.institutesList.filter((inst: any) => {
+      const matchesSearch = !term || (inst.name || '').toLowerCase().includes(term);
+      const matchesCountry =
+        !this.selectedCountries.length ||
+        (inst.country &&
+          this.selectedCountries.some(
+            (c) => String(c).toLowerCase() === String(inst.country).toLowerCase()
+          ));
+      const matchesCity =
+        !this.selectedCities.length ||
+        (inst.city &&
+          this.selectedCities.some((sc) => sc.toLowerCase() === String(inst.city).toLowerCase()));
+      const matchesIndustry =
+        !this.selectedIndustries.length ||
+        (inst.industry &&
+          this.selectedIndustries.some(
+            (ind) => ind.toLowerCase() === String(inst.industry).toLowerCase()
+          ));
+      const matchesSector =
+        !this.selectedSectors.length ||
+        (inst.sector &&
+          this.selectedSectors.some(
+            (sec) => sec.toLowerCase() === String(inst.sector).toLowerCase()
+          ));
+
+      return matchesSearch && matchesCountry && matchesCity && matchesIndustry && matchesSector;
+    });
   }
 
   isAllInstitutesSelected(): boolean {
@@ -637,6 +681,11 @@ export class CategoryCreateComponent {
     this.loadCitiesForCountry(this.selectedCountries);
   }
 
+  onIndustryFilterChange(): void {
+    this.selectedSectors = [];
+    this.sectorSearch = '';
+  }
+
   private loadCitiesForCountry(countryCodes: string[]): void {
     this.filterCityOptions = [];
     const codes = (countryCodes || []).filter(Boolean);
@@ -739,8 +788,19 @@ export class CategoryCreateComponent {
 
   get filteredSectors(): string[] {
     const term = (this.sectorSearch || '').trim().toLowerCase();
-    if (!term) return this.sectors;
-    return this.sectors.filter((sec) => sec.toLowerCase().includes(term));
+    let availableSectors = this.sectors;
+
+    if (this.selectedIndustries && this.selectedIndustries.length) {
+      const allowedSectors = new Set<string>();
+      this.selectedIndustries.forEach((ind) => {
+        const mapped = this.sectorMap[ind] || [];
+        mapped.forEach((sec) => allowedSectors.add(sec));
+      });
+      availableSectors = Array.from(allowedSectors);
+    }
+
+    if (!term) return availableSectors;
+    return availableSectors.filter((sec) => sec.toLowerCase().includes(term));
   }
 
   isAllSectorsSelected(): boolean {
@@ -814,8 +874,10 @@ export class CategoryCreateComponent {
       });
     }
 
-    if (this.institute) {
-      const instObj = this.institutesList.find((i) => String(i.id) === String(this.institute));
+    if (this.selectedInstitute) {
+      const instObj = this.institutesList.find(
+        (i) => String(i.id) === String(this.selectedInstitute)
+      );
       chips.push({
         key: 'institute',
         label: `Institute: ${instObj ? instObj.name : this.instituteSearch || 'Selected'}`,
@@ -824,23 +886,35 @@ export class CategoryCreateComponent {
     }
 
     if (this.selectedCities.length) {
+      const cityLabel =
+        this.selectedCities.length === 1
+          ? `City: ${this.selectedCities[0]}`
+          : `City: ${this.selectedCities.join(', ')}`;
       chips.push({
         key: 'city',
-        label: `City (${this.selectedCities.length})`,
+        label: cityLabel,
         removable: true,
       });
     }
     if (this.selectedIndustries.length) {
+      const industryLabel =
+        this.selectedIndustries.length === 1
+          ? `Industry: ${this.selectedIndustries[0]}`
+          : `Industry: ${this.selectedIndustries.join(', ')}`;
       chips.push({
         key: 'industry',
-        label: `Industry (${this.selectedIndustries.length})`,
+        label: industryLabel,
         removable: true,
       });
     }
     if (this.selectedSectors.length) {
+      const sectorLabel =
+        this.selectedSectors.length === 1
+          ? `Sector: ${this.selectedSectors[0]}`
+          : `Sector: ${this.selectedSectors.join(', ')}`;
       chips.push({
         key: 'sector',
-        label: `Sector (${this.selectedSectors.length})`,
+        label: sectorLabel,
         removable: true,
       });
     }
@@ -903,7 +977,9 @@ export class CategoryCreateComponent {
 
   resetQuestionBankFilters(): void {
     this.clearAppliedFilters();
+    this.questionBankFilterOpen = false;
   }
+
   setType(v: string) {
     this.type = v || '';
   }
