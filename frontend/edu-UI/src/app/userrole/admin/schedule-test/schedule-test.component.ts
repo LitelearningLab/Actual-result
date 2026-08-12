@@ -230,33 +230,30 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     this.loader.show();
     const url = `${API_BASE}/get-users-list`;
     const params: any = {};
-    // Preferred API param names (template binds to these keys)
-    if (this.userFilters.department_id) params.department_id = this.userFilters.department_id;
-    // support both `teams_id` (preferred) and legacy `team_id`
-    if (this.userFilters.teams_id) params.teams_id = this.userFilters.teams_id;
-    if (this.userFilters.team_id && !params.teams_id) params.teams_id = this.userFilters.team_id;
+    if (this.userFilters.department_id) {
+      params.department_id = this.userFilters.department_id;
+      params.department = this.userFilters.department_id;
+    }
+    if (this.userFilters.teams_id || this.userFilters.team_id) {
+      const teamVal = this.userFilters.teams_id || this.userFilters.team_id;
+      params.teams_id = teamVal;
+      params.team_id = teamVal;
+      params.team = teamVal;
+    }
     if (this.userFilters.country_id) params.country_id = this.userFilters.country_id;
     if (this.userFilters.city_id) params.city_id = this.userFilters.city_id;
-    if (this.userFilters.campus_id) params.campus_id = this.userFilters.campus_id;
+    if (this.userFilters.campus_id) {
+      params.campus_id = this.userFilters.campus_id;
+      params.campus = this.userFilters.campus_id;
+    }
     if (this.userFilters.industry) params.industry = this.userFilters.industry;
     if (this.userFilters.sector) params.sector = this.userFilters.sector;
-    // Backwards-compatible fallbacks (in case template still binds older keys)
-    if (!params.department_id && (this.userFilters.department || this.userFilters.department_id))
-      params.department_id = this.userFilters.department || this.userFilters.department_id;
-    if (
-      !params.teams_id &&
-      (this.userFilters.team || this.userFilters.teams_id || this.userFilters.team_id)
-    )
-      params.teams_id =
-        this.userFilters.teams_id || this.userFilters.team || this.userFilters.team_id;
-    if (!params.country_id && (this.userFilters.country || this.userFilters.country_id))
-      params.country_id = this.userFilters.country || this.userFilters.country_id;
-    if (!params.city_id && (this.userFilters.city || this.userFilters.city_id))
-      params.city_id = this.userFilters.city || this.userFilters.city_id;
-    if (!params.campus_id && (this.userFilters.campus || this.userFilters.campus_id))
-      params.campus_id = this.userFilters.campus || this.userFilters.campus_id;
-    if (!params.industry && this.userFilters.industry) params.industry = this.userFilters.industry;
-    if (!params.sector && this.userFilters.sector) params.sector = this.userFilters.sector;
+    if (this.userFilters.joined_after) {
+      params.joined_after = this.formatFilterDate(this.userFilters.joined_after);
+    }
+    if (this.userFilters.joined_before) {
+      params.joined_before = this.formatFilterDate(this.userFilters.joined_before);
+    }
     if (this.model.institute) params.institute_id = this.model.institute;
     this.http.get<any>(url, { params, ...this.explicitInstituteRequestOptions() }).subscribe({
       next: (res) => {
@@ -270,7 +267,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
                 u.name ||
                 `${u.first_name || ''} ${u.last_name || ''}`.trim(),
               email: u.email,
-              institute: u.institute_name || (u.institute && u.institute.institute_name) || '',
+              institute: u.campus_name || u.campus || u.institute_name || (u.institute && u.institute.institute_name) || '',
               department:
                 u.department_name ||
                 (u.department && (u.department.name || u.department.department_name)) ||
@@ -278,18 +275,18 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
               team: u.team_name || (u.team && (u.team.name || u.team.team_name)) || '',
             }))
           : [];
-        // prefill department/team/campus lists if empty
-        if (this.departmentList.length === 0) {
+        // Populate dropdown options from initial user fetch
+        if (this.departmentList.length === 0 && !this.userFilters.department_id) {
           this.departmentList = Array.from(
             new Set(this.users.map((u) => u.department || '').filter((s: string) => !!s))
           );
         }
-        if (this.teamList.length === 0) {
+        if (this.teamList.length === 0 && !this.userFilters.teams_id) {
           this.teamList = Array.from(
             new Set(this.users.map((u) => u.team || '').filter((s: string) => !!s))
           );
         }
-        if (this.campusList.length === 0) {
+        if (this.campusList.length === 0 && !this.userFilters.campus_id) {
           this.campusList = Array.from(
             new Set(this.users.map((u) => u.institute || '').filter((s: string) => !!s))
           );
@@ -2404,6 +2401,89 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     if (startStr) return `From ${startStr}`;
     if (endStr) return `Until ${endStr}`;
     return '';
+  }
+
+  openJoinedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.userFilters.joined_after,
+        endDate: this.userFilters.joined_before,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.userFilters.joined_after = res.startDate;
+        this.userFilters.joined_before = res.endDate;
+        this.loadUsers();
+      }
+    });
+  }
+
+  getJoinedDateRangeDisplay(): string {
+    const start = this.userFilters.joined_after;
+    const end = this.userFilters.joined_before;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(start);
+    const endStr = format(end);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `From ${startStr}`;
+    if (endStr) return `Until ${endStr}`;
+    return '';
+  }
+
+  get appliedUserFilterChips(): Array<{ key: string; label: string }> {
+    const chips: Array<{ key: string; label: string }> = [];
+    if (this.userFilters.campus_id) {
+      chips.push({ key: 'campus', label: `Campus: ${this.userFilters.campus_id}` });
+    }
+    if (this.userFilters.department_id) {
+      chips.push({ key: 'department', label: `Department: ${this.userFilters.department_id}` });
+    }
+    if (this.userFilters.teams_id) {
+      chips.push({ key: 'team', label: `Team: ${this.userFilters.teams_id}` });
+    }
+    const dateRangeDisplay = this.getJoinedDateRangeDisplay();
+    if (dateRangeDisplay) {
+      chips.push({ key: 'joined_date', label: `Joined: ${dateRangeDisplay}` });
+    }
+    return chips;
+  }
+
+  removeUserFilter(key: string): void {
+    if (key === 'campus') this.userFilters.campus_id = '';
+    if (key === 'department') this.userFilters.department_id = '';
+    if (key === 'team') this.userFilters.teams_id = '';
+    if (key === 'joined_date') {
+      this.userFilters.joined_after = null;
+      this.userFilters.joined_before = null;
+    }
+    this.loadUsers();
+  }
+
+  clearUserFilters(): void {
+    this.userFilters = {
+      campus_id: '',
+      department_id: '',
+      teams_id: '',
+      joined_after: null,
+      joined_before: null,
+      country_id: '',
+      city_id: '',
+      industry: '',
+      sector: ''
+    };
+    this.loadUsers();
   }
 
   private hasExamFilterValues(): boolean {

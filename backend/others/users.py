@@ -624,24 +624,72 @@ def get_user_details(request):
         else:
             filter.append(User.institute_id == inst_val)
 
+    inst_id_val = str(args.get("institute_id")).strip() if args.get("institute_id") else None
+
     if args.get("department"):
         dept_val = str(args.get("department")).strip()
         if ',' in dept_val:
-            filter.append(User.department_id.in_([d.strip() for d in dept_val.split(',') if d.strip()]))
+            dept_items = [d.strip() for d in dept_val.split(',') if d.strip()]
+            q_dept = session.query(InstituteDepartment).filter(or_(
+                InstituteDepartment.department_id.in_(dept_items),
+                or_(*[InstituteDepartment.name.ilike(d) for d in dept_items])
+            ))
+            if inst_id_val:
+                q_dept = q_dept.filter(InstituteDepartment.institute_id == inst_id_val)
+            dept_objs = q_dept.all()
+            dept_ids = list(set([d.department_id for d in dept_objs] + [d.name for d in dept_objs] + dept_items))
+            filter.append(User.department_id.in_(dept_ids))
         else:
-            filter.append(User.department_id == dept_val)
+            q_dept = session.query(InstituteDepartment).filter(or_(
+                InstituteDepartment.department_id == dept_val,
+                InstituteDepartment.name.ilike(dept_val)
+            ))
+            if inst_id_val:
+                q_dept = q_dept.filter(InstituteDepartment.institute_id == inst_id_val)
+            dept_objs = q_dept.all()
+            dept_ids = list(set([d.department_id for d in dept_objs] + [d.name for d in dept_objs] + [dept_val]))
+            filter.append(User.department_id.in_(dept_ids))
+
     if args.get("team"):
         team_val = str(args.get("team")).strip()
         if ',' in team_val:
-            filter.append(User.team_id.in_([t.strip() for t in team_val.split(',') if t.strip()]))
+            team_items = [t.strip() for t in team_val.split(',') if t.strip()]
+            q_team = session.query(InstituteTeam).filter(or_(
+                InstituteTeam.team_id.in_(team_items),
+                or_(*[InstituteTeam.name.ilike(t) for t in team_items])
+            ))
+            if inst_id_val:
+                q_team = q_team.filter(InstituteTeam.institute_id == inst_id_val)
+            team_objs = q_team.all()
+            team_ids = list(set([t.team_id for t in team_objs] + [t.name for t in team_objs] + team_items))
+            filter.append(User.team_id.in_(team_ids))
         else:
-            filter.append(User.team_id == team_val)
+            q_team = session.query(InstituteTeam).filter(or_(
+                InstituteTeam.team_id == team_val,
+                InstituteTeam.name.ilike(team_val)
+            ))
+            if inst_id_val:
+                q_team = q_team.filter(InstituteTeam.institute_id == inst_id_val)
+            team_objs = q_team.all()
+            team_ids = list(set([t.team_id for t in team_objs] + [t.name for t in team_objs] + [team_val]))
+            filter.append(User.team_id.in_(team_ids))
+
     if args.get("name"):
         filter.append(User.full_name.ilike(f"%{args.get('name')}%"))
     if args.get("active_status") is not None:
         filter.append(User.active_status == (1 if args.get("active_status") == 'true' else 0))
+
     if args.get("campus"):
-        filter.append(User.campus_id == args.get("campus"))
+        campus_val = str(args.get("campus")).strip()
+        q_campus = session.query(InstituteCampus).filter(or_(
+            InstituteCampus.campus_id == campus_val,
+            InstituteCampus.name.ilike(campus_val)
+        ))
+        if inst_id_val:
+            q_campus = q_campus.filter(InstituteCampus.institute_id == inst_id_val)
+        campus_objs = q_campus.all()
+        campus_ids = list(set([c.campus_id for c in campus_objs] + [c.name for c in campus_objs] + [campus_val]))
+        filter.append(User.campus_id.in_(campus_ids))
     country_filter = str(args.get("country") or '').strip()
     if country_filter:
         # Country selectors now send Countries.country_id, but older user rows
