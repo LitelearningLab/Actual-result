@@ -187,8 +187,14 @@ export class CategoryCreateComponent {
 
     if (c.institute && typeof c.institute === 'object') {
       this.institute = c.institute.institute_id || c.institute.id || '';
+      this.instituteSearch = c.institute.institute_name || c.institute.name || '';
     } else {
       this.institute = c.institute_id || c.institute || '';
+      this.instituteSearch = c.institute_name || '';
+    }
+    if (this.institute) {
+      this.selectedInstitute = this.institute;
+      this.selectedInstitutes = [this.institute];
     }
 
     this.type = c.type || '';
@@ -245,9 +251,9 @@ export class CategoryCreateComponent {
           this.setInstitute(String(this.institutesList[0].id));
           return;
         }
-        // if institute was prefilled from sessionStorage, trigger setInstitute for non-superadmin to load dependent lists
+        // if institute was prefilled from sessionStorage or edit category, trigger setInstitute to resolve display name and load dependent lists
         try {
-          if (this.institute && !this.isSuperAdmin) this.setInstitute(this.institute);
+          if (this.institute) this.setInstitute(this.institute);
         } catch (e) {}
       },
       error: () => {
@@ -262,9 +268,13 @@ export class CategoryCreateComponent {
   }
 
   loadDepartments() {
+    if (!this.institute) {
+      this.departments = [];
+      this.selectedDepartments = [];
+      return;
+    }
     const url = `${API_BASE}/get-department-list`;
-    const params: any = {};
-    if (this.institute) params.institute_id = this.institute;
+    const params: any = { institute_id: this.institute };
     this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
         const data = res?.data || res || [];
@@ -287,9 +297,13 @@ export class CategoryCreateComponent {
   }
 
   loadTeams() {
+    if (!this.institute) {
+      this.teams = [];
+      this.selectedTeams = [];
+      return;
+    }
     const url = `${API_BASE}/get-teams-list`;
-    const params: any = {};
-    if (this.institute) params.institute_id = this.institute;
+    const params: any = { institute_id: this.institute };
     this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
         const data = res?.data || res || [];
@@ -370,6 +384,11 @@ export class CategoryCreateComponent {
       // public access flag
       public_access: !!this.publicAccess,
       mark_for_each_question: Number(this.markForEachQuestion),
+      // Add departments and teams to the payload:
+      departments: this.selectedDepartments || [],
+      teams: this.selectedTeams || [],
+      department_ids: this.selectedDepartments || [],
+      team_ids: this.selectedTeams || [],
     };
 
     if (this.isEditing && this.editId) {
@@ -472,6 +491,15 @@ export class CategoryCreateComponent {
     if (found) {
       this.instituteSearch = found.name;
     }
+    this.selectedInstitute = this.institute;
+    this.selectedInstitutes = this.institute ? [this.institute] : [];
+
+    // Only reset selections if creating a new category, NOT when editing:
+    if (!this.isEditing) {
+      this.selectedDepartments = [];
+      this.selectedTeams = [];
+    }
+
     this.loadDepartments();
     this.loadTeams();
   }
@@ -997,10 +1025,19 @@ export class CategoryCreateComponent {
     this.markForEachQuestion = isNaN(n) ? null : n;
   }
   setDepartments(v: string[]) {
-    this.selectedDepartments = this.onlyAvailableIds(v, this.departments);
+    if (v && v.includes(this.ALL_OPTION_VALUE)) {
+      this.selectedDepartments = this.getOptionIds(this.departments);
+    } else {
+      this.selectedDepartments = this.onlyAvailableIds(v, this.departments);
+    }
   }
+
   setTeams(v: string[]) {
-    this.selectedTeams = this.onlyAvailableIds(v, this.teams);
+    if (v && v.includes(this.ALL_OPTION_VALUE)) {
+      this.selectedTeams = this.getOptionIds(this.teams);
+    } else {
+      this.selectedTeams = this.onlyAvailableIds(v, this.teams);
+    }
   }
 
   goToAccessStep(stepper: any): void {
@@ -1144,5 +1181,25 @@ export class CategoryCreateComponent {
     if (!id) return '';
     const f = (this.teams || []).find((t) => String(t.id) === String(id));
     return f ? f.name : String(id);
+  }
+
+  getSelectedDepartmentNames(): string {
+    if (!this.selectedDepartments || !this.selectedDepartments.length) return '—';
+    if (this.departments.length && this.selectedDepartments.length === this.departments.length) {
+      return 'All Departments';
+    }
+    const names = this.selectedDepartments
+      .map((id) => this.getDepartmentName(id))
+      .filter((n) => !!n);
+    return names.length ? names.join(', ') : '—';
+  }
+
+  getSelectedTeamNames(): string {
+    if (!this.selectedTeams || !this.selectedTeams.length) return '—';
+    if (this.teams.length && this.selectedTeams.length === this.teams.length) {
+      return 'All Teams';
+    }
+    const names = this.selectedTeams.map((id) => this.getTeamName(id)).filter((n) => !!n);
+    return names.length ? names.join(', ') : '—';
   }
 }

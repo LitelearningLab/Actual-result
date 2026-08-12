@@ -1035,7 +1035,18 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
   onQuestionTypeChange() {
     this.selectedCategories = [];
-    this.loadCategories();
+    this.loadCategories(this.getScopedInstituteId());
+  }
+
+  onDepartmentSelectionChange() {
+    this.selectedTeams = [];
+    this.selectedCategories = [];
+    this.loadCategories(this.getScopedInstituteId());
+  }
+
+  onTeamSelectionChange() {
+    this.selectedCategories = [];
+    this.loadCategories(this.getScopedInstituteId());
   }
 
   loadInstitutes() {
@@ -1344,6 +1355,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
   onIndustryFilterChange() {
     this.filterSector = '';
+    this.selectedSectors = [];
     this.refreshInstituteScope();
   }
 
@@ -1461,7 +1473,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   private refreshInstituteScope() {
     if (!this.isSuperAdmin) return;
     const params: any = {};
-    if (this.filterCountry) params.country = this.filterCountry;
+    if (this.selectedCountries && this.selectedCountries.length)
+      params.country = this.selectedCountries.join(',');
+    else if (this.filterCountry) params.country = this.filterCountry;
+
     if (this.selectedCities && this.selectedCities.length) {
       const cityCodes = this.selectedCities
         .map((name) => this.resolveCityId(name) || name)
@@ -1471,8 +1486,14 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       const cityId = this.resolveCityId(this.filterCity);
       if (cityId) params.city = cityId;
     }
-    if (this.filterIndustry) params.industry = this.filterIndustry;
-    if (this.filterSector) params.sector = this.filterSector;
+
+    if (this.selectedIndustries && this.selectedIndustries.length)
+      params.industry = this.selectedIndustries.join(',');
+    else if (this.filterIndustry) params.industry = this.filterIndustry;
+
+    if (this.selectedSectors && this.selectedSectors.length)
+      params.sector = this.selectedSectors.join(',');
+    else if (this.filterSector) params.sector = this.filterSector;
 
     const clearStaleInstituteSelection = () => {
       if (
@@ -1497,6 +1518,13 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
             institute_id: r.institute_id || r.id || r._id || '',
           }))
           .filter((i: any) => !!i.institute_id);
+
+        if (this.selectedInstitutes && this.selectedInstitutes.length) {
+          this.selectedInstitutes = this.selectedInstitutes.filter((id) =>
+            this.institutes.some((i) => String(i.institute_id) === String(id))
+          );
+          this.selectedInstitute = this.selectedInstitutes[0] || '';
+        }
         clearStaleInstituteSelection();
       },
       error: () => {
@@ -1529,6 +1557,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   onInstituteChange(value: any) {
     const v = value !== undefined && value !== null ? String(value) : '';
     this.selectedInstitute = v;
+    if (v && !v.includes(',') && (!this.selectedInstitutes || !this.selectedInstitutes.length)) {
+      this.selectedInstitutes = [v];
+    }
     this.syncInstituteSearch();
     this.selectedCategories = [];
     this.categoryFilterName = '';
@@ -1877,11 +1908,20 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     let url = this.categoryDetailsUrl;
     if (scopedInstitute) url += `?institute_id=${encodeURIComponent(scopedInstitute)}`;
 
-    // ADD: Pass selected types as query param
     if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
       url +=
         (url.includes('?') ? '&' : '?') +
         `type=${encodeURIComponent(this.selectedQuestionTypes.join(','))}`;
+    }
+    if (this.selectedDepartments && this.selectedDepartments.length) {
+      url +=
+        (url.includes('?') ? '&' : '?') +
+        `department_id=${encodeURIComponent(this.selectedDepartments.join(','))}`;
+    }
+    if (this.selectedTeams && this.selectedTeams.length) {
+      url +=
+        (url.includes('?') ? '&' : '?') +
+        `team_id=${encodeURIComponent(this.selectedTeams.join(','))}`;
     }
 
     this.http!.get<any>(url).subscribe({
@@ -1891,7 +1931,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
           .filter((c: any) => {
             if (!this.isAllowedForInstitute(c, scopedInstitute)) return false;
 
-            // ADD: Client-side filter for selected question type(s)
+            // Client-side filter for selected question type(s)
             if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
               const catType = (c.type || '').toLowerCase();
               const matchesType = this.selectedQuestionTypes.some((selectedType) => {
@@ -1910,6 +1950,27 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
               });
               if (!matchesType) return false;
             }
+
+            // Client-side filter for selected department(s)
+            if (this.selectedDepartments && this.selectedDepartments.length) {
+              const deptList = Array.isArray(c.departments || c.department_ids)
+                ? (c.departments || c.department_ids)
+                : typeof c.departments === 'object' && c.departments ? Object.values(c.departments) : [];
+              const deptIds = deptList.map((d: any) => String(d?.id || d?.department_id || d?.dept_id || d));
+              const matchesDept = this.selectedDepartments.some((id) => deptIds.includes(String(id)));
+              if (!matchesDept) return false;
+            }
+
+            // Client-side filter for selected team(s)
+            if (this.selectedTeams && this.selectedTeams.length) {
+              const teamList = Array.isArray(c.teams || c.team_ids)
+                ? (c.teams || c.team_ids)
+                : typeof c.teams === 'object' && c.teams ? Object.values(c.teams) : [];
+              const teamIds = teamList.map((t: any) => String(t?.id || t?.team_id || t));
+              const matchesTeam = this.selectedTeams.some((id) => teamIds.includes(String(id)));
+              if (!matchesTeam) return false;
+            }
+
             return true;
           })
           .map((c: any) => ({
@@ -2173,10 +2234,17 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     this.filterCity = '';
     this.filterIndustry = '';
     this.filterSector = '';
+    this.selectedCountries = [];
+    this.selectedCities = [];
+    this.selectedIndustries = [];
+    this.selectedSectors = [];
     this.filterCityOptions = [];
     this.countrySearch = '';
     this.industrySearch = '';
     this.sectorSearch = '';
+    try {
+      sessionStorage.removeItem(this.questionsReturnStateKey);
+    } catch (e) {}
     if (this.isSuperAdmin) {
       this.selectedInstitute = '';
       this.selectedInstitutes = [];
@@ -2329,6 +2397,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         filterIndustry: this.filterIndustry,
         filterSector: this.filterSector,
         selectedInstitute: this.selectedInstitute,
+        selectedInstitutes: this.selectedInstitutes,
+        selectedCountries: this.selectedCountries,
+        selectedCities: this.selectedCities,
+        selectedIndustries: this.selectedIndustries,
+        selectedSectors: this.selectedSectors,
+        selectedQuestionTypes: this.selectedQuestionTypes,
         selectedCategories: this.selectedCategories,
         categoryFilterName: this.categoryFilterName,
         categorySearch: this.categorySearch,
@@ -2369,15 +2443,20 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       )
         return;
 
-      // Do not restore filter values into the form UI; the panel should open blank.
-      // Keep only the result set and applied-state flags so the page can still recover
-      // from navigation without re-seeding the filter controls.
-      this.filterCountry = '';
-      this.filterCity = '';
-      this.filterIndustry = '';
-      this.filterSector = '';
+      this.filterCountry = state?.filterCountry || '';
+      this.filterCity = state?.filterCity || '';
+      this.filterIndustry = state?.filterIndustry || '';
+      this.filterSector = state?.filterSector || '';
       this.selectedInstitute = state?.selectedInstitute || '';
-      this.instituteSearch = '';
+      this.selectedInstitutes = Array.isArray(state?.selectedInstitutes) && state.selectedInstitutes.length
+        ? state.selectedInstitutes
+        : (this.selectedInstitute ? [this.selectedInstitute] : []);
+      this.selectedCountries = Array.isArray(state?.selectedCountries) ? state.selectedCountries : [];
+      this.selectedCities = Array.isArray(state?.selectedCities) ? state.selectedCities : [];
+      this.selectedIndustries = Array.isArray(state?.selectedIndustries) ? state.selectedIndustries : [];
+      this.selectedSectors = Array.isArray(state?.selectedSectors) ? state.selectedSectors : [];
+      this.selectedQuestionTypes = Array.isArray(state?.selectedQuestionTypes) ? state.selectedQuestionTypes : [];
+      this.instituteSearch = state?.instituteSearch || '';
       this.selectedCategories = Array.isArray(state?.selectedCategories)
         ? state.selectedCategories
         : [];
@@ -2400,7 +2479,6 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       this.filterPublicAccess =
         typeof state?.filterPublicAccess === 'undefined' ? null : state.filterPublicAccess;
       this.hasAppliedFilters = !!state?.hasAppliedFilters;
-      // Change lines 1200-1201 to:
       const rawQuestions = Array.isArray(state?.questions) ? state.questions : [];
       this.questions = rawQuestions.map((q: any) => ({
         ...q,

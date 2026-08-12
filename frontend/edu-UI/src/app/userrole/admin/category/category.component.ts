@@ -1137,6 +1137,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onIndustryFilterChange() {
     this.filterSector = '';
+    this.selectedSectors = [];
     this.refreshInstituteScope();
   }
 
@@ -1183,7 +1184,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.http.get<any>(`${API_BASE}/get-institutes`, { params }).subscribe({
       next: (res) => {
         try {
-          const data = Array.isArray(res?.data) ? res.data : [];
+          const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
           this.institutes = data
             .map((r: any) => ({
               institute_id: r.institute_id || r.id || r._id || '',
@@ -1194,6 +1195,14 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         } catch (e) {
           this.institutes = [];
         }
+
+        if (this.selectedInstitutes && this.selectedInstitutes.length) {
+          this.selectedInstitutes = this.selectedInstitutes.filter((id) =>
+            this.institutes.some((i) => String(i.institute_id) === String(id))
+          );
+          this.selectedInstitute = this.selectedInstitutes[0] || null;
+        }
+
         if (
           this.selectedInstitute &&
           !this.institutes.some((i) => String(i.institute_id) === String(this.selectedInstitute))
@@ -1330,6 +1339,9 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       iid = this.loginInstituteId;
       this.selectedInstitute = this.loginInstituteId;
     }
+    if (iid && typeof iid === 'string' && !iid.includes(',') && (!this.selectedInstitutes || !this.selectedInstitutes.length)) {
+      this.selectedInstitutes = [iid];
+    }
     this.selectedDepartments = [];
     this.selectedTeams = [];
     this.filterName = '';
@@ -1338,7 +1350,6 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!iid) {
       this.departments = [];
       this.teams = [];
-      this.selectedQuestionTypes = [];
       this.selectedCategoryNames = [];
       this.categoryOptions = []; // Clear question bank options when no institute selected
       if (this.isSuperAdmin) {
@@ -1739,6 +1750,13 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           filterSector: this.filterSector,
           filterName: this.filterName,
           selectedInstitute: this.selectedInstitute,
+          selectedInstitutes: this.selectedInstitutes,
+          selectedCountries: this.selectedCountries,
+          selectedCities: this.selectedCities,
+          selectedIndustries: this.selectedIndustries,
+          selectedSectors: this.selectedSectors,
+          selectedQuestionTypes: this.selectedQuestionTypes,
+          selectedCategoryNames: this.selectedCategoryNames,
           instituteSearch: this.instituteSearch,
           selectedDepartments: this.selectedDepartments,
           selectedTeams: this.selectedTeams,
@@ -1776,16 +1794,23 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       )
         return;
       this.filter = state?.filter || '';
-      // Keep the filter panel blank on restore so no default values appear preselected.
-      this.filterCountry = '';
-      this.filterCity = '';
-      this.filterIndustry = '';
-      this.filterSector = '';
+      this.filterCountry = state?.filterCountry || '';
+      this.filterCity = state?.filterCity || '';
+      this.filterIndustry = state?.filterIndustry || '';
+      this.filterSector = state?.filterSector || '';
       this.filterName = state?.filterName || '';
       this.selectedInstitute = state?.selectedInstitute || this.selectedInstitute;
-      // Do not restore the visible institute text; keep the dropdown blank by default.
-      this.instituteSearch = '';
-      this.instituteSearchTerm = '';
+      this.selectedInstitutes = Array.isArray(state?.selectedInstitutes) && state.selectedInstitutes.length
+        ? state.selectedInstitutes
+        : (this.selectedInstitute ? [this.selectedInstitute] : []);
+      this.selectedCountries = Array.isArray(state?.selectedCountries) ? state.selectedCountries : [];
+      this.selectedCities = Array.isArray(state?.selectedCities) ? state.selectedCities : [];
+      this.selectedIndustries = Array.isArray(state?.selectedIndustries) ? state.selectedIndustries : [];
+      this.selectedSectors = Array.isArray(state?.selectedSectors) ? state.selectedSectors : [];
+      this.selectedQuestionTypes = Array.isArray(state?.selectedQuestionTypes) ? state.selectedQuestionTypes : [];
+      this.selectedCategoryNames = Array.isArray(state?.selectedCategoryNames) ? state.selectedCategoryNames : [];
+      this.instituteSearch = state?.instituteSearch || '';
+      this.instituteSearchTerm = state?.instituteSearchTerm || '';
       this.selectedDepartments = Array.isArray(state?.selectedDepartments)
         ? state.selectedDepartments
         : [];

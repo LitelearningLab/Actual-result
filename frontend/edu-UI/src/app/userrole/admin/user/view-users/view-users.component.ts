@@ -294,10 +294,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       if (iid) {
         this.loadDepartments(iid);
         this.loadTeams(iid);
+        this.loadCampuses(iid);
       } else {
         // Clear institute filter and reload all users
         this.departments = [];
         this.teams = [];
+        this.campuses = [];
       }
     } catch (e) {}
   }
@@ -735,20 +737,35 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   // load campuses for the selected institute(s)
-  loadCampuses(instituteId: string) {
-    const url = `${API_BASE}/get-campus-list`;
-    this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
-      next: (res) => {
-        try {
+  loadCampuses(instituteIdsStr: string) {
+    const ids = (instituteIdsStr || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!ids.length) {
+      this.campuses = [];
+      return;
+    }
+    const requests = ids.map((id) =>
+      this.http.get<any>(`${API_BASE}/get-campus-list`, { params: { institute_id: id } })
+    );
+    forkJoin(requests).subscribe({
+      next: (responses) => {
+        const allCampuses: any[] = [];
+        responses.forEach((res) => {
           const data = res?.data || res?.campuses || [];
-          this.campuses = data.map((c: any) => ({
-            id: String(c.campus_id || c.id),
-            name: c.campus_name || c.name,
-          }));
-        } catch (e) {
-          this.campuses = [];
-          this.campusSearch = '';
-        }
+          allCampuses.push(
+            ...data.map((c: any) => ({
+              id: String(c.campus_id || c.id),
+              name: c.campus_name || c.name,
+            }))
+          );
+        });
+        const unique = new Map<string, any>();
+        allCampuses.forEach((c) => {
+          if (c.id && !unique.has(c.id)) unique.set(c.id, c);
+        });
+        this.campuses = Array.from(unique.values());
       },
       error: () => {
         this.campuses = [];
@@ -1315,6 +1332,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           this.syncInstituteSearch();
           this.loadDepartments(instId);
           this.loadTeams(instId);
+          this.loadCampuses(instId);
           this.loadCountries(instId);
         }
       } catch (e) {
@@ -1424,6 +1442,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
               this.syncInstituteSearch();
               this.loadDepartments(this.selectedInstitute);
               this.loadTeams(this.selectedInstitute);
+              this.loadCampuses(this.selectedInstitute);
               this.loadCountries(this.selectedInstitute);
               return;
             }
@@ -1450,6 +1469,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                 this.syncInstituteSearch();
                 this.loadDepartments(this.selectedInstitute);
                 this.loadTeams(this.selectedInstitute);
+                this.loadCampuses(this.selectedInstitute);
                 this.loadCountries(this.selectedInstitute);
               } else {
                 // institute list shape didn't match or id not present in fetched list - still set and load using raw instId
@@ -1460,6 +1480,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                   /* ignore */
                 }
                 this.syncInstituteSearch();
+                this.loadCampuses(this.selectedInstitute);
                 this.loadCountries(this.selectedInstitute);
               }
             }

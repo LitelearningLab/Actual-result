@@ -1109,12 +1109,14 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.filterCity = '';
     this.filterIndustry = '';
     this.filterSector = '';
+    this.selectedCountries = [];
+    this.selectedCities = [];
     this.countrySearch = '';
     this.industrySearch = '';
     this.sectorSearch = '';
     this.selectedInstitute = '';
-    this.selectedInstitutes = []; // <--- ADD THIS to clear the Institute dropdown
-    this.instituteFilterSearch = ''; // <--- ADD THIS to clear the search input
+    this.selectedInstitutes = [];
+    this.instituteFilterSearch = '';
     this.instituteSearch = '';
     this.instituteSearchTerm = '';
     this.filterName = '';
@@ -1137,7 +1139,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     } catch (e) {
       /* noop */
     }
+    try {
+      sessionStorage.removeItem('schedule_return_state');
+    } catch (e) {}
     this.refreshInstituteScope();
+    this.closeFiltersOverlay();
   }
 
   onInstituteSelected(id: string) {

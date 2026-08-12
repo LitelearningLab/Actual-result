@@ -97,8 +97,56 @@
         <div class="filters-panel-header">
           <h4><mat-icon>tune</mat-icon> Filters</h4>
         </div>
-        <div class="filter-block filter-grid">
-          <!-- Left column: Country, City, Industry, Sector scope the Institute list (super admin only, andhidden while a Global Filter institute is active), then the date range -->
+        <div class="filter-block filter-grid" [class.admin-order]="!showLocationAndIndustryFilters">
+
+          <!-- Row 1: Institute (Expandable across two columns) -->
+          <div class="filter-col-full" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
+            <mat-form-field appearance="outline" class="filter-item local-institute-field mandatory-field">
+              <mat-label>Institute <span class="required-star">*</span></mat-label>
+              <mat-select
+                multiple
+                [(ngModel)]="selectedInstitutes"
+                (selectionChange)="onInstituteSelectionChange()"
+                placeholder="Select institute"
+                (openedChange)="onFilterInstituteOpenedChange($event)"
+              >
+                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    matInput
+                    class="select-search-input"
+                    placeholder="Search institute"
+                    [(ngModel)]="instituteFilterSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)"
+                  />
+                </mat-option>
+                <mat-option
+                  class="select-all-option"
+                  *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
+                  (click)="toggleSelectAllInstitutes()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </mat-option>
+                <mat-option
+                  *ngFor="let inst of filteredInstitutesForFilter"
+                  [value]="inst.institute_id"
+                >
+                  {{ inst.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <!-- Column A (Left): Country, Industry, Type, Department -->
           <div class="filter-col">
             <mat-form-field
               appearance="outline"
@@ -150,60 +198,6 @@
               class="filter-item"
               *ngIf="showLocationAndIndustryFilters"
             >
-              <mat-label>City</mat-label>
-              <mat-select
-                multiple
-                [(ngModel)]="selectedCities"
-                placeholder="Select City"
-                [disabled]="!selectedCountries.length && !filterCountry"
-                (openedChange)="onFilterSelectOpened($event, 'city')"
-                (selectionChange)="onCityFilterChange()"
-              >
-                <!-- Search city input -->
-                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input
-                    matInput
-                    class="select-search-input"
-                    placeholder="Search city"
-                    [(ngModel)]="citySearch"
-                    [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)"
-                  />
-                </mat-option>
-
-                <!-- Select All Checkbox Option -->
-                <mat-option
-                  class="select-all-option"
-                  *ngIf="filteredCities.length && !citySearch?.trim()"
-                  (click)="toggleSelectAllCities()"
-                >
-                  <mat-icon
-                    class="select-all-checkbox-icon"
-                    [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'"
-                  >
-                    {{ isAllCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                  </mat-icon>
-                  <strong>Select All</strong>
-                </mat-option>
-
-                <!-- Fallback when no cities available -->
-                <mat-option *ngIf="!filteredCities.length" disabled> No cities available </mat-option>
-
-                <!-- City Options with Checkboxes -->
-                <mat-option *ngFor="let city of filteredCities" [value]="city.name">
-                  {{ city.name }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field
-              appearance="outline"
-              class="filter-item"
-              *ngIf="showLocationAndIndustryFilters"
-            >
               <mat-label>Industry</mat-label>
               <mat-select
                 multiple
@@ -239,6 +233,76 @@
                   <strong>Select All</strong>
                 </mat-option>
                 <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{ t }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>Type</mat-label>
+              <mat-select
+                multiple
+                [(ngModel)]="selectedQuestionTypes"
+                placeholder="Select Type"
+                (selectionChange)="onQuestionTypeChange()"
+              >
+                <mat-option value="objective">Objective</mat-option>
+                <mat-option value="descriptive">Descriptive</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>Department</mat-label>
+              <mat-select multiple [(ngModel)]="selectedDepartments" (selectionChange)="onDepartmentSelectionChange()" placeholder="Select department" [disabled]="!isInstituteSelected">
+                <mat-option *ngFor="let d of departments" [value]="d.id">{{ d.name }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <!-- Column B (Right): City, Sector, Question Bank Name, Team -->
+          <div class="filter-col">
+            <mat-form-field
+              appearance="outline"
+              class="filter-item"
+              *ngIf="showLocationAndIndustryFilters"
+            >
+              <mat-label>City</mat-label>
+              <mat-select
+                multiple
+                [(ngModel)]="selectedCities"
+                placeholder="Select City"
+                [disabled]="!selectedCountries.length && !filterCountry"
+                (openedChange)="onFilterSelectOpened($event, 'city')"
+                (selectionChange)="onCityFilterChange()"
+              >
+                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    matInput
+                    class="select-search-input"
+                    placeholder="Search city"
+                    [(ngModel)]="citySearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="stopFilterSearchEvent($event)"
+                  />
+                </mat-option>
+                <mat-option
+                  class="select-all-option"
+                  *ngIf="filteredCities.length && !citySearch?.trim()"
+                  (click)="toggleSelectAllCities()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </mat-option>
+                <mat-option *ngIf="!filteredCities.length" disabled> No cities available </mat-option>
+                <mat-option *ngFor="let city of filteredCities" [value]="city.name">
+                  {{ city.name }}
+                </mat-option>
               </mat-select>
             </mat-form-field>
 
@@ -285,77 +349,34 @@
                 <mat-option *ngFor="let s of filteredSectors" [value]="s">{{ s }}</mat-option>
               </mat-select>
             </mat-form-field>
-          </div>
 
-          <!-- Right column: Institute -> Type -> Question Bank -->
-          <div class="filter-col">
-            <!-- 1. Institute Field (Multi-Select with Search) -->
             <mat-form-field
               appearance="outline"
-              class="filter-item local-institute-field mandatory-field"
-              *ngIf="isSuperAdmin && !isGlobalInstituteActive"
+              class="filter-item date-range-field"
+              (click)="openCreatedDateRangePicker()"
+              style="cursor: pointer"
             >
-              <mat-label>Institute <span class="required-star">*</span></mat-label>
-              <mat-select
-                multiple
-                [(ngModel)]="selectedInstitutes"
-                (selectionChange)="onInstituteSelectionChange()"
-                placeholder="Select institute"
-                (openedChange)="onFilterInstituteOpenedChange($event)"
-              >
-                <!-- Embedded Search Bar -->
-                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input
-                    matInput
-                    class="select-search-input"
-                    placeholder="Search institute"
-                    [(ngModel)]="instituteFilterSearch"
-                    [ngModelOptions]="{ standalone: true }"
-                    (click)="$event.stopPropagation()"
-                    (keydown)="stopFilterSearchEvent($event)"
-                    (keyup)="stopFilterSearchEvent($event)"
-                    (input)="stopFilterSearchEvent($event)"
-                  />
-                </mat-option>
-                <!-- Select All Option for Institute -->
-                <mat-option
-                  class="select-all-option"
-                  *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
-                  (click)="toggleSelectAllInstitutes()"
-                >
-                  <mat-icon
-                    class="select-all-checkbox-icon"
-                    [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'"
-                  >
-                    {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                  </mat-icon>
-                  <strong>Select All</strong>
-                </mat-option>
-
-                <mat-option
-                  *ngFor="let inst of filteredInstitutesForFilter"
-                  [value]="inst.institute_id"
-                  >{{ inst.name }}</mat-option
-                >
-              </mat-select>
+              <mat-label>Created Date</mat-label>
+              <input
+                matInput
+                readonly
+                [value]="getCreatedDateRangeDisplay()"
+                placeholder="Select date range"
+                style="cursor: pointer"
+              />
+              <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
             </mat-form-field>
 
-            <!-- 2. Type Field (Multi-Select, dependent on Institute selection) -->
             <mat-form-field appearance="outline" class="filter-item">
-              <mat-label>Type</mat-label>
-              <mat-select
-                multiple
-                [(ngModel)]="selectedQuestionTypes"
-                placeholder="Select Type"
-                [disabled]="!isInstituteSelected"
-                (selectionChange)="onQuestionTypeChange()"
-              >
-                <mat-option value="objective">Objective</mat-option>
-                <mat-option value="descriptive">Descriptive</mat-option>
+              <mat-label>Team</mat-label>
+              <mat-select multiple [(ngModel)]="selectedTeams" (selectionChange)="onTeamSelectionChange()" placeholder="Select team" [disabled]="!selectedDepartments.length">
+                <mat-option *ngFor="let t of teams" [value]="t.id">{{ t.name }}</mat-option>
               </mat-select>
             </mat-form-field>
+          </div>
 
-            <!-- 3. Question Bank Field (Multi-Select, dependent on Institute selection) -->
+          <!-- Full width Question Bank Name -->
+          <div class="filter-col-full">
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>Question Bank Name</mat-label>
               <mat-select
@@ -401,43 +422,11 @@
             </mat-form-field>
           </div>
 
-          <!-- Full width Active Status filter -->
-          <div class="filter-col-full">
-            <mat-form-field
-              appearance="outline"
-              class="filter-item date-range-field"
-              (click)="openCreatedDateRangePicker()"
-              style="cursor: pointer"
-            >
-              <mat-label>Created Date</mat-label>
-              <input
-                matInput
-                readonly
-                [value]="getCreatedDateRangeDisplay()"
-                placeholder="Select date range"
-                style="cursor: pointer"
-              />
-              <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
-            </mat-form-field>
-          </div>
-
-          <div class="filter-col-full">
-            <mat-form-field appearance="outline" class="filter-item">
-              <mat-label>Active Status</mat-label>
-              <mat-select [(ngModel)]="filterActiveStatus" placeholder="Select status">
-                <mat-option [value]="null">All</mat-option>
-                <mat-option [value]="true">Active</mat-option>
-                <mat-option [value]="false">Inactive</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
         </div>
 
         <div class="filter-checks">
-          <!-- Created By Me (checkbox) -->
+          <mat-checkbox [(ngModel)]="filterActiveStatus">Active Status</mat-checkbox>
           <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by me</mat-checkbox>
-
-          <!-- Public Access (checkbox) -->
           <mat-checkbox [(ngModel)]="filterPublicAccess">Public access</mat-checkbox>
         </div>
 

@@ -1323,6 +1323,10 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.filterCity = '';
     this.filterIndustry = '';
     this.filterSector = '';
+    this.selectedCountries = [];
+    this.selectedCities = [];
+    this.selectedIndustries = [];
+    this.selectedSectors = [];
     this.countrySearch = '';
     this.industrySearch = '';
     this.sectorSearch = '';
@@ -1338,9 +1342,13 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.exams = [];
     this.dataSource.data = [];
     this.hasAppliedFilters = false;
+    try {
+      sessionStorage.removeItem('exams_table_return_state');
+    } catch (e) {}
     if (this.isSuperAdmin) {
       this.refreshInstituteScope();
     }
+    this.closeFiltersOverlay();
   }
 
   loadExamsForInstitute(id?: string) {
