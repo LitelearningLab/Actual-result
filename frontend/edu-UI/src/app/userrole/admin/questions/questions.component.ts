@@ -4,7 +4,8 @@ import {
   ElementRef,
   OnInit,
   AfterViewInit,
-  HostListener,
+  TemplateRef,
+  ViewContainerRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
@@ -23,6 +24,8 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Overlay, OverlayRef, OverlayModule } from '@angular/cdk/overlay';
+import { TemplatePortal } from '@angular/cdk/portal';
 import { Router } from '@angular/router';
 import { API_BASE } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
@@ -56,6 +59,7 @@ import {
     MatButtonToggleModule,
     MatDialogModule,
     MatTooltipModule,
+    OverlayModule,
   ],
   templateUrl: './questions.component.html',
   styleUrls: ['./questions.component.scss'],
@@ -210,7 +214,6 @@ export class AdminQuestionsComponent {
     mark_for_each_question?: any;
   } | null = null;
   exams: Array<{ title: string; exam_id?: string }> = [];
-  questionBankFilterOpen = false;
   questionBankFiltersApplied = false;
   showQuestionBankFilterError = false;
   departments: Array<{ id: string; name: string }> = [];
@@ -225,6 +228,10 @@ export class AdminQuestionsComponent {
   filterCreationDate: Date | null = null;
   filterCreatedByMe = false;
   filterPublicAccess = false;
+  filterActiveStatus: boolean | null = null;
+  private filtersOverlayRef: OverlayRef | null = null;
+  @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
+  @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<unknown>;
   // location / industry filters that scope the Institute list (mirrors view-institutes.component.ts cascade)
   filterCountry: string = '';
   filterCity: string = '';
@@ -276,7 +283,9 @@ export class AdminQuestionsComponent {
     private pageMeta: PageMetaService,
     private loader: LoaderService,
     private router: Router,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private overlay: Overlay,
+    private vcr: ViewContainerRef
   ) {
     // infer super-admin role and default institute from session data when available
     try {
@@ -316,14 +325,6 @@ export class AdminQuestionsComponent {
 
   goBackToQuestions(): void {
     this.router.navigate(['/view-questions']);
-  }
-
-  @HostListener('document:click', ['$event'])
-  closeQuestionBankFiltersOnOutsideClick(event: MouseEvent) {
-    if (!this.questionBankFilterOpen) return;
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('.question-bank-filter-anchor, .cdk-overlay-container')) return;
-    this.questionBankFilterOpen = false;
   }
 
   ngOnInit(): void {
@@ -1642,6 +1643,8 @@ export class AdminQuestionsComponent {
     if (createdAfter) params.push(`created_after=${encodeURIComponent(createdAfter)}`);
     if (createdBefore) params.push(`created_before=${encodeURIComponent(createdBefore)}`);
     if (this.filterPublicAccess) params.push('public_access=true');
+    if (this.filterActiveStatus !== null)
+      params.push(`active_status=${encodeURIComponent(String(this.filterActiveStatus))}`);
     if (this.filterCreatedByMe) {
       const userId = this.getCurrentUserId();
       if (userId) params.push(`created_by=${encodeURIComponent(userId)}`);
@@ -1695,16 +1698,34 @@ export class AdminQuestionsComponent {
     });
   }
 
-  // Toggle filter popup
-  toggleQuestionBankFilters() {
-    this.questionBankFilterOpen = !this.questionBankFilterOpen;
-    if (this.questionBankFilterOpen) {
-      const instId = this.questions?.[0]?.institute_id || '';
-      if (instId) {
-        this.loadDepartments(instId);
-        this.loadTeams(instId);
-      }
+  openFiltersOverlay() {
+    if (!this.filtersBtn || !this.filtersPanelTpl) return;
+    this.closeFiltersOverlay();
+    const instId = this.questions?.[0]?.institute_id || '';
+    if (instId) {
+      this.loadDepartments(instId);
+      this.loadTeams(instId);
     }
+    const positionStrategy = this.overlay.position().flexibleConnectedTo(this.filtersBtn).withPositions([
+      { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
+      { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
+    ]).withPush(true);
+    this.filtersOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+    });
+    this.filtersOverlayRef.backdropClick().subscribe(() => this.closeFiltersOverlay());
+    this.filtersOverlayRef.keydownEvents().subscribe((event) => {
+      if (event.key === 'Escape') this.closeFiltersOverlay();
+    });
+    this.filtersOverlayRef.attach(new TemplatePortal(this.filtersPanelTpl, this.vcr));
+  }
+
+  closeFiltersOverlay() {
+    this.filtersOverlayRef?.dispose();
+    this.filtersOverlayRef = null;
   }
 
   // Apply filters to scope Question Banks dropdown & dismiss popup
@@ -1722,7 +1743,7 @@ export class AdminQuestionsComponent {
     this.loadCategories(this.questions?.[0]?.institute_id || '', true);
 
     // Close the popup after applying
-    this.questionBankFilterOpen = false;
+    this.closeFiltersOverlay();
   }
 
   openCreatedDateRangePicker(): void {
@@ -1811,6 +1832,9 @@ export class AdminQuestionsComponent {
     if (this.filterPublicAccess) {
       chips.push({ key: 'public_access', label: 'Public access', removable: true });
     }
+    if (this.filterActiveStatus !== null) {
+      chips.push({ key: 'active_status', label: `Status: ${this.filterActiveStatus ? 'Active' : 'Inactive'}`, removable: true });
+    }
 
     return chips;
   }
@@ -1840,6 +1864,8 @@ export class AdminQuestionsComponent {
       this.filterCreatedByMe = false;
     } else if (key === 'public_access') {
       this.filterPublicAccess = false;
+    } else if (key === 'active_status') {
+      this.filterActiveStatus = null;
     }
     this.applyQuestionBankFilters();
   }
@@ -1861,6 +1887,7 @@ export class AdminQuestionsComponent {
     this.filterCreationDate = null;
     this.filterCreatedByMe = false;
     this.filterPublicAccess = false;
+    this.filterActiveStatus = null;
     this.questionBankFiltersApplied = false;
     if (reload) {
       this.filterCountry = '';
@@ -1882,7 +1909,7 @@ export class AdminQuestionsComponent {
       this.loadCategories(this.questions?.[0]?.institute_id || '', true);
     }
     // Close the popup after resetting
-    this.questionBankFilterOpen = false;
+    this.closeFiltersOverlay();
   }
   refreshCategoriesOnCategoryOpen(opened: boolean) {
     if (!opened) return;

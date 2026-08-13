@@ -41,22 +41,22 @@
 
           <!-- Filter Anchor Button & Popup -->
           <div class="question-bank-filter-anchor" (click)="$event.stopPropagation()">
-            <button
+            <button #filtersBtn
               mat-stroked-button
               color="primary"
               type="button"
               class="question-bank-filter-btn"
-              (click)="toggleQuestionBankFilters()"
+              (click)="openFiltersOverlay(); $event.stopPropagation()"
             >
               <mat-icon>filter_list</mat-icon>
               <span>Filters</span>
             </button>
 
+            <ng-template #filtersPanel>
             <!-- Filter Popup Panel -->
             <div
-              class="question-bank-filter-panel filters-panel view-questions-filters-panel"
-              [class.admin-single-col]="!showLocationAndIndustryFilters"
-              *ngIf="questionBankFilterOpen"
+              class="question-bank-filter-panel filters-panel category-filters-panel"
+              [class.admin-two-column]="!showLocationAndIndustryFilters"
               (click)="$event.stopPropagation()"
             >
               <div class="filters-panel-header">
@@ -241,11 +241,7 @@
                       <mat-option *ngFor="let s of filteredSectors" [value]="s">{{ s }}</mat-option>
                     </mat-select>
                   </mat-form-field>
-                </div>
 
-                <!-- Right Column: Type, Department, Team, Dates -->
-                <div class="filter-col">
-                  <!-- Type Filter to Filter Question Banks -->
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-label>Type</mat-label>
                     <mat-select multiple [(ngModel)]="selectedCategoryTypes" placeholder="Select Type">
@@ -254,6 +250,16 @@
                     </mat-select>
                   </mat-form-field>
 
+                  <mat-form-field appearance="outline" class="filter-item">
+                    <mat-label>Department</mat-label>
+                    <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select department">
+                      <mat-option *ngFor="let department of departments" [value]="department.id">{{ department.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+
+                <!-- Right Column: Type, Department, Team, Dates -->
+                <div class="filter-col">
                   <!-- Created Date Range Field -->
                   <mat-form-field
                     appearance="outline"
@@ -271,11 +277,20 @@
                     />
                     <mat-icon matSuffix style="cursor: pointer; color: #0284c7;">calendar_today</mat-icon>
                   </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="filter-item">
+                    <mat-label>Team</mat-label>
+                    <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select team"
+                      [disabled]="!selectedDepartments.length">
+                      <mat-option *ngFor="let team of teams" [value]="team.id">{{ team.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
                 </div>
               </div>
 
               <!-- Checkboxes -->
               <div class="filter-checks">
+                <mat-checkbox [(ngModel)]="filterActiveStatus">Active Status</mat-checkbox>
                 <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by me</mat-checkbox>
                 <mat-checkbox [(ngModel)]="filterPublicAccess">Public access</mat-checkbox>
               </div>
@@ -302,6 +317,7 @@
                 </button>
               </div>
             </div>
+            </ng-template>
           </div>
         </div>
 

@@ -320,31 +320,23 @@ mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:
   font-weight: 500;
 }
 .question-bank-filter-panel {
-  position:absolute;
-  z-index:30;
-  top:100%;
-  right:0;
-  width:min(38rem, calc(100vw - 2rem));
-  padding:1rem;
+  width:min(44rem, calc(100vw - 2rem));
+  min-width:34rem;
+  padding:0;
   border:1px solid var(--theme-3-border);
   border-radius:0.75rem;
   background:var(--bg-1);
   box-shadow:0 1rem 2.5rem rgba(15,23,42,0.16);
-  display:grid;
-  gap:0.75rem;
+  overflow:hidden;
 }
-.question-bank-filter-panel.filter-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-.question-bank-filter-panel.admin-single-col {
-  width: min(24rem, calc(100vw - 2rem)) !important;
+.question-bank-filter-panel .filter-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 1rem; padding:1.25rem; }
+.question-bank-filter-panel.admin-two-column {
+  width:min(44rem, calc(100vw - 2rem));
 
   .filter-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0 !important;
-  }
-
-  .filter-col:first-child {
-    display: none !important;
+    display:grid !important;
+    grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+    gap:0 1rem !important;
   }
 
   .filter-col,
@@ -354,13 +346,13 @@ mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:
 }
 .question-bank-filter-panel .filter-col { display:flex; flex-direction:column; gap:0.75rem; }
 .question-bank-filter-panel .filter-item { width:100%; }
-.question-bank-filter-panel .filter-checks { display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; }
+.question-bank-filter-panel .filter-checks { display:flex; flex-wrap:wrap; gap:0.75rem 1.5rem; align-items:center; padding:0 1.25rem 1rem; }
 .question-bank-filter-panel .filter-panel-actions {
-  grid-column:1 / -1;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:0.75rem;
-  padding:0.75rem;
+  display:flex;
+  flex-direction:row-reverse;
+  justify-content:space-between;
+  gap:1rem;
+  padding:1rem 1.25rem;
   background:var(--bg-2);
 }
 .question-bank-filter-panel .filter-apply-btn { background:var(--button-1)!important; color:var(--button-text-1)!important; }
@@ -493,5 +485,7 @@ mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:
   .question-bank-filter-panel { left:0; right:auto; width:100%; }
 }
 @media (max-width:40rem) {
-  .question-bank-filter-panel.filter-grid { grid-template-columns:1fr; }
+  .question-bank-filter-panel { min-width:unset; width:calc(100vw - 1.5rem); }
+  .question-bank-filter-panel .filter-grid,
+  .question-bank-filter-panel.admin-two-column .filter-grid { grid-template-columns:1fr !important; }
 }
