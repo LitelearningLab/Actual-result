@@ -39,7 +39,9 @@ env_path = os.path.join(base_dir, ".env")
 load_dotenv(dotenv_path=env_path)
 
 # read jwt_secret
-jwt_secret = os.getenv('jwt_secret', 'your_jwt_secret')
+jwt_secret = os.getenv('JWT_SECRET') or os.getenv('jwt_secret')
+if not jwt_secret:
+    raise RuntimeError('JWT_SECRET environment variable is required')
 
 try:
     from db.run_migrations import run_migrations
@@ -705,12 +707,29 @@ def refresh_token_route():
     response_data, status_code = jwt_validator.refresh_token(request)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/session/validate', methods=['GET'])
+@jwt_required
+def validate_session_route():
+    user = get_current_user_from_request()
+    if not user:
+        return jsonify({"status": False, "statusMessage": "Invalid session"}), 401
+    return jsonify({
+        "status": True,
+        "user": {
+            "user_id": str(user.user_id),
+            "name": user.full_name,
+            "username": user.user_name,
+            "email": user.email,
+            "role": user.user_role,
+            "institute_id": str(user.institute_id) if user.institute_id else None
+        }
+    }), 200
+
 @edu_blueprint.route('/logout', methods=['POST'])
-# @jwt_required
+@jwt_required
 def logout():
-    data = request.get_json(silent=True) or {}
     jwt_validator = JWTValidator(jwt_secret)
-    logout_status, status_code = jwt_validator.logout(data)
+    logout_status, status_code = jwt_validator.logout(request)
     return jsonify(logout_status), status_code
 
 # ─────────────────────────────────────────────────────────────

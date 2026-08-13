@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CanActivate, ActivatedRouteSnapshot, Router, UrlTree } from '@angular/router';
 import { Observable, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { catchError, filter, map, switchMap, take } from 'rxjs/operators';
 import { PageAccessService } from '../services/page-access.service';
 import { AuthService } from 'src/app/home/service/auth.service';
 
@@ -28,6 +28,14 @@ export class PermissionGuard implements CanActivate {
   }
 
   canActivate(route: ActivatedRouteSnapshot): Observable<boolean | UrlTree> {
+    return this.auth.authReady$.pipe(
+      filter(ready => ready),
+      take(1),
+      switchMap(() => this.checkAccess(route))
+    );
+  }
+
+  private checkAccess(route: ActivatedRouteSnapshot): Observable<boolean | UrlTree> {
     const pageName = this.normalizePageName((route.data && (route.data as any)['pageName']) || (route.data && (route.data as any)['page']) || '');
     const action = (route.data && (route.data as any)['action']) || 'view';
     // optional role-based access: route.data.requiredRole can be string or array of strings

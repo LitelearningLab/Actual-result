@@ -123,6 +123,16 @@ class JWTValidator:
         try:
             token = auth_header.split(" ")[1]
             self.validate_jwt(token)
+            db = SQLiteDB()
+            session = db.connect()
+            if not session:
+                return "Database connection failed"
+            try:
+                active_session = session.query(AppSession).filter_by(token=token).first()
+                if not active_session:
+                    return "Session is not active"
+            finally:
+                session.close()
             return "Access granted"
         except Exception as e:
             return str(e)
@@ -214,29 +224,26 @@ class JWTValidator:
     def refresh_token(self, request):
         session = None
         try:
-            req_data = request.get_json(silent=True) if hasattr(request, 'get_json') else None
-            req_data = req_data or (request.json if hasattr(request, 'json') and isinstance(request.json, dict) else {})
-            user_id = req_data.get('user_id')
-            if not user_id:
-                return {"status": False, "statusMessage": "user_id missing"}, 401
+            auth_header = request.headers.get("Authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return {"status": False, "statusMessage": "Authorization header is missing"}, 401
+            token = auth_header.split(" ", 1)[1]
+            decoded = self.validate_jwt(token)
 
             db = SQLiteDB()
             session = db.connect()
             if not session:
                 return {"status": False, "statusMessage": "Database connection failed"}, 500
 
-            uid_str = str(user_id)
-            session_row = session.query(AppSession).filter_by(user_id=uid_str).first()
-            if not session_row:
-                session_row = session.query(AppSession).filter_by(user_id=user_id).first()
+            session_row = session.query(AppSession).filter_by(token=token).first()
             if not session_row:
                 return {"status": False, "statusMessage": "Session not found"}, 401
 
-            user = session.query(User).filter_by(user_id=uid_str).first()
-            if not user:
-                user = session.query(User).filter_by(user_id=user_id).first()
+            user = session.query(User).filter_by(user_id=session_row.user_id).first()
             if not user:
                 return {"status": False, "statusMessage": "User not found"}, 404
+            if decoded.get('sub') != user.email:
+                return {"status": False, "statusMessage": "Session user mismatch"}, 401
 
             new_token = self.generate_jwt(user.email)
             if isinstance(new_token, bytes):
@@ -264,33 +271,35 @@ class JWTValidator:
                 }
             }
             return json_data, 200
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
+            return {"status": False, "statusMessage": str(e) or "Invalid or expired token"}, 401
         except Exception as e:
             return {"status": False, "statusMessage": str(e)}, 500
         finally:
             if session:
                 session.close()
 
-    def logout(self, data):
+    def logout(self, request):
         session = None
         try:
-            if not data or not isinstance(data, dict):
-                return {"status": True, "message": "Logout successful"}, 200
+            auth_header = request.headers.get("Authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return {"status": False, "message": "Authorization header is missing"}, 401
+            token = auth_header.split(" ", 1)[1]
+            self.validate_jwt(token)
 
             db = SQLiteDB()
             session = db.connect()
             if not session:
                 return {"status": False, "message": "Database connection failed"}, 500
 
-            user_id = data.get('user_id')
-            if user_id:
-                uid_str = str(user_id)
-                session_data = session.query(AppSession).filter(
-                    or_(AppSession.user_id == uid_str, AppSession.user_id == user_id)
-                ).all()
-                for s in session_data:
-                    session.delete(s)
+            session_data = session.query(AppSession).filter_by(token=token).first()
+            if session_data:
+                session.delete(session_data)
                 session.commit()
             return {"status": True, "message": "Logout successful"}, 200
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
+            return {"status": False, "message": str(e) or "Invalid or expired token"}, 401
         except Exception as e:
             return {"status": False, "message": str(e)}, 500
         finally:

@@ -11,7 +11,7 @@ export class AuthInterceptor implements HttpInterceptor {
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     // endpoints that should not receive Authorization header or be auto-redirected
-    const skipAuthPaths = ['/login', '/refresh-token', '/public'];
+    const skipAuthPaths = ['/login', '/public'];
     const skipInstituteContextHeader = 'X-Skip-Institute-Context';
     const skipInstituteContextPaths = ['/superadmin-dashboard'];
 

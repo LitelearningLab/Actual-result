@@ -18,6 +18,9 @@ export class AuthService {
   readonly isLoggedIn$ = this._logged.asObservable();
   get isLoggedIn() { return this._logged.value; }
 
+  private _authReady = new BehaviorSubject<boolean>(false);
+  readonly authReady$ = this._authReady.asObservable();
+
   private _user = new BehaviorSubject<any | null>(null);
   readonly user$ = this._user.asObservable();
 
@@ -25,29 +28,40 @@ export class AuthService {
   get currentUserValue() { return this._user.value; }
 
   constructor(private http: HttpClient, private pageAccess: PageAccessService) {
-    // Initialize from sessionStorage if available
-    try {
-      const token = sessionStorage.getItem('token');
-      const raw = sessionStorage.getItem('user');
-      if (token && raw) {
-        const parsed = JSON.parse(raw);
-        // normalize user shape so other code can rely on `id`
-        if (parsed && !parsed.id && parsed.user_id) parsed.id = parsed.user_id;
-        this._user.next(parsed);
-        this._logged.next(true);
-        sessionStorage.setItem('isLogin', 'true');
-        // preload page access for persisted user (use normalized id)
-        const uid = parsed && (parsed.id || parsed.user_id || parsed.userId);
-        if (uid) {
-          console.debug('[AuthService] constructor preloading page access for userId:', uid);
-          this.pageAccess.fetchForUser(uid.toString()).subscribe(rows => console.debug('[AuthService] constructor fetched page access rows:', rows));
-        }
-      }
-    } catch (e) {
-      // Invalid persisted data is treated as unauthenticated without deleting it.
-      this._user.next(null);
-      this._logged.next(false);
+    this.restoreSession();
+  }
+
+  private restoreSession(): void {
+    let token: string | null = null;
+    try { token = sessionStorage.getItem('token'); } catch (e) {}
+    if (!token) {
+      this.clearLocalSession();
+      this._authReady.next(true);
+      return;
     }
+
+    this.http.get<LoginResponse>(`${API_BASE}/session/validate`).subscribe({
+      next: (resp) => {
+        if (resp?.status === true && resp.user) {
+          const user = { ...resp.user } as any;
+          if (!user.id && (user.user_id || user.userId)) user.id = user.user_id || user.userId;
+          this._user.next(user);
+          this._logged.next(true);
+          sessionStorage.setItem('user', JSON.stringify(user));
+          sessionStorage.setItem('isLogin', 'true');
+          if (user.role) sessionStorage.setItem('userRole', user.role);
+          const uid = user.id || user.user_id || user.userId;
+          if (uid) this.pageAccess.fetchForUser(uid.toString()).subscribe();
+        } else {
+          this.clearLocalSession();
+        }
+        this._authReady.next(true);
+      },
+      error: () => {
+        this.clearLocalSession();
+        this._authReady.next(true);
+      }
+    });
   }
 
   async login(identifier: string, password: string): Promise<boolean> {
@@ -55,7 +69,7 @@ export class AuthService {
     try {
       const resp = await firstValueFrom(this.http.post<LoginResponse>(url, { identifier, email: identifier, password }));
       // treat presence of token or status true/success as success
-      const ok = !!(resp && (resp.token || resp.status === true || resp.status === 'success' || resp.status === 'true'));
+      const ok = resp?.status === true && typeof resp.token === 'string' && resp.token.length > 0 && !!resp.user;
       this._logged.next(ok);
       if (ok) {
         try {
@@ -106,6 +120,11 @@ export class AuthService {
   logout() {
     // Capture the user before removing it so its permission cache can be cleared.
     const currentUser = this._user.value;
+    try { this.http.post(`${API_BASE}/logout`, {}).subscribe({ error: () => {} }); } catch (e) {}
+    this.clearLocalSession(currentUser);
+  }
+
+  private clearLocalSession(currentUser: any = this._user.value): void {
     this._logged.next(false);
     this._user.next(null);
     try {

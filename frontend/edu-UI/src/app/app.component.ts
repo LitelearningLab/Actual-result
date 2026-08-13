@@ -46,7 +46,7 @@ export class AppComponent implements OnDestroy {
 
   private checkIsAuthRoute(url: string): void {
     const cleanUrl = (url || '').split('?')[0].split('#')[0];
-    this.isAuthRoute = cleanUrl.endsWith('/login') || cleanUrl === '/login' || cleanUrl === '/home/login' || cleanUrl === '/register';
+    this.isAuthRoute = cleanUrl === '/' || cleanUrl.endsWith('/login') || cleanUrl === '/login' || cleanUrl === '/home/login' || cleanUrl === '/register';
   }
 
   ngOnDestroy(): void {

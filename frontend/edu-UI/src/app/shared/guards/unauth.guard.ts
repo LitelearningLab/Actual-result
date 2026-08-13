@@ -1,12 +1,22 @@
 import { Injectable } from '@angular/core';
 import { CanActivate, Router, UrlTree } from '@angular/router';
+import { Observable } from 'rxjs';
+import { filter, map, take } from 'rxjs/operators';
 import { AuthService } from 'src/app/home/service/auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class UnauthGuard implements CanActivate {
   constructor(private auth: AuthService, private router: Router) {}
 
-  canActivate(): boolean | UrlTree {
+  canActivate(): Observable<boolean | UrlTree> {
+    return this.auth.authReady$.pipe(
+      filter(ready => ready),
+      take(1),
+      map(() => this.resolveRoute())
+    );
+  }
+
+  private resolveRoute(): boolean | UrlTree {
     if (this.auth.isLoggedIn) {
       let role = '';
       try {
