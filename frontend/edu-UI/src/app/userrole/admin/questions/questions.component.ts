@@ -204,6 +204,8 @@ export class AdminQuestionsComponent {
   // reactive control + filtered observable for autocomplete
   categoryCtrl: FormControl = new FormControl('');
   categorySearchText = '';
+  filterInstituteId = '';
+  filterQuestionBankId = '';
   // currently selected category object (for showing description)
   selectedCategory: {
     name?: string;
@@ -228,7 +230,6 @@ export class AdminQuestionsComponent {
   filterCreationDate: Date | null = null;
   filterCreatedByMe = false;
   filterPublicAccess = false;
-  filterActiveStatus: boolean | null = null;
   private filtersOverlayRef: OverlayRef | null = null;
   @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<unknown>;
@@ -1064,7 +1065,11 @@ export class AdminQuestionsComponent {
   loadInstitutes(onLoaded?: () => void) {
     this.loader.show();
     const params: any = { _ts: Date.now() };
-    if (this.filterCountry) params.country = this.filterCountry;
+    if (this.selectedCountries.length) {
+      params.country = this.selectedCountries.join(',');
+    } else if (this.filterCountry) {
+      params.country = this.filterCountry;
+    }
     if (this.selectedCities && this.selectedCities.length) {
       const cityCodes = this.selectedCities
         .map((name) => this.resolveCityId(name) || name)
@@ -1074,8 +1079,16 @@ export class AdminQuestionsComponent {
       const cityCode = this.resolveCityId(this.filterCity);
       if (cityCode) params.city = cityCode;
     }
-    if (this.filterIndustry) params.industry = this.filterIndustry;
-    if (this.filterSector) params.sector = this.filterSector;
+    if (this.selectedIndustries.length) {
+      params.industry = this.selectedIndustries.join(',');
+    } else if (this.filterIndustry) {
+      params.industry = this.filterIndustry;
+    }
+    if (this.selectedSectors.length) {
+      params.sector = this.selectedSectors.join(',');
+    } else if (this.filterSector) {
+      params.sector = this.filterSector;
+    }
 
     this.http
       .get<any>(this.institutesUrl, { params: Object.keys(params).length ? params : undefined })
@@ -1376,6 +1389,7 @@ export class AdminQuestionsComponent {
       ? [this.filterCountry]
       : [];
     this.loadCitiesForCountry(countryCodes);
+    this.reloadFilteredInstitutes();
   }
 
   onCountryAutocompleteSelected(countryCode: string) {
@@ -1386,7 +1400,7 @@ export class AdminQuestionsComponent {
   }
 
   onCityFilterChange() {
-    this.loadInstitutes();
+    this.reloadFilteredInstitutes();
   }
 
   get filteredCities(): Array<{ code: string; name: string }> {
@@ -1425,7 +1439,9 @@ export class AdminQuestionsComponent {
 
   onIndustryFilterChange() {
     this.filterSector = '';
+    this.selectedSectors = [];
     this.sectorSearch = '';
+    this.reloadFilteredInstitutes();
   }
 
   onIndustryAutocompleteSelected(industry: string) {
@@ -1435,6 +1451,7 @@ export class AdminQuestionsComponent {
   }
 
   onSectorFilterChange() {
+    this.reloadFilteredInstitutes();
   }
 
   onSectorAutocompleteSelected(sector: string) {
@@ -1503,7 +1520,7 @@ export class AdminQuestionsComponent {
       this.selectedCategory = null;
       this.categoryCtrl.setValue('');
       this.categories = [];
-      this.resetQuestionBankFilters(false);
+      this.resetQuestionBankFilters(false, false);
       this.loadDepartments(instId);
       this.loadTeams(instId);
       this.clearQuestionTypes();
@@ -1511,10 +1528,10 @@ export class AdminQuestionsComponent {
     this.loadCategories(instId);
   }
 
-  loadCategories(instId?: string, showLoader: boolean = true) {
+  loadCategories(instId?: string, showLoader: boolean = true, preserveActiveCategory: boolean = true) {
     if (showLoader) this.loader.show();
     instId = this.getScopedInstituteId(instId);
-    if (!instId || (!this.questionBankFiltersApplied && !this.isEditing)) {
+    if (!instId) {
       this.categories = [];
       this.allCategories = [];
       this.selectedCategory = null;
@@ -1552,7 +1569,9 @@ export class AdminQuestionsComponent {
               null,
             institute: r.institute || { institute_id: r.institute_id || r.instituteId || null },
           }));
-        const cid = this.questions && this.questions[0] && (this.questions[0].category_id || '');
+        const cid = preserveActiveCategory && this.questions && this.questions[0]
+          ? this.questions[0].category_id || ''
+          : '';
         const currentCategory = cid
           ? this.selectedCategory ||
             this.categories.find((c) => String(c.category_id) === String(cid)) ||
@@ -1642,12 +1661,14 @@ export class AdminQuestionsComponent {
     const createdBefore = this.formatFilterDate(this.filterCreationDate);
     if (createdAfter) params.push(`created_after=${encodeURIComponent(createdAfter)}`);
     if (createdBefore) params.push(`created_before=${encodeURIComponent(createdBefore)}`);
-    if (this.filterPublicAccess) params.push('public_access=true');
-    if (this.filterActiveStatus !== null)
-      params.push(`active_status=${encodeURIComponent(String(this.filterActiveStatus))}`);
-    if (this.filterCreatedByMe) {
-      const userId = this.getCurrentUserId();
+    const userId = this.getCurrentUserId();
+    if (this.filterCreatedByMe && this.filterPublicAccess) {
+      params.push('access_scope=owned_or_public');
+      if (userId) params.push(`current_user_id=${encodeURIComponent(userId)}`);
+    } else if (this.filterCreatedByMe) {
       if (userId) params.push(`created_by=${encodeURIComponent(userId)}`);
+    } else if (this.filterPublicAccess) {
+      params.push('public_access=true');
     }
     return params;
   }
@@ -1701,7 +1722,11 @@ export class AdminQuestionsComponent {
   openFiltersOverlay() {
     if (!this.filtersBtn || !this.filtersPanelTpl) return;
     this.closeFiltersOverlay();
-    const instId = this.questions?.[0]?.institute_id || '';
+    const instId = this.getScopedInstituteId(this.questions?.[0]?.institute_id || '');
+    this.filterInstituteId = instId;
+    this.filterQuestionBankId = this.questions?.[0]?.category_id || '';
+    this.instituteSearch = '';
+    this.categorySearchText = '';
     if (instId) {
       this.loadDepartments(instId);
       this.loadTeams(instId);
@@ -1732,15 +1757,22 @@ export class AdminQuestionsComponent {
   applyQuestionBankFilters() {
     this.showQuestionBankFilterError = false;
     this.questionBankFiltersApplied = true;
-    this.selectedCategory = null;
-    try {
-      if (this.questions && this.questions[0]) this.questions[0].category_id = '';
-    } catch (e) {}
-    try {
-      this.categoryCtrl.setValue('');
-    } catch (e) {}
+    const selectedQuestionBank = this.allCategories.find(
+      (category) => String(category.category_id) === String(this.filterQuestionBankId)
+    ) || null;
+    if (this.questions?.[0]) {
+      this.questions[0].institute_id = this.filterInstituteId || '';
+      this.questions[0].category_id = this.filterQuestionBankId || '';
+    }
+    this.selectedCategory = selectedQuestionBank;
+    this.categoryCtrl.setValue(selectedQuestionBank || '');
+    if (selectedQuestionBank) {
+      this.enforceQuestionTypeForSelectedCategory();
+      this.syncQuestionMarksToCategory();
+      this.loadCategorySettings(selectedQuestionBank.category_id);
+    }
     this.refreshInstituteScope();
-    this.loadCategories(this.questions?.[0]?.institute_id || '', true);
+    this.loadCategories(this.filterInstituteId, true);
 
     // Close the popup after applying
     this.closeFiltersOverlay();
@@ -1788,6 +1820,14 @@ export class AdminQuestionsComponent {
     if (!this.questionBankFiltersApplied) return [];
     const chips: Array<{ key: string; label: string; removable: boolean; tooltip?: string }> = [];
 
+    const appliedInstituteName = this.getAppliedInstituteName();
+    if (appliedInstituteName) {
+      chips.push({ key: 'institute', label: `Institute: ${appliedInstituteName}`, removable: false });
+    }
+    if (this.selectedCategory?.name) {
+      chips.push({ key: 'question_bank', label: `Question Bank: ${this.selectedCategory.name}`, removable: false });
+    }
+
     if (this.selectedCountries && this.selectedCountries.length) {
       if (this.selectedCountries.length === 1) {
         const countryName = this.countries.find((c) => String(c.code) === String(this.selectedCountries[0]))?.name || this.selectedCountries[0];
@@ -1796,7 +1836,15 @@ export class AdminQuestionsComponent {
         chips.push({ key: 'country', label: `Countries: ${this.selectedCountries.length} selected`, removable: true });
       }
     }
-    if (this.filterCity) {
+    if (this.selectedCities.length) {
+      chips.push({
+        key: 'city',
+        label: this.selectedCities.length === 1
+          ? `City: ${this.selectedCities[0]}`
+          : `Cities: ${this.selectedCities.length} selected`,
+        removable: true,
+      });
+    } else if (this.filterCity) {
       chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
     }
     if (this.selectedIndustries && this.selectedIndustries.length) {
@@ -1817,6 +1865,18 @@ export class AdminQuestionsComponent {
       const typeLabels = this.selectedCategoryTypes.map((t) => (t === 'choose' ? 'Objective' : t === 'multi' ? 'Multiple Choice' : t === 'descriptive' ? 'Descriptive' : t));
       chips.push({ key: 'type', label: `Type: ${typeLabels.join(', ')}`, removable: true });
     }
+    if (this.selectedDepartments.length) {
+      const names = this.selectedDepartments.map(
+        (id) => this.departments.find((department) => String(department.id) === String(id))?.name || id
+      );
+      chips.push({ key: 'department', label: `Department: ${names.join(', ')}`, removable: true });
+    }
+    if (this.selectedTeams.length) {
+      const names = this.selectedTeams.map(
+        (id) => this.teams.find((team) => String(team.id) === String(id))?.name || id
+      );
+      chips.push({ key: 'team', label: `Team: ${names.join(', ')}`, removable: true });
+    }
     const createdAfter = this.formatFilterDate(this.filterCreationDateAfter);
     const createdBefore = this.formatFilterDate(this.filterCreationDate);
     if (createdAfter && createdBefore) {
@@ -1832,10 +1892,6 @@ export class AdminQuestionsComponent {
     if (this.filterPublicAccess) {
       chips.push({ key: 'public_access', label: 'Public access', removable: true });
     }
-    if (this.filterActiveStatus !== null) {
-      chips.push({ key: 'active_status', label: `Status: ${this.filterActiveStatus ? 'Active' : 'Inactive'}`, removable: true });
-    }
-
     return chips;
   }
 
@@ -1847,6 +1903,7 @@ export class AdminQuestionsComponent {
       this.countrySearch = '';
     } else if (key === 'city') {
       this.filterCity = '';
+      this.selectedCities = [];
     } else if (key === 'industry') {
       this.selectedIndustries = [];
       this.industrySearch = '';
@@ -1857,6 +1914,11 @@ export class AdminQuestionsComponent {
       this.sectorSearch = '';
     } else if (key === 'type') {
       this.selectedCategoryTypes = [];
+    } else if (key === 'department') {
+      this.selectedDepartments = [];
+      this.selectedTeams = [];
+    } else if (key === 'team') {
+      this.selectedTeams = [];
     } else if (key === 'created_date' || key === 'created_after' || key === 'created_before') {
       this.filterCreationDateAfter = null;
       this.filterCreationDate = null;
@@ -1864,8 +1926,6 @@ export class AdminQuestionsComponent {
       this.filterCreatedByMe = false;
     } else if (key === 'public_access') {
       this.filterPublicAccess = false;
-    } else if (key === 'active_status') {
-      this.filterActiveStatus = null;
     }
     this.applyQuestionBankFilters();
   }
@@ -1875,7 +1935,7 @@ export class AdminQuestionsComponent {
   }
 
   // Reset filters & dismiss popup
-  resetQuestionBankFilters(reload: boolean = true) {
+  resetQuestionBankFilters(reload: boolean = true, closePanel: boolean = true) {
     this.showQuestionBankFilterError = false;
     this.selectedDepartments = [];
     this.selectedTeams = [];
@@ -1887,7 +1947,6 @@ export class AdminQuestionsComponent {
     this.filterCreationDate = null;
     this.filterCreatedByMe = false;
     this.filterPublicAccess = false;
-    this.filterActiveStatus = null;
     this.questionBankFiltersApplied = false;
     if (reload) {
       this.filterCountry = '';
@@ -1908,8 +1967,8 @@ export class AdminQuestionsComponent {
       } catch (e) {}
       this.loadCategories(this.questions?.[0]?.institute_id || '', true);
     }
-    // Close the popup after resetting
-    this.closeFiltersOverlay();
+    // Keep the popup open while an institute selection resets dependent filters.
+    if (closePanel) this.closeFiltersOverlay();
   }
   refreshCategoriesOnCategoryOpen(opened: boolean) {
     if (!opened) return;
@@ -1924,6 +1983,78 @@ export class AdminQuestionsComponent {
     this.categorySearchText = '';
     this.loadCategories(instId, false);
   }
+
+  private reloadFilteredInstitutes(): void {
+    this.loadInstitutes(() => {
+      const instituteStillAvailable = this.institutes.some(
+        (institute) => String(institute.institute_id) === String(this.filterInstituteId)
+      );
+      if (this.filterInstituteId && !instituteStillAvailable) {
+        this.filterInstituteId = '';
+        this.filterQuestionBankId = '';
+        this.selectedDepartments = [];
+        this.selectedTeams = [];
+        this.categories = [];
+        this.allCategories = [];
+      }
+    });
+  }
+
+  openFilterQuestionBankSearch(): void {
+    const instId = this.filterInstituteId;
+    this.categorySearchText = '';
+    if (!instId) {
+      this.categories = [];
+      this.allCategories = [];
+      return;
+    }
+    this.categorySearchText = '';
+    this.loadCategories(instId, false, false);
+  }
+
+  onFilterInstituteChange(instId: string): void {
+    this.filterInstituteId = this.getScopedInstituteId(instId);
+    this.filterQuestionBankId = '';
+    this.categorySearchText = '';
+    this.categories = [];
+    this.allCategories = [];
+    this.loadDepartments(this.filterInstituteId);
+    this.loadTeams(this.filterInstituteId);
+    if (this.filterInstituteId) this.loadCategories(this.filterInstituteId, false, false);
+  }
+
+  onFilterQuestionBankChange(categoryId: string): void {
+    this.filterQuestionBankId = categoryId || '';
+  }
+
+  onDepartmentFilterChange(): void {
+    this.selectedTeams = [];
+    this.filterQuestionBankId = '';
+    if (!this.filterInstituteId) {
+      this.teams = [];
+      this.categories = [];
+      this.allCategories = [];
+      return;
+    }
+    this.loadTeams(this.filterInstituteId);
+    this.loadCategories(this.filterInstituteId, false, false);
+  }
+
+  onQuestionBankFilterChange(): void {
+    this.filterQuestionBankId = '';
+    if (this.filterInstituteId) {
+      this.loadCategories(this.filterInstituteId, false, false);
+    }
+  }
+
+  getAppliedInstituteName(): string {
+    const instituteId = this.questions?.[0]?.institute_id || '';
+    const institute = this.allInstitutes.find(
+      (item) => String(item.institute_id) === String(instituteId)
+    );
+    return institute?.name || '';
+  }
+
   onCategorySearchChange(value: string | { name?: string; category_id?: string } | null) {
     if (value && typeof value === 'object') return;
     this.categorySearchText = String(value || '');

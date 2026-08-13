@@ -251,40 +251,66 @@
                                             <h4><mat-icon>tune</mat-icon> Filters</h4>
                                         </div>
                                         <div class="filter-panel-body">
-                                            <div class="filter-section">
-                                                <span class="filter-section-title">DATE RANGE</span>
+                                            <div class="compact-filter-grid">
+                                                <mat-form-field appearance="outline" class="filter-item">
+                                                    <mat-label>Department</mat-label>
+                                                    <mat-select multiple [(ngModel)]="questionBankFilterDepartments"
+                                                        [disabled]="!institute"
+                                                        (openedChange)="onQuestionBankDepartmentOpenedChange($event)">
+                                                        <mat-option class="select-search-option"
+                                                            (click)="$event.stopPropagation()">
+                                                            <input matInput class="select-search-input"
+                                                                placeholder="Search department"
+                                                                [(ngModel)]="questionBankDepartmentSearch"
+                                                                [ngModelOptions]="{ standalone: true }"
+                                                                (click)="$event.stopPropagation()"
+                                                                (keydown)="stopFilterSearchEvent($event)" />
+                                                        </mat-option>
+                                                        <mat-option *ngFor="let department of filteredQuestionBankDepartments"
+                                                            [value]="department.id">{{ department.name }}</mat-option>
+                                                    </mat-select>
+                                                </mat-form-field>
+
+                                                <mat-form-field appearance="outline" class="filter-item">
+                                                    <mat-label>Team</mat-label>
+                                                    <mat-select multiple [(ngModel)]="questionBankFilterTeams"
+                                                        [disabled]="!institute"
+                                                        (openedChange)="onQuestionBankTeamOpenedChange($event)">
+                                                        <mat-option class="select-search-option"
+                                                            (click)="$event.stopPropagation()">
+                                                            <input matInput class="select-search-input"
+                                                                placeholder="Search team"
+                                                                [(ngModel)]="questionBankTeamSearch"
+                                                                [ngModelOptions]="{ standalone: true }"
+                                                                (click)="$event.stopPropagation()"
+                                                                (keydown)="stopFilterSearchEvent($event)" />
+                                                        </mat-option>
+                                                        <mat-option *ngFor="let team of filteredQuestionBankTeams"
+                                                            [value]="team.id">{{ team.name }}</mat-option>
+                                                    </mat-select>
+                                                </mat-form-field>
+
                                                 <mat-form-field appearance="outline"
-                                                    class="filter-item date-range-field"
+                                                    class="filter-item date-range-field compact-full-row"
                                                     (click)="openCreatedDateRangePicker()" style="cursor: pointer;">
                                                     <input matInput readonly [value]="getCreatedDateRangeDisplay()"
-                                                        placeholder="Select date range" style="cursor: pointer;" />
-                                                    <mat-icon matSuffix
-                                                        style="cursor: pointer; color: #0284c7;">calendar_today</mat-icon>
+                                                        placeholder="Created Date" style="cursor: pointer;" />
+                                                    <mat-icon matSuffix>calendar_today</mat-icon>
                                                 </mat-form-field>
-                                            </div>
 
-                                            <div class="filter-section-divider"></div>
-
-                                            <div class="filter-section">
-                                                <span class="filter-section-title">TYPE</span>
-                                                <mat-form-field appearance="outline" class="filter-item full">
+                                                <mat-form-field appearance="outline"
+                                                    class="filter-item compact-full-row">
                                                     <mat-label>Type</mat-label>
-                                                    <mat-select multiple [(ngModel)]="selectedQuestionTypes" placeholder="Select Type">
+                                                    <mat-select multiple [(ngModel)]="selectedQuestionTypes"
+                                                        placeholder="Type">
                                                         <mat-option value="objective">Objective</mat-option>
                                                         <mat-option value="descriptive">Descriptive</mat-option>
                                                     </mat-select>
                                                 </mat-form-field>
-                                            </div>
 
-                                            <div class="filter-section-divider"></div>
-
-                                            <div class="filter-section">
-                                                <span class="filter-section-title">ACCESS & OWNERSHIP</span>
-                                                <div class="checkboxes-vertical">
-                                                    <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by
-                                                        me</mat-checkbox>
-                                                    <mat-checkbox [(ngModel)]="filterPublicAccess">Public
-                                                        access</mat-checkbox>
+                                                <div class="compact-access-row compact-full-row">
+                                                    <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by me</mat-checkbox>
+                                                    <mat-checkbox [(ngModel)]="filterPublicAccess">Public access</mat-checkbox>
                                                 </div>
                                             </div>
                                         </div>

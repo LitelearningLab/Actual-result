@@ -69,6 +69,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   // filter state for categories
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
+  questionBankFilterDepartments: string[] = [];
+  questionBankFilterTeams: string[] = [];
+  questionBankDepartmentSearch = '';
+  questionBankTeamSearch = '';
   selectedQuestionTypes: string[] = [];
   filterCreationDateAfter: Date | null = null;
   filterCreationDate: Date | null = null;
@@ -129,6 +133,44 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const term = (this.departmentFilterSearch || '').trim().toLowerCase();
     if (!term) return this.departments;
     return this.departments.filter(d => (d.name || '').toLowerCase().includes(term));
+  }
+
+  get filteredQuestionBankDepartments(): Array<{ id: string; name: string }> {
+    const term = (this.questionBankDepartmentSearch || '').trim().toLowerCase();
+    if (!term) return this.departments;
+    return this.departments.filter(department => (department.name || '').toLowerCase().includes(term));
+  }
+
+  get filteredQuestionBankTeams(): Array<{ id: string; name: string }> {
+    const term = (this.questionBankTeamSearch || '').trim().toLowerCase();
+    if (!term) return this.teams;
+    return this.teams.filter(team => (team.name || '').toLowerCase().includes(term));
+  }
+
+  onQuestionBankDepartmentOpenedChange(opened: boolean): void {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.questionBankDepartmentSearch = '';
+    }
+  }
+
+  onQuestionBankTeamOpenedChange(opened: boolean): void {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) { }
+      });
+    } else {
+      this.questionBankTeamSearch = '';
+    }
   }
   // 3. Focus search input when dropdown opens, and clear search input when closed
   onDepartmentOpenedChange(opened: boolean) {
@@ -888,8 +930,13 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (filters.created_after) params.push(`created_after=${encodeURIComponent(filters.created_after)}`);
     if (filters.created_before) params.push(`created_before=${encodeURIComponent(filters.created_before)}`);
     if (filters.type) params.push(`type=${encodeURIComponent(filters.type)}`);
-    if (typeof filters.created_by !== 'undefined' && filters.created_by && currentUser) params.push(`created_by=${encodeURIComponent(String(currentUser))}`);
-    if (typeof filters.public_access !== 'undefined' && filters.public_access !== null) params.push(`public_access=${encodeURIComponent(String(filters.public_access))}`);
+    if (filters.access_scope === 'owned_or_public' && currentUser) {
+      params.push('access_scope=owned_or_public');
+      params.push(`current_user_id=${encodeURIComponent(String(currentUser))}`);
+    } else {
+      if (typeof filters.created_by !== 'undefined' && filters.created_by && currentUser) params.push(`created_by=${encodeURIComponent(String(currentUser))}`);
+      if (typeof filters.public_access !== 'undefined' && filters.public_access !== null) params.push(`public_access=${encodeURIComponent(String(filters.public_access))}`);
+    }
     const url = params.length ? `${base}?${params.join('&')}` : base;
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -949,17 +996,20 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
             }
 
             // 3. Created by me match
-            let matchesCreatedBy = true;
-            if (this.filterCreatedByMe && currentUser) {
-              const creator = String(c.created_by || c.created_by_user_id || '');
-              matchesCreatedBy = (creator === String(currentUser));
-            }
+            let matchesAccess = true;
 
             // 4. Public access match — only filter when checkbox is checked
-            let matchesPublicAccess = true;
-            if (this.filterPublicAccess) {
+            if (this.filterCreatedByMe || this.filterPublicAccess) {
+              const creator = String(c.created_by_id || c.created_by_user_id || c.created_by || '');
+              const isOwned = !!currentUser && creator === String(currentUser);
               const isPublic = !!(c.public_access === true || c.public_access === 1 || String(c.public_access).toLowerCase() === 'true');
-              matchesPublicAccess = isPublic;
+              if (this.filterCreatedByMe && this.filterPublicAccess) {
+                matchesAccess = isOwned || isPublic;
+              } else if (this.filterCreatedByMe) {
+                matchesAccess = isOwned;
+              } else {
+                matchesAccess = isPublic;
+              }
             }
 
             // 5. Question Bank Type match
@@ -978,7 +1028,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
               });
             }
 
-            return matchesName && matchesDate && matchesCreatedBy && matchesPublicAccess && matchesType;
+            return matchesName && matchesDate && matchesAccess && matchesType;
           });
         })
       );
@@ -993,7 +1043,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.filterCreationDate ||
       this.filterCreatedByMe ||
       this.filterPublicAccess ||
-      (this.selectedQuestionTypes && this.selectedQuestionTypes.length > 0)
+      (this.selectedQuestionTypes && this.selectedQuestionTypes.length > 0) ||
+      this.questionBankFilterDepartments.length > 0 ||
+      this.questionBankFilterTeams.length > 0
     );
   }
 
@@ -1050,6 +1102,20 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       const typesFormatted = this.selectedQuestionTypes.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ');
       labels.push(`Type: ${typesFormatted}`);
     }
+    const departmentIds = this.questionBankFilterDepartments;
+    if (departmentIds.length) {
+      const names = departmentIds.map(id =>
+        this.departments.find(department => String(department.id) === String(id))?.name || id
+      );
+      labels.push(`Department: ${names.join(', ')}`);
+    }
+    const teamIds = this.questionBankFilterTeams;
+    if (teamIds.length) {
+      const names = teamIds.map(id =>
+        this.teams.find(team => String(team.id) === String(id))?.name || id
+      );
+      labels.push(`Team: ${names.join(', ')}`);
+    }
     if (this.filterCreatedByMe) labels.push('Created by me');
     if (this.filterPublicAccess) labels.push('Public access');
     return labels;
@@ -1063,8 +1129,17 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.filterCreationDateAfter) filters.created_after = (this.filterCreationDateAfter as Date).toISOString().slice(0, 10);
     if (this.filterCreationDate) filters.created_before = (this.filterCreationDate as Date).toISOString().slice(0, 10);
     if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) filters.type = this.selectedQuestionTypes.join(',');
-    if (this.filterCreatedByMe) filters.created_by = true;
-    if (this.filterPublicAccess) filters.public_access = true;
+    const departments = this.questionBankFilterDepartments;
+    const teams = this.questionBankFilterTeams;
+    if (departments.length) filters.departments = departments;
+    if (teams.length) filters.teams = teams;
+    if (this.filterCreatedByMe && this.filterPublicAccess) {
+      filters.access_scope = 'owned_or_public';
+    } else if (this.filterCreatedByMe) {
+      filters.created_by = true;
+    } else if (this.filterPublicAccess) {
+      filters.public_access = true;
+    }
     this.appliedQuestionBankFilters = this.getQuestionBankFilterLabels();
     this.loadCategoriesWithFilters(filters);
     this.closeFiltersOverlay();
@@ -1073,6 +1148,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
     this.selectedQuestionTypes = [];
+    this.questionBankFilterDepartments = [];
+    this.questionBankFilterTeams = [];
+    this.questionBankDepartmentSearch = '';
+    this.questionBankTeamSearch = '';
     this.filterCreatedByMe = false;
     this.filterPublicAccess = false;
     this.appliedQuestionBankFilters = [];
@@ -1093,6 +1172,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.categories = [];
       this.selectedDepartments = [];
       this.selectedTeams = [];
+      this.questionBankFilterDepartments = [];
+      this.questionBankFilterTeams = [];
+      this.questionBankDepartmentSearch = '';
+      this.questionBankTeamSearch = '';
       this.filterCreationDateAfter = null;
       this.filterCreationDate = null;
       this.filterCreatedByMe = false;

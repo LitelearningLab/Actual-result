@@ -102,14 +102,23 @@ def get_categories_list(request):
         teams = args.get("teams").split(",")
         teams_data = session.query(CategoriesTeams).filter(CategoriesTeams.team_id.in_(teams)).all()
         filter.append(Categories.category_id.in_([t.category_id for t in teams_data]))
-    if args.get("created_by") is not None:
-        filter.append(Categories.created_by == args.get("created_by"))
-    if args.get("public_access") is not None:
-        val = str(args.get("public_access")).lower()
-        if val in ['true', '1']:
-            filter.append(Categories.public_access == 1)
-        elif val in ['false', '0']:
-            filter.append(Categories.public_access == 0)
+    if args.get("type"):
+        category_types = [value.strip() for value in args.get("type").split(",") if value.strip()]
+        if category_types:
+            filter.append(Categories.type.in_(category_types))
+    if args.get("access_scope") == "owned_or_public":
+        current_user_id = args.get("current_user_id")
+        if current_user_id:
+            filter.append(or_(Categories.created_by == current_user_id, Categories.public_access == 1))
+    else:
+        if args.get("created_by") is not None:
+            filter.append(Categories.created_by == args.get("created_by"))
+        if args.get("public_access") is not None:
+            val = str(args.get("public_access")).lower()
+            if val in ['true', '1']:
+                filter.append(Categories.public_access == 1)
+            elif val in ['false', '0']:
+                filter.append(Categories.public_access == 0)
 
     categories = session.query(Categories).filter(*filter).all()
     categories_list =[]
