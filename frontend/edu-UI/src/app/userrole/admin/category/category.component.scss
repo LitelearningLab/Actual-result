@@ -2,23 +2,29 @@
 // Enterprise Category View
 // ============================================
 
-.category-filters-panel.admin-single-col {
-  min-width: 22rem !important;
-  max-width: 26rem !important;
+.category-filters-panel.admin-two-column {
+  min-width: 34rem !important;
+  max-width: 44rem !important;
 
   .filter-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0 1rem !important;
+  }
+
+  .filter-col {
     display: flex !important;
     flex-direction: column !important;
-    gap: 0 !important;
+    gap: 0.5rem !important;
+    width: 100%;
   }
 
-  .filter-col:first-child {
-    display: none !important;
-  }
-
-  .filter-col,
   .filter-item {
-    width: 100% !important;
+    width: 100%;
+  }
+
+  .filter-col-full {
+    grid-column: 1 / -1;
   }
 }
 
@@ -121,10 +127,6 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0,0,0,0.06);
 .category-filters-panel .filter-col { display: flex; flex-direction: column; gap: 0.5rem; }
 .category-filters-panel .filter-col-full { grid-column: 1 / -1; margin-bottom: 0.5rem; }
 .category-filters-panel .filter-checks { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.5rem; padding: 0.25rem 1.25rem 0.75rem; }
-
-// Regular admin logins: layout handles 2 columns naturally
-.category-filters-panel .filter-grid.admin-order .filter-col:nth-child(2) { order: 2; }
-.category-filters-panel .filter-grid.admin-order .filter-col:nth-child(3) { order: 1; }
 
 // Searchable filter dropdowns (Country/Industry/Sector)
 :host ::ng-deep .select-search-option { height: auto !important; min-height: 3rem; cursor: default; }

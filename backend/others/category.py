@@ -157,7 +157,16 @@ def get_category_details(request):
         teams = args.get("teams").split(",")
         filter.append(CategoriesTeams.team_id.in_(teams))
     if args.get("name"):
-        filter.append(Categories.name.ilike(f"%{args.get('name')}%"))
+        category_names = [
+            name.strip()
+            for name in args.get("name").split(",")
+            if name.strip()
+        ]
+        if category_names:
+            filter.append(or_(*[
+                Categories.name.ilike(f"%{name}%")
+                for name in category_names
+            ]))
     if args.get("active_status") is not None:
         filter.append(Categories.active_status == (1 if args.get("active_status") == 'true' else 0))
     if args.get("public_access") is not None:

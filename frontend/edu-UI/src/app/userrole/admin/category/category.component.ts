@@ -176,7 +176,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     private confirmService: ConfirmService,
     private globalInstituteContext: GlobalInstituteContextService,
     private dialog: MatDialog
-  ) {}
+  ) { }
 
   openCreatedDateRangePicker(): void {
     const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
@@ -191,6 +191,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       if (res) {
         this.filterCreationDateAfter = res.startDate;
         this.filterCreationDate = res.endDate;
+        this.onQuestionBankParentFilterChange();
       }
     });
   }
@@ -345,16 +346,26 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.onInstituteChange(instIds);
   }
 
-  onQuestionTypeChange() {
+  onQuestionBankParentFilterChange(): void {
     this.selectedCategoryNames = [];
+    this.categorySearch = '';
     this.loadCategoryOptions();
+  }
+
+  onQuestionTypeChange(): void {
+    this.onQuestionBankParentFilterChange();
+  }
+
+  onDepartmentFilterChange(): void {
+    this.selectedTeams = [];
+    this.onQuestionBankParentFilterChange();
   }
 
   refresh() {
     if (!this.hasAppliedFilters) {
       try {
         notify('Apply filters to fetch question banks', 'info');
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
     this.fetchCategories();
@@ -375,7 +386,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) {}
+      } catch (e) { }
       this.filtersOverlayRef = null;
     }
 
@@ -406,7 +417,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) {}
+      } catch (e) { }
       this.filtersOverlayRef = null;
     }
   }
@@ -629,12 +640,12 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   private getCategoryInstituteId(item: any): string {
     return String(
       item?.institute_id ??
-        item?.instituteId ??
-        item?.institute?.institute_id ??
-        item?.institute?.id ??
-        item?.institutes?.institute_id ??
-        item?.institutes?.id ??
-        ''
+      item?.instituteId ??
+      item?.institute?.institute_id ??
+      item?.institute?.id ??
+      item?.institutes?.institute_id ??
+      item?.institutes?.id ??
+      ''
     );
   }
 
@@ -692,13 +703,13 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           next: (res) => {
             try {
               notify('Question Bank deleted', 'success');
-            } catch (e) {}
+            } catch (e) { }
           },
           error: (err) => {
             console.error('Failed deleting question bank', err);
             try {
               notify('Failed to delete question bank', 'error');
-            } catch (e) {}
+            } catch (e) { }
             this.categories = prev;
             this.dataSource.data = this.categories;
           },
@@ -743,7 +754,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         this.syncInstituteSearch();
         if (onLoaded) onLoaded();
       },
-      error: () => {},
+      error: () => { },
     });
   }
 
@@ -1001,9 +1012,9 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
                 location?.country_code ||
                 (typeof rawCountry === 'object'
                   ? rawCountry?.country_id ||
-                    rawCountry?.id ||
-                    rawCountry?.country_code ||
-                    rawCountry?.code
+                  rawCountry?.id ||
+                  rawCountry?.country_code ||
+                  rawCountry?.code
                   : rawCountry);
               const countryName =
                 location?.country_name ||
@@ -1016,7 +1027,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
                     String(country.code).toLowerCase() === String(countryCode).toLowerCase()) ||
                   (countryName &&
                     String(country.name).trim().toLowerCase() ===
-                      String(countryName).trim().toLowerCase())
+                    String(countryName).trim().toLowerCase())
               );
               const resolved =
                 hierarchyMatch ||
@@ -1125,8 +1136,8 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     const countryCodes = this.selectedCountries?.length
       ? this.selectedCountries
       : this.filterCountry
-      ? [this.filterCountry]
-      : [];
+        ? [this.filterCountry]
+        : [];
     this.loadCitiesForCountry(countryCodes);
     this.refreshInstituteScope();
   }
@@ -1258,6 +1269,25 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
       params = params.set('type', this.selectedQuestionTypes.join(','));
+    }
+
+    if (this.selectedDepartments && this.selectedDepartments.length) {
+      params = params.set('departments', this.selectedDepartments.join(','));
+    }
+
+    if (this.selectedTeams && this.selectedTeams.length) {
+      params = params.set('teams', this.selectedTeams.join(','));
+    }
+
+    if (this.filterCreationDateAfter) {
+      params = params.set(
+        'created_after',
+        this.filterCreationDateAfter.toISOString().slice(0, 10)
+      );
+    }
+
+    if (this.filterCreationDate) {
+      params = params.set('created_before', this.filterCreationDate.toISOString().slice(0, 10));
     }
 
     this.http.get<any>(`${API_BASE}/category-details`, { params }).subscribe({
@@ -1429,7 +1459,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           'created_after',
           (this.filterCreationDateAfter as Date).toISOString().slice(0, 10)
         );
-      } catch (e) {}
+      } catch (e) { }
     }
     if (this.filterCreationDate) {
       try {
@@ -1437,7 +1467,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           'created_before',
           (this.filterCreationDate as Date).toISOString().slice(0, 10)
         );
-      } catch (e) {}
+      } catch (e) { }
     }
     if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') {
       params = params.set('active_status', String(this.filterActiveStatus));
@@ -1454,7 +1484,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
             params = params.set('created_by', String(userId));
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     // public access checkbox — only add param when checked (true)
     if (this.filterPublicAccess) {
@@ -1490,9 +1520,9 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
             institute:
               it.institute && typeof it.institute === 'object'
                 ? {
-                    institute_id: it.institute.institute_id || it.institute.id || null,
-                    institute_name: it.institute.institute_name || it.institute.name || null,
-                  }
+                  institute_id: it.institute.institute_id || it.institute.id || null,
+                  institute_name: it.institute.institute_name || it.institute.name || null,
+                }
                 : typeof it.institute === 'string'
                   ? { institute_id: null, institute_name: it.institute }
                   : it.institute || null,
@@ -1547,13 +1577,13 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.isSuperAdmin && !this.isGlobalInstituteActive && (!this.selectedInstitutes || !this.selectedInstitutes.length) && !this.selectedInstitute) {
       try {
         notify('Please select an institute', 'info');
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
     if (!this.hasFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
     this.hasAppliedFilters = true;
@@ -1637,13 +1667,13 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
             next: () => {
               try {
                 notify(`Question Bank ${action}d`, 'success');
-              } catch (e) {}
+              } catch (e) { }
             },
             error: (err) => {
               console.error('Failed updating category state', err);
               try {
                 notify('Failed to update question bank status', 'error');
-              } catch (e) {}
+              } catch (e) { }
               element.active = prev;
               element.active_status = prev;
             },
@@ -1694,14 +1724,14 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           this.saveCategoryReturnState();
           try {
             sessionStorage.setItem('edit_category', JSON.stringify(category));
-          } catch (e) {}
+          } catch (e) { }
           this.router.navigate(['/category/create']);
         },
         error: () => {
           this.saveCategoryReturnState();
           try {
             sessionStorage.setItem('edit_category', JSON.stringify(element));
-          } catch (e) {}
+          } catch (e) { }
           this.router.navigate(['/category/create']);
         },
         complete: () => {
@@ -1773,7 +1803,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           categories: this.categories,
         })
       );
-    } catch (e) {}
+    } catch (e) { }
   }
 
   private restoreCategoryReturnState(): void {
@@ -1839,7 +1869,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch (e) {
       try {
         sessionStorage.removeItem('category_return_state');
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 
@@ -1858,7 +1888,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.hasAppliedFilters = false;
     try {
       sessionStorage.removeItem('category_return_state');
-    } catch (e) {}
+    } catch (e) { }
     // Reload filter options only; records remain empty until the user applies filters.
     this.onInstituteChange(instituteId);
   }
@@ -1901,7 +1931,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.closeFiltersOverlay();
     try {
       sessionStorage.removeItem('category_return_state');
-    } catch (e) {}
+    } catch (e) { }
     this.loadFilterLists();
     this.loadCategoryOptions();
   }
