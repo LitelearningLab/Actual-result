@@ -182,6 +182,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     return this.isSuperAdmin && !this.isGlobalInstituteActive;
   }
 
+  get showCountryCityFilters(): boolean {
+    return !this.isGlobalInstituteActive;
+  }
+
   private _subs: Subscription | null = null;
   private _globalInstituteSub: Subscription | null = null;
   private activeInstituteId = '';
@@ -313,23 +317,84 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     }
   }
 
+  // --- Memoization cache to prevent change-detection loops ---
+  private _memoCache: Record<string, { key: string; result: any }> = {};
+
+  private _memoize<T>(cacheKey: string, depKey: string, computeFn: () => T): T {
+    const cached = this._memoCache[cacheKey];
+    if (cached && cached.key === depKey) {
+      return cached.result;
+    }
+    const result = computeFn();
+    this._memoCache[cacheKey] = { key: depKey, result };
+    return result;
+  }
+
+  // --- TrackBy Helper Methods ---
+  trackByCode(index: number, item: any): string {
+    return item?.code || item?.id || item?.name || index;
+  }
+  trackById(index: number, item: any): string {
+    return item?.id || item?.institute_id || item?.dept_id || item?.team_id || item?.name || index;
+  }
+  trackByValue(index: number, item: any): string {
+    return item?.value ?? item ?? index;
+  }
+  trackByKey(index: number, item: any): string {
+    return item?.key || index;
+  }
+  trackBySno(index: number, item: any): any {
+    return item?.id || index;
+  }
+
   // --- Country Logic ---
   get filteredCountriesForFilter() {
-    const term = (this.countryFilterSearch || '').trim().toLowerCase();
-    let list = this.countries || [];
-    if (term) {
-      list = list.filter(
-        (c) =>
-          (c.name || '').toLowerCase().includes(term) ||
-          (this.selectedCountries || []).includes(c.code)
-      );
-    }
-    return [...list].sort((a, b) => {
-      const aSel = (this.selectedCountries || []).includes(a.code);
-      const bSel = (this.selectedCountries || []).includes(b.code);
-      if (aSel && !bSel) return -1;
-      if (!aSel && bSel) return 1;
-      return (a.name || '').localeCompare(b.name || '');
+    const depKey = `${this.countryFilterSearch}|${this.isSuperAdmin}|${(this.selectedCountries || []).join(',')}|${(this.countries || []).length}|${(this.campuses || []).length}`;
+    return this._memoize('filteredCountries', depKey, () => {
+      const term = (this.countryFilterSearch || '').trim().toLowerCase();
+      let list = this.countries || [];
+
+      // Fallback: if countries list is empty for Admin Login, build from loaded campuses
+      if (!list.length && !this.isSuperAdmin && this.campuses && this.campuses.length > 0) {
+        const uniqueMap = new Map<string, { code: string; name: string }>();
+        this.campuses.forEach((c: any) => {
+          const code = c.country_id || c.country_name;
+          const name = c.country_name || c.country_id;
+          if (code && name) {
+            uniqueMap.set(String(code).toLowerCase(), { code: String(code), name: String(name) });
+          }
+        });
+        list = Array.from(uniqueMap.values());
+      } else if (!this.isSuperAdmin && this.campuses && this.campuses.length > 0) {
+        const campusCountryKeys = new Set(
+          this.campuses
+            .flatMap((c: any) => [
+              String(c.country_id || '').toLowerCase(),
+              String(c.country_name || '').toLowerCase(),
+            ])
+            .filter(Boolean)
+        );
+        list = list.filter(
+          (c) =>
+            campusCountryKeys.has(String(c.code || '').toLowerCase()) ||
+            campusCountryKeys.has(String(c.name || '').toLowerCase())
+        );
+      }
+
+      if (term) {
+        list = list.filter(
+          (c) =>
+            (c.name || '').toLowerCase().includes(term) ||
+            (this.selectedCountries || []).includes(c.code)
+        );
+      }
+      return [...list].sort((a, b) => {
+        const aSel = (this.selectedCountries || []).includes(a.code);
+        const bSel = (this.selectedCountries || []).includes(b.code);
+        if (aSel && !bSel) return -1;
+        if (!aSel && bSel) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
     });
   }
 
@@ -349,21 +414,53 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   get filteredCitiesForFilter(): Array<{ code: string; name: string }> {
-    const term = (this.cityFilterSearch || '').trim().toLowerCase();
-    let list = this.cities || [];
-    if (term) {
-      list = list.filter(
-        (c) =>
-          (c.name || '').toLowerCase().includes(term) ||
-          (this.selectedCities || []).includes(c.name)
-      );
-    }
-    return [...list].sort((a, b) => {
-      const aSel = (this.selectedCities || []).includes(a.name);
-      const bSel = (this.selectedCities || []).includes(b.name);
-      if (aSel && !bSel) return -1;
-      if (!aSel && bSel) return 1;
-      return (a.name || '').localeCompare(b.name || '');
+    const depKey = `${this.cityFilterSearch}|${this.isSuperAdmin}|${(this.selectedCountries || []).join(',')}|${(this.selectedCities || []).join(',')}|${(this.cities || []).length}|${(this.campuses || []).length}`;
+    return this._memoize('filteredCities', depKey, () => {
+      const term = (this.cityFilterSearch || '').trim().toLowerCase();
+      let list = this.cities || [];
+
+      if (!this.isSuperAdmin && this.campuses && this.campuses.length > 0) {
+        let relevantCampuses = this.campuses;
+        if (this.selectedCountries && this.selectedCountries.length > 0) {
+          const selectedCodes = this.selectedCountries.map((c) => c.toLowerCase());
+          relevantCampuses = relevantCampuses.filter((c: any) =>
+            selectedCodes.some(
+              (sc) =>
+                sc === String(c.country_id || '').toLowerCase() ||
+                sc === String(c.country_name || '').toLowerCase()
+            )
+          );
+        }
+        const campusCityMap = new Map<string, { code: string; name: string }>();
+        relevantCampuses.forEach((c: any) => {
+          const cityName = c.city_name || c.city_id;
+          if (cityName) {
+            const key = String(cityName).trim().toLowerCase();
+            if (!campusCityMap.has(key)) {
+              campusCityMap.set(key, {
+                code: String(c.city_id || cityName),
+                name: String(cityName),
+              });
+            }
+          }
+        });
+        list = Array.from(campusCityMap.values());
+      }
+
+      if (term) {
+        list = list.filter(
+          (c) =>
+            (c.name || '').toLowerCase().includes(term) ||
+            (this.selectedCities || []).includes(c.name)
+        );
+      }
+      return [...list].sort((a, b) => {
+        const aSel = (this.selectedCities || []).includes(a.name);
+        const bSel = (this.selectedCities || []).includes(b.name);
+        if (aSel && !bSel) return -1;
+        if (!aSel && bSel) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
     });
   }
 
@@ -384,19 +481,22 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   // --- Industry Logic ---
   get filteredIndustryTypesForFilter(): string[] {
-    const term = (this.industryFilterSearch || '').trim().toLowerCase();
-    let list = this.industryTypes || [];
-    if (term) {
-      list = list.filter(
-        (t) => t.toLowerCase().includes(term) || (this.selectedIndustries || []).includes(t)
-      );
-    }
-    return [...list].sort((a, b) => {
-      const aSel = (this.selectedIndustries || []).includes(a);
-      const bSel = (this.selectedIndustries || []).includes(b);
-      if (aSel && !bSel) return -1;
-      if (!aSel && bSel) return 1;
-      return a.localeCompare(b);
+    const depKey = `${this.industryFilterSearch}|${(this.selectedIndustries || []).join(',')}|${(this.industryTypes || []).length}`;
+    return this._memoize('filteredIndustryTypes', depKey, () => {
+      const term = (this.industryFilterSearch || '').trim().toLowerCase();
+      let list = this.industryTypes || [];
+      if (term) {
+        list = list.filter(
+          (t) => t.toLowerCase().includes(term) || (this.selectedIndustries || []).includes(t)
+        );
+      }
+      return [...list].sort((a, b) => {
+        const aSel = (this.selectedIndustries || []).includes(a);
+        const bSel = (this.selectedIndustries || []).includes(b);
+        if (aSel && !bSel) return -1;
+        if (!aSel && bSel) return 1;
+        return a.localeCompare(b);
+      });
     });
   }
 
@@ -428,20 +528,23 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   get filteredSectorsForFilter(): string[] {
-    const scoped = this.scopedSectorsList || [];
-    const term = (this.sectorFilterSearch || '').trim().toLowerCase();
-    let list = scoped;
-    if (term) {
-      list = list.filter(
-        (s) => s.toLowerCase().includes(term) || (this.selectedSectors || []).includes(s)
-      );
-    }
-    return [...list].sort((a, b) => {
-      const aSel = (this.selectedSectors || []).includes(a);
-      const bSel = (this.selectedSectors || []).includes(b);
-      if (aSel && !bSel) return -1;
-      if (!aSel && bSel) return 1;
-      return a.localeCompare(b);
+    const depKey = `${this.sectorFilterSearch}|${(this.selectedIndustries || []).join(',')}|${(this.selectedSectors || []).join(',')}`;
+    return this._memoize('filteredSectors', depKey, () => {
+      const scoped = this.scopedSectorsList || [];
+      const term = (this.sectorFilterSearch || '').trim().toLowerCase();
+      let list = scoped;
+      if (term) {
+        list = list.filter(
+          (s) => s.toLowerCase().includes(term) || (this.selectedSectors || []).includes(s)
+        );
+      }
+      return [...list].sort((a, b) => {
+        const aSel = (this.selectedSectors || []).includes(a);
+        const bSel = (this.selectedSectors || []).includes(b);
+        if (aSel && !bSel) return -1;
+        if (!aSel && bSel) return 1;
+        return a.localeCompare(b);
+      });
     });
   }
 
@@ -476,61 +579,72 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   get filteredInstitutesForFilter() {
-    const term = (this.instituteFilterSearch || '').trim().toLowerCase();
-    let list = this.institutes || [];
-    if (term) {
-      list = list.filter(
-        (i) =>
-          (i.institute_name || (i as any).name || '').toLowerCase().includes(term) ||
-          (!!i.institute_id && this.selectedInstitutes.includes(i.institute_id))
-      );
-    }
-    return [...list].sort((a, b) => {
-      const aSel = !!a.institute_id && this.selectedInstitutes.includes(a.institute_id);
-      const bSel = !!b.institute_id && this.selectedInstitutes.includes(b.institute_id);
-      if (aSel && !bSel) return -1;
-      if (!aSel && bSel) return 1;
-      return (a.institute_name || (a as any).name || '').localeCompare(
-        b.institute_name || (b as any).name || ''
-      );
+    const depKey = `${this.instituteFilterSearch}|${(this.selectedInstitutes || []).join(',')}|${(this.institutes || []).length}`;
+    return this._memoize('filteredInstitutes', depKey, () => {
+      const term = (this.instituteFilterSearch || '').trim().toLowerCase();
+      let list = this.institutes || [];
+      if (term) {
+        list = list.filter(
+          (i) =>
+            (i.institute_name || (i as any).name || '').toLowerCase().includes(term) ||
+            (!!i.institute_id && this.selectedInstitutes.includes(i.institute_id))
+        );
+      }
+      return [...list].sort((a, b) => {
+        const aSel = !!a.institute_id && this.selectedInstitutes.includes(a.institute_id);
+        const bSel = !!b.institute_id && this.selectedInstitutes.includes(b.institute_id);
+        if (aSel && !bSel) return -1;
+        if (!aSel && bSel) return 1;
+        return (a.institute_name || (a as any).name || '').localeCompare(
+          b.institute_name || (b as any).name || ''
+        );
+      });
     });
   }
 
   get filteredDepartmentsForFilter() {
-    const term = (this.departmentFilterSearch || '').trim().toLowerCase();
-    let list = this.departments || [];
-    if (term) {
-      list = list.filter(
-        (d) =>
-          (d.name || '').toLowerCase().includes(term) ||
-          (Array.isArray(this.filters.department) && this.filters.department.includes(d.id))
-      );
-    }
-    return [...list].sort((a, b) => {
-      const aSel = Array.isArray(this.filters.department) && this.filters.department.includes(a.id);
-      const bSel = Array.isArray(this.filters.department) && this.filters.department.includes(b.id);
-      if (aSel && !bSel) return -1;
-      if (!aSel && bSel) return 1;
-      return (a.name || '').localeCompare(b.name || '');
+    const selectedDepts = Array.isArray(this.filters.department) ? this.filters.department.join(',') : this.filters.department || '';
+    const depKey = `${this.departmentFilterSearch}|${selectedDepts}|${(this.departments || []).length}`;
+    return this._memoize('filteredDepartments', depKey, () => {
+      const term = (this.departmentFilterSearch || '').trim().toLowerCase();
+      let list = this.departments || [];
+      if (term) {
+        list = list.filter(
+          (d) =>
+            (d.name || '').toLowerCase().includes(term) ||
+            (Array.isArray(this.filters.department) && this.filters.department.includes(d.id))
+        );
+      }
+      return [...list].sort((a, b) => {
+        const aSel = Array.isArray(this.filters.department) && this.filters.department.includes(a.id);
+        const bSel = Array.isArray(this.filters.department) && this.filters.department.includes(b.id);
+        if (aSel && !bSel) return -1;
+        if (!aSel && bSel) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
     });
   }
 
   get filteredTeamsForFilter() {
-    const term = (this.teamFilterSearch || '').trim().toLowerCase();
-    let list = this.teams || [];
-    if (term) {
-      list = list.filter(
-        (t) =>
-          (t.name || '').toLowerCase().includes(term) ||
-          (Array.isArray(this.filters.team) && this.filters.team.includes(t.id))
-      );
-    }
-    return [...list].sort((a, b) => {
-      const aSel = Array.isArray(this.filters.team) && this.filters.team.includes(a.id);
-      const bSel = Array.isArray(this.filters.team) && this.filters.team.includes(b.id);
-      if (aSel && !bSel) return -1;
-      if (!aSel && bSel) return 1;
-      return (a.name || '').localeCompare(b.name || '');
+    const selectedTeams = Array.isArray(this.filters.team) ? this.filters.team.join(',') : this.filters.team || '';
+    const depKey = `${this.teamFilterSearch}|${selectedTeams}|${(this.teams || []).length}`;
+    return this._memoize('filteredTeams', depKey, () => {
+      const term = (this.teamFilterSearch || '').trim().toLowerCase();
+      let list = this.teams || [];
+      if (term) {
+        list = list.filter(
+          (t) =>
+            (t.name || '').toLowerCase().includes(term) ||
+            (Array.isArray(this.filters.team) && this.filters.team.includes(t.id))
+        );
+      }
+      return [...list].sort((a, b) => {
+        const aSel = Array.isArray(this.filters.team) && this.filters.team.includes(a.id);
+        const bSel = Array.isArray(this.filters.team) && this.filters.team.includes(b.id);
+        if (aSel && !bSel) return -1;
+        if (!aSel && bSel) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
     });
   }
 
@@ -584,10 +698,38 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   get filteredCampusesForFilter() {
-    const query = (this.campusFilterSearch || '').trim().toLowerCase();
-    return query
-      ? this.campuses.filter((c) => c.name.toLowerCase().includes(query))
-      : this.campuses;
+    const depKey = `${this.campusFilterSearch}|${this.isSuperAdmin}|${(this.selectedCountries || []).join(',')}|${(this.selectedCities || []).join(',')}|${(this.campuses || []).length}`;
+    return this._memoize('filteredCampuses', depKey, () => {
+      let result = this.campuses || [];
+
+      if (!this.isSuperAdmin) {
+        if (this.selectedCountries && this.selectedCountries.length) {
+          const selectedCodes = this.selectedCountries.map((c) => c.toLowerCase());
+          result = result.filter((c: any) =>
+            selectedCodes.some(
+              (sc) =>
+                sc === String(c.country_id || '').toLowerCase() ||
+                sc === String(c.country_name || '').toLowerCase()
+            )
+          );
+        }
+        if (this.selectedCities && this.selectedCities.length) {
+          const selectedCityNames = this.selectedCities.map((ct) => ct.toLowerCase());
+          result = result.filter((c: any) =>
+            selectedCityNames.some(
+              (sc) =>
+                sc === String(c.city_id || '').toLowerCase() ||
+                sc === String(c.city_name || '').toLowerCase()
+            )
+          );
+        }
+      }
+
+      const query = (this.campusFilterSearch || '').trim().toLowerCase();
+      return query
+        ? result.filter((c) => c.name.toLowerCase().includes(query))
+        : result;
+    });
   }
 
   isAllCampusesSelected(): boolean {
@@ -758,6 +900,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             ...data.map((c: any) => ({
               id: String(c.campus_id || c.id),
               name: c.campus_name || c.name,
+              country_id: String(c.country?.country_id || c.country_id || ''),
+              country_name: String(c.country?.country_name || c.country_name || ''),
+              city_id: String(c.city?.city_id || c.city_id || ''),
+              city_name: String(c.city?.city_name || c.city_name || ''),
             }))
           );
         });
@@ -812,134 +958,140 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     removable: boolean;
     tooltip?: string;
   }> {
-    if (!this.hasAppliedFilters) return [];
-    const chips: Array<{ key: string; label: string; removable: boolean; tooltip?: string }> = [];
+    const deptStr = Array.isArray(this.filters.department) ? this.filters.department.join(',') : this.filters.department || '';
+    const teamStr = Array.isArray(this.filters.team) ? this.filters.team.join(',') : this.filters.team || '';
+    const depKey = `${this.hasAppliedFilters}|${(this.selectedInstitutes || []).join(',')}|${this.filters.institute}|${this.selectedInstitute}|${(this.selectedCountries || []).join(',')}|${this.filters.country}|${(this.selectedIndustries || []).join(',')}|${this.filters.industry}|${(this.selectedSectors || []).join(',')}|${this.filters.sector}|${this.isActive}|${this.filters.name}|${(this.selectedCities || []).join(',')}|${this.filters.city}|${deptStr}|${teamStr}|${(this.selectedCampuses || []).join(',')}|${this.isSuperAdmin}`;
 
-    // Institute Chip
-    if (this.selectedInstitutes && this.selectedInstitutes.length) {
-      if (this.selectedInstitutes.length === 1) {
-        const name = this.getInstituteLabel(this.selectedInstitutes[0]);
+    return this._memoize('appliedFilterChips', depKey, () => {
+      if (!this.hasAppliedFilters) return [];
+      const chips: Array<{ key: string; label: string; removable: boolean; tooltip?: string }> = [];
+
+      // Institute Chip
+      if (this.selectedInstitutes && this.selectedInstitutes.length) {
+        if (this.selectedInstitutes.length === 1) {
+          const name = this.getInstituteLabel(this.selectedInstitutes[0]);
+          chips.push({
+            key: 'institute',
+            label: `Institute: ${name}`,
+            removable: this.isSuperAdmin,
+            tooltip: name,
+          });
+        } else {
+          const labels = this.selectedInstitutes
+            .map((id) => this.getInstituteLabel(id))
+            .filter(Boolean);
+          chips.push({
+            key: 'institute',
+            label: `Institutes: ${this.selectedInstitutes.length} selected`,
+            removable: this.isSuperAdmin,
+            tooltip: labels.join(', '),
+          });
+        }
+      } else if (this.filters.institute || this.selectedInstitute) {
+        const instId = this.filters.institute || this.selectedInstitute;
+        const name = this.getInstituteLabel(instId);
         chips.push({
           key: 'institute',
           label: `Institute: ${name}`,
           removable: this.isSuperAdmin,
           tooltip: name,
         });
-      } else {
-        const labels = this.selectedInstitutes
-          .map((id) => this.getInstituteLabel(id))
-          .filter(Boolean);
+      }
+
+      // Country Chip
+      if (this.selectedCountries && this.selectedCountries.length) {
+        const countryNames = this.selectedCountries.map((code) =>
+          this.getSelectedName(this.countries, code, 'code')
+        );
         chips.push({
-          key: 'institute',
-          label: `Institutes: ${this.selectedInstitutes.length} selected`,
-          removable: this.isSuperAdmin,
-          tooltip: labels.join(', '),
+          key: 'country',
+          label: `Country: ${countryNames.join(', ')}`,
+          removable: true,
+        });
+      } else if (this.filters.country) {
+        chips.push({
+          key: 'country',
+          label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`,
+          removable: true,
         });
       }
-    } else if (this.filters.institute || this.selectedInstitute) {
-      const instId = this.filters.institute || this.selectedInstitute;
-      const name = this.getInstituteLabel(instId);
-      chips.push({
-        key: 'institute',
-        label: `Institute: ${name}`,
-        removable: this.isSuperAdmin,
-        tooltip: name,
-      });
-    }
 
-    // Country Chip
-    if (this.selectedCountries && this.selectedCountries.length) {
-      const countryNames = this.selectedCountries.map((code) =>
-        this.getSelectedName(this.countries, code, 'code')
-      );
-      chips.push({
-        key: 'country',
-        label: `Country: ${countryNames.join(', ')}`,
-        removable: true,
-      });
-    } else if (this.filters.country) {
-      chips.push({
-        key: 'country',
-        label: `Country: ${this.getSelectedName(this.countries, this.filters.country, 'code')}`,
-        removable: true,
-      });
-    }
+      // Industry Chip
+      if (this.selectedIndustries && this.selectedIndustries.length) {
+        chips.push({
+          key: 'industry',
+          label: `Industry: ${this.selectedIndustries.join(', ')}`,
+          removable: true,
+        });
+      } else if (this.filters.industry) {
+        chips.push({ key: 'industry', label: `Industry: ${this.filters.industry}`, removable: true });
+      }
 
-    // Industry Chip
-    if (this.selectedIndustries && this.selectedIndustries.length) {
-      chips.push({
-        key: 'industry',
-        label: `Industry: ${this.selectedIndustries.join(', ')}`,
-        removable: true,
-      });
-    } else if (this.filters.industry) {
-      chips.push({ key: 'industry', label: `Industry: ${this.filters.industry}`, removable: true });
-    }
+      // Sector Chip
+      if (this.selectedSectors && this.selectedSectors.length) {
+        chips.push({
+          key: 'sector',
+          label: `Sector: ${this.selectedSectors.join(', ')}`,
+          removable: true,
+        });
+      } else if (this.filters.sector) {
+        chips.push({ key: 'sector', label: `Sector: ${this.filters.sector}`, removable: true });
+      }
 
-    // Sector Chip
-    if (this.selectedSectors && this.selectedSectors.length) {
-      chips.push({
-        key: 'sector',
-        label: `Sector: ${this.selectedSectors.join(', ')}`,
-        removable: true,
-      });
-    } else if (this.filters.sector) {
-      chips.push({ key: 'sector', label: `Sector: ${this.filters.sector}`, removable: true });
-    }
+      // Active Status Chip
+      if (this.isActive) {
+        chips.push({
+          key: 'active_status',
+          label: `Status: Active`,
+          removable: true,
+        });
+      }
 
-    // Active Status Chip
-    if (this.isActive) {
-      chips.push({
-        key: 'active_status',
-        label: `Status: Active`,
-        removable: true,
-      });
-    }
+      // Name Chip
+      if (this.filters.name)
+        chips.push({ key: 'name', label: `Name: ${this.filters.name}`, removable: true });
 
-    // Name Chip
-    if (this.filters.name)
-      chips.push({ key: 'name', label: `Name: ${this.filters.name}`, removable: true });
+      // City Chip
+      if (this.selectedCities && this.selectedCities.length) {
+        chips.push({
+          key: 'city',
+          label: `City: ${this.selectedCities.join(', ')}`,
+          removable: true,
+        });
+      } else if (this.filters.city) {
+        chips.push({ key: 'city', label: `City: ${this.filters.city}`, removable: true });
+      }
 
-    // City Chip
-    if (this.selectedCities && this.selectedCities.length) {
-      chips.push({
-        key: 'city',
-        label: `City: ${this.selectedCities.join(', ')}`,
-        removable: true,
-      });
-    } else if (this.filters.city) {
-      chips.push({ key: 'city', label: `City: ${this.filters.city}`, removable: true });
-    }
+      // Department Chip
+      if (Array.isArray(this.filters.department) && this.filters.department.length) {
+        const labels = this.filters.department
+          .map((id: any) => this.getSelectedName(this.departments, id))
+          .filter(Boolean);
+        chips.push({
+          key: 'department',
+          label: `Departments: ${labels.join(', ')}`,
+          removable: true,
+        });
+      }
 
-    // Department Chip
-    if (Array.isArray(this.filters.department) && this.filters.department.length) {
-      const labels = this.filters.department
-        .map((id: any) => this.getSelectedName(this.departments, id))
-        .filter(Boolean);
-      chips.push({
-        key: 'department',
-        label: `Departments: ${labels.join(', ')}`,
-        removable: true,
-      });
-    }
+      // Team Chip
+      if (Array.isArray(this.filters.team) && this.filters.team.length) {
+        const labels = this.filters.team
+          .map((id: any) => this.getSelectedName(this.teams, id))
+          .filter(Boolean);
+        chips.push({ key: 'team', label: `Teams: ${labels.join(', ')}`, removable: true });
+      }
 
-    // Team Chip
-    if (Array.isArray(this.filters.team) && this.filters.team.length) {
-      const labels = this.filters.team
-        .map((id: any) => this.getSelectedName(this.teams, id))
-        .filter(Boolean);
-      chips.push({ key: 'team', label: `Teams: ${labels.join(', ')}`, removable: true });
-    }
+      // Campus Chip
+      if (this.selectedCampuses && this.selectedCampuses.length) {
+        const labels = this.selectedCampuses
+          .map((id: any) => this.getSelectedName(this.campuses, id))
+          .filter(Boolean);
+        chips.push({ key: 'campus', label: `Campus: ${labels.join(', ')}`, removable: true });
+      }
 
-    // Campus Chip
-    if (this.selectedCampuses && this.selectedCampuses.length) {
-      const labels = this.selectedCampuses
-        .map((id: any) => this.getSelectedName(this.campuses, id))
-        .filter(Boolean);
-      chips.push({ key: 'campus', label: `Campus: ${labels.join(', ')}`, removable: true });
-    }
-
-    return chips;
+      return chips;
+    });
   }
 
   removeAppliedFilter(key: string) {
@@ -1104,7 +1256,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     } else if (this.filters.team) {
       params.team = this.filters.team;
     }
-    if (this.filters.country) params.country = this.filters.country;
+    if (this.selectedCountries && this.selectedCountries.length) {
+      params.country = this.selectedCountries.join(',');
+    } else if (this.filters.country) {
+      params.country = this.filters.country;
+    }
     if (this.filters.state) params.state = this.filters.state;
     if (this.selectedCities && this.selectedCities.length)
       params.city = this.selectedCities.join(',');
@@ -1488,13 +1644,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         } catch (e) {
           /* ignore malformed session data */
         }
+        this.loading.hide();
       },
       error: () => {
         this.institutes = [];
         this.loading.hide();
       },
     });
-    this.loading.hide();
   }
 
   displayInstitute = (value: string | null): string => {
@@ -1680,7 +1836,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           : [];
 
     if (!selectedCountryCodes.length) {
-      this.refreshInstituteScope();
+      if (this.isSuperAdmin) {
+        this.refreshInstituteScope();
+      }
       return;
     }
 
@@ -1749,12 +1907,21 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           this.states = [];
           this.cities = [];
         }
-        this.refreshInstituteScope();
+        if (this.isSuperAdmin) {
+          this.refreshInstituteScope();
+        } else {
+          const validCityNames = new Set((this.filteredCitiesForFilter || []).map((c) => c.name));
+          this.selectedCities = (this.selectedCities || []).filter((name) => validCityNames.has(name));
+          const validCampusIds = new Set((this.filteredCampusesForFilter || []).map((c) => c.id));
+          this.selectedCampuses = (this.selectedCampuses || []).filter((id) => validCampusIds.has(id));
+        }
       },
       error: () => {
         this.states = [];
         this.cities = [];
-        this.refreshInstituteScope();
+        if (this.isSuperAdmin) {
+          this.refreshInstituteScope();
+        }
       },
     });
   }
@@ -1785,7 +1952,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   onCityFilterChange() {
-    this.refreshInstituteScope();
+    if (this.isSuperAdmin) {
+      this.refreshInstituteScope();
+    } else {
+      const validCampusIds = new Set((this.filteredCampusesForFilter || []).map((c) => c.id));
+      this.selectedCampuses = (this.selectedCampuses || []).filter((id) => validCampusIds.has(id));
+    }
   }
 
   onIndustryFilterChange() {

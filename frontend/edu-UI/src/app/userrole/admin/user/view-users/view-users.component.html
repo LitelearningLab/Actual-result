@@ -66,7 +66,7 @@
     <button
       type="button"
       class="applied-filter-chip"
-      *ngFor="let chip of appliedFilterChips"
+      *ngFor="let chip of appliedFilterChips; trackBy: trackByKey"
       [class.applied-filter-chip--locked]="!chip.removable"
       [matTooltip]="chip.tooltip || ''"
       [matTooltipDisabled]="!chip.tooltip"
@@ -126,14 +126,14 @@
                 <strong>Select All</strong>
               </mat-option>
               <mat-option
-                *ngFor="let inst of filteredInstitutesForFilter"
+                *ngFor="let inst of filteredInstitutesForFilter; trackBy: trackById"
                 [value]="inst.institute_id"
                 >{{ inst.institute_name }}</mat-option
               >
             </mat-select>
           </mat-form-field>
 
-          <ng-container *ngIf="showLocationAndIndustryFilters">
+          <ng-container *ngIf="showCountryCityFilters">
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>Country</mat-label>
               <mat-select
@@ -168,7 +168,7 @@
                   </mat-icon>
                   <strong>Select All</strong>
                 </mat-option>
-                <mat-option *ngFor="let c of filteredCountriesForFilter" [value]="c.code">{{
+                <mat-option *ngFor="let c of filteredCountriesForFilter; trackBy: trackByCode" [value]="c.code">{{
                   c.name
                 }}</mat-option>
               </mat-select>
@@ -220,12 +220,14 @@
                 </mat-option>
 
                 <!-- City Options with Checkboxes -->
-                <mat-option *ngFor="let city of filteredCitiesForFilter" [value]="city.name">
+                <mat-option *ngFor="let city of filteredCitiesForFilter; trackBy: trackByCode" [value]="city.name">
                   {{ city.name }}
                 </mat-option>
               </mat-select>
             </mat-form-field>
+          </ng-container>
 
+          <ng-container *ngIf="showLocationAndIndustryFilters">
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>Industry</mat-label>
               <mat-select
@@ -260,7 +262,7 @@
                   </mat-icon>
                   <strong>Select All</strong>
                 </mat-option>
-                <mat-option *ngFor="let t of filteredIndustryTypesForFilter" [value]="t">{{
+                <mat-option *ngFor="let t of filteredIndustryTypesForFilter; trackBy: trackByValue" [value]="t">{{
                   t
                 }}</mat-option>
               </mat-select>
@@ -301,7 +303,7 @@
                   </mat-icon>
                   <strong>Select All</strong>
                 </mat-option>
-                <mat-option *ngFor="let s of filteredSectorsForFilter" [value]="s">{{
+                <mat-option *ngFor="let s of filteredSectorsForFilter; trackBy: trackByValue" [value]="s">{{
                   s
                 }}</mat-option>
               </mat-select>
@@ -343,7 +345,7 @@
                 </mat-icon>
                 <strong>Select All</strong>
               </mat-option>
-              <mat-option *ngFor="let d of filteredDepartmentsForFilter" [value]="d.id">{{
+              <mat-option *ngFor="let d of filteredDepartmentsForFilter; trackBy: trackById" [value]="d.id">{{
                 d.name
               }}</mat-option>
             </mat-select>
@@ -383,7 +385,7 @@
                 </mat-icon>
                 <strong>Select All</strong>
               </mat-option>
-              <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id">{{
+              <mat-option *ngFor="let t of filteredTeamsForFilter; trackBy: trackById" [value]="t.id">{{
                 t.name
               }}</mat-option>
             </mat-select>
@@ -429,7 +431,7 @@
               </mat-option>
 
               <!-- Campus Options -->
-              <mat-option *ngFor="let c of filteredCampusesForFilter" [value]="c.id">
+              <mat-option *ngFor="let c of filteredCampusesForFilter; trackBy: trackById" [value]="c.id">
                 {{ c.name }}
               </mat-option>
             </mat-select>
