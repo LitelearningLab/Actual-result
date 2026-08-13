@@ -121,7 +121,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   // additional filters
   filterCreationDateAfter: Date | null = null;
   filterCreationDate: Date | null = null;
-  filterActiveStatus: boolean | null = null;
+  filterActiveStatus: boolean | null = true;
   // checkbox filters
   filterCreatedByMe: boolean = false; // if true, only categories created by current user
   filterPublicAccess: boolean | null = null; // tri-state: null = any, true = public, false = restricted
@@ -1603,7 +1603,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedTeams = [];
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
-    this.filterActiveStatus = null;
+    this.filterActiveStatus = true;
     this.filterCreatedByMe = false;
     this.filterPublicAccess = null;
     this.filterCountry = '';
@@ -1852,7 +1852,9 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         ? new Date(state.filterCreationDate)
         : null;
       this.filterActiveStatus =
-        typeof state?.filterActiveStatus === 'undefined' ? null : state.filterActiveStatus;
+        typeof state?.filterActiveStatus === 'undefined'
+          ? true
+          : state.filterActiveStatus;
       this.filterCreatedByMe = !!state?.filterCreatedByMe;
       this.filterPublicAccess =
         typeof state?.filterPublicAccess === 'undefined' ? null : state.filterPublicAccess;
@@ -1918,7 +1920,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.sectorSearch = '';
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
-    this.filterActiveStatus = null;
+    this.filterActiveStatus = true;
     this.filterCreatedByMe = false;
     this.filterPublicAccess = null;
     this.hasAppliedFilters = false;
