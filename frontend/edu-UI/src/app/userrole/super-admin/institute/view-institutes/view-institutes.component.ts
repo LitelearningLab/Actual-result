@@ -1681,7 +1681,9 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
       this.rawRecords = [];
       this.dataSource.data = [];
       this.applyFilter(this.filter || '');
-      this.loadInstitutes();
+      if (this.hasAppliedFilters) {
+        this.loadInstitutes();
+      }
     } catch (e) {
       try {
         sessionStorage.removeItem('institute_return_state');

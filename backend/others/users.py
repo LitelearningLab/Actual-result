@@ -2,7 +2,7 @@ import pandas as pd
 from db.models import User, Institute, InstituteDepartment, InstituteTeam,InstituteCampus
 from db.models import Credential, UserPageAccess, Page, Country, State,City
 from db.db import SQLiteDB
-from datetime import datetime
+from datetime import datetime, timedelta
 from passlib.hash import argon2
 from sqlalchemy import or_
 
@@ -678,6 +678,21 @@ def get_user_details(request):
         filter.append(User.full_name.ilike(f"%{args.get('name')}%"))
     if args.get("active_status") is not None:
         filter.append(User.active_status == (1 if args.get("active_status") == 'true' else 0))
+
+    joined_after = str(args.get("joined_after") or '').strip()
+    if joined_after:
+        try:
+            filter.append(User.joining_date >= datetime.strptime(joined_after, "%Y-%m-%d"))
+        except ValueError:
+            return {"status": False, "statusMessage": "joined_after must use YYYY-MM-DD"}, 400
+
+    joined_before = str(args.get("joined_before") or '').strip()
+    if joined_before:
+        try:
+            exclusive_end = datetime.strptime(joined_before, "%Y-%m-%d") + timedelta(days=1)
+            filter.append(User.joining_date < exclusive_end)
+        except ValueError:
+            return {"status": False, "statusMessage": "joined_before must use YYYY-MM-DD"}, 400
 
     if args.get("campus"):
         campus_val = str(args.get("campus")).strip()

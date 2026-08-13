@@ -614,6 +614,24 @@ def get_exam_details(request):
                 matching_exam_ids = list(set(cat_exam_ids + user_exam_ids + sched_exam_ids))
                 filter.append(Exam.exam_id.in_(matching_exam_ids if matching_exam_ids else ['__none__']))
 
+        campus_arg = args.get("campuses", None) or args.get("campus", None)
+        if campus_arg:
+            campus_ids = [c.strip() for c in str(campus_arg).split(",") if c.strip()]
+            if campus_ids:
+                sched_exam_ids = [
+                    r[0]
+                    for r in session.query(ExamSchedule.exam_id)
+                    .join(
+                        ExamScheduleMapping,
+                        ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id,
+                    )
+                    .filter(ExamScheduleMapping.campus_id.in_(campus_ids))
+                    .all()
+                ]
+                filter.append(
+                    Exam.exam_id.in_(list(set(sched_exam_ids)) if sched_exam_ids else ['__none__'])
+                )
+
         # Country/city filters come from the location hierarchy used by the institute picker.
         # Match against institute campus data first, then fall back to any text stored on Institute.
         if args.get("country", None):

@@ -119,8 +119,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   selectedUsers: string[] = [];
   selectAll = false;
   userFilters: any = {
+    institute_id: '',
     department_id: '',
-    teams_id: '',
+    team_id: '',
     country_id: '',
     city_id: '',
     campus_id: '',
@@ -234,14 +235,13 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       params.department_id = this.userFilters.department_id;
       params.department = this.userFilters.department_id;
     }
-    if (this.userFilters.teams_id || this.userFilters.team_id) {
-      const teamVal = this.userFilters.teams_id || this.userFilters.team_id;
-      params.teams_id = teamVal;
+    if (this.userFilters.team_id) {
+      const teamVal = this.userFilters.team_id;
       params.team_id = teamVal;
       params.team = teamVal;
     }
-    if (this.userFilters.country_id) params.country_id = this.userFilters.country_id;
-    if (this.userFilters.city_id) params.city_id = this.userFilters.city_id;
+    if (this.userFilters.country_id) params.country = this.userFilters.country_id;
+    if (this.userFilters.city_id) params.city = this.userFilters.city_id;
     if (this.userFilters.campus_id) {
       params.campus_id = this.userFilters.campus_id;
       params.campus = this.userFilters.campus_id;
@@ -254,7 +254,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     if (this.userFilters.joined_before) {
       params.joined_before = this.formatFilterDate(this.userFilters.joined_before);
     }
-    if (this.model.institute) params.institute_id = this.model.institute;
+    const instituteId = this.userFilters.institute_id || this.model.institute;
+    if (instituteId) params.institute_id = instituteId;
     this.http.get<any>(url, { params, ...this.explicitInstituteRequestOptions() }).subscribe({
       next: (res) => {
         const data = res?.data || [];
@@ -267,7 +268,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
                 u.name ||
                 `${u.first_name || ''} ${u.last_name || ''}`.trim(),
               email: u.email,
-              institute: u.campus_name || u.campus || u.institute_name || (u.institute && u.institute.institute_name) || '',
+              institute: u.institute_name || u.institute?.institute_name || '',
               department:
                 u.department_name ||
                 (u.department && (u.department.name || u.department.department_name)) ||
@@ -281,7 +282,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
             new Set(this.users.map((u) => u.department || '').filter((s: string) => !!s))
           );
         }
-        if (this.teamList.length === 0 && !this.userFilters.teams_id) {
+        if (this.teamList.length === 0 && !this.userFilters.team_id) {
           this.teamList = Array.from(
             new Set(this.users.map((u) => u.team || '').filter((s: string) => !!s))
           );
@@ -443,7 +444,6 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     private globalInstituteContext: GlobalInstituteContextService
   ) {
     this.loadInstitutes();
-    this.loadCountries();
     // this.loadUsers();
     this.applyEditOrView();
     // initialize default dates/times only after applying any edit/view payload
@@ -477,6 +477,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     } catch (e) {
       /* ignore parse errors */
     }
+    // Location filters have different sources by role: super admins use
+    // registered institute/campus locations, while admins use user locations.
+    this.loadCountries();
     this.updateInstituteDisabledState();
   }
 
@@ -940,9 +943,15 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   locationHierarchyRaw: any[] = [];
   allRegisteredCities: Array<{ code: string; name: string; countryCode: string }> = [];
+  allUserCities: Array<{ code: string; name: string; countryCode: string }> = [];
   citySearch = '';
 
   loadCountries() {
+    if (!this.isSuperAdmin) {
+      this.loadAdminUserLocations();
+      return;
+    }
+
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -958,6 +967,69 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         this.countries = [];
       },
     });
+  }
+
+  private loadAdminUserLocations(): void {
+    this.countries = [];
+    this.allUserCities = [];
+    this.cities = [];
+
+    this.http
+      .get<any>(`${API_BASE}/get-users-list`, { params: { pageNumber: 1, pageSize: 10000 } })
+      .subscribe({
+        next: (res) => {
+          try {
+            const users = Array.isArray(res?.data) ? res.data : [];
+            const uniqueCountries = new Map<string, { code: string; name: string }>();
+            const uniqueCities = new Map<
+              string,
+              { code: string; name: string; countryCode: string }
+            >();
+
+            users.forEach((user: any) => {
+              const countryCode = String(
+                user?.country?.country_id || user?.country_id || ''
+              ).trim();
+              const countryName = String(
+                user?.country?.country_name || user?.country_name || ''
+              ).trim();
+              const cityCode = String(user?.city?.city_id || user?.city_id || '').trim();
+              const cityName = String(
+                user?.city?.city_name || user?.city_name || ''
+              ).trim();
+
+              if (countryCode && countryName && !uniqueCountries.has(countryCode)) {
+                uniqueCountries.set(countryCode, { code: countryCode, name: countryName });
+              }
+
+              if (countryCode && cityName) {
+                const cityKey = `${countryCode}|${cityName.toLowerCase()}`;
+                if (!uniqueCities.has(cityKey)) {
+                  uniqueCities.set(cityKey, {
+                    code: cityCode || cityName,
+                    name: cityName,
+                    countryCode,
+                  });
+                }
+              }
+            });
+
+            this.countries = Array.from(uniqueCountries.values()).sort((a, b) =>
+              a.name.localeCompare(b.name)
+            );
+            this.allUserCities = Array.from(uniqueCities.values());
+          } catch (e) {
+            this.countries = [];
+            this.allUserCities = [];
+            this.cities = [];
+          }
+        },
+        error: () => {
+          this.countries = [];
+          this.allUserCities = [];
+          this.cities = [];
+        },
+      });
   }
 
   private loadRegisteredInstituteLocations(locationCountries: any[]) {
@@ -1210,11 +1282,90 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   }
 
   filteredTeams(): string[] {
-    const term = String(this.userFilters.teams_id || '')
+    const term = String(this.userFilters.team_id || '')
       .trim()
       .toLowerCase();
     if (!term) return this.teamList || [];
     return (this.teamList || []).filter((t) => t.toLowerCase().includes(term));
+  }
+
+  onUserFilterInstituteChange(instituteId: string): void {
+    this.userFilters.institute_id = instituteId || '';
+    this.userFilters.department_id = '';
+    this.userFilters.team_id = '';
+    this.userFilters.campus_id = '';
+    this.userFilters.country_id = '';
+    this.userFilters.city_id = '';
+    this.cities = [];
+    this.departmentList = [];
+    this.teamList = [];
+    this.campusList = [];
+    if (!instituteId) return;
+    this.loadDepartmentList(instituteId);
+    this.loadTeamsList(instituteId);
+    this.loadCampusList(instituteId);
+  }
+
+  onUserCountryChange(): void {
+    this.userFilters.city_id = '';
+    this.cities = [];
+    const countryId = String(this.userFilters.country_id || '').trim();
+    if (!countryId) return;
+
+    if (this.isSuperAdmin) {
+      this.loadSuperAdminUserCities(countryId);
+      return;
+    }
+
+    const uniqueCities = new Map<string, { code: string; name: string }>();
+    this.allUserCities
+      .filter((city) => String(city.countryCode) === countryId)
+      .forEach((city) => {
+        const key = city.name.trim().toLowerCase();
+        if (!uniqueCities.has(key)) {
+          uniqueCities.set(key, { code: city.code, name: city.name });
+        }
+      });
+    this.cities = Array.from(uniqueCities.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+  }
+
+  private loadSuperAdminUserCities(countryId: string): void {
+    this.http
+      .get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: countryId } })
+      .subscribe({
+        next: (res) => {
+          try {
+            const rawCities = Array.isArray(res?.data?.cities) ? res.data.cities : [];
+            const uniqueCities = new Map<string, { code: string; name: string }>();
+
+            rawCities.forEach((city: any) => {
+              const rawName = String(city?.name || city?.city_name || city?.city || '').trim();
+              if (!rawName) return;
+              const name = rawName.replace(/\w\S*/g, (text: string) =>
+                text.charAt(0).toUpperCase() + text.slice(1).toLowerCase()
+              );
+              const key = name.toLowerCase();
+              if (!uniqueCities.has(key)) {
+                uniqueCities.set(key, {
+                  code: String(city?.id || city?.city_id || name),
+                  name,
+                });
+              }
+            });
+
+            this.cities = Array.from(uniqueCities.values()).sort((a, b) =>
+              a.name.localeCompare(b.name)
+            );
+          } catch (e) {
+            this.cities = [];
+          }
+        },
+        error: () => {
+          this.cities = [];
+        },
+      });
   }
 
   filteredIndustries(): string[] {
@@ -2444,14 +2595,25 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   get appliedUserFilterChips(): Array<{ key: string; label: string }> {
     const chips: Array<{ key: string; label: string }> = [];
+    if (this.userFilters.institute_id) {
+      chips.push({ key: 'institute', label: `Institute: ${this.getInstituteName(this.userFilters.institute_id)}` });
+    }
+    if (this.userFilters.country_id) {
+      const country = this.countries.find((c) => String(c.code) === String(this.userFilters.country_id));
+      chips.push({ key: 'country', label: `Country: ${country?.name || this.userFilters.country_id}` });
+    }
+    if (this.userFilters.city_id) {
+      const city = this.cities.find((c) => String(c.code) === String(this.userFilters.city_id));
+      chips.push({ key: 'city', label: `City: ${city?.name || this.userFilters.city_id}` });
+    }
     if (this.userFilters.campus_id) {
       chips.push({ key: 'campus', label: `Campus: ${this.userFilters.campus_id}` });
     }
     if (this.userFilters.department_id) {
       chips.push({ key: 'department', label: `Department: ${this.userFilters.department_id}` });
     }
-    if (this.userFilters.teams_id) {
-      chips.push({ key: 'team', label: `Team: ${this.userFilters.teams_id}` });
+    if (this.userFilters.team_id) {
+      chips.push({ key: 'team', label: `Team: ${this.userFilters.team_id}` });
     }
     const dateRangeDisplay = this.getJoinedDateRangeDisplay();
     if (dateRangeDisplay) {
@@ -2461,9 +2623,16 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   }
 
   removeUserFilter(key: string): void {
+    if (key === 'institute') this.onUserFilterInstituteChange('');
+    if (key === 'country') {
+      this.userFilters.country_id = '';
+      this.userFilters.city_id = '';
+      this.cities = [];
+    }
+    if (key === 'city') this.userFilters.city_id = '';
     if (key === 'campus') this.userFilters.campus_id = '';
     if (key === 'department') this.userFilters.department_id = '';
-    if (key === 'team') this.userFilters.teams_id = '';
+    if (key === 'team') this.userFilters.team_id = '';
     if (key === 'joined_date') {
       this.userFilters.joined_after = null;
       this.userFilters.joined_before = null;
@@ -2473,9 +2642,10 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   clearUserFilters(): void {
     this.userFilters = {
+      institute_id: '',
       campus_id: '',
       department_id: '',
-      teams_id: '',
+      team_id: '',
       joined_after: null,
       joined_before: null,
       country_id: '',
@@ -2484,6 +2654,17 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       sector: ''
     };
     this.loadUsers();
+  }
+
+  resetUserFilters(): void {
+    this.clearUserFilters();
+    this.cities = [];
+    const instituteId = this.model.institute || '';
+    if (!this.isSuperAdmin && instituteId) {
+      this.loadDepartmentList(instituteId);
+      this.loadTeamsList(instituteId);
+      this.loadCampusList(instituteId);
+    }
   }
 
   private hasExamFilterValues(): boolean {

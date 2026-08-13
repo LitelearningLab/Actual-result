@@ -381,22 +381,40 @@
             <ng-template #filtersPanelUserAnchor>
               <div class="filters-panel" *ngIf="userFilterOpen" (click)="closeUserFilter()">
                 <div class="filter-block" (click)="$event.stopPropagation()">
-                  <mat-form-field appearance="outline" class="filter-item">
-                    <mat-icon matPrefix>location_on</mat-icon>
-                    <mat-label>Campus</mat-label>
-                    <input matInput [(ngModel)]="userFilters.campus_id" name="filterCampus"
-                      #campusTrigger="matAutocompleteTrigger" [matAutocomplete]="campusAuto"
-                      placeholder="Type or pick a campus" />
-                    <button mat-icon-button matSuffix type="button" aria-label="Open campus list"
-                      (click)="campusTrigger.panelOpen ? campusTrigger.closePanel() : campusTrigger.openPanel(); $event.stopPropagation()">
-                      <mat-icon>arrow_drop_down</mat-icon>
-                    </button>
-                    <mat-autocomplete #campusAuto="matAutocomplete">
-                      <mat-option value="">All</mat-option>
-                      <mat-option *ngFor="let cp of campusList" [value]="cp">
-                        {{ cp }}
+                  <mat-form-field *ngIf="isSuperAdmin" appearance="outline" class="filter-item institute-filter">
+                    <mat-icon matPrefix>account_balance</mat-icon>
+                    <mat-label>Institute Name</mat-label>
+                    <mat-select [(ngModel)]="userFilters.institute_id" name="filterUserInstitute"
+                      (selectionChange)="onUserFilterInstituteChange($event.value)">
+                      <mat-option value="">All institutes</mat-option>
+                      <mat-option *ngFor="let institute of institutes" [value]="institute.institute_id">
+                        {{ institute.name }}
                       </mat-option>
-                    </mat-autocomplete>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="filter-item">
+                    <mat-icon matPrefix>public</mat-icon>
+                    <mat-label>Country</mat-label>
+                    <mat-select [(ngModel)]="userFilters.country_id" name="filterUserCountry"
+                      (selectionChange)="onUserCountryChange()">
+                      <mat-option value="">All countries</mat-option>
+                      <mat-option *ngFor="let country of countries" [value]="country.code">
+                        {{ country.name }}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="filter-item">
+                    <mat-icon matPrefix>location_city</mat-icon>
+                    <mat-label>City</mat-label>
+                    <mat-select [(ngModel)]="userFilters.city_id" name="filterUserCity"
+                      [disabled]="!userFilters.country_id">
+                      <mat-option value="">All cities</mat-option>
+                      <mat-option *ngFor="let city of cities" [value]="city.code">
+                        {{ city.name }}
+                      </mat-option>
+                    </mat-select>
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="filter-item">
@@ -420,7 +438,7 @@
                   <mat-form-field appearance="outline" class="filter-item">
                     <mat-icon matPrefix>groups</mat-icon>
                     <mat-label>Team</mat-label>
-                    <input matInput [(ngModel)]="userFilters.teams_id" name="filterTeam"
+                    <input matInput [(ngModel)]="userFilters.team_id" name="filterTeam"
                       #teamTrigger="matAutocompleteTrigger" [matAutocomplete]="teamAuto"
                       placeholder="Type or pick a team" />
                     <button mat-icon-button matSuffix type="button" aria-label="Open team list"
@@ -432,6 +450,22 @@
                       <mat-option *ngFor="let t of filteredTeams()" [value]="t">
                         {{ t }}
                       </mat-option>
+                    </mat-autocomplete>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="filter-item">
+                    <mat-icon matPrefix>location_on</mat-icon>
+                    <mat-label>Campus</mat-label>
+                    <input matInput [(ngModel)]="userFilters.campus_id" name="filterCampus"
+                      #campusTrigger="matAutocompleteTrigger" [matAutocomplete]="campusAuto"
+                      placeholder="Type or pick a campus" />
+                    <button mat-icon-button matSuffix type="button" aria-label="Open campus list"
+                      (click)="campusTrigger.panelOpen ? campusTrigger.closePanel() : campusTrigger.openPanel(); $event.stopPropagation()">
+                      <mat-icon>arrow_drop_down</mat-icon>
+                    </button>
+                    <mat-autocomplete #campusAuto="matAutocomplete">
+                      <mat-option value="">All</mat-option>
+                      <mat-option *ngFor="let cp of campusList" [value]="cp">{{ cp }}</mat-option>
                     </mat-autocomplete>
                   </mat-form-field>
 
@@ -448,16 +482,7 @@
                       <mat-icon>search</mat-icon>
                       Apply
                     </button>
-                    <button mat-button type="button" (click)="
-                        userFilters = {
-                          department_id: '',
-                          teams_id: '',
-                          campus_id: '',
-                          joined_after: null,
-                          joined_before: null
-                        };
-                        loadUsers()
-                      ">
+                    <button mat-button type="button" (click)="resetUserFilters()">
                       <mat-icon>refresh</mat-icon>
                       Reset
                     </button>

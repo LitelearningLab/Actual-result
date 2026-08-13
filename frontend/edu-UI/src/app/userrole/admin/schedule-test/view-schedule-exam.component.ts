@@ -82,6 +82,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   instituteSearch = '';
   instituteSearchTerm = '';
   departmentFilterSearch = '';
+  campusFilterSearch = '';
   teamFilterSearch = '';
 
   selectedInstitutes: string[] = [];
@@ -114,12 +115,14 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   filterName = '';
   scheduleNameOptions: string[] = [];
   selectedDepartments: string[] = [];
+  selectedCampuses: string[] = [];
   selectedTeams: string[] = [];
   filterCreationDateAfter: Date | null = null;
   filterCreationDate: Date | null = null;
   filterActiveStatus: boolean | null = null;
   filterCreatedByMe = false;
   departments: Array<{ id: string; name: string }> = [];
+  campuses: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
   categories: Array<{ id: string; name: string }> = [];
   schedules: any[] = [];
@@ -428,6 +431,25 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     });
   }
 
+  get filteredCampusesForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.campusFilterSearch || '').trim().toLowerCase();
+    let list = this.campuses || [];
+    if (term) {
+      list = list.filter(
+        (c) =>
+          (c.name || '').toLowerCase().includes(term) ||
+          (this.selectedCampuses || []).includes(c.id)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedCampuses || []).includes(a.id);
+      const bSel = (this.selectedCampuses || []).includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
   // --- Select All: Institute ---
   isAllInstitutesSelected(): boolean {
     const ids = (this.filteredInstitutesForFilter || [])
@@ -478,6 +500,17 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     }
   }
 
+  isAllCampusesSelected(): boolean {
+    const ids = (this.filteredCampusesForFilter || []).map((c) => c.id).filter(Boolean);
+    return ids.length > 0 && ids.every((id) => (this.selectedCampuses || []).includes(id));
+  }
+
+  toggleSelectAllCampuses() {
+    const ids = (this.filteredCampusesForFilter || []).map((c) => c.id).filter(Boolean);
+    if (this.isAllCampusesSelected()) this.selectedCampuses = [];
+    else this.selectedCampuses = [...ids];
+  }
+
   onFilterDepartmentOpenedChange(opened: boolean) {
     if (opened) {
       setTimeout(() => {
@@ -505,6 +538,19 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       });
     } else {
       this.teamFilterSearch = '';
+    }
+  }
+
+  onFilterCampusOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        const input = document.querySelector(
+          '.cdk-overlay-pane .select-search-input'
+        ) as HTMLInputElement | null;
+        input?.focus();
+      });
+    } else {
+      this.campusFilterSearch = '';
     }
   }
 
@@ -890,6 +936,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       if (deptName)
         chips.push({ key: `department:${id}`, label: `Department: ${deptName}`, removable: true });
     });
+    (this.selectedCampuses || []).forEach((id) => {
+      const campusName = this.getSelectedName(this.campuses, id);
+      if (campusName)
+        chips.push({ key: `campus:${id}`, label: `Campus: ${campusName}`, removable: true });
+    });
     (this.selectedTeams || []).forEach((id) => {
       const teamName = this.getSelectedName(this.teams, id);
       if (teamName) chips.push({ key: `team:${id}`, label: `Team: ${teamName}`, removable: true });
@@ -952,6 +1003,10 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       this.selectedDepartments = this.selectedDepartments.filter(
         (id) => String(id) !== key.substring('department:'.length)
       );
+    else if (key.startsWith('campus:'))
+      this.selectedCampuses = this.selectedCampuses.filter(
+        (id) => String(id) !== key.substring('campus:'.length)
+      );
     else if (key.startsWith('team:'))
       this.selectedTeams = this.selectedTeams.filter(
         (id) => String(id) !== key.substring('team:'.length)
@@ -1012,6 +1067,12 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
             institute_id: r.institute_id,
           }));
           this.allInstitutes = [...this.institutes];
+          if (this.isSuperAdmin) {
+            const instituteIds = this.institutes
+              .map((i) => i.institute_id || '')
+              .filter(Boolean);
+            this.loadOrganizationOptions(instituteIds);
+          }
           try {
             if (this.selectedInstitute) {
               const found = this.institutes.find(
@@ -1040,6 +1101,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
                   this.selectedInstitute = found.institute_id as any;
                   this.syncInstituteSearch();
                   this.loadDepartments(this.selectedInstitute);
+                  this.loadCampuses([this.selectedInstitute]);
                   this.loadTeams(this.selectedInstitute);
                 }
               }
@@ -1062,6 +1124,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       this.filterSector ||
       this.filterName ||
       this.selectedDepartments.length ||
+      this.selectedCampuses.length ||
       this.selectedTeams.length ||
       this.filterCreationDateAfter ||
       this.filterCreationDate ||
@@ -1071,13 +1134,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   onApply() {
-    if (this.isSuperAdmin && !this.isGlobalInstituteActive && (!this.selectedInstitutes || !this.selectedInstitutes.length) && !this.selectedInstitute) {
-      try {
-        notify('Please select an institute', 'info');
-      } catch (e) {}
-      return;
-    }
-    if (this.isSuperAdmin && this.instituteSearchTerm.trim()) {
+    if (!this.isSuperAdmin && this.instituteSearchTerm.trim()) {
       const typedInstitute = this.instituteSearchTerm.trim().toLowerCase();
       const matchedInstitute = this.institutes.find(
         (institute) => (institute.name || '').trim().toLowerCase() === typedInstitute
@@ -1122,7 +1179,9 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.filterName = '';
     this.scheduleNameOptions = [];
     this.selectedDepartments = [];
+    this.selectedCampuses = [];
     this.selectedTeams = [];
+    this.campusFilterSearch = '';
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
     this.filterActiveStatus = null;
@@ -1156,11 +1215,13 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.loadScheduleNameOptions();
     if (this.selectedInstitute) {
       this.loadDepartments(this.selectedInstitute);
+      this.loadCampuses([this.selectedInstitute]);
       this.loadTeams(this.selectedInstitute);
     } else {
       this.scheduleNameOptions = [];
       this.filterName = '';
       this.departments = [];
+      this.campuses = [];
       this.teams = [];
       this.categories = [];
     }
@@ -1249,6 +1310,93 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     });
   }
 
+  private loadOrganizationOptions(instituteIds: string[]): void {
+    const ids = (instituteIds || []).filter(Boolean);
+    if (!ids.length) {
+      this.departments = [];
+      this.campuses = [];
+      this.teams = [];
+      return;
+    }
+
+    const loadUnique = (
+      endpoint: string,
+      idKeys: string[],
+      nameKeys: string[],
+      assign: (items: Array<{ id: string; name: string }>) => void
+    ) => {
+      forkJoin(
+        ids.map((id) =>
+          this.http.get<any>(`${API_BASE}/${endpoint}`, { params: { institute_id: id } })
+        )
+      ).subscribe({
+        next: (responses) => {
+          const unique = new Map<string, { id: string; name: string }>();
+          responses.forEach((res) => {
+            const records = Array.isArray(res) ? res : res?.data || res?.campuses || [];
+            records.forEach((record: any) => {
+              const id = String(idKeys.map((key) => record?.[key]).find(Boolean) || '');
+              const name = String(nameKeys.map((key) => record?.[key]).find(Boolean) || '');
+              if (id && name && !unique.has(id)) unique.set(id, { id, name });
+            });
+          });
+          assign(
+            Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name))
+          );
+        },
+        error: () => assign([]),
+      });
+    };
+
+    loadUnique(
+      'get-department-list',
+      ['department_id', 'dept_id', 'id', 'deptId'],
+      ['name', 'department_name', 'dept_name'],
+      (items) => (this.departments = items)
+    );
+    loadUnique(
+      'get-campus-list',
+      ['campus_id', 'id'],
+      ['campus_name', 'name'],
+      (items) => (this.campuses = items)
+    );
+    loadUnique(
+      'get-teams-list',
+      ['team_id', 'id', 'teamId'],
+      ['name', 'team_name'],
+      (items) => (this.teams = items)
+    );
+  }
+
+  private loadCampuses(instituteIds: string[]): void {
+    const ids = (instituteIds || []).filter(Boolean);
+    if (!ids.length) {
+      this.campuses = [];
+      return;
+    }
+    forkJoin(
+      ids.map((id) =>
+        this.http.get<any>(`${API_BASE}/get-campus-list`, { params: { institute_id: id } })
+      )
+    ).subscribe({
+      next: (responses) => {
+        const unique = new Map<string, { id: string; name: string }>();
+        responses.forEach((res) => {
+          const records = Array.isArray(res) ? res : res?.data || res?.campuses || [];
+          records.forEach((campus: any) => {
+            const id = String(campus?.campus_id || campus?.id || '');
+            const name = String(campus?.campus_name || campus?.name || '');
+            if (id && name && !unique.has(id)) unique.set(id, { id, name });
+          });
+        });
+        this.campuses = Array.from(unique.values()).sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+      },
+      error: () => (this.campuses = []),
+    });
+  }
+
   loadScheduleNameOptions() {
     if (!this.selectedInstitute) {
       this.scheduleNameOptions = [];
@@ -1305,6 +1453,8 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     if (this.filterName) params.push(`name=${encodeURIComponent(this.filterName)}`);
     if (this.selectedDepartments && this.selectedDepartments.length)
       params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
+    if (this.selectedCampuses && this.selectedCampuses.length)
+      params.push(`campuses=${encodeURIComponent(this.selectedCampuses.join(','))}`);
     if (this.selectedTeams && this.selectedTeams.length)
       params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
     if (this.filterCreationDateAfter)
@@ -1889,6 +2039,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
           filterSector: this.filterSector,
           filterName: this.filterName,
           selectedDepartments: this.selectedDepartments,
+          selectedCampuses: this.selectedCampuses,
           selectedTeams: this.selectedTeams,
           filterCreationDateAfter: this.filterCreationDateAfter
             ? this.filterCreationDateAfter.toISOString()
@@ -1933,6 +2084,9 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       this.selectedDepartments = Array.isArray(state?.selectedDepartments)
         ? state.selectedDepartments
         : [];
+      this.selectedCampuses = Array.isArray(state?.selectedCampuses)
+        ? state.selectedCampuses
+        : [];
       this.selectedTeams = Array.isArray(state?.selectedTeams) ? state.selectedTeams : [];
       this.filterCreationDateAfter = state?.filterCreationDateAfter
         ? new Date(state.filterCreationDateAfter)
@@ -1961,9 +2115,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.schedules = [];
     this.dataSource.data = [];
     this.departments = [];
+    this.campuses = [];
     this.teams = [];
     this.categories = [];
     this.selectedDepartments = [];
+    this.selectedCampuses = [];
     this.selectedTeams = [];
     this.search = '';
     this.dataSource.filter = '';
@@ -1987,6 +2143,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       sessionStorage.removeItem('schedule_return_state');
     } catch (e) {}
     this.loadDepartments(instituteId);
+    this.loadCampuses([instituteId]);
     this.loadTeams(instituteId);
     this.syncInstituteSearch();
   }
@@ -1998,9 +2155,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.schedules = [];
     this.dataSource.data = [];
     this.departments = [];
+    this.campuses = [];
     this.teams = [];
     this.categories = [];
     this.selectedDepartments = [];
+    this.selectedCampuses = [];
     this.selectedTeams = [];
     this.search = '';
     this.dataSource.filter = '';
