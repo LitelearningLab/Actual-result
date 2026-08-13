@@ -310,7 +310,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     try {
       this.dataSource.paginator = this.paginator;
       this.dataSource.sort = this.sort;
-    } catch (e) {}
+    } catch (e) { }
   }
 
   ngOnDestroy(): void {
@@ -540,12 +540,12 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
         console.warn('Failed to load institutes:', err);
         try {
           this.loader.hide();
-        } catch (e) {}
+        } catch (e) { }
       },
       complete: () => {
         try {
           this.loader.hide();
-        } catch (e) {}
+        } catch (e) { }
       },
     });
   }
@@ -600,13 +600,13 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     if (!this.selectedInstitutes || !this.selectedInstitutes.length) {
       try {
         notify('Please select an institute', 'info');
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
     if (!this.hasFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
     this.hasAppliedFilters = true;
@@ -647,7 +647,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     if (!this.hasAppliedFilters) {
       try {
         notify('Apply filters to fetch institutes', 'info');
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
     this.loadInstitutes();
@@ -683,7 +683,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) {}
+      } catch (e) { }
       this.filtersOverlayRef = null;
     }
 
@@ -714,7 +714,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) {}
+      } catch (e) { }
       this.filtersOverlayRef = null;
     }
   }
@@ -873,8 +873,8 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     const toTitleCase = (str: string) =>
       str
         ? str
-            .trim()
-            .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase())
+          .trim()
+          .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase())
         : '';
 
     this.http
@@ -1150,7 +1150,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
         this.countries = [];
         this.cities = [];
       },
-      complete: () => {},
+      complete: () => { },
     });
   }
 
@@ -1179,9 +1179,9 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
                 location?.country_code ||
                 (typeof rawCountry === 'object'
                   ? rawCountry?.country_id ||
-                    rawCountry?.id ||
-                    rawCountry?.country_code ||
-                    rawCountry?.code
+                  rawCountry?.id ||
+                  rawCountry?.country_code ||
+                  rawCountry?.code
                   : rawCountry);
               const countryName =
                 location?.country_name ||
@@ -1194,7 +1194,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
                     String(country.code).toLowerCase() === String(countryCode).toLowerCase()) ||
                   (countryName &&
                     String(country.name).trim().toLowerCase() ===
-                      String(countryName).trim().toLowerCase())
+                    String(countryName).trim().toLowerCase())
               );
               const resolved =
                 hierarchyMatch ||
@@ -1282,26 +1282,26 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
           const body: any = { current_user: current_user_id };
           try {
             this.loader.show();
-          } catch (e) {}
+          } catch (e) { }
           this.http.put(url, body, { observe: 'response' }).subscribe({
             next: (res) => {
               try {
                 this.loader.hide();
-              } catch (e) {}
+              } catch (e) { }
               try {
                 notify(`Institute ${i.name} ${action}d successfully`, 'success');
-              } catch (e) {}
+              } catch (e) { }
             },
             error: (err) => {
               try {
                 this.loader.hide();
-              } catch (e) {}
+              } catch (e) { }
               console.error('Failed to toggle institute active state', err);
               // revert
               i.active = previous;
               try {
                 notify('Failed to change institute status. Please try again.', 'error');
-              } catch (e) {}
+              } catch (e) { }
             },
           });
         });
@@ -1316,7 +1316,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     const payload = { ...i };
     try {
       sessionStorage.setItem('view_institute', JSON.stringify(payload));
-    } catch (e) {}
+    } catch (e) { }
     // open detail modal
     this.selectedInstitute = i.raw || i;
   }
@@ -1398,7 +1398,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
             // assume DD/MM/YYYY
             return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
           }
-        } catch (e) {}
+        } catch (e) { }
         return '';
       };
       try {
@@ -1412,7 +1412,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
         payload.subscription_end = '';
       }
       sessionStorage.setItem('edit_institute', JSON.stringify(payload));
-    } catch (e) {}
+    } catch (e) { }
     this.saveInstituteReturnState();
     this.router.navigate(['/institute-register']);
     return;
@@ -1441,8 +1441,8 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
       this.editableInstitute._departmentsCsv =
         this.editableInstitute.departments && Array.isArray(this.editableInstitute.departments)
           ? this.editableInstitute.departments
-              .map((d: any) => (d && d.name ? d.name : typeof d === 'string' ? d : ''))
-              .join(',')
+            .map((d: any) => (d && d.name ? d.name : typeof d === 'string' ? d : ''))
+            .join(',')
           : '';
     } catch (e) {
       this.editableInstitute._departmentsCsv = '';
@@ -1451,8 +1451,8 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
       this.editableInstitute._teamsCsv =
         this.editableInstitute.teams && Array.isArray(this.editableInstitute.teams)
           ? this.editableInstitute.teams
-              .map((t: any) => (t && t.name ? t.name : typeof t === 'string' ? t : ''))
-              .join(',')
+            .map((t: any) => (t && t.name ? t.name : typeof t === 'string' ? t : ''))
+            .join(',')
           : '';
     } catch (e) {
       this.editableInstitute._teamsCsv = '';
@@ -1485,31 +1485,31 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
             this.institutes = this.institutes.filter((x) => x.id !== i.id);
             try {
               notify('Institute removed locally', 'info');
-            } catch (e) {}
+            } catch (e) { }
             return;
           }
           const url = `${API_BASE}/delete/institute/${uuid}`;
           try {
             this.loader.show();
-          } catch (e) {}
+          } catch (e) { }
           this.http.delete<any>(url, { observe: 'response' }).subscribe({
             next: (res) => {
               try {
                 this.loader.hide();
-              } catch (e) {}
+              } catch (e) { }
               // remove from list
               this.institutes = this.institutes.filter(
                 (x) => x.institute_id !== uuid && x.id !== i.id
               );
               try {
                 notify('Institute deleted successfully', 'success');
-              } catch (e) {}
+              } catch (e) { }
               if (this.hasAppliedFilters) this.loadInstitutes();
             },
             error: (err) => {
               try {
                 this.loader.hide();
-              } catch (e) {}
+              } catch (e) { }
               console.error('Failed to delete institute', err);
               // Common failure: network disconnected or backend unreachable (status 0)
               try {
@@ -1521,7 +1521,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
                 } else {
                   notify('Failed to delete institute. Please try again later.', 'error');
                 }
-              } catch (e) {}
+              } catch (e) { }
             },
           });
         });
@@ -1542,7 +1542,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     if (this.editForm && this.editForm.invalid) {
       try {
         notify('Please correct errors in the edit form before saving.', 'error');
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
     // apply locally to institutes list; backend save TODO
@@ -1652,7 +1652,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
           rawRecords: this.rawRecords,
         })
       );
-    } catch (e) {}
+    } catch (e) { }
   }
 
   private restoreInstituteReturnState(): void {
@@ -1677,14 +1677,15 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
       this.selectedActiveStatuses = Array.isArray(state?.selectedActiveStatuses)
         ? state.selectedActiveStatuses
         : [];
-      this.institutes = Array.isArray(state?.institutes) ? state.institutes : [];
-      this.rawRecords = Array.isArray(state?.rawRecords) ? state.rawRecords : [];
-      this.dataSource.data = this.institutes;
+      this.institutes = [];
+      this.rawRecords = [];
+      this.dataSource.data = [];
       this.applyFilter(this.filter || '');
+      this.loadInstitutes();
     } catch (e) {
       try {
         sessionStorage.removeItem('institute_return_state');
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 }

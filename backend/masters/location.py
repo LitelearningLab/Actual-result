@@ -36,16 +36,16 @@ def get_location_hierarchy_details(request):
                 state_ids = [institute_campus.state_id]
                 states = session.query(State).filter(State.state_id.in_(state_ids)).all()
                 city_ids = [institute_campus.city_id]
-                if city_ids:
-                    cities = session.query(City).filter(City.city_id.in_(city_ids)).all()
-                    if not cities and institute_campus.city_id:
-                        extra_cities.append({
-                            "id": institute_campus.city_id,
-                            "name": institute_campus.city_id,
-                            "state_id": institute_campus.state_id
-                        })
-                else:
-                    cities = session.query(City).filter(City.country_id.in_(country_ids)).all()
+                if institute_campus.city_id:
+                    cities = session.query(City).filter(
+                        City.city_id == institute_campus.city_id
+                        ).all()
+                if not cities and institute_campus.city_name:
+                    extra_cities.append({
+                        "id": institute_campus.city_name,
+                        "name": institute_campus.city_name,
+                        "state_id": institute_campus.state_id
+                    })
         elif "country_id" in args:
             country_arg = str(args["country_id"] or '').strip()
             if ',' in country_arg:

@@ -57,7 +57,7 @@ export class AdminUserRegisterComponent implements OnInit {
   form: FormGroup;
   // { value: 'super_admin', label: 'Super Admin' },
   roles = [
-     { value: 'super_admin', label: 'Super Admin' },
+    { value: 'super_admin', label: 'Super Admin' },
     { value: 'admin', label: 'Admin' },
     { value: 'user', label: 'User' }
   ];
@@ -199,8 +199,8 @@ export class AdminUserRegisterComponent implements OnInit {
     this.form.get('joining_date')?.markAsTouched();
 
     const isInvalid = step1Controls.some(c => this.form.get(c)?.invalid) ||
-                      this.form.hasError('passwordMismatch') ||
-                      !!this.form.get('joining_date')?.invalid;
+      this.form.hasError('passwordMismatch') ||
+      !!this.form.get('joining_date')?.invalid;
     if (isInvalid) {
       return;
     }
@@ -336,11 +336,11 @@ export class AdminUserRegisterComponent implements OnInit {
 
   ngOnInit(): void {
     this.loader.show();
-    try{
+    try {
       const raw = sessionStorage.getItem('edit_user');
       if (raw) this.isEditing = true;
-    } catch(e) { /* ignore */ }
-    this.pageMeta.setMeta(this.isEditing ? 'Edit user':'Register user', this.isEditing ? 'Edit user information and save changes' : 'Register a new user and assign role & institute');
+    } catch (e) { /* ignore */ }
+    this.pageMeta.setMeta(this.isEditing ? 'Edit user' : 'Register user', this.isEditing ? 'Edit user information and save changes' : 'Register a new user and assign role & institute');
     // orchestrate initialization (small helpers)
     this.setupAuth();
     this.setupFormListeners();
@@ -432,7 +432,7 @@ export class AdminUserRegisterComponent implements OnInit {
       const cid = countryId == null ? '' : String(countryId);
       if (!cid) {
         this.filteredStates = [];
-        try { this.form.patchValue({ state: '', city: '' }); } catch (e) {}
+        try { this.form.patchValue({ state: '', city: '' }); } catch (e) { }
         return;
       }
       // Prefer pre-loaded states; fallback to deriving from campuses
@@ -440,7 +440,7 @@ export class AdminUserRegisterComponent implements OnInit {
       if (this.states && this.states.length) statesSource = this.states.map((s: any) => ({ code: String(s.code || s.id || ''), name: s.name || '', country_id: String(s.country_id || '') }));
       else statesSource = (this.campuses || []).map((c: any) => ({ code: String(c.state?.state_id || c.state?.id || ''), name: c.state?.state_name || c.state?.name || '', country_id: String(c.country?.country_id || c.country?.id || '') }));
       this.filteredStates = (statesSource || []).filter((s: any) => !s.country_id || String(s.country_id) === String(cid)).map((s: any) => ({ code: String(s.code || ''), name: s.name || '' }));
-      try { this.form.patchValue({ state: '', city: '' }); } catch (e) {}
+      try { this.form.patchValue({ state: '', city: '' }); } catch (e) { }
     });
 
     // state selection: populate filteredCities
@@ -448,13 +448,13 @@ export class AdminUserRegisterComponent implements OnInit {
       const sid = stateId == null ? '' : String(stateId);
       if (!sid) {
         this.filteredCities = [];
-        try { this.form.patchValue({ city: '' }); } catch (e) {}
+        try { this.form.patchValue({ city: '' }); } catch (e) { }
         return;
       }
       try {
         this.filteredCities = this.resolveCitiesForState(sid);
       } catch (e) { this.filteredCities = []; }
-      try { this.form.patchValue({ city: '' }); } catch (e) {}
+      try { this.form.patchValue({ city: '' }); } catch (e) { }
     });
 
     // campus selection: fetch campus location details and populate the location fields
@@ -486,7 +486,7 @@ export class AdminUserRegisterComponent implements OnInit {
   private loadInitialData() {
     this.loader.show();
     // load institutes early so selects render; other lists are loaded when institute selected
-    try { this.loadInstitutes(); } catch (e) {}
+    try { this.loadInstitutes(); } catch (e) { }
 
     // read logged in user profile and set institute defaults
     try {
@@ -509,8 +509,9 @@ export class AdminUserRegisterComponent implements OnInit {
       } else {
         this.loader.hide();
       }
-    } catch (e) { 
-      this.loader.hide(); }
+    } catch (e) {
+      this.loader.hide();
+    }
   }
 
   private handleEditUserPrefill() {
@@ -534,7 +535,7 @@ export class AdminUserRegisterComponent implements OnInit {
         note: u.notes || u.note || ''
       });
       const iid = this.form.get('institute')?.value;
-      if (iid) { this.loadDepartments(iid); this.loadTeams(iid); this.loadCampusList(iid); this.loadLocationHierarchy(iid);}
+      if (iid) { this.loadDepartments(iid); this.loadTeams(iid); this.loadCampusList(iid); this.loadLocationHierarchy(iid); }
       try {
         const campusId = u.campus?.campus_id || u.campus_id || u.campus || '';
         const countryId = u.campus?.country?.country_id || u.country || u.country_id || '';
@@ -572,7 +573,7 @@ export class AdminUserRegisterComponent implements OnInit {
           this.pagesList = (data || []).map((p: any) => ({ key: p.key || p.page_id || p.id || p.name, name: p.name || p.page_name || p.page || p.key }));
           this.initPermissions();
         } catch (e) { this.pagesList = []; }
-          finally { this.loader.hide(); }
+        finally { this.loader.hide(); }
       },
       error: (err) => { console.warn('Failed to load pages list', err); this.pagesList = []; this.loader.hide(); }
     });
@@ -871,7 +872,11 @@ export class AdminUserRegisterComponent implements OnInit {
           const stateId = selectedStateId || fallbackStateId || this.extractLocationId(data, 'state');
           const cityId = selectedCityName || selectedCityId || this.extractLocationId(data, 'city');
 
-          this.patchCampusLocation({ country_id: countryId, state_id: stateId, city: cityId });
+          this.patchCampusLocation({
+            country_id: countryId,
+            state_id: stateId,
+            city: cityId || this.form.get('city')?.value || ''
+          });
         } catch (e) {
           console.warn('Failed to parse campus location response', e);
         }
@@ -1098,7 +1103,9 @@ export class AdminUserRegisterComponent implements OnInit {
     } else {
       const url = `${API_BASE}/register-user`;
       // if user cannot change institute (non-super admin), ensure payload uses loggedInstitute
-      if (this.loggedInstitute) payload.institute_id = this.loggedInstitute;
+      if (!this.isSuperAdmin && this.loggedInstitute) {
+        payload.institute_id = this.loggedInstitute;
+      }
       this.http.post<any>(url, payload).subscribe({
         next: (res) => { this.submitting = false; this.notify.success(res?.statusMessage || 'User registered'); this.router.navigate(['/view-users']); },
         complete: () => { this.loader.hide(); },
@@ -1115,7 +1122,7 @@ export class AdminUserRegisterComponent implements OnInit {
 
   ngOnDestroy(): void {
     try { if (this._authSub && this._authSub.unsubscribe) this._authSub.unsubscribe(); } catch (e) { }
-    try { this.destroy$.next(); this.destroy$.complete(); } catch(e) {}
+    try { this.destroy$.next(); this.destroy$.complete(); } catch (e) { }
   }
 
   // ----- Bulk upload helpers -----
@@ -1504,7 +1511,7 @@ export class AdminUserRegisterComponent implements OnInit {
       next: (res) => {
         this.bulkUploading = false;
         this.bulkValidationReport = res?.data || res?.report || null;
-        this.bulkPreviewRows = (this.bulkValidationReport?.preview || []).slice(0,5);
+        this.bulkPreviewRows = (this.bulkValidationReport?.preview || []).slice(0, 5);
         this.bulkValidated = true;
         this.bulkFileError = null;
         this.bulkUploadResult = res?.statusMessage || 'Validation completed successfully.';

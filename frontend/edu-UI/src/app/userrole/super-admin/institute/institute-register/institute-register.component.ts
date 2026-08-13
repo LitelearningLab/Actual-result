@@ -96,6 +96,8 @@ export class InstituteRegisterComponent {
   headOfficeCampusId: string | null = null;
   // index of the expansion panel that should be expanded (helps open newly added campus)
   expandedIndex: number | null = null;
+  private _pendingEditCampuses: any[] | null = null;
+
   form = this.fb.group(
     {
       name: ['', Validators.required],
@@ -514,31 +516,11 @@ export class InstituteRegisterComponent {
         this.teamList = (obj.teams || []).map((t: any) => t.name || '');
         this.form.get('department')?.setValue(this.departmentList.join(','));
         this.form.get('team')?.setValue(this.teamList.join(','));
-        // campuses
-        if (campusesData.length) {
-          for (const cp of campusesData.filter(
-            (campus: any) => !this.isHeadOfficeCampus(campus, obj)
-          )) {
-            this.addCampus({
-              campus_id: cp.campus_id || cp.id || cp._id || null,
-              name: cp.name,
-              address: cp.address,
-              pincode: cp.pin_code || cp.pincode,
-              country: this.resolveCountryId(cp.country),
-              state: this.resolveStateId(cp.state),
-              city:
-                cp.city?.city_name ||
-                cp.city_name ||
-                cp.city?.city_id ||
-                (typeof cp.city === 'string' ? cp.city : ''),
-
-              email: cp.email,
-              phone: cp.phone,
-              isPrimary: !!cp.is_primary,
-              isActive: !!cp.active_status,
-            });
-          }
-        }
+        // campuses — deferred until getCountries() resolves so mat-select
+        // options exist before values are written (fixes blank dropdowns on edit)
+        this._pendingEditCampuses = campusesData.filter(
+          (campus: any) => !this.isHeadOfficeCampus(campus, obj)
+        );
         // remove stored edit marker
         sessionStorage.removeItem('edit_institute');
       }
@@ -700,7 +682,7 @@ export class InstituteRegisterComponent {
         .pipe(
           tap(() => {
             this.campusCityOptions[cid] = [];
-            
+
             this.campusLoadingCities[cid] = true;
           }),
           switchMap((stateId: string | null) =>
@@ -750,19 +732,42 @@ export class InstituteRegisterComponent {
     });
 
     // ------- location cascading wiring -------
-    // load countries once
-    // Always reload location masters when this form opens. Country/state data may
-    // be synchronized while the Angular session is still holding a cached hierarchy.
     this.locationService.getCountries(true).subscribe((list) => {
       this.countries = list;
       if (list.length === 1) this.form.get('headOffice.country')?.setValue(list[0].id);
-      // Re-patch campus countries so mat-select updates its display text after HTTP request completes
-      if (this.campuses && this.campuses.length) {
+
+      // Now that this.countries is populated, country mat-select options exist.
+      // Prefill any campuses that were deferred from ngAfterViewInit (edit mode).
+      if (this._pendingEditCampuses && this._pendingEditCampuses.length) {
+        const pending = this._pendingEditCampuses;
+        this._pendingEditCampuses = null;
+        for (const cp of pending) {
+          this.addCampus({
+            campus_id: cp.campus_id || cp.id || cp._id || null,
+            name: cp.name,
+            address: cp.address,
+            pincode: cp.pin_code || cp.pincode,
+            country: this.resolveCountryId(cp.country), // works now: countries loaded
+            state: this.resolveStateId(cp.state),
+            city:
+              cp.city?.city_name ||
+              cp.city_name ||
+              cp.city?.city_id ||
+              (typeof cp.city === 'string' ? cp.city : ''),
+            email: cp.email,
+            phone: cp.phone,
+            isPrimary: !!cp.is_primary,
+            isActive: !!cp.active_status,
+          });
+        }
+      } else if (this.campuses && this.campuses.length) {
+        // non-edit case: re-patch already-added campus country controls
         this.campuses.controls.forEach((c) => {
           const val = c.get('country')?.value;
           if (val) c.get('country')?.patchValue(val, { emitEvent: false });
         });
       }
+
       this.cd.detectChanges();
     });
 
