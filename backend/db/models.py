@@ -547,3 +547,19 @@ class DemoRequest(Base):
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
      updated_by = Column(String)
      updated_date = Column(DateTime)
+
+class ExamsDepartments(Base):
+    __tablename__ = 'ExamsDepartments'
+    id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+    exam_id = Column(String, ForeignKey('Exams.exam_id'), nullable=False)
+    department_id = Column(String)
+    created_by = Column(String)
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
+
+class ExamsTeams(Base):
+    __tablename__ = 'ExamsTeams'
+    id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+    exam_id = Column(String, ForeignKey('Exams.exam_id'), nullable=False)
+    team_id = Column(String)
+    created_by = Column(String)
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)

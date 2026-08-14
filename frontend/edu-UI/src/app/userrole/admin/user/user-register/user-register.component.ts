@@ -664,7 +664,7 @@ export class AdminUserRegisterComponent implements OnInit {
       next: (res) => {
         try {
           const data = res?.data || [];
-          this.institutes = data.map((i: any) => ({ id: i.institute_id, name: i.short_name }));
+          this.institutes = data.map((i: any) => ({ id: i.institute_id, name: i.name || i.institute_name || i.short_name || '' }));
         } catch (e) { this.institutes = []; }
         this.loadingInstitutes = false;
         this.loader.hide();

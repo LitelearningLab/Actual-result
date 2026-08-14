@@ -1,5 +1,5 @@
 <div class="page create-exam">
-    <!-- â”€â”€ Top Toolbar â”€â”€ -->
+    <!-- ── Top Toolbar ── -->
     <div class="toolbar">
         <div class="title"></div>
         <div class="form-actions">
@@ -10,10 +10,10 @@
         </div>
     </div>
 
-    <!-- â”€â”€ Form Card â”€â”€ -->
+    <!-- ── Form Card ── -->
     <div class="form-card">
         <mat-horizontal-stepper linear #stepper>
-            <!-- â•â•â• Step 1: Basic info & Settings â•â•â• -->
+            <!-- ═══ Step 1: Basic info & Settings ═══ -->
             <mat-step [completed]="isStep1Valid">
                 <ng-template matStepLabel>Basic info & Settings</ng-template>
                 <div class="step-content">
@@ -56,7 +56,7 @@
                                     </mat-form-field>
 
                                     <mat-form-field appearance="outline" class="field-half"
-                                        [class.mat-form-field-invalid]="step1Submitted && !title?.trim()">
+                                        [class.mat-form-field-invalid]="step1Submitted && !title.trim()">
                                         <mat-icon matPrefix>edit</mat-icon>
                                         <mat-label>Title <span class="required-star">*</span></mat-label>
                                         <input matInput id="examTitle" [(ngModel)]="title" name="title"
@@ -79,7 +79,7 @@
                                         [class.mat-form-field-invalid]="step1Submitted && !selectedDepartments.length">
                                         <mat-icon matPrefix>apartment</mat-icon>
                                         <mat-label>Departments <span class="required-star">*</span></mat-label>
-                                        <mat-select multiple [(ngModel)]="selectedDepartments"
+                                        <mat-select multiple [(ngModel)]="selectedDepartments" [compareWith]="compareById"
                                             (selectionChange)="toggleSelectAllDepartments($event)"
                                             (openedChange)="onDepartmentOpenedChange($event)"
                                             placeholder="Select departments">
@@ -114,7 +114,7 @@
                                         [class.mat-form-field-invalid]="step1Submitted && !selectedTeams.length">
                                         <mat-icon matPrefix>groups</mat-icon>
                                         <mat-label>Teams <span class="required-star">*</span></mat-label>
-                                        <mat-select multiple [(ngModel)]="selectedTeams"
+                                        <mat-select multiple [(ngModel)]="selectedTeams" [compareWith]="compareById"
                                             (selectionChange)="toggleSelectAllTeams($event)"
                                             (openedChange)="onTeamOpenedChange($event)" placeholder="Select teams">
 
@@ -141,7 +141,6 @@
                                     </mat-form-field>
 
                                 </div>
-
                             </div>
 
                         </div>
@@ -208,7 +207,7 @@
                 </div>
             </mat-step>
 
-            <!-- â•â•â• Step 2: Question Banks & Questions â•â•â• -->
+            <!-- ═══ Step 2: Question Banks & Questions ═══ -->
             <mat-step [completed]="isStep2Valid">
                 <ng-template matStepLabel>Question Banks & Questions</ng-template>
                 <div class="step-content">
@@ -254,7 +253,7 @@
                                             <div class="compact-filter-grid">
                                                 <mat-form-field appearance="outline" class="filter-item">
                                                     <mat-label>Department</mat-label>
-                                                    <mat-select multiple [(ngModel)]="questionBankFilterDepartments"
+                                                    <mat-select multiple [(ngModel)]="questionBankFilterDepartments" [compareWith]="compareById"
                                                         [disabled]="!institute"
                                                         (openedChange)="onQuestionBankDepartmentOpenedChange($event)">
                                                         <mat-option class="select-search-option"
@@ -273,7 +272,7 @@
 
                                                 <mat-form-field appearance="outline" class="filter-item">
                                                     <mat-label>Team</mat-label>
-                                                    <mat-select multiple [(ngModel)]="questionBankFilterTeams"
+                                                    <mat-select multiple [(ngModel)]="questionBankFilterTeams" [compareWith]="compareById"
                                                         [disabled]="!institute"
                                                         (openedChange)="onQuestionBankTeamOpenedChange($event)">
                                                         <mat-option class="select-search-option"
@@ -512,13 +511,6 @@
                                         <p class="section-desc" *ngIf="!activeQuestionCategoryName">Select or view a
                                             question bank to load questions.</p>
                                     </div>
-                                    <!-- <button mat-flat-button color="primary" class="questions-add-btn" type="button"
-                                        (click)="addSelectedQuestionBankQuestions()"
-                                        [disabled]="!canAddSelectedQuestionBankQuestions || readOnly"
-                                        aria-label="Add selected questions">
-                                        <mat-icon>add</mat-icon>
-                                        <span>Add</span>
-                                    </button> -->
                                 </div>
                                 <div class="question-controls">
                                     <mat-checkbox class="question-select-all" [(ngModel)]="selectAllQuestions"

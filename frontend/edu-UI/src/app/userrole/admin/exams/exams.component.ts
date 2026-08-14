@@ -1038,7 +1038,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
               total_marks: this.getTotalMarks(c) ?? this.calculateTotalMarks(questionsCount, marksPerQuestion)
             };
           });
-          const editPayload = { ...item, categories: mapped };
+          const editPayload = { ...item, departments: item.departments || e.departments || [], teams: item.teams || e.teams || [], categories: mapped };
           try { sessionStorage.setItem('edit_exam', JSON.stringify(editPayload)); } catch (_) { }
           this.saveTestsReturnState();
           this.router.navigate(['/create-exam']);

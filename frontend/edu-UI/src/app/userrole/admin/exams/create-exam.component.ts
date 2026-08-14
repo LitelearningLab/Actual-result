@@ -1,6 +1,12 @@
 import { Component, HostBinding, TemplateRef, ViewContainerRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl } from '@angular/forms';
+import {
+  FormsModule,
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  FormControl,
+} from '@angular/forms';
 import { Observable, of } from 'rxjs';
 import { startWith, map } from 'rxjs/operators';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -27,14 +33,36 @@ import { OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule } from '@angular/cdk/portal';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
+import {
+  DateRangePickerDialogComponent,
+  DateRangeDialogResult,
+} from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 @Component({
   selector: 'app-create-exam',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatAutocompleteModule, MatButtonModule, MatIconModule, MatListModule, MatCheckboxModule, MatDatepickerModule, MatDialogModule, RouterModule, HttpClientModule, MatStepperModule, OverlayModule, PortalModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatAutocompleteModule,
+    MatButtonModule,
+    MatIconModule,
+    MatListModule,
+    MatCheckboxModule,
+    MatDatepickerModule,
+    MatDialogModule,
+    RouterModule,
+    HttpClientModule,
+    MatStepperModule,
+    OverlayModule,
+    PortalModule,
+  ],
   templateUrl: './create-exam.component.html',
-  styleUrls: ['./create-exam.component.scss']
+  styleUrls: ['./create-exam.component.scss'],
 })
 export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   title = '';
@@ -54,8 +82,24 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedCategory = '';
   categoryCtrl = new FormControl('');
   filteredCategories$: Observable<any[]> = of([]);
-  newCategory: { questions: number; randomize_questions?: boolean; question_type?: string; marks_per_question?: number | null } = { questions: 0, randomize_questions: false, question_type: '', marks_per_question: null };
-  model: { categories?: Array<{ category_id?: string; name?: string; questions: number; question_ids?: any[]; randomize_questions?: boolean; question_type?: string; marks_per_question?: number | null; total_marks?: number | null }> } = { categories: [] };
+  newCategory: {
+    questions: number;
+    randomize_questions?: boolean;
+    question_type?: string;
+    marks_per_question?: number | null;
+  } = { questions: 0, randomize_questions: false, question_type: '', marks_per_question: null };
+  model: {
+    categories?: Array<{
+      category_id?: string;
+      name?: string;
+      questions: number;
+      question_ids?: any[];
+      randomize_questions?: boolean;
+      question_type?: string;
+      marks_per_question?: number | null;
+      total_marks?: number | null;
+    }>;
+  } = { categories: [] };
   readOnly = false;
   filterEnabled = false;
   @ViewChild('filterAnchor', { static: false }) filterAnchor?: ElementRef;
@@ -82,18 +126,25 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
 
+  compareById(o1: any, o2: any): boolean {
+    if (o1 === null || o1 === undefined || o2 === null || o2 === undefined) return o1 === o2;
+    return String(o1) === String(o2);
+  }
+
   // Select All functionality for Departments
   isAllDepartmentsSelected(): boolean {
-    return this.departments.length > 0 &&
-      this.selectedDepartments.filter(id => id !== 'ALL').length === this.departments.length;
+    return (
+      this.departments.length > 0 &&
+      this.selectedDepartments.filter((id) => id !== 'ALL').length === this.departments.length
+    );
   }
 
   toggleSelectAllDepartments(event: any): void {
     const selected = (event?.value || []) as string[];
-    const allIds = this.departments.map(d => String(d.id));
+    const allIds = this.departments.map((d) => String(d.id));
 
     if (selected.includes('ALL')) {
-      if (this.selectedDepartments.filter(id => id !== 'ALL').length === allIds.length) {
+      if (this.selectedDepartments.filter((id) => id !== 'ALL').length === allIds.length) {
         this.selectedDepartments = [];
       } else {
         this.selectedDepartments = ['ALL', ...allIds];
@@ -102,7 +153,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.selectedDepartments.includes('ALL')) {
         this.selectedDepartments = [];
       } else {
-        this.selectedDepartments = selected.filter(id => id !== 'ALL');
+        this.selectedDepartments = selected.filter((id) => id !== 'ALL');
       }
     }
   }
@@ -111,7 +162,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   get filteredTeams(): Array<{ id: string; name: string }> {
     const term = (this.teamFilterSearch || '').trim().toLowerCase();
     if (!term) return this.teams;
-    return this.teams.filter(t => (t.name || '').toLowerCase().includes(term));
+    return this.teams.filter((t) => (t.name || '').toLowerCase().includes(term));
   }
 
   // Focus search input when dropdown opens, and clear search input when closed
@@ -119,9 +170,11 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { }
+        } catch (e) {}
       });
     } else {
       this.teamFilterSearch = '';
@@ -132,28 +185,32 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   get filteredDepartments(): Array<{ id: string; name: string }> {
     const term = (this.departmentFilterSearch || '').trim().toLowerCase();
     if (!term) return this.departments;
-    return this.departments.filter(d => (d.name || '').toLowerCase().includes(term));
+    return this.departments.filter((d) => (d.name || '').toLowerCase().includes(term));
   }
 
   get filteredQuestionBankDepartments(): Array<{ id: string; name: string }> {
     const term = (this.questionBankDepartmentSearch || '').trim().toLowerCase();
     if (!term) return this.departments;
-    return this.departments.filter(department => (department.name || '').toLowerCase().includes(term));
+    return this.departments.filter((department) =>
+      (department.name || '').toLowerCase().includes(term)
+    );
   }
 
   get filteredQuestionBankTeams(): Array<{ id: string; name: string }> {
     const term = (this.questionBankTeamSearch || '').trim().toLowerCase();
     if (!term) return this.teams;
-    return this.teams.filter(team => (team.name || '').toLowerCase().includes(term));
+    return this.teams.filter((team) => (team.name || '').toLowerCase().includes(term));
   }
 
   onQuestionBankDepartmentOpenedChange(opened: boolean): void {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { }
+        } catch (e) {}
       });
     } else {
       this.questionBankDepartmentSearch = '';
@@ -164,9 +221,11 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { }
+        } catch (e) {}
       });
     } else {
       this.questionBankTeamSearch = '';
@@ -177,28 +236,31 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { }
+        } catch (e) {}
       });
     } else {
       this.departmentFilterSearch = '';
     }
   }
 
-
   // Select All functionality for Teams
   isAllTeamsSelected(): boolean {
-    return this.teams.length > 0 &&
-      this.selectedTeams.filter(id => id !== 'ALL').length === this.teams.length;
+    return (
+      this.teams.length > 0 &&
+      this.selectedTeams.filter((id) => id !== 'ALL').length === this.teams.length
+    );
   }
 
   toggleSelectAllTeams(event: any): void {
     const selected = (event?.value || []) as string[];
-    const allIds = this.teams.map(t => String(t.id));
+    const allIds = this.teams.map((t) => String(t.id));
 
     if (selected.includes('ALL')) {
-      if (this.selectedTeams.filter(id => id !== 'ALL').length === allIds.length) {
+      if (this.selectedTeams.filter((id) => id !== 'ALL').length === allIds.length) {
         this.selectedTeams = [];
       } else {
         this.selectedTeams = ['ALL', ...allIds];
@@ -207,7 +269,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.selectedTeams.includes('ALL')) {
         this.selectedTeams = [];
       } else {
-        this.selectedTeams = selected.filter(id => id !== 'ALL');
+        this.selectedTeams = selected.filter((id) => id !== 'ALL');
       }
     }
   }
@@ -216,16 +278,18 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   get filteredInstitutes(): Array<{ id: string; name: string }> {
     const term = (this.instituteFilterSearch || '').trim().toLowerCase();
     if (!term) return this.institutes;
-    return this.institutes.filter(i => (i.name || '').toLowerCase().includes(term));
+    return this.institutes.filter((i) => (i.name || '').toLowerCase().includes(term));
   }
   // 3. Focus search input when opened, and reset search term when closed
   onInstituteOpenedChange(opened: boolean) {
     if (opened) {
       setTimeout(() => {
         try {
-          const input = document.querySelector('.cdk-overlay-pane .select-search-input') as HTMLInputElement | null;
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
           input?.focus();
-        } catch (e) { }
+        } catch (e) {}
       });
     } else {
       // Resetting when closed ensures that reopening shows all institutes, even after selecting one
@@ -266,31 +330,58 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     return !this.activeQuestionCategoryId || !this.questionsForCategory.length;
   }
 
-  constructor(private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private overlay: Overlay, private vcr: ViewContainerRef, private loader: LoaderService, private dialog: MatDialog) {
+  constructor(
+    private router: Router,
+    private http: HttpClient,
+    private auth: AuthService,
+    private pageMeta: PageMetaService,
+    private overlay: Overlay,
+    private vcr: ViewContainerRef,
+    private loader: LoaderService,
+    private dialog: MatDialog
+  ) {
     try {
       this._subs = this.auth.user$.subscribe((user: any) => {
-        this.isSuperAdmin = !!user && ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
+        this.isSuperAdmin =
+          !!user &&
+          ['super_admin', 'superadmin', 'super-admin'].includes((user.role || '').toLowerCase());
       });
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   }
 
   openFiltersOverlay() {
     if (!this.filtersBtn) return;
     this.filterEnabled = true;
-    if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; }
+    if (this.filtersOverlayRef) {
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (e) {}
+      this.filtersOverlayRef = null;
+    }
 
-    const positionStrategy = this.overlay.position()
+    const positionStrategy = this.overlay
+      .position()
       .flexibleConnectedTo(this.filtersBtn)
       .withPositions([
         { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 10 },
         { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 10 },
-        { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom', offsetY: -10 }
+        { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom', offsetY: -10 },
       ])
       .withPush(true);
 
-    this.filtersOverlayRef = this.overlay.create({ positionStrategy, hasBackdrop: true, backdropClass: 'cdk-overlay-transparent-backdrop', panelClass: 'overlay-filters-panel', scrollStrategy: this.overlay.scrollStrategies.reposition() });
+    this.filtersOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      panelClass: 'overlay-filters-panel',
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+    });
     this.filtersOverlayRef.backdropClick().subscribe(() => this._closeOverlayInternal());
-    this.filtersOverlayRef.keydownEvents().subscribe((ev: any) => { if (ev.key === 'Escape') this._closeOverlayInternal(); });
+    this.filtersOverlayRef.keydownEvents().subscribe((ev: any) => {
+      if (ev.key === 'Escape') this._closeOverlayInternal();
+    });
 
     const portal = new TemplatePortal(this.filtersPanelTpl, this.vcr);
     this.filtersOverlayRef.attach(portal);
@@ -298,7 +389,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   closeFiltersOverlay() {
     if (this.filtersOverlayRef) {
-      try { this.filtersOverlayRef.dispose(); } catch (e) { };
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (e) {}
       this.filtersOverlayRef = null;
     }
     this.filterEnabled = false;
@@ -306,7 +399,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ensure UI flag clears when overlay is closed programmatically
   private _closeOverlayInternal() {
-    try { this.filtersOverlayRef?.dispose(); } catch (e) { }
+    try {
+      this.filtersOverlayRef?.dispose();
+    } catch (e) {}
     this.filtersOverlayRef = null;
     this.filterEnabled = false;
   }
@@ -321,7 +416,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
           if (anchorEl.contains(ev.target)) return; // click inside anchor — keep open
           // clicked outside — close filter
           this.filterEnabled = false;
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+          /* ignore */
+        }
       };
       document.addEventListener('click', this._docClickHandler);
       this._randomBlockClickHandler = (ev: any) => {
@@ -333,14 +430,22 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         this.validateNewCategoryQuestionCount(true);
       };
       document.addEventListener('click', this._randomBlockClickHandler, true);
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      /* ignore */
+    }
   }
 
-
   ngOnDestroy(): void {
-    try { this._subs?.unsubscribe(); } catch (e) { }
-    try { if (this._docClickHandler) document.removeEventListener('click', this._docClickHandler); } catch (e) { }
-    try { if (this._randomBlockClickHandler) document.removeEventListener('click', this._randomBlockClickHandler, true); } catch (e) { }
+    try {
+      this._subs?.unsubscribe();
+    } catch (e) {}
+    try {
+      if (this._docClickHandler) document.removeEventListener('click', this._docClickHandler);
+    } catch (e) {}
+    try {
+      if (this._randomBlockClickHandler)
+        document.removeEventListener('click', this._randomBlockClickHandler, true);
+    } catch (e) {}
   }
 
   // Called when the Enable Filters checkbox toggles
@@ -348,33 +453,53 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.filterEnabled = !!enabled;
   }
   ngOnInit(): void {
+    // load edit payload first so editMode is populated before setting page metadata
+    this.loadEditTest();
+
     if (this.editMode) {
-      this.pageMeta.setMeta('Update Test', 'Update the exam details and click Update to save changes.')
+      this.pageMeta.setMeta(
+        'Update Test',
+        'Update the exam details and click Update to save changes.'
+      );
     } else {
-      this.pageMeta.setMeta('Create Test', 'Fill required fields and save the exam.')
+      this.pageMeta.setMeta('Create Test', 'Fill required fields and save the exam.');
     }
 
-    // load institutes and edit payload, then ensure institute selection is reconciled
+    // load institutes and ensure institute selection is reconciled
     this.loadInstitutes();
-    // load edit payload first so it can override session
-    this.loadEditTest();
 
     // if an institute is already present (from edit payload), ensure dependent lists load
     if (this.institute) {
-      try { this.onInstituteChange(this.institute); } catch (e) { /* ignore */ }
+      try {
+        this.onInstituteChange(this.institute);
+      } catch (e) {
+        /* ignore */
+      }
     } else {
       // try to auto-select from session user
       try {
         const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
         if (raw) {
           const u = JSON.parse(raw);
-          const inst = sessionStorage.getItem('global_institute_id') || u?.institute_id || u?.instituteId || (u?.institute && (u.institute.institute_id || u.institute.id || u.institute)) || u?.institute || '';
+          const inst =
+            sessionStorage.getItem('global_institute_id') ||
+            u?.institute_id ||
+            u?.instituteId ||
+            (u?.institute && (u.institute.institute_id || u.institute.id || u.institute)) ||
+            u?.institute ||
+            '';
           if (inst && (sessionStorage.getItem('global_institute_id') || !this.isSuperAdmin)) {
             this.institute = String(inst);
-            try { this.onInstituteChange(this.institute); } catch (e) { /* ignore */ }
+            try {
+              this.onInstituteChange(this.institute);
+            } catch (e) {
+              /* ignore */
+            }
           }
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) {
+        /* ignore */
+      }
     }
 
     this.updateFilteredCategoriesStream();
@@ -392,9 +517,14 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       const e = JSON.parse(raw);
       if (!e) return;
       if (e.is_editable === false || e.editable === false) {
-        const msg = "This test cannot be edited because it is currently active or is being attended by users.";
-        try { notify(msg, 'error'); } catch (_) { }
-        try { sessionStorage.removeItem('edit_exam'); } catch (_) { }
+        const msg =
+          'This test cannot be edited because it is currently active or is being attended by users.';
+        try {
+          notify(msg, 'error');
+        } catch (_) {}
+        try {
+          sessionStorage.removeItem('edit_exam');
+        } catch (_) {}
         this.router.navigate(['/exams']);
         return;
       }
@@ -402,23 +532,53 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.editExamId = e.exam_id || e.test_id || e.id || null;
       this.title = e.title || e.name || '';
       this.description = e.description || e.desc || '';
-      this.institute = (e.institute && (e.institute.institute_id || e.institute.institute_id)) || e.institute_id || '';
+      const instRaw = e.institute;
+      this.institute =
+        (instRaw && (instRaw.institute_id || instRaw.id)) ||
+        e.institute_id ||
+        (typeof instRaw === 'string' ? instRaw : '') ||
+        '';
+      if (this.institutes.length && this.institute) {
+        const matchedInst = this.institutes.find(
+          (x) =>
+            String(x.id) === String(this.institute) ||
+            (x.name && x.name.trim().toLowerCase() === String(this.institute).trim().toLowerCase())
+        );
+        if (matchedInst) this.institute = String(matchedInst.id);
+      }
+
       this.durationMinutes = e.duration_mins || e.duration || null;
       this.passMark = e.pass_mark ?? e.passMark ?? null;
       this.numberOfAttempts = e.number_of_attempts ?? e.numberOfAttempts ?? null;
       this.startDateTime = e.start_time || e.start || '';
-      this.selectedDepartments = Array.isArray(e.departments) ? e.departments.map((d: any) => String(d.id || d.department_id || d)) : [];
-      this.selectedTeams = Array.isArray(e.teams) ? e.teams.map((t: any) => String(t.id || t.team_id || t)) : [];
-
-
-
+      this.selectedDepartments = Array.isArray(e.departments)
+        ? e.departments
+            .map((d: any) =>
+              String(typeof d === 'object' ? d.id || d.department_id || d.dept_id || d.name || '' : d)
+            )
+            .filter(Boolean)
+        : [];
+      this.selectedTeams = Array.isArray(e.teams)
+        ? e.teams
+            .map((t: any) =>
+              String(typeof t === 'object' ? t.id || t.team_id || t.teamId || t.name || '' : t)
+            )
+            .filter(Boolean)
+        : [];
 
       // normalize categories if present in the payload
-      const srcCats = Array.isArray(e.categories) ? e.categories : (Array.isArray(e.category_list) ? e.category_list : []);
+      const srcCats = Array.isArray(e.categories)
+        ? e.categories
+        : Array.isArray(e.category_list)
+          ? e.category_list
+          : [];
       this.model.categories = srcCats.map((c: any) => this.normalizeEditCategory(c));
       this.hydrateMissingEditCategoryMarks();
-    } catch (_) { /* ignore malformed edit payload */ }
-    finally { this.loader.hide(); }
+    } catch (_) {
+      /* ignore malformed edit payload */
+    } finally {
+      this.loader.hide();
+    }
   }
 
   setStartNow() {
@@ -440,36 +600,58 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       ? this.model.categories.findIndex((c: any) => String(c.category_id) === String(catId))
       : -1;
     const existing = existingIndex >= 0 ? this.model.categories![existingIndex] : null;
-    const cat = this.categories.find(c => String(c.category_id) === String(catId));
+    const cat = this.categories.find((c) => String(c.category_id) === String(catId));
     const isDraft = String(catId) === String(this.selectedCategory);
-    const randomizeQuestions = isDraft ? !!this.newCategory.randomize_questions : !!existing?.randomize_questions;
+    const randomizeQuestions = isDraft
+      ? !!this.newCategory.randomize_questions
+      : !!existing?.randomize_questions;
 
     if (isDraft && !this.validateNewCategoryQuestionCount(true)) return;
     // Fixed (non-randomized) categories can either be hand-picked via the checkbox list,
     // or left to a plain count — in which case the backend randomly selects that many
     // questions once at save time and the same fixed set is served to every user.
     const manualSelection = !randomizeQuestions && this.selectedQuestionIds.length > 0;
-    if (!randomizeQuestions && !manualSelection && !((Number(this.newCategory.questions) || 0) >= 1)) return;
+    if (
+      !randomizeQuestions &&
+      !manualSelection &&
+      !((Number(this.newCategory.questions) || 0) >= 1)
+    )
+      return;
 
     const selectedIds = manualSelection ? [...this.selectedQuestionIds] : [];
     const requestedQuestions = randomizeQuestions
-      ? (Number(this.newCategory.questions) || 0)
-      : (manualSelection ? selectedIds.length : (Number(this.newCategory.questions) || 0));
+      ? Number(this.newCategory.questions) || 0
+      : manualSelection
+        ? selectedIds.length
+        : Number(this.newCategory.questions) || 0;
     const selectionKey = this.getQuestionSelectionKey(selectedIds);
     const draftName = this.getQuestionBankDraftName();
     const item = {
       category_id: catId,
-      name: isDraft ? draftName : (existing?.name || cat?.name || this.activeQuestionCategoryName || ''),
+      name: isDraft
+        ? draftName
+        : existing?.name || cat?.name || this.activeQuestionCategoryName || '',
       questions: requestedQuestions,
       question_ids: selectedIds,
       randomize_questions: randomizeQuestions,
-      question_type: isDraft ? (this.newCategory.question_type || '') : (existing?.question_type || cat?.type || ''),
-      marks_per_question: isDraft ? (this.newCategory.marks_per_question ?? null) : (this.getMarksPerQuestion(existing) ?? this.getMarksPerQuestion(cat) ?? null),
-      total_marks: this.calculateTotalMarks(requestedQuestions, isDraft ? this.newCategory.marks_per_question : (this.getMarksPerQuestion(existing) ?? this.getMarksPerQuestion(cat)))
+      question_type: isDraft
+        ? this.newCategory.question_type || ''
+        : existing?.question_type || cat?.type || '',
+      marks_per_question: isDraft
+        ? (this.newCategory.marks_per_question ?? null)
+        : (this.getMarksPerQuestion(existing) ?? this.getMarksPerQuestion(cat) ?? null),
+      total_marks: this.calculateTotalMarks(
+        requestedQuestions,
+        isDraft
+          ? this.newCategory.marks_per_question
+          : (this.getMarksPerQuestion(existing) ?? this.getMarksPerQuestion(cat))
+      ),
     };
 
     if (existingIndex >= 0) {
-      this.model.categories = this.model.categories!.map((c, i) => i === existingIndex ? item : c);
+      this.model.categories = this.model.categories!.map((c, i) =>
+        i === existingIndex ? item : c
+      );
     } else {
       this.model.categories = [...(this.model.categories || []), item];
     }
@@ -483,7 +665,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   removeCategory(index: number) {
     if (!Array.isArray(this.model.categories)) return;
     const removed = this.model.categories[index];
-    if (removed?.category_id) delete this.lastAddedQuestionSelectionByCategory[String(removed.category_id)];
+    if (removed?.category_id)
+      delete this.lastAddedQuestionSelectionByCategory[String(removed.category_id)];
     this.model.categories = this.model.categories.filter((_, i) => i !== index);
     if (removed && removed.category_id === this.activeQuestionCategoryId) {
       const next = this.model.categories[0];
@@ -503,41 +686,65 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const url = `${API_BASE}/get-institute-list`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res?.data || []);
-        this.institutes = arr.map((r: any) => ({ id: String(r.institute_id || r.id || r.instituteId || ''), name: r.short_name || r.name || r.institute_name || '' }));
+        const arr = Array.isArray(res) ? res : res?.data || [];
+        this.institutes = arr.map((r: any) => ({
+          id: String(r.institute_id || r.id || r.instituteId || ''),
+          name: r.name || r.institute_name || r.short_name || '',
+        }));
 
         // If an institute is already selected (from edit payload or elsewhere), try to reconcile
         try {
           if (this.institute) {
             const want = String(this.institute);
-            const found = this.institutes.find(x => String(x.id) === want || String(x.id) === String(Number(want || 0)));
+            const found = this.institutes.find(
+              (x) =>
+                String(x.id) === want ||
+                String(x.id) === String(Number(want || 0)) ||
+                (x.name && x.name.trim().toLowerCase() === want.trim().toLowerCase())
+            );
+
             if (found) {
               this.institute = String(found.id);
               this.onInstituteChange(this.institute);
               return;
             }
           }
-        } catch (e) { /* ignore */ }
-        finally { this.loader.hide(); }
+        } catch (e) {
+          /* ignore */
+        } finally {
+          this.loader.hide();
+        }
 
         // Fallback: try reading user's institute from sessionStorage
         try {
           const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
           if (raw) {
             const u = JSON.parse(raw);
-            const instId = sessionStorage.getItem('global_institute_id') || u?.institute_id || u?.instituteId || (u?.institute && (u.institute.institute_id || u.institute.id || u.institute)) || u?.institute || '';
+            const instId =
+              sessionStorage.getItem('global_institute_id') ||
+              u?.institute_id ||
+              u?.instituteId ||
+              (u?.institute && (u.institute.institute_id || u.institute.id || u.institute)) ||
+              u?.institute ||
+              '';
             if (instId) {
-              const found = this.institutes.find(x => String(x.id) === String(instId));
+              const found = this.institutes.find((x) => String(x.id) === String(instId));
               if (found) {
                 this.institute = String(found.id);
                 this.onInstituteChange(this.institute);
               }
             }
           }
-        } catch (e) { /* ignore malformed session data */ }
-
-      }, error: () => { /* ignore - keep empty list */ }
-      , complete: () => { this.loader.hide(); }
+        } catch (e) {
+          /* ignore malformed session data */
+        }
+      },
+      error: () => {
+        /* ignore - keep empty list */
+      },
+      complete: () => {
+        this.loader.hide();
+      },
     });
   }
 
@@ -548,22 +755,27 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.http.get<any>(url).subscribe({
       next: (res) => {
         if (requestSeq !== this.categoryLoadSeq) return;
-        const arr = Array.isArray(res) ? res : (res?.data || []);
+        const arr = Array.isArray(res) ? res : res?.data || [];
         this.categories = arr.map((c: any) => this.normalizeCategoryOption(c));
         this.reconcileAttachedQuestionBankMarks();
         // update autocomplete stream
         this.updateFilteredCategoriesStream();
-      }, error: (err) => {
+      },
+      error: (err) => {
         if (requestSeq !== this.categoryLoadSeq) return;
         console.warn('Failed to load categories', err);
         this.categories = [];
         this.updateFilteredCategoriesStream();
-      }
-      , complete: () => { this.loader.hide(); }
+      },
+      complete: () => {
+        this.loader.hide();
+      },
     });
   }
 
-  displayCategory(c: any) { return c ? (c.name || c.category_name || '') : ''; }
+  displayCategory(c: any) {
+    return c ? c.name || c.category_name || '' : '';
+  }
 
   onQuestionBankNameInput(event: Event) {
     if (!this.selectedCategory) return;
@@ -573,9 +785,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private getQuestionBankDraftName(): string {
     const value: any = this.categoryCtrl.value;
-    const typedName = typeof value === 'string'
-      ? value.trim()
-      : String(value?.name || value?.category_name || '').trim();
+    const typedName =
+      typeof value === 'string'
+        ? value.trim()
+        : String(value?.name || value?.category_name || '').trim();
     return typedName || this.activeQuestionCategoryName || '';
   }
 
@@ -585,7 +798,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       category_id: c?.category_id || c?.id || c?._id || '',
       name: c?.name || c?.category_name || c?.title || '',
       type: c?.type || c?.category_type || c?.question_type || '',
-      mark_each_question: this.getMarksPerQuestion(c)
+      mark_each_question: this.getMarksPerQuestion(c),
     };
   }
 
@@ -598,46 +811,46 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   private getMarksPerQuestion(value: any): number | null {
     return this.toNumber(
       value?.marks_per_question ??
-      value?.marksPerQuestion ??
-      value?.mark_each_question ??
-      value?.markEachQuestion ??
-      value?.mark_for_each_question ??
-      value?.marks_for_each_question ??
-      value?.marksForEachQuestion ??
-      value?.question_mark ??
-      value?.question_marks ??
-      value?.category_mark ??
-      value?.category_marks ??
-      value?.marks ??
-      value?.mark ??
-      value?.points ??
-      value?.category?.marks_per_question ??
-      value?.category?.mark_each_question ??
-      value?.category?.mark_for_each_question ??
-      value?.category?.marks ??
-      value?.category?.mark
+        value?.marksPerQuestion ??
+        value?.mark_each_question ??
+        value?.markEachQuestion ??
+        value?.mark_for_each_question ??
+        value?.marks_for_each_question ??
+        value?.marksForEachQuestion ??
+        value?.question_mark ??
+        value?.question_marks ??
+        value?.category_mark ??
+        value?.category_marks ??
+        value?.marks ??
+        value?.mark ??
+        value?.points ??
+        value?.category?.marks_per_question ??
+        value?.category?.mark_each_question ??
+        value?.category?.mark_for_each_question ??
+        value?.category?.marks ??
+        value?.category?.mark
     );
   }
 
   private getTotalMarks(value: any): number | null {
     return this.toNumber(
       value?.total_marks ??
-      value?.totalMarks ??
-      value?.total_mark ??
-      value?.marks_total ??
-      value?.total_score ??
-      value?.category?.total_marks
+        value?.totalMarks ??
+        value?.total_mark ??
+        value?.marks_total ??
+        value?.total_score ??
+        value?.category?.total_marks
     );
   }
 
   private getQuestionCount(value: any): number {
     const count = this.toNumber(
       (Array.isArray(value?.questions) ? null : value?.questions) ??
-      value?.number_of_questions ??
-      value?.total_questions ??
-      value?.questions_count ??
-      value?.question_count ??
-      value?.count
+        value?.number_of_questions ??
+        value?.total_questions ??
+        value?.questions_count ??
+        value?.question_count ??
+        value?.count
     );
     if (count !== null) return count;
     if (Array.isArray(value?.question_ids)) return value.question_ids.length;
@@ -650,7 +863,11 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   private getQuestionIds(value: any): any[] {
     if (Array.isArray(value?.question_ids)) return value.question_ids;
     if (Array.isArray(value?.questionIds)) return value.questionIds;
-    const questionArray = Array.isArray(value?.questions) ? value.questions : (Array.isArray(value?.question_list) ? value.question_list : []);
+    const questionArray = Array.isArray(value?.questions)
+      ? value.questions
+      : Array.isArray(value?.question_list)
+        ? value.question_list
+        : [];
     return questionArray.map((q: any) => q?.question_id || q?.id || q?._id || null).filter(Boolean);
   }
 
@@ -661,20 +878,40 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private deriveMarksFromQuestionList(value: any): number | null {
-    const questionArray = Array.isArray(value?.questions) ? value.questions : (Array.isArray(value?.question_list) ? value.question_list : []);
-    const marks = Array.from(new Set(questionArray.map((q: any) => this.getMarksPerQuestion(q)).filter((v: number | null) => v !== null))) as number[];
+    const questionArray = Array.isArray(value?.questions)
+      ? value.questions
+      : Array.isArray(value?.question_list)
+        ? value.question_list
+        : [];
+    const marks = Array.from(
+      new Set(
+        questionArray
+          .map((q: any) => this.getMarksPerQuestion(q))
+          .filter((v: number | null) => v !== null)
+      )
+    ) as number[];
     return marks.length === 1 ? marks[0] : null;
   }
 
   getCategoryMarksPerQuestion(category: any): number {
     const categoryId = String(category?.category_id || category?.category?.category_id || '');
-    const option = (this.categories || []).find((c: any) => String(c?.category_id || '') === categoryId);
-    return this.getMarksPerQuestion(category) ?? this.deriveMarksFromQuestionList(category) ?? this.getMarksPerQuestion(option) ?? 0;
+    const option = (this.categories || []).find(
+      (c: any) => String(c?.category_id || '') === categoryId
+    );
+    return (
+      this.getMarksPerQuestion(category) ??
+      this.deriveMarksFromQuestionList(category) ??
+      this.getMarksPerQuestion(option) ??
+      0
+    );
   }
 
   getCategoryTotalMarks(category: any): number {
     const savedTotal = this.getTotalMarks(category);
-    const calculatedTotal = this.calculateTotalMarks(this.getQuestionCount(category), this.getCategoryMarksPerQuestion(category));
+    const calculatedTotal = this.calculateTotalMarks(
+      this.getQuestionCount(category),
+      this.getCategoryMarksPerQuestion(category)
+    );
     if (savedTotal !== null && savedTotal > 0) return savedTotal;
     return calculatedTotal ?? savedTotal ?? 0;
   }
@@ -688,24 +925,40 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       name: c?.category_name || catObj?.category_name || c?.name || catObj?.name || c?.title || '',
       questions,
       question_ids: this.getQuestionIds(c),
-      randomize_questions: typeof c?.randomize_questions !== 'undefined' ? !!c.randomize_questions : !!c?.randomize,
-      question_type: c?.question_type || catObj?.question_type || c?.type || catObj?.type || c?.category_type || catObj?.category_type || '',
+      randomize_questions:
+        typeof c?.randomize_questions !== 'undefined' ? !!c.randomize_questions : !!c?.randomize,
+      question_type:
+        c?.question_type ||
+        catObj?.question_type ||
+        c?.type ||
+        catObj?.type ||
+        c?.category_type ||
+        catObj?.category_type ||
+        '',
       marks_per_question: marksPerQuestion,
-      total_marks: this.getTotalMarks(c) ?? this.calculateTotalMarks(questions, marksPerQuestion)
+      total_marks: this.getTotalMarks(c) ?? this.calculateTotalMarks(questions, marksPerQuestion),
     };
   }
 
   private hydrateMissingEditCategoryMarks() {
-    if (!this.editMode || !Array.isArray(this.model.categories) || !this.model.categories.length) return;
+    if (!this.editMode || !Array.isArray(this.model.categories) || !this.model.categories.length)
+      return;
     this.model.categories
-      .filter((category: any) => category?.category_id && this.getCategoryMarksPerQuestion(category) <= 0)
+      .filter(
+        (category: any) => category?.category_id && this.getCategoryMarksPerQuestion(category) <= 0
+      )
       .forEach((category: any) => {
         const categoryId = String(category.category_id);
         const url = `${API_BASE}/category-details?category_id=${encodeURIComponent(categoryId)}`;
         this.http.get<any>(url).subscribe({
           next: (res) => {
-            const items = Array.isArray(res) ? res : (res?.data || []);
-            const detail = Array.isArray(items) && items.length ? items[0] : (res?.data && !Array.isArray(res.data) ? res.data : res);
+            const items = Array.isArray(res) ? res : res?.data || [];
+            const detail =
+              Array.isArray(items) && items.length
+                ? items[0]
+                : res?.data && !Array.isArray(res.data)
+                  ? res.data
+                  : res;
             const normalized = this.normalizeCategoryOption(detail || {});
             const marksPerQuestion = this.getMarksPerQuestion(normalized);
             if (marksPerQuestion === null) return;
@@ -716,28 +969,40 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
                 ...item,
                 question_type: item.question_type || normalized.type || '',
                 marks_per_question: marksPerQuestion,
-                total_marks: this.calculateTotalMarks(questions, marksPerQuestion)
+                total_marks: this.calculateTotalMarks(questions, marksPerQuestion),
               };
             });
           },
-          error: (err) => { console.warn('Failed to load marks for attached question bank', err); }
+          error: (err) => {
+            console.warn('Failed to load marks for attached question bank', err);
+          },
         });
       });
   }
 
   private reconcileAttachedQuestionBankMarks() {
-    if (!this.editMode || !Array.isArray(this.model.categories) || !this.model.categories.length || !this.categories.length) return;
+    if (
+      !this.editMode ||
+      !Array.isArray(this.model.categories) ||
+      !this.model.categories.length ||
+      !this.categories.length
+    )
+      return;
     this.model.categories = this.model.categories.map((category: any) => {
       const categoryId = String(category?.category_id || '');
       const option = this.categories.find((c: any) => String(c?.category_id || '') === categoryId);
-      const marksPerQuestion = this.getMarksPerQuestion(category) ?? this.getMarksPerQuestion(option);
+      const marksPerQuestion =
+        this.getMarksPerQuestion(category) ?? this.getMarksPerQuestion(option);
       if (marksPerQuestion === null) return category;
       const questions = this.getQuestionCount(category);
       return {
         ...category,
         question_type: category.question_type || option?.type || '',
         marks_per_question: marksPerQuestion,
-        total_marks: this.getTotalMarks(category) && this.getTotalMarks(category)! > 0 ? this.getTotalMarks(category) : this.calculateTotalMarks(questions, marksPerQuestion)
+        total_marks:
+          this.getTotalMarks(category) && this.getTotalMarks(category)! > 0
+            ? this.getTotalMarks(category)
+            : this.calculateTotalMarks(questions, marksPerQuestion),
       };
     });
   }
@@ -747,7 +1012,12 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.questionLoadSeq++;
     this.selectedCategory = '';
     this.categoryCtrl.setValue('');
-    this.newCategory = { questions: 0, randomize_questions: false, question_type: '', marks_per_question: null };
+    this.newCategory = {
+      questions: 0,
+      randomize_questions: false,
+      question_type: '',
+      marks_per_question: null,
+    };
     this.model.categories = [];
     this.tempQuestionsForCategory = [];
     this.questionsForCategory = [];
@@ -761,7 +1031,12 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   private resetQuestionBankDraft(clearDisplayedQuestions = false) {
     this.selectedCategory = '';
     this.categoryCtrl.setValue('');
-    this.newCategory = { questions: 0, randomize_questions: false, question_type: '', marks_per_question: null };
+    this.newCategory = {
+      questions: 0,
+      randomize_questions: false,
+      question_type: '',
+      marks_per_question: null,
+    };
     this.tempQuestionsForCategory = [];
     this.questionCountError = '';
     if (clearDisplayedQuestions) {
@@ -776,23 +1051,35 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   formatQuestionBankType(type: any): string {
     const value = String(type || '').trim();
     if (!value) return ''; // Return empty string so label doesn't float when unselected
-    return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   private deriveQuestionTypeFromQuestions(questions: Array<any>): string {
-    const types = Array.from(new Set((questions || []).map(q => String(q.type || q.question_type || '').trim()).filter(Boolean)));
+    const types = Array.from(
+      new Set(
+        (questions || []).map((q) => String(q.type || q.question_type || '').trim()).filter(Boolean)
+      )
+    );
     if (!types.length) return '';
     return types.length === 1 ? types[0] : 'Mixed';
   }
 
   private deriveMarksFromQuestions(questions: Array<any>): number | null {
-    const marks = Array.from(new Set((questions || []).map((q: any) => this.getMarksPerQuestion(q)).filter((v: number | null) => v !== null))) as number[];
+    const marks = Array.from(
+      new Set(
+        (questions || [])
+          .map((q: any) => this.getMarksPerQuestion(q))
+          .filter((v: number | null) => v !== null)
+      )
+    ) as number[];
     return marks.length === 1 ? marks[0] : null;
   }
   onCategoryAutocompleteSelected(c: any) {
     if (!c) return;
     const normalized = this.normalizeCategoryOption(c);
-    const existing = (this.model.categories || []).find((item: any) => String(item.category_id) === String(normalized.category_id));
+    const existing = (this.model.categories || []).find(
+      (item: any) => String(item.category_id) === String(normalized.category_id)
+    );
     if (existing) {
       this.loadAttachedQuestionBankDraft(normalized, existing);
       return;
@@ -809,7 +1096,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.questionCountError = '';
     this.tempQuestionsForCategory = [];
     this.questionsForCategory = [];
-    this.selectedQuestionIds = Array.isArray(attached.question_ids) ? attached.question_ids.map((id: any) => String(id)) : [];
+    this.selectedQuestionIds = Array.isArray(attached.question_ids)
+      ? attached.question_ids.map((id: any) => String(id))
+      : [];
     this.selectAllQuestions = false;
     this.activeQuestionCategoryId = catId;
     this.activeQuestionCategoryName = attached.name || category.name || 'Selected category';
@@ -817,24 +1106,53 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       questions: Number(attached.questions) || 0,
       randomize_questions: !!attached.randomize_questions,
       question_type: attached.question_type || category.type || '',
-      marks_per_question: this.getMarksPerQuestion(attached) ?? this.getMarksPerQuestion(category)
+      marks_per_question: this.getMarksPerQuestion(attached) ?? this.getMarksPerQuestion(category),
     };
-    this.loadAttachedQuestionBankDraftQuestions(catId, requestSeq, this.selectedQuestionIds, !!attached.randomize_questions);
+    this.loadAttachedQuestionBankDraftQuestions(
+      catId,
+      requestSeq,
+      this.selectedQuestionIds,
+      !!attached.randomize_questions
+    );
   }
 
-  private loadAttachedQuestionBankDraftQuestions(catId: string, requestSeq: number, selectedIds: string[], randomizeQuestions: boolean) {
+  private loadAttachedQuestionBankDraftQuestions(
+    catId: string,
+    requestSeq: number,
+    selectedIds: string[],
+    randomizeQuestions: boolean
+  ) {
     this.loader.show();
     const url = `${API_BASE}/get-questions-details?category_id=${encodeURIComponent(catId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        if (requestSeq !== this.selectionLoadSeq || String(this.selectedCategory) !== String(catId)) return;
-        const arr = Array.isArray(res) ? res : (res?.data || []);
-        this.tempQuestionsForCategory = arr.map((q: any, i: number) => ({ id: q.id || q.question_id || q._id || String(i), question: q.question || q.text || q.title || '', type: q.type || q.question_type || '', marks: this.getMarksPerQuestion(q), raw: q }));
+        if (requestSeq !== this.selectionLoadSeq || String(this.selectedCategory) !== String(catId))
+          return;
+        const arr = Array.isArray(res) ? res : res?.data || [];
+        this.tempQuestionsForCategory = arr.map((q: any, i: number) => ({
+          id: q.id || q.question_id || q._id || String(i),
+          question: q.question || q.text || q.title || '',
+          type: q.type || q.question_type || '',
+          marks: this.getMarksPerQuestion(q),
+          raw: q,
+        }));
         this.questionsForCategory = [...this.tempQuestionsForCategory];
-        this.selectedQuestionIds = randomizeQuestions ? [] : selectedIds.map(id => String(id));
-        this.selectAllQuestions = !randomizeQuestions && this.questionsForCategory.length > 0 && this.questionsForCategory.every(q => this.selectedQuestionIds.includes(String(q.id)));
-        if (!this.newCategory.question_type) this.newCategory.question_type = this.deriveQuestionTypeFromQuestions(this.tempQuestionsForCategory);
-        if (this.newCategory.marks_per_question === null || typeof this.newCategory.marks_per_question === 'undefined') this.newCategory.marks_per_question = this.deriveMarksFromQuestions(this.tempQuestionsForCategory);
+        this.selectedQuestionIds = randomizeQuestions ? [] : selectedIds.map((id) => String(id));
+        this.selectAllQuestions =
+          !randomizeQuestions &&
+          this.questionsForCategory.length > 0 &&
+          this.questionsForCategory.every((q) => this.selectedQuestionIds.includes(String(q.id)));
+        if (!this.newCategory.question_type)
+          this.newCategory.question_type = this.deriveQuestionTypeFromQuestions(
+            this.tempQuestionsForCategory
+          );
+        if (
+          this.newCategory.marks_per_question === null ||
+          typeof this.newCategory.marks_per_question === 'undefined'
+        )
+          this.newCategory.marks_per_question = this.deriveMarksFromQuestions(
+            this.tempQuestionsForCategory
+          );
         this.validateNewCategoryQuestionCount(false);
       },
       error: (err) => {
@@ -846,7 +1164,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         this.selectAllQuestions = false;
         this.questionCountError = 'Unable to load questions for the selected Question Bank.';
       },
-      complete: () => { if (requestSeq === this.selectionLoadSeq) this.loader.hide(); }
+      complete: () => {
+        if (requestSeq === this.selectionLoadSeq) this.loader.hide();
+      },
     });
   }
   private loadQuestionBankDraft(category: any) {
@@ -866,7 +1186,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       questions: 0,
       randomize_questions: true,
       question_type: normalized.type || '',
-      marks_per_question: this.getMarksPerQuestion(normalized)
+      marks_per_question: this.getMarksPerQuestion(normalized),
     };
     this.loadQuestionBankDraftDetails(catId, requestSeq);
     this.loadQuestionBankDraftQuestions(catId, requestSeq);
@@ -876,15 +1196,24 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const url = `${API_BASE}/category-details?category_id=${encodeURIComponent(catId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        if (requestSeq !== this.selectionLoadSeq || String(this.selectedCategory) !== String(catId)) return;
-        const items = Array.isArray(res) ? res : (res?.data || []);
-        const detail = Array.isArray(items) && items.length ? items[0] : (res?.data && !Array.isArray(res.data) ? res.data : res);
+        if (requestSeq !== this.selectionLoadSeq || String(this.selectedCategory) !== String(catId))
+          return;
+        const items = Array.isArray(res) ? res : res?.data || [];
+        const detail =
+          Array.isArray(items) && items.length
+            ? items[0]
+            : res?.data && !Array.isArray(res.data)
+              ? res.data
+              : res;
         if (!detail) return;
         const normalized = this.normalizeCategoryOption(detail);
         this.newCategory.question_type = normalized.type || this.newCategory.question_type || '';
-        this.newCategory.marks_per_question = this.getMarksPerQuestion(normalized) ?? this.newCategory.marks_per_question ?? null;
+        this.newCategory.marks_per_question =
+          this.getMarksPerQuestion(normalized) ?? this.newCategory.marks_per_question ?? null;
       },
-      error: (err) => { console.warn('Failed to load question bank details', err); }
+      error: (err) => {
+        console.warn('Failed to load question bank details', err);
+      },
     });
   }
 
@@ -893,15 +1222,31 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const url = `${API_BASE}/get-questions-details?category_id=${encodeURIComponent(catId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
-        if (requestSeq !== this.selectionLoadSeq || String(this.selectedCategory) !== String(catId)) return;
-        const arr = Array.isArray(res) ? res : (res?.data || []);
-        this.tempQuestionsForCategory = arr.map((q: any, i: number) => ({ id: q.id || q.question_id || q._id || String(i), question: q.question || q.text || q.title || '', type: q.type || q.question_type || '', marks: this.getMarksPerQuestion(q), raw: q }));
+        if (requestSeq !== this.selectionLoadSeq || String(this.selectedCategory) !== String(catId))
+          return;
+        const arr = Array.isArray(res) ? res : res?.data || [];
+        this.tempQuestionsForCategory = arr.map((q: any, i: number) => ({
+          id: q.id || q.question_id || q._id || String(i),
+          question: q.question || q.text || q.title || '',
+          type: q.type || q.question_type || '',
+          marks: this.getMarksPerQuestion(q),
+          raw: q,
+        }));
         this.questionsForCategory = [...this.tempQuestionsForCategory];
         this.selectedQuestionIds = [];
         this.selectAllQuestions = false;
         this.newCategory.questions = this.tempQuestionsForCategory.length;
-        if (!this.newCategory.question_type) this.newCategory.question_type = this.deriveQuestionTypeFromQuestions(this.tempQuestionsForCategory);
-        if (this.newCategory.marks_per_question === null || typeof this.newCategory.marks_per_question === 'undefined') this.newCategory.marks_per_question = this.deriveMarksFromQuestions(this.tempQuestionsForCategory);
+        if (!this.newCategory.question_type)
+          this.newCategory.question_type = this.deriveQuestionTypeFromQuestions(
+            this.tempQuestionsForCategory
+          );
+        if (
+          this.newCategory.marks_per_question === null ||
+          typeof this.newCategory.marks_per_question === 'undefined'
+        )
+          this.newCategory.marks_per_question = this.deriveMarksFromQuestions(
+            this.tempQuestionsForCategory
+          );
         this.validateNewCategoryQuestionCount(false);
       },
       error: (err) => {
@@ -914,7 +1259,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         this.newCategory.questions = 0;
         this.questionCountError = 'Unable to load questions for the selected Question Bank.';
       },
-      complete: () => { if (requestSeq === this.selectionLoadSeq) this.loader.hide(); }
+      complete: () => {
+        if (requestSeq === this.selectionLoadSeq) this.loader.hide();
+      },
     });
   }
   // load categories with filters (called by Apply)
@@ -924,45 +1271,59 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const currentUser = this.getCurrentUserId();
     const base = `${API_BASE}/get-categories-list`;
     const params: string[] = [];
-    if (filters.institute_id) params.push(`institute_id=${encodeURIComponent(filters.institute_id)}`);
-    if (filters.departments && filters.departments.length) params.push(`departments=${encodeURIComponent(filters.departments.join(','))}`);
-    if (filters.teams && filters.teams.length) params.push(`teams=${encodeURIComponent(filters.teams.join(','))}`);
-    if (filters.created_after) params.push(`created_after=${encodeURIComponent(filters.created_after)}`);
-    if (filters.created_before) params.push(`created_before=${encodeURIComponent(filters.created_before)}`);
+    if (filters.institute_id)
+      params.push(`institute_id=${encodeURIComponent(filters.institute_id)}`);
+    if (filters.departments && filters.departments.length)
+      params.push(`departments=${encodeURIComponent(filters.departments.join(','))}`);
+    if (filters.teams && filters.teams.length)
+      params.push(`teams=${encodeURIComponent(filters.teams.join(','))}`);
+    if (filters.created_after)
+      params.push(`created_after=${encodeURIComponent(filters.created_after)}`);
+    if (filters.created_before)
+      params.push(`created_before=${encodeURIComponent(filters.created_before)}`);
     if (filters.type) params.push(`type=${encodeURIComponent(filters.type)}`);
     if (filters.access_scope === 'owned_or_public' && currentUser) {
       params.push('access_scope=owned_or_public');
       params.push(`current_user_id=${encodeURIComponent(String(currentUser))}`);
     } else {
-      if (typeof filters.created_by !== 'undefined' && filters.created_by && currentUser) params.push(`created_by=${encodeURIComponent(String(currentUser))}`);
-      if (typeof filters.public_access !== 'undefined' && filters.public_access !== null) params.push(`public_access=${encodeURIComponent(String(filters.public_access))}`);
+      if (typeof filters.created_by !== 'undefined' && filters.created_by && currentUser)
+        params.push(`created_by=${encodeURIComponent(String(currentUser))}`);
+      if (typeof filters.public_access !== 'undefined' && filters.public_access !== null)
+        params.push(`public_access=${encodeURIComponent(String(filters.public_access))}`);
     }
     const url = params.length ? `${base}?${params.join('&')}` : base;
     this.http.get<any>(url).subscribe({
       next: (res) => {
         if (requestSeq !== this.categoryLoadSeq) return;
-        const arr = Array.isArray(res) ? res : (res?.data || []);
+        const arr = Array.isArray(res) ? res : res?.data || [];
         this.categories = arr.map((c: any) => this.normalizeCategoryOption(c));
         this.reconcileAttachedQuestionBankMarks();
         // ensure autocomplete reflects latest categories
         this.updateFilteredCategoriesStream();
         if (this.categories.length === 0 && this.hasCategoryFilterValues()) {
           this.categoryFilterError = 'No question bank found for the selected filter / date range.';
-          try { notify('No question bank found for the selected filter criteria.', 'info'); } catch (e) { }
+          try {
+            notify('No question bank found for the selected filter criteria.', 'info');
+          } catch (e) {}
         } else {
           this.categoryFilterError = '';
         }
-      }, error: (err) => {
+      },
+      error: (err) => {
         if (requestSeq !== this.categoryLoadSeq) return;
         console.warn('Failed to load categories with filters', err);
         this.categories = [];
         this.updateFilteredCategoriesStream();
         if (this.hasCategoryFilterValues()) {
           this.categoryFilterError = 'No question bank found for the selected filter / date range.';
-          try { notify('No question bank found for the selected filter criteria.', 'info'); } catch (e) { }
+          try {
+            notify('No question bank found for the selected filter criteria.', 'info');
+          } catch (e) {}
         }
-      }
-      , complete: () => { this.loader.hide(); }
+      },
+      complete: () => {
+        this.loader.hide();
+      },
     });
   }
 
@@ -976,7 +1337,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
         startWith(''),
         map((val: any) => {
-          const q = String(val || '').trim().toLowerCase();
+          const q = String(val || '')
+            .trim()
+            .toLowerCase();
           const currentUser = this.getCurrentUserId();
 
           return (this.categories || []).filter((c: any) => {
@@ -987,10 +1350,16 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
             let matchesDate = true;
             if (c.created_at || c.created_date) {
               const itemDate = new Date(c.created_at || c.created_date).getTime();
-              if (this.filterCreationDateAfter && itemDate < new Date(this.filterCreationDateAfter).getTime()) {
+              if (
+                this.filterCreationDateAfter &&
+                itemDate < new Date(this.filterCreationDateAfter).getTime()
+              ) {
                 matchesDate = false;
               }
-              if (this.filterCreationDate && itemDate > new Date(this.filterCreationDate).getTime()) {
+              if (
+                this.filterCreationDate &&
+                itemDate > new Date(this.filterCreationDate).getTime()
+              ) {
                 matchesDate = false;
               }
             }
@@ -1002,7 +1371,11 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
             if (this.filterCreatedByMe || this.filterPublicAccess) {
               const creator = String(c.created_by_id || c.created_by_user_id || c.created_by || '');
               const isOwned = !!currentUser && creator === String(currentUser);
-              const isPublic = !!(c.public_access === true || c.public_access === 1 || String(c.public_access).toLowerCase() === 'true');
+              const isPublic = !!(
+                c.public_access === true ||
+                c.public_access === 1 ||
+                String(c.public_access).toLowerCase() === 'true'
+              );
               if (this.filterCreatedByMe && this.filterPublicAccess) {
                 matchesAccess = isOwned || isPublic;
               } else if (this.filterCreatedByMe) {
@@ -1019,10 +1392,14 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
               matchesType = this.selectedQuestionTypes.some((selectedType) => {
                 const st = selectedType.toLowerCase();
                 if (st === 'objective') {
-                  return ['objective', 'choose', 'multi', 'fill', 'mcq'].some((t) => catType.includes(t));
+                  return ['objective', 'choose', 'multi', 'fill', 'mcq'].some((t) =>
+                    catType.includes(t)
+                  );
                 }
                 if (st === 'descriptive') {
-                  return ['descriptive', 'paragraph', 'subjective'].some((t) => catType.includes(t));
+                  return ['descriptive', 'paragraph', 'subjective'].some((t) =>
+                    catType.includes(t)
+                  );
                 }
                 return catType.includes(st);
               });
@@ -1055,8 +1432,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       width: '520px',
       data: {
         startDate: this.filterCreationDateAfter,
-        endDate: this.filterCreationDate
-      }
+        endDate: this.filterCreationDate,
+      },
     });
 
     dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
@@ -1069,7 +1446,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
   }
-
 
   getCreatedDateRangeDisplay(): string {
     const start = this.filterCreationDateAfter;
@@ -1099,20 +1475,23 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       if (rangeDisplay) labels.push(`Created: ${rangeDisplay}`);
     }
     if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
-      const typesFormatted = this.selectedQuestionTypes.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ');
+      const typesFormatted = this.selectedQuestionTypes
+        .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
+        .join(', ');
       labels.push(`Type: ${typesFormatted}`);
     }
     const departmentIds = this.questionBankFilterDepartments;
     if (departmentIds.length) {
-      const names = departmentIds.map(id =>
-        this.departments.find(department => String(department.id) === String(id))?.name || id
+      const names = departmentIds.map(
+        (id) =>
+          this.departments.find((department) => String(department.id) === String(id))?.name || id
       );
       labels.push(`Department: ${names.join(', ')}`);
     }
     const teamIds = this.questionBankFilterTeams;
     if (teamIds.length) {
-      const names = teamIds.map(id =>
-        this.teams.find(team => String(team.id) === String(id))?.name || id
+      const names = teamIds.map(
+        (id) => this.teams.find((team) => String(team.id) === String(id))?.name || id
       );
       labels.push(`Team: ${names.join(', ')}`);
     }
@@ -1122,13 +1501,18 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   onApply() {
     if (!this.hasCategoryFilterValues()) {
-      try { notify('Please add filters in the filter form.', 'info'); } catch (e) { }
+      try {
+        notify('Please add filters in the filter form.', 'info');
+      } catch (e) {}
       return;
     }
     const filters: any = { institute_id: this.institute };
-    if (this.filterCreationDateAfter) filters.created_after = (this.filterCreationDateAfter as Date).toISOString().slice(0, 10);
-    if (this.filterCreationDate) filters.created_before = (this.filterCreationDate as Date).toISOString().slice(0, 10);
-    if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) filters.type = this.selectedQuestionTypes.join(',');
+    if (this.filterCreationDateAfter)
+      filters.created_after = (this.filterCreationDateAfter as Date).toISOString().slice(0, 10);
+    if (this.filterCreationDate)
+      filters.created_before = (this.filterCreationDate as Date).toISOString().slice(0, 10);
+    if (this.selectedQuestionTypes && this.selectedQuestionTypes.length)
+      filters.type = this.selectedQuestionTypes.join(',');
     const departments = this.questionBankFilterDepartments;
     const teams = this.questionBankFilterTeams;
     if (departments.length) filters.departments = departments;
@@ -1163,12 +1547,13 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onInstituteChange(value: any) {
     const v = value !== undefined && value !== null ? String(value) : '';
-    const instituteChanged = this.hasTrackedInstituteForQuestionBanks && this.trackedInstituteForQuestionBanks !== v;
+    const instituteChanged =
+      this.hasTrackedInstituteForQuestionBanks && this.trackedInstituteForQuestionBanks !== v;
 
     this.institute = v;
     this.categoryLoadSeq++;
 
-    if (instituteChanged) {
+    if (instituteChanged && !this.editMode) {
       this.categories = [];
       this.selectedDepartments = [];
       this.selectedTeams = [];
@@ -1200,36 +1585,83 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   loadDepartments(instId?: string) {
     this.loader.show();
-    if (!instId) { this.departments = []; return; }
+    if (!instId) {
+      this.departments = [];
+      return;
+    }
     const url = `${API_BASE}/get-department-list`;
     this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res?.data || []);
-        this.departments = arr.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name || d.dept_name || d.title || '' }));
-      }, error: (err) => { console.warn('Failed to load departments', err); this.departments = []; },
-      complete: () => { this.loader.hide(); }
+        const arr = Array.isArray(res) ? res : res?.data || [];
+        this.departments = arr.map((d: any) => ({
+          id: String(d.dept_id || d.id || d.deptId || ''),
+          name: d.name || d.dept_name || d.title || '',
+        }));
+        if (this.selectedDepartments && this.selectedDepartments.length) {
+          const matched = this.selectedDepartments.map((sel) => {
+            const match = this.departments.find(
+              (d) =>
+                String(d.id) === String(sel) ||
+                d.name.trim().toLowerCase() === String(sel).trim().toLowerCase()
+            );
+            return match ? String(match.id) : String(sel);
+          });
+          this.selectedDepartments = [...matched];
+        }
+      },
+      error: (err) => {
+        console.warn('Failed to load departments', err);
+        this.departments = [];
+      },
+      complete: () => {
+        this.loader.hide();
+      },
     });
   }
 
   loadTeams(instId?: string) {
-    if (!instId) { this.teams = []; return; }
+    if (!instId) {
+      this.teams = [];
+      return;
+    }
     const url = `${API_BASE}/get-teams-list`;
     this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res) ? res : (res?.data || []);
-        this.teams = arr.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name || t.team_name || t.title || '' }));
-      }, error: (err) => { console.warn('Failed to load teams', err); this.teams = []; }
+        const arr = Array.isArray(res) ? res : res?.data || [];
+        this.teams = arr.map((t: any) => ({
+          id: String(t.team_id || t.id || t.teamId || ''),
+          name: t.name || t.team_name || t.title || '',
+        }));
+        if (this.selectedTeams && this.selectedTeams.length) {
+          const matched = this.selectedTeams.map((sel) => {
+            const match = this.teams.find(
+              (t) =>
+                String(t.id) === String(sel) ||
+                t.name.trim().toLowerCase() === String(sel).trim().toLowerCase()
+            );
+            return match ? String(match.id) : String(sel);
+          });
+          this.selectedTeams = [...matched];
+        }
+      },
+      error: (err) => {
+        console.warn('Failed to load teams', err);
+        this.teams = [];
+      },
     });
   }
 
   onCategoryChange(catId: string) {
-    const found = (this.categories || []).find(c => String(c.category_id) === String(catId));
+    const found = (this.categories || []).find((c) => String(c.category_id) === String(catId));
     if (found) this.loadQuestionBankDraft(found);
   }
 
   viewCategoryQuestions(category: any) {
     if (!category || !category.category_id) return;
-    if (String(category.category_id) === String(this.activeQuestionCategoryId) && this.questionsForCategory.length) {
+    if (
+      String(category.category_id) === String(this.activeQuestionCategoryId) &&
+      this.questionsForCategory.length
+    ) {
       this.activeQuestionCategoryId = '';
       this.activeQuestionCategoryName = '';
       this.questionsForCategory = [];
@@ -1239,31 +1671,48 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.activeQuestionCategoryId = category.category_id;
     this.activeQuestionCategoryName = category.name || 'Selected category';
-    this.loadQuestionsForCategory(category.category_id, Array.isArray(category.question_ids) ? category.question_ids : []);
+    this.loadQuestionsForCategory(
+      category.category_id,
+      Array.isArray(category.question_ids) ? category.question_ids : []
+    );
   }
-
 
   isCategoryQuestionsExpanded(category: any): boolean {
-    return !!category &&
+    return (
+      !!category &&
       String(category.category_id) === String(this.activeQuestionCategoryId) &&
-      this.questionsForCategory.length > 0;
+      this.questionsForCategory.length > 0
+    );
   }
-  loadQuestionsForCategory(catId: string, preselectedQuestionIds: any[] = [], populateQuestionCount = false) {
+
+  loadQuestionsForCategory(
+    catId: string,
+    preselectedQuestionIds: any[] = [],
+    populateQuestionCount = false
+  ) {
     this.loader.show();
     const requestSeq = ++this.questionLoadSeq;
     this.questionsForCategory = [];
-    this.selectedQuestionIds = (preselectedQuestionIds || []).map(id => String(id));
+    this.selectedQuestionIds = (preselectedQuestionIds || []).map((id) => String(id));
     this.selectAllQuestions = false;
-    if (!catId) { this.loader.hide(); return; }
-    const found = this.categories.find(c => String(c.category_id) === String(catId));
+    if (!catId) {
+      this.loader.hide();
+      return;
+    }
+    const found = this.categories.find((c) => String(c.category_id) === String(catId));
     this.activeQuestionCategoryId = catId;
-    this.activeQuestionCategoryName = found?.name || this.activeQuestionCategoryName || 'Selected category';
+    this.activeQuestionCategoryName =
+      found?.name || this.activeQuestionCategoryName || 'Selected category';
     const url = `${API_BASE}/get-questions-details?category_id=${encodeURIComponent(catId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
         if (requestSeq !== this.questionLoadSeq) return;
-        const arr = Array.isArray(res) ? res : (res?.data || []);
-        this.questionsForCategory = arr.map((q: any, i: number) => ({ id: q.id || q.question_id || q._id || String(i), question: q.question || q.text || q.title || '', raw: q }));
+        const arr = Array.isArray(res) ? res : res?.data || [];
+        this.questionsForCategory = arr.map((q: any, i: number) => ({
+          id: q.id || q.question_id || q._id || String(i),
+          question: q.question || q.text || q.title || '',
+          raw: q,
+        }));
         if (populateQuestionCount) {
           this.newCategory.questions = this.questionsForCategory.length;
           this.newCategory.randomize_questions = true;
@@ -1272,9 +1721,14 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
           this.validateNewCategoryQuestionCount(false);
           return;
         }
-        this.selectAllQuestions = this.questionsForCategory.length > 0 && this.questionsForCategory.every(q => this.selectedQuestionIds.includes(String(q.id)));
-        this.lastAddedQuestionSelectionByCategory[String(catId)] = this.getQuestionSelectionKey(this.selectedQuestionIds);
-      }, error: (err) => {
+        this.selectAllQuestions =
+          this.questionsForCategory.length > 0 &&
+          this.questionsForCategory.every((q) => this.selectedQuestionIds.includes(String(q.id)));
+        this.lastAddedQuestionSelectionByCategory[String(catId)] = this.getQuestionSelectionKey(
+          this.selectedQuestionIds
+        );
+      },
+      error: (err) => {
         if (requestSeq !== this.questionLoadSeq) return;
         console.warn('Failed to load questions for category', err);
         this.questionsForCategory = [];
@@ -1284,7 +1738,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
           this.questionCountError = 'Unable to load questions for the selected Question Bank.';
         }
       },
-      complete: () => { if (requestSeq === this.questionLoadSeq) this.loader.hide(); }
+      complete: () => {
+        if (requestSeq === this.questionLoadSeq) this.loader.hide();
+      },
     });
   }
 
@@ -1334,32 +1790,48 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const isFocused = String(this.activeQuestionCategoryId) === String(this.selectedCategory);
     if (isFocused) {
       if (!this.canAddSelectedQuestionBank) return false;
-      if (this.newCategory.randomize_questions) return !this.shouldBlockRandomAllQuestionSelection();
+      if (this.newCategory.randomize_questions)
+        return !this.shouldBlockRandomAllQuestionSelection();
       // Fixed (non-randomized) mode: a valid count alone is enough — the system will
       // randomly pick that many questions once. Manual picks are still supported and,
       // when present, must differ from what was last added to re-enable the button.
       if (!this.selectedQuestionIds.length) return true;
       const categoryId = String(this.activeQuestionCategoryId);
-      return this.getQuestionSelectionKey(this.selectedQuestionIds) !== this.lastAddedQuestionSelectionByCategory[categoryId];
+      return (
+        this.getQuestionSelectionKey(this.selectedQuestionIds) !==
+        this.lastAddedQuestionSelectionByCategory[categoryId]
+      );
     }
     if (!this.questionsForCategory.length || !this.selectedQuestionIds.length) return false;
     const categoryId = String(this.activeQuestionCategoryId);
-    return this.getQuestionSelectionKey(this.selectedQuestionIds) !== this.lastAddedQuestionSelectionByCategory[categoryId];
+    return (
+      this.getQuestionSelectionKey(this.selectedQuestionIds) !==
+      this.lastAddedQuestionSelectionByCategory[categoryId]
+    );
   }
 
   private getQuestionSelectionKey(ids: any[]): string {
-    return (ids || []).map(id => String(id)).sort().join('|');
+    return (ids || [])
+      .map((id) => String(id))
+      .sort()
+      .join('|');
   }
 
   isNewCategoryQuestionCountValid(): boolean {
     return this.canAddSelectedQuestionBank;
   }
 
-  private validateNewCategoryQuestionCount(showNotification: boolean, updateMessage = true): boolean {
+  private validateNewCategoryQuestionCount(
+    showNotification: boolean,
+    updateMessage = true
+  ): boolean {
     const available = this.selectedQuestionBankQuestionCount;
     const requested = Number(this.newCategory.questions) || 0;
     const maxMessage = `The selected Question Bank contains only ${available} questions. Please enter a number between 1 and ${available}.`;
-    const minMessage = available > 0 ? `Please enter a number between 1 and ${available}.` : 'The selected Question Bank does not contain any questions.';
+    const minMessage =
+      available > 0
+        ? `Please enter a number between 1 and ${available}.`
+        : 'The selected Question Bank does not contain any questions.';
     const allRandomMessage = `You have selected all available questions. Random selection has no effect because every student will receive the same questions.`;
     let message = '';
 
@@ -1367,10 +1839,15 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     else if (available <= 0) message = minMessage;
     else if (requested < 1) message = minMessage;
     else if (requested > available) message = maxMessage;
-    else if (this.newCategory.randomize_questions && requested === available) message = allRandomMessage;
+    else if (this.newCategory.randomize_questions && requested === available)
+      message = allRandomMessage;
     // Validate that manually selected questions match the specified count
     // (only when not randomized and the user has started selecting questions)
-    else if (!this.newCategory.randomize_questions && this.selectedQuestionIds.length > 0 && this.selectedQuestionIds.length !== requested) {
+    else if (
+      !this.newCategory.randomize_questions &&
+      this.selectedQuestionIds.length > 0 &&
+      this.selectedQuestionIds.length !== requested
+    ) {
       const remaining = requested - this.selectedQuestionIds.length;
       if (remaining > 0) {
         message = `You have specified ${requested} questions to be included. Please select ${remaining} more question${remaining !== 1 ? 's' : ''} to continue.`;
@@ -1389,26 +1866,31 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     return false;
   }
 
-
   private getDraftQuestionIds(): string[] {
     if (this.newCategory.randomize_questions) return [];
     const requested = Number(this.newCategory.questions) || 0;
-    return this.tempQuestionsForCategory.slice(0, requested).map(q => String(q.id));
+    return this.tempQuestionsForCategory.slice(0, requested).map((q) => String(q.id));
   }
 
-  private applyNewCategoryQuestionCountSelection(showNotification: boolean, updateMessage = true): boolean {
+  private applyNewCategoryQuestionCountSelection(
+    showNotification: boolean,
+    updateMessage = true
+  ): boolean {
     return this.validateNewCategoryQuestionCount(showNotification, updateMessage);
   }
 
-
   isActiveQuestionBankRandomized(): boolean {
-    if (String(this.activeQuestionCategoryId || '') === String(this.selectedCategory || '')) return !!this.newCategory.randomize_questions;
-    const activeCategory = (this.model.categories || []).find((c: any) => String(c.category_id) === String(this.activeQuestionCategoryId));
+    if (String(this.activeQuestionCategoryId || '') === String(this.selectedCategory || ''))
+      return !!this.newCategory.randomize_questions;
+    const activeCategory = (this.model.categories || []).find(
+      (c: any) => String(c.category_id) === String(this.activeQuestionCategoryId)
+    );
     return !!activeCategory?.randomize_questions;
   }
   toggleSelectAllQuestions(checked: boolean) {
     this.selectAllQuestions = !!checked;
-    if (this.selectAllQuestions) this.selectedQuestionIds = this.questionsForCategory.map(q => String(q.id));
+    if (this.selectAllQuestions)
+      this.selectedQuestionIds = this.questionsForCategory.map((q) => String(q.id));
     else this.selectedQuestionIds = [];
     this.syncActiveCategoryQuestionSelection();
     this.validateNewCategoryQuestionCount(false);
@@ -1419,26 +1901,34 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (checked) {
       if (this.selectedQuestionIds.indexOf(sid) === -1) this.selectedQuestionIds.push(sid);
     } else {
-      this.selectedQuestionIds = this.selectedQuestionIds.filter(x => x !== sid);
+      this.selectedQuestionIds = this.selectedQuestionIds.filter((x) => x !== sid);
       this.selectAllQuestions = false;
     }
-    if (checked) this.selectAllQuestions = this.questionsForCategory.length > 0 && this.questionsForCategory.every(q => this.selectedQuestionIds.includes(String(q.id)));
+    if (checked)
+      this.selectAllQuestions =
+        this.questionsForCategory.length > 0 &&
+        this.questionsForCategory.every((q) => this.selectedQuestionIds.includes(String(q.id)));
     this.syncActiveCategoryQuestionSelection();
     this.validateNewCategoryQuestionCount(false);
   }
 
   private syncActiveCategoryQuestionSelection() {
     if (!this.activeQuestionCategoryId || !Array.isArray(this.model.categories)) return;
-    const idx = this.model.categories.findIndex((c: any) => String(c.category_id) === String(this.activeQuestionCategoryId));
+    const idx = this.model.categories.findIndex(
+      (c: any) => String(c.category_id) === String(this.activeQuestionCategoryId)
+    );
     if (idx < 0) return;
     if ((this.model.categories[idx] as any).randomize_questions) return;
     const updated = {
       ...this.model.categories[idx],
       question_ids: [...this.selectedQuestionIds],
       questions: this.selectedQuestionIds.length,
-      total_marks: this.calculateTotalMarks(this.selectedQuestionIds.length, this.getMarksPerQuestion(this.model.categories[idx]))
+      total_marks: this.calculateTotalMarks(
+        this.selectedQuestionIds.length,
+        this.getMarksPerQuestion(this.model.categories[idx])
+      ),
     };
-    this.model.categories = this.model.categories.map((c, i) => i === idx ? updated : c);
+    this.model.categories = this.model.categories.map((c, i) => (i === idx ? updated : c));
   }
 
   // Returns true if any category in the model has randomize_questions truthy
@@ -1446,19 +1936,24 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   isQuestionBankOptionChecked(cat: any): boolean {
     const catId = String(cat?.category_id || '');
     if (!catId) return false;
-    return Array.isArray(this.model.categories) && this.model.categories.some((c: any) => String(c?.category_id || '') === catId);
+    return (
+      Array.isArray(this.model.categories) &&
+      this.model.categories.some((c: any) => String(c?.category_id || '') === catId)
+    );
   }
   anyCategoryRandomized(): boolean {
     try {
       if (!Array.isArray(this.model.categories)) return false;
       return this.model.categories.some((c: any) => !!c && !!c.randomize_questions);
-    } catch (e) { return false; }
+    } catch (e) {
+      return false;
+    }
   }
 
   get totalQuestions(): number {
     if (!Array.isArray(this.model.categories)) return 0;
     return this.model.categories.reduce((sum, c) => {
-      const byIds = Array.isArray((c as any).question_ids) ? ((c as any).question_ids).length : 0;
+      const byIds = Array.isArray((c as any).question_ids) ? (c as any).question_ids.length : 0;
       const byNum = typeof (c as any).questions === 'number' ? Number((c as any).questions) : 0;
       return sum + (byIds > 0 ? byIds : byNum);
     }, 0);
@@ -1470,7 +1965,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       if (!raw) return null;
       const u = JSON.parse(raw);
-      return (u && (u.user_id || u.id || u.userId || u._id)) ? String(u.user_id || u.id || u.userId || u._id) : null;
+      return u && (u.user_id || u.id || u.userId || u._id)
+        ? String(u.user_id || u.id || u.userId || u._id)
+        : null;
     } catch (e) {
       return null;
     }
@@ -1517,11 +2014,30 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   save() {
     // basic validation
-    if (!this.title || !this.title.trim()) { notify('Title is required', 'error'); return; }
-    if (!this.institute) { notify('Institute is required', 'error'); return; }
-    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) { notify('Duration is required', 'error'); return; }
-    if (this.passMark !== null && this.passMark !== undefined && (Number(this.passMark) < 0 || Number(this.passMark) > 100)) { notify('Pass Percentage must be between 0 and 100', 'error'); return; }
-    if (!this.model.categories || !this.model.categories.length) { notify('Please attach at least one Question Bank before saving', 'error'); return; }
+    if (!this.title || !this.title.trim()) {
+      notify('Title is required', 'error');
+      return;
+    }
+    if (!this.institute) {
+      notify('Institute is required', 'error');
+      return;
+    }
+    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) {
+      notify('Duration is required', 'error');
+      return;
+    }
+    if (
+      this.passMark !== null &&
+      this.passMark !== undefined &&
+      (Number(this.passMark) < 0 || Number(this.passMark) > 100)
+    ) {
+      notify('Pass Percentage must be between 0 and 100', 'error');
+      return;
+    }
+    if (!this.model.categories || !this.model.categories.length) {
+      notify('Please attach at least one Question Bank before saving', 'error');
+      return;
+    }
 
     const currentUser = this.getCurrentUserId();
     const payload: any = {
@@ -1532,12 +2048,15 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       pass_mark: this.passMark !== null ? Number(this.passMark) : null,
       number_of_attempts: this.numberOfAttempts !== null ? Number(this.numberOfAttempts) : null,
       start_time: this.startDateTime || null,
-      departments: Array.isArray(this.selectedDepartments) ? this.selectedDepartments.filter(id => id !== 'ALL') : [],
-      teams: Array.isArray(this.selectedTeams) ? this.selectedTeams.filter(id => id !== 'ALL') : [],
+      departments: Array.isArray(this.selectedDepartments)
+        ? this.selectedDepartments.filter((id) => id !== 'ALL')
+        : [],
+      teams: Array.isArray(this.selectedTeams)
+        ? this.selectedTeams.filter((id) => id !== 'ALL')
+        : [],
       categories: Array.isArray(this.model.categories) ? this.model.categories : [],
-      total_questions: this.totalQuestions
+      total_questions: this.totalQuestions,
     };
-
 
     // attach audit fields when available
     if (currentUser) {
@@ -1552,14 +2071,26 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       const url = `${API_BASE}/update-exam`;
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
-          try { const msg = res?.statusMessage || res?.message || 'Test updated'; const ok = typeof res?.status === 'undefined' ? true : !!res.status; notify(msg, ok ? 'success' : 'error'); } catch (e) { }
-          try { sessionStorage.removeItem('edit_exam'); } catch (e) { }
+          try {
+            const msg = res?.statusMessage || res?.message || 'Test updated';
+            const ok = typeof res?.status === 'undefined' ? true : !!res.status;
+            notify(msg, ok ? 'success' : 'error');
+          } catch (e) {}
+          try {
+            sessionStorage.removeItem('edit_exam');
+          } catch (e) {}
           this.router.navigate(['/exams']);
-        }, error: (err) => {
+        },
+        error: (err) => {
           console.error('Failed to update exam', err);
-          try { notify(this.getExamSaveErrorMessage(err, 'Failed to update exam'), 'error'); } catch (e) { }
+          try {
+            notify(this.getExamSaveErrorMessage(err, 'Failed to update exam'), 'error');
+          } catch (e) {}
           this.loader.hide();
-        }, complete: () => { this.loader.hide(); }
+        },
+        complete: () => {
+          this.loader.hide();
+        },
       });
       return;
     }
@@ -1568,14 +2099,26 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loader.show();
     this.http.post<any>(url, payload).subscribe({
       next: (res) => {
-        try { const msg = res?.statusMessage || res?.message || 'Test created'; const ok = typeof res?.status === 'undefined' ? true : !!res.status; notify(msg, ok ? 'success' : 'error'); } catch (e) { }
-        try { sessionStorage.removeItem('edit_exam'); } catch (e) { }
+        try {
+          const msg = res?.statusMessage || res?.message || 'Test created';
+          const ok = typeof res?.status === 'undefined' ? true : !!res.status;
+          notify(msg, ok ? 'success' : 'error');
+        } catch (e) {}
+        try {
+          sessionStorage.removeItem('edit_exam');
+        } catch (e) {}
         this.router.navigate(['/exams']);
-      }, error: (err) => {
+      },
+      error: (err) => {
         console.error('Failed to create exam', err);
-        try { notify(this.getExamSaveErrorMessage(err, 'Failed to create exam'), 'error'); } catch (e) { }
+        try {
+          notify(this.getExamSaveErrorMessage(err, 'Failed to create exam'), 'error');
+        } catch (e) {}
         this.loader.hide();
-      }, complete: () => { this.loader.hide(); }
+      },
+      complete: () => {
+        this.loader.hide();
+      },
     });
   }
 
@@ -1588,18 +2131,30 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.passMark = null;
     this.startDateTime = '';
     // if not in edit mode, clear any leftover edit payload
-    try { if (!this.editMode) sessionStorage.removeItem('edit_exam'); } catch (e) { }
+    try {
+      if (!this.editMode) sessionStorage.removeItem('edit_exam');
+    } catch (e) {}
     this.loader.hide();
   }
 
   cancel() {
-    try { sessionStorage.removeItem('edit_exam'); } catch (e) { }
-    try { sessionStorage.setItem('exams_return_state', 'true'); } catch (e) { }
+    try {
+      sessionStorage.removeItem('edit_exam');
+    } catch (e) {}
+    try {
+      sessionStorage.setItem('exams_return_state', 'true');
+    } catch (e) {}
     this.router.navigate(['/exams']);
   }
 
   get isStep1Valid(): boolean {
-    return !!(this.title && this.title.trim() && this.durationMinutes && this.selectedDepartments.length > 0 && this.selectedTeams.length > 0);
+    return !!(
+      this.title &&
+      this.title.trim() &&
+      this.durationMinutes &&
+      this.selectedDepartments.length > 0 &&
+      this.selectedTeams.length > 0
+    );
   }
 
   validateStep1AndProceed() {
@@ -1610,7 +2165,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.selectedTeams.length) missing.push('Teams');
     if (!this.durationMinutes) missing.push('Duration');
     if (missing.length) {
-      try { notify(`Please fill required fields: ${missing.join(', ')}`, 'error'); } catch (e) { }
+      try {
+        notify(`Please fill required fields: ${missing.join(', ')}`, 'error');
+      } catch (e) {}
       return;
     }
     // All valid — move to next step
@@ -1623,17 +2180,15 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.selectedDepartments || !this.selectedDepartments.length) return '—';
     if (this.selectedDepartments.includes('ALL')) return 'All Departments';
     const names = this.departments
-      .filter(d => this.selectedDepartments.includes(d.id))
-      .map(d => d.name);
+      .filter((d) => this.selectedDepartments.includes(d.id))
+      .map((d) => d.name);
     return names.length ? names.join(', ') : `${this.selectedDepartments.length} selected`;
   }
 
   getSelectedTeamsDisplay(): string {
     if (!this.selectedTeams || !this.selectedTeams.length) return '—';
     if (this.selectedTeams.includes('ALL')) return 'All Teams';
-    const names = this.teams
-      .filter(t => this.selectedTeams.includes(t.id))
-      .map(t => t.name);
+    const names = this.teams.filter((t) => this.selectedTeams.includes(t.id)).map((t) => t.name);
     return names.length ? names.join(', ') : `${this.selectedTeams.length} selected`;
   }
 
@@ -1643,7 +2198,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   validateStep2AndProceed() {
     if (!this.model.categories || !this.model.categories.length) {
-      try { notify('Please attach at least one Question Bank before proceeding', 'error'); } catch (e) { }
+      try {
+        notify('Please attach at least one Question Bank before proceeding', 'error');
+      } catch (e) {}
       return;
     }
     if (this.stepper) {
@@ -1651,4 +2208,3 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 }
-
