@@ -50,7 +50,7 @@
             </div>
             <div class="filter-block filter-grid">
                 <!-- Row 1: Institute (Expandable across two columns) -->
-                <div class="filter-col-full" *ngIf="!isSuperAdmin">
+                <div class="filter-col-full" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
                     <mat-form-field appearance="outline" class="filter-item local-institute-field mandatory-field">
                         <mat-label>Institute <span class="required-star">*</span></mat-label>
                         <mat-select multiple [(ngModel)]="selectedInstitutes"
@@ -139,7 +139,7 @@
 
                     <!-- Departments -->
                     <mat-form-field appearance="outline" class="filter-item">
-                        <mat-label>Departments</mat-label>
+                        <mat-label>Departments <span class="required-star">*</span></mat-label>
                         <mat-select multiple [(ngModel)]="selectedDepartments"
                             placeholder="Select departments" (openedChange)="onFilterDepartmentOpenedChange($event)">
                             <mat-option class="select-search-option" (click)="$event.stopPropagation()">
@@ -252,7 +252,7 @@
 
                     <!-- Teams -->
                     <mat-form-field appearance="outline" class="filter-item">
-                        <mat-label>Teams</mat-label>
+                        <mat-label>Teams <span class="required-star">*</span></mat-label>
                         <mat-select multiple [(ngModel)]="selectedTeams"
                             placeholder="Select teams" (openedChange)="onFilterTeamOpenedChange($event)">
                             <mat-option class="select-search-option" (click)="$event.stopPropagation()">

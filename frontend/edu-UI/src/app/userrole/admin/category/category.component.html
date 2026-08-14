@@ -145,7 +145,7 @@
 
                         <!-- Row 4 Left: Type -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Type</mat-label>
+                            <mat-label>Type <span class="required-star">*</span></mat-label>
                             <mat-select multiple [(ngModel)]="selectedQuestionTypes" placeholder="Select Type"
                                 (selectionChange)="onQuestionTypeChange()">
                                 <mat-option value="objective">Objective</mat-option>
@@ -155,7 +155,7 @@
 
                         <!-- Row 5 Left: Department -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Department</mat-label>
+                            <mat-label>Department <span class="required-star">*</span></mat-label>
                             <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select department"
                                 [disabled]="!isInstituteSelected"
                                 (selectionChange)="onDepartmentFilterChange()">
@@ -239,7 +239,7 @@
 
                         <!-- Row 5 Right: Team -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Team</mat-label>
+                            <mat-label>Team <span class="required-star">*</span></mat-label>
                             <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select team"
                                 [disabled]="!selectedDepartments.length"
                                 (selectionChange)="onQuestionBankParentFilterChange()">

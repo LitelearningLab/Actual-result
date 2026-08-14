@@ -237,7 +237,7 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-item">
-              <mat-label>Type</mat-label>
+              <mat-label>Type <span class="required-star">*</span></mat-label>
               <mat-select
                 multiple
                 [(ngModel)]="selectedQuestionTypes"
@@ -250,7 +250,7 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-item">
-              <mat-label>Department</mat-label>
+              <mat-label>Department <span class="required-star">*</span></mat-label>
               <mat-select multiple [(ngModel)]="selectedDepartments" (selectionChange)="onDepartmentSelectionChange()" placeholder="Select department" [disabled]="!isInstituteSelected">
                 <mat-option *ngFor="let d of departments" [value]="d.id">{{ d.name }}</mat-option>
               </mat-select>
@@ -368,7 +368,7 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-item">
-              <mat-label>Team</mat-label>
+              <mat-label>Team <span class="required-star">*</span></mat-label>
               <mat-select multiple [(ngModel)]="selectedTeams" (selectionChange)="onTeamSelectionChange()" placeholder="Select team" [disabled]="!selectedDepartments.length">
                 <mat-option *ngFor="let t of teams" [value]="t.id">{{ t.name }}</mat-option>
               </mat-select>

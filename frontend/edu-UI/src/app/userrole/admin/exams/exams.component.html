@@ -135,7 +135,7 @@
 
                         <!-- Departments -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Departments</mat-label>
+                            <mat-label>Departments <span class="required-star">*</span></mat-label>
                             <mat-select multiple [(ngModel)]="selectedDepartments"
                                 [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
                                 placeholder="Select departments"
@@ -232,7 +232,7 @@
 
                         <!-- Teams -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Teams</mat-label>
+                            <mat-label>Teams <span class="required-star">*</span></mat-label>
                             <mat-select multiple [(ngModel)]="selectedTeams"
                                 [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
                                 placeholder="Select teams" (openedChange)="onFilterTeamOpenedChange($event)">

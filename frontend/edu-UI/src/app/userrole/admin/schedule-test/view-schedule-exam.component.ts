@@ -244,6 +244,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   onInstituteSelectionChange() {
     const institutes = this.selectedInstitutes || [];
     this.selectedInstitute = institutes[institutes.length - 1] || '';
+    this.loadCampuses(institutes);
 
     if (!institutes.length) {
       this.departments = [];
@@ -1149,6 +1150,18 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
       this.selectedInstitute = matchedInstitute.institute_id;
       this.syncInstituteSearch();
+    }
+    if (!this.selectedDepartments?.length) {
+      try {
+        notify('Please select a department', 'info');
+      } catch (e) {}
+      return;
+    }
+    if (!this.selectedTeams?.length) {
+      try {
+        notify('Please select a team', 'info');
+      } catch (e) {}
+      return;
     }
     if (!this.hasFilterValues()) {
       try {
