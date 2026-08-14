@@ -16,7 +16,7 @@
         <div class="controls">
             <div class="action-row">
                 <button #filtersBtn mat-flat-button type="button"
-                    (click)="openFiltersOverlay(); $event.stopPropagation()" class="button-one"
+                    (click)="openFiltersOverlay($event); $event.stopPropagation()" class="button-one"
                     aria-label="Open filters panel" title="Open filters">
                     <mat-icon svgIcon="filter"></mat-icon>
                     <span>Filter Tests</span>
@@ -83,7 +83,7 @@
                         </mat-form-field>
                     </div>
 
-                    <!-- Column A (Left): Country, Industry, Departments -->
+                    <!-- Column A (Left): Country, Industry -->
                     <div class="filter-col">
                         <!-- Country -->
                         <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
@@ -132,69 +132,27 @@
                                 <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{t}}</mat-option>
                             </mat-select>
                         </mat-form-field>
-
-                        <!-- Departments -->
-                        <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Departments <span class="required-star">*</span></mat-label>
-                            <mat-select multiple [(ngModel)]="selectedDepartments"
-                                [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
-                                placeholder="Select departments"
-                                (openedChange)="onFilterDepartmentOpenedChange($event)">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input matInput class="select-search-input" placeholder="Search department"
-                                        [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
-                                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                                        (keyup)="stopFilterSearchEvent($event)"
-                                        (input)="stopFilterSearchEvent($event)" />
-                                </mat-option>
-                                <mat-option class="select-all-option" *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
-                                    (click)="toggleSelectAllDepartments()">
-                                    <mat-icon class="select-all-checkbox-icon" [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
-                                        {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                                    </mat-icon>
-                                    <strong>Select All</strong>
-                                </mat-option>
-                                <mat-option *ngFor="let d of filteredDepartmentsForFilter"
-                                    [value]="d.id">{{d.name}}</mat-option>
-                            </mat-select>
-                        </mat-form-field>
                     </div>
 
-                    <!-- Column B (Right): City, Sector, Teams -->
+                    <!-- Column B (Right): City, Sector, Departments, Teams -->
                     <div class="filter-col">
                         <!-- City -->
                         <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
                             <mat-label>City</mat-label>
-                            <mat-select
-                                multiple
-                                [(ngModel)]="selectedCities"
-                                placeholder="Select City"
+                            <mat-select multiple [(ngModel)]="selectedCities" placeholder="Select City"
                                 [disabled]="!selectedCountries.length && !filterCountry"
                                 (openedChange)="onFilterSelectOpened($event, 'city')"
-                                (selectionChange)="onCityFilterChange()"
-                            >
+                                (selectionChange)="onCityFilterChange()">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input
-                                        matInput
-                                        class="select-search-input"
-                                        placeholder="Search city"
-                                        [(ngModel)]="citySearch"
-                                        [ngModelOptions]="{ standalone: true }"
-                                        (click)="$event.stopPropagation()"
-                                        (keydown)="stopFilterSearchEvent($event)"
+                                    <input matInput class="select-search-input" placeholder="Search city"
+                                        [(ngModel)]="citySearch" [ngModelOptions]="{ standalone: true }"
+                                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
                                         (keyup)="stopFilterSearchEvent($event)"
-                                        (input)="stopFilterSearchEvent($event)"
-                                    />
+                                        (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
-                                <mat-option
-                                    class="select-all-option"
-                                    *ngIf="filteredCities.length && !citySearch?.trim()"
-                                    (click)="toggleSelectAllCities()"
-                                >
-                                    <mat-icon
-                                        class="select-all-checkbox-icon"
-                                        [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'"
-                                    >
+                                <mat-option class="select-all-option" *ngIf="filteredCities.length && !citySearch?.trim()"
+                                    (click)="toggleSelectAllCities()">
+                                    <mat-icon class="select-all-checkbox-icon" [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'">
                                         {{ isAllCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}
                                     </mat-icon>
                                     <strong>Select All</strong>
@@ -227,6 +185,32 @@
                                     <strong>Select All</strong>
                                 </mat-option>
                                 <mat-option *ngFor="let s of filteredSectors" [value]="s">{{s}}</mat-option>
+                            </mat-select>
+                        </mat-form-field>
+
+                        <!-- Departments -->
+                        <mat-form-field appearance="outline" class="filter-item">
+                            <mat-label>Departments <span class="required-star">*</span></mat-label>
+                            <mat-select multiple [(ngModel)]="selectedDepartments"
+                                [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
+                                placeholder="Select departments"
+                                (openedChange)="onFilterDepartmentOpenedChange($event)">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input matInput class="select-search-input" placeholder="Search department"
+                                        [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option class="select-all-option" *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
+                                    (click)="toggleSelectAllDepartments()">
+                                    <mat-icon class="select-all-checkbox-icon" [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
+                                        {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                    </mat-icon>
+                                    <strong>Select All</strong>
+                                </mat-option>
+                                <mat-option *ngFor="let d of filteredDepartmentsForFilter"
+                                    [value]="d.id">{{d.name}}</mat-option>
                             </mat-select>
                         </mat-form-field>
 
@@ -317,10 +301,8 @@
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>Test Name</th>
                     <td mat-cell *matCellDef="let e" class="cell-primary">
                         <div class="item-cell">
-                            <!-- <div class="item-avatar item-avatar--exam">{{ (e.title || '?').charAt(0).toUpperCase() }}</div> -->
                             <div class="item-info">
                                 <span class="item-name">{{ e.title }}</span>
-                                <!-- <span class="item-sub" *ngIf="e.total_questions">{{ e.total_questions }} questions • {{ e.duration_mins }}min</span> -->
                             </div>
                         </div>
                     </td>
@@ -356,227 +338,31 @@
 
                 <!-- Actions Column -->
                 <ng-container matColumnDef="actions">
-                    <th mat-header-cell *matHeaderCellDef>Actions</th>
-                    <td mat-cell *matCellDef="let e">
-                        <div class="actions-inline">
+                    <th mat-header-cell *matHeaderCellDef class="header-actions">Actions</th>
+                    <td mat-cell *matCellDef="let element">
+                        <div class="actions-cell">
                             <button *hasAccess="'Exams'; hasAccessAction: 'view'" mat-icon-button color="primary"
-                                (click)="onView(e)" aria-label="View exam details" title="View exam">
-                                <mat-icon svgIcon="view"></mat-icon>
+                                (click)="onView(element); $event.stopPropagation()" title="View Exam Details">
+                                <mat-icon svgIcon="visibility"></mat-icon>
                             </button>
-                            <!-- <button *hasAccess="'Exams'; hasAccessAction: 'edit'" 
-                                mat-icon-button 
-                                color="accent" 
-                                (click)="onEdit(e)"
-                                aria-label="Edit exam"
-                                title="Edit exam"
-                                class="edit-btn">
+                            <button *hasAccess="'Exams'; hasAccessAction: 'edit'" mat-icon-button color="primary"
+                                (click)="onEdit(element); $event.stopPropagation()" title="Edit Exam">
                                 <mat-icon svgIcon="edit"></mat-icon>
-                            </button> -->
+                            </button>
                             <button *hasAccess="'Exams'; hasAccessAction: 'delete'" mat-icon-button color="warn"
-                                (click)="deleteSchedule(e)" aria-label="Delete exam" title="Delete exam"
-                                class="delete-btn">
+                                (click)="deleteSchedule(element); $event.stopPropagation()" title="Delete Exam">
                                 <mat-icon svgIcon="delete"></mat-icon>
                             </button>
                         </div>
                     </td>
                 </ng-container>
 
-                <!-- Table Header & Body -->
-                <thead>
-                    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                </thead>
-                <tbody>
-                    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-                    <tr class="mat-row" *matNoDataRow>
-                        <td class="mat-cell empty-table-cell" [attr.colspan]="displayedColumns.length">
-                            {{ hasAppliedFilters ? 'No exams found for the selected filters.' : 'Apply filters to view
-                            exams.' }}
-                        </td>
-                    </tr>
-                </tbody>
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
             </table>
-            <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"
-                aria-label="Test list pagination">
-            </mat-paginator>
         </div>
-    </div>
 
-    <!-- ─── Modal for Viewing Test Details ─── -->
-    <div *ngIf="showModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="examDetailsTitle">
-        <div class="modal" tabindex="0">
-            <!-- Modal Header -->
-            <div class="modal-header">
-                <div class="modal-header-left">
-                    <!-- <div class="modal-avatar modal-avatar--exam">
-                        {{ (selectedExam?.title || '?').charAt(0).toUpperCase() }}
-                    </div> -->
-                    <div class="modal-header-text">
-                        <h1 id="examDetailsTitle" class="modal-item-name">{{ selectedExam?.title || '—' }}</h1>
-                        <div class="modal-item-meta">
-                            <span class="modal-stat-badge" *ngIf="selectedExam?.total_questions">{{
-                                selectedExam.total_questions }} Questions</span>
-                            <span class="modal-stat-badge modal-stat-badge--duration"
-                                *ngIf="selectedExam?.duration_mins">{{ selectedExam.duration_mins }} min</span>
-                            <span class="modal-stat-badge modal-stat-badge--attempts"
-                                *ngIf="selectedExam?.number_of_attempts">{{ selectedExam.number_of_attempts }}
-                                attempts</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Modal Body with Tabs -->
-            <div class="modal-body">
-                <ng-container *ngIf="selectedExam; else noData">
-                    <mat-tab-group class="exam-tabs" mat-stretch-tabs>
-                        <!-- Overview & Settings Tab -->
-                        <mat-tab label="Overview & Settings">
-                            <div class="tab-panel">
-                                <div class="detail-grid">
-                                    <div class="label">Test Name</div>
-                                    <div class="value">{{ selectedExam.title || selectedExam.name || '—' }}</div>
-
-                                    <div class="label">Description</div>
-                                    <div class="value">{{ selectedExam.description || selectedExam.desc || 'No
-                                        description' }}</div>
-
-                                    <div class="label">Institute</div>
-                                    <div class="value">{{ selectedExam.display_institute || '—' }}</div>
-
-                                    <div class="label">Duration (mins)</div>
-                                    <div class="value">{{ selectedExam.duration_mins || selectedExam.duration || '—' }}
-                                    </div>
-
-                                    <div class="label">Total questions</div>
-                                    <div class="value">{{ selectedExam.total_questions || selectedExam.questions_count
-                                        || '—' }}</div>
-
-                                    <div class="label">Pass Percentage</div>
-                                    <div class="value">{{ selectedExam.pass_mark ?? selectedExam.passMark ?? '—' }}%
-                                    </div>
-
-                                    <div class="label">Public access</div>
-                                    <div class="value">{{ selectedExam.public_access ? 'Yes' : 'No' }}</div>
-                                </div>
-                            </div>
-                        </mat-tab>
-
-                        <!-- Question Banks Tab -->
-                        <mat-tab label="Question Banks">
-                            <div class="tab-panel">
-                                <div *ngIf="selectedExam.categories?.length; else noCats">
-                                    <table mat-table [dataSource]="selectedExam.categories"
-                                        class="mat-elevation-z1 compact premium-table" role="grid"
-                                        aria-label="Test question banks">
-                                        <ng-container matColumnDef="category">
-                                            <th mat-header-cell *matHeaderCellDef>Question Bank</th>
-                                            <td mat-cell *matCellDef="let c">{{ c.category?.category_name ||
-                                                c.category_name }}</td>
-                                        </ng-container>
-                                        <ng-container matColumnDef="description">
-                                            <th mat-header-cell *matHeaderCellDef>Description</th>
-                                            <td mat-cell *matCellDef="let c">{{ c.category?.description || c.description
-                                                || '-' }}</td>
-                                        </ng-container>
-                                        <ng-container matColumnDef="questions">
-                                            <th mat-header-cell *matHeaderCellDef>Questions</th>
-                                            <td mat-cell *matCellDef="let c">{{ c.number_of_questions ??
-                                                (c.questions?.length || 0) }}</td>
-                                        </ng-container>
-                                        <ng-container matColumnDef="randomize">
-                                            <th mat-header-cell *matHeaderCellDef>Randomize</th>
-                                            <td mat-cell *matCellDef="let c">{{ c.randomize_questions ? 'Yes' : 'No' }}
-                                            </td>
-                                        </ng-container>
-                                        <!-- Actions Column -->
-                                        <ng-container matColumnDef="actions">
-                                            <th mat-header-cell *matHeaderCellDef>View Questions</th>
-                                            <td mat-cell *matCellDef="let c; let i = index">
-                                                <button mat-icon-button color="primary"
-                                                    *ngIf="(c.questions?.length || 0) > 0"
-                                                    (click)="toggleCategoryQuestions(i)"
-                                                    [attr.aria-label]="'Toggle questions for ' + (c.category?.category_name || c.category_name)"
-                                                    title="Expand/Collapse questions">
-                                                    <mat-icon>{{ selectedExam._expanded && selectedExam._expanded[i] ?
-                                                        'expand_less' : 'expand_more' }}</mat-icon>
-                                                </button>
-                                                <button mat-icon-button color="accent"
-                                                    *ngIf="!(c.questions?.length || 0)" disabled
-                                                    aria-label="No questions available">
-                                                    <mat-icon>block</mat-icon>
-                                                </button>
-                                            </td>
-                                        </ng-container>
-                                        <tr mat-header-row
-                                            *matHeaderRowDef="['category','description','questions','randomize','actions']">
-                                        </tr>
-                                        <tr mat-row
-                                            *matRowDef="let row; columns: ['category','description','questions','randomize','actions'];">
-                                        </tr>
-                                    </table>
-                                    <!-- Questions Details -->
-                                    <div class="category-details"
-                                        *ngFor="let c of selectedExam.categories; let i = index">
-                                        <div *ngIf="selectedExam._expanded && selectedExam._expanded[i]"
-                                            class="questions-list">
-                                            <table class="questions-table" role="grid"
-                                                aria-label="Questions in category">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Question</th>
-                                                        <th>Type</th>
-                                                        <th>Marks</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr *ngFor="let q of c.questions">
-                                                        <td>{{ q.question_text || q.text || q.title || '-' }}</td>
-                                                        <td>{{ q.question_type || q.type || '—' }}</td>
-                                                        <td>{{ q.marks ?? q.points ?? '-' }}</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                                <ng-template #noCats>
-                                    <div class="muted">No categories available</div>
-                                </ng-template>
-                            </div>
-                        </mat-tab>
-
-                        <!-- Metadata Tab -->
-                        <mat-tab label="Metadata">
-                            <div class="tab-panel">
-                                <div class="detail-grid">
-                                    <div class="label">Created By</div>
-                                    <div class="value">{{ selectedExam.created_by_display }}</div>
-                                    <div class="label">Created</div>
-                                    <div class="value">{{ selectedExam.created_date || selectedExam.created || '—' }}
-                                    </div>
-                                    <div class="label">Updated By</div>
-                                    <div class="value">{{ selectedExam.updated_by_display }}</div>
-                                    <div class="label">Updated</div>
-                                    <div class="value">{{ selectedExam.updated_date || selectedExam.updated || '—' }}
-                                    </div>
-                                </div>
-                            </div>
-                        </mat-tab>
-                    </mat-tab-group>
-                </ng-container>
-                <ng-template #noData>
-                    <div class="muted">No test data available</div>
-                </ng-template>
-            </div>
-
-            <!-- Modal Footer -->
-            <div class="modal-actions">
-                <button mat-stroked-button color="primary" (click)="closeModal()"
-                    aria-label="Close modal">Close</button>
-                <button mat-flat-button color="primary" (click)="onEdit(selectedExam)" aria-label="Edit exam">
-                    <mat-icon>edit</mat-icon> Edit
-                </button>
-            </div>
-        </div>
+        <mat-paginator [pageSize]="25" [pageSizeOptions]="[10, 25, 50, 100]" showFirstLastButtons aria-label="Select page of exams">
+        </mat-paginator>
     </div>
 </div>

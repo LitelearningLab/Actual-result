@@ -74,7 +74,7 @@ import { Subscription, forkJoin } from 'rxjs';
   templateUrl: './view-schedule-exam.component.html',
   styleUrls: ['./view-schedule-exam.component.scss'],
 })
-export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewInit {
+export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewInit { // view schedule updated
   search = '';
   institutes: Array<{ name: string; institute_id?: string }> = [];
   private allInstitutes: Array<{ name: string; institute_id?: string }> = [];
@@ -857,8 +857,9 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.loadSchedules(this.selectedInstitute || undefined);
   }
 
-  openFiltersOverlay() {
-    if (!this.filtersBtn) return;
+  openFiltersOverlay(event?: Event) {
+    const trigger = (event?.currentTarget || event?.target || this.filtersBtn) as any;
+    if (!trigger) return;
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
@@ -868,7 +869,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
     const positionStrategy = this.overlay
       .position()
-      .flexibleConnectedTo(this.filtersBtn)
+      .flexibleConnectedTo(trigger)
       .withPositions([
         { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
         { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
