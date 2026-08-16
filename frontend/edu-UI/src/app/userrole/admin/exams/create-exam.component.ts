@@ -231,6 +231,36 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.questionBankTeamSearch = '';
     }
   }
+
+  // --- Select All: Question Bank Department ---
+  isAllQuestionBankDepartmentsSelected(): boolean {
+    const ids = (this.filteredQuestionBankDepartments || []).map((d: any) => d.id).filter(Boolean);
+    return ids.length > 0 && ids.every((id: any) => (this.questionBankFilterDepartments || []).includes(id));
+  }
+
+  toggleSelectAllQuestionBankDepartments(): void {
+    const ids = (this.filteredQuestionBankDepartments || []).map((d: any) => d.id).filter(Boolean);
+    if (this.isAllQuestionBankDepartmentsSelected()) {
+      this.questionBankFilterDepartments = [];
+    } else {
+      this.questionBankFilterDepartments = [...ids];
+    }
+  }
+
+  // --- Select All: Question Bank Team ---
+  isAllQuestionBankTeamsSelected(): boolean {
+    const ids = (this.filteredQuestionBankTeams || []).map((t: any) => t.id).filter(Boolean);
+    return ids.length > 0 && ids.every((id: any) => (this.questionBankFilterTeams || []).includes(id));
+  }
+
+  toggleSelectAllQuestionBankTeams(): void {
+    const ids = (this.filteredQuestionBankTeams || []).map((t: any) => t.id).filter(Boolean);
+    if (this.isAllQuestionBankTeamsSelected()) {
+      this.questionBankFilterTeams = [];
+    } else {
+      this.questionBankFilterTeams = [...ids];
+    }
+  }
   // 3. Focus search input when dropdown opens, and clear search input when closed
   onDepartmentOpenedChange(opened: boolean) {
     if (opened) {
@@ -1500,6 +1530,24 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     return labels;
   }
   onApply() {
+    if (!this.selectedQuestionTypes?.length) {
+      try {
+        notify('Please select a type', 'info');
+      } catch (e) {}
+      return;
+    }
+    if (!this.questionBankFilterDepartments?.length) {
+      try {
+        notify('Please select a department', 'info');
+      } catch (e) {}
+      return;
+    }
+    if (!this.questionBankFilterTeams?.length) {
+      try {
+        notify('Please select a team', 'info');
+      } catch (e) {}
+      return;
+    }
     if (!this.hasCategoryFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');

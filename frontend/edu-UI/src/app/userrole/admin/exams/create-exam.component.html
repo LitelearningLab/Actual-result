@@ -252,7 +252,7 @@
                                         <div class="filter-panel-body">
                                             <div class="compact-filter-grid">
                                                 <mat-form-field appearance="outline" class="filter-item">
-                                                    <mat-label>Department</mat-label>
+                                                    <mat-label>Department <span class="required-star">*</span></mat-label>
                                                     <mat-select multiple [(ngModel)]="questionBankFilterDepartments" [compareWith]="compareById"
                                                         [disabled]="!institute"
                                                         (openedChange)="onQuestionBankDepartmentOpenedChange($event)">
@@ -265,13 +265,22 @@
                                                                 (click)="$event.stopPropagation()"
                                                                 (keydown)="stopFilterSearchEvent($event)" />
                                                         </mat-option>
+                                                        <mat-option class="select-all-option"
+                                                            *ngIf="filteredQuestionBankDepartments.length && !questionBankDepartmentSearch?.trim()"
+                                                            (click)="toggleSelectAllQuestionBankDepartments()">
+                                                            <mat-icon class="select-all-checkbox-icon"
+                                                                [style.color]="isAllQuestionBankDepartmentsSelected() ? '#2563eb' : '#64748b'">
+                                                                {{ isAllQuestionBankDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                                            </mat-icon>
+                                                            <strong>Select All</strong>
+                                                        </mat-option>
                                                         <mat-option *ngFor="let department of filteredQuestionBankDepartments"
                                                             [value]="department.id">{{ department.name }}</mat-option>
                                                     </mat-select>
                                                 </mat-form-field>
 
                                                 <mat-form-field appearance="outline" class="filter-item">
-                                                    <mat-label>Team</mat-label>
+                                                    <mat-label>Team <span class="required-star">*</span></mat-label>
                                                     <mat-select multiple [(ngModel)]="questionBankFilterTeams" [compareWith]="compareById"
                                                         [disabled]="!institute"
                                                         (openedChange)="onQuestionBankTeamOpenedChange($event)">
@@ -283,6 +292,15 @@
                                                                 [ngModelOptions]="{ standalone: true }"
                                                                 (click)="$event.stopPropagation()"
                                                                 (keydown)="stopFilterSearchEvent($event)" />
+                                                        </mat-option>
+                                                        <mat-option class="select-all-option"
+                                                            *ngIf="filteredQuestionBankTeams.length && !questionBankTeamSearch?.trim()"
+                                                            (click)="toggleSelectAllQuestionBankTeams()">
+                                                            <mat-icon class="select-all-checkbox-icon"
+                                                                [style.color]="isAllQuestionBankTeamsSelected() ? '#2563eb' : '#64748b'">
+                                                                {{ isAllQuestionBankTeamsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                                            </mat-icon>
+                                                            <strong>Select All</strong>
                                                         </mat-option>
                                                         <mat-option *ngFor="let team of filteredQuestionBankTeams"
                                                             [value]="team.id">{{ team.name }}</mat-option>
@@ -299,7 +317,7 @@
 
                                                 <mat-form-field appearance="outline"
                                                     class="filter-item compact-full-row">
-                                                    <mat-label>Type</mat-label>
+                                                    <mat-label>Type <span class="required-star">*</span></mat-label>
                                                     <mat-select multiple [(ngModel)]="selectedQuestionTypes"
                                                         placeholder="Type">
                                                         <mat-option value="objective">Objective</mat-option>
