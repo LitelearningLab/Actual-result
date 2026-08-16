@@ -856,11 +856,20 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.loadCountries();
     this.loadInstitutes();
 
-    // ❌ REMOVE or COMMENT OUT:
-    // this.restoreScheduleReturnState();
+    // 1. Restore previous filters & state
+    this.restoreScheduleReturnState();
+
+    // 2. Global institute subscription with protection against wiping restored state
     this.globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe((context) => {
       this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
       const instituteId = context?.institute_id || '';
+
+      // If state was just restored, do not trigger a wipe
+      if (this.hasAppliedFilters && this.selectedInstitute) {
+        this.activeInstituteId = this.selectedInstitute;
+        return;
+      }
+
       if (this.activeInstituteId === '' && instituteId) {
         this.activeInstituteId = instituteId;
       }
@@ -1462,6 +1471,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.dataSource.sortingDataAccessor = (item: any, property: string) =>
       property === 'schedule' ? item.start : item[property];
     this.dataSource.sort = this.sort;
+    this.dataSource.paginator = this.paginator;
   }
 
   ngOnDestroy(): void {
@@ -2064,6 +2074,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
   saveScheduleReturnState(): void {
     try {
+      // Only save if the user actually applied filters or has schedules loaded
+      if (!this.hasAppliedFilters && !this.schedules.length) {
+        return;
+      }
+
       sessionStorage.setItem(
         'schedule_return_state',
         JSON.stringify({
@@ -2072,9 +2087,12 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
           globalInstituteActive: this.globalInstituteContext.isGlobalFilterActive(),
           search: this.search,
           selectedInstitute: this.selectedInstitute,
+          selectedInstitutes: this.selectedInstitutes,
           instituteSearch: this.instituteSearch,
           filterCountry: this.filterCountry,
+          selectedCountries: this.selectedCountries,
           filterCity: this.filterCity,
+          selectedCities: this.selectedCities,
           filterIndustry: this.filterIndustry,
           filterSector: this.filterSector,
           filterName: this.filterName,
@@ -2100,14 +2118,34 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     try {
       const raw = sessionStorage.getItem('schedule_return_state');
       if (!raw) return;
-      sessionStorage.removeItem('schedule_return_state');
+
       const state = JSON.parse(raw);
+
+      // Global Institute Safety Check: Verify institute context matches
+      const currentGlobalInst = this.globalInstituteContext.activeInstituteId || '';
+      const savedInst = state?.instituteId || state?.selectedInstitute || '';
+
+      if (currentGlobalInst && savedInst && currentGlobalInst !== savedInst) {
+        sessionStorage.removeItem('schedule_return_state');
+        return;
+      }
+
+      // Restore filter fields
       this.search = state?.search || '';
       this.selectedInstitute = state?.selectedInstitute || '';
+      this.selectedInstitutes = Array.isArray(state?.selectedInstitutes)
+        ? state.selectedInstitutes
+        : [];
       this.activeInstituteId = state?.instituteId || this.selectedInstitute || '';
-      this.instituteSearch = '';
+      this.instituteSearch = state?.instituteSearch || '';
       this.filterCountry = state?.filterCountry || '';
+      this.selectedCountries = Array.isArray(state?.selectedCountries)
+        ? state.selectedCountries
+        : [];
       this.filterCity = state?.filterCity || '';
+      this.selectedCities = Array.isArray(state?.selectedCities)
+        ? state.selectedCities
+        : [];
       this.filterIndustry = state?.filterIndustry || '';
       this.filterSector = state?.filterSector || '';
       this.filterName = state?.filterName || '';
@@ -2117,7 +2155,9 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       this.selectedCampuses = Array.isArray(state?.selectedCampuses)
         ? state.selectedCampuses
         : [];
-      this.selectedTeams = Array.isArray(state?.selectedTeams) ? state.selectedTeams : [];
+      this.selectedTeams = Array.isArray(state?.selectedTeams)
+        ? state.selectedTeams
+        : [];
       this.filterCreationDateAfter = state?.filterCreationDateAfter
         ? new Date(state.filterCreationDateAfter)
         : null;
@@ -2128,23 +2168,46 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
         typeof state?.filterActiveStatus === 'boolean'
           ? state.filterActiveStatus
           : state?.filterActiveStatus === null || typeof state?.filterActiveStatus === 'undefined'
-            ? true
+            ? null
             : !!state.filterActiveStatus;
       this.filterCreatedByMe = !!state?.filterCreatedByMe;
-      this.hasAppliedFilters = true;
+      this.hasAppliedFilters = !!state?.hasAppliedFilters;
+
+      // Restore table rows directly
       this.schedules = Array.isArray(state?.schedules) ? state.schedules : [];
       this.dataSource.data = this.schedules;
-      this.applyFilter(this.search || '');
-      const inst =
-        this.selectedInstitute ||
-        this.activeInstituteId ||
-        this.globalInstituteContext.activeInstituteId ||
-        undefined;
-      this.loadSchedules(inst);
+      if (this.paginator) {
+        this.dataSource.paginator = this.paginator;
+      }
+
+      if (this.search) {
+        this.applyFilter(this.search);
+      }
+
+      // Repopulate dropdown lists for the restored selections
+      const instituteScope = this.selectedInstitutes.length
+        ? this.selectedInstitutes
+        : this.selectedInstitute
+          ? [this.selectedInstitute]
+          : [];
+
+      if (instituteScope.length) {
+        this.syncInstituteSearch();
+        this.loadCampuses(instituteScope);
+        if (this.selectedInstitute) {
+          this.loadDepartments(this.selectedInstitute);
+          this.loadTeams(this.selectedInstitute);
+          this.loadScheduleNameOptions();
+        }
+      }
+
+      // If filters were previously applied, trigger API fetch to populate full row details
+      if (this.hasAppliedFilters) {
+        const inst = this.selectedInstitute || this.activeInstituteId || undefined;
+        this.loadSchedules(inst);
+      }
     } catch (e) {
-      try {
-        sessionStorage.removeItem('schedule_return_state');
-      } catch (_) {}
+      sessionStorage.removeItem('schedule_return_state');
     }
   }
 
@@ -2185,6 +2248,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       sessionStorage.removeItem('schedule_return_state');
     } catch (e) {}
 
+    // Load filter options only — do not trigger loadSchedules()
     this.loadDepartments(instituteId);
     this.loadCampuses([instituteId]);
     this.loadTeams(instituteId);
