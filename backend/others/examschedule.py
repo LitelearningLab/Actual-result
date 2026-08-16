@@ -415,36 +415,6 @@ def get_exam_schedule_details(request):
         if args.get("active"):
             active = 0 if args.get("active").lower() == 'true' else 1
             filter.append(ExamSchedule.published == active)
-        if args.get("departments"):
-            dept_ids = [d.strip() for d in args.get("departments").split(",") if d.strip()]
-            if dept_ids:
-                subq_mapping = session.query(ExamScheduleMapping.schedule_id).filter(ExamScheduleMapping.department_id.in_(dept_ids))
-                subq_user = session.query(ExamScheduleMapping.schedule_id).join(User, ExamScheduleMapping.user_id == User.user_id).filter(User.department_id.in_(dept_ids))
-                dept_schedules = [s[0] for s in subq_mapping.union(subq_user).all()]
-                if dept_schedules:
-                    filter.append(ExamSchedule.schedule_id.in_(dept_schedules))
-                else:
-                    filter.append(ExamSchedule.schedule_id.in_([]))
-        if args.get("campuses"):
-            campus_ids = [c.strip() for c in args.get("campuses").split(",") if c.strip()]
-            if campus_ids:
-                subq_mapping = session.query(ExamScheduleMapping.schedule_id).filter(ExamScheduleMapping.campus_id.in_(campus_ids))
-                subq_user = session.query(ExamScheduleMapping.schedule_id).join(User, ExamScheduleMapping.user_id == User.user_id).filter(User.campus_id.in_(campus_ids))
-                campus_schedules = [s[0] for s in subq_mapping.union(subq_user).all()]
-                if campus_schedules:
-                    filter.append(ExamSchedule.schedule_id.in_(campus_schedules))
-                else:
-                    filter.append(ExamSchedule.schedule_id.in_([]))
-        if args.get("teams"):
-            team_ids = [t.strip() for t in args.get("teams").split(",") if t.strip()]
-            if team_ids:
-                subq_mapping = session.query(ExamScheduleMapping.schedule_id).filter(ExamScheduleMapping.team_id.in_(team_ids))
-                subq_user = session.query(ExamScheduleMapping.schedule_id).join(User, ExamScheduleMapping.user_id == User.user_id).filter(User.team_id.in_(team_ids))
-                team_schedules = [s[0] for s in subq_mapping.union(subq_user).all()]
-                if team_schedules:
-                    filter.append(ExamSchedule.schedule_id.in_(team_schedules))
-                else:
-                    filter.append(ExamSchedule.schedule_id.in_([]))
 
         schedules = session.query(ExamSchedule).filter(*filter).order_by(ExamSchedule.created_date.desc()).all()
         if schedules is None or len(schedules) == 0:

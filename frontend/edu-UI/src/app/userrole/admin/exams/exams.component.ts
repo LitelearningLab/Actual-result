@@ -38,7 +38,7 @@ import { DateRangePickerDialogComponent, DateRangeDialogResult } from 'src/app/s
   imports: [CommonModule, FormsModule, RouterModule, HttpClientModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatAutocompleteModule, MatButtonModule, MatTooltipModule, MatTableModule, MatPaginatorModule, MatSortModule, MatIconModule, MatListModule, MatTabsModule, MatDatepickerModule, MatCheckboxModule, OverlayModule, PortalModule, DirectivesModule],
   templateUrl: './exams.component.html',
   styleUrls: ['./exams.component.scss']
-}) // component updated
+})
 export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   institutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
   private allInstitutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
@@ -790,13 +790,12 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     } catch (e) { }
   }
 
-  openFiltersOverlay(event?: Event) {
-    const trigger = (event?.currentTarget || event?.target || this.filtersBtn) as any;
-    if (!trigger) return;
+  openFiltersOverlay() {
+    if (!this.filtersBtn) return;
     if (this.filtersOverlayRef) { try { this.filtersOverlayRef.dispose(); } catch (e) { }; this.filtersOverlayRef = null; }
 
     const positionStrategy = this.overlay.position()
-      .flexibleConnectedTo(trigger)
+      .flexibleConnectedTo(this.filtersBtn)
       .withPositions([
         { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
         { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 }
@@ -1220,9 +1219,6 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
               if (found) {
                 // ensure exact match type/value and load schedules
                 this.selectedInstitute = found.institute_id as any;
-                if (!this.selectedInstitutes || !this.selectedInstitutes.length) {
-                  this.selectedInstitutes = [String(found.institute_id)];
-                }
                 this.instituteSearch = '';
                 // load dependent lists scoped to the institute
                 this.loadDepartments(this.selectedInstitute);
@@ -1244,9 +1240,6 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
                 const found = this.institutes.find(i => String(i.institute_id) === String(instId));
                 if (found) {
                   this.selectedInstitute = found.institute_id as any;
-                  if (!this.selectedInstitutes || !this.selectedInstitutes.length) {
-                    this.selectedInstitutes = [String(found.institute_id)];
-                  }
                   this.instituteSearch = '';
                   // load dependent lists scoped to the institute
                   this.loadDepartments(this.selectedInstitute);
@@ -1459,9 +1452,6 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   onInstituteChange(value: any) {
     const v = value !== undefined && value !== null ? value : '';
     this.selectedInstitute = v;
-    if (this.selectedInstitute && (!this.selectedInstitutes || !this.selectedInstitutes.includes(this.selectedInstitute))) {
-      this.selectedInstitutes = [this.selectedInstitute];
-    }
     this.filterName = '';
     this.testSearch = '';
     this.testSearchTerm = '';
@@ -1550,7 +1540,6 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
         globalInstituteActive: this.globalInstituteContext.isGlobalFilterActive(),
         filter: this.filter,
         selectedInstitute: this.selectedInstitute,
-        selectedInstitutes: this.selectedInstitutes,
         instituteSearch: this.instituteSearch,
         filterName: this.filterName,
         filterCountry: this.filterCountry,
@@ -1583,9 +1572,6 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       if (!activeInstituteId && typeof state?.globalInstituteActive === 'undefined' && state?.instituteId) return false;
       this.filter = state?.filter || '';
       this.selectedInstitute = state?.selectedInstitute || '';
-      this.selectedInstitutes = Array.isArray(state?.selectedInstitutes) && state.selectedInstitutes.length
-        ? state.selectedInstitutes
-        : (this.selectedInstitute ? [this.selectedInstitute] : []);
       this.instituteSearch = '';
       this.filterName = state?.filterName || '';
       this.filterCountry = state?.filterCountry || '';
