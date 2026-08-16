@@ -455,15 +455,33 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   private filtersOverlayRef: OverlayRef | null = null;
 
   ngOnInit(): void {
-    this.pageMeta.setMeta('Questions', 'Browse and review question bank');
+    this.pageMeta.setMeta('Question Banks', 'Browse and review question bank');
     this.restoreQuestionsReturnState();
+    try {
+      this._globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe(
+        (context) => {
+          this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
+          const instituteId = context?.institute_id || '';
+          if (instituteId) {
+            if (instituteId === this.activeInstituteId) return;
+            this.resetForInstituteChange(instituteId);
+            return;
+          }
+          if (this.activeInstituteId) this.resetAfterGlobalInstituteClear();
+        }
+      );
+    } catch (e) {
+      /* ignore in tests */
+    }
   }
 
   ngAfterViewInit(): void {
     this.dataSource.sort = this.sort;
-    // this.dataSource.paginator = this.paginator;
     try {
       this.dataSource.paginator = this.paginator;
+      if (this.questions && this.questions.length) {
+        this.dataSource.data = [...this.questions];
+      }
     } catch (e) {
       /* ignore during tests */
     }
@@ -518,22 +536,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     // http is optional for tests; if present, load institutes
     if (this.http) this.loadInstitutes();
     if (this.http) this.loadCountries();
-    try {
-      this._globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe(
-        (context) => {
-          this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
-          const instituteId = context?.institute_id || '';
-          if (instituteId) {
-            if (instituteId === this.activeInstituteId) return;
-            this.resetForInstituteChange(instituteId);
-            return;
-          }
-          if (this.activeInstituteId) this.resetAfterGlobalInstituteClear();
-        }
-      );
-    } catch (e) {
-      /* ignore in tests */
-    }
+
     // also load categories list for the Category filter, scoped for admins
     if (this.http) this.loadCategories(this.getScopedInstituteId());
   }
@@ -2453,6 +2456,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         state?.instituteId
       )
         return;
+      this.activeInstituteId = activeInstituteId || '';
 
       this.filterCountry = state?.filterCountry || '';
       this.filterCity = state?.filterCity || '';
