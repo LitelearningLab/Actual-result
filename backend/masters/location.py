@@ -1,4 +1,4 @@
-from db.models import Country, State, City, InstituteCampus
+from db.models import Country, State, City, InstituteCampus, Institute, User
 from db.db import SQLiteDB
 
 
@@ -93,3 +93,60 @@ def get_location_hierarchy_details(request):
         "data": json_data
     }
     return json_data, 200
+
+
+def get_registered_countries_details(request):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"status": False, "statusMessage": "Database connection failed", "data": []}, 500
+
+    try:
+        all_countries = session.query(Country).all()
+        country_map = {c.country_id: {"code": c.country_id, "name": c.country_name} for c in all_countries}
+
+        registered_ids = set()
+
+        campus_cids = session.query(InstituteCampus.country_id).filter(InstituteCampus.country_id.isnot(None)).distinct().all()
+        for cid in campus_cids:
+            if cid and cid[0]:
+                registered_ids.add(str(cid[0]))
+
+        user_cids = session.query(User.country_id).filter(User.country_id.isnot(None)).distinct().all()
+        for cid in user_cids:
+            if cid and cid[0]:
+                registered_ids.add(str(cid[0]))
+
+        institute_countries = session.query(Institute.country).filter(Institute.country.isnot(None)).distinct().all()
+        for ic in institute_countries:
+            val = str(ic[0]).strip() if ic and ic[0] else ""
+            if val:
+                if val in country_map:
+                    registered_ids.add(val)
+                else:
+                    for cid, cobj in country_map.items():
+                        if cobj["name"].lower() == val.lower() or cobj["code"].lower() == val.lower():
+                            registered_ids.add(cid)
+
+        result = []
+        for cid in registered_ids:
+            if cid in country_map:
+                result.append(country_map[cid])
+            else:
+                result.append({"code": cid, "name": cid})
+
+        if not result:
+            result = list(country_map.values())
+
+        result.sort(key=lambda x: x["name"])
+
+        return {
+            "statusMessage": "Registered countries fetched successfully",
+            "status": True,
+            "data": result
+        }, 200
+    except Exception as exc:
+        return {"status": False, "statusMessage": str(exc), "data": []}, 500
+    finally:
+        session.close()
+

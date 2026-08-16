@@ -18,7 +18,7 @@ from others.exam_reports import get_user_wise_report, get_exam_analytics
 from others.exam_reports import get_question_wrong_answers
 from others.exam_reports import get_resources_for_answer
 
-from masters.location import get_location_hierarchy_details
+from masters.location import get_location_hierarchy_details, get_registered_countries_details
 from masters.insititute_masters import get_institute_department_details, get_institute_team_details
 from masters.others import get_pages_list
 
@@ -629,6 +629,12 @@ def get_category_details_route():
 @jwt_required
 def get_location_hierarchy():
     response_data, status_code = get_location_hierarchy_details(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/registered-countries', methods=['GET'])
+@jwt_required
+def get_registered_countries():
+    response_data, status_code = get_registered_countries_details(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-department-list', methods=['GET'])

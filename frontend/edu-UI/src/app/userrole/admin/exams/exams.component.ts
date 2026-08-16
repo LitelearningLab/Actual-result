@@ -503,6 +503,22 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   loadCountries() {
+    this.http.get<any>(`${API_BASE}/registered-countries`).subscribe({
+      next: (res) => {
+        const list = Array.isArray(res?.data) ? res.data : [];
+        if (list.length > 0) {
+          this.countries = list;
+          return;
+        }
+        this.fallbackLoadCountries();
+      },
+      error: () => {
+        this.fallbackLoadCountries();
+      },
+    });
+  }
+
+  private fallbackLoadCountries() {
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -510,9 +526,13 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
           const countries = res?.data?.countries || res?.countries || res?.data || [];
           this.locationHierarchyRaw = Array.isArray(countries) ? countries : [];
           this.loadRegisteredInstituteCountries(this.locationHierarchyRaw);
-        } catch (e) { this.countries = []; }
+        } catch (e) {
+          this.countries = [];
+        }
       },
-      error: () => { this.countries = []; }
+      error: () => {
+        this.countries = [];
+      },
     });
   }
 

@@ -727,13 +727,46 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 
 /* ── Filters panel ── */
 .filters-panel {
-  padding: 1rem;
-  background: var(--bg-1);
+  padding: 1.25rem;
+  background: var(--bg-1, #ffffff);
   border-radius: $radius;
   box-shadow: $shadow-md;
-  max-height: 60vh;
-  overflow: auto;
+  max-height: 80vh;
+  overflow-y: auto;
   width: min(34rem, calc(100vw - 2rem));
+}
+
+.view-questions-filters-panel {
+  width: min(34rem, calc(100vw - 2rem));
+
+  .filters-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.875rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--theme-3-border, #e2e8f0);
+
+    h4 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--theme-3-text-1, #1e293b);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+
+      mat-icon {
+        color: var(--button-1, #2563eb);
+      }
+    }
+  }
+
+  .filter-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }
 
 .filter-block {
@@ -745,6 +778,75 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 .filter-item {
   width: 100%;
   min-width: 0;
+}
+
+.filter-col-full {
+  width: 100%;
+}
+
+.filter-row-two-col {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.75rem !important;
+}
+
+.filter-checkbox-container {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+
+  mat-checkbox {
+    font-weight: 500;
+    color: #334155;
+  }
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+
+  .filter-reset-btn {
+    color: #64748b;
+    border-color: #cbd5e1;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+
+    &:hover {
+      background: #f1f5f9;
+      color: #334155;
+    }
+  }
+
+  .filter-apply-btn {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+
+    &:hover {
+      background-color: #1d4ed8;
+    }
+  }
+}
+
+@media (max-width: 48rem) {
+  .filter-row-two-col {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 .review-section {
@@ -1035,9 +1137,11 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
   border: 0.0625rem solid #1f7bff;
   background: #fff;
   color: #1f7bff;
-  font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.institute-filter {
+  grid-column: 1 / -1;
 }
 
 ::ng-deep .select-search-option {
@@ -1045,10 +1149,11 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
   min-height: 3rem;
   cursor: default;
 
-  /* Hide checkbox inside search option dropdown */
   .mat-pseudo-checkbox,
   .mat-mdc-option-pseudo-checkbox,
   .mat-pseudo-checkbox-minimal,
+  .mdc-checkbox,
+  .mat-mdc-checkbox,
   .mdc-list-item__graphic,
   .mat-mdc-option-graphic,
   .mdc-list-item__start,
@@ -1061,13 +1166,29 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
   }
 }
 
-::ng-deep .select-search-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.5rem 0.25rem;
-  font-size: 0.875rem;
+/* Hide default pseudo-checkbox on select-all option to prevent duplicate checkbox */
+::ng-deep .select-all-option .mat-pseudo-checkbox,
+::ng-deep .select-all-option .mat-mdc-option-pseudo-checkbox,
+::ng-deep .select-all-option .mat-pseudo-checkbox-minimal,
+::ng-deep .select-all-option .mdc-checkbox,
+::ng-deep .select-all-option .mat-mdc-checkbox,
+::ng-deep .select-all-option .mdc-list-item__graphic,
+::ng-deep .select-all-option .mat-mdc-option-graphic,
+::ng-deep .select-all-option .mdc-list-item__start,
+::ng-deep .select-all-option .mdc-list-item__end {
+  display: none !important;
 }
 
-.institute-filter {
-  grid-column: 1 / -1;
+/* Style for custom select-all-checkbox-icon */
+::ng-deep .select-all-option .mdc-list-item__primary-text {
+  display: flex !important;
+  align-items: center !important;
+}
+
+::ng-deep .select-all-checkbox-icon {
+  font-size: 1.25rem !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  line-height: 1.25rem !important;
+  margin-right: 0.5rem !important;
 }

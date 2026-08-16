@@ -581,6 +581,22 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   loadCountries() {
+    this.http.get<any>(`${API_BASE}/registered-countries`).subscribe({
+      next: (res) => {
+        const list = Array.isArray(res?.data) ? res.data : [];
+        if (list.length > 0) {
+          this.countries = list;
+          return;
+        }
+        this.fallbackLoadCountries();
+      },
+      error: () => {
+        this.fallbackLoadCountries();
+      },
+    });
+  }
+
+  private fallbackLoadCountries() {
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url).subscribe({
       next: (res) => {

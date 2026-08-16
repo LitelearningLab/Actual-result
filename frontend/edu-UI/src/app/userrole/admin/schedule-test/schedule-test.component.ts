@@ -947,6 +947,22 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   citySearch = '';
 
   loadCountries() {
+    this.http.get<any>(`${API_BASE}/registered-countries`).subscribe({
+      next: (res) => {
+        const list = Array.isArray(res?.data) ? res.data : [];
+        if (list.length > 0) {
+          this.countries = list;
+          return;
+        }
+        this.fallbackLoadCountries();
+      },
+      error: () => {
+        this.fallbackLoadCountries();
+      },
+    });
+  }
+
+  private fallbackLoadCountries() {
     if (!this.isSuperAdmin) {
       this.loadAdminUserLocations();
       return;
@@ -1866,6 +1882,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   // New exam filter properties
   countrySearch = '';
+  examNameSearch = '';
   selectedCountries: string[] = [];
   selectedCities: string[] = [];
   industrySearch = '';
@@ -1934,10 +1951,21 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   }
 
   filteredExamNamesForFilter(): string[] {
-    const term = (this.filterExamName || '').trim().toLowerCase();
     const names = Array.from(new Set((this.testOptions || []).map((o) => o.title).filter(Boolean)));
-    if (!term) return names;
+    const term = (this.examNameSearch || '').trim().toLowerCase();
+    const selected = (this.filterExamName || '').trim().toLowerCase();
+    if (!term || term === selected) return names;
     return names.filter((n) => n.toLowerCase().includes(term));
+  }
+
+  onFilterTestNameSelected(testName: string): void {
+    this.filterExamName = testName || '';
+    this.examNameSearch = testName || '';
+    const targetInstitute = this.filterInstitute || this.model.institute;
+    if (targetInstitute) {
+      this.loadTestOptions(targetInstitute);
+      this.loadExams(targetInstitute);
+    }
   }
 
   filteredInstitutesForFilter(): Array<{ name: string; institute_id?: string }> {
@@ -2740,6 +2768,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     this.filterInstitute = '';
     this.filterInstituteSearch = '';
     this.filterExamName = '';
+    this.examNameSearch = '';
     this.filterCountry = '';
     this.filterCity = '';
     this.filterDepartment = '';
@@ -2837,8 +2866,6 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   // load campus list for a specific institute
   loadCampusList(instituteId: string) {
-    this.campusList = [];
-    if (!instituteId) return;
     const url = `${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
