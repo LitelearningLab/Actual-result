@@ -119,7 +119,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   selectedTeams: string[] = [];
   filterCreationDateAfter: Date | null = null;
   filterCreationDate: Date | null = null;
-  filterActiveStatus: boolean | null = true;
+  filterActiveStatus: boolean | null = null;
   filterCreatedByMe = false;
   departments: Array<{ id: string; name: string }> = [];
   campuses: Array<{ id: string; name: string }> = [];
@@ -128,6 +128,27 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   schedules: any[] = [];
   dataSource = new MatTableDataSource<any>([]);
   hasAppliedFilters = false;
+  get displayedColumns(): string[] {
+    if (this.isSuperAdmin) {
+      return [
+        'sno',
+        'title',
+        'institute',
+        'schedule',
+        'publish',
+        'manual_review',
+        'actions',
+      ];
+    }
+    return [
+      'sno',
+      'title',
+      'schedule',
+      'publish',
+      'manual_review',
+      'actions',
+    ];
+  }
   columns: string[] = [
     'sno',
     'title',
@@ -834,7 +855,9 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.pageMeta.setMeta('Scheduled Tests', 'Browse and review scheduled tests');
     this.loadCountries();
     this.loadInstitutes();
-    this.restoreScheduleReturnState();
+
+    // ❌ REMOVE or COMMENT OUT:
+    // this.restoreScheduleReturnState();
     this.globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe((context) => {
       this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
       const instituteId = context?.institute_id || '';
@@ -1026,8 +1049,9 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.onReset();
   }
   private refreshAfterFilterChipChange() {
-    if (this.appliedFilterChips.length) this.loadSchedules(this.selectedInstitute || undefined);
-    else {
+    if (this.hasAppliedFilters && this.appliedFilterChips.length) {
+      this.loadSchedules(this.selectedInstitute || undefined);
+    } else {
       this.hasAppliedFilters = false;
       this.schedules = [];
       this.dataSource.data = [];
@@ -1200,7 +1224,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.campusFilterSearch = '';
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
-    this.filterActiveStatus = true;
+    this.filterActiveStatus = null;
     this.filterCreatedByMe = false;
     this.search = '';
     this.dataSource.filter = '';
@@ -2125,11 +2149,6 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   private resetForInstituteChange(instituteId: string): void {
-    if (sessionStorage.getItem('schedule_return_state')) {
-      this.activeInstituteId = instituteId;
-      this.selectedInstitute = instituteId;
-      return;
-    }
     this.activeInstituteId = instituteId;
     this.selectedInstitute = instituteId;
     this.instituteSearch = '';
@@ -2155,14 +2174,17 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.filterCreatedByMe = false;
     this.hasAppliedFilters = false;
     this.selectedSchedule = null;
+
     if (this.paginator) {
       this.paginator.firstPage();
       this.paginator.length = 0;
     }
     this.closeFiltersOverlay();
+
     try {
       sessionStorage.removeItem('schedule_return_state');
     } catch (e) {}
+
     this.loadDepartments(instituteId);
     this.loadCampuses([instituteId]);
     this.loadTeams(instituteId);
