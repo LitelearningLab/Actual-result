@@ -136,7 +136,9 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get isInstituteSelected(): boolean {
     if (!this.isSuperAdmin) return true;
-    return (this.selectedInstitutes && this.selectedInstitutes.length > 0) || !!this.selectedInstitute;
+    return (
+      (this.selectedInstitutes && this.selectedInstitutes.length > 0) || !!this.selectedInstitute
+    );
   }
   private loginInstituteId: string | null = null;
   private _globalInstituteSub: Subscription | null = null;
@@ -176,7 +178,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     private confirmService: ConfirmService,
     private globalInstituteContext: GlobalInstituteContextService,
     private dialog: MatDialog
-  ) { }
+  ) {}
 
   openCreatedDateRangePicker(): void {
     const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
@@ -407,8 +409,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (term) {
       list = list.filter(
         (t) =>
-          (t.name || '').toLowerCase().includes(term) ||
-          (this.selectedTeams || []).includes(t.id)
+          (t.name || '').toLowerCase().includes(term) || (this.selectedTeams || []).includes(t.id)
       );
     }
     return [...list].sort((a, b) => {
@@ -468,7 +469,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.hasAppliedFilters) {
       try {
         notify('Apply filters to fetch question banks', 'info');
-      } catch (e) { }
+      } catch (e) {}
       return;
     }
     this.fetchCategories();
@@ -489,7 +490,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) { }
+      } catch (e) {}
       this.filtersOverlayRef = null;
     }
 
@@ -520,7 +521,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) { }
+      } catch (e) {}
       this.filtersOverlayRef = null;
     }
   }
@@ -592,7 +593,11 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       });
 
     if (this.selectedCities.length)
-      chips.push({ key: 'city', label: `City: ${this.selectedCities.join(', ')}`, removable: true });
+      chips.push({
+        key: 'city',
+        label: `City: ${this.selectedCities.join(', ')}`,
+        removable: true,
+      });
     else if (this.filterCity)
       chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
 
@@ -743,12 +748,12 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   private getCategoryInstituteId(item: any): string {
     return String(
       item?.institute_id ??
-      item?.instituteId ??
-      item?.institute?.institute_id ??
-      item?.institute?.id ??
-      item?.institutes?.institute_id ??
-      item?.institutes?.id ??
-      ''
+        item?.instituteId ??
+        item?.institute?.institute_id ??
+        item?.institute?.id ??
+        item?.institutes?.institute_id ??
+        item?.institutes?.id ??
+        ''
     );
   }
 
@@ -766,14 +771,27 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!id) return '';
     const pool: any[] =
       this.allInstitutes && this.allInstitutes.length ? this.allInstitutes : this.institutes;
-    const found = (pool || []).find((i: any) => String(i.institute_id || i.id || i._id) === String(id));
-    return found?.institute_name || found?.short_name || found?.name || (pool && pool.length ? String(id) : '');
+    const found = (pool || []).find(
+      (i: any) => String(i.institute_id || i.id || i._id) === String(id)
+    );
+    return (
+      found?.institute_name ||
+      found?.short_name ||
+      found?.name ||
+      (pool && pool.length ? String(id) : '')
+    );
   }
 
   private getSelectedName(list: Array<{ id: string; name: string }>, selectedId: string): string {
     if (!selectedId || !list || !list.length) return '';
-    const found = (list || []).find((item: any) => String(item?.id || item?.dept_id || item?.team_id || item?.deptId || item?.teamId) === String(selectedId));
-    return found ? (found.name || (found as any).dept_name || (found as any).team_name || String(selectedId)) : '';
+    const found = (list || []).find(
+      (item: any) =>
+        String(item?.id || item?.dept_id || item?.team_id || item?.deptId || item?.teamId) ===
+        String(selectedId)
+    );
+    return found
+      ? found.name || (found as any).dept_name || (found as any).team_name || String(selectedId)
+      : '';
   }
 
   private formatFilterDate(value: Date): string {
@@ -806,13 +824,13 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           next: (res) => {
             try {
               notify('Question Bank deleted', 'success');
-            } catch (e) { }
+            } catch (e) {}
           },
           error: (err) => {
             console.error('Failed deleting question bank', err);
             try {
               notify('Failed to delete question bank', 'error');
-            } catch (e) { }
+            } catch (e) {}
             this.categories = prev;
             this.dataSource.data = this.categories;
           },
@@ -857,7 +875,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         this.syncInstituteSearch();
         if (onLoaded) onLoaded();
       },
-      error: () => { },
+      error: () => {},
     });
   }
 
@@ -1045,7 +1063,10 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.onCityFilterChange();
   }
 
-  onFilterSelectOpened(opened: boolean, field: 'country' | 'city' | 'industry' | 'sector' | 'questionBank') {
+  onFilterSelectOpened(
+    opened: boolean,
+    field: 'country' | 'city' | 'industry' | 'sector' | 'questionBank'
+  ) {
     if (opened) {
       setTimeout(() => {
         try {
@@ -1115,9 +1136,9 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
                 location?.country_code ||
                 (typeof rawCountry === 'object'
                   ? rawCountry?.country_id ||
-                  rawCountry?.id ||
-                  rawCountry?.country_code ||
-                  rawCountry?.code
+                    rawCountry?.id ||
+                    rawCountry?.country_code ||
+                    rawCountry?.code
                   : rawCountry);
               const countryName =
                 location?.country_name ||
@@ -1130,7 +1151,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
                     String(country.code).toLowerCase() === String(countryCode).toLowerCase()) ||
                   (countryName &&
                     String(country.name).trim().toLowerCase() ===
-                    String(countryName).trim().toLowerCase())
+                      String(countryName).trim().toLowerCase())
               );
               const resolved =
                 hierarchyMatch ||
@@ -1194,7 +1215,10 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
               if (rawName) {
                 const formattedName = rawName
                   .trim()
-                  .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                  .replace(
+                    /\w\S*/g,
+                    (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+                  );
                 if (!uniqueSet.has(formattedName.toLowerCase())) {
                   uniqueSet.set(formattedName.toLowerCase(), {
                     code: String(c.city_code || c.code || c.id || formattedName),
@@ -1383,10 +1407,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (this.filterCreationDateAfter) {
-      params = params.set(
-        'created_after',
-        this.filterCreationDateAfter.toISOString().slice(0, 10)
-      );
+      params = params.set('created_after', this.filterCreationDateAfter.toISOString().slice(0, 10));
     }
 
     if (this.filterCreationDate) {
@@ -1472,7 +1493,12 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       iid = this.loginInstituteId;
       this.selectedInstitute = this.loginInstituteId;
     }
-    if (iid && typeof iid === 'string' && !iid.includes(',') && (!this.selectedInstitutes || !this.selectedInstitutes.length)) {
+    if (
+      iid &&
+      typeof iid === 'string' &&
+      !iid.includes(',') &&
+      (!this.selectedInstitutes || !this.selectedInstitutes.length)
+    ) {
       this.selectedInstitutes = [iid];
     }
     this.selectedDepartments = [];
@@ -1562,7 +1588,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           'created_after',
           (this.filterCreationDateAfter as Date).toISOString().slice(0, 10)
         );
-      } catch (e) { }
+      } catch (e) {}
     }
     if (this.filterCreationDate) {
       try {
@@ -1570,7 +1596,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           'created_before',
           (this.filterCreationDate as Date).toISOString().slice(0, 10)
         );
-      } catch (e) { }
+      } catch (e) {}
     }
     if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined') {
       params = params.set('active_status', String(this.filterActiveStatus));
@@ -1587,7 +1613,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
             params = params.set('created_by', String(userId));
           }
         }
-      } catch (e) { }
+      } catch (e) {}
     }
     // public access checkbox — only add param when checked (true)
     if (this.filterPublicAccess) {
@@ -1623,9 +1649,9 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
             institute:
               it.institute && typeof it.institute === 'object'
                 ? {
-                  institute_id: it.institute.institute_id || it.institute.id || null,
-                  institute_name: it.institute.institute_name || it.institute.name || null,
-                }
+                    institute_id: it.institute.institute_id || it.institute.id || null,
+                    institute_name: it.institute.institute_name || it.institute.name || null,
+                  }
                 : typeof it.institute === 'string'
                   ? { institute_id: null, institute_name: it.institute }
                   : it.institute || null,
@@ -1677,34 +1703,39 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onApply() {
-    if (this.isSuperAdmin && !this.isGlobalInstituteActive && (!this.selectedInstitutes || !this.selectedInstitutes.length) && !this.selectedInstitute) {
+    if (
+      this.isSuperAdmin &&
+      !this.isGlobalInstituteActive &&
+      (!this.selectedInstitutes || !this.selectedInstitutes.length) &&
+      !this.selectedInstitute
+    ) {
       try {
         notify('Please select an institute', 'info');
-      } catch (e) { }
+      } catch (e) {}
       return;
     }
     if (!this.selectedQuestionTypes?.length) {
       try {
         notify('Please select a type', 'info');
-      } catch (e) { }
+      } catch (e) {}
       return;
     }
     if (!this.selectedDepartments?.length) {
       try {
         notify('Please select a department', 'info');
-      } catch (e) { }
+      } catch (e) {}
       return;
     }
     if (!this.selectedTeams?.length) {
       try {
         notify('Please select a team', 'info');
-      } catch (e) { }
+      } catch (e) {}
       return;
     }
     if (!this.hasFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');
-      } catch (e) { }
+      } catch (e) {}
       return;
     }
     this.hasAppliedFilters = true;
@@ -1788,13 +1819,13 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
             next: () => {
               try {
                 notify(`Question Bank ${action}d`, 'success');
-              } catch (e) { }
+              } catch (e) {}
             },
             error: (err) => {
               console.error('Failed updating category state', err);
               try {
                 notify('Failed to update question bank status', 'error');
-              } catch (e) { }
+              } catch (e) {}
               element.active = prev;
               element.active_status = prev;
             },
@@ -1845,14 +1876,14 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           this.saveCategoryReturnState();
           try {
             sessionStorage.setItem('edit_category', JSON.stringify(category));
-          } catch (e) { }
+          } catch (e) {}
           this.router.navigate(['/category/create']);
         },
         error: () => {
           this.saveCategoryReturnState();
           try {
             sessionStorage.setItem('edit_category', JSON.stringify(element));
-          } catch (e) { }
+          } catch (e) {}
           this.router.navigate(['/category/create']);
         },
         complete: () => {
@@ -1924,7 +1955,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           categories: this.categories,
         })
       );
-    } catch (e) { }
+    } catch (e) {}
   }
 
   private restoreCategoryReturnState(): void {
@@ -1951,15 +1982,26 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       this.filterSector = state?.filterSector || '';
       this.filterName = state?.filterName || '';
       this.selectedInstitute = state?.selectedInstitute || this.selectedInstitute;
-      this.selectedInstitutes = Array.isArray(state?.selectedInstitutes) && state.selectedInstitutes.length
-        ? state.selectedInstitutes
-        : (this.selectedInstitute ? [this.selectedInstitute] : []);
-      this.selectedCountries = Array.isArray(state?.selectedCountries) ? state.selectedCountries : [];
+      this.selectedInstitutes =
+        Array.isArray(state?.selectedInstitutes) && state.selectedInstitutes.length
+          ? state.selectedInstitutes
+          : this.selectedInstitute
+            ? [this.selectedInstitute]
+            : [];
+      this.selectedCountries = Array.isArray(state?.selectedCountries)
+        ? state.selectedCountries
+        : [];
       this.selectedCities = Array.isArray(state?.selectedCities) ? state.selectedCities : [];
-      this.selectedIndustries = Array.isArray(state?.selectedIndustries) ? state.selectedIndustries : [];
+      this.selectedIndustries = Array.isArray(state?.selectedIndustries)
+        ? state.selectedIndustries
+        : [];
       this.selectedSectors = Array.isArray(state?.selectedSectors) ? state.selectedSectors : [];
-      this.selectedQuestionTypes = Array.isArray(state?.selectedQuestionTypes) ? state.selectedQuestionTypes : [];
-      this.selectedCategoryNames = Array.isArray(state?.selectedCategoryNames) ? state.selectedCategoryNames : [];
+      this.selectedQuestionTypes = Array.isArray(state?.selectedQuestionTypes)
+        ? state.selectedQuestionTypes
+        : [];
+      this.selectedCategoryNames = Array.isArray(state?.selectedCategoryNames)
+        ? state.selectedCategoryNames
+        : [];
       this.instituteSearch = state?.instituteSearch || '';
       this.instituteSearchTerm = state?.instituteSearchTerm || '';
       this.selectedDepartments = Array.isArray(state?.selectedDepartments)
@@ -1973,9 +2015,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         ? new Date(state.filterCreationDate)
         : null;
       this.filterActiveStatus =
-        typeof state?.filterActiveStatus === 'undefined'
-          ? true
-          : state.filterActiveStatus;
+        typeof state?.filterActiveStatus === 'undefined' ? true : state.filterActiveStatus;
       this.filterCreatedByMe = !!state?.filterCreatedByMe;
       this.filterPublicAccess =
         typeof state?.filterPublicAccess === 'undefined' ? null : state.filterPublicAccess;
@@ -1992,7 +2032,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch (e) {
       try {
         sessionStorage.removeItem('category_return_state');
-      } catch (_) { }
+      } catch (_) {}
     }
   }
 
@@ -2011,7 +2051,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.hasAppliedFilters = false;
     try {
       sessionStorage.removeItem('category_return_state');
-    } catch (e) { }
+    } catch (e) {}
     // Reload filter options only; records remain empty until the user applies filters.
     this.onInstituteChange(instituteId);
   }
@@ -2054,7 +2094,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.closeFiltersOverlay();
     try {
       sessionStorage.removeItem('category_return_state');
-    } catch (e) { }
+    } catch (e) {}
     this.loadFilterLists();
     this.loadCategoryOptions();
   }

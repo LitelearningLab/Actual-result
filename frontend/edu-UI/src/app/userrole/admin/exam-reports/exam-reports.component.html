@@ -18,29 +18,17 @@
 
       <mat-form-field
         appearance="outline"
-        class="scheduled-test-field mandatory-field"
-        floatLabel="always"
+        class="scheduled-test-field disabled-toolbar-field mandatory-field"
       >
         <mat-label>Test <span class="required-mark">*</span></mat-label>
         <mat-icon matPrefix svgIcon="exam"></mat-icon>
         <input
-          type="text"
           matInput
-          [formControl]="examCtrl"
-          [matAutocomplete]="testAuto"
-          [placeholder]="selectedInstituteId ? 'Select test' : 'Select institute first'"
-          [readonly]="!selectedInstituteId"
+          [value]="getTestTitle(selectedExam)"
+          disabled
+          [placeholder]="selectedInstituteId ? 'Select test from Filter' : 'Select institute first'"
           aria-label="Test"
         />
-        <mat-autocomplete
-          #testAuto="matAutocomplete"
-          [displayWith]="displayTest"
-          (optionSelected)="onTestAutocompleteSelected($event.option.value)"
-        >
-          <mat-option *ngFor="let exam of filteredTests$ | async" [value]="exam">
-            {{ getTestTitle(exam) }}
-          </mat-option>
-        </mat-autocomplete>
       </mat-form-field>
     </div>
 
@@ -83,10 +71,7 @@
           <div class="filter-block filter-grid">
             <!-- Row 1: Institute (Expandable across two columns) -->
             <div class="filter-col-full" *ngIf="showLocationAndIndustryFilters">
-              <mat-form-field
-                appearance="outline"
-                class="filter-item mandatory-field"
-              >
+              <mat-form-field appearance="outline" class="filter-item mandatory-field">
                 <mat-label>Institute <span class="required-mark">*</span></mat-label>
                 <mat-select
                   [(ngModel)]="userFilters.institute_id"
@@ -118,10 +103,7 @@
             <!-- Row 2: Country & City (2 Columns) -->
             <div class="filter-col-full filter-row-two-col" *ngIf="showLocationAndIndustryFilters">
               <!-- Country -->
-              <mat-form-field
-                appearance="outline"
-                class="filter-item"
-              >
+              <mat-form-field appearance="outline" class="filter-item">
                 <mat-label>Country</mat-label>
                 <mat-select
                   multiple
@@ -163,10 +145,7 @@
               </mat-form-field>
 
               <!-- City -->
-              <mat-form-field
-                appearance="outline"
-                class="filter-item"
-              >
+              <mat-form-field appearance="outline" class="filter-item">
                 <mat-label>City</mat-label>
                 <mat-select
                   multiple
@@ -201,7 +180,9 @@
                     </mat-icon>
                     <strong>Select All</strong>
                   </mat-option>
-                  <mat-option *ngIf="!filteredCities.length" disabled> No cities available </mat-option>
+                  <mat-option *ngIf="!filteredCities.length" disabled>
+                    No cities available
+                  </mat-option>
                   <mat-option *ngFor="let city of filteredCities" [value]="city.name">
                     {{ city.name }}
                   </mat-option>
@@ -212,10 +193,7 @@
             <!-- Row 3: Industry & Sector (2 Columns) -->
             <div class="filter-col-full filter-row-two-col" *ngIf="showLocationAndIndustryFilters">
               <!-- Industry -->
-              <mat-form-field
-                appearance="outline"
-                class="filter-item"
-              >
+              <mat-form-field appearance="outline" class="filter-item">
                 <mat-label>Industry</mat-label>
                 <mat-select
                   [(ngModel)]="userFilters.industry"
@@ -244,10 +222,7 @@
               </mat-form-field>
 
               <!-- Sector -->
-              <mat-form-field
-                appearance="outline"
-                class="filter-item"
-              >
+              <mat-form-field appearance="outline" class="filter-item">
                 <mat-label>Sector</mat-label>
                 <mat-select
                   [(ngModel)]="userFilters.sector"
@@ -432,10 +407,15 @@
                   </div>
                   <mat-option value="">Any</mat-option>
                   <mat-option disabled *ngIf="!selectedInstituteId">
-                    Select an institute first
+                    {{ isSuperAdmin ? 'Select an institute first' : 'Select a test' }}
                   </mat-option>
-                  <mat-option disabled *ngIf="selectedInstituteId && !filteredScheduleList.length && !scheduledTestsLoading">
-                    No tests found for this institute
+                  <mat-option
+                    disabled
+                    *ngIf="
+                      selectedInstituteId && !filteredScheduleList.length && !scheduledTestsLoading
+                    "
+                  >
+                    {{ isSuperAdmin ? 'No tests found for this institute' : 'No tests found' }}
                   </mat-option>
                   <mat-option
                     *ngFor="let exam of filteredScheduleList"
@@ -463,7 +443,9 @@
                   placeholder="Select date range"
                   style="cursor: pointer"
                 />
-                <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
+                <mat-icon matSuffix style="cursor: pointer; color: #0284c7"
+                  >calendar_today</mat-icon
+                >
               </mat-form-field>
             </div>
 
@@ -523,7 +505,7 @@
   <div
     class="applied-filters-bar"
     *ngIf="
-      selectedInstituteName ||
+      (isSuperAdmin && !isGlobalInstituteActive && selectedInstituteName) ||
       selectedExam ||
       userFilters.campus_id ||
       (userFilters.department_id && userFilters.department_id.length) ||
@@ -537,7 +519,7 @@
       <span class="filter-title">Applied Filters:</span>
     </div>
     <div class="applied-chips-wrapper">
-      <span class="filter-chip" *ngIf="selectedInstituteName">
+      <span class="filter-chip" *ngIf="isSuperAdmin && !isGlobalInstituteActive && selectedInstituteName">
         <span class="chip-label">Institute:</span> {{ selectedInstituteName }}
       </span>
       <span class="filter-chip" *ngIf="selectedExam">
@@ -580,9 +562,12 @@
         <mat-icon>analytics</mat-icon>
       </div>
       <h3 class="empty-state-title">No Test Selected</h3>
-      <p class="empty-state-description">
+      <p class="empty-state-description" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
         Please select an <strong>Institute</strong> and a <strong>Test</strong> from the toolbar
-        above or use the <strong>Filter Panel</strong> to load test reports and analytics.
+        above or use the <strong>Filter Test Reports</strong> panel to load test reports and analytics.
+      </p>
+      <p class="empty-state-description" *ngIf="!isSuperAdmin || isGlobalInstituteActive">
+        Please select a <strong>Test</strong> from the <strong>Filter Test Reports</strong> panel to load test reports and analytics.
       </p>
       <button
         mat-flat-button

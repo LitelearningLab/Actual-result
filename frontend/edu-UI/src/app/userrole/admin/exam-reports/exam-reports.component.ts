@@ -491,11 +491,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   };
 
   get filteredScheduleList(): any[] {
-    const q = (
-      typeof this.searchQueries.schedule === 'string'
-        ? this.searchQueries.schedule
-        : ''
-    )
+    const q = (typeof this.searchQueries.schedule === 'string' ? this.searchQueries.schedule : '')
       .toLowerCase()
       .trim();
     let list = this.allTests || [];
@@ -1457,8 +1453,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           const defaultInstId = userInstId
             ? String(userInstId)
             : this.institutes && this.institutes.length > 0
-            ? this.institutes[0].id
-            : '';
+              ? this.institutes[0].id
+              : '';
           if (defaultInstId) {
             this.selectedInstituteId = defaultInstId;
             this.userFilters.institute_id = defaultInstId;
@@ -1628,8 +1624,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.selectedCountries && this.selectedCountries.length
         ? this.selectedCountries
         : this.userFilters.country_id
-        ? [this.userFilters.country_id]
-        : [];
+          ? [this.userFilters.country_id]
+          : [];
 
     if (!selectedCountryCodes.length) {
       this.loadInstitutes();
@@ -1637,7 +1633,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
 
     const toTitleCase = (str: string) =>
-      str ? str.trim().replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()) : '';
+      str
+        ? str
+            .trim()
+            .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase())
+        : '';
 
     const requests = selectedCountryCodes.map((code) =>
       this.http.get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: code } })
@@ -1665,7 +1665,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       error: () => {
         this.cities = [];
         this.loadInstitutes();
-      }
+      },
     });
   }
 
@@ -1706,7 +1706,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   onCityFilterChange() {
     this.loadInstitutes();
   }
-
 
   loadDepartmentList(instituteId: string | null) {
     this.departmentList = [];

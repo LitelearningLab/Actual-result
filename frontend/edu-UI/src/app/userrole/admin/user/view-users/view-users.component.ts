@@ -241,7 +241,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           const profileRaw =
             sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
           if (profileRaw) rawUser = JSON.parse(profileRaw);
-        } catch (e) { }
+        } catch (e) {}
       }
       if (rawUser?.is_super_admin === true || !!rawUser?.isSuperAdmin) return true;
       const role = (
@@ -282,7 +282,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     // this.loadCities();
 
     try {
-    } catch (e) { }
+    } catch (e) {}
   }
 
   onInstituteChange(iid: string) {
@@ -307,7 +307,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         this.teams = [];
         this.campuses = [];
       }
-    } catch (e) { }
+    } catch (e) {}
   }
 
   onDepartmentFilterChange() {
@@ -587,9 +587,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       let list = this.institutes || [];
       if (term) {
         list = list.filter((i) =>
-          (i.institute_name || (i as any).name || '')
-            .toLowerCase()
-            .includes(term)
+          (i.institute_name || (i as any).name || '').toLowerCase().includes(term)
         );
       }
       return [...list].sort((a, b) => {
@@ -605,7 +603,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   get filteredDepartmentsForFilter() {
-    const selectedDepts = Array.isArray(this.filters.department) ? this.filters.department.join(',') : this.filters.department || '';
+    const selectedDepts = Array.isArray(this.filters.department)
+      ? this.filters.department.join(',')
+      : this.filters.department || '';
     const depKey = `${this.departmentFilterSearch}|${selectedDepts}|${(this.departments || []).length}`;
     return this._memoize('filteredDepartments', depKey, () => {
       const term = (this.departmentFilterSearch || '').trim().toLowerCase();
@@ -618,8 +618,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         );
       }
       return [...list].sort((a, b) => {
-        const aSel = Array.isArray(this.filters.department) && this.filters.department.includes(a.id);
-        const bSel = Array.isArray(this.filters.department) && this.filters.department.includes(b.id);
+        const aSel =
+          Array.isArray(this.filters.department) && this.filters.department.includes(a.id);
+        const bSel =
+          Array.isArray(this.filters.department) && this.filters.department.includes(b.id);
         if (aSel && !bSel) return -1;
         if (!aSel && bSel) return 1;
         return (a.name || '').localeCompare(b.name || '');
@@ -628,7 +630,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   get filteredTeamsForFilter() {
-    const selectedTeams = Array.isArray(this.filters.team) ? this.filters.team.join(',') : this.filters.team || '';
+    const selectedTeams = Array.isArray(this.filters.team)
+      ? this.filters.team.join(',')
+      : this.filters.team || '';
     const depKey = `${this.teamFilterSearch}|${selectedTeams}|${(this.teams || []).length}`;
     return this._memoize('filteredTeams', depKey, () => {
       const term = (this.teamFilterSearch || '').trim().toLowerCase();
@@ -728,9 +732,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       }
 
       const query = (this.campusFilterSearch || '').trim().toLowerCase();
-      return query
-        ? result.filter((c) => c.name.toLowerCase().includes(query))
-        : result;
+      return query ? result.filter((c) => c.name.toLowerCase().includes(query)) : result;
     });
   }
 
@@ -922,7 +924,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   ngAfterViewInit(): void {
     try {
       this.dataSource.sort = this.sort;
-    } catch (e) { }
+    } catch (e) {}
   }
 
   applyFilter(value: string) {
@@ -953,8 +955,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     removable: boolean;
     tooltip?: string;
   }> {
-    const deptStr = Array.isArray(this.filters.department) ? this.filters.department.join(',') : this.filters.department || '';
-    const teamStr = Array.isArray(this.filters.team) ? this.filters.team.join(',') : this.filters.team || '';
+    const deptStr = Array.isArray(this.filters.department)
+      ? this.filters.department.join(',')
+      : this.filters.department || '';
+    const teamStr = Array.isArray(this.filters.team)
+      ? this.filters.team.join(',')
+      : this.filters.team || '';
     const depKey = `${this.hasAppliedFilters}|${(this.selectedInstitutes || []).join(',')}|${this.filters.institute}|${this.selectedInstitute}|${(this.selectedCountries || []).join(',')}|${this.filters.country}|${(this.selectedIndustries || []).join(',')}|${this.filters.industry}|${(this.selectedSectors || []).join(',')}|${this.filters.sector}|${this.isActive}|${this.filters.name}|${(this.selectedCities || []).join(',')}|${this.filters.city}|${deptStr}|${teamStr}|${(this.selectedCampuses || []).join(',')}|${this.isSuperAdmin}`;
 
     return this._memoize('appliedFilterChips', depKey, () => {
@@ -1019,7 +1025,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           removable: true,
         });
       } else if (this.filters.industry) {
-        chips.push({ key: 'industry', label: `Industry: ${this.filters.industry}`, removable: true });
+        chips.push({
+          key: 'industry',
+          label: `Industry: ${this.filters.industry}`,
+          removable: true,
+        });
       }
 
       // Sector Chip
@@ -1184,7 +1194,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         if (!id) {
           try {
             notify('User id missing', 'error');
-          } catch (e) { }
+          } catch (e) {}
           u.active = prev;
           return;
         }
@@ -1201,13 +1211,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           next: (res) => {
             try {
               notify(`User ${newState ? 'activated' : 'deactivated'}`, 'success');
-            } catch (e) { }
+            } catch (e) {}
           },
           error: (err) => {
             console.error('Failed toggling user active', err);
             try {
               notify('Failed to update user status', 'error');
-            } catch (e) { }
+            } catch (e) {}
             u.active = prev;
           },
           complete: () => this.loading.hide(),
@@ -1219,10 +1229,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (typeof instituteId !== 'undefined' && instituteId !== null) {
       try {
         this.selectedInstitute = instituteId as any;
-      } catch (e) { }
+      } catch (e) {}
       try {
         this.filters.institute = String(instituteId);
-      } catch (e) { }
+      } catch (e) {}
     }
 
     this.loading.show();
@@ -1233,7 +1243,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         ? instituteId
         : this.selectedInstitutes?.length
           ? this.selectedInstitutes.join(',')
-          : this.filters.institute || this.selectedInstitute || (this.isGlobalInstituteActive ? this.globalInstituteContext.activeInstituteId : '');
+          : this.filters.institute ||
+            this.selectedInstitute ||
+            (this.isGlobalInstituteActive ? this.globalInstituteContext.activeInstituteId : '');
     if (instituteParam) params.institute_id = instituteParam;
 
     if (this.filters.name) params.name = this.filters.name;
@@ -1270,7 +1282,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     try {
       params.pageNumber = (this.pageIndex || 0) + 1;
       params.pageSize = this.pageSize || 25;
-    } catch (e) { }
+    } catch (e) {}
 
     this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
@@ -1280,11 +1292,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           this.totalCount =
             Number(
               res?.totalCount ??
-              res?.total_count ??
-              res?.data?.totalCount ??
-              res?.data?.total_count ??
-              res?.total ??
-              data.length
+                res?.total_count ??
+                res?.data?.totalCount ??
+                res?.data?.total_count ??
+                res?.total ??
+                data.length
             ) || 0;
           this.rawRecords = data;
           this.users = data.map((u: any) => ({
@@ -1359,7 +1371,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         this.totalCount = 0;
         try {
           notify(err?.error?.statusMessage || 'Failed to load users. Please try again.', 'error');
-        } catch (e) { }
+        } catch (e) {}
       },
     });
   }
@@ -1401,13 +1413,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     ) {
       try {
         notify('Please select an institute', 'info');
-      } catch (e) { }
+      } catch (e) {}
       return;
     }
     if (!this.hasFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');
-      } catch (e) { }
+      } catch (e) {}
       return;
     }
     this.pageIndex = 0;
@@ -1494,7 +1506,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.pageSize = ev.pageSize || this.pageSize;
       if (!this.hasAppliedFilters) return;
       this.loadUsers();
-    } catch (e) { }
+    } catch (e) {}
   }
 
   loadCities() {
@@ -1743,10 +1755,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                           String(country.id).toLowerCase() === String(countryId).toLowerCase()) ||
                         (countryCode &&
                           String(country.countryCode).toLowerCase() ===
-                          String(countryCode).toLowerCase()) ||
+                            String(countryCode).toLowerCase()) ||
                         (countryName &&
                           String(country.name).trim().toLowerCase() ===
-                          String(countryName).trim().toLowerCase())
+                            String(countryName).trim().toLowerCase())
                     );
                     const resolved =
                       hierarchyMatch ||
@@ -1888,9 +1900,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           this.refreshInstituteScope();
         } else {
           const validCityNames = new Set((this.filteredCitiesForFilter || []).map((c) => c.name));
-          this.selectedCities = (this.selectedCities || []).filter((name) => validCityNames.has(name));
+          this.selectedCities = (this.selectedCities || []).filter((name) =>
+            validCityNames.has(name)
+          );
           const validCampusIds = new Set((this.filteredCampusesForFilter || []).map((c) => c.id));
-          this.selectedCampuses = (this.selectedCampuses || []).filter((id) => validCampusIds.has(id));
+          this.selectedCampuses = (this.selectedCampuses || []).filter((id) =>
+            validCampusIds.has(id)
+          );
         }
       },
       error: () => {
@@ -1996,19 +2012,14 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           this.institutes = [];
         }
         const validInstituteIds = new Set(
-          this.institutes
-            .map((institute) => String(institute.institute_id || ''))
-            .filter(Boolean)
+          this.institutes.map((institute) => String(institute.institute_id || '')).filter(Boolean)
         );
 
         this.selectedInstitutes = (this.selectedInstitutes || []).filter((id) =>
           validInstituteIds.has(String(id))
         );
 
-        if (
-          this.selectedInstitute &&
-          !validInstituteIds.has(String(this.selectedInstitute))
-        ) {
+        if (this.selectedInstitute && !validInstituteIds.has(String(this.selectedInstitute))) {
           this.onInstituteChange('');
         }
       },
@@ -2055,7 +2066,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) { }
+      } catch (e) {}
       this.filtersOverlayRef = null;
     }
 
@@ -2087,7 +2098,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) { }
+      } catch (e) {}
       this.filtersOverlayRef = null;
     }
   }
@@ -2096,7 +2107,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (!this.hasAppliedFilters) {
       try {
         notify('Apply filters to fetch users', 'info');
-      } catch (e) { }
+      } catch (e) {}
       return;
     }
     this.loadUsers();
@@ -2117,7 +2128,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     }
     try {
       sessionStorage.setItem('view_user', JSON.stringify(payload));
-    } catch (e) { }
+    } catch (e) {}
     this.selectedUser = payload;
   }
 
@@ -2143,17 +2154,17 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       if (!payload.joining_date) {
         payload.joining_date = fmtDate(
           payload.joining_date ||
-          payload.joining ||
-          payload.joiningDate ||
-          payload.joined_at ||
-          payload.joinedAt ||
-          payload.created_at ||
-          payload.createdAt ||
-          payload.joined_on ||
-          payload.joinedOn ||
-          payload.created_date ||
-          payload.createdDate ||
-          ''
+            payload.joining ||
+            payload.joiningDate ||
+            payload.joined_at ||
+            payload.joinedAt ||
+            payload.created_at ||
+            payload.createdAt ||
+            payload.joined_on ||
+            payload.joinedOn ||
+            payload.created_date ||
+            payload.createdDate ||
+            ''
         );
       } else {
         payload.joining_date = fmtDate(payload.joining_date);
@@ -2167,7 +2178,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             const v = obj && obj[k];
             if (v !== undefined && v !== null && String(v) !== '') return String(v);
           }
-        } catch (e) { }
+        } catch (e) {}
         return '';
       };
 
@@ -2284,17 +2295,17 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       try {
         payload.joining_date = normalizeJoiningDate(
           payload.joining_date ||
-          payload.joining ||
-          payload.joiningDate ||
-          payload.joined_at ||
-          payload.joinedAt ||
-          payload.created_at ||
-          payload.createdAt ||
-          payload.joined_on ||
-          payload.joinedOn ||
-          payload.created_date ||
-          payload.createdDate ||
-          ''
+            payload.joining ||
+            payload.joiningDate ||
+            payload.joined_at ||
+            payload.joinedAt ||
+            payload.created_at ||
+            payload.createdAt ||
+            payload.joined_on ||
+            payload.joinedOn ||
+            payload.created_date ||
+            payload.createdDate ||
+            ''
         );
       } catch (e) {
         /* ignore */
@@ -2349,7 +2360,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       }
 
       sessionStorage.setItem('edit_user', JSON.stringify(payload));
-    } catch (e) { }
+    } catch (e) {}
     this.saveUsersReturnState();
     this.router.navigate(['/user-register']);
   }
@@ -2389,31 +2400,31 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             this.users = this.users.filter((x) => x.id !== u.id);
             try {
               notify('User removed locally', 'info');
-            } catch (e) { }
+            } catch (e) {}
             return;
           }
           const current_user = sessionStorage.getItem('user_id');
           const url = `${API_BASE}/delete/user/${encodeURIComponent(String(uuid))}?current_user=${encodeURIComponent(String(current_user))}`;
           try {
             this.loading.show();
-          } catch (e) { }
+          } catch (e) {}
           this.http.delete<any>(url, { observe: 'response' }).subscribe({
             next: (res) => {
               try {
                 this.loading.hide();
-              } catch (e) { }
+              } catch (e) {}
               this.users = this.users.filter((x) => x.id !== uuid && x.id !== u.id);
               try {
                 notify('User deleted successfully', 'success');
-              } catch (e) { }
+              } catch (e) {}
               try {
                 if (this.hasAppliedFilters) this.loadUsers(this.selectedInstitute);
-              } catch (e) { }
+              } catch (e) {}
             },
             error: (err) => {
               try {
                 this.loading.hide();
-              } catch (e) { }
+              } catch (e) {}
               console.error('Failed to delete user', err);
               try {
                 if (err && (err.status === 0 || err.status === 502 || err.status === 503)) {
@@ -2424,11 +2435,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                 } else {
                   notify('Failed to delete user. Please try again later.', 'error');
                 }
-              } catch (e) { }
+              } catch (e) {}
             },
           });
         });
-    } catch (e) { }
+    } catch (e) {}
   }
 
   closeModal() {
@@ -2461,7 +2472,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           totalCount: this.totalCount,
         })
       );
-    } catch (e) { }
+    } catch (e) {}
   }
 
   private restoreUsersReturnState(): void {
@@ -2507,7 +2518,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     } catch (e) {
       try {
         sessionStorage.removeItem('users_return_state');
-      } catch (_) { }
+      } catch (_) {}
     }
   }
 
@@ -2548,7 +2559,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
     try {
       sessionStorage.removeItem('users_return_state');
-    } catch (e) { }
+    } catch (e) {}
 
     this.loadDepartments(instituteId);
     this.loadTeams(instituteId);
@@ -2599,7 +2610,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.closeFiltersOverlay();
     try {
       sessionStorage.removeItem('users_return_state');
-    } catch (e) { }
+    } catch (e) {}
     this.loadInstitutes();
     this.loadCountries();
   }

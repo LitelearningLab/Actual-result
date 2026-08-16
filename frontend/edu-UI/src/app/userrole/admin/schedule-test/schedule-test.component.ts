@@ -143,7 +143,14 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   userDepartmentSearch = '';
   userTeamSearch = '';
 
-  userCampuses: Array<{ id: string; name: string; country_id?: string; country_name?: string; city_id?: string; city_name?: string }> = [];
+  userCampuses: Array<{
+    id: string;
+    name: string;
+    country_id?: string;
+    country_name?: string;
+    city_id?: string;
+    city_name?: string;
+  }> = [];
   userDepartments: Array<{ id: string; name: string }> = [];
   userTeams: Array<{ id: string; name: string }> = [];
 
@@ -276,10 +283,11 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     const params: any = {
       pageSize: 10000,
       pageNumber: 1,
-      _ts: Date.now()
+      _ts: Date.now(),
     };
 
-    const targetInstitute = this.model.institute || this.getAdminInstituteId() || this.filterInstitute;
+    const targetInstitute =
+      this.model.institute || this.getAdminInstituteId() || this.filterInstitute;
     if (targetInstitute) {
       params.institute_id = targetInstitute;
     }
@@ -335,7 +343,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
             u.email,
           email: u.email,
           institute:
-            (u.institute && (u.institute.institute_name || u.institute.short_name || u.institute.name)) ||
+            (u.institute &&
+              (u.institute.institute_name || u.institute.short_name || u.institute.name)) ||
             u.institute_name ||
             '',
           department:
@@ -1074,9 +1083,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
                 user?.country?.country_name || user?.country_name || ''
               ).trim();
               const cityCode = String(user?.city?.city_id || user?.city_id || '').trim();
-              const cityName = String(
-                user?.city?.city_name || user?.city_name || ''
-              ).trim();
+              const cityName = String(user?.city?.city_name || user?.city_name || '').trim();
 
               if (countryCode && countryName && !uniqueCountries.has(countryCode)) {
                 uniqueCountries.set(countryCode, { code: countryCode, name: countryName });
@@ -1229,9 +1236,12 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   filterCitiesByCountry() {
     this.cities = [];
-    const targetCodes = (this.selectedCountries && this.selectedCountries.length > 0)
-      ? this.selectedCountries
-      : (this.filterCountry ? [this.filterCountry] : []);
+    const targetCodes =
+      this.selectedCountries && this.selectedCountries.length > 0
+        ? this.selectedCountries
+        : this.filterCountry
+          ? [this.filterCountry]
+          : [];
 
     if (!targetCodes.length) {
       // If no country is selected, show all registered cities
@@ -1403,7 +1413,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   isAllUserCountriesSelected(): boolean {
     const items = this.filteredUserCountriesForFilter || [];
-    return items.length > 0 && items.every((c) => (this.selectedUserCountries || []).includes(c.code));
+    return (
+      items.length > 0 && items.every((c) => (this.selectedUserCountries || []).includes(c.code))
+    );
   }
 
   toggleSelectAllUserCountries(): void {
@@ -1614,14 +1626,20 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
   onUserCountryChange(): void {
     const validCityNames = new Set((this.filteredUserCitiesForFilter || []).map((c) => c.name));
-    this.selectedUserCities = (this.selectedUserCities || []).filter((name) => validCityNames.has(name));
+    this.selectedUserCities = (this.selectedUserCities || []).filter((name) =>
+      validCityNames.has(name)
+    );
     const validCampusIds = new Set((this.filteredUserCampusesForFilter || []).map((c) => c.id));
-    this.selectedUserCampuses = (this.selectedUserCampuses || []).filter((id) => validCampusIds.has(id));
+    this.selectedUserCampuses = (this.selectedUserCampuses || []).filter((id) =>
+      validCampusIds.has(id)
+    );
   }
 
   onUserCityChange(): void {
     const validCampusIds = new Set((this.filteredUserCampusesForFilter || []).map((c) => c.id));
-    this.selectedUserCampuses = (this.selectedUserCampuses || []).filter((id) => validCampusIds.has(id));
+    this.selectedUserCampuses = (this.selectedUserCampuses || []).filter((id) =>
+      validCampusIds.has(id)
+    );
   }
 
   filteredCountries(): Array<{ code: string; name: string }> {
@@ -1688,8 +1706,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
             rawCities.forEach((city: any) => {
               const rawName = String(city?.name || city?.city_name || city?.city || '').trim();
               if (!rawName) return;
-              const name = rawName.replace(/\w\S*/g, (text: string) =>
-                text.charAt(0).toUpperCase() + text.slice(1).toLowerCase()
+              const name = rawName.replace(
+                /\w\S*/g,
+                (text: string) => text.charAt(0).toUpperCase() + text.slice(1).toLowerCase()
               );
               const key = name.toLowerCase();
               if (!uniqueCities.has(key)) {
@@ -2447,7 +2466,10 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
               if (rawName) {
                 const formattedName = rawName
                   .trim()
-                  .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                  .replace(
+                    /\w\S*/g,
+                    (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+                  );
                 if (!uniqueSet.has(formattedName.toLowerCase())) {
                   uniqueSet.set(formattedName.toLowerCase(), {
                     code: String(c.city_code || c.code || c.id || formattedName),
@@ -2962,8 +2984,13 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         .filter(Boolean);
       chips.push({ key: 'country', label: `Country: ${labels.join(', ')}` });
     } else if (this.userFilters.country_id) {
-      const country = this.countries.find((c) => String(c.code) === String(this.userFilters.country_id));
-      chips.push({ key: 'country', label: `Country: ${country?.name || this.userFilters.country_id}` });
+      const country = this.countries.find(
+        (c) => String(c.code) === String(this.userFilters.country_id)
+      );
+      chips.push({
+        key: 'country',
+        label: `Country: ${country?.name || this.userFilters.country_id}`,
+      });
     }
 
     if (this.selectedUserCities && this.selectedUserCities.length) {
@@ -3268,7 +3295,13 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     const url = `${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
-        const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res?.campuses) ? res.campuses : Array.isArray(res) ? res : [];
+        const arr = Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res?.campuses)
+            ? res.campuses
+            : Array.isArray(res)
+              ? res
+              : [];
         this.userCampuses = arr.map((c: any) => ({
           id: String(c.campus_id || c.id),
           name: (c.name || c.campus_name || c.campus || c).toString(),

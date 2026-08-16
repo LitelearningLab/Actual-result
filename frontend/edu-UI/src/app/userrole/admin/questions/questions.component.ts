@@ -1357,7 +1357,10 @@ export class AdminQuestionsComponent {
               if (rawName) {
                 const formattedName = rawName
                   .trim()
-                  .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                  .replace(
+                    /\w\S*/g,
+                    (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+                  );
                 if (!uniqueSet.has(formattedName.toLowerCase())) {
                   uniqueSet.set(formattedName.toLowerCase(), {
                     code: String(c.city_code || c.code || c.id || formattedName),
@@ -1386,8 +1389,8 @@ export class AdminQuestionsComponent {
     const countryCodes = this.selectedCountries?.length
       ? this.selectedCountries
       : this.filterCountry
-      ? [this.filterCountry]
-      : [];
+        ? [this.filterCountry]
+        : [];
     this.loadCitiesForCountry(countryCodes);
     this.reloadFilteredInstitutes();
   }
@@ -1528,7 +1531,11 @@ export class AdminQuestionsComponent {
     this.loadCategories(instId);
   }
 
-  loadCategories(instId?: string, showLoader: boolean = true, preserveActiveCategory: boolean = true) {
+  loadCategories(
+    instId?: string,
+    showLoader: boolean = true,
+    preserveActiveCategory: boolean = true
+  ) {
     if (showLoader) this.loader.show();
     instId = this.getScopedInstituteId(instId);
     if (!instId) {
@@ -1569,9 +1576,10 @@ export class AdminQuestionsComponent {
               null,
             institute: r.institute || { institute_id: r.institute_id || r.instituteId || null },
           }));
-        const cid = preserveActiveCategory && this.questions && this.questions[0]
-          ? this.questions[0].category_id || ''
-          : '';
+        const cid =
+          preserveActiveCategory && this.questions && this.questions[0]
+            ? this.questions[0].category_id || ''
+            : '';
         const currentCategory = cid
           ? this.selectedCategory ||
             this.categories.find((c) => String(c.category_id) === String(cid)) ||
@@ -1731,10 +1739,14 @@ export class AdminQuestionsComponent {
       this.loadDepartments(instId);
       this.loadTeams(instId);
     }
-    const positionStrategy = this.overlay.position().flexibleConnectedTo(this.filtersBtn).withPositions([
-      { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
-      { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
-    ]).withPush(true);
+    const positionStrategy = this.overlay
+      .position()
+      .flexibleConnectedTo(this.filtersBtn)
+      .withPositions([
+        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
+      ])
+      .withPush(true);
     this.filtersOverlayRef = this.overlay.create({
       positionStrategy,
       hasBackdrop: true,
@@ -1757,9 +1769,10 @@ export class AdminQuestionsComponent {
   applyQuestionBankFilters() {
     this.showQuestionBankFilterError = false;
     this.questionBankFiltersApplied = true;
-    const selectedQuestionBank = this.allCategories.find(
-      (category) => String(category.category_id) === String(this.filterQuestionBankId)
-    ) || null;
+    const selectedQuestionBank =
+      this.allCategories.find(
+        (category) => String(category.category_id) === String(this.filterQuestionBankId)
+      ) || null;
     if (this.questions?.[0]) {
       this.questions[0].institute_id = this.filterInstituteId || '';
       this.questions[0].category_id = this.filterQuestionBankId || '';
@@ -1816,32 +1829,57 @@ export class AdminQuestionsComponent {
     return '';
   }
 
-  get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean; tooltip?: string }> {
+  get appliedFilterChips(): Array<{
+    key: string;
+    label: string;
+    removable: boolean;
+    tooltip?: string;
+  }> {
     if (!this.questionBankFiltersApplied) return [];
     const chips: Array<{ key: string; label: string; removable: boolean; tooltip?: string }> = [];
 
     const appliedInstituteName = this.getAppliedInstituteName();
     if (appliedInstituteName) {
-      chips.push({ key: 'institute', label: `Institute: ${appliedInstituteName}`, removable: false });
+      chips.push({
+        key: 'institute',
+        label: `Institute: ${appliedInstituteName}`,
+        removable: false,
+      });
     }
     if (this.selectedCategory?.name) {
-      chips.push({ key: 'question_bank', label: `Question Bank: ${this.selectedCategory.name}`, removable: false });
+      chips.push({
+        key: 'question_bank',
+        label: `Question Bank: ${this.selectedCategory.name}`,
+        removable: false,
+      });
     }
 
     if (this.selectedCountries && this.selectedCountries.length) {
       if (this.selectedCountries.length === 1) {
-        const countryName = this.countries.find((c) => String(c.code) === String(this.selectedCountries[0]))?.name || this.selectedCountries[0];
-        chips.push({ key: 'country', label: `Country: ${countryName}`, removable: true, tooltip: countryName });
+        const countryName =
+          this.countries.find((c) => String(c.code) === String(this.selectedCountries[0]))?.name ||
+          this.selectedCountries[0];
+        chips.push({
+          key: 'country',
+          label: `Country: ${countryName}`,
+          removable: true,
+          tooltip: countryName,
+        });
       } else {
-        chips.push({ key: 'country', label: `Countries: ${this.selectedCountries.length} selected`, removable: true });
+        chips.push({
+          key: 'country',
+          label: `Countries: ${this.selectedCountries.length} selected`,
+          removable: true,
+        });
       }
     }
     if (this.selectedCities.length) {
       chips.push({
         key: 'city',
-        label: this.selectedCities.length === 1
-          ? `City: ${this.selectedCities[0]}`
-          : `Cities: ${this.selectedCities.length} selected`,
+        label:
+          this.selectedCities.length === 1
+            ? `City: ${this.selectedCities[0]}`
+            : `Cities: ${this.selectedCities.length} selected`,
         removable: true,
       });
     } else if (this.filterCity) {
@@ -1849,25 +1887,46 @@ export class AdminQuestionsComponent {
     }
     if (this.selectedIndustries && this.selectedIndustries.length) {
       if (this.selectedIndustries.length === 1) {
-        chips.push({ key: 'industry', label: `Industry: ${this.selectedIndustries[0]}`, removable: true });
+        chips.push({
+          key: 'industry',
+          label: `Industry: ${this.selectedIndustries[0]}`,
+          removable: true,
+        });
       } else {
-        chips.push({ key: 'industry', label: `Industries: ${this.selectedIndustries.length} selected`, removable: true });
+        chips.push({
+          key: 'industry',
+          label: `Industries: ${this.selectedIndustries.length} selected`,
+          removable: true,
+        });
       }
     }
     if (this.selectedSectors && this.selectedSectors.length) {
       if (this.selectedSectors.length === 1) {
         chips.push({ key: 'sector', label: `Sector: ${this.selectedSectors[0]}`, removable: true });
       } else {
-        chips.push({ key: 'sector', label: `Sectors: ${this.selectedSectors.length} selected`, removable: true });
+        chips.push({
+          key: 'sector',
+          label: `Sectors: ${this.selectedSectors.length} selected`,
+          removable: true,
+        });
       }
     }
     if (this.selectedCategoryTypes && this.selectedCategoryTypes.length) {
-      const typeLabels = this.selectedCategoryTypes.map((t) => (t === 'choose' ? 'Objective' : t === 'multi' ? 'Multiple Choice' : t === 'descriptive' ? 'Descriptive' : t));
+      const typeLabels = this.selectedCategoryTypes.map((t) =>
+        t === 'choose'
+          ? 'Objective'
+          : t === 'multi'
+            ? 'Multiple Choice'
+            : t === 'descriptive'
+              ? 'Descriptive'
+              : t
+      );
       chips.push({ key: 'type', label: `Type: ${typeLabels.join(', ')}`, removable: true });
     }
     if (this.selectedDepartments.length) {
       const names = this.selectedDepartments.map(
-        (id) => this.departments.find((department) => String(department.id) === String(id))?.name || id
+        (id) =>
+          this.departments.find((department) => String(department.id) === String(id))?.name || id
       );
       chips.push({ key: 'department', label: `Department: ${names.join(', ')}`, removable: true });
     }
@@ -1880,11 +1939,23 @@ export class AdminQuestionsComponent {
     const createdAfter = this.formatFilterDate(this.filterCreationDateAfter);
     const createdBefore = this.formatFilterDate(this.filterCreationDate);
     if (createdAfter && createdBefore) {
-      chips.push({ key: 'created_date', label: `Created: ${createdAfter} - ${createdBefore}`, removable: true });
+      chips.push({
+        key: 'created_date',
+        label: `Created: ${createdAfter} - ${createdBefore}`,
+        removable: true,
+      });
     } else if (createdAfter) {
-      chips.push({ key: 'created_after', label: `Created after: ${createdAfter}`, removable: true });
+      chips.push({
+        key: 'created_after',
+        label: `Created after: ${createdAfter}`,
+        removable: true,
+      });
     } else if (createdBefore) {
-      chips.push({ key: 'created_before', label: `Created before: ${createdBefore}`, removable: true });
+      chips.push({
+        key: 'created_before',
+        label: `Created before: ${createdBefore}`,
+        removable: true,
+      });
     }
     if (this.filterCreatedByMe) {
       chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });

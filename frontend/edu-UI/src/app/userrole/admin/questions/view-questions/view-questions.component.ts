@@ -817,7 +817,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       });
     if (this.filterCreatedByMe)
       chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
-      
+
     return chips;
   }
 
@@ -878,7 +878,6 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       this.selectedQuestionTypes = [];
     } else if (key === 'created_after') this.filterCreationDateAfter = null;
     else if (key === 'created_before') this.filterCreationDate = null;
-    
     else if (key === 'created_by_me') this.filterCreatedByMe = false;
     else if (key === 'public_access') this.filterPublicAccess = null;
     this.refreshAfterFilterChipChange();
@@ -957,20 +956,34 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
   private getInstituteLabel(id: any): string {
     if (!id) return '';
-    const found: any = (this.institutes || []).find((i: any) => String(i.institute_id || i.id || i._id) === String(id));
-    return found?.name || found?.institute_name || (this.institutes && this.institutes.length ? String(id || '') : '');
+    const found: any = (this.institutes || []).find(
+      (i: any) => String(i.institute_id || i.id || i._id) === String(id)
+    );
+    return (
+      found?.name ||
+      found?.institute_name ||
+      (this.institutes && this.institutes.length ? String(id || '') : '')
+    );
   }
   private getCategoryLabel(id: any): string {
     if (!id) return '';
     const found = (this.categories || []).find(
       (c: any) => String(c.category_id || c.id || c._id) === String(id)
     );
-    return found?.name || found?.category_name || (this.categories && this.categories.length ? String(id || '') : '');
+    return (
+      found?.name ||
+      found?.category_name ||
+      (this.categories && this.categories.length ? String(id || '') : '')
+    );
   }
   private getSelectedName(list: any[], selectedId: any): string {
     if (!selectedId || !list || !list.length) return '';
-    const found = (list || []).find((item) => String(item?.id || item?.dept_id || item?.team_id || item?.deptId || item?.teamId) === String(selectedId));
-    return found ? (found.name || found.dept_name || found.team_name || String(selectedId)) : '';
+    const found = (list || []).find(
+      (item) =>
+        String(item?.id || item?.dept_id || item?.team_id || item?.deptId || item?.teamId) ===
+        String(selectedId)
+    );
+    return found ? found.name || found.dept_name || found.team_name || String(selectedId) : '';
   }
   private formatFilterDate(value: Date): string {
     try {
@@ -1112,7 +1125,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
 
   // ---- Country / City / Industry / Sector cascade (mirrors view-institutes.component.ts / category.component.ts) ----
 
-  onFilterSelectOpened(opened: boolean, field: 'country' | 'city' | 'industry' | 'sector' | 'questionBank') {
+  onFilterSelectOpened(
+    opened: boolean,
+    field: 'country' | 'city' | 'industry' | 'sector' | 'questionBank'
+  ) {
     if (opened) {
       setTimeout(() => {
         try {
@@ -1277,7 +1293,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
               if (rawName) {
                 const formattedName = rawName
                   .trim()
-                  .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                  .replace(
+                    /\w\S*/g,
+                    (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+                  );
                 if (!uniqueSet.has(formattedName.toLowerCase())) {
                   uniqueSet.set(formattedName.toLowerCase(), {
                     code: String(c.city_code || c.code || c.id || formattedName),
@@ -1322,8 +1341,8 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const countryCodes = this.selectedCountries?.length
       ? this.selectedCountries
       : this.filterCountry
-      ? [this.filterCountry]
-      : [];
+        ? [this.filterCountry]
+        : [];
     this.loadCitiesForCountry(countryCodes);
     this.refreshInstituteScope();
   }
@@ -1708,7 +1727,6 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       params.push(
         `created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`
       );
-    
 
     if (this.filterCreatedByMe) {
       try {
@@ -1966,18 +1984,26 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
             // Client-side filter for selected department(s)
             if (this.selectedDepartments && this.selectedDepartments.length) {
               const deptList = Array.isArray(c.departments || c.department_ids)
-                ? (c.departments || c.department_ids)
-                : typeof c.departments === 'object' && c.departments ? Object.values(c.departments) : [];
-              const deptIds = deptList.map((d: any) => String(d?.id || d?.department_id || d?.dept_id || d));
-              const matchesDept = this.selectedDepartments.some((id) => deptIds.includes(String(id)));
+                ? c.departments || c.department_ids
+                : typeof c.departments === 'object' && c.departments
+                  ? Object.values(c.departments)
+                  : [];
+              const deptIds = deptList.map((d: any) =>
+                String(d?.id || d?.department_id || d?.dept_id || d)
+              );
+              const matchesDept = this.selectedDepartments.some((id) =>
+                deptIds.includes(String(id))
+              );
               if (!matchesDept) return false;
             }
 
             // Client-side filter for selected team(s)
             if (this.selectedTeams && this.selectedTeams.length) {
               const teamList = Array.isArray(c.teams || c.team_ids)
-                ? (c.teams || c.team_ids)
-                : typeof c.teams === 'object' && c.teams ? Object.values(c.teams) : [];
+                ? c.teams || c.team_ids
+                : typeof c.teams === 'object' && c.teams
+                  ? Object.values(c.teams)
+                  : [];
               const teamIds = teamList.map((t: any) => String(t?.id || t?.team_id || t));
               const matchesTeam = this.selectedTeams.some((id) => teamIds.includes(String(id)));
               if (!matchesTeam) return false;
@@ -2207,7 +2233,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
 
   onApply() {
-    if (this.isSuperAdmin && !this.isGlobalInstituteActive && (!this.selectedInstitutes || !this.selectedInstitutes.length) && !this.selectedInstitute) {
+    if (
+      this.isSuperAdmin &&
+      !this.isGlobalInstituteActive &&
+      (!this.selectedInstitutes || !this.selectedInstitutes.length) &&
+      !this.selectedInstitute
+    ) {
       try {
         notify('Please select an institute', 'info');
       } catch (e) {}
@@ -2479,14 +2510,23 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       this.filterIndustry = state?.filterIndustry || '';
       this.filterSector = state?.filterSector || '';
       this.selectedInstitute = state?.selectedInstitute || '';
-      this.selectedInstitutes = Array.isArray(state?.selectedInstitutes) && state.selectedInstitutes.length
-        ? state.selectedInstitutes
-        : (this.selectedInstitute ? [this.selectedInstitute] : []);
-      this.selectedCountries = Array.isArray(state?.selectedCountries) ? state.selectedCountries : [];
+      this.selectedInstitutes =
+        Array.isArray(state?.selectedInstitutes) && state.selectedInstitutes.length
+          ? state.selectedInstitutes
+          : this.selectedInstitute
+            ? [this.selectedInstitute]
+            : [];
+      this.selectedCountries = Array.isArray(state?.selectedCountries)
+        ? state.selectedCountries
+        : [];
       this.selectedCities = Array.isArray(state?.selectedCities) ? state.selectedCities : [];
-      this.selectedIndustries = Array.isArray(state?.selectedIndustries) ? state.selectedIndustries : [];
+      this.selectedIndustries = Array.isArray(state?.selectedIndustries)
+        ? state.selectedIndustries
+        : [];
       this.selectedSectors = Array.isArray(state?.selectedSectors) ? state.selectedSectors : [];
-      this.selectedQuestionTypes = Array.isArray(state?.selectedQuestionTypes) ? state.selectedQuestionTypes : [];
+      this.selectedQuestionTypes = Array.isArray(state?.selectedQuestionTypes)
+        ? state.selectedQuestionTypes
+        : [];
       this.instituteSearch = state?.instituteSearch || '';
       this.selectedCategories = Array.isArray(state?.selectedCategories)
         ? state.selectedCategories

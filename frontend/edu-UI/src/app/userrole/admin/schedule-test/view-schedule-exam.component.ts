@@ -130,24 +130,9 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   hasAppliedFilters = false;
   get displayedColumns(): string[] {
     if (this.isSuperAdmin) {
-      return [
-        'sno',
-        'title',
-        'institute',
-        'schedule',
-        'publish',
-        'manual_review',
-        'actions',
-      ];
+      return ['sno', 'title', 'institute', 'schedule', 'publish', 'manual_review', 'actions'];
     }
-    return [
-      'sno',
-      'title',
-      'schedule',
-      'publish',
-      'manual_review',
-      'actions',
-    ];
+    return ['sno', 'title', 'schedule', 'publish', 'manual_review', 'actions'];
   }
   columns: string[] = [
     'sno',
@@ -718,7 +703,10 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
               if (rawName) {
                 const formattedName = rawName
                   .trim()
-                  .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                  .replace(
+                    /\w\S*/g,
+                    (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+                  );
                 if (!uniqueSet.has(formattedName.toLowerCase())) {
                   uniqueSet.set(formattedName.toLowerCase(), {
                     code: String(c.city_code || c.code || c.id || formattedName),
@@ -761,8 +749,8 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     const countryCodes = this.selectedCountries?.length
       ? this.selectedCountries
       : this.filterCountry
-      ? [this.filterCountry]
-      : [];
+        ? [this.filterCountry]
+        : [];
     this.loadCitiesForCountry(countryCodes);
     this.refreshInstituteScope();
   }
@@ -963,7 +951,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
         removable: true,
       });
     if (this.selectedCities && this.selectedCities.length) {
-      chips.push({ key: 'city', label: `City: ${this.selectedCities.join(', ')}`, removable: true });
+      chips.push({
+        key: 'city',
+        label: `City: ${this.selectedCities.join(', ')}`,
+        removable: true,
+      });
     } else if (this.filterCity) {
       chips.push({ key: 'city', label: `City: ${this.filterCity}`, removable: true });
     }
@@ -1121,9 +1113,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
           }));
           this.allInstitutes = [...this.institutes];
           if (this.isSuperAdmin) {
-            const instituteIds = this.institutes
-              .map((i) => i.institute_id || '')
-              .filter(Boolean);
+            const instituteIds = this.institutes.map((i) => i.institute_id || '').filter(Boolean);
             this.loadOrganizationOptions(instituteIds);
           }
           try {
@@ -1405,9 +1395,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
               if (id && name && !unique.has(id)) unique.set(id, { id, name });
             });
           });
-          assign(
-            Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name))
-          );
+          assign(Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name)));
         },
         error: () => assign([]),
       });
@@ -1454,9 +1442,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
             if (id && name && !unique.has(id)) unique.set(id, { id, name });
           });
         });
-        this.campuses = Array.from(unique.values()).sort((a, b) =>
-          a.name.localeCompare(b.name)
-        );
+        this.campuses = Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name));
       },
       error: () => (this.campuses = []),
     });
@@ -2159,21 +2145,15 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
         ? state.selectedCountries
         : [];
       this.filterCity = state?.filterCity || '';
-      this.selectedCities = Array.isArray(state?.selectedCities)
-        ? state.selectedCities
-        : [];
+      this.selectedCities = Array.isArray(state?.selectedCities) ? state.selectedCities : [];
       this.filterIndustry = state?.filterIndustry || '';
       this.filterSector = state?.filterSector || '';
       this.filterName = state?.filterName || '';
       this.selectedDepartments = Array.isArray(state?.selectedDepartments)
         ? state.selectedDepartments
         : [];
-      this.selectedCampuses = Array.isArray(state?.selectedCampuses)
-        ? state.selectedCampuses
-        : [];
-      this.selectedTeams = Array.isArray(state?.selectedTeams)
-        ? state.selectedTeams
-        : [];
+      this.selectedCampuses = Array.isArray(state?.selectedCampuses) ? state.selectedCampuses : [];
+      this.selectedTeams = Array.isArray(state?.selectedTeams) ? state.selectedTeams : [];
       this.filterCreationDateAfter = state?.filterCreationDateAfter
         ? new Date(state.filterCreationDateAfter)
         : null;
