@@ -346,6 +346,110 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.onInstituteChange(instIds);
   }
 
+  // --- Department & Team Search Variables ---
+  departmentFilterSearch = '';
+  teamFilterSearch = '';
+
+  // --- Department Search & Select All Logic ---
+  get filteredDepartmentsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.departmentFilterSearch || '').trim().toLowerCase();
+    let list = this.departments || [];
+    if (term) {
+      list = list.filter(
+        (d) =>
+          (d.name || '').toLowerCase().includes(term) ||
+          (this.selectedDepartments || []).includes(d.id)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedDepartments || []).includes(a.id);
+      const bSel = (this.selectedDepartments || []).includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllDepartmentsSelected(): boolean {
+    const ids = (this.filteredDepartmentsForFilter || []).map((d) => d.id).filter(Boolean);
+    return ids.length > 0 && ids.every((id) => (this.selectedDepartments || []).includes(id));
+  }
+
+  toggleSelectAllDepartments(): void {
+    const ids = (this.filteredDepartmentsForFilter || []).map((d) => d.id).filter(Boolean);
+    if (this.isAllDepartmentsSelected()) {
+      this.selectedDepartments = [];
+    } else {
+      this.selectedDepartments = [...ids];
+    }
+    this.onDepartmentFilterChange();
+  }
+
+  onFilterDepartmentOpenedChange(opened: boolean): void {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) {}
+      });
+    } else {
+      this.departmentFilterSearch = '';
+    }
+  }
+
+  // --- Team Search & Select All Logic ---
+  get filteredTeamsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.teamFilterSearch || '').trim().toLowerCase();
+    let list = this.teams || [];
+    if (term) {
+      list = list.filter(
+        (t) =>
+          (t.name || '').toLowerCase().includes(term) ||
+          (this.selectedTeams || []).includes(t.id)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aSel = (this.selectedTeams || []).includes(a.id);
+      const bSel = (this.selectedTeams || []).includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllTeamsSelected(): boolean {
+    const ids = (this.filteredTeamsForFilter || []).map((t) => t.id).filter(Boolean);
+    return ids.length > 0 && ids.every((id) => (this.selectedTeams || []).includes(id));
+  }
+
+  toggleSelectAllTeams(): void {
+    const ids = (this.filteredTeamsForFilter || []).map((t) => t.id).filter(Boolean);
+    if (this.isAllTeamsSelected()) {
+      this.selectedTeams = [];
+    } else {
+      this.selectedTeams = [...ids];
+    }
+    this.onQuestionBankParentFilterChange();
+  }
+
+  onFilterTeamOpenedChange(opened: boolean): void {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) {}
+      });
+    } else {
+      this.teamFilterSearch = '';
+    }
+  }
+
   onQuestionBankParentFilterChange(): void {
     this.selectedCategoryNames = [];
     this.categorySearch = '';
@@ -357,7 +461,6 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onDepartmentFilterChange(): void {
-    this.selectedTeams = [];
     this.onQuestionBankParentFilterChange();
   }
 

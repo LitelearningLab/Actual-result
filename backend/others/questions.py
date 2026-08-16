@@ -244,61 +244,65 @@ def get_questions_details(request):
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list))
+            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("category_id"):
             raw_cat_list = args.get("category_id").split(",")
             active_cats = session.query(Categories.category_id).filter(Categories.category_id.in_(raw_cat_list), active_cat_filter).all()
             category_list = [c.category_id for c in active_cats]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list))
+            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("departments"):
             department_ids = args.get("departments").split(",")
             category_data = session.query(CategoriesDepartments).join(Categories, Categories.category_id == CategoriesDepartments.category_id).filter(CategoriesDepartments.department_id.in_(department_ids), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list))
+            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("teams"):
             team_ids = args.get("teams").split(",")
             category_data = session.query(CategoriesTeams).join(Categories, Categories.category_id == CategoriesTeams.category_id).filter(CategoriesTeams.team_id.in_(team_ids), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list))
+            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("created_by"):
             category_data = session.query(Categories).filter(Categories.created_by == args.get("created_by"), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list))
+            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("created_after"):
             category_data = session.query(Categories).filter(Categories.created_date >= args.get("created_after"), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list))
+            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("created_before"):
             category_data = session.query(Categories).filter(Categories.created_date <= args.get("created_before"), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list))
+            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("public_access") is not None:
             category_data = session.query(Categories).filter(Categories.public_access == public_access, active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
             mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
             question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list))
+            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
 
         if args.get("type"):
-            t_val = str(args.get("type")).strip().lower()
-            if t_val == "objective":
-                filter.append(Question.question_type.in_(["choose", "multi", "fill"]))
-            elif t_val == "descriptive":
-                filter.append(Question.question_type.in_(["descriptive", "paragraph"]))
-            else:
-                filter.append(Question.question_type.ilike(f"%{t_val}%"))
+            raw_types = [t.strip().lower() for t in str(args.get("type")).split(",") if t.strip()]
+            type_conditions = []
+            for t_val in raw_types:
+                if t_val == "objective":
+                    type_conditions.extend(["choose", "multi", "fill"])
+                elif t_val == "descriptive":
+                    type_conditions.extend(["descriptive", "paragraph"])
+                else:
+                    type_conditions.append(t_val)
+            if type_conditions:
+                filter.append(Question.question_type.in_(type_conditions))
 
         questions = session.query(Question).filter(*filter).all()
         question_list = []
@@ -313,10 +317,6 @@ def get_questions_details(request):
 
             options = session.query(Option).filter_by(question_id=q.question_id, active_status=1).all()
             option_list = [{"id": opt.options_id, "text": opt.option_text, "is_correct": opt.is_correct} for opt in options]
-            
-            # Get category information for this question
-            mapping = session.query(QuestionMapping).filter_by(question_id=q.question_id).first()
-            category = session.query(Categories).filter_by(category_id=mapping.category_id).first() if mapping else None
 
             # get user infor for created_by and updated_by
             created_by_user = None
@@ -334,23 +334,23 @@ def get_questions_details(request):
                 ans = ans_opt or ""
 
             question_list.append({
-            "id": q.question_id,
-            "text": q.question_text,
-            "type": q.question_type,
-            "marks": q.marks,
-            "options": option_list,
-            "answer": ans,
-            "answerText": ans,
-            "category_id": mapping.category_id if mapping else None,
-            "institute_id": category.institute_id if category else None,
-            "category": category.name if category else None,
-            "category_description": category.description if category else None,
-            "created_date": q.created_date.isoformat() if getattr(q, 'created_date', None) else None,
-            "created_by": created_by_user.full_name if created_by_user else None,
-            "created_by_id": created_by_user.user_id if created_by_user else None,
-            "updated_date": q.updated_date.isoformat() if getattr(q, 'updated_date', None) else None,
-            "updated_by": updated_by_user.full_name if updated_by_user else None,
-            "updated_by_id": updated_by_user.user_id if updated_by_user else None,
+                "id": q.question_id,
+                "text": q.question_text,
+                "type": q.question_type,
+                "marks": q.marks,
+                "options": option_list,
+                "answer": ans,
+                "answerText": ans,
+                "category_id": mapping.category_id if mapping else None,
+                "institute_id": category.institute_id if category else None,
+                "category": category.name if category else None,
+                "category_description": category.description if category else None,
+                "created_date": q.created_date.isoformat() if getattr(q, 'created_date', None) else None,
+                "created_by": created_by_user.full_name if created_by_user else None,
+                "created_by_id": created_by_user.user_id if created_by_user else None,
+                "updated_date": q.updated_date.isoformat() if getattr(q, 'updated_date', None) else None,
+                "updated_by": updated_by_user.full_name if updated_by_user else None,
+                "updated_by_id": updated_by_user.user_id if updated_by_user else None,
             })
         json_data = {"status": True, "data": question_list, "total": len(question_list)}
         return json_data, 200

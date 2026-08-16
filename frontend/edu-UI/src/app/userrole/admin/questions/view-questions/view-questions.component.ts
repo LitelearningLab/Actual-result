@@ -433,6 +433,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     } else {
       this.selectedDepartments = [...ids];
     }
+    this.onDepartmentSelectionChange();
   }
 
   // --- Select All: Team ---
@@ -448,6 +449,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     } else {
       this.selectedTeams = [...ids];
     }
+    this.onTeamSelectionChange();
   }
 
   private filtersOverlayRef: OverlayRef | null = null;
@@ -1032,7 +1034,6 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
 
   onDepartmentSelectionChange() {
-    this.selectedTeams = [];
     this.selectedCategories = [];
     this.loadCategories(this.getScopedInstituteId());
   }

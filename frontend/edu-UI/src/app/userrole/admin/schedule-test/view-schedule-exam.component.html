@@ -76,7 +76,7 @@
                     </mat-form-field>
                 </div>
 
-                <!-- Column A (Left): Country, Industry -->
+                <!-- Column A (Left): Country, Industry, Departments -->
                 <div class="filter-col">
                     <!-- Country -->
                     <mat-form-field appearance="outline" class="filter-item" *ngIf="!isSuperAdmin">
@@ -136,9 +136,32 @@
                             <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{t}}</mat-option>
                         </mat-select>
                     </mat-form-field>
+
+                    <!-- Departments -->
+                    <mat-form-field appearance="outline" class="filter-item">
+                        <mat-label>Departments <span class="required-star">*</span></mat-label>
+                        <mat-select multiple [(ngModel)]="selectedDepartments"
+                            placeholder="Select departments" (openedChange)="onFilterDepartmentOpenedChange($event)">
+                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <input matInput class="select-search-input" placeholder="Search department"
+                                    [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                            </mat-option>
+                            <mat-option class="select-all-option" *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
+                                (click)="toggleSelectAllDepartments()">
+                                <mat-icon class="select-all-checkbox-icon" [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
+                                    {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                </mat-icon>
+                                <strong>Select All</strong>
+                            </mat-option>
+                            <mat-option *ngFor="let d of filteredDepartmentsForFilter"
+                                [value]="d.id">{{d.name}}</mat-option>
+                        </mat-select>
+                    </mat-form-field>
                 </div>
 
-                <!-- Column B (Right): City, Sector, Departments, Teams -->
+                <!-- Column B (Right): City, Sector, Teams -->
                 <div class="filter-col">
                     <!-- City -->
                     <mat-form-field appearance="outline" class="filter-item" *ngIf="!isSuperAdmin">
@@ -184,32 +207,6 @@
                         </mat-select>
                     </mat-form-field>
 
-                    <!-- Campuses -->
-                    <mat-form-field appearance="outline" class="filter-item">
-                        <mat-label>Campuses</mat-label>
-                        <mat-select multiple [(ngModel)]="selectedCampuses"
-                            placeholder="Select campuses" (openedChange)="onFilterCampusOpenedChange($event)">
-                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                <input matInput class="select-search-input" placeholder="Search campus"
-                                    [(ngModel)]="campusFilterSearch" [ngModelOptions]="{ standalone: true }"
-                                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
-                            </mat-option>
-                            <mat-option class="select-all-option"
-                                *ngIf="filteredCampusesForFilter.length && !campusFilterSearch?.trim()"
-                                (click)="toggleSelectAllCampuses()">
-                                <mat-icon class="select-all-checkbox-icon"
-                                    [style.color]="isAllCampusesSelected() ? '#2563eb' : '#64748b'">
-                                    {{ isAllCampusesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                                </mat-icon>
-                                <strong>Select All</strong>
-                            </mat-option>
-                            <mat-option *ngFor="let campus of filteredCampusesForFilter" [value]="campus.id">
-                                {{campus.name}}
-                            </mat-option>
-                        </mat-select>
-                    </mat-form-field>
-
                     <!-- Sector -->
                     <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
                         <mat-label>Sector</mat-label>
@@ -224,29 +221,6 @@
                             </mat-option>
                             <mat-option value="">Any</mat-option>
                             <mat-option *ngFor="let s of filteredSectors" [value]="s">{{s}}</mat-option>
-                        </mat-select>
-                    </mat-form-field>
-
-                    <!-- Departments -->
-                    <mat-form-field appearance="outline" class="filter-item">
-                        <mat-label>Departments <span class="required-star">*</span></mat-label>
-                        <mat-select multiple [(ngModel)]="selectedDepartments"
-                            placeholder="Select departments" (openedChange)="onFilterDepartmentOpenedChange($event)">
-                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                <input matInput class="select-search-input" placeholder="Search department"
-                                    [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
-                                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
-                            </mat-option>
-                            <mat-option class="select-all-option" *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
-                                (click)="toggleSelectAllDepartments()">
-                                <mat-icon class="select-all-checkbox-icon" [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
-                                    {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                                </mat-icon>
-                                <strong>Select All</strong>
-                            </mat-option>
-                            <mat-option *ngFor="let d of filteredDepartmentsForFilter"
-                                [value]="d.id">{{d.name}}</mat-option>
                         </mat-select>
                     </mat-form-field>
 
@@ -298,20 +272,39 @@
                     </mat-form-field>
                 </div>
 
-                <!-- Full Width Row: Active Status -->
+                <!-- Full Width Row: Campuses (Under Created Date) -->
                 <div class="filter-col-full">
                     <mat-form-field appearance="outline" class="filter-item">
-                        <mat-label>Active Status</mat-label>
-                        <mat-select [(ngModel)]="filterActiveStatus" placeholder="Select status">
-                            <mat-option [value]="null">All</mat-option>
-                            <mat-option [value]="true">Active</mat-option>
-                            <mat-option [value]="false">Inactive</mat-option>
+                        <mat-label>Campuses</mat-label>
+                        <mat-select multiple [(ngModel)]="selectedCampuses"
+                            placeholder="Select campuses" (openedChange)="onFilterCampusOpenedChange($event)">
+                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <input matInput class="select-search-input" placeholder="Search campus"
+                                    [(ngModel)]="campusFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                    (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                    (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                            </mat-option>
+                            <mat-option class="select-all-option"
+                                *ngIf="filteredCampusesForFilter.length && !campusFilterSearch?.trim()"
+                                (click)="toggleSelectAllCampuses()">
+                                <mat-icon class="select-all-checkbox-icon"
+                                    [style.color]="isAllCampusesSelected() ? '#2563eb' : '#64748b'">
+                                    {{ isAllCampusesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                </mat-icon>
+                                <strong>Select All</strong>
+                            </mat-option>
+                            <mat-option *ngFor="let campus of filteredCampusesForFilter" [value]="campus.id">
+                                {{campus.name}}
+                            </mat-option>
                         </mat-select>
                     </mat-form-field>
                 </div>
             </div>
 
             <div class="filter-checks">
+                <div class="filter-item checkbox-item">
+                    <mat-checkbox [(ngModel)]="filterActiveStatus">Active Status</mat-checkbox>
+                </div>
                 <div class="filter-item checkbox-item">
                     <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by me</mat-checkbox>
                 </div>

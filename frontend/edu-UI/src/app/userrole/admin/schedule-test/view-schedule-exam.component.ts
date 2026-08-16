@@ -119,7 +119,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   selectedTeams: string[] = [];
   filterCreationDateAfter: Date | null = null;
   filterCreationDate: Date | null = null;
-  filterActiveStatus: boolean | null = null;
+  filterActiveStatus: boolean | null = true;
   filterCreatedByMe = false;
   departments: Array<{ id: string; name: string }> = [];
   campuses: Array<{ id: string; name: string }> = [];
@@ -834,9 +834,13 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.pageMeta.setMeta('Scheduled Tests', 'Browse and review scheduled tests');
     this.loadCountries();
     this.loadInstitutes();
+    this.restoreScheduleReturnState();
     this.globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe((context) => {
       this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
       const instituteId = context?.institute_id || '';
+      if (this.activeInstituteId === '' && instituteId) {
+        this.activeInstituteId = instituteId;
+      }
       if (instituteId) {
         if (instituteId === this.activeInstituteId) return;
         this.resetForInstituteChange(instituteId);
@@ -844,7 +848,6 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       }
       if (this.activeInstituteId) this.resetAfterGlobalInstituteClear();
     });
-    this.restoreScheduleReturnState();
   }
 
   refresh() {
@@ -1198,7 +1201,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.campusFilterSearch = '';
     this.filterCreationDateAfter = null;
     this.filterCreationDate = null;
-    this.filterActiveStatus = null;
+    this.filterActiveStatus = true;
     this.filterCreatedByMe = false;
     this.search = '';
     this.dataSource.filter = '';
@@ -2076,19 +2079,9 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       if (!raw) return;
       sessionStorage.removeItem('schedule_return_state');
       const state = JSON.parse(raw);
-      const activeInstituteId = this.globalInstituteContext.activeInstituteId;
-      if (activeInstituteId && String(state?.instituteId || '') !== String(activeInstituteId))
-        return;
-      if (activeInstituteId && state?.globalInstituteActive !== true) return;
-      if (!activeInstituteId && state?.globalInstituteActive === true) return;
-      if (
-        !activeInstituteId &&
-        typeof state?.globalInstituteActive === 'undefined' &&
-        state?.instituteId
-      )
-        return;
       this.search = state?.search || '';
       this.selectedInstitute = state?.selectedInstitute || '';
+      this.activeInstituteId = state?.instituteId || this.selectedInstitute || '';
       this.instituteSearch = '';
       this.filterCountry = state?.filterCountry || '';
       this.filterCity = state?.filterCity || '';
@@ -2109,12 +2102,22 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
         ? new Date(state.filterCreationDate)
         : null;
       this.filterActiveStatus =
-        typeof state?.filterActiveStatus === 'undefined' ? null : state.filterActiveStatus;
+        typeof state?.filterActiveStatus === 'boolean'
+          ? state.filterActiveStatus
+          : state?.filterActiveStatus === null || typeof state?.filterActiveStatus === 'undefined'
+            ? true
+            : !!state.filterActiveStatus;
       this.filterCreatedByMe = !!state?.filterCreatedByMe;
-      this.hasAppliedFilters = !!state?.hasAppliedFilters;
+      this.hasAppliedFilters = true;
       this.schedules = Array.isArray(state?.schedules) ? state.schedules : [];
       this.dataSource.data = this.schedules;
       this.applyFilter(this.search || '');
+      const inst =
+        this.selectedInstitute ||
+        this.activeInstituteId ||
+        this.globalInstituteContext.activeInstituteId ||
+        undefined;
+      this.loadSchedules(inst);
     } catch (e) {
       try {
         sessionStorage.removeItem('schedule_return_state');
@@ -2123,6 +2126,11 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   private resetForInstituteChange(instituteId: string): void {
+    if (sessionStorage.getItem('schedule_return_state')) {
+      this.activeInstituteId = instituteId;
+      this.selectedInstitute = instituteId;
+      return;
+    }
     this.activeInstituteId = instituteId;
     this.selectedInstitute = instituteId;
     this.instituteSearch = '';

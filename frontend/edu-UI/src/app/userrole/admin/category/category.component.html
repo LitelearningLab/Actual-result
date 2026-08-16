@@ -158,8 +158,24 @@
                             <mat-label>Department <span class="required-star">*</span></mat-label>
                             <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select department"
                                 [disabled]="!isInstituteSelected"
+                                (openedChange)="onFilterDepartmentOpenedChange($event)"
                                 (selectionChange)="onDepartmentFilterChange()">
-                                <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input matInput class="select-search-input" placeholder="Search department"
+                                        [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option class="select-all-option"
+                                    *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
+                                    (click)="toggleSelectAllDepartments()">
+                                    <mat-icon class="select-all-checkbox-icon"
+                                        [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
+                                        {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                    </mat-icon>
+                                    <strong>Select All</strong>
+                                </mat-option>
+                                <mat-option *ngFor="let d of filteredDepartmentsForFilter" [value]="d.id">{{d.name}}</mat-option>
                             </mat-select>
                         </mat-form-field>
 
@@ -241,9 +257,25 @@
                         <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Team <span class="required-star">*</span></mat-label>
                             <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select team"
-                                [disabled]="!selectedDepartments.length"
+                                [disabled]="!isInstituteSelected"
+                                (openedChange)="onFilterTeamOpenedChange($event)"
                                 (selectionChange)="onQuestionBankParentFilterChange()">
-                                <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input matInput class="select-search-input" placeholder="Search team"
+                                        [(ngModel)]="teamFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option class="select-all-option"
+                                    *ngIf="filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
+                                    (click)="toggleSelectAllTeams()">
+                                    <mat-icon class="select-all-checkbox-icon"
+                                        [style.color]="isAllTeamsSelected() ? '#2563eb' : '#64748b'">
+                                        {{ isAllTeamsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                    </mat-icon>
+                                    <strong>Select All</strong>
+                                </mat-option>
+                                <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id">{{t.name}}</mat-option>
                             </mat-select>
                         </mat-form-field>
 
