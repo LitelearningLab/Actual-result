@@ -810,16 +810,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         label: `Created before: ${this.formatFilterDate(this.filterCreationDate)}`,
         removable: true,
       });
-    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined')
-      chips.push({
-        key: 'active_status',
-        label: `Status: ${this.filterActiveStatus ? 'Active' : 'Inactive'}`,
-        removable: true,
-      });
     if (this.filterCreatedByMe)
       chips.push({ key: 'created_by_me', label: 'Created by me', removable: true });
-    if (this.filterPublicAccess)
-      chips.push({ key: 'public_access', label: 'Public access', removable: true });
+      
     return chips;
   }
 
@@ -880,9 +873,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       this.selectedQuestionTypes = [];
     } else if (key === 'created_after') this.filterCreationDateAfter = null;
     else if (key === 'created_before') this.filterCreationDate = null;
-    else if (key === 'active_status') this.filterActiveStatus = null;
+    
     else if (key === 'created_by_me') this.filterCreatedByMe = false;
-    else if (key === 'public_access') this.filterPublicAccess = false;
+    else if (key === 'public_access') this.filterPublicAccess = null;
     this.refreshAfterFilterChipChange();
   }
 
@@ -1695,8 +1688,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       params.push(
         `created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`
       );
-    if (this.filterActiveStatus !== null && typeof this.filterActiveStatus !== 'undefined')
-      params.push(`active_status=${encodeURIComponent(String(this.filterActiveStatus))}`);
+    
 
     if (this.filterCreatedByMe) {
       try {

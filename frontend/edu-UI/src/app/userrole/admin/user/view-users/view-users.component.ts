@@ -200,7 +200,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     private vcr: ViewContainerRef,
     private pageMeta: PageMetaService,
     private confirmService: ConfirmService,
-    private globalInstituteContext: GlobalInstituteContextService
+    public globalInstituteContext: GlobalInstituteContextService
   ) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
@@ -797,10 +797,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const selected = this.teams.find((t) => String(t.id) === String(this.filters.team));
     if (selected?.name !== this.teamSearch) this.filters.team = '';
   }
+
   onDepartmentSelected(departmentName: string | null) {
     if (!departmentName) {
-      // "Any" selected: clear the department filter (and dependent team filter) instead of
-      // sending the literal "Any" value to the backend.
       this.filters.department = '';
       this.departmentSearch = 'Any';
       this.onDepartmentFilterChange();
@@ -815,7 +814,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   onTeamSelected(teamName: string | null) {
     if (!teamName) {
-      // "Any" selected: clear the team filter instead of sending the literal "Any" value.
       this.filters.team = '';
       this.teamSearch = 'Any';
       return;
@@ -922,19 +920,14 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   ngAfterViewInit(): void {
-    // Do NOT assign paginator to dataSource for server-side pagination
-    // this.dataSource.paginator = this.paginator; // This enables client-side pagination - REMOVE IT
     try {
       this.dataSource.sort = this.sort;
     } catch (e) { }
-    // Load initial data
-    // this.loadUsers();
   }
 
   applyFilter(value: string) {
     const q = (value || '').trim().toLowerCase();
     this.dataSource.filter = q;
-    // Reset to first page when filter text changes
     this.pageIndex = 0;
     if (this.paginator) {
       this.paginator.firstPage();
@@ -1171,6 +1164,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const found = (list || []).find((item) => String(item?.[idKey]) === String(selectedId));
     return found?.name || String(selectedId || '');
   }
+
   toggleActive(u: UserRow) {
     const newState = !u.active;
     const action = newState ? 'Activate' : 'Deactivate';
@@ -1183,7 +1177,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       })
       .subscribe((ok) => {
         if (!ok) return;
-        // optimistic update
         const prev = u.active;
         u.active = newState;
         this.loading.show();
@@ -1223,7 +1216,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   loadUsers(instituteId?: string) {
-    // if an instituteId was explicitly provided, prefer it and keep local state in sync
     if (typeof instituteId !== 'undefined' && instituteId !== null) {
       try {
         this.selectedInstitute = instituteId as any;
@@ -1235,18 +1227,15 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
     this.loading.show();
     const url = `${API_BASE}/get-users`;
-    // build query params from filters (prefer explicit institute param, then filter model, then selectedInstitute)
     const params: any = { _ts: Date.now() };
-    // Replace lines 686-687 in loadUsers():
     const instituteParam =
       typeof instituteId !== 'undefined' && instituteId !== null
         ? instituteId
         : this.selectedInstitutes?.length
           ? this.selectedInstitutes.join(',')
-          : this.filters.institute || this.selectedInstitute;
+          : this.filters.institute || this.selectedInstitute || (this.isGlobalInstituteActive ? this.globalInstituteContext.activeInstituteId : '');
     if (instituteParam) params.institute_id = instituteParam;
 
-    if (instituteParam) params.institute_id = instituteParam;
     if (this.filters.name) params.name = this.filters.name;
     if (Array.isArray(this.filters.department)) {
       if (this.filters.department.length > 0) params.department = this.filters.department.join(',');
@@ -1278,19 +1267,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.filters.joining_from) params.joining_from = this.filters.joining_from;
     if (this.filters.joining_to) params.joining_to = this.filters.joining_to;
     if (this.isActive !== undefined) params.active_status = this.isActive;
-    // include pagination params (API expects pageNumber and pageSize)
     try {
-      params.pageNumber = (this.pageIndex || 0) + 1; // send 1-based page number
+      params.pageNumber = (this.pageIndex || 0) + 1;
       params.pageSize = this.pageSize || 25;
     } catch (e) { }
 
     this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
         try {
-          // Support both the current flat response and paginated envelopes.
           const dataCandidate = res?.data?.users ?? res?.users ?? res?.data ?? res;
           const data = Array.isArray(dataCandidate) ? dataCandidate : [];
-          // total count may be provided as totalCount or total_count
           this.totalCount =
             Number(
               res?.totalCount ??
@@ -1300,11 +1286,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
               res?.total ??
               data.length
             ) || 0;
-          // map API user shape to UserRow expected by the table
           this.rawRecords = data;
           this.users = data.map((u: any) => ({
             id: u.user_id || u.id,
-            // prefer API full_name when available
             name:
               u.full_name ||
               u.name ||
@@ -1337,7 +1321,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             created_date: u.created_date || u.created_at || '',
             updated_by: u.updated_by || '',
             updated_date: u.updated_date || u.updated_at || '',
-            // normalize privileges from API (support multiple keys)
             privileges: (u.user_privileges || u.privileges || []).map((p: any) => ({
               page_id: p.page_id || p.pageId || p.id,
               page_name: p.page_name || p.pageName || p.page || p.name,
@@ -1380,6 +1363,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       },
     });
   }
+
   private hasFilterValues(): boolean {
     const hasDept = Array.isArray(this.filters.department)
       ? this.filters.department.length > 0
@@ -1449,7 +1433,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       sector: '',
     };
 
-    // --- Clear all multi-select array selections ---
     this.selectedCountries = [];
     this.selectedIndustries = [];
     this.selectedSectors = [];
@@ -1459,7 +1442,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.selectedInstitute = '';
     this.isActive = true;
 
-    // --- Clear search inputs ---
     this.countryFilterSearch = '';
     this.industryFilterSearch = '';
     this.sectorFilterSearch = '';
@@ -1503,7 +1485,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.totalCount = 0;
     this.hasAppliedFilters = false;
 
-    // --- Close filter overlay modal ---
     this.closeFiltersOverlay();
   }
 
@@ -1516,7 +1497,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     } catch (e) { }
   }
 
-  // load all cities (not scoped to a country) so city dropdown can show global options
   loadCities() {
     this.loading.show();
     this.cities = [];
@@ -1524,9 +1504,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.http.get<any>(url).subscribe({
       next: (res) => {
         try {
-          // try top-level cities first
           let citiesRaw = res?.data?.cities || res?.cities || [];
-          // if cities are nested under countries/states, aggregate them
           if ((!citiesRaw || citiesRaw.length === 0) && (res?.data?.countries || res?.countries)) {
             const countries = res?.data?.countries || res?.countries || [];
             let agg: any[] = [];
@@ -1557,8 +1535,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     });
   }
 
-
-
   loadInstitutes() {
     const requestId = ++this.instituteRequestId;
     this.loading.show();
@@ -1584,20 +1560,17 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         }
 
         const data = res?.data || [];
-        // ensure each institute object includes an institute_id property so session-based lookup works
         this.institutes = data.map((i: any) => ({
           institute_id: i.institute_id || i.id || i._id || '',
           institute_name: i.institute_name || i.name || i.short_name || '',
           short_name: i.short_name || i.institute_name || i.name || '',
         }));
-        // If a selectedInstitute is already set (e.g. via route/session), prefer that
         try {
           if (this.selectedInstitute) {
             const found = this.institutes.find(
               (i) => String(i.institute_id) === String(this.selectedInstitute)
             );
             if (found) {
-              // ensure exact match type/value and load schedules
               this.selectedInstitute = found.institute_id as any;
               try {
                 this.filters.institute = String(this.selectedInstitute);
@@ -1616,7 +1589,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           /* ignore */
         }
 
-        // Fallback: try reading user's institute from sessionStorage and apply it
         try {
           const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
           if (!this.isSuperAdmin && raw) {
@@ -1637,7 +1609,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                 this.loadCampuses(this.selectedInstitute);
                 this.loadCountries(this.selectedInstitute);
               } else {
-                // institute list shape didn't match or id not present in fetched list - still set and load using raw instId
                 this.selectedInstitute = instId as any;
                 try {
                   this.filters.institute = String(instId);
@@ -1681,13 +1652,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   onInstituteInputFocus() {
-    // When user focuses, reset search term to allow typing from scratch
     this.instituteSearchTerm = '';
     this.instituteSearch = '';
   }
 
   onInstituteInputBlur() {
-    // When user leaves, if search was empty, restore the selected institute name
     if (!this.instituteSearchTerm && this.selectedInstitute) {
       this.syncInstituteSearch();
     }
@@ -1709,8 +1678,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   onInstituteAutocompleteSelected(id: string) {
     this.selectedInstitute = id || '';
     this.filters.institute = this.selectedInstitute;
-    this.syncInstituteSearch(); // Sets display text box (instituteSearch) to institute name
-    this.instituteSearchTerm = ''; // Resets search query so ALL institutes show when reopening!
+    this.syncInstituteSearch();
+    this.instituteSearchTerm = '';
     this.onInstituteChange(this.selectedInstitute);
   }
 
@@ -1721,7 +1690,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.instituteSearch = found ? found.institute_name : '';
   }
 
-  // Populate the Country filter only from countries used by registered institutes.
   loadCountries(instituteId?: string) {
     this.countries = [];
     const hierarchyUrl = `${API_BASE}/location-hierarchy`;
@@ -1732,8 +1700,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             hierarchyRes?.data?.countries || hierarchyRes?.countries || hierarchyRes?.data || [];
           const hierarchyCountries = (Array.isArray(locationCountries) ? locationCountries : [])
             .map((country: any) => ({
-              // /get-users compares the selected value with User.country_id, so
-              // never replace the database id with an ISO country code.
               id: country.country_id || country.id,
               countryCode: country.country_code || country.code,
               name: country.country_name || country.name || country.country,
@@ -1805,8 +1771,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                 this.countries = Array.from(uniqueByName.values()).sort((a, b) =>
                   a.name.localeCompare(b.name)
                 );
-                // Return-state from older builds may contain an ISO code. Remap
-                // it to the Country primary key instead of issuing an empty query.
                 if (this.filters.country) {
                   const selected = String(this.filters.country).trim().toLowerCase();
                   const canonical = this.countries.find(
@@ -1834,7 +1798,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       },
     });
   }
-  // load states and cities for a selected country (aggregate from countries payload or request country scoped)
+
   onCountryChange() {
     this.states = [];
     this.cities = [];
@@ -1939,7 +1903,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     });
   }
 
-  // City is a free-text/autocomplete field; suggestions are filtered by whatever the user typed.
   filteredCities() {
     const q = String(this.filters.city || '')
       .trim()
@@ -1948,8 +1911,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     return this.cities.filter((c) => (c.name || '').toLowerCase().includes(q));
   }
 
-  // The backend's city filter (get-users / get-institutes) expects a city id, not a name, so
-  // resolve the typed/selected city name back to its id here.
   private resolveCityId(cityName: string): string {
     const name = String(cityName || '')
       .trim()
@@ -1989,13 +1950,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.refreshInstituteScope();
   }
 
-  // Reload Institute options scoped to the currently selected Country/City/Industry/Sector.
-  // Falls back to the full institute list (get-institute-list, via loadInstitutes) when none
-  // of those are selected. Reuses the same get-institutes endpoint view-institutes uses.
   private refreshInstituteScope() {
-    // A globally selected institute owns the institute scope. Local location
-    // filters must not clear or replace it. When no global scope is active,
-    // Super Admins continue to use the normal page-level institute filters.
     if (this.isGlobalInstituteActive && this.activeInstituteId) return;
     const requestId = ++this.instituteRequestId;
 
@@ -2046,7 +2001,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             .filter(Boolean)
         );
 
-        // Remove selected institutes that do not belong to the selected country/city.
         this.selectedInstitutes = (this.selectedInstitutes || []).filter((id) =>
           validInstituteIds.has(String(id))
         );
@@ -2150,9 +2104,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   // Modal / actions
   viewDetails(u: UserRow) {
-    // store a lightweight view payload for future features (matches institutes behavior)
     const payload: any = { ...u };
-    // ensure privileges are included in the view payload (prefer normalized privileges)
     try {
       payload.user_privileges =
         u.privileges && u.privileges.length
@@ -2166,27 +2118,21 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     try {
       sessionStorage.setItem('view_user', JSON.stringify(payload));
     } catch (e) { }
-    // open detail modal using the prepared payload so normalized privileges are visible
     this.selectedUser = payload;
   }
 
   startEditUser(u: UserRow) {
-    // route to the user-register page and let that page handle editing
     try {
       const raw = u.raw || u || {};
-      // normalize common alternate field names so the register form can patch correctly
       const payload: any = { ...raw };
-      // ensure campus object or id fields
       payload.campus =
         payload.campus || (payload.campus_id ? { campus_id: payload.campus_id } : payload.campus);
 
-      // Helper: produce YYYY-MM-DD from various date-like fields
       const fmtDate = (val: any) => {
         if (val == null || val === '') return '';
         try {
           if (val instanceof Date) return val.toISOString().slice(0, 10);
           const s = String(val || '');
-          // ISO-like or timestamp prefixed values
           if (s.length >= 10) return s.substring(0, 10);
           return s;
         } catch (e) {
@@ -2194,7 +2140,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         }
       };
 
-      // ensure joining_date available as string YYYY-MM-DD (try many keys)
       if (!payload.joining_date) {
         payload.joining_date = fmtDate(
           payload.joining_date ||
@@ -2214,10 +2159,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         payload.joining_date = fmtDate(payload.joining_date);
       }
 
-      // normalize location nested objects if backend used different keys
       if (!payload.campus && payload.institute_campus) payload.campus = payload.institute_campus;
 
-      // prefer explicit id/code fields for country/state/city. Try many possible keys and nested shapes.
       const pickId = (obj: any, candidates: string[]) => {
         try {
           for (const k of candidates) {
@@ -2228,7 +2171,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         return '';
       };
 
-      // country
       if (!payload.country || String(payload.country).length === 0) {
         payload.country = pickId(payload, [
           'country_id',
@@ -2255,7 +2197,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           ]);
       }
 
-      // state
       if (!payload.state || String(payload.state).length === 0) {
         payload.state = pickId(payload, ['state_id', 'stateCode', 'state_code', 'code', 'id']);
         if (!payload.state)
@@ -2276,7 +2217,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           ]);
       }
 
-      // city
       if (!payload.city || String(payload.city).length === 0) {
         payload.city = pickId(payload, ['city_id', 'cityCode', 'city_code', 'code', 'id']);
         if (!payload.city)
@@ -2296,7 +2236,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             'id',
           ]);
       }
-      // ensure privileges are preserved when navigating to edit form (keep raw and also produce page_access for register form)
       try {
         if (!payload.user_privileges || payload.user_privileges.length === 0)
           payload.user_privileges =
@@ -2309,7 +2248,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       try {
         const ups = payload.user_privileges || [];
         if (Array.isArray(ups) && ups.length > 0) {
-          // convert to page_access array expected by user-register (page_key + view/add/edit/delete)
           payload.page_access = ups.map((p: any) => ({
             page_key:
               p.page_id || p.pageId || p.page || p.page_key || p.key || p.page_name || p.pageName,
@@ -2318,21 +2256,17 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             edit: !!(p.can_edit || p.canEdit || p.edit),
             delete: !!(p.can_delete || p.canDelete || p.delete),
           }));
-          // also provide a 'pages' alias in case some code looks there
           payload.pages = payload.page_access;
         }
       } catch (e) {
         /* ignore privilege shaping errors */
       }
 
-      // Normalize joining_date: convert common formats like DD-MM-YYYY or DD/MM/YYYY to YYYY-MM-DD
       const normalizeJoiningDate = (val: any) => {
         if (!val && val !== 0) return '';
         try {
           const s = String(val || '').trim();
-          // already ISO-ish YYYY-MM-DD
           if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-          // dd-mm-yyyy or dd/mm/yyyy
           const m1 = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
           if (m1) {
             const d = m1[1].padStart(2, '0');
@@ -2340,7 +2274,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             const y = m1[3];
             return `${y}-${mo}-${d}`;
           }
-          // try Date parse fallback
           const dt = new Date(s);
           if (!isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
           return s.length >= 10 ? s.substring(0, 10) : s;
@@ -2367,9 +2300,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         /* ignore */
       }
 
-      // Ensure top-level id fields for country/state/city/campus so user-register can patch selects
       try {
-        // campus
         const campusId =
           (payload.campus && (payload.campus.campus_id || payload.campus.id)) ||
           payload.campus_id ||
@@ -2384,7 +2315,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
               payload.campus.campus_id || payload.campus.id || payload.campus_id;
         }
 
-        // country
         const countryId =
           (payload.country && (payload.country.country_id || payload.country.id)) ||
           payload.country_id ||
@@ -2395,7 +2325,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           payload.country = payload.country_id;
         }
 
-        // state
         const stateId =
           (payload.state && (payload.state.state_id || payload.state.id)) ||
           payload.state_id ||
@@ -2406,7 +2335,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           payload.state = payload.state_id;
         }
 
-        // city
         const cityId =
           (payload.city && (payload.city.city_id || payload.city.id)) ||
           payload.city_id ||
@@ -2458,14 +2386,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           if (!ok) return;
           const uuid = u.id || (u.raw && (u.raw.user_id || u.raw.id || u.raw._id));
           if (!uuid) {
-            // remove locally if no uuid
             this.users = this.users.filter((x) => x.id !== u.id);
             try {
               notify('User removed locally', 'info');
             } catch (e) { }
             return;
           }
-          // let current_user= '';
           const current_user = sessionStorage.getItem('user_id');
           const url = `${API_BASE}/delete/user/${encodeURIComponent(String(uuid))}?current_user=${encodeURIComponent(String(current_user))}`;
           try {
@@ -2476,12 +2402,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
               try {
                 this.loading.hide();
               } catch (e) { }
-              // remove from list
               this.users = this.users.filter((x) => x.id !== uuid && x.id !== u.id);
               try {
                 notify('User deleted successfully', 'success');
               } catch (e) { }
-              // reload current list to reflect server state
               try {
                 if (this.hasAppliedFilters) this.loadUsers(this.selectedInstitute);
               } catch (e) { }
@@ -2567,7 +2491,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.instituteSearch = state?.instituteSearch || '';
       this.filters = state?.filters || this.filters;
       if (globalInstitute?.institute_id) {
-        // The active Global Institute must override stale Users-page return state.
         this.selectedInstitute = globalInstitute.institute_id;
         this.filters.institute = globalInstitute.institute_id;
         this.instituteSearch = globalInstitute.institute_name || '';
@@ -2581,7 +2504,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.totalCount = Number(state?.totalCount || this.users.length || 0);
       this.dataSource.data = this.users;
       this.applyFilter(this.filter || '');
-      // if (globalInstituteChanged && this.hasAppliedFilters) this.loadUsers(globalInstitute!.institute_id);
     } catch (e) {
       try {
         sessionStorage.removeItem('users_return_state');
@@ -2596,8 +2518,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       ...this.filters,
       institute: '',
       name: '',
-      department: '',
-      team: '',
+      department: [],
+      team: [],
       joining_from: '',
       joining_to: '',
       active_status: '',
@@ -2608,7 +2530,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       sector: '',
     };
 
-    // Clear table data & state
     this.users = [];
     this.rawRecords = [];
     this.dataSource.data = [];
@@ -2620,7 +2541,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.filter = '';
     this.dataSource.filter = '';
     this.pageIndex = 0;
-    this.hasAppliedFilters = false; // Do not apply filter by default
+    this.hasAppliedFilters = false;
     this.selectedUser = null;
     this.editing = false;
     this.editableUser = null;
@@ -2629,21 +2550,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       sessionStorage.removeItem('users_return_state');
     } catch (e) { }
 
-    // Optionally load dropdown metadata (departments/teams/countries) without fetching users
     this.loadDepartments(instituteId);
     this.loadTeams(instituteId);
+    this.loadCampuses(instituteId);
     this.loadCountries(instituteId);
-
-    // REMOVED:
-    // this.hasAppliedFilters = true;
-    // this.loadUsers(instituteId);
   }
 
   private resetAfterGlobalInstituteClear(): void {
     this.activeInstituteId = '';
     this.selectedInstitute = '';
     this.instituteSearch = '';
-    // Clear all global-scope UI data while preserving the normal filter workflow.
     this.users = [];
     this.rawRecords = [];
     this.dataSource.data = [];
@@ -2651,8 +2567,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.filters = {
       institute: '',
       name: '',
-      department: '',
-      team: '',
+      department: [],
+      team: [],
       joining_from: '',
       joining_to: '',
       active_status: '',
