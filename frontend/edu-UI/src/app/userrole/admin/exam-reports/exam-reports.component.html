@@ -82,7 +82,7 @@
           </div>
           <div class="filter-block filter-grid">
             <!-- Row 1: Institute (Expandable across two columns) -->
-            <div class="filter-col-full" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
+            <div class="filter-col-full" *ngIf="showLocationAndIndustryFilters">
               <mat-form-field
                 appearance="outline"
                 class="filter-item mandatory-field"
@@ -115,13 +115,12 @@
               </mat-form-field>
             </div>
 
-            <!-- Column A (Left): Country, Industry, Department -->
-            <div class="filter-col">
+            <!-- Row 2: Country & City (2 Columns) -->
+            <div class="filter-col-full filter-row-two-col" *ngIf="showLocationAndIndustryFilters">
               <!-- Country -->
               <mat-form-field
                 appearance="outline"
                 class="filter-item"
-                *ngIf="isSuperAdmin && !isGlobalInstituteActive"
               >
                 <mat-label>Country</mat-label>
                 <mat-select
@@ -163,11 +162,59 @@
                 </mat-select>
               </mat-form-field>
 
+              <!-- City -->
+              <mat-form-field
+                appearance="outline"
+                class="filter-item"
+              >
+                <mat-label>City</mat-label>
+                <mat-select
+                  multiple
+                  [(ngModel)]="selectedCities"
+                  placeholder="Select City"
+                  (openedChange)="onSelectOpened($event, 'city')"
+                  (selectionChange)="onCityFilterChange()"
+                >
+                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      matInput
+                      class="select-search-input"
+                      placeholder="Search city"
+                      [(ngModel)]="citySearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
+                    />
+                  </mat-option>
+                  <mat-option
+                    class="select-all-option"
+                    *ngIf="filteredCities.length && !citySearch?.trim()"
+                    (click)="toggleSelectAllCities()"
+                  >
+                    <mat-icon
+                      class="select-all-checkbox-icon"
+                      [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'"
+                    >
+                      {{ isAllCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                    </mat-icon>
+                    <strong>Select All</strong>
+                  </mat-option>
+                  <mat-option *ngIf="!filteredCities.length" disabled> No cities available </mat-option>
+                  <mat-option *ngFor="let city of filteredCities" [value]="city.name">
+                    {{ city.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Row 3: Industry & Sector (2 Columns) -->
+            <div class="filter-col-full filter-row-two-col" *ngIf="showLocationAndIndustryFilters">
               <!-- Industry -->
               <mat-form-field
                 appearance="outline"
                 class="filter-item"
-                *ngIf="isSuperAdmin && !isGlobalInstituteActive"
               >
                 <mat-label>Industry</mat-label>
                 <mat-select
@@ -184,9 +231,9 @@
                       [(ngModel)]="searchQueries.industry"
                       [ngModelOptions]="{ standalone: true }"
                       (click)="$event.stopPropagation()"
-                      (keydown)="$event.stopPropagation()"
-                      (keyup)="$event.stopPropagation()"
-                      (input)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
                     />
                   </div>
                   <mat-option value="">Any</mat-option>
@@ -196,7 +243,43 @@
                 </mat-select>
               </mat-form-field>
 
-              <!-- Department -->
+              <!-- Sector -->
+              <mat-form-field
+                appearance="outline"
+                class="filter-item"
+              >
+                <mat-label>Sector</mat-label>
+                <mat-select
+                  [(ngModel)]="userFilters.sector"
+                  name="filterSector"
+                  [disabled]="!userFilters.industry"
+                  (openedChange)="onSelectOpened($event, 'sector')"
+                  (selectionChange)="onSectorChange()"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      matInput
+                      class="select-search-input"
+                      placeholder="Search sector..."
+                      [(ngModel)]="searchQueries.sector"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
+                    />
+                  </div>
+                  <mat-option value="">Any</mat-option>
+                  <mat-option *ngFor="let sec of filteredSectorList" [value]="sec">
+                    {{ sec }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Row 4: Department & Team (2 Columns side-by-side) -->
+            <div class="filter-col-full filter-row-two-col">
+              <!-- Department (Left) -->
               <mat-form-field appearance="outline" class="filter-item">
                 <mat-label>Department</mat-label>
                 <mat-select
@@ -243,121 +326,8 @@
                   </mat-option>
                 </mat-select>
               </mat-form-field>
-            </div>
 
-            <!-- Column B (Right): City, Sector, Campus, Team -->
-            <div class="filter-col">
-              <!-- City -->
-              <mat-form-field
-                appearance="outline"
-                class="filter-item"
-                *ngIf="isSuperAdmin && !isGlobalInstituteActive"
-              >
-                <mat-label>City</mat-label>
-                <mat-select
-                  multiple
-                  [(ngModel)]="selectedCities"
-                  placeholder="Select City"
-                  (openedChange)="onSelectOpened($event, 'city')"
-                  (selectionChange)="onCityFilterChange()"
-                >
-                  <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                    <input
-                      matInput
-                      class="select-search-input"
-                      placeholder="Search city"
-                      [(ngModel)]="citySearch"
-                      [ngModelOptions]="{ standalone: true }"
-                      (click)="$event.stopPropagation()"
-                      (keydown)="stopFilterSearchEvent($event)"
-                      (keyup)="stopFilterSearchEvent($event)"
-                      (input)="stopFilterSearchEvent($event)"
-                    />
-                  </mat-option>
-                  <mat-option
-                    class="select-all-option"
-                    *ngIf="filteredCities.length && !citySearch?.trim()"
-                    (click)="toggleSelectAllCities()"
-                  >
-                    <mat-icon
-                      class="select-all-checkbox-icon"
-                      [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'"
-                    >
-                      {{ isAllCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                    </mat-icon>
-                    <strong>Select All</strong>
-                  </mat-option>
-                  <mat-option *ngIf="!filteredCities.length" disabled> No cities available </mat-option>
-                  <mat-option *ngFor="let city of filteredCities" [value]="city.name">
-                    {{ city.name }}
-                  </mat-option>
-                </mat-select>
-              </mat-form-field>
-
-              <!-- Sector -->
-              <mat-form-field
-                appearance="outline"
-                class="filter-item"
-                *ngIf="isSuperAdmin && !isGlobalInstituteActive"
-              >
-                <mat-label>Sector</mat-label>
-                <mat-select
-                  [(ngModel)]="userFilters.sector"
-                  name="filterSector"
-                  [disabled]="!userFilters.industry"
-                  (openedChange)="onSelectOpened($event, 'sector')"
-                  (selectionChange)="onSectorChange()"
-                >
-                  <div class="select-search-option" (click)="$event.stopPropagation()">
-                    <input
-                      matInput
-                      class="select-search-input"
-                      placeholder="Search sector..."
-                      [(ngModel)]="searchQueries.sector"
-                      [ngModelOptions]="{ standalone: true }"
-                      (click)="$event.stopPropagation()"
-                      (keydown)="$event.stopPropagation()"
-                      (keyup)="$event.stopPropagation()"
-                      (input)="$event.stopPropagation()"
-                    />
-                  </div>
-                  <mat-option value="">Any</mat-option>
-                  <mat-option *ngFor="let sec of filteredSectorList" [value]="sec">
-                    {{ sec }}
-                  </mat-option>
-                </mat-select>
-              </mat-form-field>
-
-              <!-- Campus -->
-              <mat-form-field appearance="outline" class="filter-item">
-                <mat-label>Campus</mat-label>
-                <mat-select
-                  [(ngModel)]="userFilters.campus_id"
-                  name="filterCampus"
-                  (openedChange)="onSelectOpened($event, 'campus')"
-                  (selectionChange)="onCampusChange()"
-                >
-                  <div class="select-search-option" (click)="$event.stopPropagation()">
-                    <input
-                      matInput
-                      class="select-search-input"
-                      placeholder="Search campus..."
-                      [(ngModel)]="searchQueries.campus"
-                      [ngModelOptions]="{ standalone: true }"
-                      (click)="$event.stopPropagation()"
-                      (keydown)="$event.stopPropagation()"
-                      (keyup)="$event.stopPropagation()"
-                      (input)="$event.stopPropagation()"
-                    />
-                  </div>
-                  <mat-option value="">Any</mat-option>
-                  <mat-option *ngFor="let cp of filteredCampusList" [value]="cp">
-                    {{ cp }}
-                  </mat-option>
-                </mat-select>
-              </mat-form-field>
-
-              <!-- Team -->
+              <!-- Team (Right - Team moved up) -->
               <mat-form-field appearance="outline" class="filter-item">
                 <mat-label>Team</mat-label>
                 <mat-select
@@ -406,7 +376,38 @@
               </mat-form-field>
             </div>
 
-            <!-- Full Width Row: Test Name -->
+            <!-- Row 5: Campus (Full Width - Campus moved down and is Full Width) -->
+            <div class="filter-col-full">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-label>Campus</mat-label>
+                <mat-select
+                  [(ngModel)]="userFilters.campus_id"
+                  name="filterCampus"
+                  (openedChange)="onSelectOpened($event, 'campus')"
+                  (selectionChange)="onCampusChange()"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      matInput
+                      class="select-search-input"
+                      placeholder="Search campus..."
+                      [(ngModel)]="searchQueries.campus"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
+                    />
+                  </div>
+                  <mat-option value="">Any</mat-option>
+                  <mat-option *ngFor="let cp of filteredCampusList" [value]="cp">
+                    {{ cp }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Row 6: Test Name (Full Width) -->
             <div class="filter-col-full">
               <mat-form-field appearance="outline" class="filter-item mandatory-field">
                 <mat-label>Test Name <span class="required-mark">*</span></mat-label>
@@ -424,9 +425,9 @@
                       [(ngModel)]="searchQueries.schedule"
                       [ngModelOptions]="{ standalone: true }"
                       (click)="$event.stopPropagation()"
-                      (keydown)="$event.stopPropagation()"
-                      (keyup)="$event.stopPropagation()"
-                      (input)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
                     />
                   </div>
                   <mat-option value="">Any</mat-option>
@@ -446,7 +447,7 @@
               </mat-form-field>
             </div>
 
-            <!-- Full Width Row: Created Date -->
+            <!-- Row 7: Created Date (Full Width) -->
             <div class="filter-col-full">
               <mat-form-field
                 appearance="outline"
@@ -466,7 +467,7 @@
               </mat-form-field>
             </div>
 
-            <!-- Full Width Row: Active Status -->
+            <!-- Row 8: Active Status (Full Width) -->
             <div class="filter-col-full">
               <mat-form-field appearance="outline" class="filter-item">
                 <mat-label>Active Status</mat-label>
@@ -483,9 +484,9 @@
                       [(ngModel)]="searchQueries.active_status"
                       [ngModelOptions]="{ standalone: true }"
                       (click)="$event.stopPropagation()"
-                      (keydown)="$event.stopPropagation()"
-                      (keyup)="$event.stopPropagation()"
-                      (input)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
                     />
                   </div>
                   <mat-option *ngFor="let st of filteredActiveStatusList" [value]="st.value">
@@ -496,8 +497,9 @@
             </div>
           </div>
 
+          <!-- Created by me Checkbox -->
           <div class="filter-checks">
-            <div class="filter-item checkbox-item">
+            <div class="checkbox-item">
               <mat-checkbox [(ngModel)]="userFilters.created_by_me" color="primary">
                 Created by Me
               </mat-checkbox>
