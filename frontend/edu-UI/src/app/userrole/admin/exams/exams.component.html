@@ -83,10 +83,10 @@
                         </mat-form-field>
                     </div>
 
-                    <!-- Column A (Left): Country, Industry, Departments -->
-                    <div class="filter-col">
+                    <!-- Column A (Left): Country, Industry -->
+                    <div class="filter-col" *ngIf="showLocationAndIndustryFilters">
                         <!-- Country -->
-                        <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
+                        <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Country</mat-label>
                             <mat-select multiple [(ngModel)]="selectedCountries"
                                 (openedChange)="onFilterSelectOpened($event, 'country')"
@@ -110,7 +110,7 @@
                         </mat-form-field>
 
                         <!-- Industry -->
-                        <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
+                        <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Industry</mat-label>
                             <mat-select multiple [(ngModel)]="selectedIndustries" placeholder="Select Industry"
                                 (openedChange)="onFilterSelectOpened($event, 'industry')"
@@ -132,38 +132,12 @@
                                 <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{t}}</mat-option>
                             </mat-select>
                         </mat-form-field>
-
-                        <!-- Departments -->
-                        <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Departments <span class="required-star">*</span></mat-label>
-                            <mat-select multiple [(ngModel)]="selectedDepartments"
-                                [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
-                                placeholder="Select departments"
-                                (openedChange)="onFilterDepartmentOpenedChange($event)">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input matInput class="select-search-input" placeholder="Search department"
-                                        [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
-                                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                                        (keyup)="stopFilterSearchEvent($event)"
-                                        (input)="stopFilterSearchEvent($event)" />
-                                </mat-option>
-                                <mat-option class="select-all-option" *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
-                                    (click)="toggleSelectAllDepartments()">
-                                    <mat-icon class="select-all-checkbox-icon" [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
-                                        {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                                    </mat-icon>
-                                    <strong>Select All</strong>
-                                </mat-option>
-                                <mat-option *ngFor="let d of filteredDepartmentsForFilter"
-                                    [value]="d.id">{{d.name}}</mat-option>
-                            </mat-select>
-                        </mat-form-field>
                     </div>
 
-                    <!-- Column B (Right): City, Sector, Teams -->
-                    <div class="filter-col">
+                    <!-- Column B (Right): City, Sector -->
+                    <div class="filter-col" *ngIf="showLocationAndIndustryFilters">
                         <!-- City -->
-                        <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
+                        <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>City</mat-label>
                             <mat-select
                                 multiple
@@ -207,7 +181,7 @@
                         </mat-form-field>
 
                         <!-- Sector -->
-                        <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
+                        <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Sector</mat-label>
                             <mat-select multiple [(ngModel)]="selectedSectors" placeholder="Select Sector"
                                 [disabled]="!selectedIndustries.length && !filterIndustry" (openedChange)="onFilterSelectOpened($event, 'sector')"
@@ -229,10 +203,39 @@
                                 <mat-option *ngFor="let s of filteredSectors" [value]="s">{{s}}</mat-option>
                             </mat-select>
                         </mat-form-field>
+                    </div>
+
+                    <!-- Single Row: Departments and Teams side-by-side -->
+                    <div class="filter-col-full filter-row-two-col">
+                        <!-- Departments -->
+                        <mat-form-field appearance="outline" class="filter-item">
+                            <mat-label>Departments</mat-label>
+                            <mat-select multiple [(ngModel)]="selectedDepartments"
+                                [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
+                                placeholder="Select departments"
+                                (openedChange)="onFilterDepartmentOpenedChange($event)">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input matInput class="select-search-input" placeholder="Search department"
+                                        [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
+                                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option class="select-all-option" *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
+                                    (click)="toggleSelectAllDepartments()">
+                                    <mat-icon class="select-all-checkbox-icon" [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
+                                        {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                                    </mat-icon>
+                                    <strong>Select All</strong>
+                                </mat-option>
+                                <mat-option *ngFor="let d of filteredDepartmentsForFilter"
+                                    [value]="d.id">{{d.name}}</mat-option>
+                            </mat-select>
+                        </mat-form-field>
 
                         <!-- Teams -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Teams <span class="required-star">*</span></mat-label>
+                            <mat-label>Teams</mat-label>
                             <mat-select multiple [(ngModel)]="selectedTeams"
                                 [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
                                 placeholder="Select teams" (openedChange)="onFilterTeamOpenedChange($event)">
@@ -264,19 +267,6 @@
                             <input matInput readonly [value]="getCreatedDateRangeDisplay()"
                                 placeholder="Select date range" style="cursor: pointer;" />
                             <mat-icon matSuffix style="cursor: pointer; color: #0284c7;">calendar_today</mat-icon>
-                        </mat-form-field>
-                    </div>
-
-                    <!-- Full Width Row: Active Status -->
-                    <div class="filter-col-full">
-                        <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Active Status</mat-label>
-                            <mat-select [(ngModel)]="filterActiveStatus" placeholder="Select status"
-                                aria-label="Filter by active status">
-                                <mat-option [value]="null">All</mat-option>
-                                <mat-option [value]="true">Active</mat-option>
-                                <mat-option [value]="false">Inactive</mat-option>
-                            </mat-select>
                         </mat-form-field>
                     </div>
                 </div>
