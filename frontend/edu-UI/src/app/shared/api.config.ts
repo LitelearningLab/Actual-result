@@ -7,11 +7,8 @@ const LIVE_API_BASE = 'http://34.100.213.250:5001/edu/api';
 const USE_LOCAL_BACKEND = true;
 
 const frontendIsLocal =
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1';
+  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 // The deployed frontend always uses the live backend. The switch above only
 // affects a frontend opened from localhost.
-export const API_BASE = frontendIsLocal && USE_LOCAL_BACKEND
-  ? LOCAL_API_BASE
-  : LIVE_API_BASE;
+export const API_BASE = frontendIsLocal && USE_LOCAL_BACKEND ? LOCAL_API_BASE : LIVE_API_BASE;
