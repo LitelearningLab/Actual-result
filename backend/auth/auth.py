@@ -37,7 +37,7 @@ class JWTValidator:
         else:
             return pd.DataFrame()
 
-    def generate_jwt(self, subject, expires_in_seconds=1800, additional_claims=None):
+    def generate_jwt(self, subject, expires_in_seconds=28800, additional_claims=None):
         now = datetime.datetime.utcnow()
         payload = {
             "sub": subject,

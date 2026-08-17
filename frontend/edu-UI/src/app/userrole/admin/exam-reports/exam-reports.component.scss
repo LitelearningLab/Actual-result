@@ -2181,3 +2181,109 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
   }
 }
 
+// ============================================
+// Test & Schedule Selection Card (3-step flow)
+// ============================================
+.test-schedule-selection-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.875rem;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  margin-bottom: 0.75rem;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+  }
+
+  .selection-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.625rem;
+    border-bottom: 1px solid #f1f5f9;
+
+    .selection-card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      &::before {
+        content: '';
+        display: inline-block;
+        width: 4px;
+        height: 1.1rem;
+        background: linear-gradient(135deg, #2563eb, #3b82f6);
+        border-radius: 2px;
+      }
+    }
+
+    .selection-step-hint {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #2563eb;
+      background: #eff6ff;
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      border: 1px solid #dbeafe;
+    }
+  }
+
+  .selection-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+    align-items: flex-start;
+
+    .selection-field {
+      width: 100%;
+    }
+  }
+}
+
+// Calendar Date Highlighting for Scheduled/Conducted Test Dates
+::ng-deep {
+  .mat-calendar-body-cell.highlighted-schedule-date {
+    .mat-calendar-body-cell-content {
+      background-color: #dbeafe !important;
+      color: #1e40af !important;
+      font-weight: 700 !important;
+      border-radius: 50% !important;
+      border: 1.5px solid #2563eb !important;
+      position: relative;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 2px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 4px;
+        background-color: #2563eb;
+        border-radius: 50%;
+      }
+    }
+  }
+}
+
+.schedule-option-item {
+  display: flex;
+  flex-direction: column;
+
+  .sched-title-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #1e293b;
+  }
+}
+

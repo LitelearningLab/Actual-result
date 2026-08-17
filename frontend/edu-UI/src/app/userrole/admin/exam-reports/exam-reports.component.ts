@@ -194,6 +194,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   scheduledTestsMessage = '';
   private scheduledTestsRequestId = 0;
 
+  // --- 3-Step Test Selection State ---
+  uniqueTestNames: string[] = [];
+  selectedTestTitle: string = '';
+  selectedScheduleDate: Date | null = null;
+  highlightedDatesSet: Set<string> = new Set<string>();
+  availableSchedulesOnDate: any[] = [];
+  selectedScheduleId: string = '';
+
   stopFilterSearchEvent(event: Event) {
     event.stopPropagation();
   }
@@ -565,6 +573,178 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const q = (this.searchQueries.active_status || '').toLowerCase().trim();
     if (!q) return this.activeStatusList;
     return (this.activeStatusList || []).filter((a) => (a.label || '').toLowerCase().includes(q));
+  }
+
+  // --- 3-Step Test Selection Logic ---
+  updateUniqueTestNames() {
+    const namesSet = new Set<string>();
+    (this.allTests || []).forEach((it) => {
+      const title = this.getTestTitle(it);
+      if (title) namesSet.add(title);
+    });
+    this.uniqueTestNames = Array.from(namesSet).sort((a, b) => a.localeCompare(b));
+
+    if (this.uniqueTestNames.length > 0) {
+      if (!this.selectedTestTitle || !this.uniqueTestNames.includes(this.selectedTestTitle)) {
+        this.onTestTitleSelect(this.uniqueTestNames[0]);
+      } else {
+        this.updateHighlightedDates();
+        this.updateAvailableSchedulesOnDate();
+      }
+    } else {
+      this.selectedTestTitle = '';
+      this.selectedScheduleDate = null;
+      this.highlightedDatesSet.clear();
+      this.availableSchedulesOnDate = [];
+      this.selectedScheduleId = '';
+    }
+  }
+
+  onTestTitleSelect(title: string) {
+    this.selectedTestTitle = title;
+    this.updateHighlightedDates();
+
+    const dateStrs = Array.from(this.highlightedDatesSet).sort();
+    if (dateStrs.length > 0) {
+      const latestStr = dateStrs[dateStrs.length - 1];
+      const parts = latestStr.split('-');
+      this.selectedScheduleDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    } else {
+      this.selectedScheduleDate = null;
+    }
+    this.updateAvailableSchedulesOnDate();
+  }
+
+  updateHighlightedDates() {
+    this.highlightedDatesSet.clear();
+    if (!this.selectedTestTitle) return;
+    (this.allTests || []).forEach((it) => {
+      if (this.getTestTitle(it) === this.selectedTestTitle) {
+        const dateStr = this.getScheduleDateString(it);
+        if (dateStr) {
+          this.highlightedDatesSet.add(dateStr);
+        }
+      }
+    });
+  }
+
+  onScheduleDateSelect(date: Date | null) {
+    this.selectedScheduleDate = date;
+    this.updateAvailableSchedulesOnDate();
+  }
+
+  updateAvailableSchedulesOnDate() {
+    if (!this.selectedTestTitle || !this.selectedScheduleDate) {
+      this.availableSchedulesOnDate = [];
+      this.selectedScheduleId = '';
+      return;
+    }
+    const targetDateStr = this.formatDateToYYYYMMDD(this.selectedScheduleDate);
+    this.availableSchedulesOnDate = (this.allTests || []).filter((it) => {
+      return (
+        this.getTestTitle(it) === this.selectedTestTitle &&
+        this.getScheduleDateString(it) === targetDateStr
+      );
+    });
+
+    if (this.availableSchedulesOnDate.length > 0) {
+      const exists = this.availableSchedulesOnDate.find((s) => {
+        const sid = this.getScheduleId(s);
+        return sid === String(this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || '');
+      });
+      if (exists) {
+        this.selectedScheduleId = this.getScheduleId(exists);
+      } else {
+        this.onScheduleSelect(this.availableSchedulesOnDate[0]);
+      }
+    } else {
+      this.selectedScheduleId = '';
+    }
+  }
+
+  onScheduleSelectFromId(schedId: string) {
+    const sched = (this.availableSchedulesOnDate || []).find(
+      (s) => this.getScheduleId(s) === String(schedId)
+    );
+    if (sched) {
+      this.onScheduleSelect(sched);
+    }
+  }
+
+  onScheduleSelect(schedule: any) {
+    if (!schedule) return;
+    this.selectedExam = schedule;
+    this.selectedScheduleId = this.getScheduleId(schedule);
+    this.userFilters.schedule_id = this.selectedScheduleId;
+    try {
+      this.examCtrl.setValue(schedule);
+    } catch (e) {}
+
+    this.questionCurrentPage = 1;
+    this.currentPage = 1;
+    this.reportsApplied = true;
+    if (this.activeMainTabIndex === 0) {
+      this.loadAnalytics();
+    } else {
+      this.loadUserReport(1);
+    }
+  }
+
+  dateClass = (cellDate: Date, view: string) => {
+    if (view === 'month') {
+      const dateStr = this.formatDateToYYYYMMDD(cellDate);
+      return this.highlightedDatesSet.has(dateStr) ? 'highlighted-schedule-date' : '';
+    }
+    return '';
+  };
+
+  getScheduleId(item: any): string {
+    if (!item) return '';
+    return String(item.schedule_id || item.id || item.scheduleId || '');
+  }
+
+  getScheduleDateString(item: any): string {
+    if (!item) return '';
+    const raw = item.start_time || item.start_date || item.created_date || item.date;
+    if (!raw) return '';
+    const dt = new Date(raw);
+    if (isNaN(dt.getTime())) return '';
+    return this.formatDateToYYYYMMDD(dt);
+  }
+
+  formatDateToYYYYMMDD(dt: Date): string {
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  getScheduleTimeString(item: any): string {
+    if (!item) return '';
+    const raw = item.start_time || item.start_date || item.created_date;
+    if (!raw) return '';
+    const dt = new Date(raw);
+    if (isNaN(dt.getTime())) return '';
+    return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+
+  getScheduleDisplayLabel(item: any): string {
+    if (!item) return '';
+    const testTitle = this.getTestTitle(item);
+    const timeStr = this.getScheduleTimeString(item);
+    const dept = item.department_name || item.department || item.target_group || item.title || '';
+    const count = item.started_student_count ?? item.assigned_users?.length ?? 0;
+    const status = item.has_attendance || count > 0 ? 'Completed' : 'Scheduled';
+
+    let label = `${testTitle}`;
+    if (dept && dept !== testTitle) {
+      label += ` - ${dept}`;
+    }
+    if (timeStr) {
+      label += ` - ${timeStr}`;
+    }
+    label += ` (${status}, ${count} Students)`;
+    return label;
   }
 
   onSelectOpened(opened: boolean, field: string) {
@@ -1338,6 +1518,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     // Reset scheduled tests list and report tables
     this.allTests = [];
+    this.uniqueTestNames = [];
+    this.selectedTestTitle = '';
+    this.selectedScheduleDate = null;
+    this.highlightedDatesSet.clear();
+    this.availableSchedulesOnDate = [];
+    this.selectedScheduleId = '';
     this.scheduledTestsMessage = '';
     this.reportsApplied = false;
     this.appliedFilters = null;
@@ -1810,6 +1996,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         try {
           const items = Array.isArray(res) ? res : res?.data || res?.schedules || [];
           this.allTests = items || [];
+          this.updateUniqueTestNames();
           this.scheduledTestsMessage = this.allTests.length
             ? ''
             : 'No scheduled tests found for this institute.';

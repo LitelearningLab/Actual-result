@@ -3,7 +3,7 @@ from db.db import SQLiteDB
 import sys
 import datetime
 from others.exam_review import validate_answers
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import DBAPIError
 
 VALID_REVIEW_MODES = {'no_review', 'after_schedule_ends', 'after_everyone_finishes', 'scheduled', 'manual'}
@@ -415,6 +415,35 @@ def get_exam_schedule_details(request):
         if args.get("active"):
             active = 0 if args.get("active").lower() == 'true' else 1
             filter.append(ExamSchedule.published == active)
+
+        # Filter schedules matching selected Departments, Teams, or Campuses from ExamScheduleMapping
+        departments = args.get("departments")
+        teams = args.get("teams")
+        campuses = args.get("campuses")
+
+        if departments or teams or campuses:
+            mapping_filters = []
+            if departments:
+                dept_ids = [d.strip() for d in departments.split(",") if d.strip()]
+                if dept_ids:
+                    mapping_filters.append(ExamScheduleMapping.department_id.in_(dept_ids))
+            if teams:
+                team_ids = [t.strip() for t in teams.split(",") if t.strip()]
+                if team_ids:
+                    mapping_filters.append(ExamScheduleMapping.team_id.in_(team_ids))
+            if campuses:
+                campus_ids = [c.strip() for c in campuses.split(",") if c.strip()]
+                if campus_ids:
+                    mapping_filters.append(ExamScheduleMapping.campus_id.in_(campus_ids))
+
+            if mapping_filters:
+                matching_schedule_ids = [
+                    row[0] for row in session.query(ExamScheduleMapping.schedule_id)
+                    .filter(or_(*mapping_filters))
+                    .distinct()
+                    .all()
+                ]
+                filter.append(ExamSchedule.schedule_id.in_(matching_schedule_ids))
 
         schedules = session.query(ExamSchedule).filter(*filter).order_by(ExamSchedule.created_date.desc()).all()
         if schedules is None or len(schedules) == 0:
