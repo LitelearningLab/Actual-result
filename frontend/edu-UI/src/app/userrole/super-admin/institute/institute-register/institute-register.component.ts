@@ -118,7 +118,7 @@ export class InstituteRegisterComponent {
       country: [''],
       contact_email: ['', [Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
       contact_phone: ['', [Validators.pattern(/^\+?[0-9\s\-()]{7,20}$/)]],
-      primary_contact_phone: ['', [Validators.pattern(/^\d{7,15}$/)]],
+      primary_contact_phone: ['', [Validators.pattern(/^\+?\d{7,15}$/)]],
       website: ['', [Validators.pattern('.+')]],
       primary_contact_person: ['', Validators.required],
       primary_contact_email: [
@@ -250,7 +250,7 @@ export class InstituteRegisterComponent {
 
   onNumericPhoneInput(event: Event, control: AbstractControl | null): void {
     const input = event.target as HTMLInputElement;
-    const numericValue = input.value.replace(/\D/g, '').slice(0, 15);
+    const numericValue = input.value.replace(/[^\d+]/g, '').slice(0, 16);
 
     if (input.value !== numericValue) input.value = numericValue;
     control?.setValue(numericValue, { emitEvent: false });
@@ -260,7 +260,7 @@ export class InstituteRegisterComponent {
     const allowedKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
     const isShortcut = event.ctrlKey || event.metaKey;
 
-    if (!/^\d$/.test(event.key) && !allowedKeys.includes(event.key) && !isShortcut) {
+    if (!/^[0-9+]$/.test(event.key) && !allowedKeys.includes(event.key) && !isShortcut) {
       event.preventDefault();
     }
   }

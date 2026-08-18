@@ -69,10 +69,10 @@
                   <mat-label>Primary Contact Phone</mat-label>
                   <mat-icon matPrefix>phone</mat-icon>
                   <input matInput formControlName="primary_contact_phone" placeholder="Enter phone number"
-                    inputmode="numeric" pattern="[0-9]*" maxlength="15" (input)="onNumericPhoneInput($event, form.controls['primary_contact_phone'])"
+                    inputmode="tel" pattern="[\+0-9]*" maxlength="16" (input)="onNumericPhoneInput($event, form.controls['primary_contact_phone'])"
                     (keydown)="preventNonNumericPhoneInput($event)" />
                   <mat-error *ngIf="(form.controls['primary_contact_phone'].touched || step1Submitted) && (form.controls['primary_contact_phone'].hasError('invalidCharacter') || form.controls['primary_contact_phone'].hasError('pattern'))">
-                    Only numbers are allowed (7 to 15 digits)
+                    Only numbers with optional + are allowed (7 to 15 digits)
                   </mat-error>
                 </mat-form-field>
 
