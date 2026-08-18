@@ -1813,6 +1813,13 @@ export class AdminQuestionsComponent {
 
   // Apply filters to scope Question Banks dropdown & dismiss popup
   applyQuestionBankFilters() {
+    if (!this.filterQuestionBankId) {
+      try {
+        notify('Please select a Question Bank Name before applying filters.', 'info');
+      } catch (e) {}
+      return;
+    }
+
     this.showQuestionBankFilterError = false;
     this.questionBankFiltersApplied = true;
     const selectedQuestionBank =
