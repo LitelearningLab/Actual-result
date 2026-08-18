@@ -171,7 +171,7 @@ export class AdminUserRegisterComponent implements OnInit {
       username: ['', [Validators.required, Validators.minLength(3)]],
       name: ['', [Validators.required, Validators.minLength(3)]],
       email: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
-      joining_date: [''],
+      joining_date: [new Date()],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required],
       department: [''],
@@ -470,7 +470,16 @@ export class AdminUserRegisterComponent implements OnInit {
       this.loadCampusLocation(cid);
     });
 
-    this.form.get('password')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.form.get('password')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((val) => {
+      if (this.isEditing) {
+        const pwdCtrl = this.form.get('password');
+        if (val && val.length > 0) {
+          pwdCtrl?.setValidators([Validators.minLength(6)]);
+        } else {
+          pwdCtrl?.clearValidators();
+        }
+        pwdCtrl?.updateValueAndValidity({ emitEvent: false });
+      }
       this.form.updateValueAndValidity({ emitEvent: false });
     });
 
@@ -1048,6 +1057,22 @@ export class AdminUserRegisterComponent implements OnInit {
     const currentUserRaw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
     let current_user: any = null;
     try { current_user = currentUserRaw ? JSON.parse(currentUserRaw) : null; } catch (e) { current_user = currentUserRaw || null; }
+    let formattedJoiningDate: string | null = null;
+    if (v.joining_date instanceof Date && !isNaN(v.joining_date.getTime())) {
+      const y = v.joining_date.getFullYear();
+      const m = String(v.joining_date.getMonth() + 1).padStart(2, '0');
+      const d = String(v.joining_date.getDate()).padStart(2, '0');
+      formattedJoiningDate = `${y}-${m}-${d}`;
+    } else if (typeof v.joining_date === 'string' && v.joining_date.trim()) {
+      const trimmed = v.joining_date.trim();
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+        const [dd, mm, yyyy] = trimmed.split('/');
+        formattedJoiningDate = `${yyyy}-${mm}-${dd}`;
+      } else {
+        formattedJoiningDate = trimmed;
+      }
+    }
+
     const payload: any = {
       // prefer sending both username and display name
       user_name: v.username || v.name,
@@ -1062,7 +1087,7 @@ export class AdminUserRegisterComponent implements OnInit {
       city_id: v.city || null,
       department_id: v.department || null,
       team_id: v.team || null,
-      joining_date: v.joining_date || null,
+      joining_date: formattedJoiningDate,
       contact_no: v.phone,
       active_status: v.active,
       note: v.note,
