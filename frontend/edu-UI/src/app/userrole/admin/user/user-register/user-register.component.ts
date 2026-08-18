@@ -1236,6 +1236,33 @@ export class AdminUserRegisterComponent implements OnInit {
     }
   }
 
+  private normalizePhoneNumber(val: any): string {
+    if (val === null || val === undefined) return '';
+    let strVal = String(val).trim();
+    if (!strVal) return '';
+
+    // Remove trailing .0 from floats like "917107000000.0"
+    if (/^\+?\d+\.0$/.test(strVal)) {
+      strVal = strVal.replace(/\.0$/, '');
+    }
+
+    // Handle scientific notation e.g. "9.17107E+11", "9.17107e+11", "+9.17107E+11"
+    if (/^\+?[0-9]+(\.[0-9]+)?[eE][+-]?[0-9]+$/.test(strVal)) {
+      try {
+        const isPositivePrefix = strVal.startsWith('+');
+        const num = Number(strVal);
+        if (!isNaN(num) && isFinite(num)) {
+          const cleanDigits = BigInt(Math.round(num)).toString();
+          return isPositivePrefix ? '+' + cleanDigits : cleanDigits;
+        }
+      } catch {
+        // Fallback if parsing fails
+      }
+    }
+
+    return strVal;
+  }
+
   parseAndValidateExcelFile(file: File) {
     const reader = new FileReader();
     reader.onload = (e: any) => {
@@ -1250,6 +1277,7 @@ export class AdminUserRegisterComponent implements OnInit {
         }
         const worksheet = workbook.Sheets[firstSheetName];
         const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: false });
+        const rawRowsRaw: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: true });
 
         if (!rawRows || rawRows.length === 0) {
           this.bulkFileError = 'The uploaded file is empty or contains no data rows.';
@@ -1290,7 +1318,7 @@ export class AdminUserRegisterComponent implements OnInit {
         // DB sets for existing user duplicate checks
         const dbEmails = new Set((this.existingUsers || []).map((u: any) => (u.email || '').toLowerCase().trim()).filter(Boolean));
         const dbUsernames = new Set((this.existingUsers || []).map((u: any) => (u.user_name || u.username || '').toLowerCase().trim()).filter(Boolean));
-        const dbPhones = new Set((this.existingUsers || []).map((u: any) => (u.contact_no || u.phone || '').toString().trim()).filter(Boolean));
+        const dbPhones = new Set((this.existingUsers || []).map((u: any) => this.normalizePhoneNumber(u.contact_no || u.phone || '')).filter(Boolean));
 
         // Institute Metadata sets (normalized lowercase for lookup)
         const validDepts = (this.departments || []).map(d => (d.name || '').toLowerCase().trim());
@@ -1306,10 +1334,22 @@ export class AdminUserRegisterComponent implements OnInit {
           const rowNum = index + 2; // Row 1 is header
           const getVal = (key: string): string => {
             const actualCol = keyMap[key];
-            if (actualCol && rawRow[actualCol] !== undefined && rawRow[actualCol] !== null) {
-              return String(rawRow[actualCol]).trim();
+            if (!actualCol) return '';
+
+            const formattedVal = rawRow[actualCol] !== undefined && rawRow[actualCol] !== null ? String(rawRow[actualCol]).trim() : '';
+            const rawVal = rawRowsRaw[index] ? rawRowsRaw[index][actualCol] : undefined;
+
+            if (key === 'contact_no') {
+              let valToNormalize = formattedVal;
+              if (typeof rawVal === 'number' || (typeof formattedVal === 'string' && /[eE]/.test(formattedVal))) {
+                if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+                  valToNormalize = String(rawVal).trim();
+                }
+              }
+              return this.normalizePhoneNumber(valToNormalize);
             }
-            return '';
+
+            return formattedVal;
           };
 
           const fullName = getVal('full_name');

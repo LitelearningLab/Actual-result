@@ -1,10 +1,39 @@
 import pandas as pd
+import re
 from db.models import User, Institute, InstituteDepartment, InstituteTeam,InstituteCampus
 from db.models import Credential, UserPageAccess, Page, Country, State,City
 from db.db import SQLiteDB
 from datetime import datetime, timedelta
 from passlib.hash import argon2
 from sqlalchemy import or_
+
+def normalize_phone_number(val):
+    if val is None or pd.isna(val):
+        return None
+
+    if isinstance(val, (int, float)):
+        val_str = str(int(round(val)))
+    else:
+        val_str = str(val).strip()
+
+    if not val_str:
+        return None
+
+    if val_str.endswith(".0"):
+        temp = val_str[:-2]
+        if temp.replace("+", "").isdigit():
+            val_str = temp
+
+    if re.match(r"^\+?[0-9]+(\.[0-9]+)?[eE][+-]?[0-9]+$", val_str):
+        try:
+            is_plus = val_str.startswith("+")
+            num_float = float(val_str)
+            digits = str(int(round(num_float)))
+            val_str = "+" + digits if is_plus else digits
+        except Exception:
+            pass
+
+    return val_str
 
 def _validate_user_institute_scope(session, institute_id, department_id=None, team_id=None, campus_id=None):
     """Ensure every institute-owned selection belongs to the submitted institute."""
@@ -48,7 +77,7 @@ def insert_user(data):
     email = data.get("email", None)
     user_role = data.get("user_role",None)
     institute_id = data.get("institute_id", None)
-    contact_no = data.get("contact_no", None)
+    contact_no = normalize_phone_number(data.get("contact_no", None))
     active_status = 1 if data.get("active_status", None) == True else 0
     password =  data.get('password' , None)
     department_id = data.get("department_id", None)
@@ -307,7 +336,7 @@ def user_bulk_upload(request):
         user_name = str(row.get(un_col, '')).strip() if un_col and pd.notna(row.get(un_col)) else None
         email = str(row.get(em_col, '')).strip() if em_col and pd.notna(row.get(em_col)) else None
         user_role = str(row.get(rl_col, '')).strip() if rl_col and pd.notna(row.get(rl_col)) else None
-        contact_no = str(row.get(cn_col, '')).strip() if cn_col and pd.notna(row.get(cn_col)) else None
+        contact_no = normalize_phone_number(row.get(cn_col)) if cn_col and pd.notna(row.get(cn_col)) else None
         password = str(row.get(pw_col, "User@12321")).strip() if pw_col and pd.notna(row.get(pw_col)) else "User@12321"
         department = str(row.get(dp_col, '')).strip() if dp_col and pd.notna(row.get(dp_col)) else None
         team = str(row.get(tm_col, '')).strip() if tm_col and pd.notna(row.get(tm_col)) else None
