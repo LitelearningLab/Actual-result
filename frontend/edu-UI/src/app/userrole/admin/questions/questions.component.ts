@@ -257,6 +257,8 @@ export class AdminQuestionsComponent {
   industrySearch = '';
   sectorSearch = '';
   instituteSearch = '';
+  departmentFilterSearch = '';
+  teamFilterSearch = '';
   get globalInstituteId(): string {
     try {
       return String(sessionStorage.getItem('global_institute_id') || '');
@@ -1207,6 +1209,50 @@ export class AdminQuestionsComponent {
       this.selectedSectors = [...items];
     }
     this.onSectorFilterChange();
+  }
+
+  // --- Department Select All & Filter ---
+  get filteredDepartmentsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.departmentFilterSearch || '').trim().toLowerCase();
+    if (!term) return this.departments || [];
+    return (this.departments || []).filter((d) => (d.name || '').toLowerCase().includes(term));
+  }
+
+  isAllDepartmentsSelected(): boolean {
+    const items = this.filteredDepartmentsForFilter || [];
+    return items.length > 0 && items.every((d) => (this.selectedDepartments || []).includes(d.id));
+  }
+
+  toggleSelectAllDepartments(): void {
+    const items = this.filteredDepartmentsForFilter || [];
+    if (this.isAllDepartmentsSelected()) {
+      this.selectedDepartments = [];
+    } else {
+      this.selectedDepartments = items.map((d) => d.id);
+    }
+    this.onDepartmentFilterChange();
+  }
+
+  // --- Team Select All & Filter ---
+  get filteredTeamsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.teamFilterSearch || '').trim().toLowerCase();
+    if (!term) return this.teams || [];
+    return (this.teams || []).filter((t) => (t.name || '').toLowerCase().includes(term));
+  }
+
+  isAllTeamsSelected(): boolean {
+    const items = this.filteredTeamsForFilter || [];
+    return items.length > 0 && items.every((t) => (this.selectedTeams || []).includes(t.id));
+  }
+
+  toggleSelectAllTeams(): void {
+    const items = this.filteredTeamsForFilter || [];
+    if (this.isAllTeamsSelected()) {
+      this.selectedTeams = [];
+    } else {
+      this.selectedTeams = items.map((t) => t.id);
+    }
+    this.onQuestionBankFilterChange();
   }
 
   onFilterSelectOpened(opened: boolean, field: 'country' | 'city' | 'industry' | 'sector') {
