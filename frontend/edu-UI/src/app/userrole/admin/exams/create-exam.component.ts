@@ -235,7 +235,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   // --- Select All: Question Bank Department ---
   isAllQuestionBankDepartmentsSelected(): boolean {
     const ids = (this.filteredQuestionBankDepartments || []).map((d: any) => d.id).filter(Boolean);
-    return ids.length > 0 && ids.every((id: any) => (this.questionBankFilterDepartments || []).includes(id));
+    return (
+      ids.length > 0 &&
+      ids.every((id: any) => (this.questionBankFilterDepartments || []).includes(id))
+    );
   }
 
   toggleSelectAllQuestionBankDepartments(): void {
@@ -250,7 +253,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   // --- Select All: Question Bank Team ---
   isAllQuestionBankTeamsSelected(): boolean {
     const ids = (this.filteredQuestionBankTeams || []).map((t: any) => t.id).filter(Boolean);
-    return ids.length > 0 && ids.every((id: any) => (this.questionBankFilterTeams || []).includes(id));
+    return (
+      ids.length > 0 && ids.every((id: any) => (this.questionBankFilterTeams || []).includes(id))
+    );
   }
 
   toggleSelectAllQuestionBankTeams(): void {
@@ -584,7 +589,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.selectedDepartments = Array.isArray(e.departments)
         ? e.departments
             .map((d: any) =>
-              String(typeof d === 'object' ? d.id || d.department_id || d.dept_id || d.name || '' : d)
+              String(
+                typeof d === 'object' ? d.id || d.department_id || d.dept_id || d.name || '' : d
+              )
             )
             .filter(Boolean)
         : [];
@@ -2083,7 +2090,11 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (!this.model.categories || !this.model.categories.length) {
-      notify('Please attach at least one Question Bank before saving', 'error');
+      notify(
+        'Please click the "+ Add Selected" button to attach the Question Bank before saving',
+        'error'
+      );
+
       return;
     }
 
@@ -2247,7 +2258,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   validateStep2AndProceed() {
     if (!this.model.categories || !this.model.categories.length) {
       try {
-        notify('Please attach at least one Question Bank before proceeding', 'error');
+        notify(
+          'Please click the "+ Add Selected" button to attach the Question Bank before proceeding',
+          'error'
+        );
       } catch (e) {}
       return;
     }

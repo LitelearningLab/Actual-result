@@ -661,7 +661,6 @@
             <mat-form-field appearance="outline" class="field-half">
               <mat-label>Language Preference</mat-label>
               <mat-select [(ngModel)]="aiQuestionLanguage">
-                <mat-option value="en">English</mat-option>
                 <mat-option *ngFor="let l of languages" [value]="l.label">{{ l.label }}</mat-option>
               </mat-select>
             </mat-form-field>

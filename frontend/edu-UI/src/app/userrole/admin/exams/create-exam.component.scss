@@ -706,6 +706,13 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
     border: none !important;
   }
 
+  /* Give floating labels a background & padding to cleanly mask the top border line */
+  ::ng-deep .mat-mdc-floating-label {
+    background-color: #ffffff !important;
+    padding: 0 4px !important;
+    z-index: 1 !important;
+  }
+
   /* Ensure text inside input is clear and typable */
   input.mat-mdc-input-element {
     color: #0f172a !important;

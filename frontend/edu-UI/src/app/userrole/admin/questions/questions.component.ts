@@ -31,6 +31,7 @@ import { API_BASE } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
+import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { forkJoin } from 'rxjs';
 import {
   DateRangePickerDialogComponent,
@@ -288,7 +289,8 @@ export class AdminQuestionsComponent {
     private router: Router,
     private dialog: MatDialog,
     private overlay: Overlay,
-    private vcr: ViewContainerRef
+    private vcr: ViewContainerRef,
+    private confirmService: ConfirmService
   ) {
     // infer super-admin role and default institute from session data when available
     try {
@@ -2580,7 +2582,6 @@ export class AdminQuestionsComponent {
   }
 
   submit() {
-    this.loader.show();
     // get user_id for created_by and updated_by fields if needed
     const raw = sessionStorage.getItem('user');
     let userId = '';
@@ -2595,41 +2596,51 @@ export class AdminQuestionsComponent {
     if (this.mode === 'bulk') {
       // use selected file and submit via FormData
       if (!this.selectedBulkFile) {
-        this.loader.hide();
         try {
           notify('Please select a file to upload', 'error');
         } catch (e) {}
         return;
       }
-      const fd = new FormData();
-      fd.append('file', this.selectedBulkFile);
-      if (this.questions[0] && this.questions[0].institute_id)
-        fd.append('institute_id', this.questions[0].institute_id);
-      if (this.questions[0] && this.questions[0].category_id)
-        fd.append('category_id', this.questions[0].category_id);
-      this.http.post<any>(this.bulkUploadUrl, fd).subscribe({
-        next: (res) => {
-          try {
-            const msg = res?.statusMessage || res?.message || 'Bulk upload completed';
-            const ok = typeof res?.status === 'undefined' ? true : !!res.status;
-            notify(msg, ok ? 'success' : 'error');
-          } catch (e) {}
-          this.selectedBulkFile = null;
-        },
-        complete: () => {
-          this.loader.hide();
-        },
-        error: (err) => {
-          console.error('Bulk upload failed', err);
-          try {
-            notify(
-              err?.error?.statusMessage || err?.error?.message || 'Bulk upload failed',
-              'error'
-            );
-          } catch (e) {}
-          this.loader.hide();
-        },
-      });
+      this.confirmService
+        .confirm({
+          title: 'Confirm Bulk Upload',
+          message: 'Are you sure you want to upload this file?',
+          confirmText: 'Upload',
+          cancelText: 'Cancel',
+        })
+        .subscribe((confirmed) => {
+          if (!confirmed) return;
+          this.loader.show();
+          const fd = new FormData();
+          fd.append('file', this.selectedBulkFile!);
+          if (this.questions[0] && this.questions[0].institute_id)
+            fd.append('institute_id', this.questions[0].institute_id);
+          if (this.questions[0] && this.questions[0].category_id)
+            fd.append('category_id', this.questions[0].category_id);
+          this.http.post<any>(this.bulkUploadUrl, fd).subscribe({
+            next: (res) => {
+              try {
+                const msg = res?.statusMessage || res?.message || 'Bulk upload completed';
+                const ok = typeof res?.status === 'undefined' ? true : !!res.status;
+                notify(msg, ok ? 'success' : 'error');
+              } catch (e) {}
+              this.selectedBulkFile = null;
+            },
+            complete: () => {
+              this.loader.hide();
+            },
+            error: (err) => {
+              console.error('Bulk upload failed', err);
+              try {
+                notify(
+                  err?.error?.statusMessage || err?.error?.message || 'Bulk upload failed',
+                  'error'
+                );
+              } catch (e) {}
+              this.loader.hide();
+            },
+          });
+        });
       return;
     }
 
@@ -2639,36 +2650,47 @@ export class AdminQuestionsComponent {
       (!this.questions || this.questions.length === 0)
     ) {
       const deleteId = this.pendingDeletedQuestionId;
-      const url = `${API_BASE}/delete/question/${encodeURIComponent(String(deleteId))}`;
-      this.http.delete<any>(url).subscribe({
-        next: (res) => {
-          try {
-            const ok = typeof res?.status === 'undefined' ? true : !!res.status;
-            const msg = ok
-              ? 'Question deleted successfully.'
-              : res?.statusMessage || res?.message || 'Failed to delete question.';
-            notify(msg, ok ? 'success' : 'error');
-            if (ok) {
-              this.pendingDeletedQuestionId = undefined;
-              this.editId = undefined;
-              this.isEditing = false;
-            }
-          } catch (e) {}
-        },
-        error: (err) => {
-          console.error('Failed to delete question', err);
-          try {
-            notify(
-              err?.error?.statusMessage || err?.error?.message || 'Failed to delete question.',
-              'error'
-            );
-          } catch (e) {}
-          this.loader.hide();
-        },
-        complete: () => {
-          this.loader.hide();
-        },
-      });
+      this.confirmService
+        .confirm({
+          title: 'Confirm Delete',
+          message: 'Are you sure you want to delete this question?',
+          confirmText: 'Delete',
+          cancelText: 'Cancel',
+        })
+        .subscribe((confirmed) => {
+          if (!confirmed) return;
+          this.loader.show();
+          const url = `${API_BASE}/delete/question/${encodeURIComponent(String(deleteId))}`;
+          this.http.delete<any>(url).subscribe({
+            next: (res) => {
+              try {
+                const ok = typeof res?.status === 'undefined' ? true : !!res.status;
+                const msg = ok
+                  ? 'Question deleted successfully.'
+                  : res?.statusMessage || res?.message || 'Failed to delete question.';
+                notify(msg, ok ? 'success' : 'error');
+                if (ok) {
+                  this.pendingDeletedQuestionId = undefined;
+                  this.editId = undefined;
+                  this.isEditing = false;
+                }
+              } catch (e) {}
+            },
+            error: (err) => {
+              console.error('Failed to delete question', err);
+              try {
+                notify(
+                  err?.error?.statusMessage || err?.error?.message || 'Failed to delete question.',
+                  'error'
+                );
+              } catch (e) {}
+              this.loader.hide();
+            },
+            complete: () => {
+              this.loader.hide();
+            },
+          });
+        });
       return;
     }
     const selectedInstituteId =
@@ -2676,7 +2698,6 @@ export class AdminQuestionsComponent {
     const selectedCategoryId =
       this.questions && this.questions[0] && (this.questions[0] as any).category_id;
     if (!this.isEditing && (!selectedInstituteId || !selectedCategoryId)) {
-      this.loader.hide();
       try {
         notify('Please select an Institution and Question Bank before saving.', 'error');
       } catch (e) {}
@@ -2687,7 +2708,6 @@ export class AdminQuestionsComponent {
 
     const validQuestions = (this.questions || []).filter((q: any) => this.isValidQuestion(q));
     if (!validQuestions.length) {
-      this.loader.hide();
       try {
         notify('Please add at least one question before saving.', 'error');
       } catch (e) {}
@@ -2708,7 +2728,6 @@ export class AdminQuestionsComponent {
             'error'
           );
         } catch (e) {}
-        this.loader.hide();
         return;
       }
       if (
@@ -2722,14 +2741,12 @@ export class AdminQuestionsComponent {
             'error'
           );
         } catch (e) {}
-        this.loader.hide();
         return;
       }
       if (!this.hasRequiredAnswer(q)) {
         try {
           notify('Answer is required for all question blocks', 'error');
         } catch (e) {}
-        this.loader.hide();
         return;
       }
     }
@@ -2763,7 +2780,6 @@ export class AdminQuestionsComponent {
         p.correct_indices = [];
         p.correct_values = [];
       }
-      // p.created_by = sessionStorage.getItem('user_id') || sessionStorage.getItem('username') || 'admin';
       return p;
     });
 
@@ -2776,81 +2792,78 @@ export class AdminQuestionsComponent {
       questions: payload,
     };
 
-    if (this.isEditing && this.editId) {
-      // update single question
-      const q = payload[0];
-      // ensure hidden global selections are kept on update when available
-      if (!q.institute_id && (this.questions[0] as any).institute_id)
-        q.institute_id = (this.questions[0] as any).institute_id;
-      if (!q.category_id && (this.questions[0] as any).category_id)
-        q.category_id = (this.questions[0] as any).category_id;
-      q.updated_by = userId || undefined;
-      const url = `${API_BASE}/update-question/${encodeURIComponent(String(this.editId))}`;
-      this.http.put<any>(url, q).subscribe({
-        next: (res) => {
-          try {
-            const msg = res?.statusMessage || res?.message || 'Question updated';
-            const ok = typeof res?.status === 'undefined' ? true : !!res.status;
-            notify(msg, ok ? 'success' : 'error');
-          } catch (e) {}
-          // Keep edit mode active so the user stays on the same page after update.
-        },
-        error: (err) => {
-          console.error('Failed to update question', err);
-          try {
-            notify(
-              err?.error?.statusMessage || err?.error?.message || 'Failed to update question',
-              'error'
-            );
-          } catch (e) {}
-          this.loader.hide();
-        },
-        complete: () => {
-          this.loader.hide();
-        },
-      });
-    } else {
-      this.http.post<any>(this.apiUrl, body).subscribe({
-        next: (res) => {
-          try {
-            const msg = res?.statusMessage || res?.message || 'Questions saved successfully';
-            const ok = typeof res?.status === 'undefined' ? true : !!res.status;
-            notify(msg, ok ? 'success' : 'error');
-          } catch (e) {}
-          // reset to a single empty block
-          this.questions = [
-            {
-              type: '',
-              text: '',
-              marks: this.getCategoryQuestionMark() || 1,
-              options: ['', ''],
-              correct: null,
-              answerText: '',
-              showFineTune: false,
+    this.confirmService
+      .confirm({
+        title: this.isEditing ? 'Confirm Update' : 'Confirm Save',
+        message: this.isEditing
+          ? 'Are you sure you want to update this question?'
+          : 'Are you sure you want to save all questions?',
+        confirmText: this.isEditing ? 'Update' : 'Save All',
+        cancelText: 'Cancel',
+      })
+      .subscribe((confirmed) => {
+        if (!confirmed) return;
+
+        this.loader.show();
+
+        if (this.isEditing && this.editId) {
+          // update single question
+          const q = payload[0];
+          if (!q.institute_id && (this.questions[0] as any).institute_id)
+            q.institute_id = (this.questions[0] as any).institute_id;
+          if (!q.category_id && (this.questions[0] as any).category_id)
+            q.category_id = (this.questions[0] as any).category_id;
+          q.updated_by = userId || undefined;
+          const url = `${API_BASE}/update-question/${encodeURIComponent(String(this.editId))}`;
+          this.http.put<any>(url, q).subscribe({
+            next: (res) => {
+              try {
+                const msg = res?.statusMessage || res?.message || 'Question updated';
+                const ok = typeof res?.status === 'undefined' ? true : !!res.status;
+                notify(msg, ok ? 'success' : 'error');
+              } catch (e) {}
             },
-          ];
-          setTimeout(() => {
-            try {
-              this.resizeAll();
-            } catch (e) {}
-          }, 0);
-        },
-        error: (err) => {
-          console.error('Failed to save questions', err);
-          try {
-            notify(
-              err?.error?.statusMessage ||
-                err?.error?.message ||
-                'Failed to save questions. See console for details.',
-              'error'
-            );
-          } catch (e) {}
-          this.loader.hide();
-        },
-        complete: () => {
-          this.loader.hide();
-        },
+            error: (err) => {
+              console.error('Failed to update question', err);
+              try {
+                notify(
+                  err?.error?.statusMessage || err?.error?.message || 'Failed to update question',
+                  'error'
+                );
+              } catch (e) {}
+              this.loader.hide();
+            },
+            complete: () => {
+              this.loader.hide();
+            },
+          });
+        } else {
+          this.http.post<any>(this.apiUrl, body).subscribe({
+            next: (res) => {
+              try {
+                const msg = res?.statusMessage || res?.message || 'Questions saved successfully';
+                const ok = typeof res?.status === 'undefined' ? true : !!res.status;
+                notify(msg, ok ? 'success' : 'error');
+              } catch (e) {}
+              // Keep questions intact on screen after saving
+            },
+            error: (err) => {
+              console.error('Failed to save questions', err);
+              try {
+                notify(
+                  err?.error?.statusMessage ||
+                    err?.error?.message ||
+                    'Failed to save questions. See console for details.',
+                  'error'
+                );
+              } catch (e) {}
+              this.loader.hide();
+            },
+            complete: () => {
+              this.loader.hide();
+            },
+          });
+        }
       });
-    }
   }
 }
