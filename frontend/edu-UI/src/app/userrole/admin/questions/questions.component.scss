@@ -388,7 +388,7 @@ mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:
   }
 }
 .question-bank-filter-panel .filter-col { display:flex; flex-direction:column; gap:0.5rem; }
-.question-bank-filter-panel .filter-col-full { grid-column:1 / -1; }
+.question-bank-filter-panel .filter-col-full { grid-column:1 / -1; margin-top:0.5rem; }
 .question-bank-filter-panel .filter-item { width:100%; }
 .question-bank-filter-panel .filter-checks { display:flex; flex-wrap:wrap; gap:1.75rem; align-items:center; padding:1rem 1.5rem 1.5rem; }
 .question-bank-filter-panel .filter-subsection-title {
