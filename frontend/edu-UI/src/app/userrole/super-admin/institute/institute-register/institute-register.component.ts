@@ -130,10 +130,10 @@ export class InstituteRegisterComponent {
       ],
       industry_type: [null as string | null, Validators.required],
       industry_sector: [{ value: null as string | null, disabled: true }, Validators.required],
-      department: ['' as string | null],
+      department: ['', Validators.required],
       branch: ['' as string | null],
-      team: ['' as string | null],
-      max_users: [null as number | null, [Validators.min(1)]],
+      team: ['', Validators.required],
+      max_users: [null as number | null, [Validators.required, Validators.min(1)]],
       subscription_start: [null as Date | null, Validators.required],
       subscription_end: [null as Date | null, Validators.required],
       active: [true],
@@ -885,21 +885,36 @@ export class InstituteRegisterComponent {
   goToLocations(stepper: MatStepper) {
     const industryTypeCtrl = this.form.get('industry_type');
     const industrySectorCtrl = this.form.get('industry_sector');
+    const departmentCtrl = this.form.get('department');
+    const teamCtrl = this.form.get('team');
+    const maxUsersCtrl = this.form.get('max_users');
     const subscriptionStartCtrl = this.form.get('subscription_start');
     const subscriptionEndCtrl = this.form.get('subscription_end');
 
-    // Step 2 has custom validation because only these industry fields should block this Next button.
+    // Step 2 has custom validation because only these fields should block this Next button.
     industryTypeCtrl?.markAsTouched();
     industrySectorCtrl?.markAsTouched();
+    departmentCtrl?.markAsTouched();
+    teamCtrl?.markAsTouched();
+    maxUsersCtrl?.markAsTouched();
     subscriptionStartCtrl?.markAsTouched();
     subscriptionEndCtrl?.markAsTouched();
+
     industryTypeCtrl?.updateValueAndValidity();
     industrySectorCtrl?.updateValueAndValidity();
+    departmentCtrl?.updateValueAndValidity();
+    teamCtrl?.updateValueAndValidity();
+    maxUsersCtrl?.updateValueAndValidity();
+    subscriptionStartCtrl?.updateValueAndValidity();
+    subscriptionEndCtrl?.updateValueAndValidity();
 
     this.form.updateValueAndValidity();
     if (
       industryTypeCtrl?.invalid ||
       industrySectorCtrl?.invalid ||
+      departmentCtrl?.invalid ||
+      teamCtrl?.invalid ||
+      maxUsersCtrl?.invalid ||
       subscriptionStartCtrl?.invalid ||
       subscriptionEndCtrl?.invalid ||
       this.form.hasError('subscriptionDateRange')
