@@ -1,0 +1,27 @@
+[
+  {
+    "user_id": "455538f7-8e0d-4c8a-bd1d-a23a463e013f",
+    "institute_id": "41dc1325-1fff-47c8-8c9b-36736884b1d5",
+    "full_name": "hari",
+    "user_name": "hari__",
+    "email": "hari@gmail.com",
+    "user_role": "user",
+    "contact_no": "7898765673",
+    "department_id": "6e9a560c-dd7c-4ce4-9558-4ed270d42176",
+    "team_id": "ea6c3592-f1aa-49cf-92c1-899dfb9d76f6",
+    "campus_id": null,
+    "country_id": null,
+    "state_id": null,
+    "city_id": null,
+    "joining_date": "2026-08-16T00:00:00",
+    "active_status": 1,
+    "is_deleted": false,
+    "created_by": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+    "created_date": "2026-08-17T11:28:46.208305",
+    "updated_by": null,
+    "updated_date": null,
+    "institute_name": "Test 3.0",
+    "department_name": "EEE",
+    "team_name": "2025"
+  }
+]

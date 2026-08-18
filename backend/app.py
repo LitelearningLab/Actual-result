@@ -640,15 +640,17 @@ def get_registered_countries():
 @edu_blueprint.route('/get-department-list', methods=['GET'])
 @jwt_required
 def get_department_details():
-    institute_id = request.args.get('institute_id', None)
-    response_data, status_code = get_institute_department_details(institute_id)
+    filter_by_institute = ('institute_id' in request.args) or ('institute' in request.args)
+    institute_id = request.args.get('institute_id') or request.args.get('institute')
+    response_data, status_code = get_institute_department_details(institute_id, filter_by_institute=filter_by_institute)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-teams-list', methods=['GET'])
 @jwt_required
 def get_team_details():
-    institute_id = request.args.get('institute_id', None)
-    response_data, status_code = get_institute_team_details(institute_id)
+    filter_by_institute = ('institute_id' in request.args) or ('institute' in request.args)
+    institute_id = request.args.get('institute_id') or request.args.get('institute')
+    response_data, status_code = get_institute_team_details(institute_id, filter_by_institute=filter_by_institute)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/superadmin-dashboard', methods=['GET'])

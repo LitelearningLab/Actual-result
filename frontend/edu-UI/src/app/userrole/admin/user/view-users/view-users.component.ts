@@ -1594,6 +1594,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
               this.loadTeams(this.selectedInstitute);
               this.loadCampuses(this.selectedInstitute);
               this.loadCountries(this.selectedInstitute);
+              this.loading.hide();
               return;
             }
           }

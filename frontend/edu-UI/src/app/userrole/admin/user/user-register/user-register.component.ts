@@ -677,29 +677,19 @@ export class AdminUserRegisterComponent implements OnInit {
     this.loader.show();
     const url = `${API_BASE}/get-department-list`;
     this.departmentsLoading = true;
-    // try with institute_id param first, then fallback to institute if empty
-    const attempt = (params: any, retryIfEmpty = false) => {
-      this.http.get<any>(url, { params }).subscribe({
-        next: (res) => {
-          try {
-            const data = res?.data || [];
-            if ((!data || data.length === 0) && retryIfEmpty) {
-              // retry with alternate param name
-              attempt({ institute: instituteId }, false);
-              return;
-            }
-            this.departments = data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name }));
-            if (this.bulkMode && this.bulkFile) {
-              this.parseAndValidateExcelFile(this.bulkFile);
-            }
-          } catch (e) { this.departments = []; }
-          finally { this.departmentsLoading = false; this.loader.hide(); }
-        },
-        error: (err) => { console.warn('Failed to load departments', err); this.departments = []; this.departmentsLoading = false; this.loader.hide(); }
-      });
-    };
-
-    attempt({ institute_id: instituteId }, true);
+    this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
+      next: (res) => {
+        try {
+          const data = res?.data || [];
+          this.departments = data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name }));
+          if (this.bulkMode && this.bulkFile) {
+            this.parseAndValidateExcelFile(this.bulkFile);
+          }
+        } catch (e) { this.departments = []; }
+        finally { this.departmentsLoading = false; this.loader.hide(); }
+      },
+      error: (err) => { console.warn('Failed to load departments', err); this.departments = []; this.departmentsLoading = false; this.loader.hide(); }
+    });
   }
 
   loadTeams(instituteId: string) {

@@ -1,7 +1,7 @@
 from db.models import InstituteDepartment, InstituteTeam
 from db.db import SQLiteDB
 
-def get_institute_department_details(institute_id):
+def get_institute_department_details(institute_id, filter_by_institute=False):
     db = SQLiteDB()
     session = db.connect()
     if not session:
@@ -11,10 +11,12 @@ def get_institute_department_details(institute_id):
         if institute_id:
             ids = [i.strip() for i in str(institute_id).split(',') if i.strip()]
             departments = session.query(InstituteDepartment).filter(InstituteDepartment.institute_id.in_(ids)).all()
+        elif filter_by_institute:
+            departments = []
         else:
             departments = session.query(InstituteDepartment).all()
             
-        json_data = []  # <--- ADD THIS LINE BACK
+        json_data = []
         for department in departments:
             json_data.append({
                 "id": department.department_id,
@@ -36,7 +38,7 @@ def get_institute_department_details(institute_id):
     finally:
         session.close()
 
-def get_institute_team_details(institute_id):
+def get_institute_team_details(institute_id, filter_by_institute=False):
     db = SQLiteDB()
     session = db.connect()
     if not session:
@@ -46,10 +48,12 @@ def get_institute_team_details(institute_id):
         if institute_id:
             ids = [i.strip() for i in str(institute_id).split(',') if i.strip()]
             teams = session.query(InstituteTeam).filter(InstituteTeam.institute_id.in_(ids)).all()
+        elif filter_by_institute:
+            teams = []
         else:
             teams = session.query(InstituteTeam).all()
             
-        json_data = []  # <--- ADD THIS LINE BACK
+        json_data = []
         for team in teams:
             json_data.append({
                 "id": team.team_id,
