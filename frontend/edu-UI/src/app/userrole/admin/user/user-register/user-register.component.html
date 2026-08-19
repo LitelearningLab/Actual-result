@@ -585,8 +585,21 @@
                     <mat-label>Institute</mat-label>
                     <mat-icon matPrefix>business</mat-icon>
                     <mat-select id="institute" formControlName="institute" aria-label="Institute" [disabled]="!isSuperAdmin">
+                      <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                        <input
+                          matInput
+                          class="select-search-input"
+                          placeholder="Search institute"
+                          [(ngModel)]="instituteSearch"
+                          [ngModelOptions]="{ standalone: true }"
+                          (click)="$event.stopPropagation()"
+                          (keydown)="$event.stopPropagation()"
+                          (keyup)="$event.stopPropagation()"
+                          (input)="$event.stopPropagation()"
+                        />
+                      </mat-option>
                       <mat-option value="">Select institute</mat-option>
-                      <mat-option *ngFor="let i of institutes" [value]="i.id">{{i.name}}</mat-option>
+                      <mat-option *ngFor="let i of filteredInstitutes" [value]="i.id">{{i.name}}</mat-option>
                     </mat-select>
                     <mat-error *ngIf="(form.get('institute')?.touched || step2Submitted) && form.get('institute')?.invalid">Institute is required</mat-error>
                   </mat-form-field>
@@ -654,9 +667,22 @@
                     <mat-label>Department / Class</mat-label>
                     <mat-icon matPrefix>school</mat-icon>
                     <mat-select id="department" formControlName="department">
+                      <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                        <input
+                          matInput
+                          class="select-search-input"
+                          placeholder="Search department"
+                          [(ngModel)]="departmentSearch"
+                          [ngModelOptions]="{ standalone: true }"
+                          (click)="$event.stopPropagation()"
+                          (keydown)="$event.stopPropagation()"
+                          (keyup)="$event.stopPropagation()"
+                          (input)="$event.stopPropagation()"
+                        />
+                      </mat-option>
                       <mat-option value="">Select department</mat-option>
-                      <mat-option *ngFor="let d of departments" [value]="d.id">{{d.name}}</mat-option>
-                      <mat-option *ngIf="!departmentsLoading && (!departments || departments.length === 0)" disabled>No departments</mat-option>
+                      <mat-option *ngFor="let d of filteredDepartments" [value]="d.id">{{d.name}}</mat-option>
+                      <mat-option *ngIf="!departmentsLoading && (!filteredDepartments || filteredDepartments.length === 0)" disabled>No departments</mat-option>
                     </mat-select>
                     <mat-hint *ngIf="departmentsLoading">Loading departments…</mat-hint>
                     <mat-error *ngIf="(form.get('department')?.touched || step2Submitted) && form.get('department')?.invalid">Department is required for students</mat-error>
@@ -666,8 +692,22 @@
                     <mat-label>Team / Group / Section</mat-label>
                     <mat-icon matPrefix>groups</mat-icon>
                     <mat-select id="team" formControlName="team">
+                      <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="form.get('department')?.value">
+                        <input
+                          matInput
+                          class="select-search-input"
+                          placeholder="Search team"
+                          [(ngModel)]="teamSearch"
+                          [ngModelOptions]="{ standalone: true }"
+                          (click)="$event.stopPropagation()"
+                          (keydown)="$event.stopPropagation()"
+                          (keyup)="$event.stopPropagation()"
+                          (input)="$event.stopPropagation()"
+                        />
+                      </mat-option>
                       <mat-option value="">Select team</mat-option>
-                      <mat-option *ngFor="let t of teams" [value]="t.id">{{t.name}}</mat-option>
+                      <mat-option *ngFor="let t of filteredTeamsList" [value]="t.id">{{t.name}}</mat-option>
+                      <mat-option *ngIf="form.get('department')?.value && (!filteredTeamsList || filteredTeamsList.length === 0)" disabled>No teams found for selected department</mat-option>
                     </mat-select>
                     <mat-error *ngIf="(form.get('team')?.touched || step2Submitted) && form.get('team')?.invalid">Team is required for students</mat-error>
                   </mat-form-field>

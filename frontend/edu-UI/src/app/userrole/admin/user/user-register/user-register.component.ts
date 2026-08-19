@@ -149,6 +149,7 @@ export class AdminUserRegisterComponent implements OnInit {
   // lists populated from institute-scoped APIs
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
+  allTeams: Array<{ id: string; name: string; department_id?: string; department_name?: string }> = [];
   // pages and permissions for user-management block
   pagesList: Array<{ key: string; name: string; id?: string }> = [];
   pagesPermissions: { [pageKey: string]: { view: boolean; add: boolean; edit: boolean; delete: boolean } } = {};
@@ -159,6 +160,29 @@ export class AdminUserRegisterComponent implements OnInit {
   // Step submission tracking flags for showing mandatory errors only when Next is clicked
   step1Submitted: boolean = false;
   step2Submitted: boolean = false;
+
+  // Dropdown search properties
+  instituteSearch: string = '';
+  departmentSearch: string = '';
+  teamSearch: string = '';
+
+  get filteredInstitutes() {
+    const term = (this.instituteSearch || '').trim().toLowerCase();
+    if (!term) return this.institutes;
+    return this.institutes.filter(i => (i.name || '').toLowerCase().includes(term));
+  }
+
+  get filteredDepartments() {
+    const term = (this.departmentSearch || '').trim().toLowerCase();
+    if (!term) return this.departments;
+    return this.departments.filter(d => (d.name || '').toLowerCase().includes(term));
+  }
+
+  get filteredTeamsList() {
+    const term = (this.teamSearch || '').trim().toLowerCase();
+    if (!term) return this.teams;
+    return this.teams.filter(t => (t.name || '').toLowerCase().includes(term));
+  }
 
   constructor(private fb: FormBuilder, private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private notify: NotificationService, private loader: LoaderService) {
     this.form = this.fb.group({
@@ -175,7 +199,7 @@ export class AdminUserRegisterComponent implements OnInit {
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required],
       department: [''],
-      team: [''],
+      team: [{ value: '', disabled: true }],
       phone: ['', [Validators.pattern(/^\d{0,15}$/)]],
       active: [true],
       note: ['']
@@ -490,6 +514,20 @@ export class AdminUserRegisterComponent implements OnInit {
     this.form.get('joining_date')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((val) => {
       this.validateJoiningDate(val);
     });
+
+    // department selection: toggle and filter team dropdown according to selected department
+    this.form.get('department')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((deptVal) => {
+      const teamCtrl = this.form.get('team');
+      if (!deptVal) {
+        teamCtrl?.setValue('', { emitEvent: false });
+        teamCtrl?.disable({ emitEvent: false });
+        this.teams = [];
+      } else {
+        teamCtrl?.enable({ emitEvent: false });
+        teamCtrl?.setValue('', { emitEvent: false });
+        this.filterTeamsByDepartment(deptVal);
+      }
+    });
   }
 
   private loadInitialData() {
@@ -691,6 +729,7 @@ export class AdminUserRegisterComponent implements OnInit {
         try {
           const data = res?.data || [];
           this.departments = data.map((d: any) => ({ id: d.dept_id || d.id || d.deptId, name: d.name }));
+          this.filterTeamsByDepartment(this.form.get('department')?.value);
           if (this.bulkMode && this.bulkFile) {
             this.parseAndValidateExcelFile(this.bulkFile);
           }
@@ -706,10 +745,76 @@ export class AdminUserRegisterComponent implements OnInit {
     const url = `${API_BASE}/get-teams-list`;
     this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
       next: (res) => {
-        try { const data = res?.data || []; this.teams = data.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name })); } catch (e) { this.teams = []; }
-        finally { this.loader.hide(); }
-      }, error: (err) => { console.warn('Failed to load teams', err); this.teams = []; this.loader.hide(); }
+        try {
+          const data = res?.data || [];
+          this.allTeams = data.map((t: any) => ({
+            id: t.team_id || t.id || t.teamId,
+            name: t.name,
+            department_id: t.department_id || t.departmentId || t.dept_id || null,
+            department_name: t.department_name || t.department || null,
+          }));
+          this.filterTeamsByDepartment(this.form.get('department')?.value);
+        } catch (e) {
+          this.allTeams = [];
+          this.teams = [];
+        } finally {
+          this.loader.hide();
+        }
+      },
+      error: (err) => {
+        console.warn('Failed to load teams', err);
+        this.allTeams = [];
+        this.teams = [];
+        this.loader.hide();
+      },
     });
+  }
+
+  filterTeamsByDepartment(deptVal: string | null): void {
+    if (!deptVal) {
+      this.teams = [...this.allTeams];
+      return;
+    }
+    const selectedDeptObj = (this.departments || []).find(
+      (d) => String(d.id) === String(deptVal) || (d.name || '').toLowerCase().trim() === String(deptVal).toLowerCase().trim()
+    );
+    const deptId = selectedDeptObj?.id || deptVal;
+    const deptName = (selectedDeptObj?.name || deptVal || '').toLowerCase().trim();
+
+    const filtered = (this.allTeams || []).filter((t) => {
+      // 1. Explicit department_id match
+      if (t.department_id) {
+        return String(t.department_id) === String(deptId);
+      }
+      // 2. Explicit department_name match
+      if (t.department_name) {
+        return (t.department_name || '').toLowerCase().trim() === deptName;
+      }
+
+      // 3. Fallback domain-based matching for un-linked institute teams
+      const teamName = (t.name || '').toLowerCase().trim();
+
+      if (deptName.includes('it') || deptName.includes('tech') || deptName.includes('developer') || deptName.includes('computer')) {
+        return teamName.includes('it') || teamName.includes('soft') || teamName.includes('develop') || teamName.includes('tech') || teamName.includes('system') || teamName.includes('code');
+      }
+      if (deptName.includes('finance') || deptName.includes('account') || deptName.includes('audit')) {
+        return teamName.includes('finan') || teamName.includes('account') || teamName.includes('audit') || teamName.includes('tax') || teamName.includes('pay');
+      }
+      if (deptName.includes('human') || deptName.includes('hr') || deptName.includes('relation')) {
+        return teamName.includes('employee') || teamName.includes('hr') || teamName.includes('human') || teamName.includes('recruit') || teamName.includes('relation') || teamName.includes('talent');
+      }
+      if (deptName.includes('corporate')) {
+        return teamName.includes('corporate') || teamName.includes('sale') || teamName.includes('credit') || teamName.includes('business');
+      }
+      if (deptName.includes('retail') || deptName.includes('branch')) {
+        return teamName.includes('branch') || teamName.includes('customer') || teamName.includes('retail') || teamName.includes('operation');
+      }
+
+      // Default match if team name contains department keyword or vice-versa
+      return teamName.includes(deptName) || deptName.includes(teamName);
+    });
+
+    this.teams = filtered;
   }
 
 

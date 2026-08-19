@@ -1098,3 +1098,32 @@ $shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
     line-height: 1.25 !important;
   }
 }
+
+/* ── Dropdown Select Search Box ── */
+.select-search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--theme-3-border, #e2e8f0);
+  position: sticky;
+  top: 0;
+  background: var(--bg-1, #ffffff);
+  z-index: 10;
+
+  mat-icon {
+    font-size: 1.1rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    color: var(--theme-3-text-3, #64748b);
+  }
+
+  input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 0.85rem;
+    background: transparent;
+    color: var(--theme-3-text-1, #0f172a);
+  }
+}

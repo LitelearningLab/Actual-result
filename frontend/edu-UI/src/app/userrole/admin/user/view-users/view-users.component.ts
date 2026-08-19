@@ -321,6 +321,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       (Array.isArray(this.filters.department) && !this.filters.department.length)
     ) {
       this.filters.team = [];
+    } else {
+      const validTeamIds = (this.filteredTeamsForFilter || []).map((t: any) => t.id);
+      if (Array.isArray(this.filters.team)) {
+        this.filters.team = this.filters.team.filter((id: string) => validTeamIds.includes(id));
+      }
     }
   }
 
@@ -583,10 +588,60 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const selectedTeams = Array.isArray(this.filters.team)
       ? this.filters.team.join(',')
       : this.filters.team || '';
-    const depKey = `${this.teamFilterSearch}|${selectedTeams}|${(this.teams || []).length}`;
+    const selectedDepts = Array.isArray(this.filters.department)
+      ? this.filters.department.join(',')
+      : this.filters.department || '';
+    const depKey = `${this.teamFilterSearch}|${selectedTeams}|${selectedDepts}|${(this.teams || []).length}`;
     return this._memoize('filteredTeams', depKey, () => {
       const term = (this.teamFilterSearch || '').trim().toLowerCase();
       let list = this.teams || [];
+
+      // Filter by selected departments if any are selected in filter
+      const deptsArr: string[] = (Array.isArray(this.filters.department)
+        ? this.filters.department
+        : [this.filters.department]
+      ).filter(Boolean);
+
+      if (deptsArr.length > 0) {
+        const selectedDeptObjs = (this.departments || []).filter(
+          (d) => deptsArr.includes(String(d.id)) || deptsArr.includes(d.name)
+        );
+        const deptNames = selectedDeptObjs.map((d) => (d.name || '').toLowerCase().trim());
+        deptsArr.forEach((val) => {
+          if (typeof val === 'string' && val.trim()) deptNames.push(val.toLowerCase().trim());
+        });
+
+        list = list.filter((t: any) => {
+          if (Array.isArray(this.filters.team) && this.filters.team.includes(t.id)) return true;
+
+          const teamName = (t.name || '').toLowerCase().trim();
+          const teamDeptId = t.department_id ? String(t.department_id) : '';
+          const teamDeptName = t.department_name ? (t.department_name || '').toLowerCase().trim() : '';
+
+          if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
+          if (teamDeptName && deptNames.includes(teamDeptName)) return true;
+
+          return deptNames.some((deptName) => {
+            if (deptName.includes('it') || deptName.includes('tech') || deptName.includes('developer')) {
+              return teamName.includes('it') || teamName.includes('soft') || teamName.includes('develop') || teamName.includes('tech') || teamName.includes('system');
+            }
+            if (deptName.includes('finance') || deptName.includes('account') || deptName.includes('audit')) {
+              return teamName.includes('finan') || teamName.includes('account') || teamName.includes('audit') || teamName.includes('tax') || teamName.includes('pay');
+            }
+            if (deptName.includes('human') || deptName.includes('hr') || deptName.includes('relation')) {
+              return teamName.includes('employee') || teamName.includes('hr') || teamName.includes('human') || teamName.includes('recruit') || teamName.includes('relation') || teamName.includes('talent');
+            }
+            if (deptName.includes('corporate')) {
+              return teamName.includes('corporate') || teamName.includes('sale') || teamName.includes('credit') || teamName.includes('business');
+            }
+            if (deptName.includes('retail') || deptName.includes('branch')) {
+              return teamName.includes('branch') || teamName.includes('customer') || teamName.includes('retail') || teamName.includes('operation');
+            }
+            return teamName.includes(deptName) || deptName.includes(teamName);
+          });
+        });
+      }
+
       if (term) {
         list = list.filter(
           (t) =>
@@ -603,6 +658,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       });
     });
   }
+
+
 
   isAllInstitutesSelected(): boolean {
     const ids: string[] = (this.filteredInstitutesForFilter || [])

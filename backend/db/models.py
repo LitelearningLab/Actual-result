@@ -118,6 +118,7 @@ class InstituteTeam(Base):
      __tablename__ = 'InstituteTeams'
      team_id = Column(String, primary_key=True, default=generate_uuid)
      institute_id = Column(String, ForeignKey('Institutes.institute_id'), nullable=False)
+     department_id = Column(String, ForeignKey('InstituteDepartments.department_id'), nullable=True)
      name = Column(String(255), nullable=False)
      active_status = Column(Integer, default=1)
      created_by = Column(String)

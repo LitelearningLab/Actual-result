@@ -157,6 +157,34 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   private rawRecords: any[] = [];
 
   selectedInstitute: any = null; // used for modal detail view
+
+  getTeamsForDept(dept: any): any[] {
+    if (!this.selectedInstitute || !this.selectedInstitute.teams) return [];
+    const deptName = typeof dept === 'string' ? dept : dept?.name || '';
+    const deptId = typeof dept === 'object' && dept ? dept?.dept_id || dept?.department_id || '' : '';
+    const dNameLower = (deptName || '').toLowerCase().trim();
+
+    return (this.selectedInstitute.teams || []).filter((t: any) => {
+      const tName = (typeof t === 'string' ? t : t?.name || '').trim();
+      if (!tName) return false;
+
+      let explicitDeptId = '';
+      let explicitDeptName = '';
+      if (typeof t === 'object' && t) {
+        explicitDeptId = t.department_id || t.dept_id || '';
+        explicitDeptName = typeof t.department_name === 'string' ? t.department_name : typeof t.department === 'string' ? t.department : (t.department?.name || '');
+      }
+
+      if (explicitDeptId && deptId) {
+        return explicitDeptId === deptId;
+      }
+      if (explicitDeptName) {
+        return explicitDeptName.toLowerCase().trim() === dNameLower;
+      }
+      return tName.toLowerCase() === dNameLower;
+    });
+  }
+
   showFilters = false; // control visibility of filter-block (mini modal)
   editing = false;
   editableInstitute: any = null;

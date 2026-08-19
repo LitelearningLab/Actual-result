@@ -309,3 +309,94 @@ $modal-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── View Details Department & Teams Hierarchy ── */
+.view-dept-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 0.5rem;
+}
+
+.view-dept-card {
+  background: var(--bg-1, #ffffff);
+  border: 1px solid var(--theme-3-border, #e2e8f0);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.view-dept-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--theme-3-border, #e2e8f0);
+  padding-bottom: 0.625rem;
+}
+
+.view-dept-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.view-dept-icon {
+  color: var(--button-1, #1f7bff);
+  font-size: 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.view-dept-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--theme-3-text-1, #0f172a);
+}
+
+.view-dept-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.625rem;
+  border-radius: 0.75rem;
+  background: rgba(31, 123, 255, 0.09);
+  color: var(--button-1, #1f7bff);
+}
+
+.view-dept-card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.view-teams-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+}
+
+.view-team-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.85rem;
+  background: rgba(31, 123, 255, 0.08);
+  border: 1px solid var(--theme-3-border, #e2e8f0);
+  border-radius: 1.25rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--theme-3-text-1, #0f172a);
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(31, 123, 255, 0.15);
+  }
+}
+
+.view-empty-teams {
+  font-size: 0.83rem;
+  color: var(--theme-3-text-3, #94a3b8);
+  font-style: italic;
+  padding: 0.25rem 0;
+}

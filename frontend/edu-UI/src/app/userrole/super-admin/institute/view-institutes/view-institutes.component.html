@@ -662,24 +662,25 @@
                 "
               >
                 <ng-template mat-tab-label>Departments &amp; Teams</ng-template>
-                <div class="dept-teams-grid">
-                  <div
-                    class="dept-section"
-                    *ngIf="selectedInstitute.departments && selectedInstitute.departments.length"
-                  >
-                    <h5 class="section-label">Departments</h5>
-                    <ul class="clean-list">
-                      <li *ngFor="let d of selectedInstitute.departments">{{ d.name }}</li>
-                    </ul>
-                  </div>
-                  <div
-                    class="dept-section"
-                    *ngIf="selectedInstitute.teams && selectedInstitute.teams.length"
-                  >
-                    <h5 class="section-label">Teams</h5>
-                    <ul class="clean-list">
-                      <li *ngFor="let t of selectedInstitute.teams">{{ t.name }}</li>
-                    </ul>
+                <div class="view-dept-cards-container">
+                  <div class="view-dept-card" *ngFor="let dept of selectedInstitute.departments">
+                    <div class="view-dept-card-header">
+                      <div class="view-dept-title-group">
+                        <mat-icon class="view-dept-icon">folder</mat-icon>
+                        <span class="view-dept-name">{{ dept.name }}</span>
+                      </div>
+                      <span class="view-dept-badge">
+                        {{ getTeamsForDept(dept.name).length }} {{ getTeamsForDept(dept.name).length === 1 ? 'Team' : 'Teams' }}
+                      </span>
+                    </div>
+                    <div class="view-dept-card-body">
+                      <div class="view-teams-chips" *ngIf="getTeamsForDept(dept.name).length">
+                        <span class="view-team-chip" *ngFor="let team of getTeamsForDept(dept.name)">{{ team.name }}</span>
+                      </div>
+                      <div class="view-empty-teams" *ngIf="!getTeamsForDept(dept.name).length">
+                        No teams assigned to this department
+                      </div>
+                    </div>
                   </div>
                 </div>
               </mat-tab>

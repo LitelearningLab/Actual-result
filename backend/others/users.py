@@ -841,8 +841,13 @@ def get_user_details(request):
                 city_name = city.city_name
             elif user.city_id:
                 city_name = user.city_id
+
+        created_user_name = None
+        if user.created_by:
+            created_user = session.query(User).filter_by(user_id=user.created_by).first()
             if created_user:
                 created_user_name = created_user.full_name
+
         # updated user details
         updated_user_name = None
         if user.updated_by:

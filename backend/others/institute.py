@@ -221,25 +221,52 @@ def insert_institute(data):
             session.add(new_campus)
 
         operation = "insert_departments_and_teams"
-        for department in data.get('department') or []:
-            if not department:
-                continue
-            new_InstituteDepartment = InstituteDepartment(
-                institute_id=institute_id,
-                name=department,
-                created_by=created_by
-            )
-            session.add(new_InstituteDepartment)
+        departments_structured = data.get('departments_structured')
+        if departments_structured and isinstance(departments_structured, list):
+            for dept_info in departments_structured:
+                dept_name = (dept_info.get('name') if isinstance(dept_info, dict) else str(dept_info)).strip()
+                if not dept_name:
+                    continue
+                new_InstituteDepartment = InstituteDepartment(
+                    institute_id=institute_id,
+                    name=dept_name,
+                    created_by=created_by
+                )
+                session.add(new_InstituteDepartment)
+                session.flush()
 
-        for team in data.get('team') or []:
-            if not team:
-                continue
-            new_InstituteTeam = InstituteTeam(
-                institute_id=institute_id,
-                name=team,
-                created_by=created_by
-            )
-            session.add(new_InstituteTeam)
+                teams_list = dept_info.get('teams') if isinstance(dept_info, dict) else []
+                for team_name in teams_list or []:
+                    team_str = (team_name.get('name') if isinstance(team_name, dict) else str(team_name)).strip()
+                    if not team_str:
+                        continue
+                    new_InstituteTeam = InstituteTeam(
+                        institute_id=institute_id,
+                        department_id=new_InstituteDepartment.department_id,
+                        name=team_str,
+                        created_by=created_by
+                    )
+                    session.add(new_InstituteTeam)
+        else:
+            for department in data.get('department') or []:
+                if not department:
+                    continue
+                new_InstituteDepartment = InstituteDepartment(
+                    institute_id=institute_id,
+                    name=department,
+                    created_by=created_by
+                )
+                session.add(new_InstituteDepartment)
+
+            for team in data.get('team') or []:
+                if not team:
+                    continue
+                new_InstituteTeam = InstituteTeam(
+                    institute_id=institute_id,
+                    name=team,
+                    created_by=created_by
+                )
+                session.add(new_InstituteTeam)
         operation = "commit"
         session.commit()
 
@@ -334,35 +361,71 @@ def update_institute(request):
     institute.updated_by = data.get("current_user", 'system')
     institute.updated_date = datetime.utcnow()
 
-    # update departments if provided
-    department_list = data.get('department', None)
-    if department_list is not None:
-        # Get existing department names for this institute
-        existing_departments = session.query(InstituteDepartment).filter_by(institute_id=institute_id).all()
-        existing_department_names = {dept.name for dept in existing_departments}
-        for department in department_list:
-            if department not in existing_department_names:
-                new_InstituteDepartment = InstituteDepartment(
-                    institute_id=institute_id,
-                    name=department,
-                    created_by=data.get("current_user", 'system')
-                )
-                session.add(new_InstituteDepartment)
+    # update departments & teams if departments_structured is provided
+    departments_structured = data.get('departments_structured', None)
+    if departments_structured and isinstance(departments_structured, list):
+        # Fetch existing departments & map names to department_id
+        existing_depts = session.query(InstituteDepartment).filter_by(institute_id=institute_id).all()
+        dept_map = {d.name.lower(): d for d in existing_depts}
 
-    # update teams if provided
-    team_list = data.get('team', None)
-    if team_list is not None:
-        # session.query(InstituteTeam).filter_by(institute_id=institute_id).delete()
-        existing_teams = session.query(InstituteTeam).filter_by(institute_id=institute_id).all()
-        existing_team_names = {team.name for team in existing_teams}
-        for team in team_list:
-            if team not in existing_team_names:
-                new_InstituteTeam = InstituteTeam(
+        for dept_info in departments_structured:
+            dept_name = (dept_info.get('name') if isinstance(dept_info, dict) else str(dept_info)).strip()
+            if not dept_name:
+                continue
+            
+            dept_obj = dept_map.get(dept_name.lower())
+            if not dept_obj:
+                dept_obj = InstituteDepartment(
                     institute_id=institute_id,
-                    name=team,
+                    name=dept_name,
                     created_by=data.get("current_user", 'system')
                 )
-                session.add(new_InstituteTeam)
+                session.add(dept_obj)
+                session.flush()
+                dept_map[dept_name.lower()] = dept_obj
+
+            teams_list = dept_info.get('teams') if isinstance(dept_info, dict) else []
+            existing_teams = session.query(InstituteTeam).filter_by(institute_id=institute_id, department_id=dept_obj.department_id).all()
+            existing_team_names = {t.name for t in existing_teams}
+
+            for team_name in teams_list or []:
+                team_str = (team_name.get('name') if isinstance(team_name, dict) else str(team_name)).strip()
+                if not team_str or team_str in existing_team_names:
+                    continue
+                new_team = InstituteTeam(
+                    institute_id=institute_id,
+                    department_id=dept_obj.department_id,
+                    name=team_str,
+                    created_by=data.get("current_user", 'system')
+                )
+                session.add(new_team)
+    else:
+        # Fallback flat lists update
+        department_list = data.get('department', None)
+        if department_list is not None:
+            existing_departments = session.query(InstituteDepartment).filter_by(institute_id=institute_id).all()
+            existing_department_names = {dept.name for dept in existing_departments}
+            for department in department_list:
+                if department not in existing_department_names:
+                    new_InstituteDepartment = InstituteDepartment(
+                        institute_id=institute_id,
+                        name=department,
+                        created_by=data.get("current_user", 'system')
+                    )
+                    session.add(new_InstituteDepartment)
+
+        team_list = data.get('team', None)
+        if team_list is not None:
+            existing_teams = session.query(InstituteTeam).filter_by(institute_id=institute_id).all()
+            existing_team_names = {team.name for team in existing_teams}
+            for team in team_list:
+                if team not in existing_team_names:
+                    new_InstituteTeam = InstituteTeam(
+                        institute_id=institute_id,
+                        name=team,
+                        created_by=data.get("current_user", 'system')
+                    )
+                    session.add(new_InstituteTeam)
 
     # update campuses if provided
     campus_list = data.get('campuses', None)
@@ -548,10 +611,18 @@ def get_institute_details(request):
         departments = session.query(InstituteDepartment).filter_by(institute_id=inst.institute_id).all()
         dept_list = []
         for dept in departments:
+            d_teams = session.query(InstituteTeam).filter_by(institute_id=inst.institute_id, department_id=dept.department_id).all()
             dept_list.append({
                 "dept_id": dept.department_id,
                 "name": dept.name,
                 "active_status": True if dept.active_status else False,
+                "teams": [
+                    {
+                        "team_id": t.team_id,
+                        "name": t.name,
+                        "active_status": True if t.active_status else False,
+                    } for t in d_teams
+                ]
             })
         # Get InstituteTeams details
         teams = session.query(InstituteTeam).filter_by(institute_id=inst.institute_id).all()
@@ -559,6 +630,7 @@ def get_institute_details(request):
         for team in teams:
             team_list.append({
                 "team_id": team.team_id,
+                "department_id": getattr(team, 'department_id', None),
                 "name": team.name,
                 "active_status": True if team.active_status else False,
             })

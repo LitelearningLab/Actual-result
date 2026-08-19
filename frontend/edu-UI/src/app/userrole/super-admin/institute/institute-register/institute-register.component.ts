@@ -33,6 +33,16 @@ import { RouterModule } from '@angular/router';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 
+export interface DepartmentItem {
+  id?: string;
+  name: string;
+  teams: string[];
+  isAddingTeam?: boolean;
+  newTeamName?: string;
+  isEditingName?: boolean;
+  editNameValue?: string;
+}
+
 const subscriptionDateRangeValidator: ValidatorFn = (
   control: AbstractControl
 ): ValidationErrors | null => {
@@ -132,7 +142,7 @@ export class InstituteRegisterComponent {
       industry_sector: [{ value: null as string | null, disabled: true }, Validators.required],
       department: ['', Validators.required],
       branch: ['' as string | null],
-      team: ['', Validators.required],
+      team: [''],
       max_users: [null as number | null, [Validators.required, Validators.min(1)]],
       subscription_start: [null as Date | null, Validators.required],
       subscription_end: [null as Date | null, Validators.required],
@@ -175,10 +185,121 @@ export class InstituteRegisterComponent {
   // dynamic options shown in the Sector dropdown based on selected Industry
   sectorOptions: string[] = [];
 
-  // department and team lists (chips)
+  // Hierarchical department & team data structure
+  departments: DepartmentItem[] = [];
+  showAddDepartmentModal: boolean = false;
+  newDepartmentName: string = '';
+
+  // department and team lists (kept in sync for API compatibility)
   departmentList: string[] = [];
   teamList: string[] = [];
   branchList: string[] = [];
+
+  syncFormDepartmentAndTeam(): void {
+    const deptNames = this.departments.map((d) => d.name.trim()).filter(Boolean);
+    const allTeams = this.departments
+      .flatMap((d) => (d.teams || []).map((t) => t.trim()))
+      .filter(Boolean);
+
+    this.departmentList = deptNames;
+    this.teamList = allTeams;
+
+    this.form.get('department')?.setValue(deptNames.join(','));
+    this.form.get('team')?.setValue(allTeams.join(','));
+
+    this.form.get('department')?.markAsTouched();
+    this.form.get('department')?.updateValueAndValidity();
+    this.form.get('team')?.updateValueAndValidity();
+  }
+
+  openAddDepartmentModal(): void {
+    this.showAddDepartmentModal = true;
+    this.newDepartmentName = '';
+  }
+
+  closeAddDepartmentModal(): void {
+    this.showAddDepartmentModal = false;
+    this.newDepartmentName = '';
+  }
+
+  confirmAddDepartment(): void {
+    const name = (this.newDepartmentName || '').trim();
+    if (!name) return;
+
+    if (this.departments.some((d) => d.name.toLowerCase() === name.toLowerCase())) {
+      this._snack.open('Department with this name already exists.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    this.departments.push({
+      name: name,
+      teams: [],
+      isAddingTeam: false,
+      newTeamName: '',
+      isEditingName: false,
+      editNameValue: '',
+    });
+
+    this.syncFormDepartmentAndTeam();
+    this.closeAddDepartmentModal();
+  }
+
+  startEditDepartmentName(dept: DepartmentItem): void {
+    dept.isEditingName = true;
+    dept.editNameValue = dept.name;
+  }
+
+  saveDepartmentName(dept: DepartmentItem): void {
+    const val = (dept.editNameValue || '').trim();
+    if (val && val !== dept.name) {
+      if (this.departments.some((d) => d !== dept && d.name.toLowerCase() === val.toLowerCase())) {
+        this._snack.open('Department with this name already exists.', 'Close', { duration: 3000 });
+        return;
+      }
+      dept.name = val;
+      this.syncFormDepartmentAndTeam();
+    }
+    dept.isEditingName = false;
+  }
+
+  cancelEditDepartmentName(dept: DepartmentItem): void {
+    dept.isEditingName = false;
+  }
+
+  deleteDepartment(index: number): void {
+    this.departments.splice(index, 1);
+    this.syncFormDepartmentAndTeam();
+  }
+
+  startAddingTeam(dept: DepartmentItem): void {
+    dept.isAddingTeam = true;
+    dept.newTeamName = '';
+  }
+
+  cancelAddingTeam(dept: DepartmentItem): void {
+    dept.isAddingTeam = false;
+    dept.newTeamName = '';
+  }
+
+  confirmAddTeam(dept: DepartmentItem): void {
+    const val = (dept.newTeamName || '').trim();
+    if (!val) return;
+
+    if (dept.teams.some((t) => t.toLowerCase() === val.toLowerCase())) {
+      this._snack.open('Team already exists in this department.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    dept.teams.push(val);
+    dept.newTeamName = '';
+    dept.isAddingTeam = false;
+    this.syncFormDepartmentAndTeam();
+  }
+
+  removeTeamFromDepartment(dept: DepartmentItem, teamIndex: number): void {
+    dept.teams.splice(teamIndex, 1);
+    this.syncFormDepartmentAndTeam();
+  }
 
   // optional selected department when adding a branch
   selectedBranchDepartment: string | null = '';
@@ -511,11 +632,75 @@ export class InstituteRegisterComponent {
             }
           }
         } catch (e) {}
-        // departments and teams to chips
-        this.departmentList = (obj.departments || []).map((d: any) => d.name || '');
-        this.teamList = (obj.teams || []).map((t: any) => t.name || '');
-        this.form.get('department')?.setValue(this.departmentList.join(','));
-        this.form.get('team')?.setValue(this.teamList.join(','));
+        // departments and teams to hierarchy structure
+        const rawDepts = (obj.departments || [])
+          .map((d: any) => (typeof d === 'string' ? d : d.name || ''))
+          .filter(Boolean);
+        const rawTeams = (obj.teams || [])
+          .map((t: any) => (typeof t === 'string' ? t : t.name || ''))
+          .filter(Boolean);
+
+        if (rawDepts.length > 0) {
+          const rawDeptsObjects = Array.isArray(obj.departments) ? obj.departments : [];
+          const rawTeamsObjects = Array.isArray(obj.teams) ? obj.teams : [];
+          const assignedTeams = new Set<string>();
+
+          this.departments = rawDeptsObjects.map((d: any, idx: number) => {
+            const dName = typeof d === 'string' ? d : d?.name || rawDepts[idx] || '';
+            const dId = typeof d === 'object' && d ? d?.dept_id || d?.department_id || '' : '';
+            const dNameLower = dName.toLowerCase().trim();
+            const matchedTeams: string[] = [];
+
+            for (const t of rawTeamsObjects) {
+              const tName = (typeof t === 'string' ? t : t?.name || '').trim();
+              if (!tName) continue;
+
+              let explicitDeptId = '';
+              let explicitDeptName = '';
+              if (typeof t === 'object' && t) {
+                explicitDeptId = t.department_id || t.dept_id || '';
+                explicitDeptName = typeof t.department_name === 'string' ? t.department_name : typeof t.department === 'string' ? t.department : (t.department?.name || '');
+              }
+
+              let isMatch = false;
+              if (explicitDeptId && dId) {
+                isMatch = explicitDeptId === dId;
+              } else if (explicitDeptName) {
+                isMatch = explicitDeptName.toLowerCase().trim() === dNameLower;
+              } else {
+                isMatch = tName.toLowerCase() === dNameLower;
+              }
+
+              if (isMatch) {
+                matchedTeams.push(tName);
+                assignedTeams.add(tName);
+              }
+            }
+
+            return {
+              name: dName,
+              teams: matchedTeams,
+              isAddingTeam: false,
+              newTeamName: '',
+              isEditingName: false,
+              editNameValue: '',
+            };
+          });
+        } else if (rawTeams.length > 0) {
+          this.departments = [
+            {
+              name: 'General',
+              teams: [...rawTeams],
+              isAddingTeam: false,
+              newTeamName: '',
+              isEditingName: false,
+              editNameValue: '',
+            },
+          ];
+        } else {
+          this.departments = [];
+        }
+        this.syncFormDepartmentAndTeam();
         // campuses — deferred until getCountries() resolves so mat-select
         // options exist before values are written (fixes blank dropdowns on edit)
         this._pendingEditCampuses = campusesData.filter(
@@ -980,6 +1165,10 @@ export class InstituteRegisterComponent {
       contact_phone: undefined,
       branch: undefined,
       // prefer the explicit arrays maintained by the UI (departmentList/teamList)
+      departments_structured: this.departments.map((d) => ({
+        name: d.name,
+        teams: d.teams || [],
+      })),
       department: this.departmentList.slice(),
       team: this.teamList.slice(),
       // send only current user's id
