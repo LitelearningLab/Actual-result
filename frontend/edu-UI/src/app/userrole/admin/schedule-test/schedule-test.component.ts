@@ -158,6 +158,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   teamList: string[] = [];
   campusList: string[] = [];
   countries: Array<{ code: string; name: string }> = [];
+  superAdminUserCountries: Array<{ code: string; name: string }> = [];
+  superAdminUserCities: Array<{ code: string; name: string; countryCode: string; campusId?: string }> = [];
   states: Array<{ code: string; name: string }> = [];
   cities: Array<{ code: string; name: string }> = [];
   industryTypes = ['School', 'College', 'BPO', 'Bank', 'IT'];
@@ -552,6 +554,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       this.loadCampusList(adminInstId);
       this.loadDepartmentList(adminInstId);
       this.loadTeamsList(adminInstId);
+    } else if (this.isSuperAdmin) {
+      this.loadSuperAdminUserLocationsForStep2();
     }
     this.updateInstituteDisabledState();
   }
@@ -1369,15 +1373,84 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     return item?.id || item?.code || item?.name || String(index);
   }
 
+  loadSuperAdminUserLocationsForStep2(): void {
+    if (!this.isSuperAdmin) return;
+    const targetInstitute = this.model.institute || this.getAdminInstituteId() || this.filterInstitute || '';
+    const params: any = { pageSize: 10000, pageNumber: 1, _ts: Date.now() };
+    if (targetInstitute) {
+      params.institute_id = targetInstitute;
+    }
+
+    this.http.get<any>(`${API_BASE}/get-users-list`, { params, ...this.explicitInstituteRequestOptions() }).subscribe({
+      next: (res) => {
+        try {
+          const users = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+          const uniqueCountries = new Map<string, { code: string; name: string }>();
+          const uniqueCities = new Map<string, { code: string; name: string; countryCode: string; campusId?: string }>();
+
+          users.forEach((user: any) => {
+            const countryCode = String(
+              user?.country?.country_id || user?.country_id || user?.country?.country_name || user?.country_name || ''
+            ).trim();
+            const countryName = String(
+              user?.country?.country_name || user?.country_name || user?.country?.country_id || user?.country_id || ''
+            ).trim();
+            const cityCode = String(
+              user?.city?.city_id || user?.city_id || user?.city?.city_name || user?.city_name || ''
+            ).trim();
+            const cityName = String(
+              user?.city?.city_name || user?.city_name || user?.city?.city_id || user?.city_id || ''
+            ).trim();
+            const campusId = String(user?.campus_id || user?.campus?.campus_id || '').trim();
+
+            if (countryCode && countryName && !uniqueCountries.has(countryCode.toLowerCase())) {
+              uniqueCountries.set(countryCode.toLowerCase(), { code: countryCode, name: countryName });
+            }
+
+            if (countryCode && cityName) {
+              const cityKey = `${countryCode.toLowerCase()}|${cityName.toLowerCase()}`;
+              if (!uniqueCities.has(cityKey)) {
+                uniqueCities.set(cityKey, {
+                  code: cityCode || cityName,
+                  name: cityName,
+                  countryCode: countryCode,
+                  campusId: campusId
+                });
+              }
+            }
+          });
+
+          this.superAdminUserCountries = Array.from(uniqueCountries.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+          this.superAdminUserCities = Array.from(uniqueCities.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+          try {
+            this.cd.detectChanges();
+          } catch (e) {}
+        } catch (e) {
+          this.superAdminUserCountries = [];
+          this.superAdminUserCities = [];
+        }
+      },
+      error: () => {
+        this.superAdminUserCountries = [];
+        this.superAdminUserCities = [];
+      }
+    });
+  }
+
   // --- Step 2 Select Users Filter Getters & Toggles ---
   get filteredUserCountriesForFilter(): Array<{ code: string; name: string }> {
-    const depKey = `${this.userCountrySearch}|${this.isSuperAdmin}|${(this.selectedUserCountries || []).join(',')}|${(this.countries || []).length}|${(this.userCampuses || []).length}`;
+    const depKey = `${this.userCountrySearch}|${this.isSuperAdmin}|${(this.selectedUserCountries || []).join(',')}|${(this.countries || []).length}|${(this.superAdminUserCountries || []).length}|${(this.userCampuses || []).length}`;
     return this._memoize('filteredUserCountries', depKey, () => {
       const term = (this.userCountrySearch || '').trim().toLowerCase();
       let list: Array<{ code: string; name: string }> = [];
 
-      // For Admin login, extract unique countries directly from the institute's campuses
-      if (!this.isSuperAdmin && this.userCampuses && this.userCampuses.length > 0) {
+      if (this.isSuperAdmin && this.superAdminUserCountries && this.superAdminUserCountries.length > 0) {
+        list = this.superAdminUserCountries;
+      } else if (!this.isSuperAdmin && this.userCampuses && this.userCampuses.length > 0) {
         const uniqueMap = new Map<string, { code: string; name: string }>();
         this.userCampuses.forEach((c: any) => {
           const code = c.country_id || c.country_name;
@@ -1429,12 +1502,34 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   }
 
   get filteredUserCitiesForFilter(): Array<{ code: string; name: string }> {
-    const depKey = `${this.userCitySearch}|${this.isSuperAdmin}|${(this.selectedUserCountries || []).join(',')}|${(this.selectedUserCities || []).join(',')}|${(this.cities || []).length}|${(this.userCampuses || []).length}`;
+    const depKey = `${this.userCitySearch}|${this.isSuperAdmin}|${(this.selectedUserCountries || []).join(',')}|${(this.selectedUserCities || []).join(',')}|${(this.cities || []).length}|${(this.superAdminUserCities || []).length}|${(this.userCampuses || []).length}`;
     return this._memoize('filteredUserCities', depKey, () => {
       const term = (this.userCitySearch || '').trim().toLowerCase();
       let list: Array<{ code: string; name: string }> = [];
 
-      if (!this.isSuperAdmin && this.userCampuses && this.userCampuses.length > 0) {
+      if (this.isSuperAdmin && this.superAdminUserCities && this.superAdminUserCities.length > 0) {
+        let relevantCities = this.superAdminUserCities;
+        if (this.selectedUserCountries && this.selectedUserCountries.length > 0) {
+          const selectedCodes = this.selectedUserCountries.map((c) => String(c).toLowerCase());
+          relevantCities = relevantCities.filter((c) =>
+            selectedCodes.some(
+              (sc) =>
+                sc === String(c.countryCode || '').toLowerCase() ||
+                sc === String(c.code || '').toLowerCase()
+            )
+          );
+        }
+        const cityMap = new Map<string, { code: string; name: string }>();
+        relevantCities.forEach((c) => {
+          if (c.name) {
+            const key = String(c.name).trim().toLowerCase();
+            if (!cityMap.has(key)) {
+              cityMap.set(key, { code: String(c.code || c.name), name: String(c.name) });
+            }
+          }
+        });
+        list = Array.from(cityMap.values());
+      } else if (!this.isSuperAdmin && this.userCampuses && this.userCampuses.length > 0) {
         let relevantCampuses = this.userCampuses;
         if (this.selectedUserCountries && this.selectedUserCountries.length > 0) {
           const selectedCodes = this.selectedUserCountries.map((c) => c.toLowerCase());
@@ -1950,6 +2045,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   // when the institute select changes in the template, call this helper to load exams
   onInstituteChange(value: string) {
     this.model.institute = value || '';
+    if (this.isSuperAdmin) {
+      this.loadSuperAdminUserLocationsForStep2();
+    }
     // Prioritize the test list. Loading every institute dependency at the same
     // time makes the local backend compete for database connections and delays
     // the dropdown the user is waiting for.
@@ -2147,6 +2245,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   openUserFiltersOverlay() {
     if (!this.userFiltersBtn) return;
     this.userFilterOpen = true;
+    if (this.isSuperAdmin) {
+      this.loadSuperAdminUserLocationsForStep2();
+    }
     if (this.userFiltersOverlayRef) {
       try {
         this.userFiltersOverlayRef.dispose();
@@ -2193,6 +2294,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   // Open/close the Select Users filter modal
   openUserFilter() {
     this.userFilterOpen = true;
+    if (this.isSuperAdmin) {
+      this.loadSuperAdminUserLocationsForStep2();
+    }
     try {
       this.cd.detectChanges();
     } catch (e) {}

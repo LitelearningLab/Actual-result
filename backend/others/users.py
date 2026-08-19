@@ -734,12 +734,9 @@ def get_user_details(request):
         campus_objs = q_campus.all()
         campus_ids = list(set([c.campus_id for c in campus_objs] + [c.name for c in campus_objs] + [campus_val]))
         filter.append(User.campus_id.in_(campus_ids))
+
     country_filter = str(args.get("country") or '').strip()
     if country_filter:
-        # Country selectors now send Countries.country_id, but older user rows
-        # may contain an ISO code from the previous registration UI. Accept
-        # both forms and also use the user's campus country when the redundant
-        # User.country_id value is missing.
         country = session.query(Country).filter(or_(
             Country.country_id == country_filter,
             Country.iso2 == country_filter,
@@ -754,11 +751,6 @@ def get_user_details(request):
                 country.country_id, country.iso2, country.iso3, country.country_name
             ) if value]
 
-        # Keep country-only filtering independent of the campus outer join.  A
-        # user matches when either its own country value is compatible with the
-        # selected country, or its assigned campus belongs to that country.
-        # Using a campus-id subquery also avoids multiplying user rows when the
-        # request is filtered by country only.
         campus_ids_for_country = session.query(InstituteCampus.campus_id).filter(
             InstituteCampus.country_id == canonical_country_id
         )
@@ -766,24 +758,35 @@ def get_user_details(request):
             User.country_id.in_(country_values),
             User.campus_id.in_(campus_ids_for_country)
         ))
+
     state_filter = str(args.get("state") or '').strip()
     if state_filter:
         filter.append(or_(
             User.state_id == state_filter,
             InstituteCampus.state_id == state_filter
         ))
+
     city_filter = str(args.get("city") or '').strip()
     if city_filter:
-        city = session.query(City).filter(or_(
-            City.city_id == city_filter,
-            City.city_name == city_filter
-        )).first()
-        city_id = city.city_id if city else city_filter
-        filter.append(or_(
-            User.city_id == city_id,
-            InstituteCampus.city_id == city_id,
-            InstituteCampus.city_name.ilike(f"%{city_filter}%")
-        ))
+        city_items = [c.strip() for c in city_filter.split(',') if c.strip()]
+        city_conditions = []
+        for item in city_items:
+            city_obj = session.query(City).filter(or_(
+                City.city_id == item,
+                City.city_name == item,
+                City.city_name.ilike(item)
+            )).first()
+            matching_vals = [item]
+            if city_obj:
+                if city_obj.city_id and city_obj.city_id not in matching_vals:
+                    matching_vals.append(city_obj.city_id)
+                if city_obj.city_name and city_obj.city_name not in matching_vals:
+                    matching_vals.append(city_obj.city_name)
+            city_conditions.append(User.city_id.in_(matching_vals))
+            city_conditions.append(User.city_id.ilike(f"%{item}%"))
+            city_conditions.append(InstituteCampus.city_id.in_(matching_vals))
+            city_conditions.append(InstituteCampus.city_name.ilike(f"%{item}%"))
+        filter.append(or_(*city_conditions))
 
     query = session.query(User)
     if city_filter or state_filter:
@@ -791,10 +794,9 @@ def get_user_details(request):
     filtered_query = query.filter(*filter)
     user_details = filtered_query.order_by(User.created_date).offset((page_number - 1) * page_size).limit(page_size).all()
     total_count = filtered_query.count()
-    
+
     result = []
     for user in user_details:
-        # Fetch institute_name based on institute_id
         institute_name = None
         if user.institute_id:
             institute = session.query(Institute).filter_by(institute_id=user.institute_id).first()
@@ -812,20 +814,20 @@ def get_user_details(request):
             team = session.query(InstituteTeam).filter_by(team_id=user.team_id).first()
             if team:
                 team_name = team.name
-        # get campus 
+
         campus_name = None
         campus = None
         if user.campus_id:
             campus = session.query(InstituteCampus).filter_by(campus_id=user.campus_id).first()
             if campus:
                 campus_name = campus.name
-        # get countrt, state and city data also
+
         country_name = None
         if user.country_id:
             country = session.query(Country).filter_by(country_id=user.country_id).first()
             if country:
                 country_name = country.country_name
-        
+
         state_name = None
         if user.state_id:
             state = session.query(State).filter_by(state_id=user.state_id).first()
@@ -837,11 +839,8 @@ def get_user_details(request):
             city = session.query(City).filter_by(city_id=user.city_id).first()
             if city:
                 city_name = city.city_name
-
-        # get created user details
-        created_user_name = None
-        if user.created_by:
-            created_user = session.query(User).filter_by(user_id=user.created_by).first()
+            elif user.city_id:
+                city_name = user.city_id
             if created_user:
                 created_user_name = created_user.full_name
         # updated user details

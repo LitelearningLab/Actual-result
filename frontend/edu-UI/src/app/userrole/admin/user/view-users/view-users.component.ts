@@ -7,6 +7,7 @@ import {
   ElementRef,
   TemplateRef,
   ViewContainerRef,
+  ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -121,6 +122,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   // `code` is the Country table primary key used by /get-users. `countryCode`
   // keeps the ISO/code value only for matching location/institute responses.
   countries: Array<{ code: string; name: string; countryCode?: string }> = [];
+  allUserCities: Array<{ code: string; name: string; countryCode: string }> = [];
   states: Array<{ code: string; name: string }> = [];
   cities: Array<{ code: string; name: string }> = [];
   departments: Array<{ id: string; name: string }> = [];
@@ -200,7 +202,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     private vcr: ViewContainerRef,
     private pageMeta: PageMetaService,
     private confirmService: ConfirmService,
-    public globalInstituteContext: GlobalInstituteContextService
+    public globalInstituteContext: GlobalInstituteContextService,
+    private cd: ChangeDetectorRef
   ) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
@@ -301,11 +304,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         this.loadDepartments(iid);
         this.loadTeams(iid);
         this.loadCampuses(iid);
+        this.loadCountries(iid);
       } else {
         // Clear institute filter and reload all users
         this.departments = [];
         this.teams = [];
         this.campuses = [];
+        this.loadCountries();
       }
     } catch (e) {}
   }
@@ -351,37 +356,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   // --- Country Logic ---
   get filteredCountriesForFilter() {
-    const depKey = `${this.countryFilterSearch}|${this.isSuperAdmin}|${(this.selectedCountries || []).join(',')}|${(this.countries || []).length}|${(this.campuses || []).length}`;
+    const depKey = `${this.countryFilterSearch}|${this.isSuperAdmin}|${(this.selectedCountries || []).join(',')}|${(this.countries || []).length}`;
     return this._memoize('filteredCountries', depKey, () => {
       const term = (this.countryFilterSearch || '').trim().toLowerCase();
       let list = this.countries || [];
-
-      // Fallback: if countries list is empty for Admin Login, build from loaded campuses
-      if (!list.length && !this.isSuperAdmin && this.campuses && this.campuses.length > 0) {
-        const uniqueMap = new Map<string, { code: string; name: string }>();
-        this.campuses.forEach((c: any) => {
-          const code = c.country_id || c.country_name;
-          const name = c.country_name || c.country_id;
-          if (code && name) {
-            uniqueMap.set(String(code).toLowerCase(), { code: String(code), name: String(name) });
-          }
-        });
-        list = Array.from(uniqueMap.values());
-      } else if (!this.isSuperAdmin && this.campuses && this.campuses.length > 0) {
-        const campusCountryKeys = new Set(
-          this.campuses
-            .flatMap((c: any) => [
-              String(c.country_id || '').toLowerCase(),
-              String(c.country_name || '').toLowerCase(),
-            ])
-            .filter(Boolean)
-        );
-        list = list.filter(
-          (c) =>
-            campusCountryKeys.has(String(c.code || '').toLowerCase()) ||
-            campusCountryKeys.has(String(c.name || '').toLowerCase())
-        );
-      }
 
       if (term) {
         list = list.filter(
@@ -416,38 +394,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   get filteredCitiesForFilter(): Array<{ code: string; name: string }> {
-    const depKey = `${this.cityFilterSearch}|${this.isSuperAdmin}|${(this.selectedCountries || []).join(',')}|${(this.selectedCities || []).join(',')}|${(this.cities || []).length}|${(this.campuses || []).length}`;
+    const depKey = `${this.cityFilterSearch}|${this.isSuperAdmin}|${(this.selectedCountries || []).join(',')}|${(this.selectedCities || []).join(',')}|${(this.cities || []).length}`;
     return this._memoize('filteredCities', depKey, () => {
       const term = (this.cityFilterSearch || '').trim().toLowerCase();
       let list = this.cities || [];
-
-      if (!this.isSuperAdmin && this.campuses && this.campuses.length > 0) {
-        let relevantCampuses = this.campuses;
-        if (this.selectedCountries && this.selectedCountries.length > 0) {
-          const selectedCodes = this.selectedCountries.map((c) => c.toLowerCase());
-          relevantCampuses = relevantCampuses.filter((c: any) =>
-            selectedCodes.some(
-              (sc) =>
-                sc === String(c.country_id || '').toLowerCase() ||
-                sc === String(c.country_name || '').toLowerCase()
-            )
-          );
-        }
-        const campusCityMap = new Map<string, { code: string; name: string }>();
-        relevantCampuses.forEach((c: any) => {
-          const cityName = c.city_name || c.city_id;
-          if (cityName) {
-            const key = String(cityName).trim().toLowerCase();
-            if (!campusCityMap.has(key)) {
-              campusCityMap.set(key, {
-                code: String(c.city_id || cityName),
-                name: String(cityName),
-              });
-            }
-          }
-        });
-        list = Array.from(campusCityMap.values());
-      }
 
       if (term) {
         list = list.filter(
@@ -1703,7 +1653,88 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.instituteSearch = found ? found.institute_name : '';
   }
 
+  loadAdminUserLocations(): void {
+    if (this.isSuperAdmin) return;
+    const params: any = { pageNumber: 1, pageSize: 10000, _ts: Date.now() };
+    const instituteParam =
+      this.selectedInstitutes?.length
+        ? this.selectedInstitutes.join(',')
+        : this.filters.institute ||
+          this.selectedInstitute ||
+          (this.isGlobalInstituteActive ? this.globalInstituteContext.activeInstituteId : '');
+    if (instituteParam) params.institute_id = instituteParam;
+
+    this.http.get<any>(`${API_BASE}/get-users`, { params }).subscribe({
+      next: (res) => {
+        try {
+          const dataCandidate = res?.data?.users ?? res?.users ?? res?.data ?? res;
+          const users = Array.isArray(dataCandidate) ? dataCandidate : [];
+
+          const uniqueCountries = new Map<string, { code: string; name: string; countryCode?: string }>();
+          const uniqueCities = new Map<string, { code: string; name: string; countryCode: string }>();
+
+          users.forEach((user: any) => {
+            const countryCode = String(
+              user?.country?.country_id || user?.country_id || user?.country?.country_name || user?.country_name || ''
+            ).trim();
+            const countryName = String(
+              user?.country?.country_name || user?.country_name || user?.country?.country_id || user?.country_id || ''
+            ).trim();
+            const cityCode = String(
+              user?.city?.city_id || user?.city_id || user?.city?.city_name || user?.city_name || ''
+            ).trim();
+            const cityName = String(
+              user?.city?.city_name || user?.city_name || user?.city?.city_id || user?.city_id || ''
+            ).trim();
+
+            if (countryCode && countryName && !uniqueCountries.has(countryCode.toLowerCase())) {
+              uniqueCountries.set(countryCode.toLowerCase(), { code: countryCode, name: countryName, countryCode });
+            }
+
+            if (countryCode && cityName) {
+              const cityKey = `${countryCode.toLowerCase()}|${cityName.toLowerCase()}`;
+              if (!uniqueCities.has(cityKey)) {
+                uniqueCities.set(cityKey, {
+                  code: cityCode || cityName,
+                  name: cityName,
+                  countryCode: countryCode
+                });
+              }
+            }
+          });
+
+          this.countries = Array.from(uniqueCountries.values()).sort((a, b) => a.name.localeCompare(b.name));
+          this.allUserCities = Array.from(uniqueCities.values());
+          if (this.filters.country) {
+            const selected = String(this.filters.country).trim().toLowerCase();
+            const canonical = this.countries.find(
+              (country) =>
+                country.code.toLowerCase() === selected ||
+                String(country.countryCode || '').toLowerCase() === selected ||
+                country.name.toLowerCase() === selected
+            );
+            this.filters.country = canonical?.code || '';
+          }
+          try {
+            this.cd.detectChanges();
+          } catch (e) {}
+        } catch (e) {
+          this.countries = [];
+          this.allUserCities = [];
+        }
+      },
+      error: () => {
+        this.countries = [];
+        this.allUserCities = [];
+      }
+    });
+  }
+
   loadCountries(instituteId?: string) {
+    if (!this.isSuperAdmin) {
+      this.loadAdminUserLocations();
+      return;
+    }
     this.countries = [];
     const hierarchyUrl = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(hierarchyUrl).subscribe({
@@ -1829,6 +1860,30 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       if (this.isSuperAdmin) {
         this.refreshInstituteScope();
       }
+      return;
+    }
+
+    if (!this.isSuperAdmin && this.allUserCities && this.allUserCities.length > 0) {
+      const selectedCodes = selectedCountryCodes.map((c) => String(c).toLowerCase());
+      const relevantCities = this.allUserCities.filter((c) =>
+        selectedCodes.some(
+          (sc) =>
+            sc === String(c.countryCode || '').toLowerCase() ||
+            sc === String(c.code || '').toLowerCase()
+        )
+      );
+      const uniqueCities = new Map<string, { code: string; name: string }>();
+      relevantCities.forEach((c) => {
+        if (c.name) {
+          const key = c.name.toLowerCase();
+          if (!uniqueCities.has(key)) {
+            uniqueCities.set(key, { code: c.code || c.name, name: c.name });
+          }
+        }
+      });
+      this.cities = Array.from(uniqueCities.values()).sort((a, b) => a.name.localeCompare(b.name));
+      const validCityNames = new Set(this.cities.map((c) => c.name));
+      this.selectedCities = (this.selectedCities || []).filter((name) => validCityNames.has(name));
       return;
     }
 
