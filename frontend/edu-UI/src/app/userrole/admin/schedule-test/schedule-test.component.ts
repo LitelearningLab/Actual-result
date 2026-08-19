@@ -1024,6 +1024,10 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   citySearch = '';
 
   loadCountries() {
+    if (!this.isSuperAdmin) {
+      this.loadAdminUserLocations();
+      return;
+    }
     this.http.get<any>(`${API_BASE}/registered-countries`).subscribe({
       next: (res) => {
         const list = Array.isArray(res?.data) ? res.data : [];
@@ -1081,20 +1085,20 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
             users.forEach((user: any) => {
               const countryCode = String(
-                user?.country?.country_id || user?.country_id || ''
+                user?.country?.country_id || user?.country_id || user?.country?.country_name || user?.country_name || ''
               ).trim();
               const countryName = String(
-                user?.country?.country_name || user?.country_name || ''
+                user?.country?.country_name || user?.country_name || user?.country?.country_id || user?.country_id || ''
               ).trim();
-              const cityCode = String(user?.city?.city_id || user?.city_id || '').trim();
-              const cityName = String(user?.city?.city_name || user?.city_name || '').trim();
+              const cityCode = String(user?.city?.city_id || user?.city_id || user?.city?.city_name || user?.city_name || '').trim();
+              const cityName = String(user?.city?.city_name || user?.city_name || user?.city?.city_id || user?.city_id || '').trim();
 
-              if (countryCode && countryName && !uniqueCountries.has(countryCode)) {
-                uniqueCountries.set(countryCode, { code: countryCode, name: countryName });
+              if (countryCode && countryName && !uniqueCountries.has(countryCode.toLowerCase())) {
+                uniqueCountries.set(countryCode.toLowerCase(), { code: countryCode, name: countryName });
               }
 
               if (countryCode && cityName) {
-                const cityKey = `${countryCode}|${cityName.toLowerCase()}`;
+                const cityKey = `${countryCode.toLowerCase()}|${cityName.toLowerCase()}`;
                 if (!uniqueCities.has(cityKey)) {
                   uniqueCities.set(cityKey, {
                     code: cityCode || cityName,
@@ -1109,6 +1113,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
               a.name.localeCompare(b.name)
             );
             this.allUserCities = Array.from(uniqueCities.values());
+            this.filterCitiesByCountry();
           } catch (e) {
             this.countries = [];
             this.allUserCities = [];
@@ -1247,19 +1252,26 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
           ? [this.filterCountry]
           : [];
 
+    const citySource =
+      !this.isSuperAdmin && this.allUserCities && this.allUserCities.length > 0
+        ? this.allUserCities
+        : this.allRegisteredCities;
+
     if (!targetCodes.length) {
       // If no country is selected, show all registered cities
       const uniqueCities = new Map<string, { code: string; name: string }>();
-      this.allRegisteredCities.forEach((city) => {
+      citySource.forEach((city) => {
         const key = city.name.toLowerCase();
         if (!uniqueCities.has(key)) uniqueCities.set(key, { code: city.code, name: city.name });
       });
       this.cities = Array.from(uniqueCities.values()).sort((a, b) => a.name.localeCompare(b.name));
     } else {
       // Filter cities matching selected country code(s)
-      const filtered = this.allRegisteredCities.filter((city) =>
+      const filtered = citySource.filter((city) =>
         targetCodes.some(
-          (code) => String(city.countryCode).toLowerCase() === String(code).toLowerCase()
+          (code) =>
+            String(city.countryCode).toLowerCase() === String(code).toLowerCase() ||
+            String(city.code).toLowerCase() === String(code).toLowerCase()
         )
       );
       const uniqueCities = new Map<string, { code: string; name: string }>();
@@ -1381,10 +1393,11 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       params.institute_id = targetInstitute;
     }
 
-    this.http.get<any>(`${API_BASE}/get-users-list`, { params, ...this.explicitInstituteRequestOptions() }).subscribe({
+    this.http.get<any>(`${API_BASE}/get-users`, { params, ...this.explicitInstituteRequestOptions() }).subscribe({
       next: (res) => {
         try {
-          const users = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+          const dataCandidate = res?.data?.users ?? res?.users ?? res?.data ?? res;
+          const users = Array.isArray(dataCandidate) ? dataCandidate : [];
           const uniqueCountries = new Map<string, { code: string; name: string }>();
           const uniqueCities = new Map<string, { code: string; name: string; countryCode: string; campusId?: string }>();
 
