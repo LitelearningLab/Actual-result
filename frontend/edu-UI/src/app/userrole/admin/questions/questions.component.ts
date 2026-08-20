@@ -1236,10 +1236,21 @@ export class AdminQuestionsComponent {
   }
 
   // --- Team Select All & Filter ---
-  get filteredTeamsForFilter(): Array<{ id: string; name: string }> {
+  get filteredTeamsForFilter(): Array<{ id: string; name: string; department_id?: string }> {
     const term = (this.teamFilterSearch || '').trim().toLowerCase();
-    if (!term) return this.teams || [];
-    return (this.teams || []).filter((t) => (t.name || '').toLowerCase().includes(term));
+    let list = this.teams || [];
+
+    if (this.selectedDepartments && this.selectedDepartments.length > 0) {
+      list = list.filter(
+        (t: any) =>
+          !t.department_id ||
+          this.selectedDepartments.includes(t.department_id) ||
+          (this.selectedTeams || []).includes(t.id)
+      );
+    }
+
+    if (!term) return list;
+    return list.filter((t) => (t.name || '').toLowerCase().includes(term) || (this.selectedTeams || []).includes(t.id));
   }
 
   isAllTeamsSelected(): boolean {
@@ -1765,6 +1776,7 @@ export class AdminQuestionsComponent {
           .map((t: any) => ({
             id: String(t.team_id || t.teams_id || t.id || t.teamId || ''),
             name: t.name || t.team_name || t.title || '',
+            department_id: t.department_id || t.departmentId || t.dept_id || null,
           }))
           .filter((t: any) => t.id);
       },

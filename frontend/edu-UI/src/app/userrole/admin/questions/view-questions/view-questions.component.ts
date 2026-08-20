@@ -241,9 +241,19 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     });
   }
 
-  get filteredTeamsForFilter(): Array<{ id: string; name: string }> {
+  get filteredTeamsForFilter(): Array<{ id: string; name: string; department_id?: string }> {
     const term = (this.teamFilterSearch || '').trim().toLowerCase();
     let list = this.teams || [];
+
+    if (this.selectedDepartments && this.selectedDepartments.length > 0) {
+      list = list.filter(
+        (t: any) =>
+          !t.department_id ||
+          this.selectedDepartments.includes(t.department_id) ||
+          this.selectedTeams.includes(t.id)
+      );
+    }
+
     if (term) {
       list = list.filter(
         (t) => (t.name || '').toLowerCase().includes(term) || this.selectedTeams.includes(t.id)
@@ -1494,6 +1504,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
           .map((t: any) => ({
             id: t.team_id || t.id || t.teamId || '',
             name: t.name || t.team_name || '',
+            department_id: t.department_id || t.departmentId || t.dept_id || null,
           }))
           .filter((t) => t.id && !seen.has(t.id) && seen.add(t.id));
       },
@@ -1650,6 +1661,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         this.teams = arr.map((t: any) => ({
           id: t.team_id || t.id || t.teamId,
           name: t.name || t.team_name || t.title || '',
+          department_id: t.department_id || t.departmentId || t.dept_id || null,
         }));
       },
       error: (err) => {
