@@ -820,6 +820,15 @@ def get_user_details(request):
     if city_filter:
         city_items = [c.strip() for c in city_filter.split(',') if c.strip()]
         city_conditions = []
+
+        campus_objs_for_city = session.query(InstituteCampus).filter(or_(
+            InstituteCampus.city_id.in_(city_items),
+            InstituteCampus.city_name.in_(city_items),
+            or_(*[InstituteCampus.city_name.ilike(f"%{c}%") for c in city_items])
+        )).all()
+        campus_ids_for_city = [c.campus_id for c in campus_objs_for_city]
+        city_inst_ids = list(set([c.institute_id for c in campus_objs_for_city if c.institute_id]))
+
         for item in city_items:
             city_obj = session.query(City).filter(or_(
                 City.city_id == item,
@@ -836,6 +845,12 @@ def get_user_details(request):
             city_conditions.append(User.city_id.ilike(f"%{item}%"))
             city_conditions.append(InstituteCampus.city_id.in_(matching_vals))
             city_conditions.append(InstituteCampus.city_name.ilike(f"%{item}%"))
+
+        if campus_ids_for_city:
+            city_conditions.append(User.campus_id.in_(campus_ids_for_city))
+        if city_inst_ids:
+            city_conditions.append(and_(or_(User.city_id.is_(None), User.city_id == ''), User.institute_id.in_(city_inst_ids)))
+
         filter.append(or_(*city_conditions))
 
     query = session.query(User)

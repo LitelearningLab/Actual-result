@@ -1,5 +1,6 @@
 from db.models import Country, State, City, InstituteCampus, Institute, User
 from db.db import SQLiteDB
+from sqlalchemy import or_, and_
 
 
 
@@ -50,11 +51,15 @@ def get_location_hierarchy_details(request):
             country_arg = str(args.get("country_id") or args.get("country") or '').strip()
             c_ids = [c.strip() for c in country_arg.split(',') if c.strip()] if ',' in country_arg else ([country_arg] if country_arg else [])
 
-            country_objs = session.query(Country).filter(
-                (Country.country_id.in_(c_ids)) |
-                (Country.country_code.in_(c_ids)) |
-                (Country.country_name.in_(c_ids))
-            ).all()
+            country_conds = [
+                Country.country_id.in_(c_ids),
+                Country.country_name.in_(c_ids),
+                or_(*[Country.country_name.ilike(f"%{c}%") for c in c_ids])
+            ]
+            if hasattr(Country, 'country_code'):
+                country_conds.append(getattr(Country, 'country_code').in_(c_ids))
+
+            country_objs = session.query(Country).filter(or_(*country_conds)).all()
 
             matched_country_ids = [c.country_id for c in country_objs] if country_objs else c_ids
             countries = country_objs if country_objs else session.query(Country).filter(Country.country_id.in_(c_ids)).all()

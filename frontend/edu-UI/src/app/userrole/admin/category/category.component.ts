@@ -892,7 +892,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     // Load institutes first, then load department/team lists according to the allowed institute scope.
     this.loadInstituteOptions(() => {
       if (this.selectedInstitute) {
-        this.onInstituteChange(this.selectedInstitute);
+        this.onInstituteChange(this.selectedInstitute, true);
       } else if (this.isSuperAdmin) {
         this.loadGlobalDepartmentTeamLists();
       }
@@ -1532,7 +1532,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.instituteSearchTerm = value || '';
   }
 
-  onInstituteChange(iid: any) {
+  onInstituteChange(iid: any, preserveSelection: boolean = false) {
     if (!this.isSuperAdmin && this.loginInstituteId) {
       iid = this.loginInstituteId;
       this.selectedInstitute = this.loginInstituteId;
@@ -1545,10 +1545,12 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     ) {
       this.selectedInstitutes = [iid];
     }
-    this.selectedDepartments = [];
-    this.selectedTeams = [];
-    this.filterName = '';
-    this.categoryOptions = [];
+    if (!preserveSelection) {
+      this.selectedDepartments = [];
+      this.selectedTeams = [];
+      this.filterName = '';
+      this.categoryOptions = [];
+    }
     // Replace lines 880-887 with:
     if (!iid) {
       this.departments = [];

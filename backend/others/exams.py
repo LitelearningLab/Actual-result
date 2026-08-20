@@ -44,14 +44,7 @@ def is_exam_active_or_attended(session, exam_id):
         
     schedule_ids = [s.schedule_id for s in schedules if s.schedule_id]
     
-    # 1. Check if currently active (start_time <= now <= end_time)
-    for s in schedules:
-        st = _to_naive_utc_datetime(s.start_time)
-        et = _to_naive_utc_datetime(s.end_time)
-        if st and et and st <= now <= et:
-            return True
-            
-    # 2. Check if attended by one or more users
+    # Check if attended by one or more users
     if schedule_ids:
         attempt_count = session.query(Exam_Attempt).filter(
             Exam_Attempt.schedule_id.in_(schedule_ids)

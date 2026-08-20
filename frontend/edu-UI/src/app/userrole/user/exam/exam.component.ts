@@ -240,6 +240,27 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     if (this.instituteId || this.isSuperAdmin) this.loadExams();
   }
 
+  get isAdminUser(): boolean {
+    if (this.isSuperAdmin) return true;
+    try {
+      const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+      if (raw) {
+        const obj = JSON.parse(raw);
+        const role = String(obj?.role || obj?.user_role || obj?.role_name || '').toLowerCase();
+        if (['admin', 'super_admin', 'superadmin', 'super-admin'].includes(role)) {
+          return true;
+        }
+      }
+      const authRole = String(
+        this.auth.currentUserValue?.role || this.auth.currentUserValue?.user_role || ''
+      ).toLowerCase();
+      if (['admin', 'super_admin', 'superadmin', 'super-admin'].includes(authRole)) {
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
   stopFilterSearchEvent(event: Event) {
     event.stopPropagation();
   }
@@ -407,8 +428,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
    * Response shape assumed: { data: { attempts: [ { attempt_no, items: [ { question, answer, user_answer, status } ] } ] } }
    */
   viewReview(row: UserTestRow){
-    // Warn before the API consumes a one-time Instant Review.
-    if ((row.review_mode || '').toLowerCase() === 'instant' && !row.multiple_review) {
+    // Warn before the API consumes a one-time Instant Review (candidates/students only).
+    if (!this.isAdminUser && (row.review_mode || '').toLowerCase() === 'instant' && !row.multiple_review) {
       this.dialog.open(ConfirmInstantReviewDialogComponent, {
         width: '32.8rem',
         maxWidth: 'calc(100vw - 2rem)',

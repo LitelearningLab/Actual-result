@@ -1,4 +1,4 @@
-# Force reload
+# Force reload - 2026-08-20 18:57
 from functools import wraps
 from flask import Blueprint, Flask, request, jsonify, Response, g
 from flask_cors import CORS
@@ -18,6 +18,8 @@ from others.exam_reports import get_user_wise_report, get_exam_analytics
 from others.exam_reports import get_question_wrong_answers
 from others.exam_reports import get_resources_for_answer
 
+# Flask Application Core - Name Resolution Fix Reload
+import os
 from masters.location import get_location_hierarchy_details, get_registered_countries_details
 from masters.insititute_masters import get_institute_department_details, get_institute_team_details
 from masters.others import get_pages_list

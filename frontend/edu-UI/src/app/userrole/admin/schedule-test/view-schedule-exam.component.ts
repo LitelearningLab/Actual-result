@@ -919,6 +919,22 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     this.loadCountries();
     this.loadInstitutes();
 
+    if (!this.isSuperAdmin) {
+      const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+      if (raw) {
+        try {
+          const u = JSON.parse(raw);
+          const instId = u?.institute_id || u?.instituteId || u?.institute || '';
+          if (instId) {
+            this.selectedInstitute = instId;
+            this.loadDepartments(instId);
+            this.loadCampuses([instId]);
+            this.loadTeams(instId);
+          }
+        } catch (e) {}
+      }
+    }
+
     // 1. Restore previous filters & state
     this.restoreScheduleReturnState();
 
@@ -1204,15 +1220,16 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
               const instId = u?.institute_id || u?.instituteId || u?.institute || '';
               if (instId) {
                 const found = this.institutes.find(
-                  (i) => String(i.institute_id) === String(instId)
+                  (i) =>
+                    String(i.institute_id).toLowerCase() === String(instId).toLowerCase() ||
+                    String(i.name).toLowerCase() === String(instId).toLowerCase()
                 );
-                if (found) {
-                  this.selectedInstitute = found.institute_id as any;
-                  this.syncInstituteSearch();
-                  this.loadDepartments(this.selectedInstitute);
-                  this.loadCampuses([this.selectedInstitute]);
-                  this.loadTeams(this.selectedInstitute);
-                }
+                const targetInstId = found ? (found.institute_id as string) : instId;
+                this.selectedInstitute = targetInstId;
+                this.syncInstituteSearch();
+                this.loadDepartments(targetInstId);
+                this.loadCampuses([targetInstId]);
+                this.loadTeams(targetInstId);
               }
             }
           } catch (e) {}

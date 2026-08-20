@@ -1,4 +1,4 @@
-from db.models import Exam, ExamSchedule,ExamScheduleMapping, Question, Option, Answer,Exam_Attempt,Institute, User
+from db.models import Exam, ExamSchedule, ExamScheduleMapping, Question, Option, Answer, Exam_Attempt, Institute, User, InstituteDepartment, InstituteTeam, InstituteCampus
 from db.db import SQLiteDB
 import sys
 import datetime
@@ -426,19 +426,47 @@ def get_exam_schedule_details(request):
             if departments:
                 dept_ids = [d.strip() for d in departments.split(",") if d.strip()]
                 if dept_ids:
-                    mapping_filters.append(ExamScheduleMapping.department_id.in_(dept_ids))
+                    resolved_dept_ids = set(dept_ids)
+                    dept_objs = session.query(InstituteDepartment.department_id).filter(
+                        or_(InstituteDepartment.department_id.in_(dept_ids), InstituteDepartment.name.in_(dept_ids))
+                    ).all()
+                    for r in dept_objs:
+                        resolved_dept_ids.add(r[0])
+                    mapping_filters.append(or_(
+                        ExamScheduleMapping.department_id.in_(list(resolved_dept_ids)),
+                        User.department_id.in_(list(resolved_dept_ids))
+                    ))
             if teams:
                 team_ids = [t.strip() for t in teams.split(",") if t.strip()]
                 if team_ids:
-                    mapping_filters.append(ExamScheduleMapping.team_id.in_(team_ids))
+                    resolved_team_ids = set(team_ids)
+                    team_objs = session.query(InstituteTeam.team_id).filter(
+                        or_(InstituteTeam.team_id.in_(team_ids), InstituteTeam.name.in_(team_ids))
+                    ).all()
+                    for r in team_objs:
+                        resolved_team_ids.add(r[0])
+                    mapping_filters.append(or_(
+                        ExamScheduleMapping.team_id.in_(list(resolved_team_ids)),
+                        User.team_id.in_(list(resolved_team_ids))
+                    ))
             if campuses:
                 campus_ids = [c.strip() for c in campuses.split(",") if c.strip()]
                 if campus_ids:
-                    mapping_filters.append(ExamScheduleMapping.campus_id.in_(campus_ids))
+                    resolved_campus_ids = set(campus_ids)
+                    campus_objs = session.query(InstituteCampus.campus_id).filter(
+                        or_(InstituteCampus.campus_id.in_(campus_ids), InstituteCampus.name.in_(campus_ids))
+                    ).all()
+                    for r in campus_objs:
+                        resolved_campus_ids.add(r[0])
+                    mapping_filters.append(or_(
+                        ExamScheduleMapping.campus_id.in_(list(resolved_campus_ids)),
+                        User.campus_id.in_(list(resolved_campus_ids))
+                    ))
 
             if mapping_filters:
                 matching_schedule_ids = [
                     row[0] for row in session.query(ExamScheduleMapping.schedule_id)
+                    .outerjoin(User, ExamScheduleMapping.user_id == User.user_id)
                     .filter(or_(*mapping_filters))
                     .distinct()
                     .all()
