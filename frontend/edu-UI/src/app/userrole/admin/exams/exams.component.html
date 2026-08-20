@@ -211,6 +211,7 @@
                         <mat-form-field appearance="outline" class="filter-item">
                             <mat-label>Departments</mat-label>
                             <mat-select multiple [(ngModel)]="selectedDepartments"
+                                (selectionChange)="onDepartmentsChange()"
                                 [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
                                 placeholder="Select departments"
                                 (openedChange)="onFilterDepartmentOpenedChange($event)">
