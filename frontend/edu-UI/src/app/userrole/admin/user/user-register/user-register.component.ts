@@ -103,8 +103,8 @@ export class AdminUserRegisterComponent implements OnInit {
   }
   isDragOver = false;
   // mat-table columns
-  previewDisplayedColumns: string[] = ['sno', 'full_name', 'username', 'email', 'contact_no', 'role', 'department', 'team', 'campus', 'joining_date', 'status'];
-  alertDisplayedColumns: string[] = ['sno', 'full_name', 'username', 'email', 'contact_no', 'role', 'department', 'team', 'campus', 'joining_date', 'reason'];
+  previewDisplayedColumns: string[] = ['sno', 'full_name', 'username', 'email', 'status_code', 'contact_no', 'role', 'department', 'team', 'campus', 'joining_date', 'status'];
+  alertDisplayedColumns: string[] = ['sno', 'full_name', 'username', 'email', 'status_code', 'contact_no', 'role', 'department', 'team', 'campus', 'joining_date', 'reason'];
 
   // bulk institute user limit info
   bulkUserLimit: { max_user_limit?: number | null; available_licenses?: number | null; already_assigned?: number | null } = { max_user_limit: null, available_licenses: null, already_assigned: null };
@@ -754,6 +754,9 @@ export class AdminUserRegisterComponent implements OnInit {
             department_name: t.department_name || t.department || null,
           }));
           this.filterTeamsByDepartment(this.form.get('department')?.value);
+          if (this.bulkMode && this.bulkFile) {
+            this.parseAndValidateExcelFile(this.bulkFile);
+          }
         } catch (e) {
           this.allTeams = [];
           this.teams = [];
@@ -1440,7 +1443,7 @@ export class AdminUserRegisterComponent implements OnInit {
 
         // Institute Metadata sets (normalized lowercase for lookup)
         const validDepts = (this.departments || []).map(d => (d.name || '').toLowerCase().trim());
-        const validTeams = (this.teams || []).map(t => (t.name || '').toLowerCase().trim());
+        const validTeams = (this.allTeams && this.allTeams.length > 0 ? this.allTeams : this.teams || []).map(t => (t.name || '').toLowerCase().trim());
         const validCampuses = (this.campuses || []).map(c => (c.name || '').toLowerCase().trim());
         const validRoleValues = ['admin', 'user', 'super_admin', 'superadmin'];
 
@@ -1454,15 +1457,25 @@ export class AdminUserRegisterComponent implements OnInit {
             const actualCol = keyMap[key];
             if (!actualCol) return '';
 
-            const formattedVal = rawRow[actualCol] !== undefined && rawRow[actualCol] !== null ? String(rawRow[actualCol]).trim() : '';
-            const rawVal = rawRowsRaw[index] ? rawRowsRaw[index][actualCol] : undefined;
+            const rowObj = rawRow || {};
+            const rawRowObj = rawRowsRaw[index] || {};
+            const rawColKey = Object.keys(rawRowObj).find(
+              k => k === actualCol || k.trim().toLowerCase() === actualCol.trim().toLowerCase()
+            );
+
+            const rawVal = rawColKey ? rawRowObj[rawColKey] : undefined;
+            const formattedVal = rowObj[actualCol] !== undefined && rowObj[actualCol] !== null ? String(rowObj[actualCol]).trim() : '';
 
             if (key === 'contact_no') {
-              let valToNormalize = formattedVal;
-              if (typeof rawVal === 'number' || (typeof formattedVal === 'string' && /[eE]/.test(formattedVal))) {
-                if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+              let valToNormalize = '';
+              if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+                if (typeof rawVal === 'number') {
+                  valToNormalize = BigInt(Math.round(rawVal)).toString();
+                } else {
                   valToNormalize = String(rawVal).trim();
                 }
+              } else {
+                valToNormalize = formattedVal;
               }
               return this.normalizePhoneNumber(valToNormalize);
             }
@@ -1470,16 +1483,43 @@ export class AdminUserRegisterComponent implements OnInit {
             return formattedVal;
           };
 
-          const fullName = getVal('full_name');
-          const username = getVal('username');
-          const email = getVal('email');
-          const contactNo = getVal('contact_no');
-          const role = getVal('role');
-          const department = getVal('department');
-          const team = getVal('team');
-          const campus = getVal('campus');
-          const joiningDate = getVal('joining_date');
-          const password = getVal('password');
+          let fullName = getVal('full_name');
+          let username = getVal('username');
+          let email = getVal('email');
+          let contactNo = getVal('contact_no');
+          let role = getVal('role');
+          let department = getVal('department');
+          let team = getVal('team');
+          let campus = getVal('campus');
+          let joiningDate = getVal('joining_date');
+          let password = getVal('password');
+
+          // Auto-detect & recover from 1-column shifted Excel files (e.g. empty contact_no column with shifted headers)
+          if (!contactNo && role && (/^\+?[0-9\s.E+-]{7,20}$/i.test(role) || /[eE]\+[0-9]/.test(role))) {
+            const rawRowObj = rawRowsRaw[index] || {};
+            const roleColKey = Object.keys(rawRowObj).find(k => k.trim().toLowerCase() === 'role');
+            const rawRoleVal = roleColKey ? rawRowObj[roleColKey] : undefined;
+
+            if (rawRoleVal !== undefined && rawRoleVal !== null && rawRoleVal !== '') {
+              contactNo = typeof rawRoleVal === 'number'
+                ? BigInt(Math.round(rawRoleVal)).toString()
+                : this.normalizePhoneNumber(rawRoleVal);
+            } else {
+              contactNo = this.normalizePhoneNumber(role);
+            }
+
+            role = department;
+            department = team;
+            team = campus;
+            campus = '';
+            if (!joiningDate && password && (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(password) || /^\d{4}[-/]\d{2}[-/]\d{2}$/.test(password))) {
+              joiningDate = password;
+              const rowKeys = Object.keys(rawRow || {});
+              const passIdx = rowKeys.findIndex(k => k.trim().toLowerCase() === 'password');
+              const nextColKey = passIdx !== -1 && rowKeys[passIdx + 1] ? rowKeys[passIdx + 1] : '';
+              password = (nextColKey && rawRow[nextColKey] ? String(rawRow[nextColKey]).trim() : '') || 'Admin@123';
+            }
+          }
 
           const errors: string[] = [];
 
@@ -1549,9 +1589,30 @@ export class AdminUserRegisterComponent implements OnInit {
             }
           }
 
-          // 7. Team Validation
-          if (team && validTeams.length > 0) {
-            if (!validTeams.includes(team.toLowerCase())) {
+          // 7. Team Validation (must exist and belong to the specified department)
+          if (team) {
+            const teamLower = team.toLowerCase().trim();
+            if (department) {
+              const deptLower = department.toLowerCase().trim();
+              const matchingDeptObj = (this.departments || []).find(d => (d.name || '').toLowerCase().trim() === deptLower);
+              const deptId = matchingDeptObj?.id;
+
+              const validTeamForDept = (this.allTeams && this.allTeams.length > 0 ? this.allTeams : this.teams || []).some((t: any) => {
+                const tName = (t.name || '').toLowerCase().trim();
+                const tDeptId = t.department_id ? String(t.department_id) : '';
+                const tDeptName = t.department_name ? (t.department_name || '').toLowerCase().trim() : '';
+
+                if (tName !== teamLower) return false;
+                if (deptId && tDeptId && tDeptId === String(deptId)) return true;
+                if (tDeptName && tDeptName === deptLower) return true;
+                if (!tDeptId && !tDeptName) return true; // fallback if team is unassigned in institute
+                return false;
+              });
+
+              if (!validTeamForDept) {
+                errors.push(`Team '${team}' does not belong to department '${department}'`);
+              }
+            } else if (validTeams.length > 0 && !validTeams.includes(teamLower)) {
               errors.push(`Invalid Team '${team}'`);
             }
           }
@@ -1572,6 +1633,17 @@ export class AdminUserRegisterComponent implements OnInit {
           }
 
           const isValid = errors.length === 0;
+          const statusCode = isValid ? 200 : (
+            errors.some(e => e.includes('Missing')) ? 400 :
+            errors.some(e => e.includes('Duplicate') || e.includes('already exists')) ? 409 :
+            errors.some(e => e.includes('Invalid') || e.includes('Incorrect') || e.includes('does not belong')) ? 422 : 400
+          );
+          const statusCodeText = isValid ? '200 OK' : `${statusCode} ${
+            statusCode === 400 ? 'BAD REQUEST' :
+            statusCode === 409 ? 'CONFLICT' :
+            statusCode === 422 ? 'UNPROCESSABLE' : 'ERROR'
+          }`;
+
           const processedRow = {
             sno: index + 1,
             rowNum,
@@ -1586,6 +1658,8 @@ export class AdminUserRegisterComponent implements OnInit {
             joining_date: joiningDate || '—',
             password: password || 'User@12321',
             isValid,
+            statusCode,
+            statusCodeText,
             errors,
             reason: errors.join('; ')
           };
@@ -1805,6 +1879,10 @@ export class AdminUserRegisterComponent implements OnInit {
                 this.notify.error(fallback);
               });
             }
+            if (this.bulkInstitute) {
+              this.fetchBulkUserLimit(this.bulkInstitute);
+              this.loadExistingUsers(this.bulkInstitute);
+            }
             return;
           }
           this.readBlobAsJson(err.error).then((data) => {
@@ -1826,7 +1904,13 @@ export class AdminUserRegisterComponent implements OnInit {
           this.notify.error(msg);
         }
       },
-      complete: () => { this.loader.hide(); }
+      complete: () => {
+        this.loader.hide();
+        if (this.bulkInstitute) {
+          this.fetchBulkUserLimit(this.bulkInstitute);
+          this.loadExistingUsers(this.bulkInstitute);
+        }
+      }
     });
   }
 

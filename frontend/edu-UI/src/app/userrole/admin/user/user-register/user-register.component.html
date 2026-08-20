@@ -300,6 +300,16 @@
               <td mat-cell *matCellDef="let row">{{ row.email }}</td>
             </ng-container>
 
+            <!-- Status Code Column -->
+            <ng-container matColumnDef="status_code">
+              <th mat-header-cell *matHeaderCellDef class="status-code-header">Status Code</th>
+              <td mat-cell *matCellDef="let row" class="status-code-cell">
+                <span class="status-code-pill" [class.code-200]="row.statusCode === 200" [class.code-400]="row.statusCode === 400" [class.code-409]="row.statusCode === 409" [class.code-422]="row.statusCode === 422">
+                  {{ row.statusCodeText || (row.isValid ? '200 OK' : '400 ERROR') }}
+                </span>
+              </td>
+            </ng-container>
+
             <!-- Contact Number Column -->
             <ng-container matColumnDef="contact_no">
               <th mat-header-cell *matHeaderCellDef>Contact Number</th>
@@ -335,6 +345,7 @@
               <th mat-header-cell *matHeaderCellDef>Joining Date</th>
               <td mat-cell *matCellDef="let row">{{ row.joining_date }}</td>
             </ng-container>
+
 
             <!-- Reason Column -->
             <ng-container matColumnDef="reason">
@@ -391,6 +402,16 @@
               <td mat-cell *matCellDef="let row">{{ row.email }}</td>
             </ng-container>
 
+            <!-- Status Code Column -->
+            <ng-container matColumnDef="status_code">
+              <th mat-header-cell *matHeaderCellDef class="status-code-header">Status Code</th>
+              <td mat-cell *matCellDef="let row" class="status-code-cell">
+                <span class="status-code-pill" [class.code-200]="row.statusCode === 200" [class.code-400]="row.statusCode === 400" [class.code-409]="row.statusCode === 409" [class.code-422]="row.statusCode === 422">
+                  {{ row.statusCodeText || (row.isValid ? '200 OK' : '400 ERROR') }}
+                </span>
+              </td>
+            </ng-container>
+
             <!-- Contact Number Column -->
             <ng-container matColumnDef="contact_no">
               <th mat-header-cell *matHeaderCellDef>Contact Number</th>
@@ -428,6 +449,7 @@
               <th mat-header-cell *matHeaderCellDef>Joining Date</th>
               <td mat-cell *matCellDef="let row">{{ row.joining_date }}</td>
             </ng-container>
+
 
             <!-- Status Column -->
             <ng-container matColumnDef="status">

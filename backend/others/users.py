@@ -343,6 +343,22 @@ def user_bulk_upload(request):
         campus = str(row.get(cp_col, '')).strip() if cp_col and pd.notna(row.get(cp_col)) else None
         raw_joining_date = str(row.get(jd_col, '')).strip() if jd_col and pd.notna(row.get(jd_col)) else None
 
+        # Auto-detect & recover from 1-column shifted Excel files (empty contact_no column)
+        if not contact_no and user_role and (re.search(r'^\+?[0-9\s.E+-]{7,20}$', str(user_role), re.I) or 'e+' in str(user_role).lower()):
+            contact_no = normalize_phone_number(row.get(rl_col))
+            user_role = department
+            department = team
+            team = campus
+            campus = None
+            if not raw_joining_date and password and (re.match(r'^\d{2}[-/]\d{2}[-/]\d{4}$', str(password)) or re.match(r'^\d{4}[-/]\d{2}[-/]\d{2}$', str(password))):
+                raw_joining_date = password
+                cols = list(df.columns)
+                pw_idx = cols.index(pw_col) if pw_col in cols else -1
+                if pw_idx != -1 and pw_idx + 1 < len(cols):
+                    password = str(row.iloc[pw_idx + 1]).strip() if pd.notna(row.iloc[pw_idx + 1]) else "User@12321"
+                else:
+                    password = "User@12321"
+
         # Check required fields
         if not full_name:
             err_msg = f"Row {row_num}, Column 'Full Name' is empty. Please fill in all required fields."
@@ -428,13 +444,25 @@ def user_bulk_upload(request):
             ).first()
             department_id = dept_rec.department_id if dept_rec else None
 
-        # Lookup team
+        # Lookup team within department
         team_id = None
         if team:
-            team_rec = session.query(InstituteTeam).filter(
+            team_query = session.query(InstituteTeam).filter(
                 InstituteTeam.institute_id == institute_id,
-                InstituteTeam.name.ilike(f"%{team}%")
-            ).first()
+                InstituteTeam.name.ilike(f"%{team.strip()}%")
+            )
+            if department_id:
+                team_query = team_query.filter(
+                    or_(
+                        InstituteTeam.department_id == department_id,
+                        InstituteTeam.department_id.is_(None),
+                        InstituteTeam.department_id == ''
+                    )
+                )
+            team_rec = team_query.first()
+            if not team_rec and department:
+                df.at[index, 'status'] = f"Failed: Row {row_num}: Team '{team}' does not belong to department '{department}'"
+                continue
             team_id = team_rec.team_id if team_rec else None
 
         # Lookup campus
