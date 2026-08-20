@@ -1066,7 +1066,7 @@ export class AdminUserRegisterComponent implements OnInit {
   getInstituteName(instId: any): string | null {
     if (!instId) return null;
     try {
-      const i: any = this.institutes.find(x => String(x.id || x.institute_id || x._id) === String(instId));
+      const i: any = this.institutes.find(x => String(x.id || (x as any).institute_id || (x as any)._id) === String(instId));
       if (i?.name || i?.institute_name || i?.short_name) {
         return i.name || i.institute_name || i.short_name;
       }
