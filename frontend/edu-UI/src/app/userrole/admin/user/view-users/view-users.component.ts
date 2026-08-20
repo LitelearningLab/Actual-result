@@ -126,7 +126,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   states: Array<{ code: string; name: string }> = [];
   cities: Array<{ code: string; name: string }> = [];
   departments: Array<{ id: string; name: string }> = [];
-  teams: Array<{ id: string; name: string }> = [];
+  teams: Array<{
+    id: string;
+    name: string;
+    department_id?: string | null;
+    department_name?: string | null;
+  }> = [];
   departmentSearch = '';
   teamSearch = '';
 
@@ -875,7 +880,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       next: (res) => {
         try {
           const data = res?.data || [];
-          this.teams = data.map((t: any) => ({ id: t.team_id || t.id || t.teamId, name: t.name }));
+          this.teams = data.map((t: any) => ({
+            id: t.team_id || t.id || t.teamId,
+            name: t.name,
+            department_id: t.department_id || t.departmentId || t.dept_id || null,
+            department_name: t.department_name || t.department || null,
+          }));
         } catch (e) {
           this.teams = [];
           this.teamSearch = '';

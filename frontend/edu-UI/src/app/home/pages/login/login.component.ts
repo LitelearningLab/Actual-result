@@ -11,6 +11,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { AuthService } from '../../service/auth.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
+import { APP_VERSION } from '../../../../environments/version';
 
 @Component({
   selector: 'app-login',
@@ -30,6 +31,7 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
   styleUrls: ['./login.component.scss']
 })
 export class LoginComponent {
+  appVersion = APP_VERSION;
   loginForm: FormGroup;
   hide = true;
 
