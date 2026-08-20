@@ -635,6 +635,9 @@ def update_user_details(user_id, request):
         return json_data, 500
 
 def get_user_details(request):
+    print("========== GET USERS CALLED ==========")
+    print("LIVE/LOCAL get_user_details VERSION: 2026-08-20")
+    print("======================================")
 
     db = SQLiteDB()
     session = db.connect()
