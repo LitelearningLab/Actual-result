@@ -450,19 +450,19 @@
                   </mat-option>
                   <mat-option
                     [value]="ALL_OPTION_VALUE"
-                    *ngIf="institute && teams.length"
+                    *ngIf="institute && filteredTeams.length"
                     (onSelectionChange)="toggleAllTeams($event)"
                   >
                     Select All
                   </mat-option>
                   <mat-option
-                    *ngFor="let t of teams"
+                    *ngFor="let t of filteredTeams"
                     [value]="t.id"
                     (onSelectionChange)="setTeamOption(t.id, $event)"
                   >
                     {{ t.name }}
                   </mat-option>
-                  <mat-option *ngIf="institute && !teams.length" disabled>
+                  <mat-option *ngIf="institute && !filteredTeams.length" disabled>
                     No teams available
                   </mat-option>
                 </mat-select>

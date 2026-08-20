@@ -344,8 +344,8 @@
                     </mat-icon>
                     <strong>Select All</strong>
                   </mat-option>
-                  <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t">
-                    {{ t }}
+                  <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id || t">
+                    {{ t.name || t }}
                   </mat-option>
                 </mat-select>
               </mat-form-field>

@@ -124,7 +124,12 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   filterPublicAccess: boolean = false;
   appliedQuestionBankFilters: string[] = [];
   departments: Array<{ id: string; name: string }> = [];
-  teams: Array<{ id: string; name: string }> = [];
+  teams: Array<{
+    id: string;
+    name: string;
+    department_id?: string | null;
+    department_name?: string | null;
+  }> = [];
 
   compareById(o1: any, o2: any): boolean {
     if (o1 === null || o1 === undefined || o2 === null || o2 === undefined) return o1 === o2;
@@ -156,13 +161,57 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         this.selectedDepartments = selected.filter((id) => id !== 'ALL');
       }
     }
+    const validTeamIds = (this.filteredTeams || []).map((t: any) => t.id);
+    if (Array.isArray(this.selectedTeams)) {
+      this.selectedTeams = this.selectedTeams.filter((id: string) => validTeamIds.includes(id));
+    }
   }
 
-  // Getter to filter teams list dynamically by search text
-  get filteredTeams(): Array<{ id: string; name: string }> {
+  // Getter to filter teams list dynamically by search text and selected departments
+  get filteredTeams(): Array<{
+    id: string;
+    name: string;
+    department_id?: string | null;
+    department_name?: string | null;
+  }> {
     const term = (this.teamFilterSearch || '').trim().toLowerCase();
-    if (!term) return this.teams;
-    return this.teams.filter((t) => (t.name || '').toLowerCase().includes(term));
+    let list = this.teams || [];
+
+    // Filter by selected departments if any are selected
+    const deptsArr: string[] = (Array.isArray(this.selectedDepartments)
+      ? this.selectedDepartments
+      : [this.selectedDepartments]
+    )
+      .filter(Boolean)
+      .map((v: any) => String(v));
+
+    if (deptsArr.length > 0 && !deptsArr.includes('ALL')) {
+      const selectedDeptObjs = (this.departments || []).filter(
+        (d) => deptsArr.includes(String(d.id)) || deptsArr.includes(d.name)
+      );
+      const deptNames = selectedDeptObjs.map((d) => (d.name || '').toLowerCase().trim());
+      deptsArr.forEach((val) => {
+        if (typeof val === 'string' && val.trim()) deptNames.push(val.toLowerCase().trim());
+      });
+
+      list = list.filter((t: any) => {
+        if (Array.isArray(this.selectedTeams) && this.selectedTeams.includes(t.id)) return true;
+
+        const teamDeptId = t.department_id ? String(t.department_id) : '';
+        const teamDeptName = t.department_name
+          ? (t.department_name || '').toLowerCase().trim()
+          : '';
+
+        if (!teamDeptId && !teamDeptName) return true;
+        if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
+        if (teamDeptName && deptNames.includes(teamDeptName)) return true;
+
+        return false;
+      });
+    }
+
+    if (!term) return list;
+    return list.filter((t) => (t.name || '').toLowerCase().includes(term));
   }
 
   // Focus search input when dropdown opens, and clear search input when closed
@@ -292,7 +341,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   toggleSelectAllTeams(event: any): void {
     const selected = (event?.value || []) as string[];
-    const allIds = this.teams.map((t) => String(t.id));
+    const allIds = (this.filteredTeams || []).map((t) => String(t.id));
 
     if (selected.includes('ALL')) {
       if (this.selectedTeams.filter((id) => id !== 'ALL').length === allIds.length) {
@@ -1686,6 +1735,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         this.teams = arr.map((t: any) => ({
           id: String(t.team_id || t.id || t.teamId || ''),
           name: t.name || t.team_name || t.title || '',
+          department_id: t.department_id || t.departmentId || t.dept_id || null,
+          department_name: t.department_name || t.department || null,
         }));
         if (this.selectedTeams && this.selectedTeams.length) {
           const matched = this.selectedTeams.map((sel) => {

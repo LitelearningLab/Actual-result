@@ -317,19 +317,67 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.onFilterSelectionChange();
   }
 
-  get filteredTeamsForFilter(): string[] {
+  get filteredTeamsForFilter(): any[] {
     const q = (this.teamFilterSearch || '').toLowerCase().trim();
     let list = this.teamList || [];
     const selected = Array.isArray(this.userFilters.teams_id) ? this.userFilters.teams_id : [];
-    if (q) {
-      list = list.filter((t) => t.toLowerCase().includes(q) || selected.includes(t));
+
+    const deptsArr: string[] = (Array.isArray(this.userFilters.department_id)
+      ? this.userFilters.department_id
+      : [this.userFilters.department_id]
+    )
+      .filter(Boolean)
+      .map((v: any) => String(v));
+
+    if (deptsArr.length > 0) {
+      const selectedDeptObjs = (this.departmentList || []).filter(
+        (d: any) =>
+          deptsArr.includes(String(typeof d === 'object' ? d.id || d.name : d)) ||
+          deptsArr.includes(typeof d === 'object' ? d.name : d)
+      );
+      const deptNames = selectedDeptObjs.map((d: any) =>
+        (typeof d === 'object' ? d.name || '' : d).toLowerCase().trim()
+      );
+      deptsArr.forEach((val) => {
+        if (typeof val === 'string' && val.trim()) deptNames.push(val.toLowerCase().trim());
+      });
+
+      list = list.filter((t: any) => {
+        const teamVal = typeof t === 'object' ? t.id || t.name : t;
+        if (selected.includes(teamVal)) return true;
+
+        const teamDeptId = typeof t === 'object' && t.department_id ? String(t.department_id) : '';
+        const teamDeptName =
+          typeof t === 'object' && t.department_name
+            ? (t.department_name || '').toLowerCase().trim()
+            : '';
+
+        if (!teamDeptId && !teamDeptName) return true;
+        if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
+        if (teamDeptName && deptNames.includes(teamDeptName)) return true;
+
+        return false;
+      });
     }
-    return [...list].sort((a, b) => {
-      const aSel = selected.includes(a);
-      const bSel = selected.includes(b);
+
+    if (q) {
+      list = list.filter((t: any) => {
+        const name = typeof t === 'object' ? t.name : t;
+        const val = typeof t === 'object' ? t.id || t.name : t;
+        return (name || '').toLowerCase().includes(q) || selected.includes(val);
+      });
+    }
+
+    return [...list].sort((a: any, b: any) => {
+      const aVal = typeof a === 'object' ? a.id || a.name : a;
+      const bVal = typeof b === 'object' ? b.id || b.name : b;
+      const aName = typeof a === 'object' ? a.name : a;
+      const bName = typeof b === 'object' ? b.name : b;
+      const aSel = selected.includes(aVal);
+      const bSel = selected.includes(bVal);
       if (aSel && !bSel) return -1;
       if (!aSel && bSel) return 1;
-      return a.localeCompare(b);
+      return (aName || '').localeCompare(bName || '');
     });
   }
 
@@ -1919,8 +1967,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       next: (res: any) => {
         const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         this.teamList = arr
-          .map((t: any) => (t.name || t.team_name || t.team || t).toString())
-          .filter((s: any) => !!s);
+          .map((t: any) => ({
+            id: t.team_id || t.id || t.teamId || (t.name || t.team_name || t.team || t).toString(),
+            name: (t.name || t.team_name || t.team || t).toString(),
+            department_id: t.department_id || t.departmentId || t.dept_id || null,
+            department_name: t.department_name || t.department || null,
+          }))
+          .filter((s: any) => !!s.name);
       },
       error: (err: any) => {
         console.warn('Failed to load teams list', err);

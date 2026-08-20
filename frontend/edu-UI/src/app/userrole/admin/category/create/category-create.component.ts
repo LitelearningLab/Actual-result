@@ -113,7 +113,12 @@ export class CategoryCreateComponent {
   ];
 
   departments: Array<{ id: string; name: string }> = [];
-  teams: Array<{ id: string; name: string }> = [];
+  teams: Array<{
+    id: string;
+    name: string;
+    department_id?: string | null;
+    department_name?: string | null;
+  }> = [];
   isSuperAdmin: boolean = false;
   currentUserId: string | null = null;
 
@@ -308,7 +313,12 @@ export class CategoryCreateComponent {
       next: (res) => {
         const data = res?.data || res || [];
         this.teams = (Array.isArray(data) ? data : [])
-          .map((t: any) => ({ id: t.team_id || t.id || t.code, name: t.team_name || t.name }))
+          .map((t: any) => ({
+            id: t.team_id || t.id || t.code,
+            name: t.team_name || t.name,
+            department_id: t.department_id || t.departmentId || t.dept_id || null,
+            department_name: t.department_name || t.department || null,
+          }))
           .filter((t: any) => !!t.id);
         this.selectedTeams = this.onlyAvailableIds(this.selectedTeams, this.teams);
       },
@@ -1090,8 +1100,51 @@ export class CategoryCreateComponent {
     return this.withAllOption(this.selectedDepartments, this.departments);
   }
 
+  get filteredTeams(): Array<{
+    id: string;
+    name: string;
+    department_id?: string | null;
+    department_name?: string | null;
+  }> {
+    let list = this.teams || [];
+
+    const deptsArr: string[] = (Array.isArray(this.selectedDepartments)
+      ? this.selectedDepartments
+      : [this.selectedDepartments]
+    )
+      .filter(Boolean)
+      .map((v: any) => String(v));
+
+    if (deptsArr.length > 0 && !deptsArr.includes('ALL')) {
+      const selectedDeptObjs = (this.departments || []).filter(
+        (d) => deptsArr.includes(String(d.id)) || deptsArr.includes(d.name)
+      );
+      const deptNames = selectedDeptObjs.map((d) => (d.name || '').toLowerCase().trim());
+      deptsArr.forEach((val) => {
+        if (typeof val === 'string' && val.trim()) deptNames.push(val.toLowerCase().trim());
+      });
+
+      list = list.filter((t: any) => {
+        if (Array.isArray(this.selectedTeams) && this.selectedTeams.includes(t.id)) return true;
+
+        const teamDeptId = t.department_id ? String(t.department_id) : '';
+        const teamDeptName = t.department_name
+          ? (t.department_name || '').toLowerCase().trim()
+          : '';
+
+        if (!teamDeptId && !teamDeptName) return true;
+        if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
+        if (teamDeptName && deptNames.includes(teamDeptName)) return true;
+
+        return false;
+      });
+    }
+
+    return list;
+  }
+
   get teamSelectValue(): string[] {
-    return this.withAllOption(this.selectedTeams, this.teams);
+    return this.withAllOption(this.selectedTeams, this.filteredTeams);
   }
 
   toggleAllDepartments(event: any) {
@@ -1101,7 +1154,7 @@ export class CategoryCreateComponent {
 
   toggleAllTeams(event: any) {
     if (!event?.isUserInput) return;
-    this.selectedTeams = event?.source?.selected ? this.getOptionIds(this.teams) : [];
+    this.selectedTeams = event?.source?.selected ? this.getOptionIds(this.filteredTeams) : [];
   }
 
   setDepartmentOption(id: string, event: any) {

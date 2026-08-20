@@ -403,17 +403,46 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // --- Team Search & Select All Logic ---
-  get filteredTeamsForFilter(): Array<{ id: string; name: string; department_id?: string }> {
+  get filteredTeamsForFilter(): Array<{
+    id: string;
+    name: string;
+    department_id?: string | null;
+    department_name?: string | null;
+  }> {
     const term = (this.teamFilterSearch || '').trim().toLowerCase();
     let list = this.teams || [];
 
-    if (this.selectedDepartments && this.selectedDepartments.length > 0) {
-      list = list.filter(
-        (t: any) =>
-          !t.department_id ||
-          this.selectedDepartments.includes(t.department_id) ||
-          (this.selectedTeams || []).includes(t.id)
+    // Filter by selected departments if any are selected in filter
+    const deptsArr: string[] = (Array.isArray(this.selectedDepartments)
+      ? this.selectedDepartments
+      : [this.selectedDepartments]
+    )
+      .filter(Boolean)
+      .map((v: any) => String(v));
+
+    if (deptsArr.length > 0) {
+      const selectedDeptObjs = (this.departments || []).filter(
+        (d) => deptsArr.includes(String(d.id)) || deptsArr.includes(d.name)
       );
+      const deptNames = selectedDeptObjs.map((d) => (d.name || '').toLowerCase().trim());
+      deptsArr.forEach((val) => {
+        if (typeof val === 'string' && val.trim()) deptNames.push(val.toLowerCase().trim());
+      });
+
+      list = list.filter((t: any) => {
+        if (Array.isArray(this.selectedTeams) && this.selectedTeams.includes(t.id)) return true;
+
+        const teamDeptId = t.department_id ? String(t.department_id) : '';
+        const teamDeptName = t.department_name
+          ? (t.department_name || '').toLowerCase().trim()
+          : '';
+
+        if (!teamDeptId && !teamDeptName) return true;
+        if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
+        if (teamDeptName && deptNames.includes(teamDeptName)) return true;
+
+        return false;
+      });
     }
 
     if (term) {
@@ -1389,6 +1418,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           id: t.team_id || t.id || t.teamId,
           name: t.team_name || t.name,
           department_id: t.department_id || t.departmentId || t.dept_id || null,
+          department_name: t.department_name || t.department || null,
         }));
       },
       error: () => {
@@ -1554,6 +1584,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           id: t.team_id || t.id || t.teamId,
           name: t.team_name || t.name,
           department_id: t.department_id || t.departmentId || t.dept_id || null,
+          department_name: t.department_name || t.department || null,
         }));
       },
       error: () => {
