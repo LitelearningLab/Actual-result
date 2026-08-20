@@ -437,7 +437,6 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           ? (t.department_name || '').toLowerCase().trim()
           : '';
 
-        if (!teamDeptId && !teamDeptName) return true;
         if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
         if (teamDeptName && deptNames.includes(teamDeptName)) return true;
 
@@ -501,6 +500,8 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onDepartmentFilterChange(): void {
+    const validTeamIds = new Set((this.filteredTeamsForFilter || []).map((t) => t.id));
+    this.selectedTeams = (this.selectedTeams || []).filter((id) => validTeamIds.has(id));
     this.onQuestionBankParentFilterChange();
   }
 

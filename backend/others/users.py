@@ -677,62 +677,57 @@ def get_user_details(request):
     args = getattr(request, "args", {})
     # Legacy users may have NULL here; only an explicit true/1 is deleted.
     filter.append(or_(User.is_deleted == 0, User.is_deleted.is_(None)))
+    inst_id_val = None
     if args.get("institute_id"):
         inst_val = str(args.get("institute_id")).strip()
-        if ',' in inst_val:
-            filter.append(User.institute_id.in_([i.strip() for i in inst_val.split(',') if i.strip()]))
-        else:
-            filter.append(User.institute_id == inst_val)
-
-    inst_id_val = str(args.get("institute_id")).strip() if args.get("institute_id") else None
+        inst_items = [i.strip() for i in inst_val.split(',') if i.strip()]
+        if inst_items:
+            inst_objs = session.query(Institute).filter(or_(
+                Institute.institute_id.in_(inst_items),
+                Institute.name.in_(inst_items),
+                or_(*[Institute.name.ilike(f"%{i}%") for i in inst_items])
+            )).all()
+            inst_ids = list(set([i.institute_id for i in inst_objs] + [i.name for i in inst_objs] + inst_items))
+            filter.append(or_(
+                User.institute_id.in_(inst_ids),
+                Institute.name.in_(inst_items),
+                Institute.institute_id.in_(inst_items)
+            ))
+            inst_id_val = inst_objs[0].institute_id if inst_objs else inst_items[0]
 
     if args.get("department"):
         dept_val = str(args.get("department")).strip()
-        if ',' in dept_val:
-            dept_items = [d.strip() for d in dept_val.split(',') if d.strip()]
+        dept_items = [d.strip() for d in dept_val.split(',') if d.strip()]
+        if dept_items:
             q_dept = session.query(InstituteDepartment).filter(or_(
                 InstituteDepartment.department_id.in_(dept_items),
-                or_(*[InstituteDepartment.name.ilike(d) for d in dept_items])
+                or_(*[InstituteDepartment.name.ilike(f"%{d}%") for d in dept_items])
             ))
-            if inst_id_val:
-                q_dept = q_dept.filter(InstituteDepartment.institute_id == inst_id_val)
             dept_objs = q_dept.all()
             dept_ids = list(set([d.department_id for d in dept_objs] + [d.name for d in dept_objs] + dept_items))
-            filter.append(User.department_id.in_(dept_ids))
-        else:
-            q_dept = session.query(InstituteDepartment).filter(or_(
-                InstituteDepartment.department_id == dept_val,
-                InstituteDepartment.name.ilike(dept_val)
+            filter.append(or_(
+                User.department_id.in_(dept_ids),
+                InstituteDepartment.name.in_(dept_items),
+                InstituteDepartment.department_id.in_(dept_items),
+                or_(*[User.department_id.ilike(f"%{d}%") for d in dept_items])
             ))
-            if inst_id_val:
-                q_dept = q_dept.filter(InstituteDepartment.institute_id == inst_id_val)
-            dept_objs = q_dept.all()
-            dept_ids = list(set([d.department_id for d in dept_objs] + [d.name for d in dept_objs] + [dept_val]))
-            filter.append(User.department_id.in_(dept_ids))
 
     if args.get("team"):
         team_val = str(args.get("team")).strip()
-        if ',' in team_val:
-            team_items = [t.strip() for t in team_val.split(',') if t.strip()]
+        team_items = [t.strip() for t in team_val.split(',') if t.strip()]
+        if team_items:
             q_team = session.query(InstituteTeam).filter(or_(
                 InstituteTeam.team_id.in_(team_items),
-                or_(*[InstituteTeam.name.ilike(t) for t in team_items])
+                or_(*[InstituteTeam.name.ilike(f"%{t}%") for t in team_items])
             ))
-            if inst_id_val:
-                q_team = q_team.filter(InstituteTeam.institute_id == inst_id_val)
             team_objs = q_team.all()
             team_ids = list(set([t.team_id for t in team_objs] + [t.name for t in team_objs] + team_items))
-            filter.append(User.team_id.in_(team_ids))
-        else:
-            q_team = session.query(InstituteTeam).filter(or_(
-                InstituteTeam.team_id == team_val,
-                InstituteTeam.name.ilike(team_val)
+            filter.append(or_(
+                User.team_id.in_(team_ids),
+                InstituteTeam.name.in_(team_items),
+                InstituteTeam.team_id.in_(team_items),
+                or_(*[User.team_id.ilike(f"%{t}%") for t in team_items])
             ))
-            if inst_id_val:
-                q_team = q_team.filter(InstituteTeam.institute_id == inst_id_val)
-            team_objs = q_team.all()
-            team_ids = list(set([t.team_id for t in team_objs] + [t.name for t in team_objs] + [team_val]))
-            filter.append(User.team_id.in_(team_ids))
 
     if args.get("name"):
         filter.append(User.full_name.ilike(f"%{args.get('name')}%"))
@@ -756,39 +751,63 @@ def get_user_details(request):
 
     if args.get("campus"):
         campus_val = str(args.get("campus")).strip()
-        q_campus = session.query(InstituteCampus).filter(or_(
-            InstituteCampus.campus_id == campus_val,
-            InstituteCampus.name.ilike(campus_val)
-        ))
-        if inst_id_val:
-            q_campus = q_campus.filter(InstituteCampus.institute_id == inst_id_val)
-        campus_objs = q_campus.all()
-        campus_ids = list(set([c.campus_id for c in campus_objs] + [c.name for c in campus_objs] + [campus_val]))
-        filter.append(User.campus_id.in_(campus_ids))
+        campus_items = [c.strip() for c in campus_val.split(',') if c.strip()]
+        if campus_items:
+            q_campus = session.query(InstituteCampus).filter(or_(
+                InstituteCampus.campus_id.in_(campus_items),
+                or_(*[InstituteCampus.name.ilike(f"%{c}%") for c in campus_items])
+            ))
+            if inst_id_val:
+                q_campus = q_campus.filter(InstituteCampus.institute_id == inst_id_val)
+            campus_objs = q_campus.all()
+            campus_ids = list(set([c.campus_id for c in campus_objs] + [c.name for c in campus_objs] + campus_items))
+            campus_inst_ids = list(set([c.institute_id for c in campus_objs if c.institute_id]))
+            
+            campus_conds = [
+                User.campus_id.in_(campus_ids),
+                InstituteCampus.name.in_(campus_items),
+                InstituteCampus.campus_id.in_(campus_items)
+            ]
+            if campus_inst_ids:
+                campus_conds.append(and_(or_(User.campus_id.is_(None), User.campus_id == ''), User.institute_id.in_(campus_inst_ids)))
+            filter.append(or_(*campus_conds))
 
     country_filter = str(args.get("country") or '').strip()
     if country_filter:
-        country = session.query(Country).filter(or_(
-            Country.country_id == country_filter,
-            Country.iso2 == country_filter,
-            Country.iso3 == country_filter,
-            Country.country_name == country_filter
-        )).first()
-        country_values = [country_filter]
-        canonical_country_id = country_filter
-        if country:
-            canonical_country_id = country.country_id
-            country_values = [value for value in (
-                country.country_id, country.iso2, country.iso3, country.country_name
-            ) if value]
-
-        campus_ids_for_country = session.query(InstituteCampus.campus_id).filter(
-            InstituteCampus.country_id == canonical_country_id
-        )
-        filter.append(or_(
-            User.country_id.in_(country_values),
-            User.campus_id.in_(campus_ids_for_country)
+        country_items = [c.strip() for c in country_filter.split(',') if c.strip()]
+        country_objs = session.query(Country).filter(or_(
+            Country.country_id.in_(country_items),
+            Country.iso2.in_(country_items),
+            Country.iso3.in_(country_items),
+            Country.country_name.in_(country_items),
+            or_(*[Country.country_name.ilike(f"%{c}%") for c in country_items])
+        )).all()
+        str_vals = list(set(
+            [str(c) for c in country_items] +
+            [str(c.country_id) for c in country_objs if c.country_id] +
+            [str(c.country_name) for c in country_objs if c.country_name] +
+            [str(c.iso2) for c in country_objs if c.iso2] +
+            [str(c.iso3) for c in country_objs if c.iso3]
         ))
+        int_vals = [int(v) for v in str_vals if v.isdigit()]
+        all_country_vals = str_vals + int_vals
+
+        campus_objs_for_country = session.query(InstituteCampus).filter(or_(
+            InstituteCampus.country_id.in_(all_country_vals),
+            or_(*[InstituteCampus.country_id.ilike(f"%{c}%") for c in country_items])
+        )).all()
+        campus_ids_for_country = [c.campus_id for c in campus_objs_for_country]
+        country_inst_ids = list(set([c.institute_id for c in campus_objs_for_country if c.institute_id]))
+
+        country_conds = [
+            User.country_id.in_(all_country_vals),
+            or_(*[User.country_id.ilike(f"%{c}%") for c in country_items]),
+            User.campus_id.in_(campus_ids_for_country),
+            InstituteCampus.country_id.in_(all_country_vals)
+        ]
+        if country_inst_ids:
+            country_conds.append(and_(or_(User.country_id.is_(None), User.country_id == ''), User.institute_id.in_(country_inst_ids)))
+        filter.append(or_(*country_conds))
 
     state_filter = str(args.get("state") or '').strip()
     if state_filter:
@@ -820,7 +839,13 @@ def get_user_details(request):
         filter.append(or_(*city_conditions))
 
     query = session.query(User)
-    if city_filter or state_filter:
+    if args.get("institute_id"):
+        query = query.outerjoin(Institute, User.institute_id == Institute.institute_id)
+    if args.get("department"):
+        query = query.outerjoin(InstituteDepartment, User.department_id == InstituteDepartment.department_id)
+    if args.get("team"):
+        query = query.outerjoin(InstituteTeam, User.team_id == InstituteTeam.team_id)
+    if city_filter or state_filter or args.get("campus") or country_filter:
         query = query.outerjoin(InstituteCampus, User.campus_id == InstituteCampus.campus_id)
     filtered_query = query.filter(*filter)
     user_details = filtered_query.order_by(User.created_date).offset((page_number - 1) * page_size).limit(page_size).all()
@@ -964,6 +989,17 @@ def get_user_list(request, current_user=None):
         filter.append(User.active_status == (1 if args.get("active_status") == 'true' else 0))
     if args.get("campus_id"):
         filter.append(User.campus_id == args.get("campus_id"))
+    elif args.get("campus"):
+        campus_val = str(args.get("campus")).strip()
+        campus_items = [c.strip() for c in campus_val.split(',') if c.strip()]
+        if campus_items:
+            q_campus = session.query(InstituteCampus).filter(or_(
+                InstituteCampus.campus_id.in_(campus_items),
+                or_(*[InstituteCampus.name.ilike(f"%{c}%") for c in campus_items])
+            ))
+            campus_objs = q_campus.all()
+            campus_ids = list(set([c.campus_id for c in campus_objs] + [c.name for c in campus_objs] + campus_items))
+            filter.append(User.campus_id.in_(campus_ids))
 
     user_details = session.query(User).filter(*filter).all()
     result = []

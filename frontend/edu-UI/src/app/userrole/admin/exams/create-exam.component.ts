@@ -202,7 +202,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
           ? (t.department_name || '').toLowerCase().trim()
           : '';
 
-        if (!teamDeptId && !teamDeptName) return true;
         if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
         if (teamDeptName && deptNames.includes(teamDeptName)) return true;
 
@@ -283,7 +282,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
           ? (t.department_name || '').toLowerCase().trim()
           : '';
 
-        if (!teamDeptId && !teamDeptName) return true;
         if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
         if (teamDeptName && deptNames.includes(teamDeptName)) return true;
 

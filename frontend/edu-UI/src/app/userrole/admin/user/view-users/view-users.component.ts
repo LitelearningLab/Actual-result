@@ -631,9 +631,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
           if (teamDeptName && deptNames.includes(teamDeptName)) return true;
 
-          // If team has no department assigned, include it so unassigned institute teams are available
-          if (!teamDeptId && !teamDeptName) return true;
-
           return false;
         });
       } else {
