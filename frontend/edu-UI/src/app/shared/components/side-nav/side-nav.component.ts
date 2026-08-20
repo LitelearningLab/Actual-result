@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DirectivesModule } from 'src/app/shared/directives/directives.module';
 import { IconModule } from '../../icons/icon.module';
+import { APP_VERSION } from '../../../../environments/version';
 
 @Component({
   selector: 'app-side-nav',
@@ -18,6 +19,7 @@ import { IconModule } from '../../icons/icon.module';
 })
 // export class SideNavComponent { }
 export class SideNavComponent implements OnInit, OnDestroy {
+  public appVersion = APP_VERSION;
   @HostBinding('class.collapsed') get hostCollapsed() { return this.collapsed }
   // class bindings are handled in the template; no HostBinding needed
   isLogin = false;
