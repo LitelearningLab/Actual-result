@@ -363,6 +363,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.users = [];
+        this.loader.hide();
       },
       complete: () => {
         this.loader.hide();
