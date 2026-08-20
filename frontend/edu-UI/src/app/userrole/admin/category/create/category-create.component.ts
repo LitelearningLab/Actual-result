@@ -1160,8 +1160,22 @@ export class CategoryCreateComponent {
   // Helper: get display name for institute id
   getInstituteName(id: string | null | undefined): string {
     if (!id) return '';
-    const found = (this.institutesList || []).find((i) => String(i.id) === String(id));
-    return found ? found.name : String(id);
+    const found: any = (this.institutesList || []).find(
+      (i: any) => String(i.id || i.institute_id || i._id) === String(id)
+    );
+    if (found?.name || found?.institute_name || found?.short_name) {
+      return found.name || found.institute_name || found.short_name;
+    }
+    try {
+      const storedContext = sessionStorage.getItem('super_admin_institute_context');
+      if (storedContext) {
+        const parsed = JSON.parse(storedContext);
+        if (parsed && String(parsed.institute_id) === String(id) && parsed.institute_name) {
+          return parsed.institute_name;
+        }
+      }
+    } catch (e) {}
+    return String(id);
   }
 
   // Helper: get option label from a list of {id,name}

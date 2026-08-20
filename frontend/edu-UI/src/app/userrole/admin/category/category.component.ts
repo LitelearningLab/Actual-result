@@ -774,12 +774,14 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     const found = (pool || []).find(
       (i: any) => String(i.institute_id || i.id || i._id) === String(id)
     );
-    return (
-      found?.institute_name ||
-      found?.short_name ||
-      found?.name ||
-      (pool && pool.length ? String(id) : '')
-    );
+    if (found?.institute_name || found?.short_name || found?.name) {
+      return found.institute_name || found.short_name || found.name;
+    }
+    const globalContext = this.globalInstituteContext?.activeContext;
+    if (globalContext && String(globalContext.institute_id) === String(id) && globalContext.institute_name) {
+      return globalContext.institute_name;
+    }
+    return String(id || '');
   }
 
   private getSelectedName(list: Array<{ id: string; name: string }>, selectedId: string): string {

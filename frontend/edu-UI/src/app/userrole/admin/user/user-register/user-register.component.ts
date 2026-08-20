@@ -1065,7 +1065,20 @@ export class AdminUserRegisterComponent implements OnInit {
   // --- Review helpers: name lookups ---
   getInstituteName(instId: any): string | null {
     if (!instId) return null;
-    try { const i = this.institutes.find(x => String(x.id) === String(instId)); return i ? i.name : null; } catch (e) { return null; }
+    try {
+      const i: any = this.institutes.find(x => String(x.id || x.institute_id || x._id) === String(instId));
+      if (i?.name || i?.institute_name || i?.short_name) {
+        return i.name || i.institute_name || i.short_name;
+      }
+      const storedContext = sessionStorage.getItem('super_admin_institute_context');
+      if (storedContext) {
+        const parsed = JSON.parse(storedContext);
+        if (parsed && String(parsed.institute_id) === String(instId) && parsed.institute_name) {
+          return parsed.institute_name;
+        }
+      }
+      return null;
+    } catch (e) { return null; }
   }
 
   getRoleLabel(roleKey: any): string | null {

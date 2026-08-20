@@ -968,7 +968,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const teamStr = Array.isArray(this.filters.team)
       ? this.filters.team.join(',')
       : this.filters.team || '';
-    const depKey = `${this.hasAppliedFilters}|${(this.selectedInstitutes || []).join(',')}|${this.filters.institute}|${this.selectedInstitute}|${(this.selectedCountries || []).join(',')}|${this.filters.country}|${(this.selectedIndustries || []).join(',')}|${this.filters.industry}|${(this.selectedSectors || []).join(',')}|${this.filters.sector}|${this.isActive}|${this.filters.name}|${(this.selectedCities || []).join(',')}|${this.filters.city}|${deptStr}|${teamStr}|${(this.selectedCampuses || []).join(',')}|${this.isSuperAdmin}`;
+    const depKey = `${this.hasAppliedFilters}|${(this.selectedInstitutes || []).join(',')}|${this.filters.institute}|${this.selectedInstitute}|${(this.selectedCountries || []).join(',')}|${this.filters.country}|${(this.selectedIndustries || []).join(',')}|${this.filters.industry}|${(this.selectedSectors || []).join(',')}|${this.filters.sector}|${this.isActive}|${this.filters.name}|${(this.selectedCities || []).join(',')}|${this.filters.city}|${deptStr}|${teamStr}|${(this.selectedCampuses || []).join(',')}|${this.isSuperAdmin}|${(this.institutes || []).length}`;
 
     return this._memoize('appliedFilterChips', depKey, () => {
       if (!this.hasAppliedFilters) return [];
@@ -1173,8 +1173,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   private getInstituteLabel(id: any): string {
-    const found = this.institutes.find((i) => String(i.institute_id) === String(id));
-    return found?.institute_name || found?.short_name || String(id || '');
+    if (!id) return '';
+    const found = (this.institutes || []).find((i) => String(i.institute_id) === String(id));
+    if (found?.institute_name || found?.short_name) {
+      return found.institute_name || found.short_name;
+    }
+    const globalContext = this.globalInstituteContext?.activeContext;
+    if (globalContext && String(globalContext.institute_id) === String(id) && globalContext.institute_name) {
+      return globalContext.institute_name;
+    }
+    return String(id || '');
   }
 
   private getSelectedName(list: any[], selectedId: any, idKey: string = 'id'): string {
@@ -1712,7 +1720,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   loadAdminUserLocations(): void {
     if (this.isSuperAdmin) return;
-    const params: any = { pageNumber: 1, pageSize: 10000, _ts: Date.now() };
+    const params: any = { pageNumber: 1, pageSize: 500, _ts: Date.now() };
     const instituteParam =
       this.selectedInstitutes?.length
         ? this.selectedInstitutes.join(',')

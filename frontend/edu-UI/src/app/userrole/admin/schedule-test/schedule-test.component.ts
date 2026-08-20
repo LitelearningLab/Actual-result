@@ -4080,8 +4080,17 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   // Return a readable institute name for a given institute id
   getInstituteName(instId: any): string {
     if (!instId) return '';
-    const found = (this.institutes || []).find((i) => String(i.institute_id) === String(instId));
-    return found ? found.name || '' : '';
+    const found: any = (this.institutes || []).find(
+      (i: any) => String(i.institute_id || i.id || i._id) === String(instId)
+    );
+    if (found?.name || found?.institute_name || found?.short_name) {
+      return found.name || found.institute_name || found.short_name;
+    }
+    const globalContext = this.globalInstituteContext?.activeContext;
+    if (globalContext && String(globalContext.institute_id) === String(instId) && globalContext.institute_name) {
+      return globalContext.institute_name;
+    }
+    return String(instId || '');
   }
 
   // Lookup user name by id from currently loaded users

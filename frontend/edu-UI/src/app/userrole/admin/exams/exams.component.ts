@@ -1245,12 +1245,14 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     const found: any = (this.institutes || []).find(
       (i: any) => String(i.institute_id || i.id || i._id) === String(id)
     );
-    return (
-      found?.institute_name ||
-      found?.short_name ||
-      found?.name ||
-      (this.institutes && this.institutes.length ? String(id || '') : '')
-    );
+    if (found?.institute_name || found?.short_name || found?.name) {
+      return found.institute_name || found.short_name || found.name;
+    }
+    const globalContext = this.globalInstituteContext?.activeContext;
+    if (globalContext && String(globalContext.institute_id) === String(id) && globalContext.institute_name) {
+      return globalContext.institute_name;
+    }
+    return String(id || '');
   }
   private getSelectedName(list: any[], selectedId: any): string {
     if (!selectedId || !list || !list.length) return '';

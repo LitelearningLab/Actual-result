@@ -959,11 +959,14 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     const found: any = (this.institutes || []).find(
       (i: any) => String(i.institute_id || i.id || i._id) === String(id)
     );
-    return (
-      found?.name ||
-      found?.institute_name ||
-      (this.institutes && this.institutes.length ? String(id || '') : '')
-    );
+    if (found?.name || found?.institute_name || found?.short_name) {
+      return found.name || found.institute_name || found.short_name;
+    }
+    const globalContext = this.globalInstituteContext?.activeContext;
+    if (globalContext && String(globalContext.institute_id) === String(id) && globalContext.institute_name) {
+      return globalContext.institute_name;
+    }
+    return String(id || '');
   }
   private getCategoryLabel(id: any): string {
     if (!id) return '';

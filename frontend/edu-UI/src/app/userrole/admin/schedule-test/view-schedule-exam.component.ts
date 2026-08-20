@@ -1076,10 +1076,17 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   }
   private getInstituteLabel(id: any): string {
     if (!id) return '';
-    const found = (this.institutes || []).find(
+    const found: any = (this.institutes || []).find(
       (i) => String(i.institute_id || (i as any).id || (i as any)._id) === String(id)
     );
-    return found?.name || (this.institutes && this.institutes.length ? String(id || '') : '');
+    if (found?.name || found?.institute_name || found?.short_name) {
+      return found.name || found.institute_name || found.short_name;
+    }
+    const globalContext = this.globalInstituteContext?.activeContext;
+    if (globalContext && String(globalContext.institute_id) === String(id) && globalContext.institute_name) {
+      return globalContext.institute_name;
+    }
+    return String(id || '');
   }
   private getSelectedName(list: any[], selectedId: any): string {
     if (!selectedId || !list || !list.length) return '';
