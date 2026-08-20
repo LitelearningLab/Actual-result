@@ -1277,11 +1277,16 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     } else {
       // Filter cities matching selected country code(s)
       const filtered = citySource.filter((city) =>
-        targetCodes.some(
-          (code) =>
-            String(city.countryCode).toLowerCase() === String(code).toLowerCase() ||
-            String(city.code).toLowerCase() === String(code).toLowerCase()
-        )
+        targetCodes.some((code) => {
+          const cCode = String(code).toLowerCase().trim();
+          const c: any = city;
+          return (
+            String(c.countryCode || '').toLowerCase().trim() === cCode ||
+            String(c.code || '').toLowerCase().trim() === cCode ||
+            String(c.countryName || '').toLowerCase().trim() === cCode ||
+            String(c.name || '').toLowerCase().trim() === cCode
+          );
+        })
       );
       const uniqueCities = new Map<string, { code: string; name: string }>();
       filtered.forEach((city) => {
@@ -1289,6 +1294,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         if (!uniqueCities.has(key)) uniqueCities.set(key, { code: city.code, name: city.name });
       });
       this.cities = Array.from(uniqueCities.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+      // Always fetch cities from backend API for selected country codes
+      this.loadCitiesForCountry(targetCodes);
     }
   }
 
@@ -2632,9 +2640,22 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
               }
             });
           });
-          this.filterCityOptions = Array.from(uniqueSet.values()).sort((a, b) =>
+          const fetched = Array.from(uniqueSet.values()).sort((a, b) =>
             a.name.localeCompare(b.name)
           );
+          this.filterCityOptions = fetched;
+          if (fetched.length > 0) {
+            const mergedMap = new Map<string, { code: string; name: string }>();
+            (this.cities || []).forEach((c) => {
+              if (c?.name) mergedMap.set(c.name.toLowerCase(), c);
+            });
+            fetched.forEach((c) => {
+              if (c?.name) mergedMap.set(c.name.toLowerCase(), c);
+            });
+            this.cities = Array.from(mergedMap.values()).sort((a, b) =>
+              a.name.localeCompare(b.name)
+            );
+          }
         } catch (e) {
           this.filterCityOptions = [];
         }
@@ -3285,6 +3306,12 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     if (this.isSuperAdmin && !this.isGlobalInstituteActive && !this.filterInstitute) {
       try {
         notify('Please select an institute', 'info');
+      } catch (e) {}
+      return;
+    }
+    if (!this.filterExamName) {
+      try {
+        notify('Please select a Test Name', 'info');
       } catch (e) {}
       return;
     }

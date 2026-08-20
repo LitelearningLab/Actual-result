@@ -55,10 +55,28 @@ def get_institute_team_details(institute_id, filter_by_institute=False):
             
         json_data = []
         for team in teams:
+            dept_id = team.department_id
+            dept_name = None
+            if not dept_id and team.institute_id:
+                # Fallback: check if institute has a department to bind
+                dept_obj = session.query(InstituteDepartment).filter_by(institute_id=team.institute_id).first()
+                if dept_obj:
+                    team.department_id = dept_obj.department_id
+                    dept_id = dept_obj.department_id
+                    try:
+                        session.commit()
+                    except Exception:
+                        session.rollback()
+            if dept_id:
+                dept_obj = session.query(InstituteDepartment).filter_by(department_id=dept_id).first()
+                if dept_obj:
+                    dept_name = dept_obj.name
+
             json_data.append({
                 "id": team.team_id,
                 "name": team.name,
-                "department_id": team.department_id
+                "department_id": dept_id,
+                "department_name": dept_name
             })
         json_data = {
             "statusMessage": "User details fetched successfully",

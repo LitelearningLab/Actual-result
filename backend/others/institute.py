@@ -618,8 +618,25 @@ def get_institute_details(request):
         # get InstituteDepartments details
         departments = session.query(InstituteDepartment).filter_by(institute_id=inst.institute_id).all()
         dept_list = []
-        for dept in departments:
+        
+        # Check for unassigned teams for this institute
+        unassigned_teams = session.query(InstituteTeam).filter(
+            InstituteTeam.institute_id == inst.institute_id,
+            or_(InstituteTeam.department_id.is_(None), InstituteTeam.department_id == '')
+        ).all()
+
+        for idx, dept in enumerate(departments):
             d_teams = session.query(InstituteTeam).filter_by(institute_id=inst.institute_id, department_id=dept.department_id).all()
+            if not d_teams and unassigned_teams:
+                # If department has no explicitly linked teams, associate unassigned teams
+                d_teams = unassigned_teams
+                for u_team in unassigned_teams:
+                    u_team.department_id = dept.department_id
+                try:
+                    session.commit()
+                except Exception:
+                    session.rollback()
+
             dept_list.append({
                 "dept_id": dept.department_id,
                 "name": dept.name,

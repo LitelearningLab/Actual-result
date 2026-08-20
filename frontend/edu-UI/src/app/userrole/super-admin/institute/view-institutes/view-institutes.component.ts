@@ -216,6 +216,10 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
       if (explicitDeptName && dNameLower && explicitDeptName.toLowerCase().trim() === dNameLower) {
         return true;
       }
+      // If team has no explicit department assigned, fall back to matching it under the department
+      if (!explicitDeptId && !explicitDeptName) {
+        return true;
+      }
       return false;
     });
   }

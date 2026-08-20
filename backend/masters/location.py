@@ -46,35 +46,42 @@ def get_location_hierarchy_details(request):
                         "name": institute_campus.city_name,
                         "state_id": institute_campus.state_id
                     })
-        elif "country_id" in args:
-            country_arg = str(args["country_id"] or '').strip()
-            if ',' in country_arg:
-                c_ids = [c.strip() for c in country_arg.split(',') if c.strip()]
-                countries = session.query(Country).filter(Country.country_id.in_(c_ids)).all()
-                states = session.query(State).filter(State.country_id.in_(c_ids)).all()
-                registered_cities = session.query(InstituteCampus.city_name).filter(InstituteCampus.country_id.in_(c_ids)).all()
-            else:
-                countries = session.query(Country).filter(Country.country_id == country_arg).all()
-                states = session.query(State).filter(State.country_id == country_arg).all()
-                registered_cities = session.query(InstituteCampus.city_name).filter(InstituteCampus.country_id == country_arg).all()
-            
-            # Deduplicate and title-case
-            unique_names = sorted(list({c[0].strip().title() for c in registered_cities if c[0] and c[0].strip()}))
-            cities = [City(city_id=name, city_name=name) for name in unique_names]
+        elif "country_id" in args or "country" in args:
+            country_arg = str(args.get("country_id") or args.get("country") or '').strip()
+            c_ids = [c.strip() for c in country_arg.split(',') if c.strip()] if ',' in country_arg else ([country_arg] if country_arg else [])
 
-        elif "state_id" in args:
-            states = session.query(State).filter(State.state_id == args["state_id"]).all()
-            cities = session.query(City).filter(City.state_id == args["state_id"]).all()
-        elif "country" in args:
-            countries = session.query(Country).filter(Country.country_id == args["country"]).all()
-            # get state_ids from countries
-            country_ids = [args["country"]]
-            states = session.query(State).filter(State.country_id.in_(country_ids)).all()
-            state_ids = [state.state_id for state in states]
+            country_objs = session.query(Country).filter(
+                (Country.country_id.in_(c_ids)) |
+                (Country.country_code.in_(c_ids)) |
+                (Country.country_name.in_(c_ids))
+            ).all()
+
+            matched_country_ids = [c.country_id for c in country_objs] if country_objs else c_ids
+            countries = country_objs if country_objs else session.query(Country).filter(Country.country_id.in_(c_ids)).all()
+
+            states = session.query(State).filter(State.country_id.in_(matched_country_ids)).all()
+            state_ids = [s.state_id for s in states]
+
             if state_ids:
-                cities = session.query(City).filter(City.state_id.in_(state_ids)).all()
+                cities = session.query(City).filter((City.state_id.in_(state_ids)) | (City.country_id.in_(matched_country_ids))).all()
             else:
-                cities = session.query(City).filter(City.country_id.in_(country_ids)).all()
+                cities = session.query(City).filter(City.country_id.in_(matched_country_ids)).all()
+
+            registered_cities = session.query(InstituteCampus.city_name).filter(
+                (InstituteCampus.country_id.in_(matched_country_ids)) | (InstituteCampus.country_id.in_(c_ids))
+            ).all()
+
+            existing_names = {c.city_name.strip().lower() for c in cities if c.city_name}
+            if registered_cities:
+                for rc in registered_cities:
+                    if rc and rc[0] and rc[0].strip():
+                        name = rc[0].strip().title()
+                        if name.lower() not in existing_names:
+                            existing_names.add(name.lower())
+                            cities.append(City(city_id=name, city_name=name))
+
+            if not cities:
+                cities = session.query(City).all()
     else:
         # Flat Structure
         countries = session.query(Country).all()

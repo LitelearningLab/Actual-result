@@ -356,8 +356,8 @@
             <mat-select
               multiple
               [(ngModel)]="filters.team"
-              [disabled]="!selectedInstitute && !selectedInstitutes.length && !isGlobalInstituteActive"
-              placeholder="Select teams"
+              [disabled]="(!selectedInstitute && !selectedInstitutes.length && !isGlobalInstituteActive) || !hasSelectedDepartment"
+              [placeholder]="hasSelectedDepartment ? 'Select teams' : 'Select department first'"
             >
               <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                 <input

@@ -589,6 +589,12 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     });
   }
 
+  get hasSelectedDepartment(): boolean {
+    if (!this.filters.department) return false;
+    if (Array.isArray(this.filters.department)) return this.filters.department.length > 0;
+    return true;
+  }
+
   get filteredTeamsForFilter() {
     const selectedTeams = Array.isArray(this.filters.team)
       ? this.filters.team.join(',')
@@ -625,8 +631,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
           if (teamDeptName && deptNames.includes(teamDeptName)) return true;
 
+          // If team has no department assigned, include it so unassigned institute teams are available
+          if (!teamDeptId && !teamDeptName) return true;
+
           return false;
         });
+      } else {
+        list = [];
       }
 
       if (term) {
