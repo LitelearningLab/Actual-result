@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { Observable, of, Subscription, forkJoin } from 'rxjs';
-import { startWith, map } from 'rxjs/operators';
+import { startWith, map, catchError } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { API_BASE } from 'src/app/shared/api.config';
@@ -195,6 +195,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   private scheduledTestsRequestId = 0;
 
   // --- 3-Step Test Selection State ---
+  allSchedules: any[] = [];
   uniqueTestNames: string[] = [];
   selectedTestTitle: string = '';
   selectedScheduleDate: Date | null = null;
@@ -304,7 +305,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const selected = Array.isArray(this.userFilters.department_id)
       ? this.userFilters.department_id
       : [];
-    return list.length > 0 && list.every((d) => selected.includes(d));
+    return list.length > 0 && list.every((d: any) => {
+      const val = (typeof d === 'object' && d !== null) ? (d as any).id || (d as any).name : d;
+      return selected.includes(val);
+    });
   }
 
   toggleSelectAllDepartments() {
@@ -312,7 +316,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.isAllDepartmentsSelected()) {
       this.userFilters.department_id = [];
     } else {
-      this.userFilters.department_id = [...list];
+      this.userFilters.department_id = list.map((d: any) => ((typeof d === 'object' && d !== null) ? (d as any).id || (d as any).name : d));
     }
     this.onFilterSelectionChange();
   }
@@ -383,7 +387,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   isAllTeamsSelected(): boolean {
     const list = this.filteredTeamsForFilter || [];
     const selected = Array.isArray(this.userFilters.teams_id) ? this.userFilters.teams_id : [];
-    return list.length > 0 && list.every((t) => selected.includes(t));
+    return list.length > 0 && list.every((t) => {
+      const val = typeof t === 'object' ? t.id || t.name : t;
+      return selected.includes(val);
+    });
   }
 
   toggleSelectAllTeams() {
@@ -391,9 +398,47 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.isAllTeamsSelected()) {
       this.userFilters.teams_id = [];
     } else {
-      this.userFilters.teams_id = [...list];
+      this.userFilters.teams_id = list.map((t) => (typeof t === 'object' ? t.id || t.name : t));
     }
     this.onFilterSelectionChange();
+  }
+
+  getTeamDisplayName(teamVal: any): string {
+    if (!teamVal) return '';
+    const valStr = String(typeof teamVal === 'object' ? teamVal.id || teamVal.name : teamVal);
+    const found = (this.teamList || []).find((t: any) => {
+      const tId = String(typeof t === 'object' ? t.id || t.name : t);
+      const tName = String(typeof t === 'object' ? t.name || t.id : t);
+      return tId === valStr || tName === valStr;
+    });
+    if (found && typeof found === 'object') {
+      return found.name || found.id || valStr;
+    }
+    return valStr;
+  }
+
+  getSelectedTeamsDisplay(): string {
+    if (!Array.isArray(this.userFilters.teams_id) || !this.userFilters.teams_id.length) return '';
+    return this.userFilters.teams_id.map((t: any) => this.getTeamDisplayName(t)).join(', ');
+  }
+
+  getDepartmentDisplayName(deptVal: any): string {
+    if (!deptVal) return '';
+    const valStr = String(typeof deptVal === 'object' ? deptVal.id || deptVal.name : deptVal);
+    const found = (this.departmentList || []).find((d: any) => {
+      const dId = String(typeof d === 'object' ? d.id || d.name : d);
+      const dName = String(typeof d === 'object' ? d.name || d.id : d);
+      return dId === valStr || dName === valStr;
+    });
+    if (found && typeof found === 'object') {
+      return found.name || found.id || valStr;
+    }
+    return valStr;
+  }
+
+  getSelectedDepartmentsDisplay(): string {
+    if (!Array.isArray(this.userFilters.department_id) || !this.userFilters.department_id.length) return '';
+    return this.userFilters.department_id.map((d: any) => this.getDepartmentDisplayName(d)).join(', ');
   }
 
   get filteredCountriesList(): any[] {
@@ -562,53 +607,53 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Filter strictly by department if selected
-    if (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length) {
+    // Filter by department if specific departments selected (skip filtering if Select All is active)
+    if (
+      Array.isArray(this.userFilters.department_id) &&
+      this.userFilters.department_id.length &&
+      !this.isAllDepartmentsSelected()
+    ) {
       const selectedDepts: string[] = this.userFilters.department_id.map((d: any) =>
         String(d).toLowerCase().trim()
       );
       list = list.filter((t) => {
-        const itemDept = String(
-          t.department_id || t.department || t.department_name || t.departments || ''
+        const itemDeptId = String(t.department_id || '').toLowerCase().trim();
+        const itemDeptName = String(
+          t.department_name || t.department || t.departments || ''
         )
           .toLowerCase()
           .trim();
-        if (!itemDept) {
-          const userMatch =
-            Array.isArray(t.assigned_users) &&
-            t.assigned_users.some((u: any) => {
-              const uDept = String(u.department_id || u.department || u.department_name || '')
-                .toLowerCase()
-                .trim();
-              return selectedDepts.some((sd: string) => uDept.includes(sd));
-            });
-          return userMatch || true;
-        }
-        return selectedDepts.some((sd: string) => itemDept.includes(sd));
+        if (!itemDeptId && !itemDeptName) return true;
+        return selectedDepts.some(
+          (sd: string) =>
+            (itemDeptId && itemDeptId.includes(sd)) ||
+            (itemDeptName && itemDeptName.includes(sd)) ||
+            (sd && itemDeptName && sd.includes(itemDeptName))
+        );
       });
     }
 
-    // Filter strictly by team if selected
-    if (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length) {
+    // Filter by team if specific teams selected (skip filtering if Select All is active)
+    if (
+      Array.isArray(this.userFilters.teams_id) &&
+      this.userFilters.teams_id.length &&
+      !this.isAllTeamsSelected()
+    ) {
       const selectedTeams: string[] = this.userFilters.teams_id.map((tm: any) =>
         String(tm).toLowerCase().trim()
       );
       list = list.filter((t) => {
-        const itemTeam = String(t.team_id || t.team || t.team_name || t.teams || '')
+        const itemTeamId = String(t.team_id || '').toLowerCase().trim();
+        const itemTeamName = String(t.team_name || t.team || t.teams || '')
           .toLowerCase()
           .trim();
-        if (!itemTeam) {
-          const userMatch =
-            Array.isArray(t.assigned_users) &&
-            t.assigned_users.some((u: any) => {
-              const uTeam = String(u.team_id || u.team || u.team_name || '')
-                .toLowerCase()
-                .trim();
-              return selectedTeams.some((st: string) => uTeam.includes(st));
-            });
-          return userMatch || true;
-        }
-        return selectedTeams.some((st: string) => itemTeam.includes(st));
+        if (!itemTeamId && !itemTeamName) return true;
+        return selectedTeams.some(
+          (st: string) =>
+            (itemTeamId && itemTeamId.includes(st)) ||
+            (itemTeamName && itemTeamName.includes(st)) ||
+            (st && itemTeamName && st.includes(itemTeamName))
+        );
       });
     }
 
@@ -665,8 +710,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   updateHighlightedDates() {
     this.highlightedDatesSet.clear();
     if (!this.selectedTestTitle) return;
-    (this.allTests || []).forEach((it) => {
-      if (this.getTestTitle(it) === this.selectedTestTitle) {
+    const items = (this.allSchedules && this.allSchedules.length) ? this.allSchedules : (this.allTests || []);
+    items.forEach((it) => {
+      if (this.getTestTitle(it).toLowerCase() === this.selectedTestTitle.toLowerCase()) {
         const dateStr = this.getScheduleDateString(it);
         if (dateStr) {
           this.highlightedDatesSet.add(dateStr);
@@ -687,9 +733,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       return;
     }
     const targetDateStr = this.formatDateToYYYYMMDD(this.selectedScheduleDate);
-    this.availableSchedulesOnDate = (this.allTests || []).filter((it) => {
+    const items = (this.allSchedules && this.allSchedules.length) ? this.allSchedules : (this.allTests || []);
+    this.availableSchedulesOnDate = items.filter((it) => {
       return (
-        this.getTestTitle(it) === this.selectedTestTitle &&
+        this.getTestTitle(it).toLowerCase() === this.selectedTestTitle.toLowerCase() &&
         this.getScheduleDateString(it) === targetDateStr
       );
     });
@@ -745,6 +792,42 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return '';
   };
 
+  parseScheduleDate(raw: any): Date | null {
+    if (!raw) return null;
+    if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
+    let str = String(raw).trim();
+    if (!str) return null;
+
+    let dt = new Date(str);
+    if (!isNaN(dt.getTime())) return dt;
+
+    const ddMmYyyy = str.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (ddMmYyyy) {
+      const day = Number(ddMmYyyy[1]);
+      const month = Number(ddMmYyyy[2]) - 1;
+      const year = Number(ddMmYyyy[3]);
+      const hour = ddMmYyyy[4] ? Number(ddMmYyyy[4]) : 0;
+      const min = ddMmYyyy[5] ? Number(ddMmYyyy[5]) : 0;
+      const sec = ddMmYyyy[6] ? Number(ddMmYyyy[6]) : 0;
+      dt = new Date(year, month, day, hour, min, sec);
+      if (!isNaN(dt.getTime())) return dt;
+    }
+
+    const yyyyMmDd = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (yyyyMmDd) {
+      const year = Number(yyyyMmDd[1]);
+      const month = Number(yyyyMmDd[2]) - 1;
+      const day = Number(yyyyMmDd[3]);
+      const hour = yyyyMmDd[4] ? Number(yyyyMmDd[4]) : 0;
+      const min = yyyyMmDd[5] ? Number(yyyyMmDd[5]) : 0;
+      const sec = yyyyMmDd[6] ? Number(yyyyMmDd[6]) : 0;
+      dt = new Date(year, month, day, hour, min, sec);
+      if (!isNaN(dt.getTime())) return dt;
+    }
+
+    return null;
+  }
+
   getScheduleId(item: any): string {
     if (!item) return '';
     return String(item.schedule_id || item.id || item.scheduleId || '');
@@ -752,10 +835,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   getScheduleDateString(item: any): string {
     if (!item) return '';
-    const raw = item.start_time || item.start_date || item.created_date || item.date;
-    if (!raw) return '';
-    const dt = new Date(raw);
-    if (isNaN(dt.getTime())) return '';
+    const raw = item.start_time || item.start_date || item.created_date || item.date || item.schedule_date || item.exam_date;
+    const dt = this.parseScheduleDate(raw);
+    if (!dt) return '';
     return this.formatDateToYYYYMMDD(dt);
   }
 
@@ -768,30 +850,27 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   getScheduleTimeString(item: any): string {
     if (!item) return '';
-    const raw = item.start_time || item.start_date || item.created_date;
-    if (!raw) return '';
-    const dt = new Date(raw);
-    if (isNaN(dt.getTime())) return '';
-    return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    const raw = item.start_time || item.start_date || item.created_date || item.date || item.schedule_date;
+    const dt = this.parseScheduleDate(raw);
+    if (!dt) return '';
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mm = String(dt.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
   }
 
   getScheduleDisplayLabel(item: any): string {
     if (!item) return '';
-    const testTitle = this.getTestTitle(item);
-    const timeStr = this.getScheduleTimeString(item);
-    const dept = item.department_name || item.department || item.target_group || item.title || '';
-    const count = item.started_student_count ?? item.assigned_users?.length ?? 0;
-    const status = item.has_attendance || count > 0 ? 'Completed' : 'Scheduled';
-
-    let label = `${testTitle}`;
-    if (dept && dept !== testTitle) {
-      label += ` - ${dept}`;
+    const name = item.title || item.schedule_name || item.name || this.getTestTitle(item);
+    const dt = this.parseScheduleDate(item.start_time || item.start_date || item.created_date || item.date || item.schedule_date);
+    if (dt) {
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      const hh = String(dt.getHours()).padStart(2, '0');
+      const min = String(dt.getMinutes()).padStart(2, '0');
+      return `${name} (${dd}/${mm}/${yyyy} - ${hh}:${min})`;
     }
-    if (timeStr) {
-      label += ` - ${timeStr}`;
-    }
-    label += ` (${status}, ${count} Students)`;
-    return label;
+    return `${name}`;
   }
 
   onSelectOpened(opened: boolean, field: string) {
@@ -1601,6 +1680,23 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.userFilters.schedule_id = String(val);
       this.searchQueries.schedule = '';
     }
+
+    const schedId = this.userFilters.schedule_id;
+    if (schedId) {
+      const found = (this.allTests || []).find((t) => {
+        const sid = String(t.schedule_id || t.id || t.exam_id || '');
+        return (
+          sid === String(schedId) ||
+          this.getTestTitle(t).toLowerCase() === String(schedId).toLowerCase()
+        );
+      });
+      if (found) {
+        const title = this.getTestTitle(found);
+        if (title) {
+          this.onTestTitleSelect(title);
+        }
+      }
+    }
   }
 
   onTestAutocompleteSelected(exam: any) {
@@ -2012,46 +2108,103 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.wrongDistribution = [];
   }
 
+  getLoggedInInstituteId(): string {
+    if (this.selectedInstituteId) return this.selectedInstituteId;
+    if (this.userFilters.institute_id) return this.userFilters.institute_id;
+    if (this.globalContextService.activeInstituteId) return this.globalContextService.activeInstituteId;
+    if (this.auth.currentUserValue?.institute_id) return String(this.auth.currentUserValue.institute_id);
+
+    const keys = ['user_profile', 'user', 'user_info', 'currentUser'];
+    for (const key of keys) {
+      const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
+      if (raw) {
+        try {
+          const u = JSON.parse(raw);
+          const iid = u?.institute_id || u?.instituteId || u?.inst_id || u?.institute?.id || u?.institute?.institute_id;
+          if (iid) return String(iid);
+        } catch (e) {}
+      }
+    }
+    return (
+      sessionStorage.getItem('global_institute_id') ||
+      sessionStorage.getItem('institute_id') ||
+      sessionStorage.getItem('instituteId') ||
+      localStorage.getItem('institute_id') ||
+      ''
+    );
+  }
+
   loadScheduledTest() {
-    const instituteId = String(this.selectedInstituteId || '').trim();
-    if (!instituteId) {
+    const instituteId = this.getLoggedInInstituteId();
+    if (!instituteId && this.isSuperAdmin) {
       this.resetSelectedExam();
-      this.scheduledTestsMessage = 'Select an institute to load scheduled tests.';
+      this.scheduledTestsMessage = 'Select an institute to load tests.';
       return;
+    }
+    if (instituteId && !this.selectedInstituteId) {
+      this.selectedInstituteId = instituteId;
+      this.userFilters.institute_id = instituteId;
     }
 
     const requestId = ++this.scheduledTestsRequestId;
-    const url = `${API_BASE}/get-exam-schedule-details`;
     this.scheduledTestsLoading = true;
     this.scheduledTestsMessage = '';
     this.loading.show();
 
-    const params: any = {
-      institute_id: instituteId,
-      country_id: this.userFilters.country_id || '',
-      city_id: this.userFilters.city_id || '',
-      campus_id: this.userFilters.campus_id || '',
-    };
+    const params: any = {};
+    if (instituteId) params.institute_id = instituteId;
+    if (this.userFilters.country_id) params.country_id = this.userFilters.country_id;
+    if (this.userFilters.city_id) params.city_id = this.userFilters.city_id;
     if (this.userFilters.industry) params.industry = this.userFilters.industry;
     if (this.userFilters.sector) params.sector = this.userFilters.sector;
-    if (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length) {
-      params.department_id = this.userFilters.department_id.join(',');
-    }
-    if (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length) {
-      params.team_id = this.userFilters.teams_id.join(',');
-    }
 
-    this.http.get<any>(url, { params }).subscribe({
-      next: (res: any) => {
-        if (requestId !== this.scheduledTestsRequestId || instituteId !== this.selectedInstituteId)
-          return;
+    const examsListUrl = `${API_BASE}/get-exams-list`;
+    const schedulesUrl = `${API_BASE}/get-exam-schedule-details`;
+
+    forkJoin({
+      manageTests: this.http.get<any>(examsListUrl, { params }).pipe(catchError(() => of([]))),
+      schedules: this.http.get<any>(schedulesUrl, { params }).pipe(catchError(() => of([]))),
+    }).subscribe({
+      next: (res: { manageTests: any; schedules: any }) => {
+        if (requestId !== this.scheduledTestsRequestId) return;
         try {
-          const items = Array.isArray(res) ? res : res?.data || res?.schedules || [];
-          this.allTests = items || [];
+          const rawExams = Array.isArray(res.manageTests?.data)
+            ? res.manageTests.data
+            : Array.isArray(res.manageTests)
+            ? res.manageTests
+            : [];
+          const rawSchedules = Array.isArray(res.schedules?.data)
+            ? res.schedules.data
+            : Array.isArray(res.schedules?.schedules)
+            ? res.schedules.schedules
+            : Array.isArray(res.schedules)
+            ? res.schedules
+            : [];
+
+          // Save schedules for date & slot selection
+          this.allSchedules = rawSchedules || [];
+
+          // Save master tests for Test Name dropdown (Step 1)
+          const uniqueMap = new Map<string, any>();
+          rawExams.forEach((x: any) => {
+            const title = this.getTestTitle(x);
+            if (title && !uniqueMap.has(title.toLowerCase())) {
+              uniqueMap.set(title.toLowerCase(), {
+                id: x.exam_id || x.test_id || x.id,
+                schedule_id: x.exam_id || x.test_id || x.id,
+                exam_id: x.exam_id || x.test_id || x.id,
+                title: title,
+                name: title,
+                raw: x,
+              });
+            }
+          });
+
+          // Master exams list (excluding schedules)
+          this.allTests = Array.from(uniqueMap.values());
           this.updateUniqueTestNames();
-          this.scheduledTestsMessage = this.allTests.length
-            ? ''
-            : 'No scheduled tests found for this institute.';
+          this.scheduledTestsMessage = this.allTests.length ? '' : 'No tests found for this institute.';
+
           try {
             this.filteredTests$ = this.examCtrl.valueChanges.pipe(
               startWith(''),
@@ -2068,31 +2221,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         } catch (e) {
           this.allTests = [];
           this.filteredTests$ = of([]);
-          this.scheduledTestsMessage = 'Unable to read the scheduled tests response.';
-          console.warn('Failed to load schedules', e);
+          this.scheduledTestsMessage = 'Unable to parse tests.';
         }
         this.scheduledTestsLoading = false;
-        try {
-          this.loading.hide();
-        } catch (e) {}
+        try { this.loading.hide(); } catch (e) {}
       },
       error: (err: any) => {
-        if (requestId !== this.scheduledTestsRequestId || instituteId !== this.selectedInstituteId)
-          return;
+        if (requestId !== this.scheduledTestsRequestId) return;
         this.allTests = [];
         this.filteredTests$ = of([]);
         this.scheduledTestsLoading = false;
-        this.scheduledTestsMessage =
-          err?.status === 404
-            ? 'No scheduled tests found for this institute.'
-            : err?.error?.statusMessage ||
-              'Scheduled tests could not be loaded. Use Refresh to try again.';
-        if (err?.status !== 404)
-          this._snack.open(this.scheduledTestsMessage, 'Close', { duration: 5000 });
-        console.warn('Failed to load schedules', err);
-        try {
-          this.loading.hide();
-        } catch (e) {}
+        this.scheduledTestsMessage = 'Tests could not be loaded. Use Refresh to try again.';
+        try { this.loading.hide(); } catch (e) {}
       },
     });
   }
@@ -2101,10 +2241,23 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     try {
       this.pageMeta.setMeta('Test Reports', 'Reports for scheduled tests');
     } catch (e) {}
+
+    const userInstId = this.getLoggedInInstituteId();
+    if (!this.isSuperAdmin && userInstId) {
+      this.selectedInstituteId = String(userInstId);
+      this.userFilters.institute_id = String(userInstId);
+      try {
+        this.loadDepartmentList(this.selectedInstituteId);
+        this.loadTeamsList(this.selectedInstituteId);
+        this.loadCampusList(this.selectedInstituteId);
+      } catch (e) {}
+    }
+
     this.loadInstitutes();
     try {
       this.loadCountries();
     } catch (e) {}
+    this.loadScheduledTest();
 
     try {
       const sub = this.globalContextService.activeInstitute$.subscribe((context: any) => {

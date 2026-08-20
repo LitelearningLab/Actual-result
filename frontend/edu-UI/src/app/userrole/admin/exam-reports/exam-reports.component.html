@@ -1,6 +1,6 @@
 <div class="page exam-reports">
   <div class="toolbar">
-    <div class="selections">
+    <div class="selections" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
       <mat-form-field
         appearance="outline"
         class="local-institute-field disabled-toolbar-field mandatory-field"
@@ -15,21 +15,51 @@
           aria-label="Institute"
         />
       </mat-form-field>
+    </div>
 
-      <mat-form-field
-        appearance="outline"
-        class="scheduled-test-field disabled-toolbar-field mandatory-field"
-      >
-        <mat-label>Test <span class="required-mark">*</span></mat-label>
-        <mat-icon matPrefix svgIcon="exam"></mat-icon>
-        <input
-          matInput
-          [value]="getTestTitle(selectedExam)"
-          disabled
-          [placeholder]="selectedInstituteId ? 'Select test from Filter' : 'Select institute first'"
-          aria-label="Test"
-        />
-      </mat-form-field>
+    <!-- Applied Filters displayed in top toolbar area -->
+    <div
+      class="applied-filters-bar toolbar-applied-filters"
+      *ngIf="
+        (isSuperAdmin && !isGlobalInstituteActive && selectedInstituteName) ||
+        selectedExam ||
+        userFilters.campus_id ||
+        (userFilters.department_id && userFilters.department_id.length) ||
+        (userFilters.teams_id && userFilters.teams_id.length) ||
+        userFilters.active_status ||
+        userFilters.created_by_me
+      "
+    >
+      <div class="applied-filters-header">
+        <mat-icon class="filter-icon">filter_alt</mat-icon>
+        <span class="filter-title">Applied Filters:</span>
+      </div>
+      <div class="applied-chips-wrapper">
+        <span class="filter-chip" *ngIf="isSuperAdmin && !isGlobalInstituteActive && selectedInstituteName">
+          <span class="chip-label">Institute:</span> {{ selectedInstituteName }}
+        </span>
+        <span class="filter-chip" *ngIf="selectedExam">
+          <span class="chip-label">Test:</span> {{ getTestTitle(selectedExam) }}
+        </span>
+        <span class="filter-chip" *ngIf="userFilters.campus_id">
+          <span class="chip-label">Campus:</span> {{ userFilters.campus_id }}
+        </span>
+        <span
+          class="filter-chip"
+          *ngIf="userFilters.department_id && userFilters.department_id.length"
+        >
+          <span class="chip-label">Dept:</span> {{ getSelectedDepartmentsDisplay() }}
+        </span>
+        <span
+          class="filter-chip"
+          *ngIf="userFilters.teams_id && userFilters.teams_id.length"
+        >
+          <span class="chip-label">Team:</span> {{ getSelectedTeamsDisplay() }}
+        </span>
+        <span class="filter-chip" *ngIf="userFilters.active_status">
+          <span class="chip-label">Status:</span> {{ userFilters.active_status }}
+        </span>
+      </div>
     </div>
 
     <div class="controls">
@@ -286,7 +316,7 @@
                   <mat-option
                     class="select-all-option"
                     *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
-                    (click)="toggleSelectAllDepartments()"
+                    (click)="$event.stopPropagation(); toggleSelectAllDepartments()"
                   >
                     <mat-icon
                       class="select-all-checkbox-icon"
@@ -334,7 +364,7 @@
                   <mat-option
                     class="select-all-option"
                     *ngIf="filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
-                    (click)="toggleSelectAllTeams()"
+                    (click)="$event.stopPropagation(); toggleSelectAllTeams()"
                   >
                     <mat-icon
                       class="select-all-checkbox-icon"
@@ -344,7 +374,7 @@
                     </mat-icon>
                     <strong>Select All</strong>
                   </mat-option>
-                  <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id || t">
+                  <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id || t.name || t">
                     {{ t.name || t }}
                   </mat-option>
                 </mat-select>
@@ -406,16 +436,14 @@
                     />
                   </div>
                   <mat-option value="">Any</mat-option>
-                  <mat-option disabled *ngIf="!selectedInstituteId">
-                    {{ isSuperAdmin ? 'Select an institute first' : 'Select a test' }}
+                  <mat-option disabled *ngIf="isSuperAdmin && !selectedInstituteId">
+                    Select an institute first
                   </mat-option>
                   <mat-option
                     disabled
-                    *ngIf="
-                      selectedInstituteId && !filteredScheduleList.length && !scheduledTestsLoading
-                    "
+                    *ngIf="!filteredScheduleList.length && !scheduledTestsLoading"
                   >
-                    {{ isSuperAdmin ? 'No tests found for this institute' : 'No tests found' }}
+                    No tests found
                   </mat-option>
                   <mat-option
                     *ngFor="let exam of filteredScheduleList"
@@ -557,7 +585,7 @@
         >
           <mat-option *ngFor="let sched of availableSchedulesOnDate" [value]="getScheduleId(sched)">
             <div class="schedule-option-item">
-              <span class="sched-title-text">{{ getScheduleDisplayLabel(sched) }}</span>
+              <span class="sched-title-text" style="white-space: pre-line; line-height: 1.4; display: block;">{{ getScheduleDisplayLabel(sched) }}</span>
             </div>
           </mat-option>
         </mat-select>
@@ -568,59 +596,7 @@
     </div>
   </div>
 
-  <!-- Applied Filters Summary Bar -->
-  <div
-    class="applied-filters-bar"
-    *ngIf="
-      (isSuperAdmin && !isGlobalInstituteActive && selectedInstituteName) ||
-      selectedExam ||
-      userFilters.campus_id ||
-      (userFilters.department_id && userFilters.department_id.length) ||
-      (userFilters.teams_id && userFilters.teams_id.length) ||
-      userFilters.active_status ||
-      userFilters.created_by_me
-    "
-  >
-    <div class="applied-filters-header">
-      <mat-icon class="filter-icon">filter_alt</mat-icon>
-      <span class="filter-title">Applied Filters:</span>
-    </div>
-    <div class="applied-chips-wrapper">
-      <span class="filter-chip" *ngIf="isSuperAdmin && !isGlobalInstituteActive && selectedInstituteName">
-        <span class="chip-label">Institute:</span> {{ selectedInstituteName }}
-      </span>
-      <span class="filter-chip" *ngIf="selectedExam">
-        <span class="chip-label">Test:</span> {{ getTestTitle(selectedExam) }}
-      </span>
-      <span class="filter-chip" *ngIf="userFilters.campus_id">
-        <span class="chip-label">Campus:</span> {{ userFilters.campus_id }}
-      </span>
-      <span
-        class="filter-chip"
-        *ngIf="userFilters.department_id && userFilters.department_id.length"
-      >
-        <span class="chip-label">Dept:</span> {{ userFilters.department_id.join(', ') }}
-      </span>
-      <span class="filter-chip" *ngIf="userFilters.teams_id && userFilters.teams_id.length">
-        <span class="chip-label">Team:</span> {{ userFilters.teams_id.join(', ') }}
-      </span>
-      <span class="filter-chip" *ngIf="userFilters.active_status">
-        <span class="chip-label">Status:</span> {{ userFilters.active_status }}
-      </span>
-      <span class="filter-chip" *ngIf="userFilters.created_by_me">
-        <span class="chip-label">Created by Me</span>
-      </span>
-      <button
-        mat-button
-        type="button"
-        class="clear-filters-btn"
-        (click)="resetFiltersAndReload()"
-        title="Reset & Clear all filters"
-      >
-        <mat-icon>close</mat-icon> Clear All
-      </button>
-    </div>
-  </div>
+
 
   <!-- Empty State when no test report selected -->
   <div class="empty-reports-state" *ngIf="!selectedExam">

@@ -598,7 +598,13 @@ def get_exam_list(request):
         filter = []
         args = getattr(request, "args", {})
         if args.get("institute_id", None):
-            filter.append(Exam.institute_id == args["institute_id"])
+            inst_val = str(args.get("institute_id")).strip()
+            filter.append(or_(
+                func.lower(func.cast(Exam.institute_id, String)) == inst_val.lower(),
+                func.cast(Exam.institute_id, String) == inst_val,
+                Exam.institute_id == None,
+                Exam.institute_id == ''
+            ))
         exams = session.query(Exam).filter(*filter).all()
         if exams is None or len(exams) == 0:
             return {"statusMessage": "No exams found", "status": False}, 404
