@@ -1123,10 +1123,14 @@ export class InstituteRegisterComponent {
       contact_phone: undefined,
       branch: undefined,
       // prefer the explicit arrays maintained by the UI (departmentList/teamList)
-      departments_structured: this.departments.map((d) => ({
-        name: d.name,
-        teams: d.teams || [],
-      })),
+      departments_structured: this.departments
+        .map((d) => ({
+          name: (d.name || '').trim(),
+          teams: (d.teams || [])
+            .map((t) => (t || '').trim())
+            .filter(Boolean),
+        }))
+        .filter((d) => Boolean(d.name)),
       department: this.departmentList.slice(),
       team: this.teamList.slice(),
       // send only current user's id

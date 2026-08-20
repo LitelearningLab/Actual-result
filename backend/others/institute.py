@@ -222,7 +222,7 @@ def insert_institute(data):
 
         operation = "insert_departments_and_teams"
         departments_structured = data.get('departments_structured')
-        if departments_structured and isinstance(departments_structured, list):
+        if departments_structured is not None and isinstance(departments_structured, list):
             for dept_info in departments_structured:
                 dept_name = (dept_info.get('name') if isinstance(dept_info, dict) else str(dept_info)).strip()
                 if not dept_name:
