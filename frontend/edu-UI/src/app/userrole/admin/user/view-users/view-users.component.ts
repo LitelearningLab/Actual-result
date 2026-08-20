@@ -619,31 +619,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         list = list.filter((t: any) => {
           if (Array.isArray(this.filters.team) && this.filters.team.includes(t.id)) return true;
 
-          const teamName = (t.name || '').toLowerCase().trim();
           const teamDeptId = t.department_id ? String(t.department_id) : '';
           const teamDeptName = t.department_name ? (t.department_name || '').toLowerCase().trim() : '';
 
           if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
           if (teamDeptName && deptNames.includes(teamDeptName)) return true;
 
-          return deptNames.some((deptName) => {
-            if (deptName.includes('it') || deptName.includes('tech') || deptName.includes('developer')) {
-              return teamName.includes('it') || teamName.includes('soft') || teamName.includes('develop') || teamName.includes('tech') || teamName.includes('system');
-            }
-            if (deptName.includes('finance') || deptName.includes('account') || deptName.includes('audit')) {
-              return teamName.includes('finan') || teamName.includes('account') || teamName.includes('audit') || teamName.includes('tax') || teamName.includes('pay');
-            }
-            if (deptName.includes('human') || deptName.includes('hr') || deptName.includes('relation')) {
-              return teamName.includes('employee') || teamName.includes('hr') || teamName.includes('human') || teamName.includes('recruit') || teamName.includes('relation') || teamName.includes('talent');
-            }
-            if (deptName.includes('corporate')) {
-              return teamName.includes('corporate') || teamName.includes('sale') || teamName.includes('credit') || teamName.includes('business');
-            }
-            if (deptName.includes('retail') || deptName.includes('branch')) {
-              return teamName.includes('branch') || teamName.includes('customer') || teamName.includes('retail') || teamName.includes('operation');
-            }
-            return teamName.includes(deptName) || deptName.includes(teamName);
-          });
+          return false;
         });
       }
 

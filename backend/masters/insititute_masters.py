@@ -57,8 +57,9 @@ def get_institute_team_details(institute_id, filter_by_institute=False):
         for team in teams:
             json_data.append({
                 "id": team.team_id,
-                "name": team.name
-        })
+                "name": team.name,
+                "department_id": team.department_id
+            })
         json_data = {
             "statusMessage": "User details fetched successfully",
             "status": True,
