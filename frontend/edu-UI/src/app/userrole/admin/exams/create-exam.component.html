@@ -255,6 +255,7 @@
                                                     <mat-label>Department <span class="required-star">*</span></mat-label>
                                                     <mat-select multiple [(ngModel)]="questionBankFilterDepartments" [compareWith]="compareById"
                                                         [disabled]="!institute"
+                                                        (selectionChange)="onQuestionBankDepartmentChange()"
                                                         (openedChange)="onQuestionBankDepartmentOpenedChange($event)">
                                                         <mat-option class="select-search-option"
                                                             (click)="$event.stopPropagation()">

@@ -245,10 +245,71 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  get filteredQuestionBankTeams(): Array<{ id: string; name: string }> {
+  get filteredQuestionBankTeams(): Array<{
+    id: string;
+    name: string;
+    department_id?: string | null;
+    department_name?: string | null;
+  }> {
     const term = (this.questionBankTeamSearch || '').trim().toLowerCase();
-    if (!term) return this.teams;
-    return this.teams.filter((team) => (team.name || '').toLowerCase().includes(term));
+    let list = this.teams || [];
+
+    // Filter by selected departments in Question Bank Filter
+    const deptsArr: string[] = (Array.isArray(this.questionBankFilterDepartments)
+      ? this.questionBankFilterDepartments
+      : [this.questionBankFilterDepartments]
+    )
+      .filter(Boolean)
+      .map((v: any) => String(v));
+
+    if (deptsArr.length > 0) {
+      const selectedDeptObjs = (this.departments || []).filter(
+        (d) => deptsArr.includes(String(d.id)) || deptsArr.includes(d.name)
+      );
+      const deptNames = selectedDeptObjs.map((d) => (d.name || '').toLowerCase().trim());
+      deptsArr.forEach((val) => {
+        if (typeof val === 'string' && val.trim()) deptNames.push(val.toLowerCase().trim());
+      });
+
+      list = list.filter((t: any) => {
+        if (
+          Array.isArray(this.questionBankFilterTeams) &&
+          this.questionBankFilterTeams.includes(t.id)
+        )
+          return true;
+
+        const teamDeptId = t.department_id ? String(t.department_id) : '';
+        const teamDeptName = t.department_name
+          ? (t.department_name || '').toLowerCase().trim()
+          : '';
+
+        if (!teamDeptId && !teamDeptName) return true;
+        if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
+        if (teamDeptName && deptNames.includes(teamDeptName)) return true;
+
+        return false;
+      });
+    }
+
+    if (!term) return list;
+    return list.filter((team) => (team.name || '').toLowerCase().includes(term));
+  }
+
+  onQuestionBankDepartmentChange(): void {
+    if (
+      !this.questionBankFilterDepartments ||
+      (Array.isArray(this.questionBankFilterDepartments) &&
+        !this.questionBankFilterDepartments.length)
+    ) {
+      this.questionBankFilterTeams = [];
+    } else {
+      const validTeamIds = (this.filteredQuestionBankTeams || []).map((t: any) => t.id);
+      if (Array.isArray(this.questionBankFilterTeams)) {
+        this.questionBankFilterTeams = this.questionBankFilterTeams.filter((id: string) =>
+          validTeamIds.includes(id)
+        );
+      }
+    }
   }
 
   onQuestionBankDepartmentOpenedChange(opened: boolean): void {

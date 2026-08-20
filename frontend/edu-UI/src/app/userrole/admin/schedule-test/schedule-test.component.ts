@@ -1872,11 +1872,15 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   }
 
   toggleAllDepartments(checked: boolean): void {
-    this.selectedDepartments = checked ? this.departments.map((d) => d.id) : [];
+    this.selectedDepartments = checked
+      ? (this.filteredDepartmentsForFilter || []).map((d) => d.id)
+      : [];
   }
 
   toggleAllTeams(checked: boolean): void {
-    this.selectedTeams = checked ? this.teams.map((t) => t.id) : [];
+    this.selectedTeams = checked
+      ? (this.filteredTeamsForFilter || []).map((t) => t.id)
+      : [];
   }
 
   onDepartmentSelectionChange(): void {
