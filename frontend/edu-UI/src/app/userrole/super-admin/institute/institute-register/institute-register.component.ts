@@ -632,71 +632,29 @@ export class InstituteRegisterComponent {
             }
           }
         } catch (e) {}
-        // departments and teams to hierarchy structure
-        const rawDepts = (obj.departments || [])
-          .map((d: any) => (typeof d === 'string' ? d : d.name || ''))
-          .filter(Boolean);
-        const rawTeams = (obj.teams || [])
-          .map((t: any) => (typeof t === 'string' ? t : t.name || ''))
-          .filter(Boolean);
+        // Directly map departments and their embedded teams from backend response
+        const rawDeptsObjects = Array.isArray(obj.departments) ? obj.departments : [];
 
-        if (rawDepts.length > 0) {
-          const rawDeptsObjects = Array.isArray(obj.departments) ? obj.departments : [];
-          const rawTeamsObjects = Array.isArray(obj.teams) ? obj.teams : [];
-          const assignedTeams = new Set<string>();
+        if (rawDeptsObjects.length > 0) {
+          this.departments = rawDeptsObjects
+            .map((d: any) => {
+              const dName = typeof d === 'string' ? d : d?.name || '';
+              const nestedTeams = Array.isArray(d?.teams)
+                ? d.teams
+                    .map((t: any) => (typeof t === 'string' ? t : t?.name || ''))
+                    .filter(Boolean)
+                : [];
 
-          this.departments = rawDeptsObjects.map((d: any, idx: number) => {
-            const dName = typeof d === 'string' ? d : d?.name || rawDepts[idx] || '';
-            const dId = typeof d === 'object' && d ? d?.dept_id || d?.department_id || '' : '';
-            const dNameLower = dName.toLowerCase().trim();
-            const matchedTeams: string[] = [];
-
-            for (const t of rawTeamsObjects) {
-              const tName = (typeof t === 'string' ? t : t?.name || '').trim();
-              if (!tName) continue;
-
-              let explicitDeptId = '';
-              let explicitDeptName = '';
-              if (typeof t === 'object' && t) {
-                explicitDeptId = t.department_id || t.dept_id || '';
-                explicitDeptName = typeof t.department_name === 'string' ? t.department_name : typeof t.department === 'string' ? t.department : (t.department?.name || '');
-              }
-
-              let isMatch = false;
-              if (explicitDeptId && dId) {
-                isMatch = explicitDeptId === dId;
-              } else if (explicitDeptName) {
-                isMatch = explicitDeptName.toLowerCase().trim() === dNameLower;
-              } else {
-                isMatch = tName.toLowerCase() === dNameLower;
-              }
-
-              if (isMatch) {
-                matchedTeams.push(tName);
-                assignedTeams.add(tName);
-              }
-            }
-
-            return {
-              name: dName,
-              teams: matchedTeams,
-              isAddingTeam: false,
-              newTeamName: '',
-              isEditingName: false,
-              editNameValue: '',
-            };
-          });
-        } else if (rawTeams.length > 0) {
-          this.departments = [
-            {
-              name: 'General',
-              teams: [...rawTeams],
-              isAddingTeam: false,
-              newTeamName: '',
-              isEditingName: false,
-              editNameValue: '',
-            },
-          ];
+              return {
+                name: dName,
+                teams: nestedTeams,
+                isAddingTeam: false,
+                newTeamName: '',
+                isEditingName: false,
+                editNameValue: '',
+              };
+            })
+            .filter((d: any) => Boolean(d.name));
         } else {
           this.departments = [];
         }

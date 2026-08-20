@@ -363,38 +363,46 @@ def update_institute(request):
 
     # update departments & teams if departments_structured is provided
     departments_structured = data.get('departments_structured', None)
-    if departments_structured and isinstance(departments_structured, list):
-        # Fetch existing departments & map names to department_id
-        existing_depts = session.query(InstituteDepartment).filter_by(institute_id=institute_id).all()
-        dept_map = {d.name.lower(): d for d in existing_depts}
+    if departments_structured is not None and isinstance(departments_structured, list):
+        # Delete existing teams and departments for this institute to prevent orphaned data
+        session.query(InstituteTeam).filter(
+            InstituteTeam.institute_id == institute_id
+        ).delete(synchronize_session=False)
+
+        session.query(InstituteDepartment).filter(
+            InstituteDepartment.institute_id == institute_id
+        ).delete(synchronize_session=False)
+        
+        session.flush()
 
         for dept_info in departments_structured:
-            dept_name = (dept_info.get('name') if isinstance(dept_info, dict) else str(dept_info)).strip()
+            dept_name = (
+                dept_info.get('name') if isinstance(dept_info, dict) else str(dept_info)
+            ).strip()
+            
             if not dept_name:
                 continue
-            
-            dept_obj = dept_map.get(dept_name.lower())
-            if not dept_obj:
-                dept_obj = InstituteDepartment(
-                    institute_id=institute_id,
-                    name=dept_name,
-                    created_by=data.get("current_user", 'system')
-                )
-                session.add(dept_obj)
-                session.flush()
-                dept_map[dept_name.lower()] = dept_obj
+
+            new_department = InstituteDepartment(
+                institute_id=institute_id,
+                name=dept_name,
+                created_by=data.get("current_user", 'system')
+            )
+            session.add(new_department)
+            session.flush()
 
             teams_list = dept_info.get('teams') if isinstance(dept_info, dict) else []
-            existing_teams = session.query(InstituteTeam).filter_by(institute_id=institute_id, department_id=dept_obj.department_id).all()
-            existing_team_names = {t.name for t in existing_teams}
-
             for team_name in teams_list or []:
-                team_str = (team_name.get('name') if isinstance(team_name, dict) else str(team_name)).strip()
-                if not team_str or team_str in existing_team_names:
+                team_str = (
+                    team_name.get('name') if isinstance(team_name, dict) else str(team_name)
+                ).strip()
+
+                if not team_str:
                     continue
+
                 new_team = InstituteTeam(
                     institute_id=institute_id,
-                    department_id=dept_obj.department_id,
+                    department_id=new_department.department_id,
                     name=team_str,
                     created_by=data.get("current_user", 'system')
                 )

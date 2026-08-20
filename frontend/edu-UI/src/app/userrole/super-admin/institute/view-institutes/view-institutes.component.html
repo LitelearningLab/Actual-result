@@ -670,14 +670,14 @@
                         <span class="view-dept-name">{{ dept.name }}</span>
                       </div>
                       <span class="view-dept-badge">
-                        {{ getTeamsForDept(dept.name).length }} {{ getTeamsForDept(dept.name).length === 1 ? 'Team' : 'Teams' }}
+                        {{ getTeamsForDept(dept).length }} {{ getTeamsForDept(dept).length === 1 ? 'Team' : 'Teams' }}
                       </span>
                     </div>
                     <div class="view-dept-card-body">
-                      <div class="view-teams-chips" *ngIf="getTeamsForDept(dept.name).length">
-                        <span class="view-team-chip" *ngFor="let team of getTeamsForDept(dept.name)">{{ team.name }}</span>
+                      <div class="view-teams-chips" *ngIf="getTeamsForDept(dept).length">
+                        <span class="view-team-chip" *ngFor="let team of getTeamsForDept(dept)">{{ team.name || team }}</span>
                       </div>
-                      <div class="view-empty-teams" *ngIf="!getTeamsForDept(dept.name).length">
+                      <div class="view-empty-teams" *ngIf="!getTeamsForDept(dept).length">
                         No teams assigned to this department
                       </div>
                     </div>

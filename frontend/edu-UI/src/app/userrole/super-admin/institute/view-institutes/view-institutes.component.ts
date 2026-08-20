@@ -159,12 +159,42 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   selectedInstitute: any = null; // used for modal detail view
 
   getTeamsForDept(dept: any): any[] {
-    if (!this.selectedInstitute || !this.selectedInstitute.teams) return [];
-    const deptName = typeof dept === 'string' ? dept : dept?.name || '';
-    const deptId = typeof dept === 'object' && dept ? dept?.dept_id || dept?.department_id || '' : '';
-    const dNameLower = (deptName || '').toLowerCase().trim();
+    if (!this.selectedInstitute) return [];
 
-    return (this.selectedInstitute.teams || []).filter((t: any) => {
+    // 1. Direct teams array on department object if present
+    if (typeof dept === 'object' && dept && Array.isArray(dept.teams) && dept.teams.length > 0) {
+      return dept.teams;
+    }
+
+    let deptName = typeof dept === 'string' ? dept : dept?.name || '';
+    let deptId = typeof dept === 'object' && dept ? dept?.dept_id || dept?.department_id || '' : '';
+    let dNameLower = (deptName || '').toLowerCase().trim();
+
+    // 2. Look up matching department object from selectedInstitute.departments if needed
+    const depts = this.selectedInstitute.departments || [];
+    const matchedDept = depts.find((d: any) => {
+      if (typeof d === 'string') return d.toLowerCase().trim() === dNameLower;
+      if (deptId && (d.dept_id === deptId || d.department_id === deptId)) return true;
+      return (d.name || '').toLowerCase().trim() === dNameLower;
+    });
+
+    if (matchedDept && typeof matchedDept === 'object') {
+      if (!deptId) deptId = matchedDept.dept_id || matchedDept.department_id || '';
+      if (!deptName) {
+        deptName = matchedDept.name || '';
+        dNameLower = deptName.toLowerCase().trim();
+      }
+      if (Array.isArray(matchedDept.teams) && matchedDept.teams.length > 0) {
+        return matchedDept.teams;
+      }
+    }
+
+    // 3. Fall back to matching flat selectedInstitute.teams list
+    const teamsList = this.selectedInstitute.teams || [];
+    if (!teamsList.length) return [];
+
+    return teamsList.filter((t: any) => {
+      if (!t) return false;
       const tName = (typeof t === 'string' ? t : t?.name || '').trim();
       if (!tName) return false;
 
@@ -172,16 +202,21 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
       let explicitDeptName = '';
       if (typeof t === 'object' && t) {
         explicitDeptId = t.department_id || t.dept_id || '';
-        explicitDeptName = typeof t.department_name === 'string' ? t.department_name : typeof t.department === 'string' ? t.department : (t.department?.name || '');
+        explicitDeptName =
+          typeof t.department_name === 'string'
+            ? t.department_name
+            : typeof t.department === 'string'
+            ? t.department
+            : t.department?.name || '';
       }
 
-      if (explicitDeptId && deptId) {
-        return explicitDeptId === deptId;
+      if (explicitDeptId && deptId && explicitDeptId === deptId) {
+        return true;
       }
-      if (explicitDeptName) {
-        return explicitDeptName.toLowerCase().trim() === dNameLower;
+      if (explicitDeptName && dNameLower && explicitDeptName.toLowerCase().trim() === dNameLower) {
+        return true;
       }
-      return tName.toLowerCase() === dNameLower;
+      return false;
     });
   }
 
