@@ -2583,7 +2583,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (idx >= 0) {
       this.users[idx] = {
         ...this.users[idx],
-        name: this.editableUser.user_name,
+        name: this.editableUser.full_name || this.editableUser.display_name || this.editableUser.name || this.editableUser.user_name,
         email: this.editableUser.email,
         phone: this.editableUser.contact_no,
         role: this.editableUser.user_role,

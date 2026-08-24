@@ -896,20 +896,20 @@
                     </h4>
                     <div class="review-items">
                       <div class="priv-stats">
-                        <span class="review-chip">Pages: {{ getPrivilegesCounts().total || 0 }}</span>
-                        <span class="review-chip">View: {{ getPrivilegesCounts().view || 0 }}</span>
-                        <span class="review-chip">Add: {{ getPrivilegesCounts().add || 0 }}</span>
-                        <span class="review-chip">Edit: {{ getPrivilegesCounts().edit || 0 }}</span>
-                        <span class="review-chip">Delete: {{ getPrivilegesCounts().delete || 0 }}</span>
+                        <span class="review-chip chip-total">Pages: <strong>{{ getPrivilegesCounts().total || 0 }}</strong></span>
+                        <span class="review-chip chip-view">View: <strong>{{ getPrivilegesCounts().view || 0 }}</strong></span>
+                        <span class="review-chip chip-add">Add: <strong>{{ getPrivilegesCounts().add || 0 }}</strong></span>
+                        <span class="review-chip chip-edit">Edit: <strong>{{ getPrivilegesCounts().edit || 0 }}</strong></span>
+                        <span class="review-chip chip-delete">Delete: <strong>{{ getPrivilegesCounts().delete || 0 }}</strong></span>
                       </div>
                       <div class="priv-list">
                         <div *ngFor="let p of getPrivilegesOverview()" class="priv-row">
                           <span class="priv-page">{{ p.name || p.key }}</span>
                           <span class="priv-actions">
-                            <small *ngIf="p.view">V</small>
-                            <small *ngIf="p.add">A</small>
-                            <small *ngIf="p.edit">E</small>
-                            <small *ngIf="p.delete">D</small>
+                            <span class="priv-badge priv-v" *ngIf="p.view" title="View Access">V</span>
+                            <span class="priv-badge priv-a" *ngIf="p.add" title="Add Access">A</span>
+                            <span class="priv-badge priv-e" *ngIf="p.edit" title="Edit Access">E</span>
+                            <span class="priv-badge priv-d" *ngIf="p.delete" title="Delete Access">D</span>
                           </span>
                         </div>
                       </div>

@@ -63,15 +63,18 @@ export class AdminUserRegisterComponent implements OnInit {
   ];
 
   get availableRoles() {
-    if (this.isSuperAdmin && this.isProfluentInstituteSelected()) return this.roles;
+    const currentRole = this.form?.get('role')?.value;
+    if ((this.isSuperAdmin && this.isProfluentInstituteSelected()) || currentRole === 'super_admin') {
+      return this.roles;
+    }
     return this.roles.filter(r => r.value !== 'super_admin');
   }
 
   private isProfluentInstituteSelected(): boolean {
     const selectedInstituteId = this.form?.get('institute')?.value;
-    const selectedInstitute = this.institutes.find((institute) => String(institute.id) === String(selectedInstituteId));
-    const instituteName = (selectedInstitute?.name || '').trim().toLowerCase();
-    return instituteName === 'profluent lab' || instituteName === 'profluent labs';
+    const selectedInstitute = this.institutes.find((institute) => String(institute.id) === String(selectedInstituteId) || String(institute.name) === String(selectedInstituteId));
+    const instituteName = (selectedInstitute?.name || (typeof selectedInstituteId === 'string' ? selectedInstituteId : '') || '').trim().toLowerCase();
+    return instituteName.includes('profluent');
   }
   institutes: Array<{ id: string; name: string }> = [];
   loadingInstitutes = false;
@@ -1198,6 +1201,7 @@ export class AdminUserRegisterComponent implements OnInit {
       // prefer sending both username and display name
       user_name: v.username || v.name,
       display_name: v.name,
+      full_name: v.name,
       email: v.email,
       password: v.password,
       user_role: v.role,

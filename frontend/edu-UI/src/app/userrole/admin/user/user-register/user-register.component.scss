@@ -1163,3 +1163,215 @@ $shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
     color: var(--theme-3-text-1, #0f172a);
   }
 }
+
+/* ── Review Step & Privileges UI ── */
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.review-section {
+  background: var(--bg-1, #ffffff);
+  border: 1px solid var(--theme-3-border, #e2e8f0);
+  border-radius: $radius;
+  padding: 1.25rem;
+  box-shadow: $shadow-sm;
+
+  &--full {
+    grid-column: 1 / -1;
+  }
+}
+
+.review-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--theme-3-text-1, #0f172a);
+  margin: 0 0 1rem 0;
+
+  mat-icon {
+    font-size: 1.2rem;
+    width: 1.2rem;
+    height: 1.2rem;
+    color: var(--button-1, #6366f1);
+  }
+}
+
+.review-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.review-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px dashed var(--theme-3-border, #f1f5f9);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.review-label {
+  color: var(--theme-3-text-3, #64748b);
+  font-weight: 500;
+}
+
+.review-value {
+  color: var(--theme-3-text-1, #0f172a);
+  font-weight: 600;
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #f1f5f9;
+    color: #64748b;
+
+    &.active {
+      background: #dcfce7;
+      color: #15803d;
+    }
+  }
+}
+
+.priv-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--theme-3-border, #e2e8f0);
+}
+
+.review-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.825rem;
+  font-weight: 500;
+  background: var(--bg-2, #f8fafc);
+  border: 1px solid var(--theme-3-border, #e2e8f0);
+  color: var(--theme-3-text-2, #334155);
+
+  strong {
+    font-weight: 700;
+  }
+
+  &.chip-total {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+  }
+  &.chip-view {
+    background: #eff6ff;
+    color: #1e40af;
+    border-color: #bfdbfe;
+  }
+  &.chip-add {
+    background: #f0fdf4;
+    color: #166534;
+    border-color: #bbf7d0;
+  }
+  &.chip-edit {
+    background: #fff7ed;
+    color: #9a3412;
+    border-color: #fed7aa;
+  }
+  &.chip-delete {
+    background: #fef2f2;
+    color: #991b1b;
+    border-color: #fecaca;
+  }
+}
+
+.priv-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13.75rem, 1fr));
+  gap: 0.75rem;
+}
+
+.priv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-2, #f8fafc);
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--theme-3-border, #e2e8f0);
+  transition: all 0.2s $ease;
+
+  &:hover {
+    background: #ffffff;
+    box-shadow: $shadow-sm;
+    border-color: #cbd5e1;
+  }
+}
+
+.priv-page {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--theme-3-text-1, #0f172a);
+}
+
+.priv-actions {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+
+  small,
+  .priv-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.725rem;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1;
+    user-select: none;
+  }
+
+  .priv-v {
+    background: #3b82f6;
+  }
+  .priv-a {
+    background: #22c55e;
+  }
+  .priv-e {
+    background: #f59e0b;
+  }
+  .priv-d {
+    background: #ef4444;
+  }
+}
+
+.review-notes {
+  margin-top: 1.25rem;
+  background: var(--bg-1, #ffffff);
+  border: 1px solid var(--theme-3-border, #e2e8f0);
+  border-radius: $radius;
+  padding: 1.25rem;
+
+  .note-text {
+    font-size: 0.9rem;
+    color: var(--theme-3-text-2, #475569);
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+}

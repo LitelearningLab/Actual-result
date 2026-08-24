@@ -625,6 +625,15 @@ def update_user_details(user_id, request):
         if hasattr(user, key):
             setattr(user, key, value)
 
+    # Explicitly update full_name if provided as full_name, display_name, or name
+    full_name = data.get("full_name") or data.get("display_name") or data.get("name")
+    if full_name:
+        user.full_name = full_name
+
+    user_name = data.get("user_name") or data.get("username")
+    if user_name:
+        user.user_name = user_name
+
     user.updated_by = data.get("current_user", "system")
     user.updated_date = datetime.utcnow()
 
