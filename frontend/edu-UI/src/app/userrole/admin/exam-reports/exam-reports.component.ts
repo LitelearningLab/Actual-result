@@ -676,13 +676,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     });
     this.uniqueTestNames = Array.from(namesSet).sort((a, b) => a.localeCompare(b));
 
-    if (this.uniqueTestNames.length > 0) {
-      if (!this.selectedTestTitle || !this.uniqueTestNames.includes(this.selectedTestTitle)) {
-        this.onTestTitleSelect(this.uniqueTestNames[0]);
-      } else {
-        this.updateHighlightedDates();
-        this.updateAvailableSchedulesOnDate();
-      }
+    if (this.selectedTestTitle && this.uniqueTestNames.includes(this.selectedTestTitle)) {
+      this.updateHighlightedDates();
+      this.updateAvailableSchedulesOnDate();
     } else {
       this.selectedTestTitle = '';
       this.selectedScheduleDate = null;
@@ -1579,10 +1575,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.userFilters.schedule_id) {
       const selectedTest = (this.allTests || []).find(
         (t) =>
-          String(t.schedule_id || t.id || t.scheduleId) === String(this.userFilters.schedule_id)
+          String(t.schedule_id || t.id || t.scheduleId || t.exam_id) === String(this.userFilters.schedule_id) ||
+          this.getTestTitle(t).toLowerCase() === String(this.userFilters.schedule_id).toLowerCase()
       );
       if (selectedTest) {
         this.selectedExam = selectedTest;
+        const title = this.getTestTitle(selectedTest);
+        if (title) {
+          this.onTestTitleSelect(title);
+        }
         try {
           this.examCtrl.setValue(selectedTest);
         } catch (e) {}
@@ -1679,23 +1680,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     } else {
       this.userFilters.schedule_id = String(val);
       this.searchQueries.schedule = '';
-    }
-
-    const schedId = this.userFilters.schedule_id;
-    if (schedId) {
-      const found = (this.allTests || []).find((t) => {
-        const sid = String(t.schedule_id || t.id || t.exam_id || '');
-        return (
-          sid === String(schedId) ||
-          this.getTestTitle(t).toLowerCase() === String(schedId).toLowerCase()
-        );
-      });
-      if (found) {
-        const title = this.getTestTitle(found);
-        if (title) {
-          this.onTestTitleSelect(title);
-        }
-      }
     }
   }
 
@@ -2099,6 +2083,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   private resetSelectedExam(): void {
     this.selectedExam = null;
     this.examCtrl.setValue('');
+    this.selectedTestTitle = '';
+    this.selectedScheduleDate = null;
+    this.highlightedDatesSet.clear();
+    this.availableSchedulesOnDate = [];
+    this.selectedScheduleId = '';
     this.allTests = [];
     this.filteredTests$ = of([]);
     this.userReportData = [];

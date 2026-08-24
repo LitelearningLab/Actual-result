@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { BehaviorSubject } from 'rxjs';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageAccessService } from 'src/app/shared/services/page-access.service';
+import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 
 interface LoginResponse {
   status?: boolean | string;
@@ -27,7 +28,11 @@ export class AuthService {
   // synchronous accessor for current user value
   get currentUserValue() { return this._user.value; }
 
-  constructor(private http: HttpClient, private pageAccess: PageAccessService) {
+  constructor(
+    private http: HttpClient, 
+    private pageAccess: PageAccessService,
+    private instituteContext: GlobalInstituteContextService
+  ) {
     this.restoreSession();
   }
 
@@ -70,9 +75,12 @@ export class AuthService {
       const resp = await firstValueFrom(this.http.post<LoginResponse>(url, { identifier, email: identifier, password }));
       // treat presence of token or status true/success as success
       const ok = resp?.status === true && typeof resp.token === 'string' && resp.token.length > 0 && !!resp.user;
-      this._logged.next(ok);
       if (ok) {
         try {
+            // Clear any stale context filters or session variables inherited from parent tabs before writing new user session
+            this.clearLocalSession();
+            this._logged.next(true);
+
             if (resp.token) sessionStorage.setItem('token', resp.token);
             sessionStorage.setItem('isLogin', 'true');
             if (resp.user) {
@@ -108,6 +116,8 @@ export class AuthService {
         } catch (e) {
           // ignore storage errors
         }
+      } else {
+        this._logged.next(false);
       }
       return ok;
     } catch (err) {
@@ -128,6 +138,9 @@ export class AuthService {
     this._logged.next(false);
     this._user.next(null);
     try {
+      if (this.instituteContext) {
+        this.instituteContext.clearContext();
+      }
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('user');
       sessionStorage.removeItem('isLogin');
@@ -140,6 +153,16 @@ export class AuthService {
       sessionStorage.removeItem('test_result');
       sessionStorage.removeItem('last_submission');
       sessionStorage.removeItem('review_questions');
+      sessionStorage.removeItem('edit_exam');
+      sessionStorage.removeItem('view_exam');
+      sessionStorage.removeItem('edit_category');
+      sessionStorage.removeItem('view_user');
+      sessionStorage.removeItem('edit_user');
+      sessionStorage.removeItem('edit_question');
+      sessionStorage.removeItem('view_question');
+      sessionStorage.removeItem('super_admin_institute_context');
+      sessionStorage.removeItem('global_institute_id');
+      sessionStorage.removeItem('global_institute_name');
       // clear page access cache for current user
       try {
         const uid = currentUser && (currentUser.id || currentUser.user_id || currentUser.userId);
