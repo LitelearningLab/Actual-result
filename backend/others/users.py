@@ -5,7 +5,7 @@ from db.models import Credential, UserPageAccess, Page, Country, State,City
 from db.db import SQLiteDB
 from datetime import datetime, timedelta
 from passlib.hash import argon2
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func
 
 PAGE_NAME_MAP = {
     "Categories": "Question Banks",

@@ -451,7 +451,14 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
       if (!this.isSuperAdmin && this.campuses && this.campuses.length > 0) {
         const campusCitiesMap = new Map<string, { code: string; name: string }>();
+        const selectedCountryCodes = (this.selectedCountries || []).map((c) => String(c).toLowerCase());
         this.campuses.forEach((c: any) => {
+          if (selectedCountryCodes.length > 0) {
+            const countryId = String(c.country_id || '').toLowerCase();
+            const countryName = String(c.country_name || '').toLowerCase();
+            const matches = selectedCountryCodes.some((sc) => sc === countryId || sc === countryName);
+            if (!matches) return;
+          }
           if (c.city_name) {
             const rawName = String(c.city_name).trim();
             if (rawName) {
@@ -470,7 +477,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           }
         });
         const validCampusCities = Array.from(campusCitiesMap.values());
-        if (validCampusCities.length > 0) {
+        if (validCampusCities.length > 0 || selectedCountryCodes.length > 0) {
           list = validCampusCities;
         }
       }
@@ -1806,10 +1813,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
           users.forEach((user: any) => {
             const countryCode = String(
-              user?.country?.country_id || user?.country_id || user?.country?.country_name || user?.country_name || ''
+              user?.country?.country_id || user?.country_id || user?.country?.country_code || user?.country_code || ''
             ).trim();
             const countryName = String(
-              user?.country?.country_name || user?.country_name || user?.country?.country_id || user?.country_id || ''
+              user?.country?.country_name || user?.country_name || user?.country?.name || ''
             ).trim();
             const cityCode = String(
               user?.city?.city_id || user?.city_id || user?.city?.city_name || user?.city_name || ''
@@ -1818,8 +1825,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
               user?.city?.city_name || user?.city_name || user?.city?.city_id || user?.city_id || ''
             ).trim();
 
-            if (countryCode && countryName && !uniqueCountries.has(countryCode.toLowerCase())) {
-              uniqueCountries.set(countryCode.toLowerCase(), { code: countryCode, name: countryName, countryCode });
+            if (countryName && !uniqueCountries.has(countryName.toLowerCase())) {
+              uniqueCountries.set(countryName.toLowerCase(), { code: countryCode || countryName, name: countryName, countryCode: countryCode || countryName });
             }
 
             if (countryCode && cityName) {
@@ -1834,7 +1841,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             }
           });
 
-          if (uniqueCountries.size === 0 && this.campuses && this.campuses.length > 0) {
+          if (this.campuses && this.campuses.length > 0) {
             this.campuses.forEach((c: any) => {
               const name = String(c.country_name || c.country_id || '').trim();
               const code = String(c.country_id || c.country_name || '').trim();

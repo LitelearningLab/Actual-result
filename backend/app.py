@@ -313,7 +313,7 @@ def register_user():
     response_data, status_code = insert_user(data)
     return jsonify(response_data), status_code
 
-@edu_blueprint.route('/update-user/<user_id>', methods=['PUT'])
+@edu_blueprint.route('/update-user/<user_id>', methods=['PUT', 'OPTIONS'])
 @jwt_required
 def update_user(user_id):
     response_data, status_code = update_user_details(user_id, request)
@@ -819,6 +819,13 @@ def add_local_cors_headers(response):
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Institute-Id, X-Global-Institute-Id, X-Skip-Institute-Context"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     return response
+
+@app.errorhandler(Exception)
+def handle_global_exception(e):
+    print(f"Unhandled Exception: {e}")
+    response = jsonify({"status": False, "statusMessage": f"Server error: {str(e)}"})
+    response.status_code = 500
+    return add_local_cors_headers(response)
 
 app.register_blueprint(edu_blueprint)
 if __name__ == '__main__':

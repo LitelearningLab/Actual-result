@@ -1124,8 +1124,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
               const cityCode = String(user?.city?.city_id || user?.city_id || user?.city?.city_name || user?.city_name || '').trim();
               const cityName = String(user?.city?.city_name || user?.city_name || user?.city?.city_id || user?.city_id || '').trim();
 
-              if (countryCode && countryName && !uniqueCountries.has(countryCode.toLowerCase())) {
-                uniqueCountries.set(countryCode.toLowerCase(), { code: countryCode, name: countryName, countryCode });
+              if (countryName && !uniqueCountries.has(countryName.toLowerCase())) {
+                uniqueCountries.set(countryName.toLowerCase(), { code: countryCode || countryName, name: countryName, countryCode: countryCode || countryName });
               }
 
               if (countryCode && cityName) {
@@ -1140,7 +1140,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
               }
             });
 
-            if (uniqueCountries.size === 0 && this.userCampuses && this.userCampuses.length > 0) {
+            if (this.userCampuses && this.userCampuses.length > 0) {
               this.userCampuses.forEach((c) => {
                 const name = String(c.country_name || c.country_id || '').trim();
                 const code = String(c.country_id || c.country_name || '').trim();
