@@ -826,6 +826,42 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
 
+  openDateRangeSelectionPicker(): void {
+    if (!this.selectedDateRangeTestTitle) return;
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.dateRangeStart,
+        endDate: this.dateRangeEnd,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.dateRangeStart = res.startDate;
+        this.dateRangeEnd = res.endDate;
+      }
+    });
+  }
+
+  getDateRangeSelectionDisplay(): string {
+    if (!this.dateRangeStart && !this.dateRangeEnd) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(this.dateRangeStart);
+    const endStr = format(this.dateRangeEnd);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `${startStr} - `;
+    return '';
+  }
+
 
   dateClass = (cellDate: Date, view: string) => {
     if (view === 'month') {

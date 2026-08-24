@@ -178,9 +178,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     let list = this.teams || [];
 
     // Filter by selected departments if any are selected
-    const deptsArr: string[] = (Array.isArray(this.selectedDepartments)
-      ? this.selectedDepartments
-      : [this.selectedDepartments]
+    const deptsArr: string[] = (
+      Array.isArray(this.selectedDepartments)
+        ? this.selectedDepartments
+        : [this.selectedDepartments]
     )
       .filter(Boolean)
       .map((v: any) => String(v));
@@ -199,7 +200,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
         const teamDeptId = t.department_id ? String(t.department_id) : '';
         const teamDeptName = t.department_name
-          ? (t.department_name || '').toLowerCase().trim()
+          ? (t.departupdateFilteredCategoriesStreamment_name || '').toLowerCase().trim()
           : '';
 
         if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
@@ -254,9 +255,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     let list = this.teams || [];
 
     // Filter by selected departments in Question Bank Filter
-    const deptsArr: string[] = (Array.isArray(this.questionBankFilterDepartments)
-      ? this.questionBankFilterDepartments
-      : [this.questionBankFilterDepartments]
+    const deptsArr: string[] = (
+      Array.isArray(this.questionBankFilterDepartments)
+        ? this.questionBankFilterDepartments
+        : [this.questionBankFilterDepartments]
     )
       .filter(Boolean)
       .map((v: any) => String(v));
@@ -1480,16 +1482,16 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   updateFilteredCategoriesStream() {
     try {
       this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
-        startWith(''),
+        startWith(this.categoryCtrl.value || ''),
         map((val: any) => {
-          const q = String(val || '')
-            .trim()
-            .toLowerCase();
+          // If val is a string (user typing), search by text.
+          // If val is an object (question bank selected), set q = '' so all filtered items stay visible.
+          const q = typeof val === 'string' ? val.trim().toLowerCase() : '';
           const currentUser = this.getCurrentUserId();
 
           return (this.categories || []).filter((c: any) => {
-            // 1. Search query match
-            const matchesName = (c.name || '').toLowerCase().includes(q);
+            // 1. Search query match (only filters if user typed text)
+            const matchesName = !q || (c.name || '').toLowerCase().includes(q);
 
             // 2. Date range match
             let matchesDate = true;
@@ -1509,10 +1511,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
               }
             }
 
-            // 3. Created by me match
+            // 3. Access match (Created by me / Public access)
             let matchesAccess = true;
-
-            // 4. Public access match — only filter when checkbox is checked
             if (this.filterCreatedByMe || this.filterPublicAccess) {
               const creator = String(c.created_by_id || c.created_by_user_id || c.created_by || '');
               const isOwned = !!currentUser && creator === String(currentUser);
@@ -1530,7 +1530,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
               }
             }
 
-            // 5. Question Bank Type match
+            // 4. Question Bank Type match
             let matchesType = true;
             if (this.selectedQuestionTypes && this.selectedQuestionTypes.length > 0) {
               const catType = (c.type || '').toLowerCase();

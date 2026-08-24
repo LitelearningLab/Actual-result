@@ -639,14 +639,22 @@
       </mat-form-field>
 
       <!-- Created Date / Date Range -->
-      <mat-form-field appearance="outline" class="selection-field">
+      <mat-form-field
+        appearance="outline"
+        class="selection-field date-range-field"
+        (click)="openDateRangeSelectionPicker()"
+        style="cursor: pointer"
+      >
         <mat-label>Created Date (Choose Date Range) <span class="required-mark">*</span></mat-label>
-        <mat-date-range-input [rangePicker]="dateRangePicker" [disabled]="!selectedDateRangeTestTitle">
-          <input matStartDate [(ngModel)]="dateRangeStart" placeholder="Start date" />
-          <input matEndDate [(ngModel)]="dateRangeEnd" placeholder="End date" />
-        </mat-date-range-input>
-        <mat-datepicker-toggle matSuffix [for]="dateRangePicker" [disabled]="!selectedDateRangeTestTitle"></mat-datepicker-toggle>
-        <mat-date-range-picker #dateRangePicker></mat-date-range-picker>
+        <input
+          matInput
+          readonly
+          [value]="getDateRangeSelectionDisplay()"
+          placeholder="Select date range"
+          style="cursor: pointer"
+          [disabled]="!selectedDateRangeTestTitle"
+        />
+        <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
       </mat-form-field>
 
       <!-- Apply Button -->
