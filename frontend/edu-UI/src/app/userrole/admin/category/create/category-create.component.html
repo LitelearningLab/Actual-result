@@ -343,7 +343,7 @@
             </div>
 
             <div class="field-row">
-              <div class="field-half field-with-counter">
+              <div class="field-half">
                 <mat-form-field appearance="outline" class="field-full">
                   <mat-label>Description</mat-label>
                   <mat-icon matPrefix>description</mat-icon>
@@ -355,8 +355,8 @@
                     (input)="setDescription($any($event.target).value)"
                     placeholder="Optional description"
                   ></textarea>
+                  <mat-hint align="end">{{ (description || '').length }}/150</mat-hint>
                 </mat-form-field>
-                <span class="inside-char-counter">{{ (description || '').length }}/150</span>
               </div>
 
               <mat-form-field appearance="outline" class="field-half">

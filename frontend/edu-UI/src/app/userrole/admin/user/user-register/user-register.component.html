@@ -535,9 +535,9 @@
 
                 <div class="field-row">
                   <mat-form-field appearance="outline" class="field-half">
-                    <mat-label>Password*</mat-label>
+                    <mat-label>{{ isEditing ? 'Password (leave blank to keep current)' : 'Password*' }}</mat-label>
                     <mat-icon matPrefix>lock</mat-icon>
-                    <input matInput id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password" aria-label="Password" (blur)="form.get('password')?.markAsTouched()" />
+                    <input matInput id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password" aria-label="Password" autocomplete="new-password" (blur)="form.get('password')?.markAsTouched()" />
                     <button mat-icon-button matSuffix type="button" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" [matTooltip]="showPassword ? 'Hide password' : 'Show password'" (click)="showPassword = !showPassword">
                       <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
                     </button>
@@ -546,9 +546,9 @@
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="field-half">
-                    <mat-label>Confirm Password*</mat-label>
+                    <mat-label>{{ isEditing ? 'Confirm Password' : 'Confirm Password*' }}</mat-label>
                     <mat-icon matPrefix>lock_person</mat-icon>
-                    <input matInput id="confirmPassword" [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword" aria-label="Confirm password" />
+                    <input matInput id="confirmPassword" [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword" aria-label="Confirm password" autocomplete="new-password" />
                     <button mat-icon-button matSuffix type="button" [attr.aria-label]="showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'" [matTooltip]="showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'" (click)="showConfirmPassword = !showConfirmPassword">
                       <mat-icon>{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
                     </button>

@@ -704,11 +704,48 @@ button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon {
   }
 }
 
-/* Hide Angular Material's native pseudo checkbox on Select All option */
+/* ════════════════════════════════════════════════════════════════════════════════
+ * HIDE UNWANTED CHECKBOXES ON SEARCH AND SELECT ALL OPTIONS GLOBALLY
+ * ════════════════════════════════════════════════════════════════════════════════ */
+.select-search-option .mat-pseudo-checkbox,
+.select-search-option .mat-mdc-option-pseudo-checkbox,
+.select-search-option .mat-pseudo-checkbox-minimal,
+.select-search-option .mdc-checkbox,
+.select-search-option .mat-mdc-checkbox,
+.select-search-option .mdc-list-item__graphic,
+.select-search-option .mat-mdc-option-graphic,
+.select-search-option .mdc-list-item__start,
+.select-search-option .mdc-list-item__end,
+::ng-deep .select-search-option .mat-pseudo-checkbox,
+::ng-deep .select-search-option .mat-mdc-option-pseudo-checkbox,
+::ng-deep .select-search-option .mat-pseudo-checkbox-minimal,
+::ng-deep .select-search-option .mdc-checkbox,
+::ng-deep .select-search-option .mat-mdc-checkbox,
+::ng-deep .select-search-option .mdc-list-item__graphic,
+::ng-deep .select-search-option .mat-mdc-option-graphic,
+::ng-deep .select-search-option .mdc-list-item__start,
+::ng-deep .select-search-option .mdc-list-item__end {
+  display: none !important;
+}
+
 .select-all-option .mat-pseudo-checkbox,
 .select-all-option .mat-mdc-option-pseudo-checkbox,
+.select-all-option .mat-pseudo-checkbox-minimal,
+.select-all-option .mdc-checkbox,
+.select-all-option .mat-mdc-checkbox,
+.select-all-option .mdc-list-item__graphic,
+.select-all-option .mat-mdc-option-graphic,
+.select-all-option .mdc-list-item__start,
+.select-all-option .mdc-list-item__end,
 ::ng-deep .select-all-option .mat-pseudo-checkbox,
-::ng-deep .select-all-option .mat-mdc-option-pseudo-checkbox {
+::ng-deep .select-all-option .mat-mdc-option-pseudo-checkbox,
+::ng-deep .select-all-option .mat-pseudo-checkbox-minimal,
+::ng-deep .select-all-option .mdc-checkbox,
+::ng-deep .select-all-option .mat-mdc-checkbox,
+::ng-deep .select-all-option .mdc-list-item__graphic,
+::ng-deep .select-all-option .mat-mdc-option-graphic,
+::ng-deep .select-all-option .mdc-list-item__start,
+::ng-deep .select-all-option .mdc-list-item__end {
   display: none !important;
 }
 

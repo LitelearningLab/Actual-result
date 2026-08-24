@@ -622,7 +622,10 @@ def update_user_details(user_id, request):
             data[field] = datetime.strptime(data[field], "%Y-%m-%d")
 
     for key, value in data.items():
-        if hasattr(user, key):
+        if key in ["department_id", "team_id", "campus_id", "country_id", "state_id", "city_id"]:
+            if value:
+                setattr(user, key, value)
+        elif hasattr(user, key):
             setattr(user, key, value)
 
     # Explicitly update full_name if provided as full_name, display_name, or name
@@ -633,6 +636,17 @@ def update_user_details(user_id, request):
     user_name = data.get("user_name") or data.get("username")
     if user_name:
         user.user_name = user_name
+
+    # Update password only if a non-empty password is provided
+    password = data.get("password")
+    if password and isinstance(password, str) and password.strip():
+        password_hash = argon2.hash(password.strip())
+        cred = session.query(Credential).filter_by(user_id=user_id).first()
+        if cred:
+            cred.password_hash = password_hash
+        else:
+            new_cred = Credential(user_id=user_id, password_hash=password_hash)
+            session.add(new_cred)
 
     user.updated_by = data.get("current_user", "system")
     user.updated_date = datetime.utcnow()

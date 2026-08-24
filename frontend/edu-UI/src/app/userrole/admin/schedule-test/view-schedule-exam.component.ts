@@ -1276,18 +1276,6 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       this.selectedInstitute = matchedInstitute.institute_id;
       this.syncInstituteSearch();
     }
-    if (!this.selectedDepartments?.length) {
-      try {
-        notify('Please select a department', 'info');
-      } catch (e) {}
-      return;
-    }
-    if (!this.selectedTeams?.length) {
-      try {
-        notify('Please select a team', 'info');
-      } catch (e) {}
-      return;
-    }
     if (!this.hasFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');

@@ -47,8 +47,8 @@ export class CategoryCreateComponent {
   type = '';
   whoInputs = '';
   evaluation = '';
-  status = '';
-  markForEachQuestion: number | null = null;
+  status = 'true';
+  markForEachQuestion: number | null = 1;
   readonly ALL_OPTION_VALUE = '__all__';
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
@@ -205,11 +205,11 @@ export class CategoryCreateComponent {
     this.type = c.type || '';
     this.whoInputs = c.answer_by || c.who_inputs || '';
     this.evaluation = c.evaluation || '';
-    this.status = typeof c.active_status !== 'undefined' ? String(c.active_status) : c.status || '';
+    this.status = (typeof c.active_status !== 'undefined' && c.active_status !== null) ? String(c.active_status) : (c.status || 'true');
     this.markForEachQuestion =
-      typeof c.mark_each_question !== 'undefined'
+      (typeof c.mark_each_question !== 'undefined' && c.mark_each_question !== null)
         ? c.mark_each_question
-        : c.mark_for_each_question || null;
+        : (c.mark_for_each_question ?? 1);
     this.publicAccess = !!c.public_access;
     this.selectedDepartments = this.normalizeEntityIds(
       c.departments || c.department_ids,

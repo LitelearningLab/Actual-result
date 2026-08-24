@@ -215,7 +215,7 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0,0,0,0.06);
 .category-filters-panel { min-width: 34rem; max-width: 44rem; }
 .category-filters-panel .filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem 1rem; }
 .category-filters-panel .filter-col { display: flex; flex-direction: column; gap: 0.5rem; }
-.category-filters-panel .filter-col-full { grid-column: 1 / -1; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+.category-filters-panel .filter-col-full { grid-column: 1 / -1; margin-top: 0.875rem !important; margin-bottom: 0.5rem; }
 .category-filters-panel .filter-checks { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.5rem; padding: 0.25rem 1.25rem 0.75rem; }
 
 // Searchable filter dropdowns (Country/Industry/Sector)

@@ -103,6 +103,8 @@ export class AdminQuestionsComponent {
 
   // AI mode controls (template bindings added)
   aiMode: boolean = false;
+  isGenerating: boolean = false;
+  hasGeneratedQuestionsWithoutAnswers: boolean = false;
   aiQuestionType: string = '';
   aiQuestionNumber: number = 5;
   aiMarksPerQuestion: number = 5;
@@ -788,23 +790,66 @@ export class AdminQuestionsComponent {
       }
     });
     this.aiAnswerGenerationPending = false;
+    this.hasGeneratedQuestionsWithoutAnswers = false;
     try {
       notify('Answers generated for the current questions', 'success');
     } catch (e) {}
     return true;
   }
 
-  // Generate simple placeholder questions from AI inputs (stub implementation)
-  generateAIQuestions() {
-    if (this.applyGeneratedAnswersToQuestions()) return;
-    this.loader.show();
-    if (!this.aiQuestionType || !this.aiQuestionNumber || this.aiQuestionNumber < 1) {
+  clearAIPrompts() {
+    this.sourceText = '';
+    this.aiPrompt = '';
+    this.activeMode = 'ai';
+    this.plaintextEditor = false;
+    this.selectedSourceFile = null;
+    this.hasGeneratedQuestionsWithoutAnswers = false;
+  }
+
+  handlePrimaryAIGenerateClick() {
+    if (this.hasGeneratedQuestionsWithoutAnswers) {
+      this.generateAnswersForQuestions();
+    } else {
+      this.generateAIQuestions();
+    }
+  }
+
+  generateAnswersForQuestions() {
+    if (!this.questions || !this.questions.length) {
       try {
-        notify('Select a question type and set number of questions', 'error');
+        notify('No questions available to generate answers for', 'error');
       } catch (e) {}
-      this.loader.hide();
       return;
     }
+    this.aiAnswerGenerationPending = true;
+    if (this.generatedQuestions && this.generatedQuestions.length) {
+      this.applyGeneratedAnswersToQuestions();
+      this.hasGeneratedQuestionsWithoutAnswers = false;
+    } else {
+      this.generateAIQuestions();
+    }
+  }
+
+  // Generate simple placeholder questions from AI inputs (stub implementation)
+  generateAIQuestions() {
+    if (!this.hasCategorySettings()) {
+      try {
+        notify('Please select a Question Bank first', 'error');
+      } catch (e) {}
+      return;
+    }
+
+    if (!this.aiQuestionType) {
+      const catType = (this.selectedCategory?.type || '').toLowerCase();
+      this.aiQuestionType = catType.includes('obj') ? 'choose' : (catType.includes('subj') ? 'descriptive' : 'choose');
+    }
+
+    if (!this.aiQuestionNumber || this.aiQuestionNumber < 1) {
+      this.aiQuestionNumber = 5;
+    }
+
+    this.isGenerating = true;
+    this.loader.show();
 
     // Build FormData to support file upload and parameters
     const fd = new FormData();
@@ -895,6 +940,7 @@ export class AdminQuestionsComponent {
                 };
               });
               this.aiAnswerGenerationPending = true;
+              this.hasGeneratedQuestionsWithoutAnswers = true;
               this.mode = 'manual';
               // this.aiMode = false;
               this.activeMode = 'manual';
@@ -920,12 +966,15 @@ export class AdminQuestionsComponent {
           console.error('Failed to process AI response', e);
           notify('Failed to generate questions', 'error');
         }
+        this.isGenerating = false;
         this.loader.hide();
       },
       complete: () => {
+        this.isGenerating = false;
         this.loader.hide();
       },
       error: (err) => {
+        this.isGenerating = false;
         console.error('AI generation failed', err);
         try {
           notify(

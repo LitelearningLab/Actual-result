@@ -347,7 +347,7 @@
                       multiple
                       [(ngModel)]="selectedTeams"
                       placeholder="Select team"
-                      [disabled]="!filterInstituteId"
+                      [disabled]="!filterInstituteId || !selectedDepartments.length"
                       (selectionChange)="onQuestionBankFilterChange()"
                     >
                       <mat-option class="select-search-option" (click)="$event.stopPropagation()">
@@ -802,18 +802,21 @@
             <button
               mat-stroked-button
               type="button"
-              (click)="sourceText = ''; aiPrompt = ''; activeMode = 'ai'; plaintextEditor = false"
+              (click)="clearAIPrompts()"
             >
-              Clear
+              <mat-icon>clear_all</mat-icon>
+              <span>Clear</span>
             </button>
             <button
               mat-flat-button
               color="primary"
               type="button"
-              (click)="generateAIQuestions()"
-              [disabled]="!hasCategorySettings() || !aiQuestionType || aiQuestionNumber < 1"
+              (click)="handlePrimaryAIGenerateClick()"
+              [disabled]="isGenerating || (!hasGeneratedQuestionsWithoutAnswers && !sourceText?.trim() && !aiPrompt?.trim() && !selectedSourceFile)"
             >
-              Generate
+              <mat-icon>{{ hasGeneratedQuestionsWithoutAnswers ? 'question_answer' : 'auto_awesome' }}</mat-icon>
+              <span *ngIf="isGenerating">{{ hasGeneratedQuestionsWithoutAnswers ? 'Generating Answers...' : 'Generating Questions...' }}</span>
+              <span *ngIf="!isGenerating">{{ hasGeneratedQuestionsWithoutAnswers ? 'Generate Answers' : 'Generate Questions' }}</span>
             </button>
           </div>
         </div>

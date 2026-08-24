@@ -584,7 +584,7 @@ export class AdminUserRegisterComponent implements OnInit {
         active: (typeof u.active_status === 'boolean') ? u.active_status : (u.active_status === 1 || u.active_status === '1'),
         note: u.notes || u.note || ''
       });
-      const iid = this.form.get('institute')?.value;
+      const iid = this.form.get('institute')?.value || u.institute?.institute_id || u.institute_id || u.institute || this.loggedInstitute || sessionStorage.getItem('global_institute_id') || '';
       if (iid) { this.loadDepartments(iid); this.loadTeams(iid); this.loadCampusList(iid); this.loadLocationHierarchy(iid); }
       try {
         const campusId = u.campus?.campus_id || u.campus_id || u.campus || '';
@@ -723,11 +723,18 @@ export class AdminUserRegisterComponent implements OnInit {
     });
   }
 
-  loadDepartments(instituteId: string) {
+  loadDepartments(instituteId: any) {
+    let cleanId = (typeof instituteId === 'object' && instituteId)
+      ? (instituteId.institute_id || instituteId.id || instituteId.value || '')
+      : (instituteId || '');
+    if (!cleanId || cleanId === '[object Object]') {
+      cleanId = this.loggedInstitute || sessionStorage.getItem('global_institute_id') || '';
+    }
+    if (!cleanId) return;
     this.loader.show();
     const url = `${API_BASE}/get-department-list`;
     this.departmentsLoading = true;
-    this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
+    this.http.get<any>(url, { params: { institute_id: String(cleanId) } }).subscribe({
       next: (res) => {
         try {
           const data = res?.data || [];
@@ -743,10 +750,17 @@ export class AdminUserRegisterComponent implements OnInit {
     });
   }
 
-  loadTeams(instituteId: string) {
+  loadTeams(instituteId: any) {
+    let cleanId = (typeof instituteId === 'object' && instituteId)
+      ? (instituteId.institute_id || instituteId.id || instituteId.value || '')
+      : (instituteId || '');
+    if (!cleanId || cleanId === '[object Object]') {
+      cleanId = this.loggedInstitute || sessionStorage.getItem('global_institute_id') || '';
+    }
+    if (!cleanId) return;
     this.loader.show();
     const url = `${API_BASE}/get-teams-list`;
-    this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
+    this.http.get<any>(url, { params: { institute_id: String(cleanId) } }).subscribe({
       next: (res) => {
         try {
           const data = res?.data || [];

@@ -388,7 +388,7 @@ mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:
   }
 }
 .question-bank-filter-panel .filter-col { display:flex; flex-direction:column; gap:0.5rem; }
-.question-bank-filter-panel .filter-col-full { grid-column:1 / -1; margin-top:0.5rem; }
+.question-bank-filter-panel .filter-col-full { grid-column:1 / -1; margin-top:0.875rem !important; }
 .question-bank-filter-panel .filter-item { width:100%; }
 .question-bank-filter-panel .filter-checks { display:flex; flex-wrap:wrap; gap:1.75rem; align-items:center; padding:1rem 1.5rem 1.5rem; }
 .question-bank-filter-panel .filter-subsection-title {
@@ -461,6 +461,30 @@ mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:
 :host ::ng-deep .select-search-option { height:auto !important; min-height:3rem; cursor:default; }
 :host ::ng-deep .select-search-option .mdc-list-item__primary-text { width:100%; }
 :host ::ng-deep .select-search-input { width:100%; box-sizing:border-box; padding:0.5rem 0.25rem; font-size:0.875rem; }
+
+::ng-deep .select-search-option .mat-pseudo-checkbox,
+::ng-deep .select-search-option .mat-mdc-option-pseudo-checkbox,
+::ng-deep .select-search-option .mat-pseudo-checkbox-minimal,
+::ng-deep .select-search-option .mdc-checkbox,
+::ng-deep .select-search-option .mat-mdc-checkbox,
+::ng-deep .select-search-option .mdc-list-item__graphic,
+::ng-deep .select-search-option .mat-mdc-option-graphic,
+::ng-deep .select-search-option .mdc-list-item__start,
+::ng-deep .select-search-option .mdc-list-item__end {
+  display: none !important;
+}
+
+::ng-deep .select-all-option .mat-pseudo-checkbox,
+::ng-deep .select-all-option .mat-mdc-option-pseudo-checkbox,
+::ng-deep .select-all-option .mat-pseudo-checkbox-minimal,
+::ng-deep .select-all-option .mdc-checkbox,
+::ng-deep .select-all-option .mat-mdc-checkbox,
+::ng-deep .select-all-option .mdc-list-item__graphic,
+::ng-deep .select-all-option .mat-mdc-option-graphic,
+::ng-deep .select-all-option .mdc-list-item__start,
+::ng-deep .select-all-option .mdc-list-item__end {
+  display: none !important;
+}
 
 /* Applied Filters Chips UI */
 .applied-filters {

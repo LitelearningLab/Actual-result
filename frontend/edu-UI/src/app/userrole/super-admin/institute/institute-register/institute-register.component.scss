@@ -449,33 +449,66 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0,0,0,0.06);
 }
 
 .dept-action-btn {
-  width: 2.125rem;
-  height: 2.125rem;
-  line-height: 2.125rem;
-}
-
-.dept-action-btn mat-icon {
-  font-size: 1.125rem;
-  width: 1.125rem;
-  height: 1.125rem;
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  min-width: 2.25rem !important;
+  min-height: 2.25rem !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dept-action-btn.edit-btn {
-  color: var(--theme-3-text-2);
-}
-
-.dept-action-btn.edit-btn:hover {
-  color: var(--button-1);
-  background: rgba(31, 123, 255, 0.08);
+  color: #475569;
+  background: transparent;
 }
 
 .dept-action-btn.delete-btn {
   color: #ef4444;
+  background: transparent;
 }
 
-.dept-action-btn.delete-btn:hover {
-  color: #dc2626;
-  background: #fee2e2;
+:host ::ng-deep {
+  .dept-action-btn.mat-mdc-icon-button {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    min-width: 2.25rem !important;
+    min-height: 2.25rem !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    .mat-mdc-button-touch-target {
+      width: 2.25rem !important;
+      height: 2.25rem !important;
+    }
+
+    mat-icon,
+    .mat-icon {
+      font-size: 1.25rem !important;
+      width: 1.25rem !important;
+      height: 1.25rem !important;
+      line-height: 1.25rem !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+  }
+
+  .dept-action-btn.edit-btn:hover {
+    color: var(--button-1, #6366f1) !important;
+    background: rgba(99, 102, 241, 0.1) !important;
+  }
+
+  .dept-action-btn.delete-btn:hover {
+    color: #dc2626 !important;
+    background: rgba(239, 68, 68, 0.1) !important;
+  }
 }
 
 /* Inline Edit Department Name */

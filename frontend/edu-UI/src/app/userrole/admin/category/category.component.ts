@@ -857,16 +857,20 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!ok) return;
         // optimistic remove
         const prev = [...this.categories];
-        this.categories = this.categories.filter((x) => x.id !== c.id);
+        const targetId = String(id);
+        this.categories = this.categories.filter(
+          (x: any) => String(x.category_id || x.id || '') !== targetId
+        );
         this.dataSource.data = this.categories;
         const current_user = sessionStorage.getItem('user_id');
-        const url = `${API_BASE}/delete/category/${encodeURIComponent(String(id))}?current_user=${encodeURIComponent(String(current_user))}`;
+        const url = `${API_BASE}/delete/category/${encodeURIComponent(targetId)}?current_user=${encodeURIComponent(String(current_user))}`;
         // call backend generic manage route (category/delete)
         this.http.delete<any>(url, {}).subscribe({
           next: (res) => {
             try {
               notify('Question Bank deleted', 'success');
             } catch (e) {}
+            this.fetchCategories();
           },
           error: (err) => {
             console.error('Failed deleting question bank', err);

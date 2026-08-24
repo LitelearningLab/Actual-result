@@ -39,20 +39,6 @@ $shadow-md: 0 4px 12px rgba(0,0,0,0.06);
 .field-half { flex:1; min-width:0; }
 .field-full { width:100%; }
 .field-error { color:#dc2626; font-size:0.75rem; }
-.field-with-counter { position: relative; }
-.field-with-counter textarea { resize: none !important; }
-.inside-char-counter {
-  position: absolute;
-  right: 0.75rem;
-  bottom: 0.5rem;
-  font-size: 0.72rem;
-  color: var(--theme-3-text-3);
-  opacity: 0.7;
-  pointer-events: none;
-  z-index: 5;
-  user-select: none;
-}
-:host ::ng-deep .field-with-counter .mat-mdc-form-field-subscript-wrapper { display: none !important; }
 :host ::ng-deep .field-invalid .mdc-notched-outline__leading,
 :host ::ng-deep .field-invalid .mdc-notched-outline__notch,
 :host ::ng-deep .local-institute-field {

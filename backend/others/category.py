@@ -97,13 +97,17 @@ def get_categories_list(request):
     if args.get("created_before"):
         filter.append(Categories.created_date <= args.get("created_before"))
     if args.get("departments"):
-        departments = args.get("departments").split(",")
-        deaptments_data = session.query(CategoriesDepartments).filter(CategoriesDepartments.department_id.in_(departments)).all()
-        filter.append(Categories.category_id.in_([d.category_id for d in deaptments_data]))
+        departments = [d.strip() for d in args.get("departments").split(",") if d.strip()]
+        if departments:
+            dept_cat_ids = [d.category_id for d in session.query(CategoriesDepartments).filter(CategoriesDepartments.department_id.in_(departments)).all()]
+            all_dept_cat_ids = [c[0] for c in session.query(CategoriesDepartments.category_id).distinct().all()]
+            filter.append(or_(Categories.category_id.in_(dept_cat_ids), ~Categories.category_id.in_(all_dept_cat_ids)))
     if args.get("teams"):
-        teams = args.get("teams").split(",")
-        teams_data = session.query(CategoriesTeams).filter(CategoriesTeams.team_id.in_(teams)).all()
-        filter.append(Categories.category_id.in_([t.category_id for t in teams_data]))
+        teams = [t.strip() for t in args.get("teams").split(",") if t.strip()]
+        if teams:
+            team_cat_ids = [t.category_id for t in session.query(CategoriesTeams).filter(CategoriesTeams.team_id.in_(teams)).all()]
+            all_team_cat_ids = [t[0] for t in session.query(CategoriesTeams.category_id).distinct().all()]
+            filter.append(or_(Categories.category_id.in_(team_cat_ids), ~Categories.category_id.in_(all_team_cat_ids)))
     if args.get("type"):
         category_types = [value.strip() for value in args.get("type").split(",") if value.strip()]
         if category_types:
@@ -491,6 +495,7 @@ def delete_category(category_id, deleted_by):
         #     pass
         # session.delete(category)
         category.is_deleted = 1
+        category.active_status = 0
         category.updated_by = deleted_by
         category.updated_date = datetime.utcnow()
         session.commit()
@@ -511,17 +516,8 @@ def manage_category(action, uuid, updated_by):
     if not category:
         return {"statusMessage": "Category not found", "status": False}, 404
     if action == 'delete':
-        # try:
-        #     # remove related department/team links first
-        #     session.query(CategoriesDepartments).filter_by(category_id=uuid).delete()
-        # except Exception:
-        #     pass
-        # try:
-        #     session.query(CategoriesTeams).filter_by(category_id=uuid).delete()
-        # except Exception:
-        #     pass
-        # session.delete(category)
         category.is_deleted = 1
+        category.active_status = 0
         category.updated_by = updated_by
         category.updated_date = datetime.utcnow()
         session.commit()

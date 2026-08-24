@@ -132,6 +132,22 @@ def _resolve_fixed_question_ids(session, category_id, number_of_questions, quest
     return unique_ids
 
 
+def ensure_exam_columns(session):
+    try:
+        from sqlalchemy import text
+        session.execute(text("""
+            IF EXISTS (
+                SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'Exams' AND COLUMN_NAME = 'title' AND (CHARACTER_MAXIMUM_LENGTH < 255 AND CHARACTER_MAXIMUM_LENGTH > 0)
+            )
+            BEGIN
+                ALTER TABLE Exams ALTER COLUMN title NVARCHAR(500) NOT NULL;
+            END;
+        """))
+        session.commit()
+    except Exception as e:
+        session.rollback()
+
 def add_exam(request):
     # get exam details from the request
     data = request.get_json(silent=True) or {}
@@ -163,6 +179,8 @@ def add_exam(request):
     session = db.connect()
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    ensure_exam_columns(session)
 
     try:
         add_exam = Exam(
