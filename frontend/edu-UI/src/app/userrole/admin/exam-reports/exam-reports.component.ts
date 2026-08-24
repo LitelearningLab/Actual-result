@@ -129,6 +129,20 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   get showLocationAndIndustryFilters(): boolean {
     return this.isSuperAdmin && !this.isGlobalInstituteActive;
   }
+  get hasAppliedFilters(): boolean {
+    return (
+      !!this.userFilters.industry ||
+      !!this.userFilters.sector ||
+      (this.isSuperAdmin && !this.isGlobalInstituteActive && !!this.selectedInstituteName) ||
+      !!this.selectedExam ||
+      !!this.userFilters.campus_id ||
+      (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length > 0) ||
+      (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length > 0) ||
+      !!this.userFilters.active_status ||
+      !!this.userFilters.created_by_me
+    );
+  }
+
   userFilters: any = {
     country_id: '',
     city_id: '',
@@ -194,7 +208,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   scheduledTestsMessage = '';
   private scheduledTestsRequestId = 0;
 
-  // --- 3-Step Test Selection State ---
+  // --- 3-Step Test Selection & Date Range Selection State ---
+  selectionMode: 'schedule' | 'daterange' = 'schedule';
   allSchedules: any[] = [];
   uniqueTestNames: string[] = [];
   selectedTestTitle: string = '';
@@ -202,6 +217,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   highlightedDatesSet: Set<string> = new Set<string>();
   availableSchedulesOnDate: any[] = [];
   selectedScheduleId: string = '';
+  selectedDateRangeTestTitle: string = '';
+  dateRangeStart: Date | null = null;
+  dateRangeEnd: Date | null = null;
 
   stopFilterSearchEvent(event: Event) {
     event.stopPropagation();
@@ -780,6 +798,35 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
 
+  setSelectionMode(mode: 'schedule' | 'daterange') {
+    this.selectionMode = mode;
+  }
+
+  onDateRangeTestTitleSelect(title: string) {
+    this.selectedDateRangeTestTitle = title;
+  }
+
+  onDateRangeApply() {
+    if (!this.selectedDateRangeTestTitle || !this.dateRangeStart || !this.dateRangeEnd) {
+      return;
+    }
+    this.selectedExam = {
+      isDateRange: true,
+      title: this.selectedDateRangeTestTitle,
+      start_date: this.formatDateToYYYYMMDD(this.dateRangeStart),
+      end_date: this.formatDateToYYYYMMDD(this.dateRangeEnd),
+    };
+    this.questionCurrentPage = 1;
+    this.currentPage = 1;
+    this.reportsApplied = true;
+    if (this.activeMainTabIndex === 0) {
+      this.loadAnalytics();
+    } else {
+      this.loadUserReport(1);
+    }
+  }
+
+
   dateClass = (cellDate: Date, view: string) => {
     if (view === 'month') {
       const dateStr = this.formatDateToYYYYMMDD(cellDate);
@@ -837,12 +884,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return this.formatDateToYYYYMMDD(dt);
   }
 
-  formatDateToYYYYMMDD(dt: Date): string {
+  formatDateToYYYYMMDD(dt: Date | null | undefined): string {
+    if (!dt) return '';
     const yyyy = dt.getFullYear();
     const mm = String(dt.getMonth() + 1).padStart(2, '0');
     const dd = String(dt.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   }
+
 
   getScheduleTimeString(item: any): string {
     if (!item) return '';
@@ -1079,10 +1128,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
     const userId = row.user_id || row.student_id || row.id || row.userId || null;
     const scheduleId = String(
-      this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || ''
+      row.schedule_id || row.scheduleId || row.scheduler_id || this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || ''
     );
-    if (!userId || !scheduleId) return;
-    const params: any = { user_id: String(userId), scheduler_id: scheduleId };
+    if (!userId) return;
+    const params: any = { user_id: String(userId) };
+    if (scheduleId) {
+      params.scheduler_id = scheduleId;
+    }
     this.currentReviewParams = params;
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       const snack = this._snack.open('You appear to be offline. Retry?', 'Retry', {
@@ -1093,6 +1145,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
     this.fetchUserReview(params);
   }
+
 
   retryEvaluation(q: any, attempt: any): void {
     const attemptId = attempt?.attempt_id;
@@ -1651,6 +1704,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.highlightedDatesSet.clear();
     this.availableSchedulesOnDate = [];
     this.selectedScheduleId = '';
+    this.selectionMode = 'schedule';
+    this.selectedDateRangeTestTitle = '';
+    this.dateRangeStart = null;
+    this.dateRangeEnd = null;
     this.scheduledTestsMessage = '';
     this.reportsApplied = false;
     this.appliedFilters = null;
@@ -1659,6 +1716,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.categoryAnalytics = [];
     this.questionSummary = [];
     this.wrongDistribution = [];
+
   }
 
   resetFiltersAndReload() {
@@ -2363,14 +2421,23 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   loadUserReport(page: number = 1) {
     if (!this.selectedExam) return;
     this.currentPage = page || 1;
-    const scheduleId = String(
-      this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || ''
-    );
     const params: any = {
-      schedule_id: scheduleId,
       page: String(this.currentPage),
       page_size: String(this.pageSize),
     };
+    if (this.selectedExam.isDateRange || this.selectionMode === 'daterange') {
+      params.test_title = this.selectedExam.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
+      if (this.selectedExam.start_date || this.dateRangeStart) {
+        params.start_date = this.selectedExam.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
+      }
+      if (this.selectedExam.end_date || this.dateRangeEnd) {
+        params.end_date = this.selectedExam.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
+      }
+    } else {
+      params.schedule_id = String(
+        this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || ''
+      );
+    }
     if (this.searchQuery) params.q = this.searchQuery;
     if (this.userFilters.country_id) params.country_id = this.userFilters.country_id;
     if (this.userFilters.city_id) params.city_id = this.userFilters.city_id;
@@ -2502,7 +2569,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `exam_user_report_${this.selectedExam ? this.selectedExam.schedule_id || this.selectedExam.id : 'report'}.csv`;
+    a.download = `exam_user_report_${this.selectedExam ? this.selectedExam.schedule_id || this.selectedExam.id || 'report' : 'report'}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -2511,9 +2578,19 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   loadAnalytics() {
     if (!this.selectedExam) return;
-    const params: any = {
-      schedule_id: String(this.selectedExam.schedule_id || this.selectedExam.id || ''),
-    };
+    const params: any = {};
+    if (this.selectedExam.isDateRange || this.selectionMode === 'daterange') {
+      params.test_title = this.selectedExam.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
+      if (this.selectedExam.start_date || this.dateRangeStart) {
+        params.start_date = this.selectedExam.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
+      }
+      if (this.selectedExam.end_date || this.dateRangeEnd) {
+        params.end_date = this.selectedExam.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
+      }
+    } else {
+      params.schedule_id = String(this.selectedExam.schedule_id || this.selectedExam.id || '');
+    }
+
     try {
       this.loading.show();
     } catch (e) {}
@@ -2631,10 +2708,21 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     if (!this.selectedWrongAnswers.length) {
       const params: any = {
-        schedule_id: String(this.selectedExam?.schedule_id || this.selectedExam?.id || ''),
         question_id: String(question.question_id || question.id || question.qid || ''),
       };
-      if (params.schedule_id && params.question_id) {
+      if (this.selectedExam?.isDateRange || this.selectionMode === 'daterange') {
+        params.test_title = this.selectedExam?.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
+        if (this.selectedExam?.start_date || this.dateRangeStart) {
+          params.start_date = this.selectedExam?.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
+        }
+        if (this.selectedExam?.end_date || this.dateRangeEnd) {
+          params.end_date = this.selectedExam?.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
+        }
+      } else {
+        params.schedule_id = String(this.selectedExam?.schedule_id || this.selectedExam?.id || '');
+      }
+
+      if ((params.schedule_id || (params.test_title && params.start_date)) && params.question_id) {
         this.http.get<any>(`${API_BASE}/get-question-wrong-answers`, { params }).subscribe({
           next: (res: any) => {
             const body = res || {};
@@ -2694,9 +2782,19 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.selectedResourceContext = { question, wa };
     this.selectedResources = [];
 
-    const params: any = {
-      schedule_id: String(this.selectedExam?.schedule_id || this.selectedExam?.id || ''),
-    };
+    const params: any = {};
+    if (this.selectedExam?.isDateRange || this.selectionMode === 'daterange') {
+      params.test_title = this.selectedExam?.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
+      if (this.selectedExam?.start_date || this.dateRangeStart) {
+        params.start_date = this.selectedExam?.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
+      }
+      if (this.selectedExam?.end_date || this.dateRangeEnd) {
+        params.end_date = this.selectedExam?.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
+      }
+    } else {
+      params.schedule_id = String(this.selectedExam?.schedule_id || this.selectedExam?.id || '');
+    }
+
     if (wa.option_id) params.option_id = wa.option_id;
     else if (wa.optionId) params.option_id = wa.optionId;
     if (wa.answer_id) params.answer_id = wa.answer_id;

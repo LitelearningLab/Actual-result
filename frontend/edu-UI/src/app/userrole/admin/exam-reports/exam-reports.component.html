@@ -1,66 +1,64 @@
 <div class="page exam-reports">
   <div class="toolbar">
-    <div class="selections" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
-      <mat-form-field
-        appearance="outline"
-        class="local-institute-field disabled-toolbar-field mandatory-field"
+    <!-- Applied Filters Bar (Matches Image 2 Design) -->
+    <div class="applied-filters-container" *ngIf="hasAppliedFilters">
+      <span class="applied-filters-title">APPLIED FILTERS</span>
+
+      <span class="applied-filter-pill" *ngIf="userFilters.industry">
+        <strong>Industry:</strong> {{ userFilters.industry }}
+      </span>
+
+      <span class="applied-filter-pill" *ngIf="userFilters.sector">
+        <strong>Sector:</strong> {{ userFilters.sector }}
+      </span>
+
+      <span
+        class="applied-filter-pill"
+        *ngIf="isSuperAdmin && !isGlobalInstituteActive && selectedInstituteName"
       >
-        <mat-label>Institute <span class="required-mark">*</span></mat-label>
-        <mat-icon matPrefix svgIcon="institute"></mat-icon>
-        <input
-          matInput
-          [value]="selectedInstituteName"
-          disabled
-          placeholder="Institute Name"
-          aria-label="Institute"
-        />
-      </mat-form-field>
+        <strong>Institute:</strong> {{ selectedInstituteName }}
+      </span>
+
+      <span class="applied-filter-pill" *ngIf="selectedExam">
+        <strong>Test:</strong> {{ getTestTitle(selectedExam) }}
+      </span>
+
+      <span class="applied-filter-pill" *ngIf="userFilters.campus_id">
+        <strong>Campus:</strong> {{ userFilters.campus_id }}
+      </span>
+
+      <ng-container *ngIf="userFilters.department_id && userFilters.department_id.length">
+        <span
+          class="applied-filter-pill"
+          *ngFor="let dept of userFilters.department_id"
+        >
+          <strong>Department:</strong> {{ getDepartmentDisplayName(dept) }}
+        </span>
+      </ng-container>
+
+      <ng-container *ngIf="userFilters.teams_id && userFilters.teams_id.length">
+        <span
+          class="applied-filter-pill"
+          *ngFor="let team of userFilters.teams_id"
+        >
+          <strong>Team:</strong> {{ getTeamDisplayName(team) }}
+        </span>
+      </ng-container>
+
+      <span class="applied-filter-pill" *ngIf="userFilters.active_status">
+        <strong>Status:</strong> {{ userFilters.active_status }}
+      </span>
+
+      <button
+        type="button"
+        class="clear-all-chip-btn"
+        (click)="refreshTestReports()"
+        title="Clear all applied filters"
+      >
+        Clear all
+      </button>
     </div>
 
-    <!-- Applied Filters displayed in top toolbar area -->
-    <div
-      class="applied-filters-bar toolbar-applied-filters"
-      *ngIf="
-        (isSuperAdmin && !isGlobalInstituteActive && selectedInstituteName) ||
-        selectedExam ||
-        userFilters.campus_id ||
-        (userFilters.department_id && userFilters.department_id.length) ||
-        (userFilters.teams_id && userFilters.teams_id.length) ||
-        userFilters.active_status ||
-        userFilters.created_by_me
-      "
-    >
-      <div class="applied-filters-header">
-        <mat-icon class="filter-icon">filter_alt</mat-icon>
-        <span class="filter-title">Applied Filters:</span>
-      </div>
-      <div class="applied-chips-wrapper">
-        <span class="filter-chip" *ngIf="isSuperAdmin && !isGlobalInstituteActive && selectedInstituteName">
-          <span class="chip-label">Institute:</span> {{ selectedInstituteName }}
-        </span>
-        <span class="filter-chip" *ngIf="selectedExam">
-          <span class="chip-label">Test:</span> {{ getTestTitle(selectedExam) }}
-        </span>
-        <span class="filter-chip" *ngIf="userFilters.campus_id">
-          <span class="chip-label">Campus:</span> {{ userFilters.campus_id }}
-        </span>
-        <span
-          class="filter-chip"
-          *ngIf="userFilters.department_id && userFilters.department_id.length"
-        >
-          <span class="chip-label">Dept:</span> {{ getSelectedDepartmentsDisplay() }}
-        </span>
-        <span
-          class="filter-chip"
-          *ngIf="userFilters.teams_id && userFilters.teams_id.length"
-        >
-          <span class="chip-label">Team:</span> {{ getSelectedTeamsDisplay() }}
-        </span>
-        <span class="filter-chip" *ngIf="userFilters.active_status">
-          <span class="chip-label">Status:</span> {{ userFilters.active_status }}
-        </span>
-      </div>
-    </div>
 
     <div class="controls">
       <div class="action-row">
@@ -530,15 +528,42 @@
   </div>
 
   <!-- Test & Schedule Selection Card (3-step flow: Test -> Date -> Schedule -> Report) -->
+  <!-- Test & Schedule / Date Range Selection Card -->
   <div class="test-schedule-selection-card">
     <div class="selection-card-header">
-      <h3 class="selection-card-title">Test & Schedule Selection</h3>
-      <span class="selection-step-hint" *ngIf="uniqueTestNames.length">
+      <div class="header-mode-toggle-group">
+        <h3 class="selection-card-title-main">Test Selection Mode:</h3>
+        <div class="mode-toggle-buttons">
+          <button
+            type="button"
+            class="mode-toggle-btn"
+            [class.active]="selectionMode === 'schedule'"
+            (click)="setSelectionMode('schedule')"
+          >
+            <mat-icon>schedule</mat-icon>
+            <span>Select schedule</span>
+          </button>
+          <button
+            type="button"
+            class="mode-toggle-btn"
+            [class.active]="selectionMode === 'daterange'"
+            (click)="setSelectionMode('daterange')"
+          >
+            <mat-icon>date_range</mat-icon>
+            <span>Select Date range</span>
+          </button>
+        </div>
+      </div>
+      <span class="selection-step-hint" *ngIf="selectionMode === 'schedule'">
         Select Test &rarr; Select Date &rarr; Select Schedule &rarr; View Report
+      </span>
+      <span class="selection-step-hint" *ngIf="selectionMode === 'daterange'">
+        Select test &rarr; select Date range &rarr; view reports
       </span>
     </div>
 
-    <div class="selection-fields-grid">
+    <!-- Mode 1: Select Schedule -->
+    <div class="selection-fields-grid" *ngIf="selectionMode === 'schedule'">
       <!-- Step 1: Select Test -->
       <mat-form-field appearance="outline" class="selection-field">
         <mat-label>Test <span class="required-mark">*</span></mat-label>
@@ -594,7 +619,51 @@
         </mat-hint>
       </mat-form-field>
     </div>
+
+    <!-- Mode 2: Select Date Range -->
+    <div class="selection-fields-grid date-range-mode-grid" *ngIf="selectionMode === 'daterange'">
+      <!-- Select Test Name -->
+      <mat-form-field appearance="outline" class="selection-field">
+        <mat-label>Test Name <span class="required-mark">*</span></mat-label>
+        <mat-select
+          [ngModel]="selectedDateRangeTestTitle"
+          (ngModelChange)="onDateRangeTestTitleSelect($event)"
+          placeholder="Select Test Name"
+          [disabled]="!uniqueTestNames.length"
+        >
+          <mat-option *ngFor="let name of uniqueTestNames" [value]="name">
+            {{ name }}
+          </mat-option>
+        </mat-select>
+        <mat-hint *ngIf="!uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
+      </mat-form-field>
+
+      <!-- Created Date / Date Range -->
+      <mat-form-field appearance="outline" class="selection-field">
+        <mat-label>Created Date (Choose Date Range) <span class="required-mark">*</span></mat-label>
+        <mat-date-range-input [rangePicker]="dateRangePicker" [disabled]="!selectedDateRangeTestTitle">
+          <input matStartDate [(ngModel)]="dateRangeStart" placeholder="Start date" />
+          <input matEndDate [(ngModel)]="dateRangeEnd" placeholder="End date" />
+        </mat-date-range-input>
+        <mat-datepicker-toggle matSuffix [for]="dateRangePicker" [disabled]="!selectedDateRangeTestTitle"></mat-datepicker-toggle>
+        <mat-date-range-picker #dateRangePicker></mat-date-range-picker>
+      </mat-form-field>
+
+      <!-- Apply Button -->
+      <div class="apply-action-wrapper">
+        <button
+          mat-flat-button
+          type="button"
+          class="button-one apply-btn"
+          [disabled]="!selectedDateRangeTestTitle || !dateRangeStart || !dateRangeEnd"
+          (click)="onDateRangeApply()"
+        >
+          <mat-icon>analytics</mat-icon> Apply & View Reports
+        </button>
+      </div>
+    </div>
   </div>
+
 
 
 

@@ -63,34 +63,40 @@ def review_user_exam(request, current_user=None):
     args = getattr(request, "args", {})
 
     user_id: str = args.get("user_id", "")
-    schedule_id: str = args.get("scheduler_id", "")
+    schedule_id: str = args.get("scheduler_id", "") or args.get("schedule_id", "")
     attempt_id: str = args.get("attempt_id", "")
+
+    if not schedule_id and user_id:
+        att = session.query(Exam_Attempt).filter(Exam_Attempt.user_id == user_id).first()
+        if att:
+            schedule_id = str(att.schedule_id)
+        else:
+            ans = session.query(Answer).filter(Answer.user_id == user_id).first()
+            if ans:
+                schedule_id = str(ans.schedule_id)
 
     current_user_role = str(getattr(current_user, "user_role", "") or "").lower()
     is_student_request = current_user_role in ("user", "student", "learner")
 
-    # A student review allowance belongs to the authenticated student. Never
-    # let one student consume another student's per-attempt allowance.
     if is_student_request and str(getattr(current_user, "user_id", "")) != str(user_id):
         session.close()
         return {"statusMessage": "Access denied", "status": False}, 403
 
     try:
         ai_confidence_threshold = get_ai_confidence_threshold(session)
-        # Fetch exam attempt records for the user and exam schedule
         attempts = session.query(Exam_Attempt).filter(
             Exam_Attempt.user_id == user_id,
             Exam_Attempt.schedule_id == schedule_id
         ).all()
-        # get total questions in the exam
-        # Treat unpublished schedules as missing so students cannot bypass the
-        # schedule list and open a review directly.
-        exam_schedule = session.query(ExamSchedule).filter(
-            ExamSchedule.schedule_id == schedule_id,
-            ExamSchedule.published == 1
-        ).first()
+
+        q_sched = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == schedule_id)
+        if is_student_request:
+            q_sched = q_sched.filter(ExamSchedule.published == 1)
+        exam_schedule = q_sched.first()
+
         if not exam_schedule:
             return {"statusMessage": "Schedule not found", "status": False}, 404
+
 
         finalized_ids = finalize_expired_attempts(session, exam_schedule, attempts)
         for finalized_id in finalized_ids:
