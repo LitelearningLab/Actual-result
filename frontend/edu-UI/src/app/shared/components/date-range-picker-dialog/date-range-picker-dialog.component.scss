@@ -260,6 +260,24 @@ button.day-grid-cell {
   gap: 8px;
 }
 
+.btn-picker-clear {
+  padding: 7px 16px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #ef4444;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #dc2626;
+  }
+}
+
 .btn-picker-cancel {
   padding: 7px 16px;
   border: 1px solid #cbd5e1;

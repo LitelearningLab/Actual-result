@@ -422,6 +422,19 @@ export class DateRangePickerDialogComponent implements OnInit {
     this.dialogRef.close();
   }
 
+  onClear(): void {
+    this.selectedStart = null;
+    this.selectedEnd = null;
+    this.activePreset = null;
+    this.startDateInput = '';
+    this.endDateInput = '';
+    this.updateGrid();
+    this.dialogRef.close({
+      startDate: null,
+      endDate: null
+    } as DateRangeDialogResult);
+  }
+
   onApply(): void {
     this.dialogRef.close({
       startDate: this.selectedStart,

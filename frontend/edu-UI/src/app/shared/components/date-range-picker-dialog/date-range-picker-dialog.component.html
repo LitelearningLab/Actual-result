@@ -69,6 +69,7 @@
       </div>
 
       <div class="footer-action-buttons">
+        <button type="button" class="btn-picker-clear" *ngIf="selectedStart || selectedEnd" (click)="onClear()">Clear</button>
         <button type="button" class="btn-picker-cancel" (click)="onCancel()">Cancel</button>
         <button type="button" class="btn-picker-apply" (click)="onApply()">Apply</button>
       </div>
