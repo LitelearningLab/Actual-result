@@ -613,6 +613,33 @@ export class AdminUserRegisterComponent implements OnInit {
     } catch (e) { /* ignore parse errors */ }
   }
 
+  getModulePageName(name: string): string {
+    if (!name) return '';
+    const key = name.trim().toLowerCase();
+    const map: Record<string, string> = {
+      'categories': 'Question Banks',
+      'category': 'Question Banks',
+      'question bank': 'Question Banks',
+      'question banks': 'Question Banks',
+      'exams': 'Manage test',
+      'exam': 'Manage test',
+      'manage test': 'Manage test',
+      'test': 'Manage test',
+      'tests': 'Manage test',
+      'schedule exam': 'Schedule Test',
+      'schedule': 'Schedule Test',
+      'schedule test': 'Schedule Test',
+      'scheduled tests': 'Schedule Test',
+      'exam reports': 'Test Reports',
+      'test reports': 'Test Reports',
+      'users': 'Users',
+      'user': 'Users',
+      'questions': 'Questions',
+      'question': 'Questions'
+    };
+    return map[key] || name;
+  }
+
   loadPagesList() {
     this.loader.show();
     const url = `${API_BASE}/get_pages_list`;
@@ -620,7 +647,10 @@ export class AdminUserRegisterComponent implements OnInit {
       next: (res) => {
         try {
           const data = res?.data || res?.pages || [];
-          this.pagesList = (data || []).map((p: any) => ({ key: p.key || p.page_id || p.id || p.name, name: p.name || p.page_name || p.page || p.key }));
+          this.pagesList = (data || []).map((p: any) => ({
+            key: p.key || p.page_id || p.id || p.name,
+            name: this.getModulePageName(p.name || p.page_name || p.page || p.key)
+          }));
           this.initPermissions();
         } catch (e) { this.pagesList = []; }
         finally { this.loader.hide(); }
@@ -1117,7 +1147,11 @@ export class AdminUserRegisterComponent implements OnInit {
   getPrivilegesOverview(): Array<any> {
     try {
       const pages = this.pagesList || [];
-      return pages.map(p => ({ key: p.key, name: p.name, ...(this.pagesPermissions[p.key] || {}) }));
+      return pages.map(p => ({
+        key: p.key,
+        name: this.getModulePageName(p.name || p.key),
+        ...(this.pagesPermissions[p.key] || {})
+      }));
     } catch (e) { return []; }
   }
 

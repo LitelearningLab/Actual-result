@@ -7,6 +7,23 @@ from datetime import datetime, timedelta
 from passlib.hash import argon2
 from sqlalchemy import or_, and_
 
+PAGE_NAME_MAP = {
+    "Categories": "Question Banks",
+    "Category": "Question Banks",
+    "Exams": "Manage test",
+    "Exam": "Manage test",
+    "Schedule Exam": "Schedule Test",
+    "Schedule": "Schedule Test",
+    "Exam Reports": "Test Reports"
+}
+
+REVERSE_PAGE_NAME_MAP = {
+    "Question Banks": "Categories",
+    "Manage test": "Exams",
+    "Schedule Test": "Schedule Exam",
+    "Test Reports": "Exam Reports"
+}
+
 def normalize_phone_number(val):
     if val is None or pd.isna(val):
         return None
@@ -171,7 +188,8 @@ def insert_user(data):
             for page_access in page_data:
                 page_key = page_access.get('page_key')
                 if page_key:
-                    p_obj = session.query(Page).filter(or_(Page.page_id == page_key, Page.page_name == page_key)).first()
+                    alt_key = REVERSE_PAGE_NAME_MAP.get(page_key, page_key)
+                    p_obj = session.query(Page).filter(or_(Page.page_id == page_key, Page.page_name == page_key, Page.page_name == alt_key)).first()
                     pid = p_obj.page_id if p_obj else page_key
                     user_page_access = UserPageAccess(
                         user_id=user_id,
@@ -698,7 +716,8 @@ def update_user_details(user_id, request):
         page_key = page_access.get('page_key')
         if not page_key:
             continue
-        p_obj = session.query(Page).filter(or_(Page.page_id == page_key, Page.page_name == page_key)).first()
+        alt_key = REVERSE_PAGE_NAME_MAP.get(page_key, page_key)
+        p_obj = session.query(Page).filter(or_(Page.page_id == page_key, Page.page_name == page_key, Page.page_name == alt_key)).first()
         pid = p_obj.page_id if p_obj else page_key
         user_page_access = session.query(UserPageAccess).filter_by(user_id=user_id, page_id=pid).first()
         v_view = 1 if page_access.get('view') else 0
@@ -1003,7 +1022,8 @@ def get_user_details(request):
         page_access_list = []
         for access in user_page_accesses:
             page = session.query(Page).filter_by(page_id=access.page_id).first()
-            page_name = page.page_name if page else None
+            raw_name = page.page_name if page else None
+            page_name = PAGE_NAME_MAP.get(raw_name, raw_name) if raw_name else None
             page_access_list.append({
                 "page_id": access.page_id,
                 "page_name": page_name,
@@ -1173,9 +1193,11 @@ def get_user_page_access(user_id):
 
     result = []
     for access in access_details:
+        raw_name = access.page_name
+        display_name = PAGE_NAME_MAP.get(raw_name, raw_name) if raw_name else None
         result.append({
             "page_id": access.page_id,
-            "page_name": access.page_name,
+            "page_name": display_name,
             "can_view": access.can_view if access.can_view is not None else False,
             "can_add": access.can_add if access.can_add is not None else False,
             "can_edit": access.can_edit if access.can_edit is not None else False,

@@ -111,10 +111,6 @@ export class SideNavComponent implements OnInit, OnDestroy {
   }
 
   permissionNameForMenu(label: string): string {
-    if (label === 'Question Banks') return 'Categories';
-    if (label === 'Manage test') return 'Exams';
-    if (label === 'Schedule Test') return 'Schedule Exam';
-    if (label === 'Test Reports') return 'Exam Reports';
     return label;
   }
 

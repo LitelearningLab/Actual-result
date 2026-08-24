@@ -15,13 +15,25 @@ export class PermissionGuard implements CanActivate {
 
   private normalizePageName(pageName: string): string {
     const aliases: Record<string, string> = {
-      'test': 'Exam',
-      'tests': 'Exams',
-      'question bank': 'Categories',
-      'question banks': 'Categories',
-      'schedule test': 'Schedule Exam',
-      'scheduled tests': 'Schedule Exam',
-      'test reports': 'Exam Reports'
+      'category': 'Question Banks',
+      'categories': 'Question Banks',
+      'question bank': 'Question Banks',
+      'question banks': 'Question Banks',
+      'exam': 'Manage test',
+      'exams': 'Manage test',
+      'test': 'Manage test',
+      'tests': 'Manage test',
+      'manage test': 'Manage test',
+      'schedule exam': 'Schedule Test',
+      'schedule': 'Schedule Test',
+      'schedule test': 'Schedule Test',
+      'scheduled tests': 'Schedule Test',
+      'exam reports': 'Test Reports',
+      'test reports': 'Test Reports',
+      'users': 'Users',
+      'user': 'Users',
+      'questions': 'Questions',
+      'question': 'Questions'
     };
     const key = (pageName || '').trim().toLowerCase();
     return aliases[key] || pageName;

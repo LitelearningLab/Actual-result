@@ -751,7 +751,7 @@
                   "
                 >
                   <div class="priv-col name">
-                    {{ p.page_name || p.pageName || p.page || p.page_name }}
+                    {{ getModulePageName(p.page_name || p.pageName || p.page) }}
                   </div>
                   <div class="priv-col">
                     <mat-icon color="primary" *ngIf="p.can_view">done</mat-icon>

@@ -792,7 +792,7 @@
                     </thead>
                     <tbody>
                       <tr *ngFor="let p of pagesList">
-                        <td class="page-name">{{ p.name || p.key }}</td>
+                        <td class="page-name">{{ getModulePageName(p.name || p.key) }}</td>
                         <td class="center"><mat-checkbox name="perm_{{p.key}}_view"
                             [(ngModel)]="pagesPermissions[p.key].view" [ngModelOptions]="{standalone: true}"
                             [disabled]="!showUserManagement"></mat-checkbox></td>
@@ -904,7 +904,7 @@
                       </div>
                       <div class="priv-list">
                         <div *ngFor="let p of getPrivilegesOverview()" class="priv-row">
-                          <span class="priv-page">{{ p.name || p.key }}</span>
+                          <span class="priv-page">{{ getModulePageName(p.name || p.key) }}</span>
                           <span class="priv-actions">
                             <span class="priv-badge priv-v" *ngIf="p.view" title="View Access">V</span>
                             <span class="priv-badge priv-a" *ngIf="p.add" title="Add Access">A</span>

@@ -19,18 +19,30 @@ export class PageAccessService {
   private cache = new Map<string, Observable<PageAccessRow[]>>();
 
   private readonly permissionAliases: Record<string, string> = {
-    'test': 'Exam',
-    'tests': 'Exams',
-    'question bank': 'Categories',
-    'question banks': 'Categories',
-    'schedule test': 'Schedule Exam',
-    'scheduled tests': 'Schedule Exam',
-    'test reports': 'Exam Reports'
+    'category': 'Question Banks',
+    'categories': 'Question Banks',
+    'question bank': 'Question Banks',
+    'question banks': 'Question Banks',
+    'exam': 'Manage test',
+    'exams': 'Manage test',
+    'test': 'Manage test',
+    'tests': 'Manage test',
+    'manage test': 'Manage test',
+    'schedule exam': 'Schedule Test',
+    'schedule': 'Schedule Test',
+    'schedule test': 'Schedule Test',
+    'scheduled tests': 'Schedule Test',
+    'exam reports': 'Test Reports',
+    'test reports': 'Test Reports',
+    'users': 'Users',
+    'user': 'Users',
+    'questions': 'Questions',
+    'question': 'Questions'
   };
 
   constructor(private http: HttpClient) {}
 
-  private normalizePageName(pageName: string): string {
+  public normalizePageName(pageName: string): string {
     const key = (pageName || '').trim().toLowerCase();
     return this.permissionAliases[key] || pageName;
   }
@@ -74,10 +86,13 @@ export class PageAccessService {
   hasPermission(userId: string, pageName: string, action: 'view'|'add'|'edit'|'delete'): Observable<boolean> {
     return this.fetchForUser(userId).pipe(
       map(rows => {
-        const permissionPageName = this.normalizePageName(pageName);
-        const r = rows.find(x => x.page_name && x.page_name.toLowerCase() === (permissionPageName || '').toLowerCase());
+        const targetNorm = this.normalizePageName(pageName).toLowerCase();
+        const r = rows.find(x => {
+          const rowNorm = this.normalizePageName(x.page_name || '').toLowerCase();
+          return rowNorm === targetNorm || (x.page_name && x.page_name.toLowerCase() === (pageName || '').toLowerCase());
+        });
         if (!r) return false;
-        console.debug('[PageAccessService] Checking permission for page:', permissionPageName, 'requested:', pageName, 'action:', action);
+        console.debug('[PageAccessService] Checking permission for page:', targetNorm, 'requested:', pageName, 'action:', action);
         console.debug('[PageAccessService] Available rows:', rows);
         switch (action) {
           case 'add': return !!r.can_add;
