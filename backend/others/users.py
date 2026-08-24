@@ -96,22 +96,23 @@ def insert_user(data):
     if not session:
         return None
     
-    # Check each unique login identifier separately so either conflict blocks creation.
-    existing_email = session.query(User).filter(User.email == email).first()
+    # Check each unique login identifier separately with strict case-insensitive evaluation
+    clean_email = str(email).strip().lower()
+    clean_username = str(user_name).strip().lower()
+
+    existing_email = session.query(User).filter(
+        func.lower(User.email) == clean_email,
+        or_(User.is_deleted == False, User.is_deleted == 0, User.is_deleted.is_(None))
+    ).first()
     if existing_email:
-        json_data = {
-            "statusMessage": "Email already exists",
-            "status": False
-        }
-        return json_data, 400
-    
-    existing_username = session.query(User).filter(User.user_name == user_name).first()
+        return {"statusMessage": "Email address is already registered. Please use a different email.", "status": False}, 400
+
+    existing_username = session.query(User).filter(
+        func.lower(User.user_name) == clean_username,
+        or_(User.is_deleted == False, User.is_deleted == 0, User.is_deleted.is_(None))
+    ).first()
     if existing_username:
-        json_data = {
-            "statusMessage": "Username already exists",
-            "status": False
-        }
-        return json_data, 400
+        return {"statusMessage": "Username is already registered. Please use a different username.", "status": False}, 400
 
     validation_error = _validate_user_institute_scope(
         session, institute_id, department_id, team_id, campus_id
@@ -154,16 +155,33 @@ def insert_user(data):
 
         # add data in UserPageAccess for user-management
         page_data = data.get('page_access', [])
-        for page_access in page_data:
-            user_page_access = UserPageAccess(
-                user_id=user_id,
-                page_id=page_access.get('page_key'),
-                can_view=page_access.get('view', False),
-                can_add=page_access.get('add', False),
-                can_edit=page_access.get('edit', False),
-                can_delete=page_access.get('delete', False)
-            )
-            session.add(user_page_access)
+        if not page_data:
+            all_pages = session.query(Page).all()
+            for p in all_pages:
+                user_page_access = UserPageAccess(
+                    user_id=user_id,
+                    page_id=p.page_id,
+                    can_view=1,
+                    can_add=1 if user_role == 'admin' else 0,
+                    can_edit=1 if user_role == 'admin' else 0,
+                    can_delete=1 if user_role == 'admin' else 0
+                )
+                session.add(user_page_access)
+        else:
+            for page_access in page_data:
+                page_key = page_access.get('page_key')
+                if page_key:
+                    p_obj = session.query(Page).filter(or_(Page.page_id == page_key, Page.page_name == page_key)).first()
+                    pid = p_obj.page_id if p_obj else page_key
+                    user_page_access = UserPageAccess(
+                        user_id=user_id,
+                        page_id=pid,
+                        can_view=1 if page_access.get('view') else 0,
+                        can_add=1 if page_access.get('add') else 0,
+                        can_edit=1 if page_access.get('edit') else 0,
+                        can_delete=1 if page_access.get('delete') else 0
+                    )
+                    session.add(user_page_access)
         password_hash = argon2.hash(password)
         # insert credentials
         cred_data = Credential(
@@ -614,6 +632,29 @@ def update_user_details(user_id, request):
         return {"statusMessage": validation_error, "status": False}, 400
     _apply_campus_location(session, data, campus_id)
     
+    # Strict duplicate email and username checks before update
+    new_email = data.get("email")
+    if new_email and str(new_email).strip():
+        clean_email = str(new_email).strip().lower()
+        existing_email = session.query(User).filter(
+            func.lower(User.email) == clean_email,
+            User.user_id != user_id,
+            or_(User.is_deleted == False, User.is_deleted == 0, User.is_deleted.is_(None))
+        ).first()
+        if existing_email:
+            return {"statusMessage": "Email address is already registered to another user.", "status": False}, 400
+
+    new_username = data.get("user_name")
+    if new_username and str(new_username).strip():
+        clean_username = str(new_username).strip().lower()
+        existing_username = session.query(User).filter(
+            func.lower(User.user_name) == clean_username,
+            User.user_id != user_id,
+            or_(User.is_deleted == False, User.is_deleted == 0, User.is_deleted.is_(None))
+        ).first()
+        if existing_username:
+            return {"statusMessage": "Username is already registered to another user.", "status": False}, 400
+    
     # Update user details based on the provided data
     date_fields = ['joining_date']
 
@@ -654,20 +695,29 @@ def update_user_details(user_id, request):
     # update user privileges
     page_data = data.get('page_access', [])
     for page_access in page_data:
-        user_page_access = session.query(UserPageAccess).filter_by(user_id=user_id,page_id=page_access.get('page_key')).first()
+        page_key = page_access.get('page_key')
+        if not page_key:
+            continue
+        p_obj = session.query(Page).filter(or_(Page.page_id == page_key, Page.page_name == page_key)).first()
+        pid = p_obj.page_id if p_obj else page_key
+        user_page_access = session.query(UserPageAccess).filter_by(user_id=user_id, page_id=pid).first()
+        v_view = 1 if page_access.get('view') else 0
+        v_add = 1 if page_access.get('add') else 0
+        v_edit = 1 if page_access.get('edit') else 0
+        v_del = 1 if page_access.get('delete') else 0
         if user_page_access:
-            user_page_access.can_view = page_access.get('view', user_page_access.can_view)
-            user_page_access.can_add = page_access.get('add', user_page_access.can_add)
-            user_page_access.can_edit = page_access.get('edit', user_page_access.can_edit)
-            user_page_access.can_delete = page_access.get('delete', user_page_access.can_delete)
+            user_page_access.can_view = v_view
+            user_page_access.can_add = v_add
+            user_page_access.can_edit = v_edit
+            user_page_access.can_delete = v_del
         else:
             new_access = UserPageAccess(
                 user_id=user_id,
-                page_id=page_access.get('page_key'),
-                can_view=page_access.get('view', False),
-                can_add=page_access.get('add', False),
-                can_edit=page_access.get('edit', False),
-                can_delete=page_access.get('delete', False)
+                page_id=pid,
+                can_view=v_view,
+                can_add=v_add,
+                can_edit=v_edit,
+                can_delete=v_del
             )
             session.add(new_access)
     try:

@@ -360,6 +360,10 @@
                      </div>
                   </div>
                   <div class="questions-list">
+                     <div *ngIf="!a.items || !a.items.length" class="no-items-notice" style="text-align: center; padding: 2.5rem 1rem; color: #64748b;">
+                        <mat-icon style="font-size: 2rem; width: 2rem; height: 2rem; vertical-align: middle; margin-bottom: 0.5rem; color: #94a3b8;">info</mat-icon>
+                        <p style="font-size: 0.9375rem; font-weight: 500; margin: 0;">No questions were answered during this attempt.</p>
+                     </div>
                      <div *ngFor="let q of (a.items || []); let qi = index" class="question-review-card">
                         <div class="q-head-row">
                            <div class="q-left">
