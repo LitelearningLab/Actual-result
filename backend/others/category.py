@@ -82,7 +82,9 @@ def get_categories_list(request):
         return None
     filter = []
     args = getattr(request, "args", {})
-    filter.append(func.coalesce(Categories.is_deleted, False) == False)
+    filter.append(or_(Categories.is_deleted == False, Categories.is_deleted == 0, Categories.is_deleted.is_(None)))
+    if args.get("include_inactive") != "true":
+        filter.append(or_(Categories.active_status == 1, Categories.active_status.is_(None)))
     institute_scope = _resolve_institute_scope(request)
     if institute_scope:
         inst_val = str(institute_scope).strip()
@@ -149,7 +151,7 @@ def get_category_details(request):
 
     filter = []
     args = getattr(request, "args", {})
-    filter.append(func.coalesce(Categories.is_deleted, False) == False)
+    filter.append(or_(Categories.is_deleted == False, Categories.is_deleted == 0, Categories.is_deleted.is_(None)))
     if args.get("category_id"):
         filter.append(Categories.category_id == args.get("category_id"))
     institute_id = _resolve_institute_scope(request)

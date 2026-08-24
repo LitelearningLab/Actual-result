@@ -223,7 +223,7 @@ def get_questions_details(request):
         public_access_arg = args.get("public_access")
         public_access = (1 if str(public_access_arg).lower() == "true" else 0)
 
-        active_cat_filter = (func.coalesce(Categories.is_deleted, False) == False)
+        active_cat_filter = or_(Categories.is_deleted == False, Categories.is_deleted == 0, Categories.is_deleted.is_(None))
         institute_scope = _resolve_institute_scope(request)
 
         if institute_scope:

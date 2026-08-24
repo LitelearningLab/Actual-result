@@ -281,7 +281,7 @@
                                                 </mat-form-field>
 
                                                 <mat-form-field appearance="outline" class="filter-item">
-                                                    <mat-label>Team <span class="required-star">*</span></mat-label>
+                                                    <mat-label>Team</mat-label>
                                                     <mat-select multiple [(ngModel)]="questionBankFilterTeams" [compareWith]="compareById"
                                                         [disabled]="!institute"
                                                         (openedChange)="onQuestionBankTeamOpenedChange($event)">
@@ -370,8 +370,8 @@
                                                 </mat-option>
                                                 <mat-option *ngIf="(filteredCategories$ | async)?.length === 0"
                                                     [disabled]="true"
-                                                    style="font-size: 13px; color: #ef4444; font-style: italic;">
-                                                    No question bank found for the selected filter
+                                                    style="font-size: 13px; color: #6b7280; font-style: italic;">
+                                                    {{ (appliedQuestionBankFilters.length > 0 || hasCategoryFilterValues() || (categoryCtrl.value && categoryCtrl.value.trim())) ? (categoryFilterError || 'No question bank found for the selected filter') : 'Please apply a filter to view question banks' }}
                                                 </mat-option>
                                             </mat-autocomplete>
                                         </mat-form-field>

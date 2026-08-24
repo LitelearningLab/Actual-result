@@ -1774,12 +1774,6 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       } catch (e) {}
       return;
     }
-    if (!this.selectedTeams?.length) {
-      try {
-        notify('Please select a team', 'info');
-      } catch (e) {}
-      return;
-    }
     if (!this.hasFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');

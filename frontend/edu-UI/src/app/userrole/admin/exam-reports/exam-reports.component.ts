@@ -92,6 +92,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     url?: string;
   }> = [];
   selectedResourceContext: any = null; // { question, wrongAnswer }
+  // inline wrong answer details expansion state
+  expandedWrongAnswer: any = null;
+  expandedResources: any[] = [];
+  wrongAnswerResourcesLoading = false;
   // user report state
   userReportData: any[] = [];
   userReportTotal = 0;
@@ -2811,12 +2815,23 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.showWrongAnswerSummary = false;
     this.selectedQuestionForWrongSummary = null;
     this.selectedWrongAnswers = [];
+    this.expandedWrongAnswer = null;
+    this.expandedResources = [];
+    this.wrongAnswerResourcesLoading = false;
   }
 
-  openResourcesForWrongAnswer(question: any, wa: any) {
+  toggleWrongAnswerResources(question: any, wa: any) {
     if (!question || !wa) return;
-    this.selectedResourceContext = { question, wa };
-    this.selectedResources = [];
+    if (this.expandedWrongAnswer === wa) {
+      this.expandedWrongAnswer = null;
+      this.expandedResources = [];
+      this.wrongAnswerResourcesLoading = false;
+      return;
+    }
+
+    this.expandedWrongAnswer = wa;
+    this.expandedResources = [];
+    this.wrongAnswerResourcesLoading = true;
 
     const params: any = {};
     if (this.selectedExam?.isDateRange || this.selectionMode === 'daterange') {
@@ -2843,21 +2858,25 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     this.http.get<any>(`${API_BASE}/get-answer-resources`, { params }).subscribe({
       next: (res: any) => {
+        this.wrongAnswerResourcesLoading = false;
         const body = res || {};
         const payload = body.data || body;
-        if (Array.isArray(payload)) this.selectedResources = payload;
-        else if (Array.isArray(body.data)) this.selectedResources = body.data;
-        else if (Array.isArray(payload.resources)) this.selectedResources = payload.resources;
-        else if (Array.isArray(body.data?.data)) this.selectedResources = body.data.data;
-        else this.selectedResources = payload || [];
-        if (body.context) this.selectedResourceContext = body.context;
-        this.showResourcePanel = true;
+        if (Array.isArray(payload)) this.expandedResources = payload;
+        else if (Array.isArray(body.data)) this.expandedResources = body.data;
+        else if (Array.isArray(payload.resources)) this.expandedResources = payload.resources;
+        else if (Array.isArray(body.data?.data)) this.expandedResources = body.data.data;
+        else this.expandedResources = payload || [];
       },
       error: (err: any) => {
         console.warn('Failed to fetch resources', err);
-        this.showResourcePanel = true;
+        this.wrongAnswerResourcesLoading = false;
+        this.expandedResources = [];
       },
     });
+  }
+
+  openResourcesForWrongAnswer(question: any, wa: any) {
+    this.toggleWrongAnswerResources(question, wa);
   }
 
   closeResourcePanel() {

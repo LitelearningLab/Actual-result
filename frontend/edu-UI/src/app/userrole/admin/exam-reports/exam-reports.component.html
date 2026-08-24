@@ -558,7 +558,7 @@
         Select Test &rarr; Select Date &rarr; Select Schedule &rarr; View Report
       </span>
       <span class="selection-step-hint" *ngIf="selectionMode === 'daterange'">
-        Select test &rarr; select Date range &rarr; view reports
+        Select Test &rarr; Select Date range &rarr; View reports
       </span>
     </div>
 
@@ -2300,31 +2300,60 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let wa of selectedWrongAnswers">
-                <td data-label="Wrong Answer">
-                  <a
-                    href="javascript:void(0)"
-                    class="wa-answer-link"
-                    (click)="
-                      $event.stopPropagation();
-                      openResourcesForWrongAnswer(selectedQuestionForWrongSummary, wa)
-                    "
-                    >{{ wa.answer }}</a
-                  >
-                </td>
-                <td data-label="Selected Count">
-                  <a
-                    href="javascript:void(0)"
-                    class="wa-count-link"
-                    (click)="
-                      $event.stopPropagation();
-                      openResourcesForWrongAnswer(selectedQuestionForWrongSummary, wa)
-                    "
-                    >{{ wa.count || '-' }}</a
-                  >
-                </td>
-                <td data-label="Occurrence %">{{ wa.pct || '-' }}</td>
-              </tr>
+              <ng-container *ngFor="let wa of selectedWrongAnswers">
+                <tr
+                  class="wa-interactive-row"
+                  [class.wa-row-expanded]="expandedWrongAnswer === wa"
+                  (click)="toggleWrongAnswerResources(selectedQuestionForWrongSummary, wa)"
+                  title="Click to toggle user details for this wrong answer"
+                >
+                  <td data-label="Wrong Answer">
+                    <div class="wa-answer-cell">
+                      <mat-icon class="wa-chevron-icon">
+                        {{ expandedWrongAnswer === wa ? 'expand_more' : 'chevron_right' }}
+                      </mat-icon>
+                      <span class="wa-answer-text">{{ wa.answer }}</span>
+                    </div>
+                  </td>
+                  <td data-label="Selected Count">
+                    <span class="wa-count-badge">{{ wa.count || '-' }}</span>
+                  </td>
+                  <td data-label="Occurrence %">{{ wa.pct || '-' }}</td>
+                </tr>
+
+                <!-- Inline Expanded Resources Row directly under the answer -->
+                <tr *ngIf="expandedWrongAnswer === wa" class="wa-inline-expansion-row">
+                  <td colspan="3">
+                    <div class="inline-resources-box">
+                      <div class="inline-resources-header">
+                        <mat-icon class="res-hdr-icon">group</mat-icon>
+                        <span class="res-hdr-title">Students / Users who selected this wrong answer:</span>
+                      </div>
+
+                      <div *ngIf="wrongAnswerResourcesLoading" class="inline-res-loading">
+                        <mat-icon class="inline-spinner-icon">sync</mat-icon>
+                        <span>Loading user list...</span>
+                      </div>
+
+                      <div *ngIf="!wrongAnswerResourcesLoading && expandedResources && expandedResources.length">
+                        <ul class="inline-resources-list">
+                          <li *ngFor="let r of expandedResources" class="inline-resource-item">
+                            <div class="user-avatar-badge">{{ (r.full_name || r.name || '?').charAt(0).toUpperCase() }}</div>
+                            <div class="user-info-text">
+                              <div class="user-name">{{ r.full_name || r.name }}</div>
+                              <div class="user-email small-muted" *ngIf="r.email">{{ r.email }}</div>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+
+                      <div *ngIf="!wrongAnswerResourcesLoading && (!expandedResources || !expandedResources.length)" class="muted empty-inline-msg">
+                        No student details recorded for this answer.
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </ng-container>
             </tbody>
           </table>
           <div *ngIf="!selectedWrongAnswers || !selectedWrongAnswers.length" class="muted">
@@ -2338,50 +2367,5 @@
         </button>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- Resource modal (centered) -->
-<div *ngIf="showResourcePanel" class="wrong-summary-backdrop" (click)="closeResourcePanel()">
-  <div class="wrong-summary-panel" (click)="$event.stopPropagation()">
-    <div class="card">
-      <div class="panel-header">
-        <div class="header-info">
-          <div class="header-icon"><mat-icon>folder_shared</mat-icon></div>
-          <div class="header-copy">
-            <h4>Resources</h4>
-            <div class="panel-sub small-muted">Resources related to the selected wrong answer</div>
-          </div>
-        </div>
-        <button
-          mat-icon-button
-          class="panel-close-btn"
-          aria-label="Close resources"
-          type="button"
-          (click)="closeResourcePanel()"
-        >
-          <mat-icon aria-hidden="true">close</mat-icon>
-        </button>
-      </div>
-      <div class="panel-body">
-        <div *ngIf="selectedResources && selectedResources.length">
-          <ul class="resource-list">
-            <li *ngFor="let r of selectedResources">
-              <div class="res-title">{{ r.full_name }}</div>
-              <div class="res-desc small-muted">{{ r.email || '' }}</div>
-              <!-- <div class="res-actions"><a target="_blank" [href]="r.url">Open</a></div> -->
-            </li>
-          </ul>
-        </div>
-        <div *ngIf="!selectedResources || !selectedResources.length" class="muted">
-          No resources linked for this wrong answer.
-        </div>
-      </div>
-      <div class="summary-actions">
-        <button mat-stroked-button color="primary" (click)="closeResourcePanel()">Close</button>
-      </div>
-    </div>
-    <!-- User Review Panel (moved) -->
-    <!-- (moved out of resource panel by script) -->
   </div>
 </div>

@@ -1478,7 +1478,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
    * Ensure `filteredCategories$` observable is wired to `categoryCtrl.valueChanges`
    * so the autocomplete updates when `this.categories` changes.
    */
-  // Update updateFilteredCategoriesStream() around line 834:
   updateFilteredCategoriesStream() {
     try {
       this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
@@ -1488,6 +1487,14 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
           // If val is an object (question bank selected), set q = '' so all filtered items stay visible.
           const q = typeof val === 'string' ? val.trim().toLowerCase() : '';
           const currentUser = this.getCurrentUserId();
+
+          // Require filter or non-empty search query before displaying options
+          const hasAppliedFilter =
+            (this.appliedQuestionBankFilters && this.appliedQuestionBankFilters.length > 0) ||
+            this.hasCategoryFilterValues();
+          if (!hasAppliedFilter && !q) {
+            return [];
+          }
 
           return (this.categories || []).filter((c: any) => {
             // 1. Search query match (only filters if user typed text)
@@ -1654,12 +1661,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.questionBankFilterDepartments?.length) {
       try {
         notify('Please select a department', 'info');
-      } catch (e) {}
-      return;
-    }
-    if (!this.questionBankFilterTeams?.length) {
-      try {
-        notify('Please select a team', 'info');
       } catch (e) {}
       return;
     }

@@ -95,7 +95,7 @@ def _category_pool_question_ids(session, category_id):
         return []
     cat = session.query(Categories).filter(
         Categories.category_id == category_id,
-        func.coalesce(Categories.is_deleted, False) == False
+        or_(Categories.is_deleted == False, Categories.is_deleted == 0, Categories.is_deleted.is_(None))
     ).first()
     if not cat:
         return []
