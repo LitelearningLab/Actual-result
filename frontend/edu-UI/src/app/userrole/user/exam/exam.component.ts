@@ -1,7 +1,7 @@
 import { Component, AfterViewInit, ViewChild, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { API_BASE } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
 import { Router, RouterModule } from '@angular/router';
@@ -168,7 +168,7 @@ export class ConfirmInstantReviewDialogComponent {}
 @Component({
   selector: 'app-user-exams',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, RouterModule, FormsModule, MatTableModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSortModule, MatTabsModule, MatPaginatorModule, MatDialogModule, MatDatepickerModule, MatCheckboxModule, MatAutocompleteModule],
+  imports: [CommonModule, RouterModule, FormsModule, MatTableModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSortModule, MatTabsModule, MatPaginatorModule, MatDialogModule, MatDatepickerModule, MatCheckboxModule, MatAutocompleteModule],
   templateUrl: './exam.component.html',
   styleUrls: ['./exam.component.scss']
 })

@@ -20,7 +20,7 @@ import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { Router, RouterModule } from '@angular/router';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
 import { AuthService } from 'src/app/home/service/auth.service';
@@ -56,7 +56,6 @@ import {
     MatDatepickerModule,
     MatDialogModule,
     RouterModule,
-    HttpClientModule,
     MatStepperModule,
     OverlayModule,
     PortalModule,

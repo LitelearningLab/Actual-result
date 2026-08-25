@@ -2,7 +2,7 @@ import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -34,7 +34,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     MatTooltipModule,
     MatSlideToggleModule,
     MatStepperModule,
-    HttpClientModule,
     MatSnackBarModule,
   ],
   templateUrl: './category-create.component.html',

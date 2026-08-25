@@ -22,7 +22,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { RouterModule, Router } from '@angular/router';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { A11yModule } from '@angular/cdk/a11y';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { SharedModule } from 'src/app/shared/shared.module';
@@ -60,8 +60,8 @@ import { Subscription, forkJoin } from 'rxjs';
     MatIconModule,
     MatButtonModule,
     MatSlideToggleModule,
+    ReactiveFormsModule,
     RouterModule,
-    HttpClientModule,
     A11yModule,
     MatSelectModule,
     MatAutocompleteModule,

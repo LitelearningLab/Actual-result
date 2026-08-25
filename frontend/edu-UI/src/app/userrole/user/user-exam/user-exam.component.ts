@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { API_BASE } from 'src/app/shared/api.config';
@@ -32,7 +32,7 @@ interface Question {
 @Component({
   selector: 'app-user-exam-runner',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatIconModule],
   templateUrl: './user-exam.component.html',
   styleUrls: ['./user-exam.component.scss']
 })

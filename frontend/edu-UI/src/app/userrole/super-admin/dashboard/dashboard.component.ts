@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { PageMetaService } from '../../../shared/services/page-meta.service';
 import { API_BASE } from 'src/app/shared/api.config';
 import { DynamicChartComponent } from '../dynamic-chart.component';
@@ -25,7 +25,7 @@ interface DashboardInstituteOption {
 @Component({
   selector: 'app-super-dashboard',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, FormsModule, DynamicChartComponent, MatIconModule, MatButtonModule, MatFormFieldModule, MatSelectModule, MatInputModule],
+  imports: [CommonModule, FormsModule, DynamicChartComponent, MatIconModule, MatButtonModule, MatFormFieldModule, MatSelectModule, MatInputModule],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
 })

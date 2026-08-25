@@ -67,7 +67,11 @@ def _validate_user_institute_scope(session, institute_id, department_id=None, te
     for label, model, id_column, selected_id in checks:
         if not selected_id:
             continue
-        record = session.query(model).filter(id_column == selected_id).first()
+        name_attr = getattr(model, 'name', None)
+        if name_attr is not None:
+            record = session.query(model).filter(or_(id_column == selected_id, name_attr == selected_id, name_attr.ilike(selected_id))).first()
+        else:
+            record = session.query(model).filter(id_column == selected_id).first()
         if not record:
             return f"Selected {label} does not exist"
         if str(record.institute_id) != str(institute_id):
@@ -106,9 +110,26 @@ def insert_user(data):
     country_id = data.get("country_id", None)
     state_id = data.get("state_id", None)
     city_id = data.get("city_id", None)
-    joining_date = data.get("joining_date", None)
-    joining_date = joining_date.split("T")[0] if joining_date else None    
-    joining_date = datetime.strptime(joining_date, "%Y-%m-%d") if joining_date else None
+    raw_jd = data.get("joining_date", None)
+    if isinstance(raw_jd, datetime):
+        joining_date = raw_jd
+    elif isinstance(raw_jd, str) and raw_jd.strip():
+        raw_str = raw_jd.strip().split("T")[0]
+        parsed_dt = None
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d"):
+            try:
+                parsed_dt = datetime.strptime(raw_str, fmt)
+                break
+            except ValueError:
+                continue
+        if not parsed_dt:
+            try:
+                parsed_dt = datetime.fromisoformat(raw_str)
+            except Exception:
+                parsed_dt = None
+        joining_date = parsed_dt
+    else:
+        joining_date = None
     created_by = data.get("current_user", "Admin")
 
     db = SQLiteDB()
@@ -702,10 +723,37 @@ def update_user_details(user_id, request):
 
     for key, value in data.items():
         if key in ["department_id", "team_id", "campus_id", "country_id", "state_id", "city_id"]:
-            if value:
+            if value is not None:
                 setattr(user, key, value)
         elif hasattr(user, key):
             setattr(user, key, value)
+
+    campus_val = data.get("campus_id") or data.get("campus")
+    if campus_val:
+        c_obj = session.query(InstituteCampus).filter(or_(
+            InstituteCampus.campus_id == campus_val,
+            InstituteCampus.name == campus_val,
+            InstituteCampus.name.ilike(campus_val)
+        )).first()
+        user.campus_id = c_obj.campus_id if c_obj else campus_val
+
+    dept_val = data.get("department_id") or data.get("department")
+    if dept_val:
+        d_obj = session.query(InstituteDepartment).filter(or_(
+            InstituteDepartment.department_id == dept_val,
+            InstituteDepartment.name == dept_val,
+            InstituteDepartment.name.ilike(dept_val)
+        )).first()
+        user.department_id = d_obj.department_id if d_obj else dept_val
+
+    team_val = data.get("team_id") or data.get("team")
+    if team_val:
+        t_obj = session.query(InstituteTeam).filter(or_(
+            InstituteTeam.team_id == team_val,
+            InstituteTeam.name == team_val,
+            InstituteTeam.name.ilike(team_val)
+        )).first()
+        user.team_id = t_obj.team_id if t_obj else team_val
 
     # Explicitly update full_name if provided as full_name, display_name, or name
     full_name = data.get("full_name") or data.get("display_name") or data.get("name")
@@ -1001,9 +1049,11 @@ def get_user_details(request):
         campus_name = None
         campus = None
         if user.campus_id:
-            campus = session.query(InstituteCampus).filter_by(campus_id=user.campus_id).first()
+            campus = session.query(InstituteCampus).filter(or_(InstituteCampus.campus_id == user.campus_id, InstituteCampus.name == user.campus_id)).first()
             if campus:
                 campus_name = campus.name
+            else:
+                campus_name = user.campus_id
 
         country_name = None
         if user.country_id:

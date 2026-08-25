@@ -5,7 +5,7 @@ import { AuthService } from '../../../home/service/auth.service';
 import { Router, NavigationEnd ,RouterModule} from '@angular/router';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { API_BASE } from 'src/app/shared/api.config';
@@ -15,7 +15,7 @@ import { GlobalInstituteContextService } from '../../services/global-institute-c
 @Component({
   selector: 'app-navbar-main',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatIconModule, MatDialogModule, MatSnackBarModule, MatButtonModule, HttpClientModule],
+  imports: [CommonModule, RouterModule, MatIconModule, MatDialogModule, MatSnackBarModule, MatButtonModule],
   templateUrl: './navbar-main.component.html',
   styleUrls: ['./navbar-main.component.scss']
 })

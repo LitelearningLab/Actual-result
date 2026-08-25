@@ -27,7 +27,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { AuthService } from 'src/app/home/service/auth.service';
@@ -86,7 +86,6 @@ export interface QuestionRow {
     MatPaginatorModule,
     FormsModule,
     RouterModule,
-    HttpClientModule,
     MatDatepickerModule,
     MatTabsModule,
     MatCheckboxModule,

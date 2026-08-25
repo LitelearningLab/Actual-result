@@ -23,7 +23,7 @@ import { MatPaginatorModule, MatPaginator, PageEvent } from '@angular/material/p
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { API_BASE } from 'src/app/shared/api.config';
 import { Router } from '@angular/router';
 import { LoaderService } from 'src/app/shared/services/loader.service';
@@ -76,8 +76,8 @@ export interface UserRow {
     MatSelectModule,
     MatAutocompleteModule,
     FormsModule,
+    ReactiveFormsModule,
     RouterModule,
-    HttpClientModule,
     MatPaginatorModule,
     MatSortModule,
     MatTooltipModule,

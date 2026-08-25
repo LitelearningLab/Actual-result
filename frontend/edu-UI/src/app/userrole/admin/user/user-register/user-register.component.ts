@@ -4,7 +4,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, FormGroup, FormsModule } 
 import { Router } from '@angular/router';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { API_BASE } from 'src/app/shared/api.config';
-import { HttpClient, HttpClientModule, HttpEventType, HttpErrorResponse, HttpEvent } from '@angular/common/http';
+import { HttpClient, HttpEventType, HttpErrorResponse, HttpEvent } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
@@ -31,7 +31,6 @@ import * as XLSX from 'xlsx';
     CommonModule,
     ReactiveFormsModule,
     FormsModule,
-    HttpClientModule,
     MatButtonModule,
     MatInputModule,
     MatSelectModule,

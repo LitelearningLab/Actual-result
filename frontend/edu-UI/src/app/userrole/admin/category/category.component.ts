@@ -23,7 +23,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTabsModule } from '@angular/material/tabs';
-import { HttpClient, HttpClientModule, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { FormsModule } from '@angular/forms';
 import { LoaderService } from 'src/app/shared/services/loader.service';
@@ -45,13 +45,13 @@ import { GlobalInstituteContextService } from 'src/app/shared/services/global-in
 @Component({
   selector: 'app-category',
   standalone: true,
-  // imports: [CommonModule, SharedModule, FormsModule, RouterModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, HttpClientModule],
+  // imports: [CommonModule, SharedModule, FormsModule, RouterModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule],
   imports: [
     CommonModule,
     SharedModule,
     FormsModule,
+    ReactiveFormsModule,
     MatPaginatorModule,
-    HttpClientModule,
     RouterModule,
     MatTableModule,
     MatIconModule,

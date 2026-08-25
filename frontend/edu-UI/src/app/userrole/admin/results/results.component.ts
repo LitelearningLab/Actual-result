@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { PageMetaService } from '../../../shared/services/page-meta.service';
 import { API_BASE } from 'src/app/shared/api.config';
 import { DynamicChartComponent } from '../../super-admin/dynamic-chart.component';
@@ -13,7 +13,7 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 @Component({
   selector: 'app-admin-results',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, DynamicChartComponent, MatSelectModule, MatFormFieldModule, MatIconModule, MatButtonModule, RouterModule],
+  imports: [CommonModule, DynamicChartComponent, MatSelectModule, MatFormFieldModule, MatIconModule, MatButtonModule, RouterModule],
   templateUrl: './results.component.html',
   styleUrls: ['./results.component.scss']
 })

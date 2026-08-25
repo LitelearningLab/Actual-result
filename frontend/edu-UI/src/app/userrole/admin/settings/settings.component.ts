@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -14,7 +14,7 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 @Component({
   selector: 'app-admin-settings',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, ReactiveFormsModule, MatButtonModule, MatCardModule,
+  imports: [CommonModule, ReactiveFormsModule, MatButtonModule, MatCardModule,
     MatFormFieldModule, MatIconModule, MatInputModule, MatSnackBarModule],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss']

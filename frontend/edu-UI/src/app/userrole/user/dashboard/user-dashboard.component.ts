@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClientModule } from '@angular/common/http';
 import { DynamicChartComponent } from '../../super-admin/dynamic-chart.component';
 import { PageMetaService } from '../../../shared/services/page-meta.service';
 import { UserDashboardService } from './user-dashboard.service';
@@ -12,7 +11,7 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 @Component({
   selector: 'app-user-dashboard',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, DynamicChartComponent, MatFormFieldModule, MatSelectModule, MatIconModule, MatButtonModule],
+  imports: [CommonModule, DynamicChartComponent, MatFormFieldModule, MatSelectModule, MatIconModule, MatButtonModule],
   templateUrl: './user-dashboard.component.html',
   styleUrls: ['./user-dashboard.component.scss']
 })
