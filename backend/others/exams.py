@@ -866,6 +866,9 @@ def get_user_exam_details(request):
                 # the Started/Submitted values in the Test Review API.
                 'user_start_time': getattr(displayed_attempt, 'started_date', None),
                 'user_end_time': getattr(displayed_attempt, 'submitted_date', None),
+                'user_percentage': getattr(displayed_attempt, 'percentage', None),
+                'user_score': getattr(displayed_attempt, 'score', None),
+                'user_result': getattr(displayed_attempt, 'result', None),
                 "mapping_id": getattr(row, "mapping_id", None),
                 "schedule_id": getattr(schedule_obj, "schedule_id", None),
                 "schedule_title": getattr(schedule_obj, "title", None),

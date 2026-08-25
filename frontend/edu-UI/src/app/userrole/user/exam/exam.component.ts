@@ -50,6 +50,9 @@ export interface UserTestRow {
   institute_id?: string;
   created_by?: string;
   created_date?: string;
+  user_percentage?: number | null;
+  user_score?: number | null;
+  user_result?: string | null;
 }
 
 @Component({
@@ -177,7 +180,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   loading = false;
   instituteId = '';
   // table and filters
-  displayedColumns: string[] = ['sno','title','scheduleTest','duration','questions','pass_mark','number_of_attempts','status','actions'];
+  displayedColumns: string[] = ['sno','title','duration','questions','pass_mark','number_of_attempts','status','actions'];
   dataSource = new MatTableDataSource<UserTestRow>([]);
   // Per-tab filtered tables
   activeSource = new MatTableDataSource<UserTestRow>([]);
@@ -258,6 +261,17 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         return true;
       }
     } catch (e) {}
+    return false;
+  }
+
+  isPass(row: UserTestRow): boolean {
+    if (row.user_result) {
+      const res = String(row.user_result).toLowerCase();
+      return res === 'pass' || res === 'passed' || res === 'evaluated';
+    }
+    if (row.user_percentage != null && row.pass_mark != null) {
+      return row.user_percentage >= row.pass_mark;
+    }
     return false;
   }
 
@@ -628,6 +642,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           // Keep the raw timestamp for reliable chronological ordering despite the formatted weekday label.
           schedule_sort_time: dateTimestamp(rawStartTime),
           scheduleTest: isCompleted ? completedScheduleTest : scheduleTest,
+          user_percentage: (x.user_percentage !== undefined && x.user_percentage !== null) ? x.user_percentage : (x.percentage !== undefined && x.percentage !== null ? x.percentage : null),
+          user_score: (x.user_score !== undefined && x.user_score !== null) ? x.user_score : (x.score !== undefined && x.score !== null ? x.score : null),
+          user_result: x.user_result || x.result || null,
           pass_mark: x.pass_mark || 0,
           number_of_attempts: x.number_of_attempts || 0,
           duration_mins: x.duration_mins || x.duration || 0,
