@@ -80,9 +80,12 @@ def _apply_campus_location(session, data, campus_id):
         return
     campus = session.query(InstituteCampus).filter(InstituteCampus.campus_id == campus_id).first()
     if campus:
-        data["country_id"] = campus.country_id
-        data["state_id"] = campus.state_id
-        data["city_id"] = campus.city_id
+        if not data.get("country_id"):
+            data["country_id"] = campus.country_id
+        if not data.get("state_id"):
+            data["state_id"] = campus.state_id
+        if not data.get("city_id"):
+            data["city_id"] = campus.city_id
 
 def get_pagination(request):
     return (request.args.get('pageNumber', 1, type=int),
@@ -678,7 +681,24 @@ def update_user_details(user_id, request):
 
     for field in date_fields:
         if field in data and data[field]:
-            data[field] = datetime.strptime(data[field], "%Y-%m-%d")
+            val = data[field]
+            if isinstance(val, datetime):
+                pass
+            elif isinstance(val, str) and val.strip():
+                raw_str = val.strip().split("T")[0]
+                parsed_dt = None
+                for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d"):
+                    try:
+                        parsed_dt = datetime.strptime(raw_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+                if not parsed_dt:
+                    try:
+                        parsed_dt = datetime.fromisoformat(raw_str)
+                    except Exception:
+                        parsed_dt = None
+                data[field] = parsed_dt
 
     for key, value in data.items():
         if key in ["department_id", "team_id", "campus_id", "country_id", "state_id", "city_id"]:
@@ -987,23 +1007,45 @@ def get_user_details(request):
 
         country_name = None
         if user.country_id:
-            country = session.query(Country).filter_by(country_id=user.country_id).first()
+            country = session.query(Country).filter(or_(Country.country_id == user.country_id, Country.country_name == user.country_id)).first()
             if country:
                 country_name = country.country_name
+            else:
+                country_name = user.country_id
+        if not country_name and campus:
+            if getattr(campus, 'country_name', None):
+                country_name = campus.country_name
+            elif getattr(campus, 'country_id', None):
+                c_obj = session.query(Country).filter_by(country_id=campus.country_id).first()
+                country_name = c_obj.country_name if c_obj else campus.country_id
 
         state_name = None
         if user.state_id:
-            state = session.query(State).filter_by(state_id=user.state_id).first()
+            state = session.query(State).filter(or_(State.state_id == user.state_id, State.state_name == user.state_id)).first()
             if state:
                 state_name = state.state_name
+            else:
+                state_name = user.state_id
+        if not state_name and campus:
+            if getattr(campus, 'state_name', None):
+                state_name = campus.state_name
+            elif getattr(campus, 'state_id', None):
+                s_obj = session.query(State).filter_by(state_id=campus.state_id).first()
+                state_name = s_obj.state_name if s_obj else campus.state_id
 
-        city_name = campus.city_name if campus else None
+        city_name = None
         if user.city_id:
-            city = session.query(City).filter_by(city_id=user.city_id).first()
+            city = session.query(City).filter(or_(City.city_id == user.city_id, City.city_name == user.city_id)).first()
             if city:
                 city_name = city.city_name
-            elif user.city_id:
+            else:
                 city_name = user.city_id
+        if not city_name and campus:
+            if getattr(campus, 'city_name', None):
+                city_name = campus.city_name
+            elif getattr(campus, 'city_id', None):
+                ci_obj = session.query(City).filter_by(city_id=campus.city_id).first()
+                city_name = ci_obj.city_name if ci_obj else campus.city_id
 
         created_user_name = None
         if user.created_by:

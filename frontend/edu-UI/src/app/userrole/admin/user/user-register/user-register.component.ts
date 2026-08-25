@@ -1237,9 +1237,9 @@ export class AdminUserRegisterComponent implements OnInit {
       formattedJoiningDate = `${y}-${m}-${d}`;
     } else if (typeof v.joining_date === 'string' && v.joining_date.trim()) {
       const trimmed = v.joining_date.trim();
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
-        const [dd, mm, yyyy] = trimmed.split('/');
-        formattedJoiningDate = `${yyyy}-${mm}-${dd}`;
+      if (/^\d{2}[-\/]\d{2}[-\/]\d{4}$/.test(trimmed)) {
+        const parts = trimmed.split(/[-\/]/);
+        formattedJoiningDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
       } else {
         formattedJoiningDate = trimmed;
       }
