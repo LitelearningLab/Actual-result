@@ -826,14 +826,14 @@ def get_user_details(request):
     if args.get("active_status") is not None:
         filter.append(User.active_status == (1 if args.get("active_status") == 'true' else 0))
 
-    joined_after = str(args.get("joined_after") or '').strip()
+    joined_after = str(args.get("joined_after") or args.get("joining_from") or '').strip()
     if joined_after:
         try:
             filter.append(User.joining_date >= datetime.strptime(joined_after, "%Y-%m-%d"))
         except ValueError:
             return {"status": False, "statusMessage": "joined_after must use YYYY-MM-DD"}, 400
 
-    joined_before = str(args.get("joined_before") or '').strip()
+    joined_before = str(args.get("joined_before") or args.get("joining_to") or '').strip()
     if joined_before:
         try:
             exclusive_end = datetime.strptime(joined_before, "%Y-%m-%d") + timedelta(days=1)
@@ -1108,6 +1108,21 @@ def get_user_list(request, current_user=None):
             campus_objs = q_campus.all()
             campus_ids = list(set([c.campus_id for c in campus_objs] + [c.name for c in campus_objs] + campus_items))
             filter.append(User.campus_id.in_(campus_ids))
+
+    joined_after = str(args.get("joined_after") or args.get("joining_from") or '').strip()
+    if joined_after:
+        try:
+            filter.append(User.joining_date >= datetime.strptime(joined_after, "%Y-%m-%d"))
+        except ValueError:
+            pass
+
+    joined_before = str(args.get("joined_before") or args.get("joining_to") or '').strip()
+    if joined_before:
+        try:
+            exclusive_end = datetime.strptime(joined_before, "%Y-%m-%d") + timedelta(days=1)
+            filter.append(User.joining_date < exclusive_end)
+        except ValueError:
+            pass
 
     user_details = session.query(User).filter(*filter).all()
     result = []

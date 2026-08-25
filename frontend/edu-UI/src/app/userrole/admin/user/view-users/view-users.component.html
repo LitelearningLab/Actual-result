@@ -442,6 +442,23 @@
             <input matInput placeholder="Name or username" [(ngModel)]="filters.name" />
           </mat-form-field>
 
+          <mat-form-field
+            appearance="outline"
+            class="filter-item date-range-field"
+            (click)="openJoinedDateRangePicker()"
+            style="cursor: pointer"
+          >
+            <mat-label>Joined Date</mat-label>
+            <input
+              matInput
+              readonly
+              [value]="getJoinedDateRangeDisplay()"
+              placeholder="Select date range"
+              style="cursor: pointer"
+            />
+            <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
+          </mat-form-field>
+
           <div
             class="filter-item filter-checkbox-item"
             style="display: flex; align-items: center; padding: 0.5rem 0.75rem"

@@ -40,6 +40,11 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import {
+  DateRangePickerDialogComponent,
+  DateRangeDialogResult,
+} from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 export interface UserRow {
   id: string;
@@ -80,6 +85,7 @@ export interface UserRow {
     PortalModule,
     SharedModule,
     MatCheckboxModule,
+    MatDialogModule,
   ],
   templateUrl: './view-users.component.html',
   styleUrls: ['./view-users.component.scss'],
@@ -110,6 +116,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     team: [],
     joining_from: '',
     joining_to: '',
+    joined_after: null as Date | string | null,
+    joined_before: null as Date | string | null,
     active_status: '',
     country: '',
     state: '',
@@ -208,7 +216,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     private pageMeta: PageMetaService,
     private confirmService: ConfirmService,
     public globalInstituteContext: GlobalInstituteContextService,
-    private cd: ChangeDetectorRef
+    private cd: ChangeDetectorRef,
+    private dialog: MatDialog
   ) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
@@ -1029,6 +1038,55 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     );
   }
 
+  openJoinedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.filters.joined_after || this.filters.joining_from || null,
+        endDate: this.filters.joined_before || this.filters.joining_to || null,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.filters.joined_after = res.startDate;
+        this.filters.joined_before = res.endDate;
+        const formatYMD = (d: any) => {
+          if (!d) return '';
+          const dt = d instanceof Date ? d : new Date(d);
+          if (isNaN(dt.getTime())) return '';
+          const yyyy = dt.getFullYear();
+          const mm = String(dt.getMonth() + 1).padStart(2, '0');
+          const dd = String(dt.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        };
+        this.filters.joining_from = formatYMD(res.startDate);
+        this.filters.joining_to = formatYMD(res.endDate);
+      }
+    });
+  }
+
+  getJoinedDateRangeDisplay(): string {
+    const start = this.filters.joined_after || this.filters.joining_from;
+    const end = this.filters.joined_before || this.filters.joining_to;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(start);
+    const endStr = format(end);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `From ${startStr}`;
+    if (endStr) return `Until ${endStr}`;
+    return '';
+  }
+
   get appliedFilterChips(): Array<{
     key: string;
     label: string;
@@ -1041,7 +1099,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     const teamStr = Array.isArray(this.filters.team)
       ? this.filters.team.join(',')
       : this.filters.team || '';
-    const depKey = `${this.hasAppliedFilters}|${(this.selectedInstitutes || []).join(',')}|${this.filters.institute}|${this.selectedInstitute}|${(this.selectedCountries || []).join(',')}|${this.filters.country}|${(this.selectedIndustries || []).join(',')}|${this.filters.industry}|${(this.selectedSectors || []).join(',')}|${this.filters.sector}|${this.isActive}|${this.filters.name}|${(this.selectedCities || []).join(',')}|${this.filters.city}|${deptStr}|${teamStr}|${(this.selectedCampuses || []).join(',')}|${this.isSuperAdmin}|${(this.institutes || []).length}`;
+    const depKey = `${this.hasAppliedFilters}|${(this.selectedInstitutes || []).join(',')}|${this.filters.institute}|${this.selectedInstitute}|${(this.selectedCountries || []).join(',')}|${this.filters.country}|${(this.selectedIndustries || []).join(',')}|${this.filters.industry}|${(this.selectedSectors || []).join(',')}|${this.filters.sector}|${this.isActive}|${this.filters.name}|${(this.selectedCities || []).join(',')}|${this.filters.city}|${deptStr}|${teamStr}|${(this.selectedCampuses || []).join(',')}|${this.filters.joining_from}|${this.filters.joining_to}|${this.isSuperAdmin}|${(this.institutes || []).length}`;
 
     return this._memoize('appliedFilterChips', depKey, () => {
       if (!this.hasAppliedFilters) return [];
@@ -1175,6 +1233,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         chips.push({ key: 'campus', label: `Campus: ${labels.join(', ')}`, removable: true });
       }
 
+      // Joined Date Chip
+      const joinedDateDisplay = this.getJoinedDateRangeDisplay();
+      if (joinedDateDisplay) {
+        chips.push({
+          key: 'joined_date',
+          label: `Joined: ${joinedDateDisplay}`,
+          removable: true,
+        });
+      }
+
       return chips;
     });
   }
@@ -1224,6 +1292,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     } else if (key === 'campus') {
       this.selectedCampuses = [];
       this.filters.campus = '';
+    } else if (key === 'joined_date' || key === 'joining_from' || key === 'joining_to') {
+      this.filters.joining_from = '';
+      this.filters.joining_to = '';
+      this.filters.joined_after = null;
+      this.filters.joined_before = null;
     }
     this.pageIndex = 0;
     this.refreshInstituteScope();
@@ -1364,8 +1437,26 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     } else if (this.filters.campus) {
       params.campus = this.filters.campus;
     }
-    if (this.filters.joining_from) params.joining_from = this.filters.joining_from;
-    if (this.filters.joining_to) params.joining_to = this.filters.joining_to;
+    const formatYMD = (d: any) => {
+      if (!d) return '';
+      if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) return d.trim();
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const yyyy = dt.getFullYear();
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const dd = String(dt.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+    const jFrom = formatYMD(this.filters.joined_after || this.filters.joining_from);
+    const jTo = formatYMD(this.filters.joined_before || this.filters.joining_to);
+    if (jFrom) {
+      params.joined_after = jFrom;
+      params.joining_from = jFrom;
+    }
+    if (jTo) {
+      params.joined_before = jTo;
+      params.joining_to = jTo;
+    }
     if (this.isActive !== undefined) params.active_status = this.isActive;
     try {
       params.pageNumber = (this.pageIndex || 0) + 1;
@@ -1485,6 +1576,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       hasTeam ||
       this.filters.joining_from ||
       this.filters.joining_to ||
+      this.filters.joined_after ||
+      this.filters.joined_before ||
       this.filters.active_status !== '' ||
       this.filters.country ||
       this.filters.state ||
@@ -1525,6 +1618,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       team: [],
       joining_from: '',
       joining_to: '',
+      joined_after: null,
+      joined_before: null,
       active_status: '',
       country: '',
       state: '',
