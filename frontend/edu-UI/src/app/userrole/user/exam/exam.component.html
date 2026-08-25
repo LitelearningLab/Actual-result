@@ -172,7 +172,7 @@
                                                 <th>Attempt</th>
                                                 <th>Result</th>
                                                 <th>Score</th>
-                                                <th>Completed On</th>
+                                                <th class="att-col-time">Completed Time</th>
                                                 <th>Action</th>
                                              </tr>
                                           </thead>
@@ -192,7 +192,7 @@
                                                    </span>
                                                 </td>
                                                 <td class="att-date-cell">
-                                                   {{ formatAttemptDate(att.submitted_date || att.started_date) }}
+                                                   <div class="schedule-range-inline"><span class="schedule-time schedule-time--start">{{ formatAttemptDate(att.started_date || att.submitted_date) }}</span><span class="schedule-separator">–</span><span class="schedule-time schedule-time--end">{{ formatAttemptDate(att.submitted_date || att.started_date) }}</span></div>
                                                 </td>
                                                 <td class="att-action-cell">
                                                    <button mat-flat-button class="review-btn" (click)="viewAttemptReview(row, att)">
@@ -312,7 +312,7 @@
                                                 <th>Attempt</th>
                                                 <th>Result</th>
                                                 <th>Score</th>
-                                                <th>Completed On</th>
+                                                <th class="att-col-time">Completed Time</th>
                                                 <th>Action</th>
                                              </tr>
                                           </thead>
@@ -332,7 +332,7 @@
                                                    </span>
                                                 </td>
                                                 <td class="att-date-cell">
-                                                   {{ formatAttemptDate(att.submitted_date || att.started_date) }}
+                                                   <div class="schedule-range-inline"><span class="schedule-time schedule-time--start">{{ formatAttemptDate(att.started_date || att.submitted_date) }}</span><span class="schedule-separator">–</span><span class="schedule-time schedule-time--end">{{ formatAttemptDate(att.submitted_date || att.started_date) }}</span></div>
                                                 </td>
                                                 <td class="att-action-cell">
                                                    <button mat-flat-button class="review-btn" (click)="viewAttemptReview(row, att)">
