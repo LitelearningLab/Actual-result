@@ -96,9 +96,10 @@
                                  <!-- <div class="exam-avatar exam-avatar--active">{{ (row.title || '?').charAt(0).toUpperCase() }}</div> -->
                                  <div class="exam-info">
                                     <span class="exam-name">{{ row.title }}</span>
-                                    <div *ngIf="row.scheduleTest" class="schedule-range">
-                                       <div class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</div>
-                                       <div class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</div>
+                                    <div *ngIf="row.scheduleTest" class="schedule-range-inline">
+                                       <span class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</span>
+                                       <span class="schedule-separator">–</span>
+                                       <span class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</span>
                                     </div>
                                  </div>
                               </div>
@@ -182,9 +183,10 @@
                                  <!-- <div class="exam-avatar exam-avatar--completed">{{ (row.title || '?').charAt(0).toUpperCase() }}</div> -->
                                  <div class="exam-info">
                                     <span class="exam-name">{{ row.title }}</span>
-                                    <div *ngIf="row.scheduleTest" class="schedule-range">
-                                       <div class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</div>
-                                       <div class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</div>
+                                    <div *ngIf="row.scheduleTest" class="schedule-range-inline">
+                                       <span class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</span>
+                                       <span class="schedule-separator">–</span>
+                                       <span class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</span>
                                     </div>
                                  </div>
                               </div>
