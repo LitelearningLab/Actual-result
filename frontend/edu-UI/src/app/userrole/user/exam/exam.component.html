@@ -79,13 +79,12 @@
             <mat-tab [label]="'Active (' + activeSource.data.length + ')'">
                <div class="tab-table">
                   <div class="table-responsive">
-                     <table mat-table [dataSource]="activeSource" class="mat-elevation-z1 compact premium-table" matSort>
+                     <table mat-table [dataSource]="activeSource" multiTemplateDataRows class="mat-elevation-z1 compact premium-table" matSort>
 
                         <ng-container matColumnDef="sno">
                            <th mat-header-cell *matHeaderCellDef>S.No</th>
-                           <td mat-cell *matCellDef="let row; let i = index">
-                              {{ (activeSource.paginator?.pageIndex || 0) * (activeSource.paginator?.pageSize || 25) + i +
-                              1 }}
+                           <td mat-cell *matCellDef="let row">
+                              {{ getSNo(activeSource, row) }}
                            </td>
                         </ng-container>
 
@@ -101,6 +100,9 @@
                                        <span class="schedule-separator">–</span>
                                        <span class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</span>
                                     </div>
+                                    <a *ngIf="hasMultipleAttempts(row)" class="attempt-toggle-link" (click)="toggleRowExpand(row, $event)">
+                                       {{ isRowExpanded(row) ? 'Hide attempt details ▲' : 'View attempt details ▾' }}
+                                    </a>
                                  </div>
                               </div>
                            </td>
@@ -159,8 +161,62 @@
                            </td>
                         </ng-container>
 
+                        <ng-container matColumnDef="expandedDetail">
+                           <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length" class="expanded-detail-td">
+                              <div class="expanded-detail-wrapper" *ngIf="isRowExpanded(row)">
+                                 <div class="expanded-attempts-box">
+                                    <div class="attempts-subtable-responsive">
+                                       <table class="attempts-subtable">
+                                          <thead>
+                                             <tr>
+                                                <th>Attempt</th>
+                                                <th>Result</th>
+                                                <th>Score</th>
+                                                <th>Completed On</th>
+                                                <th>Action</th>
+                                             </tr>
+                                          </thead>
+                                          <tbody>
+                                             <tr *ngFor="let att of getAttemptHistory(row)">
+                                                <td class="att-name-cell">
+                                                   <strong>Attempt {{ att.attempt_number }}</strong>
+                                                </td>
+                                                <td>
+                                                   <div class="status-pill" [ngClass]="isAttemptPass(att, row) ? 'status-pill--active' : 'status-pill--fail'">
+                                                      <span class="status-dot-sm"></span>{{ isAttemptPass(att, row) ? 'PASS' : 'FAIL' }}
+                                                   </div>
+                                                </td>
+                                                <td class="att-score-cell">
+                                                   <span [class.score-fail]="!isAttemptPass(att, row)">
+                                                      {{ att.percentage != null ? (att.percentage | number:'1.2-2') + '%' : (att.score != null ? att.score + '%' : '—') }}
+                                                   </span>
+                                                </td>
+                                                <td class="att-date-cell">
+                                                   {{ formatAttemptDate(att.submitted_date || att.started_date) }}
+                                                </td>
+                                                <td class="att-action-cell">
+                                                   <button mat-flat-button class="review-btn" (click)="viewAttemptReview(row, att)">
+                                                      <mat-icon>rule</mat-icon> Review
+                                                   </button>
+                                                </td>
+                                             </tr>
+                                          </tbody>
+                                       </table>
+                                    </div>
+
+                                    <div class="attempts-box-footer">
+                                       <div class="passmark-info-text">
+                                          Pass mark: <strong>{{ row.pass_mark || 0 }}%</strong> — You need to score {{ row.pass_mark || 0 }}% or more to pass.
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </td>
+                        </ng-container>
+
                         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+                        <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row" [class.expanded-main-row]="isRowExpanded(row)"></tr>
+                        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="exam-detail-row" [class.detail-row-hidden]="!isRowExpanded(row)"></tr>
                      </table>
                   </div>
                   <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons
@@ -171,13 +227,12 @@
             <mat-tab [label]="'Completed (' + completeSource.data.length + ')'">
                <div class="tab-table">
                   <div class="table-responsive">
-                     <table mat-table [dataSource]="completeSource" class="mat-elevation-z1 compact premium-table" matSort>
+                     <table mat-table [dataSource]="completeSource" multiTemplateDataRows class="mat-elevation-z1 compact premium-table" matSort>
 
                         <ng-container matColumnDef="sno">
                            <th mat-header-cell *matHeaderCellDef>S.No</th>
-                           <td mat-cell *matCellDef="let row; let i = index">
-                              {{ (completeSource.paginator?.pageIndex || 0) * (completeSource.paginator?.pageSize || 25) +
-                              i + 1 }}
+                           <td mat-cell *matCellDef="let row">
+                              {{ getSNo(completeSource, row) }}
                            </td>
                         </ng-container>
 
@@ -194,6 +249,9 @@
                                        <span class="schedule-separator">–</span>
                                        <span class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</span>
                                     </div>
+                                    <a *ngIf="hasMultipleAttempts(row)" class="attempt-toggle-link" (click)="toggleRowExpand(row, $event)">
+                                       {{ isRowExpanded(row) ? 'Hide attempt details ▲' : 'View attempt details ▾' }}
+                                    </a>
                                  </div>
                               </div>
                            </td>
@@ -243,8 +301,62 @@
                               </div>
                            </td>
                         </ng-container>
+                        <ng-container matColumnDef="expandedDetail">
+                           <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length" class="expanded-detail-td">
+                              <div class="expanded-detail-wrapper" *ngIf="isRowExpanded(row)">
+                                 <div class="expanded-attempts-box">
+                                    <div class="attempts-subtable-responsive">
+                                       <table class="attempts-subtable">
+                                          <thead>
+                                             <tr>
+                                                <th>Attempt</th>
+                                                <th>Result</th>
+                                                <th>Score</th>
+                                                <th>Completed On</th>
+                                                <th>Action</th>
+                                             </tr>
+                                          </thead>
+                                          <tbody>
+                                             <tr *ngFor="let att of getAttemptHistory(row)">
+                                                <td class="att-name-cell">
+                                                   <strong>Attempt {{ att.attempt_number }}</strong>
+                                                </td>
+                                                <td>
+                                                   <div class="status-pill" [ngClass]="isAttemptPass(att, row) ? 'status-pill--active' : 'status-pill--fail'">
+                                                      <span class="status-dot-sm"></span>{{ isAttemptPass(att, row) ? 'PASS' : 'FAIL' }}
+                                                   </div>
+                                                </td>
+                                                <td class="att-score-cell">
+                                                   <span [class.score-fail]="!isAttemptPass(att, row)">
+                                                      {{ att.percentage != null ? (att.percentage | number:'1.2-2') + '%' : (att.score != null ? att.score + '%' : '—') }}
+                                                   </span>
+                                                </td>
+                                                <td class="att-date-cell">
+                                                   {{ formatAttemptDate(att.submitted_date || att.started_date) }}
+                                                </td>
+                                                <td class="att-action-cell">
+                                                   <button mat-flat-button class="review-btn" (click)="viewAttemptReview(row, att)">
+                                                      <mat-icon>rule</mat-icon> Review
+                                                   </button>
+                                                </td>
+                                             </tr>
+                                          </tbody>
+                                       </table>
+                                    </div>
+
+                                    <div class="attempts-box-footer">
+                                       <div class="passmark-info-text">
+                                          Pass mark: <strong>{{ row.pass_mark || 0 }}%</strong> — You need to score {{ row.pass_mark || 0 }}% or more to pass.
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </td>
+                        </ng-container>
+
                         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+                        <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row" [class.expanded-main-row]="isRowExpanded(row)"></tr>
+                        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="exam-detail-row" [class.detail-row-hidden]="!isRowExpanded(row)"></tr>
                      </table>
                   </div>
                   <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons

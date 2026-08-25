@@ -39,6 +39,8 @@ export interface UserTestRow {
   pass_mark?: number;
   number_of_attempts?: number;
   user_attempt?: number;
+  attempts_history?: any[];
+  target_attempt_number?: number;
   type?: string;
   user_review?: boolean;
   review_available?: boolean;
@@ -276,6 +278,14 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     return false;
   }
 
+  getSNo(src: MatTableDataSource<UserTestRow>, row: UserTestRow): number {
+    if (!src || !src.data) return 1;
+    const idx = src.data.indexOf(row);
+    const pageIndex = src.paginator?.pageIndex || 0;
+    const pageSize = src.paginator?.pageSize || 25;
+    return idx >= 0 ? (pageIndex * pageSize + idx + 1) : 1;
+  }
+
   getUsedAttempts(row: UserTestRow): number {
     if (row.user_attempt !== undefined && row.user_attempt !== null) {
       return row.user_attempt;
@@ -299,6 +309,98 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     if (max <= 0) return 0;
     const pct = (used / max) * 100;
     return Math.min(Math.max(pct, 0), 100);
+  }
+
+  // Expandable row state & methods
+  expandedRows: Set<string> = new Set<string>();
+
+  hasMultipleAttempts(row: UserTestRow): boolean {
+    const maxAtt = row.number_of_attempts || 0;
+    const hist = this.getAttemptHistory(row);
+    return maxAtt > 1 || hist.length > 1;
+  }
+
+  getRowKey(row: UserTestRow): string {
+    return String(row.schedule_id || row.test_id || row.title || '');
+  }
+
+  isRowExpanded(row: UserTestRow): boolean {
+    return this.expandedRows.has(this.getRowKey(row));
+  }
+
+  toggleRowExpand(row: UserTestRow, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    const key = this.getRowKey(row);
+    if (this.expandedRows.has(key)) {
+      this.expandedRows.delete(key);
+    } else {
+      this.expandedRows.add(key);
+    }
+  }
+
+  getAttemptHistory(row: UserTestRow): Array<any> {
+    if (row.attempts_history && row.attempts_history.length > 0) {
+      return row.attempts_history;
+    }
+    if (row.completed_by_user || row.attempted) {
+      return [{
+        attempt_id: row.review_attempt_id || '',
+        attempt_number: 1,
+        status: 'evaluated',
+        score: row.user_score,
+        percentage: row.user_percentage,
+        result: row.user_result || (this.isPass(row) ? 'Passed' : 'Failed'),
+        submitted_date: row.end_time || row.start_time
+      }];
+    }
+    return [];
+  }
+
+  formatAttemptDate(v: any): string {
+    if (!v) return '—';
+    let d: Date;
+    if (typeof v === 'number') {
+      d = new Date(v > 1e12 ? v : v * 1000);
+    } else if (/^\d+$/.test(String(v))) {
+      const n = Number(v);
+      d = new Date(n > 1e12 ? n : n * 1000);
+    } else {
+      d = new Date(String(v));
+    }
+    if (isNaN(d.getTime())) return String(v);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mmm = months[d.getMonth()];
+    const yyyy = d.getFullYear();
+    let hh = d.getHours();
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ampm = hh >= 12 ? 'PM' : 'AM';
+    hh = hh % 12;
+    hh = hh ? hh : 12;
+    const hhStr = String(hh).padStart(2, '0');
+    return `${dd} ${mmm} ${yyyy}, ${hhStr}:${mm} ${ampm}`;
+  }
+
+  isAttemptPass(att: any, row: UserTestRow): boolean {
+    if (att.result) {
+      const res = String(att.result).toLowerCase();
+      return res === 'pass' || res === 'passed' || res === 'evaluated';
+    }
+    const pct = att.percentage != null ? att.percentage : (att.score != null ? att.score : null);
+    const passMark = row.pass_mark != null ? row.pass_mark : 50;
+    if (pct != null) {
+      return pct >= passMark;
+    }
+    return false;
+  }
+
+  viewAttemptReview(row: UserTestRow, att: any): void {
+    const targetRow: UserTestRow = {
+      ...row,
+      review_attempt_id: att.attempt_id || row.review_attempt_id,
+      target_attempt_number: att.attempt_number
+    } as any;
+    this.viewReview(targetRow);
   }
 
   stopFilterSearchEvent(event: Event) {
@@ -539,6 +641,15 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
                   result: a.result || null
                 };
               });
+              const targetAttemptNo = (row as any).target_attempt_number;
+              const targetAttemptId = (row as any).review_attempt_id;
+              if (targetAttemptNo) {
+                const idx = this.reviewAttempts.findIndex(a => Number(a.attempt_number) === Number(targetAttemptNo));
+                if (idx >= 0) this.reviewSelectedAttempt = idx;
+              } else if (targetAttemptId) {
+                const idx = this.reviewAttempts.findIndex(a => String((a as any).attempt_id || '') === String(targetAttemptId));
+                if (idx >= 0) this.reviewSelectedAttempt = idx;
+              }
         }catch(e){ this.reviewAttempts = []; }
         this.reviewLoading = false;
         this.loader.hide();
@@ -671,6 +782,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           pass_mark: x.pass_mark || 0,
           number_of_attempts: x.number_of_attempts || 0,
           user_attempt: x.user_attempt !== undefined ? x.user_attempt : (attempted || completedByUser ? 1 : 0),
+          attempts_history: x.attempts_history || [],
           duration_mins: x.duration_mins || x.duration || 0,
           total_questions: x.total_questions || x.questions_count || 0,
           total_marks: x.total_marks || x.marks || 0,

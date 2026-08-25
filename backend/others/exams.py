@@ -854,6 +854,36 @@ def get_user_exam_details(request):
             if no_of_attempts <= user_attempt:
                 type = 'completed' # if no of attempts exceeded, user cannot review
 
+            attempts_history = []
+            if attempts:
+                sorted_atts = sorted(attempts, key=lambda a: getattr(a, 'attempt_number', 0) or 0)
+                for att in sorted_atts:
+                    att_pct = getattr(att, 'percentage', None)
+                    att_score = getattr(att, 'score', None)
+                    att_pass_mark = getattr(exam_obj, 'pass_mark', 0) or 0
+                    att_result = getattr(att, 'result', None)
+                    if not att_result:
+                        if att_pct is not None:
+                            att_result = 'Passed' if att_pct >= att_pass_mark else 'Failed'
+                        elif att_score is not None and getattr(exam_obj, 'total_marks', None):
+                            pct = (att_score / exam_obj.total_marks) * 100
+                            att_result = 'Passed' if pct >= att_pass_mark else 'Failed'
+                        else:
+                            att_result = 'Submitted' if getattr(att, 'status', '') in ('submitted', 'evaluated') else 'In Progress'
+                    
+                    submitted_dt = getattr(att, 'submitted_date', None) or getattr(att, 'started_date', None)
+
+                    attempts_history.append({
+                        'attempt_id': str(getattr(att, 'attempt_id', '')),
+                        'attempt_number': getattr(att, 'attempt_number', 1),
+                        'status': getattr(att, 'status', None),
+                        'score': att_score,
+                        'percentage': att_pct,
+                        'result': att_result,
+                        'started_date': safe_utc_isoformat(getattr(att, 'started_date', None)),
+                        'submitted_date': safe_utc_isoformat(submitted_dt),
+                    })
+
             scheduler_data.append({
                 'review_available': user_review,
                 'review_mode': review_mode,
@@ -863,6 +893,7 @@ def get_user_exam_details(request):
                 'completed_by_user': completed_by_user,
                 'expired': expired,
                 'user_attempt': user_attempt,
+                'attempts_history': attempts_history,
                 # Return raw datetimes so Flask serializes them exactly like
                 # the Started/Submitted values in the Test Review API.
                 'user_start_time': getattr(displayed_attempt, 'started_date', None),
