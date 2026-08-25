@@ -445,7 +445,7 @@
                   </mat-option>
                   <mat-option
                     *ngFor="let exam of filteredScheduleList"
-                    [value]="exam.schedule_id || exam.id || exam.scheduleId"
+                    [value]="getScheduleValue(exam)"
                   >
                     {{ getTestTitle(exam) }}
                   </mat-option>
@@ -567,16 +567,13 @@
       <!-- Step 1: Select Test -->
       <mat-form-field appearance="outline" class="selection-field">
         <mat-label>Test <span class="required-mark">*</span></mat-label>
-        <mat-select
-          [ngModel]="selectedTestTitle"
-          (ngModelChange)="onTestTitleSelect($event)"
-          placeholder="Select Test"
-          [disabled]="!uniqueTestNames.length"
-        >
-          <mat-option *ngFor="let name of uniqueTestNames" [value]="name">
-            {{ name }}
-          </mat-option>
-        </mat-select>
+        <input
+          matInput
+          type="text"
+          [value]="displayTestName"
+          placeholder="Test Name"
+          readonly
+        />
         <mat-hint *ngIf="!uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
       </mat-form-field>
 
@@ -590,11 +587,11 @@
           (dateChange)="onScheduleDateSelect($event.value)"
           placeholder="Select Date"
           readonly
-          [disabled]="!selectedTestTitle"
+          [disabled]="!displayTestName"
         />
-        <mat-datepicker-toggle matSuffix [for]="scheduleDatePicker" [disabled]="!selectedTestTitle"></mat-datepicker-toggle>
+        <mat-datepicker-toggle matSuffix [for]="scheduleDatePicker" [disabled]="!displayTestName"></mat-datepicker-toggle>
         <mat-datepicker #scheduleDatePicker [dateClass]="dateClass"></mat-datepicker>
-        <mat-hint *ngIf="selectedTestTitle && highlightedDatesSet.size">
+        <mat-hint *ngIf="displayTestName && highlightedDatesSet.size">
           {{ highlightedDatesSet.size }} test date(s) highlighted in calendar
         </mat-hint>
       </mat-form-field>
@@ -625,16 +622,13 @@
       <!-- Select Test Name -->
       <mat-form-field appearance="outline" class="selection-field">
         <mat-label>Test Name <span class="required-mark">*</span></mat-label>
-        <mat-select
-          [ngModel]="selectedDateRangeTestTitle"
-          (ngModelChange)="onDateRangeTestTitleSelect($event)"
-          placeholder="Select Test Name"
-          [disabled]="!uniqueTestNames.length"
-        >
-          <mat-option *ngFor="let name of uniqueTestNames" [value]="name">
-            {{ name }}
-          </mat-option>
-        </mat-select>
+        <input
+          matInput
+          type="text"
+          [value]="displayTestName"
+          placeholder="Test Name"
+          readonly
+        />
         <mat-hint *ngIf="!uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
       </mat-form-field>
 
@@ -652,7 +646,7 @@
           [value]="getDateRangeSelectionDisplay()"
           placeholder="Select date range"
           style="cursor: pointer"
-          [disabled]="!selectedDateRangeTestTitle"
+          [disabled]="!displayTestName"
         />
         <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
       </mat-form-field>
@@ -663,7 +657,7 @@
           mat-flat-button
           type="button"
           class="button-one apply-btn"
-          [disabled]="!selectedDateRangeTestTitle || !dateRangeStart || !dateRangeEnd"
+          [disabled]="!displayTestName || !dateRangeStart || !dateRangeEnd"
           (click)="onDateRangeApply()"
         >
           <mat-icon>analytics</mat-icon> Apply & View Reports
@@ -1123,7 +1117,7 @@
               <ng-container matColumnDef="correct_answers">
                 <th mat-header-cell *matHeaderCellDef>Percentage</th>
                 <td mat-cell *matCellDef="let row">
-                  <span class="pct-badge">{{ row.percentage }}</span>
+                  <span class="percentage-value">{{ formatPercentage(row.percentage) }}</span>
                 </td>
               </ng-container>
               <ng-container matColumnDef="wrong_answers">
@@ -1213,10 +1207,10 @@
             <span
               class="result"
               [ngClass]="{
-                pass: (selectedUserResult || '').toLowerCase() === 'pass',
-                fail: (selectedUserResult || '').toLowerCase() === 'fail',
+                pass: (selectedUserResult || '').toLowerCase() === 'pass' || (selectedUserResult || '').toLowerCase() === 'passed',
+                fail: (selectedUserResult || '').toLowerCase() === 'fail' || (selectedUserResult || '').toLowerCase() === 'failed'
               }"
-              >{{ selectedUserResult || '-' }}</span
+              >{{ formatResult(selectedUserResult) }}</span
             >
           </h3>
         </div>

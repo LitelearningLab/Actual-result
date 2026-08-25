@@ -229,6 +229,46 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     event.stopPropagation();
   }
 
+  get displayTestName(): string {
+    if (this.selectedExam) {
+      return this.getTestTitle(this.selectedExam);
+    }
+    if (this.userFilters.schedule_id) {
+      const found = (this.allTests || []).find(
+        (t) =>
+          String(t.schedule_id || t.id || t.scheduleId || t.exam_id) === String(this.userFilters.schedule_id) ||
+          this.getTestTitle(t).toLowerCase() === String(this.userFilters.schedule_id).toLowerCase()
+      );
+      if (found) {
+        return this.getTestTitle(found);
+      }
+      return String(this.userFilters.schedule_id);
+    }
+    if (this.selectionMode === 'daterange') {
+      return this.selectedDateRangeTestTitle || this.selectedTestTitle || '';
+    }
+    return this.selectedTestTitle || '';
+  }
+
+  formatPercentage(val: any): string {
+    if (val === null || val === undefined || val === '') {
+      return '0%';
+    }
+    const str = String(val).trim();
+    if (str.endsWith('%')) {
+      return str;
+    }
+    return `${str}%`;
+  }
+
+  formatResult(val: any): string {
+    if (!val) return '-';
+    const str = String(val).trim().toLowerCase();
+    if (str === 'failed' || str === 'fail') return 'FAIL';
+    if (str === 'passed' || str === 'pass') return 'PASS';
+    return String(val).toUpperCase();
+  }
+
   get selectedInstituteName(): string {
     if (!this.selectedInstituteId) return '';
     const found = this.institutes.find((i) => String(i.id) === String(this.selectedInstituteId));
@@ -811,12 +851,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   onDateRangeApply() {
-    if (!this.selectedDateRangeTestTitle || !this.dateRangeStart || !this.dateRangeEnd) {
+    const title = this.displayTestName;
+    if (!title || !this.dateRangeStart || !this.dateRangeEnd) {
       return;
     }
+    this.selectedDateRangeTestTitle = title;
     this.selectedExam = {
       isDateRange: true,
-      title: this.selectedDateRangeTestTitle,
+      title: title,
       start_date: this.formatDateToYYYYMMDD(this.dateRangeStart),
       end_date: this.formatDateToYYYYMMDD(this.dateRangeEnd),
     };
@@ -831,7 +873,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   openDateRangeSelectionPicker(): void {
-    if (!this.selectedDateRangeTestTitle) return;
+    const title = this.displayTestName;
+    if (!title) return;
+    this.selectedDateRangeTestTitle = title;
     const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
       width: '520px',
       data: {
@@ -2380,6 +2424,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
 
+  getScheduleValue(exam: any): string {
+    if (!exam) return '';
+    return String(exam.schedule_id || exam.id || exam.scheduleId || exam.exam_id || exam.title || '');
+  }
+
   openFiltersOverlay() {
     if (!this.filtersBtn) return;
     if (this.filtersOverlayRef) {
@@ -2391,9 +2440,20 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     this.userFilters.institute_id = this.selectedInstituteId || '';
     if (this.selectedExam) {
-      this.userFilters.schedule_id = String(
-        this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || ''
+      const examTitle = this.getTestTitle(this.selectedExam);
+      const examId = String(
+        this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || this.selectedExam.exam_id || ''
       );
+      const matched = (this.allTests || []).find(
+        (t) =>
+          (examId && String(t.schedule_id || t.id || t.scheduleId || t.exam_id) === examId) ||
+          (examTitle && this.getTestTitle(t).toLowerCase() === examTitle.toLowerCase())
+      );
+      if (matched) {
+        this.userFilters.schedule_id = this.getScheduleValue(matched);
+      } else {
+        this.userFilters.schedule_id = examId || examTitle || '';
+      }
     }
     Object.keys(this.searchQueries).forEach((k) => {
       this.searchQueries[k] = '';
