@@ -862,6 +862,7 @@ def get_user_exam_details(request):
                 'attempted': attempted,
                 'completed_by_user': completed_by_user,
                 'expired': expired,
+                'user_attempt': user_attempt,
                 # Return raw datetimes so Flask serializes them exactly like
                 # the Started/Submitted values in the Test Review API.
                 'user_start_time': getattr(displayed_attempt, 'started_date', None),

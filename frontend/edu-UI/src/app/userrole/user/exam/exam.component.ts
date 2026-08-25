@@ -38,6 +38,7 @@ export interface UserTestRow {
   published?: boolean;
   pass_mark?: number;
   number_of_attempts?: number;
+  user_attempt?: number;
   type?: string;
   user_review?: boolean;
   review_available?: boolean;
@@ -273,6 +274,31 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
       return row.user_percentage >= row.pass_mark;
     }
     return false;
+  }
+
+  getUsedAttempts(row: UserTestRow): number {
+    if (row.user_attempt !== undefined && row.user_attempt !== null) {
+      return row.user_attempt;
+    }
+    if (row.completed_by_user || row.attempted) {
+      return 1;
+    }
+    return 0;
+  }
+
+  getRemainingAttempts(row: UserTestRow): number {
+    const max = row.number_of_attempts || 1;
+    const used = this.getUsedAttempts(row);
+    const rem = max - used;
+    return rem > 0 ? rem : 0;
+  }
+
+  getAttemptProgressPercent(row: UserTestRow): number {
+    const max = row.number_of_attempts || 1;
+    const used = this.getUsedAttempts(row);
+    if (max <= 0) return 0;
+    const pct = (used / max) * 100;
+    return Math.min(Math.max(pct, 0), 100);
   }
 
   stopFilterSearchEvent(event: Event) {
@@ -644,6 +670,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           user_result: x.user_result || x.result || null,
           pass_mark: x.pass_mark || 0,
           number_of_attempts: x.number_of_attempts || 0,
+          user_attempt: x.user_attempt !== undefined ? x.user_attempt : (attempted || completedByUser ? 1 : 0),
           duration_mins: x.duration_mins || x.duration || 0,
           total_questions: x.total_questions || x.questions_count || 0,
           total_marks: x.total_marks || x.marks || 0,
