@@ -340,8 +340,8 @@
                         <div class="meta-item result-item" *ngIf="a.result">
                            <strong>Result</strong>
                            <span class="value result-badge"
-                              [ngClass]="{'result-pass': (a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass', 'result-fail': (a.result | lowercase) === 'failed'}">{{
-                              a.result | titlecase }}</span>
+                              [ngClass]="{'result-pass': (a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass', 'result-fail': (a.result | lowercase) === 'failed' || (a.result | lowercase) === 'fail'}">{{
+                              ((a.result | lowercase) === 'failed' || (a.result | lowercase) === 'fail') ? 'FAIL' : (((a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass') ? 'PASS' : (a.result | titlecase)) }}</span>
                         </div>
                      </div>
                      <div class="meta-row secondary-row">

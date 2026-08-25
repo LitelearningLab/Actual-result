@@ -22,7 +22,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatPaginatorModule, MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { RouterModule } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { API_BASE } from 'src/app/shared/api.config';
 import { Router } from '@angular/router';

@@ -25,7 +25,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTabsModule } from '@angular/material/tabs';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { SharedModule } from 'src/app/shared/shared.module';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
