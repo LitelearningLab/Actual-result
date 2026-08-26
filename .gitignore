@@ -36,3 +36,7 @@ backend/venv/
 backend/.env
 /.vscode
 frontend/edu-UI/src/app/shared/api.config.ts
+
+
+*.patch
+patches/

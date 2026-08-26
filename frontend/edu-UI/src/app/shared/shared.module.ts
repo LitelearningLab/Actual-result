@@ -29,10 +29,10 @@ import { DateRangePickerDialogComponent } from './components/date-range-picker-d
 
 @NgModule({
   imports: [
-    CommonModule, HttpClientModule, RouterModule, MatChipsModule, MatSnackBarModule, MatDialogModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, HttpClientModule, FormsModule, DirectivesModule, IconModule
+    CommonModule, HttpClientModule, RouterModule, MatChipsModule, MatSnackBarModule, MatDialogModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, FormsModule, DirectivesModule, IconModule
   ],
   exports: [
-    MatChipsModule, MatIconModule, MatSnackBarModule, MatDialogModule, HttpClientModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, HttpClientModule, FormsModule, DirectivesModule, UnauthorizedComponent, DateRangePickerDialogComponent
+    MatChipsModule, MatIconModule, MatSnackBarModule, MatDialogModule, HttpClientModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, FormsModule, DirectivesModule, UnauthorizedComponent, DateRangePickerDialogComponent
   ],
   declarations: [UnauthorizedComponent, ConfirmDialogComponent, DateRangePickerDialogComponent],
   providers: [PermissionGuard]

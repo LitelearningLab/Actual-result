@@ -39,7 +39,7 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     }
   })();
 
-  private routerSubscription: Subscription;
+  private routerSubscription!: Subscription;
   private authSubscription?: Subscription;
   private userSubscription?: Subscription;
   private pageMetaSubscription?: Subscription;
