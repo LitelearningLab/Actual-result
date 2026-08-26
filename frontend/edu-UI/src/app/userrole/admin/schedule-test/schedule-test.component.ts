@@ -117,6 +117,15 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     campus?: string;
   }> = [];
   selectedUsers: string[] = [];
+  assignedUserCache: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    institute?: string;
+    department?: string;
+    team?: string;
+    campus?: string;
+  }> = [];
   selectAll = false;
   userFilters: any = {
     institute_id: '',
@@ -273,9 +282,14 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   // Load users from backend using filters (reuses get-users endpoint conventions)
   loadUsers() {
     if (!this.hasAppliedUserFilters) {
-      this.users = [];
-      this.selectedUsers = [];
-      this.selectAll = false;
+      if (!this.selectedUsers || this.selectedUsers.length === 0) {
+        this.users = [];
+        this.selectAll = false;
+      } else if (this.assignedUserCache && this.assignedUserCache.length > 0) {
+        const existingMap = new Map((this.users || []).map((u) => [u.id, u]));
+        this.assignedUserCache.forEach((u) => existingMap.set(u.id, u));
+        this.users = Array.from(existingMap.values());
+      }
       return;
     }
 
@@ -333,7 +347,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       next: (res) => {
         const dataCandidate = res?.data?.users ?? res?.users ?? res?.data ?? res;
         const data = Array.isArray(dataCandidate) ? dataCandidate : [];
-        this.users = data.map((u: any) => ({
+        const fetchedUsers = data.map((u: any) => ({
           id: String(u.user_id || u.id || ''),
           name:
             u.full_name ||
@@ -355,13 +369,24 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
           campus: (u.campus && (u.campus.campus_name || u.campus.name)) || u.campus_name || '',
         }));
 
-        // Keep selectedUsers valid
-        const currentValidIds = new Set(this.users.map((u) => u.id));
-        this.selectedUsers = this.selectedUsers.filter((id) => currentValidIds.has(id));
-        this.selectAll = this.users.length > 0 && this.selectedUsers.length === this.users.length;
+        const mergedMap = new Map<string, any>();
+        (this.assignedUserCache || []).forEach((u) => mergedMap.set(String(u.id), u));
+        (this.users || []).forEach((u) => {
+          if (this.selectedUsers.includes(String(u.id))) {
+            mergedMap.set(String(u.id), u);
+          }
+        });
+        fetchedUsers.forEach((u) => mergedMap.set(String(u.id), u));
+
+        this.users = Array.from(mergedMap.values());
+        this.selectAll = this.users.length > 0 && this.users.every((u) => this.selectedUsers.includes(u.id));
       },
       error: () => {
-        this.users = [];
+        if (this.assignedUserCache && this.assignedUserCache.length > 0) {
+          this.users = [...this.assignedUserCache];
+        } else {
+          this.users = [];
+        }
         this.loader.hide();
       },
       complete: () => {
@@ -4034,17 +4059,31 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
             e.assigned_user_ids ||
             [];
           let normalized: string[] = [];
-          if (!au) normalized = [];
-          else if (Array.isArray(au)) {
-            normalized = au
-              .map((x: any) => {
-                if (!x && x !== 0) return '';
-                if (typeof x === 'string' || typeof x === 'number') return String(x);
-                if (typeof x === 'object')
-                  return String(x.user_id || x.id || x._id || x.uid || x.userId || x.value || '');
-                return String(x);
-              })
-              .filter((v: string) => v && v.length);
+          let userObjs: any[] = [];
+          if (!au) {
+            normalized = [];
+          } else if (Array.isArray(au)) {
+            au.forEach((x: any) => {
+              if (!x && x !== 0) return;
+              if (typeof x === 'object') {
+                const uid = String(x.user_id || x.id || x._id || x.uid || x.userId || x.value || '');
+                if (uid) {
+                  normalized.push(uid);
+                  userObjs.push({
+                    id: uid,
+                    name: x.name || x.full_name || x.user_name || `${x.first_name || ''} ${x.last_name || ''}`.trim() || x.email || uid,
+                    email: x.email || '',
+                    institute: (x.institute && (x.institute.institute_name || x.institute.name)) || x.institute_name || '',
+                    department: (x.department && (x.department.department_name || x.department.name)) || x.department_name || '',
+                    team: (x.team && (x.team.team_name || x.team.name)) || x.team_name || '',
+                    campus: (x.campus && (x.campus.campus_name || x.campus.name)) || x.campus_name || '',
+                  });
+                }
+              } else if (typeof x === 'string' || typeof x === 'number') {
+                const uid = String(x).trim();
+                if (uid) normalized.push(uid);
+              }
+            });
           } else if (typeof au === 'string') {
             normalized = au
               .split(',')
@@ -4052,12 +4091,18 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
               .filter((s: string) => s.length);
           } else if (typeof au === 'object') {
             const v = au.user_id || au.id || au._id || au.uid || au.userId || '';
-            normalized = v ? [String(v)] : [];
+            if (v) normalized = [String(v)];
           }
-          this.selectedUsers = normalized;
+          this.selectedUsers = Array.from(new Set(normalized));
+          this.assignedUserCache = userObjs;
+          if (userObjs.length > 0) {
+            const existingMap = new Map((this.users || []).map((u) => [u.id, u]));
+            userObjs.forEach((u) => existingMap.set(u.id, u));
+            this.users = Array.from(existingMap.values());
+          }
           // if users list is not yet loaded or institute differs, attempt to load users for the institute
           try {
-            if (!this.users || this.users.length === 0) this.loadUsers();
+            if (this.hasAppliedUserFilters) this.loadUsers();
           } catch (e) {}
         } catch (err) {
           /* ignore normalization errors */
@@ -4157,17 +4202,31 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
             v.assigned_user_ids ||
             [];
           let normalized: string[] = [];
-          if (!au) normalized = [];
-          else if (Array.isArray(au)) {
-            normalized = au
-              .map((x: any) => {
-                if (!x && x !== 0) return '';
-                if (typeof x === 'string' || typeof x === 'number') return String(x);
-                if (typeof x === 'object')
-                  return String(x.user_id || x.id || x._id || x.uid || x.userId || x.value || '');
-                return String(x);
-              })
-              .filter((v: string) => v && v.length);
+          let userObjs: any[] = [];
+          if (!au) {
+            normalized = [];
+          } else if (Array.isArray(au)) {
+            au.forEach((x: any) => {
+              if (!x && x !== 0) return;
+              if (typeof x === 'object') {
+                const uid = String(x.user_id || x.id || x._id || x.uid || x.userId || x.value || '');
+                if (uid) {
+                  normalized.push(uid);
+                  userObjs.push({
+                    id: uid,
+                    name: x.name || x.full_name || x.user_name || `${x.first_name || ''} ${x.last_name || ''}`.trim() || x.email || uid,
+                    email: x.email || '',
+                    institute: (x.institute && (x.institute.institute_name || x.institute.name)) || x.institute_name || '',
+                    department: (x.department && (x.department.department_name || x.department.name)) || x.department_name || '',
+                    team: (x.team && (x.team.team_name || x.team.name)) || x.team_name || '',
+                    campus: (x.campus && (x.campus.campus_name || x.campus.name)) || x.campus_name || '',
+                  });
+                }
+              } else if (typeof x === 'string' || typeof x === 'number') {
+                const uid = String(x).trim();
+                if (uid) normalized.push(uid);
+              }
+            });
           } else if (typeof au === 'string') {
             normalized = au
               .split(',')
@@ -4175,11 +4234,17 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
               .filter((s: string) => s.length);
           } else if (typeof au === 'object') {
             const val = au.user_id || au.id || au._id || au.uid || au.userId || '';
-            normalized = val ? [String(val)] : [];
+            if (val) normalized = [String(val)];
           }
-          this.selectedUsers = normalized;
+          this.selectedUsers = Array.from(new Set(normalized));
+          this.assignedUserCache = userObjs;
+          if (userObjs.length > 0) {
+            const existingMap = new Map((this.users || []).map((u) => [u.id, u]));
+            userObjs.forEach((u) => existingMap.set(u.id, u));
+            this.users = Array.from(existingMap.values());
+          }
           try {
-            if (!this.users || this.users.length === 0) this.loadUsers();
+            if (this.hasAppliedUserFilters) this.loadUsers();
           } catch (e) {}
         } catch (err) {
           /* ignore */
@@ -4287,11 +4352,15 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     return String(instId || '');
   }
 
-  // Lookup user name by id from currently loaded users
+  // Lookup user name by id from currently loaded users or preloaded cache
   getUserNameById(userId: any): string {
     if (!userId) return '';
-    const found = (this.users || []).find((u) => String(u.id) === String(userId));
-    return found ? found.name || '' : '';
+    const uidStr = String(userId);
+    const found = (this.users || []).find((u) => String(u.id) === uidStr);
+    if (found && found.name) return found.name;
+    const cached = (this.assignedUserCache || []).find((u) => String(u.id) === uidStr);
+    if (cached && cached.name) return cached.name;
+    return found ? found.email || uidStr : uidStr;
   }
 
   // Small date formatter for review display (accepts date-like strings or Date objects)

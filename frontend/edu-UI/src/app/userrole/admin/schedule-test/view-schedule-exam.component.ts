@@ -1986,7 +1986,8 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
             const v = au.user_id || au.id || au._id || au.uid || au.userId || '';
             normalized = v ? [String(v)] : [];
           }
-          payload.assigned_users = normalized;
+          payload.assigned_user_ids = normalized;
+          payload.assigned_users = au;
         } catch (e) {
           payload.assigned_users = payload.assigned_users || [];
         }

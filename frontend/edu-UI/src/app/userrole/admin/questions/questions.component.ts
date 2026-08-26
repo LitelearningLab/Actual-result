@@ -725,41 +725,84 @@ export class AdminQuestionsComponent {
     options: any[],
     correctValue: any
   ): number | number[] | null {
-    if (qtype === 'choose') {
-      if (typeof correctValue === 'number') return correctValue;
+    const normType = this.normalizeQuestionType(qtype);
+    const cleanOptions = (options || []).map((o: any) =>
+      typeof o === 'string' ? o.trim() : String(o?.option_text || o?.text || o || '').trim()
+    );
+
+    const parseLetterOrTextIndex = (valStr: string): number => {
+      if (!valStr || typeof valStr !== 'string') return -1;
+      const trimmed = valStr.trim();
+      const exactIdx = cleanOptions.findIndex(
+        (opt) => opt.toLowerCase() === trimmed.toLowerCase()
+      );
+      if (exactIdx >= 0) return exactIdx;
+
+      const clean = trimmed
+        .replace(/^(correct\s*answer\s*:?\s*|option\s*)/i, '')
+        .trim();
+      if (/^[A-E]$/i.test(clean)) {
+        const idx = clean.toUpperCase().charCodeAt(0) - 65;
+        if (idx >= 0 && idx < cleanOptions.length) return idx;
+      }
+
+      if (/^\d+$/.test(clean)) {
+        const num = Number(clean);
+        if (num >= 0 && num < cleanOptions.length) return num;
+        if (num >= 1 && num <= cleanOptions.length) return num - 1;
+      }
+      return -1;
+    };
+
+    if (normType === 'choose') {
+      if (typeof correctValue === 'number' && correctValue >= 0 && correctValue < cleanOptions.length) {
+        return correctValue;
+      }
       if (typeof correctValue === 'string') {
-        const idx = options.findIndex(
-          (option: any) =>
-            String(option).trim().toLowerCase() === String(correctValue).trim().toLowerCase()
-        );
-        return idx >= 0 ? idx : null;
+        const parsed = parseLetterOrTextIndex(correctValue);
+        if (parsed >= 0) return parsed;
       }
+      if (Array.isArray(correctValue) && correctValue.length > 0) {
+        return this.resolveGeneratedCorrectValue(normType, cleanOptions, correctValue[0]) as number | null;
+      }
+      return null;
     }
-    if (qtype === 'multi') {
-      if (Array.isArray(correctValue)) {
-        if (correctValue.length && typeof correctValue[0] === 'number') return correctValue;
-        return correctValue
-          .map((value: any) =>
-            options.findIndex(
-              (option: any) =>
-                String(option).trim().toLowerCase() === String(value).trim().toLowerCase()
-            )
-          )
-          .filter((idx: number) => idx >= 0);
+
+    if (normType === 'multi') {
+      const results: number[] = [];
+
+      const addIdx = (val: any): boolean => {
+        if (typeof val === 'number' && val >= 0 && val < cleanOptions.length) {
+          if (!results.includes(val)) results.push(val);
+          return true;
+        }
+        if (typeof val === 'string') {
+          const parsed = parseLetterOrTextIndex(val);
+          if (parsed >= 0) {
+            if (!results.includes(parsed)) results.push(parsed);
+            return true;
+          }
+        }
+        return false;
+      };
+
+      if (typeof correctValue === 'number' || typeof correctValue === 'string') {
+        if (typeof correctValue === 'number') {
+          addIdx(correctValue);
+        } else {
+          const trimmed = correctValue.trim();
+          if (!addIdx(trimmed)) {
+            const parts = trimmed.split(/[,|\n]/).map((s) => s.trim()).filter(Boolean);
+            parts.forEach((p) => addIdx(p));
+          }
+        }
+      } else if (Array.isArray(correctValue)) {
+        correctValue.forEach((item) => addIdx(item));
       }
-      if (typeof correctValue === 'string') {
-        return correctValue
-          .split(',')
-          .map((value: string) => value.trim())
-          .filter(Boolean)
-          .map((value: string) =>
-            options.findIndex(
-              (option: any) => String(option).trim().toLowerCase() === value.toLowerCase()
-            )
-          )
-          .filter((idx: number) => idx >= 0);
-      }
+
+      return results.length ? results : null;
     }
+
     return null;
   }
 
@@ -773,7 +816,11 @@ export class AdminQuestionsComponent {
     this.questions.forEach((question: any, index: number) => {
       const generated = this.generatedQuestions[index];
       if (!generated) return;
-      const qtype = question.type || generated.type || 'descriptive';
+      const qtype = this.normalizeQuestionType(
+        question.type || generated.type || 'descriptive',
+        question
+      );
+      question.type = qtype;
       const generatedAnswer =
         generated.answerText || generated.answer || generated.explanation || '';
       const correctValue = generated.correct ?? generated.correct_answer ?? generatedAnswer;
@@ -894,34 +941,39 @@ export class AdminQuestionsComponent {
           if (rawQuestions.length) {
             // backend returns a single question object or an array — normalize
             // if response includes question_text/options etc, map to our internal shape
-            const normalized = rawQuestions.map((r: any) => ({
-              type: r.type || r.question_type || r.questionType || 'descriptive',
-              text: r.question_text || r.questionText || r.question || r.text || '',
-              marks: this.getCategoryQuestionMark() || r.mark || r.marks || 1,
-              options: Array.isArray(r.options)
-                ? r.options.slice()
+            const normalized = rawQuestions.map((r: any) => {
+              const normType = this.normalizeQuestionType(
+                r.type || r.question_type || r.questionType || 'descriptive',
+                r
+              );
+              const cleanOpts = Array.isArray(r.options)
+                ? r.options.map((o: any) =>
+                    typeof o === 'string' ? o : o.option_text || o.text || String(o)
+                  )
                 : r.options && typeof r.options === 'string'
                   ? r.options.split('|').map((s: string) => s.trim())
-                  : [],
-              correct:
-                r.correct_answer ??
-                r.correctAnswer ??
-                r.correct ??
-                this.getCorrectFromGeneratedOptions(r.options),
-              answerText: r.explanation || r.answer_text || r.answerText || r.answer || '',
-            }));
+                  : [];
+              return {
+                type: normType,
+                text: r.question_text || r.questionText || r.question || r.text || '',
+                marks: this.getCategoryQuestionMark() || r.mark || r.marks || 1,
+                options: cleanOpts,
+                correct:
+                  r.correct_answer ??
+                  r.correctAnswer ??
+                  r.correct ??
+                  this.getCorrectFromGeneratedOptions(r.options),
+                answerText: r.explanation || r.answer_text || r.answerText || r.answer || '',
+              };
+            });
             this.generatedQuestions = normalized;
             // Also immediately load generated questions into the editable questions list so they appear in the questions-list
             try {
               const selectedInstituteId = this.questions?.[0]?.institute_id || '';
               const selectedCategoryId = this.questions?.[0]?.category_id || '';
               this.questions = normalized.map((g: any) => {
-                const qtype = g.type || 'descriptive';
-                const opts = Array.isArray(g.options)
-                  ? g.options.map((o: any) =>
-                      typeof o === 'string' ? o : o.option_text || o.text || String(o)
-                    )
-                  : [];
+                const qtype = this.normalizeQuestionType(g.type || 'descriptive', g);
+                const opts = Array.isArray(g.options) ? g.options.slice() : [];
                 // ensure at least two option placeholders for choice types
                 if ((qtype === 'choose' || qtype === 'multi') && opts.length < 2) {
                   while (opts.length < 2) opts.push('');
@@ -2574,9 +2626,13 @@ export class AdminQuestionsComponent {
 
   isOptionCorrect(qIndex: number, i: number) {
     const q = this.questions[qIndex];
-    if (q.type === 'choose') return q.correct === i;
-    if (q.type === 'multi')
-      return Array.isArray(q.correct) && (q.correct as number[]).indexOf(i) > -1;
+    if (!q) return false;
+    const type = this.normalizeQuestionType(q.type, q);
+    if (type === 'choose') return q.correct === i || String(q.correct) === String(i);
+    if (type === 'multi') {
+      if (!Array.isArray(q.correct)) return false;
+      return q.correct.includes(i) || q.correct.includes(String(i));
+    }
     return false;
   }
 

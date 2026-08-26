@@ -166,11 +166,17 @@ def get_category_details(request):
         else:
             filter.append(Categories.institute_id == inst_val)
     if args.get("departments"):
-        departments = args.get("departments").split(",")
-        filter.append(CategoriesDepartments.department_id.in_(departments))
+        departments = [d.strip() for d in args.get("departments").split(",") if d.strip()]
+        if departments:
+            dept_cat_ids = [d.category_id for d in session.query(CategoriesDepartments).filter(CategoriesDepartments.department_id.in_(departments)).all()]
+            all_dept_cat_ids = [c[0] for c in session.query(CategoriesDepartments.category_id).distinct().all()]
+            filter.append(or_(Categories.category_id.in_(dept_cat_ids), ~Categories.category_id.in_(all_dept_cat_ids)))
     if args.get("teams"):
-        teams = args.get("teams").split(",")
-        filter.append(CategoriesTeams.team_id.in_(teams))
+        teams = [t.strip() for t in args.get("teams").split(",") if t.strip()]
+        if teams:
+            team_cat_ids = [t.category_id for t in session.query(CategoriesTeams).filter(CategoriesTeams.team_id.in_(teams)).all()]
+            all_team_cat_ids = [t[0] for t in session.query(CategoriesTeams.category_id).distinct().all()]
+            filter.append(or_(Categories.category_id.in_(team_cat_ids), ~Categories.category_id.in_(all_team_cat_ids)))
     if args.get("name"):
         category_names = [
             name.strip()
@@ -214,13 +220,7 @@ def get_category_details(request):
 
         filter.append(or_(*type_conditions))
 
-
-
     query = session.query(Categories)
-    if args.get("departments"):
-        query = query.join(CategoriesDepartments, Categories.category_id == CategoriesDepartments.category_id)
-    if args.get("teams"):
-        query = query.join(CategoriesTeams, Categories.category_id == CategoriesTeams.category_id)
     category_details = query.filter(*filter).order_by(Categories.created_date.desc()).distinct().all()
     result = []
     for category in category_details:
