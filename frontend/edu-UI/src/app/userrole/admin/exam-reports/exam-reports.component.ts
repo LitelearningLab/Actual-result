@@ -39,6 +39,34 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   private filtersOverlayRef: OverlayRef | null = null;
   private _subs: Subscription | null = null;
   resetFilters: any = {};
+  testNameError = false;
+  isUserReportRefreshing = false;
+  private searchDebounceTimer: any = null;
+
+  onStudentSearchInput() {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+    }
+    this.searchDebounceTimer = setTimeout(() => {
+      this.currentPage = 1;
+      this.loadUserReport(1, true);
+    }, 300);
+  }
+
+  refreshUserReportTable() {
+    if (this.isUserReportRefreshing) return;
+    this.isUserReportRefreshing = true;
+
+    if (this.activeMainTabIndex === 0) {
+      this.loadAnalytics();
+    } else {
+      this.loadUserReport(this.currentPage || 1);
+    }
+
+    setTimeout(() => {
+      this.isUserReportRefreshing = false;
+    }, 600);
+  }
 
   constructor(
     private http: HttpClient,
@@ -135,15 +163,19 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
   get hasAppliedFilters(): boolean {
     return (
-      !!this.userFilters.industry ||
-      !!this.userFilters.sector ||
-      (this.isSuperAdmin && !this.isGlobalInstituteActive && !!this.selectedInstituteName) ||
-      !!this.selectedExam ||
-      !!this.userFilters.campus_id ||
-      (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length > 0) ||
-      (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length > 0) ||
-      !!this.userFilters.active_status ||
-      !!this.userFilters.created_by_me
+      this.reportsApplied &&
+      (
+        !!this.userFilters.industry ||
+        !!this.userFilters.sector ||
+        (this.isSuperAdmin && !this.isGlobalInstituteActive && !!this.selectedInstituteName) ||
+        !!this.selectedExam ||
+        !!this.selectedTestTitle ||
+        !!this.userFilters.campus_id ||
+        (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length > 0) ||
+        (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length > 0) ||
+        !!this.userFilters.active_status ||
+        !!this.userFilters.created_by_me
+      )
     );
   }
 
@@ -233,21 +265,25 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.selectedExam) {
       return this.getTestTitle(this.selectedExam);
     }
+    if (this.selectedTestTitle) {
+      return this.selectedTestTitle;
+    }
+    if (this.selectedDateRangeTestTitle) {
+      return this.selectedDateRangeTestTitle;
+    }
     if (this.userFilters.schedule_id) {
       const found = (this.allTests || []).find(
         (t) =>
           String(t.schedule_id || t.id || t.scheduleId || t.exam_id) === String(this.userFilters.schedule_id) ||
           this.getTestTitle(t).toLowerCase() === String(this.userFilters.schedule_id).toLowerCase()
+      ) || (this.allSchedules || []).find(
+        (s) => String(s.schedule_id || s.id || s.scheduleId || s.exam_id) === String(this.userFilters.schedule_id)
       );
       if (found) {
         return this.getTestTitle(found);
       }
-      return String(this.userFilters.schedule_id);
     }
-    if (this.selectionMode === 'daterange') {
-      return this.selectedDateRangeTestTitle || this.selectedTestTitle || '';
-    }
-    return this.selectedTestTitle || '';
+    return '';
   }
 
   formatPercentage(val: any): string {
@@ -843,10 +879,43 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   setSelectionMode(mode: 'schedule' | 'daterange') {
+    if (this.selectionMode === mode) return;
     this.selectionMode = mode;
+    this.selectedExam = null;
+    this.reportsApplied = false;
+    this.userReportData = [];
+    this.userReportTotal = 0;
+    this.categoryAnalytics = [];
+    this.questionSummary = [];
+    this.wrongDistribution = [];
+    this.userFilters.schedule_id = '';
+
+    const activeTitle =
+      this.selectedTestTitle ||
+      this.selectedDateRangeTestTitle ||
+      '';
+
+    if (activeTitle) {
+      this.selectedTestTitle = activeTitle;
+      this.selectedDateRangeTestTitle = activeTitle;
+    }
+
+    if (mode === 'daterange') {
+      this.selectedScheduleId = '';
+      this.selectedScheduleDate = null;
+      this.availableSchedulesOnDate = [];
+    } else {
+      this.dateRangeStart = null;
+      this.dateRangeEnd = null;
+      if (this.selectedTestTitle) {
+        this.updateHighlightedDates();
+        this.updateAvailableSchedulesOnDate();
+      }
+    }
   }
 
   onDateRangeTestTitleSelect(title: string) {
+    this.selectedTestTitle = title;
     this.selectedDateRangeTestTitle = title;
   }
 
@@ -855,12 +924,21 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!title || !this.dateRangeStart || !this.dateRangeEnd) {
       return;
     }
+    const startStr = this.formatDateToYYYYMMDD(this.dateRangeStart);
+    const endStr = this.formatDateToYYYYMMDD(this.dateRangeEnd);
+    this.userFilters.start_date = startStr;
+    this.userFilters.end_date = endStr;
+    this.userFilters.created_after = startStr;
+    this.userFilters.created_before = endStr;
+    this.userFilters.schedule_id = '';
+    this.selectedScheduleId = '';
+    this.selectedTestTitle = title;
     this.selectedDateRangeTestTitle = title;
     this.selectedExam = {
       isDateRange: true,
       title: title,
-      start_date: this.formatDateToYYYYMMDD(this.dateRangeStart),
-      end_date: this.formatDateToYYYYMMDD(this.dateRangeEnd),
+      start_date: startStr,
+      end_date: endStr,
     };
     this.questionCurrentPage = 1;
     this.currentPage = 1;
@@ -873,6 +951,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   openDateRangeSelectionPicker(): void {
+    if (this.dialog.openDialogs.length > 0) return;
     const title = this.displayTestName;
     if (!title) return;
     this.selectedDateRangeTestTitle = title;
@@ -886,9 +965,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
       if (res) {
-        this.dateRangeStart = res.startDate;
-        this.dateRangeEnd = res.endDate;
+        if (res.startDate === null && res.endDate === null) {
+          // User pressed "Clear" inside date dialog
+          this.dateRangeStart = null;
+          this.dateRangeEnd = null;
+        } else if (res.startDate && res.endDate) {
+          // User pressed "Apply" with valid dates inside date dialog
+          this.dateRangeStart = res.startDate;
+          this.dateRangeEnd = res.endDate;
+        }
       }
+      // If res is undefined (User pressed "Cancel" or backdrop click): state remains unchanged.
     });
   }
 
@@ -925,10 +1012,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     let str = String(raw).trim();
     if (!str) return null;
 
-    let dt = new Date(str);
-    if (!isNaN(dt.getTime())) return dt;
-
-    const ddMmYyyy = str.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    // 1) DD/MM/YYYY or DD-MM-YYYY
+    const ddMmYyyy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
     if (ddMmYyyy) {
       const day = Number(ddMmYyyy[1]);
       const month = Number(ddMmYyyy[2]) - 1;
@@ -936,11 +1021,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       const hour = ddMmYyyy[4] ? Number(ddMmYyyy[4]) : 0;
       const min = ddMmYyyy[5] ? Number(ddMmYyyy[5]) : 0;
       const sec = ddMmYyyy[6] ? Number(ddMmYyyy[6]) : 0;
-      dt = new Date(year, month, day, hour, min, sec);
+      const dt = new Date(year, month, day, hour, min, sec);
       if (!isNaN(dt.getTime())) return dt;
     }
 
-    const yyyyMmDd = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    // 2) YYYY-MM-DD or YYYY/MM/DD
+    const yyyyMmDd = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
     if (yyyyMmDd) {
       const year = Number(yyyyMmDd[1]);
       const month = Number(yyyyMmDd[2]) - 1;
@@ -948,8 +1034,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       const hour = yyyyMmDd[4] ? Number(yyyyMmDd[4]) : 0;
       const min = yyyyMmDd[5] ? Number(yyyyMmDd[5]) : 0;
       const sec = yyyyMmDd[6] ? Number(yyyyMmDd[6]) : 0;
-      dt = new Date(year, month, day, hour, min, sec);
+      const dt = new Date(year, month, day, hour, min, sec);
       if (!isNaN(dt.getTime())) return dt;
+    }
+
+    // 3) Standard fallback
+    const dt = new Date(str);
+    if (!isNaN(dt.getTime())) {
+      return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
     }
 
     return null;
@@ -1682,10 +1774,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this._snack.open('Please select an Institute first', 'Close', { duration: 3000 });
       return;
     }
-    if (!this.userFilters.schedule_id && !this.selectedExam) {
-      this._snack.open('Please select a Test Name to view reports', 'Close', { duration: 3000 });
-      return;
-    }
+
     if (!this.isGlobalInstituteActive && this.userFilters.institute_id) {
       if (this.selectedInstituteId !== this.userFilters.institute_id) {
         this.selectedInstituteId = this.userFilters.institute_id;
@@ -1707,27 +1796,38 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.loadScheduledTest();
+    const selectedVal = String(this.userFilters.schedule_id || '').trim();
 
-    if (this.userFilters.schedule_id) {
-      const selectedTest = (this.allTests || []).find(
-        (t) =>
-          String(t.schedule_id || t.id || t.scheduleId || t.exam_id) === String(this.userFilters.schedule_id) ||
-          this.getTestTitle(t).toLowerCase() === String(this.userFilters.schedule_id).toLowerCase()
+    if (!selectedVal) {
+      this.testNameError = true;
+      this._snack.open('Test Name is mandatory. Please select a Test Name.', 'Close', { duration: 4000 });
+      return;
+    }
+    this.testNameError = false;
+
+    const selectedTest = (this.allTests || []).find(
+        (t: any) =>
+          String(this.getScheduleValue(t)) === selectedVal ||
+          String(t.schedule_id || t.id || t.scheduleId || t.exam_id) === selectedVal ||
+          this.getTestTitle(t).toLowerCase() === selectedVal.toLowerCase()
       );
+
+      const title = selectedTest ? this.getTestTitle(selectedTest) : selectedVal;
+      this.selectedTestTitle = title;
+      this.selectedDateRangeTestTitle = title;
       if (selectedTest) {
         this.selectedExam = selectedTest;
-        const title = this.getTestTitle(selectedTest);
-        if (title) {
-          this.onTestTitleSelect(title);
-        }
         try {
           this.examCtrl.setValue(selectedTest);
         } catch (e) {}
       }
-    }
+      this.onTestTitleSelect(title);
 
-    if (this.selectedExam) {
+    this.questionCurrentPage = 1;
+    this.currentPage = 1;
+
+    if (this.selectedExam || this.selectedTestTitle) {
+      this.reportsApplied = true;
       if (this.activeMainTabIndex === 0) {
         this.loadAnalytics();
       } else {
@@ -1813,16 +1913,34 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   };
 
   onTestFilterSelected(val: any) {
-    if (!val) {
+    this.searchQueries.schedule = '';
+    const rawVal = typeof val === 'object' && val !== null ? (val.schedule_id || val.id || val.scheduleId || val.exam_id || val.title || '') : val;
+    const valStr = String(rawVal || '').trim();
+
+    if (!valStr) {
+      this.selectedTestTitle = '';
+      this.selectedDateRangeTestTitle = '';
+      this.selectedExam = null;
       this.userFilters.schedule_id = '';
-      this.searchQueries.schedule = '';
-    } else if (typeof val === 'object') {
-      this.userFilters.schedule_id = String(val.schedule_id || val.id || val.scheduleId || '');
-      this.searchQueries.schedule = '';
-    } else {
-      this.userFilters.schedule_id = String(val);
-      this.searchQueries.schedule = '';
+      this.selectedScheduleDate = null;
+      this.highlightedDatesSet.clear();
+      this.availableSchedulesOnDate = [];
+      this.selectedScheduleId = '';
+      return;
     }
+
+    const found = (this.allTests || []).find(
+      (t: any) =>
+        String(this.getScheduleValue(t)) === valStr ||
+        String(t.schedule_id || t.id || t.exam_id) === valStr ||
+        this.getTestTitle(t).toLowerCase() === valStr.toLowerCase()
+    );
+
+    const title = found ? this.getTestTitle(found) : valStr;
+    this.selectedTestTitle = title;
+    this.selectedDateRangeTestTitle = title;
+    this.userFilters.schedule_id = valStr;
+    this.onTestTitleSelect(title);
   }
 
   onTestAutocompleteSelected(exam: any) {
@@ -2454,6 +2572,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       } else {
         this.userFilters.schedule_id = examId || examTitle || '';
       }
+    } else if (this.selectedTestTitle) {
+      const matched = (this.allTests || []).find(
+        (t) => this.getTestTitle(t).toLowerCase() === this.selectedTestTitle.toLowerCase()
+      );
+      if (matched) {
+        this.userFilters.schedule_id = this.getScheduleValue(matched);
+      } else {
+        this.userFilters.schedule_id = this.selectedTestTitle;
+      }
+    } else {
+      this.userFilters.schedule_id = '';
     }
     Object.keys(this.searchQueries).forEach((k) => {
       this.searchQueries[k] = '';
@@ -2518,7 +2647,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadUserReport(page: number = 1) {
+  loadUserReport(page: number = 1, isSilent: boolean = false) {
     if (!this.selectedExam) return;
     this.currentPage = page || 1;
     const params: any = {
@@ -2563,10 +2692,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (beforeDate)
       params.created_before = beforeDate instanceof Date ? beforeDate.toISOString() : beforeDate;
     if (this.userFilters.created_by_me) params.created_by_me = 'true';
-    this.loadingUserReport = true;
-    try {
-      this.loading.show();
-    } catch (e) {}
+
+    if (!isSilent) {
+      this.loadingUserReport = true;
+      try {
+        this.loading.show();
+      } catch (e) {}
+    }
+
     this.http.get<any>(`${API_BASE}/get-exam-user-report`, { params }).subscribe({
       next: (res: any) => {
         console.debug('[TestReports] get-exam-user-report response:', res);
@@ -2591,9 +2724,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.userReportTotal = 0;
         } finally {
           this.loadingUserReport = false;
-          try {
-            this.loading.hide();
-          } catch (e) {}
+          if (!isSilent) {
+            try {
+              this.loading.hide();
+            } catch (e) {}
+          }
         }
       },
       error: (err: any) => {
@@ -2601,14 +2736,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.userReportData = [];
         this.userReportTotal = 0;
         this.loadingUserReport = false;
-        try {
-          this.loading.hide();
-        } catch (e) {}
+        if (!isSilent) {
+          try {
+            this.loading.hide();
+          } catch (e) {}
+        }
       },
       complete: () => {
-        try {
-          this.loading.hide();
-        } catch (e) {}
+        if (!isSilent) {
+          try {
+            this.loading.hide();
+          } catch (e) {}
+        }
       },
     });
   }
@@ -2641,25 +2780,44 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.questionCurrentPage < this.questionTotalPages) this.questionCurrentPage++;
   }
 
+  formatDateShort(dateLike: any): string {
+    if (!dateLike) return '-';
+    try {
+      const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
+      if (isNaN(d.getTime())) return String(dateLike);
+      const dd = String(d.getDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const mm = months[d.getMonth()];
+      const yyyy = d.getFullYear();
+      const hh = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
+    } catch (e) {
+      return String(dateLike);
+    }
+  }
+
   exportUserCSV() {
     if (!this.userReportData || !this.userReportData.length) return;
     const headers = [
       'Student Name',
-      'Questions Attempted',
-      'Total Marks',
-      'Correct Answers',
-      'Wrong Answers',
-      'Marks Obtained',
-      'Result',
+      'TEST DATE',
+      'PERCENTAGE',
+      'RESULT',
+      'RETEST DATE',
+      'RETEST %',
+      'RETEST RESULT',
+      'MANUAL REVIEW',
     ];
     const rows = this.userReportData.map((r: any) => [
       r.student_name,
-      r.questions_attempted,
-      r.total_marks,
-      r.correct_answers,
-      r.wrong_answers,
-      r.marks_obtained,
-      r.result,
+      this.formatDateShort(r.test_taken_date),
+      r.percentage !== null && r.percentage !== undefined ? `${r.percentage}%` : '',
+      r.result || '-',
+      r.retest_date ? this.formatDateShort(r.retest_date) : '-',
+      r.retest_percentage !== null && r.retest_percentage !== undefined ? `${r.retest_percentage}%` : '-',
+      r.retest_result || '-',
+      r.manual_review || '-',
     ]);
     const csv = [
       headers.join(','),

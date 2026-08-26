@@ -1,69 +1,140 @@
 from db.db import SQLiteDB
-from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option,QuestionMapping
-from sqlalchemy import func
+from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping
+from sqlalchemy import func, or_
+from datetime import datetime
 
 
-def resolve_schedule_ids(session, args):
-    schedule_id = args.get('schedule_id')
-    if schedule_id:
-        return [schedule_id]
-
+def resolve_report_context(session, args):
     start_date_str = args.get('start_date')
     end_date_str = args.get('end_date')
+    schedule_id = args.get('schedule_id')
     test_title = args.get('test_title') or args.get('exam_title')
     exam_id = args.get('exam_id')
     institute_id = args.get('institute_id')
 
-    if not start_date_str or not end_date_str:
-        return []
+    # Date Range Mode is active if start_date and end_date are provided
+    is_date_range = bool(start_date_str and end_date_str)
 
-    try:
-        from datetime import datetime
-        start_date = datetime.strptime(start_date_str[:10], '%Y-%m-%d')
-        end_date = datetime.strptime(end_date_str[:10] + ' 23:59:59', '%Y-%m-%d %H:%M:%S')
-    except Exception:
-        start_date = None
-        end_date = None
+    if is_date_range:
+        try:
+            start_date = datetime.strptime(start_date_str[:10] + ' 00:00:00', '%Y-%m-%d %H:%M:%S')
+            end_date = datetime.strptime(end_date_str[:10] + ' 23:59:59', '%Y-%m-%d %H:%M:%S')
+        except Exception:
+            start_date = None
+            end_date = None
 
-    q = session.query(ExamSchedule)
-    if institute_id:
-        q = q.filter(ExamSchedule.institute_id == institute_id)
+        if not start_date or not end_date:
+            return {'status': False, 'message': 'Invalid date range format'}
 
-    if test_title:
-        clean_title = test_title.strip().lower()
-        exam_ids = [e.exam_id for e in session.query(Exam).filter(func.lower(Exam.title) == clean_title).all()]
-        if exam_ids:
-            q = q.filter((func.lower(ExamSchedule.title) == clean_title) | (ExamSchedule.exam_id.in_(exam_ids)))
-        else:
-            q = q.filter(func.lower(ExamSchedule.title) == clean_title)
-    elif exam_id:
-        q = q.filter(ExamSchedule.exam_id == exam_id)
+        # Find all schedule IDs for the selected test / exam
+        q_sched = session.query(ExamSchedule)
+        if institute_id:
+            q_sched = q_sched.filter(ExamSchedule.institute_id == institute_id)
 
-    if start_date and end_date:
-        q = q.filter(
-            ((ExamSchedule.start_time >= start_date) & (ExamSchedule.start_time <= end_date)) |
-            ((ExamSchedule.created_date >= start_date) & (ExamSchedule.created_date <= end_date))
-        )
-
-    schedules = q.all()
-    if schedules:
-        return [s.schedule_id for s in schedules]
-
-    if test_title or exam_id:
-        q_fallback = session.query(ExamSchedule)
+        target_exam_ids = []
         if test_title:
             clean_title = test_title.strip().lower()
-            exam_ids = [e.exam_id for e in session.query(Exam).filter(func.lower(Exam.title) == clean_title).all()]
-            if exam_ids:
-                q_fallback = q_fallback.filter((func.lower(ExamSchedule.title) == clean_title) | (ExamSchedule.exam_id.in_(exam_ids)))
-            else:
-                q_fallback = q_fallback.filter(func.lower(ExamSchedule.title) == clean_title)
-        elif exam_id:
-            q_fallback = q_fallback.filter(ExamSchedule.exam_id == exam_id)
-        schedules_fallback = q_fallback.all()
-        return [s.schedule_id for s in schedules_fallback]
+            exams = session.query(Exam).filter(
+                (func.lower(Exam.title) == clean_title) |
+                (func.lower(Exam.title).contains(clean_title))
+            ).all()
+            target_exam_ids = [e.exam_id for e in exams if e and e.exam_id]
 
-    return []
+            conds = [
+                func.lower(ExamSchedule.title) == clean_title,
+                func.lower(ExamSchedule.title).contains(clean_title)
+            ]
+            if target_exam_ids:
+                conds.append(ExamSchedule.exam_id.in_(target_exam_ids))
+
+            q_sched = q_sched.filter(or_(*conds))
+        elif exam_id:
+            q_sched = q_sched.filter(ExamSchedule.exam_id == exam_id)
+            target_exam_ids = [exam_id]
+
+        all_test_schedules = q_sched.all()
+        all_schedule_ids = [s.schedule_id for s in all_test_schedules]
+
+        # Fallback matching by title if institute filter produced no schedule
+        if not all_schedule_ids and test_title:
+            clean_title = test_title.strip().lower()
+            q_fallback = session.query(ExamSchedule).filter(
+                (func.lower(ExamSchedule.title) == clean_title) |
+                (func.lower(ExamSchedule.title).contains(clean_title))
+            )
+            all_test_schedules = q_fallback.all()
+            all_schedule_ids = [s.schedule_id for s in all_test_schedules]
+
+        if not all_schedule_ids:
+            return {'status': False, 'message': 'No schedules found for the selected test'}
+
+        # Find attempts where actual exam attempt date (submitted_date or started_date) is within [start_date, end_date]
+        attempt_date_expr = func.coalesce(Exam_Attempt.submitted_date, Exam_Attempt.started_date)
+        q_attempts = session.query(Exam_Attempt).filter(
+            Exam_Attempt.schedule_id.in_(all_schedule_ids),
+            attempt_date_expr >= start_date,
+            attempt_date_expr <= end_date
+        )
+
+        matching_attempts = q_attempts.all()
+        matching_attempt_ids = [a.attempt_id for a in matching_attempts]
+        matching_user_ids = list({a.user_id for a in matching_attempts})
+
+        resolved_exam_id = target_exam_ids[0] if target_exam_ids else (all_test_schedules[0].exam_id if all_test_schedules else None)
+        pass_mark = None
+        if all_test_schedules and all_test_schedules[0].pass_mark is not None:
+            pass_mark = all_test_schedules[0].pass_mark
+        elif resolved_exam_id:
+            ex = session.query(Exam).filter(Exam.exam_id == resolved_exam_id).first()
+            if ex:
+                pass_mark = ex.pass_mark
+
+        return {
+            'status': True,
+            'mode': 'daterange',
+            'schedules': all_test_schedules,
+            'schedule_ids': all_schedule_ids,
+            'attempt_ids': matching_attempt_ids,
+            'attempts': matching_attempts,
+            'user_ids': matching_user_ids,
+            'exam_id': resolved_exam_id,
+            'pass_mark': pass_mark,
+            'start_date': start_date,
+            'end_date': end_date
+        }
+
+    else:
+        # Select Schedule Mode: Filter strictly by schedule_id
+        if not schedule_id:
+            return {'status': False, 'message': 'Missing schedule_id or date range criteria'}
+
+        schedule_ids = [schedule_id]
+        schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == schedule_id).first()
+        if not schedule:
+            return {'status': False, 'message': 'Schedule not found'}
+
+        q_attempts = session.query(Exam_Attempt).filter(Exam_Attempt.schedule_id.in_(schedule_ids))
+        matching_attempts = q_attempts.all()
+        matching_attempt_ids = [a.attempt_id for a in matching_attempts]
+        matching_user_ids = list({a.user_id for a in matching_attempts})
+
+        pass_mark = schedule.pass_mark
+        if pass_mark is None and schedule.exam_id:
+            ex = session.query(Exam).filter(Exam.exam_id == schedule.exam_id).first()
+            if ex:
+                pass_mark = ex.pass_mark
+
+        return {
+            'status': True,
+            'mode': 'schedule',
+            'schedules': [schedule],
+            'schedule_ids': schedule_ids,
+            'attempt_ids': matching_attempt_ids,
+            'attempts': matching_attempts,
+            'user_ids': matching_user_ids,
+            'exam_id': schedule.exam_id,
+            'pass_mark': pass_mark
+        }
 
 
 def get_user_wise_report(request):
@@ -73,11 +144,15 @@ def get_user_wise_report(request):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     args = getattr(request, 'args', {})
-    schedule_ids = resolve_schedule_ids(session, args)
-    if not schedule_ids:
-        return {"statusMessage": "No schedules found matching criteria", "status": False}, 400
+    ctx = resolve_report_context(session, args)
+    if not ctx.get('status'):
+        return {"statusMessage": ctx.get('message', "No schedules found matching criteria"), "status": False}, 400
 
+    schedule_ids = ctx['schedule_ids']
+    attempt_ids = ctx['attempt_ids']
+    mode = ctx['mode']
     q = (args.get('q') or '').strip().lower()
+
     try:
         page = int(args.get('page', 1))
     except Exception:
@@ -88,64 +163,168 @@ def get_user_wise_report(request):
         page_size = 25
 
     try:
-        # find distinct users who have attempts or answers for these schedules
-        ans_users = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids)).distinct().all()
-        att_users = session.query(Exam_Attempt.user_id).filter(Exam_Attempt.schedule_id.in_(schedule_ids)).distinct().all()
-        user_ids = list(set([u[0] for u in ans_users if u and u[0]] + [u[0] for u in att_users if u and u[0]]))
+        user_sched_pairs = set()
 
+        for att in ctx['attempts']:
+            if att.user_id and att.schedule_id:
+                user_sched_pairs.add((att.user_id, att.schedule_id))
+
+        if mode == 'daterange':
+            ans_rows = session.query(Answer.user_id, Answer.schedule_id).filter(
+                Answer.schedule_id.in_(schedule_ids),
+                Answer.created_date >= ctx['start_date'],
+                Answer.created_date <= ctx['end_date']
+            ).distinct().all()
+            for uid, sid in ans_rows:
+                if uid and sid:
+                    user_sched_pairs.add((uid, sid))
+        else:
+            ans_rows = session.query(Answer.user_id, Answer.schedule_id).filter(
+                Answer.schedule_id.in_(schedule_ids)
+            ).distinct().all()
+            for uid, sid in ans_rows:
+                if uid and sid:
+                    user_sched_pairs.add((uid, sid))
+
+        if not user_sched_pairs:
+            for uid in ctx['user_ids']:
+                if schedule_ids:
+                    user_sched_pairs.add((uid, schedule_ids[0]))
+
+        user_sched_list = list(user_sched_pairs)
         rows = []
-        schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id.in_(schedule_ids)).first()
-        pass_mark = schedule.pass_mark if schedule and schedule.pass_mark is not None else None
+        default_pass_mark = ctx.get('pass_mark')
 
-        for uid in user_ids:
+        for uid, sid in user_sched_list:
             user = session.query(User).filter(User.user_id == uid).first()
             if not user:
                 continue
 
-            answers = session.query(Answer).filter(Answer.schedule_id.in_(schedule_ids), Answer.user_id == uid).all()
+            if args.get('department_id'):
+                depts = [d.strip() for d in args.get('department_id').split(',') if d.strip()]
+                if user.department_id not in depts:
+                    continue
+            if args.get('team_id'):
+                teams = [t.strip() for t in args.get('team_id').split(',') if t.strip()]
+                if user.team_id not in teams:
+                    continue
+            if args.get('campus_id') and user.campus_id != args.get('campus_id'):
+                continue
+            if args.get('active_status'):
+                req_active = 1 if args.get('active_status').lower() == 'active' else 0
+                if user.active_status != req_active:
+                    continue
+            if args.get('country_id') and user.country_id != args.get('country_id'):
+                continue
+            if args.get('city_id') and user.city_id != args.get('city_id'):
+                continue
 
-            total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(answer.question_id for answer in answers)).scalar() or 0
+            if mode == 'daterange':
+                att_ids_for_pair = [a.attempt_id for a in ctx['attempts'] if a.user_id == uid and a.schedule_id == sid]
+                if att_ids_for_pair:
+                    answers = session.query(Answer).filter(
+                        Answer.user_id == uid,
+                        Answer.schedule_id == sid,
+                        (Answer.attempt_id.in_(att_ids_for_pair)) | (
+                            (Answer.created_date >= ctx['start_date']) &
+                            (Answer.created_date <= ctx['end_date'])
+                        )
+                    ).all()
+                else:
+                    answers = session.query(Answer).filter(
+                        Answer.user_id == uid,
+                        Answer.schedule_id == sid,
+                        Answer.created_date >= ctx['start_date'],
+                        Answer.created_date <= ctx['end_date']
+                    ).all()
+            else:
+                answers = session.query(Answer).filter(Answer.schedule_id == sid, Answer.user_id == uid).all()
 
-            grouped = session.query(Answer.question_id, func.max(Answer.is_correct).label('any_correct')).filter(Answer.schedule_id.in_(schedule_ids), Answer.user_id == uid).group_by(Answer.question_id).all()
+            grouped = {}
+            for ans in answers:
+                qid = ans.question_id
+                is_corr = (ans.is_correct or 0)
+                if qid not in grouped or is_corr > grouped[qid]:
+                    grouped[qid] = is_corr
 
             questions_attempted = len(grouped)
-            correct = sum(1 for _qid, any_correct in grouped if (any_correct or 0) == 1)
+            correct = sum(1 for qid, is_corr in grouped.items() if is_corr == 1)
             wrong = questions_attempted - correct
+
+            question_ids = list(grouped.keys())
+            total_marks = 0
+            if question_ids:
+                total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(question_ids)).scalar() or 0
+
             marks = sum((a.marks_awarded or 0) for a in answers)
 
-            attempts = session.query(Exam_Attempt).filter(Exam_Attempt.schedule_id.in_(schedule_ids), Exam_Attempt.user_id == uid).all()
+            if mode == 'daterange':
+                user_attempts = [a for a in ctx['attempts'] if a.user_id == uid and a.schedule_id == sid]
+            else:
+                user_attempts = session.query(Exam_Attempt).filter(Exam_Attempt.schedule_id == sid, Exam_Attempt.user_id == uid).all()
+
+            sched_obj = next((s for s in ctx.get('schedules', []) if str(s.schedule_id) == str(sid)), None)
+            pass_mark = sched_obj.pass_mark if (sched_obj and sched_obj.pass_mark is not None) else default_pass_mark
+
             best_percentage = None
             result = ''
-            if attempts:
-                best_percentage = max((a.percentage or 0) for a in attempts)
+            if user_attempts:
+                best_percentage = max((a.percentage or 0) for a in user_attempts)
                 if pass_mark is not None:
                     result = 'Pass' if (best_percentage is not None and best_percentage >= pass_mark) else 'Fail'
                 else:
                     result = 'Pass' if (best_percentage and best_percentage >= 50) else 'Fail'
+            elif answers:
+                result = 'Evaluated' if any(a.is_validated for a in answers) else 'Submitted'
             else:
                 result = 'No Attempt'
 
-            user_schedule_id = None
-            if attempts and attempts[0].schedule_id:
-                user_schedule_id = str(attempts[0].schedule_id)
-            elif answers and answers[0].schedule_id:
-                user_schedule_id = str(answers[0].schedule_id)
-            elif schedule_ids:
-                user_schedule_id = str(schedule_ids[0])
+            attempt_date_str = None
+            if user_attempts:
+                dt = user_attempts[0].submitted_date or user_attempts[0].started_date
+                if dt:
+                    attempt_date_str = dt.strftime('%Y-%m-%d %H:%M:%S')
+            if not attempt_date_str and answers and answers[0].created_date:
+                attempt_date_str = answers[0].created_date.strftime('%Y-%m-%d %H:%M:%S')
+
+            all_user_sched_attempts = session.query(Exam_Attempt).filter(
+                Exam_Attempt.schedule_id == sid,
+                Exam_Attempt.user_id == uid
+            ).order_by(Exam_Attempt.started_date.asc()).all()
+
+            retest_attempts = [a for a in all_user_sched_attempts if (a.attempt_number and a.attempt_number > 1)]
+            retest_taken = "Yes" if retest_attempts else "No"
+            retest_pct = None
+            retest_date_str = None
+            retest_result = None
+            if retest_attempts:
+                best_retest = max(retest_attempts, key=lambda a: (a.percentage or 0))
+                retest_pct = best_retest.percentage
+                rdt = best_retest.submitted_date or best_retest.started_date
+                if rdt:
+                    retest_date_str = rdt.strftime('%Y-%m-%d %H:%M:%S')
+                if pass_mark is not None:
+                    retest_result = 'Pass' if (retest_pct is not None and retest_pct >= pass_mark) else 'Fail'
+                else:
+                    retest_result = 'Pass' if (retest_pct is not None and retest_pct >= 50) else 'Fail'
 
             rows.append({
                 'user_id': uid,
-                'schedule_id': user_schedule_id,
+                'schedule_id': str(sid),
                 'student_name': user.full_name,
+                'test_taken_date': attempt_date_str,
                 'questions_attempted': questions_attempted,
                 'correct_answers': correct,
                 'wrong_answers': wrong,
-                'total_marks' : total_marks,
+                'total_marks': total_marks,
                 'marks_obtained': marks,
                 'result': result,
-                'percentage': round(best_percentage, 2) if best_percentage is not None else None
+                'percentage': round(best_percentage, 2) if best_percentage is not None else None,
+                'retest_taken': retest_taken,
+                'retest_percentage': round(retest_pct, 2) if retest_pct is not None else None,
+                'retest_date': retest_date_str,
+                'retest_result': retest_result
             })
-
 
         if q:
             rows = [r for r in rows if q in (r['student_name'] or '').lower()]
@@ -174,7 +353,8 @@ def get_user_wise_report(request):
             }
         }, 200
     except Exception as e:
-        print(f'Error generating user-wise report {e}, at line {e.__traceback__.tb_lineno}')
+        lineno = e.__traceback__.tb_lineno if getattr(e, "__traceback__", None) else 'N/A'
+        print(f'Error generating user-wise report {e}, at line {lineno}')
         return {"statusMessage": f"Error generating report: {str(e)}", "status": False}, 500
 
 
@@ -185,31 +365,57 @@ def get_exam_analytics(request):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     args = getattr(request, 'args', {})
-    schedule_ids = resolve_schedule_ids(session, args)
-    if not schedule_ids:
-        return {"statusMessage": "No schedules found matching criteria", "status": False}, 400
+    ctx = resolve_report_context(session, args)
+    if not ctx.get('status'):
+        return {"statusMessage": ctx.get('message', "No schedules found matching criteria"), "status": False}, 400
+
+    schedule_ids = ctx['schedule_ids']
+    attempt_ids = ctx['attempt_ids']
+    mode = ctx['mode']
+    exam_id = ctx.get('exam_id')
 
     try:
-        schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id.in_(schedule_ids)).first()
-        if not schedule:
-            return {"statusMessage": "Schedule not found", "status": False}, 404
-        exam_id = schedule.exam_id
+        if not exam_id and schedule_ids:
+            sched = session.query(ExamSchedule).filter(ExamSchedule.schedule_id.in_(schedule_ids)).first()
+            if sched:
+                exam_id = sched.exam_id
 
-        participant_ids = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids)).distinct().all()
-        participant_count = len([p[0] for p in participant_ids])
+        if mode == 'daterange':
+            if attempt_ids:
+                ans_q = session.query(Answer.user_id).filter(Answer.attempt_id.in_(attempt_ids))
+            else:
+                ans_q = session.query(Answer.user_id).filter(
+                    Answer.schedule_id.in_(schedule_ids),
+                    Answer.created_date >= ctx['start_date'],
+                    Answer.created_date <= ctx['end_date']
+                )
+        else:
+            ans_q = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids))
 
-        mappings = session.query(ExamMapping).filter(ExamMapping.exam_id == exam_id).all()
+        participant_ids = ans_q.distinct().all()
+        participant_count = len([p[0] for p in participant_ids if p and p[0]])
+
+        mappings = session.query(ExamMapping).filter(ExamMapping.exam_id == exam_id).all() if exam_id else []
 
         question_summary = []
-        
-        eqm_qids = [qm.question_id for qm in session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == exam_id).all()]
+        eqm_qids = [qm.question_id for qm in session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == exam_id).all()] if exam_id else []
 
         cat_ids = [m.category_id for m in mappings if m.category_id]
         cat_qids = []
         if cat_ids:
             cat_qids = [qm.question_id for qm in session.query(QuestionMapping.question_id).filter(QuestionMapping.category_id.in_(cat_ids)).all()]
 
-        ans_qids = [qid[0] for qid in session.query(Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids)).distinct().all()]
+        if mode == 'daterange':
+            if attempt_ids:
+                ans_qids = [qid[0] for qid in session.query(Answer.question_id).filter(Answer.attempt_id.in_(attempt_ids)).distinct().all()]
+            else:
+                ans_qids = [qid[0] for qid in session.query(Answer.question_id).filter(
+                    Answer.schedule_id.in_(schedule_ids),
+                    Answer.created_date >= ctx['start_date'],
+                    Answer.created_date <= ctx['end_date']
+                ).distinct().all()]
+        else:
+            ans_qids = [qid[0] for qid in session.query(Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids)).distinct().all()]
 
         combined_qids = []
         seen_qids = set()
@@ -224,19 +430,16 @@ def get_exam_analytics(request):
             qobj = session.query(Question).filter(Question.question_id == qid).first()
             if not qobj:
                 continue
-            try:
-                category_data = session.query(Categories).join(
-                    QuestionMapping, QuestionMapping.category_id == Categories.category_id
-                ).filter(
-                    QuestionMapping.question_id == qid
-                ).first()
-                category_name = category_data.name if category_data else None
-                category_id = category_data.category_id if category_data else None
-            except Exception:
-                category_name = None
-                category_id = None
 
-            if not category_id:
+            category_data = session.query(Categories).join(
+                QuestionMapping, QuestionMapping.category_id == Categories.category_id
+            ).filter(
+                QuestionMapping.question_id == qid
+            ).first()
+            category_name = category_data.name if category_data else None
+            category_id = category_data.category_id if category_data else None
+
+            if not category_id and exam_id:
                 try:
                     eqm = session.query(ExamQuestionMapping).filter(
                         ExamQuestionMapping.exam_id == exam_id,
@@ -249,14 +452,24 @@ def get_exam_analytics(request):
                 except Exception:
                     pass
 
-            user_attempts = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid).distinct().count()
+            if mode == 'daterange':
+                if attempt_ids:
+                    user_attempts_q = session.query(Answer.user_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == qid)
+                    user_q_attempts_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == qid)
+                    mistakes_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == qid, Answer.is_correct == 0)
+                else:
+                    user_attempts_q = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == qid)
+                    user_q_attempts_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == qid)
+                    mistakes_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == qid, Answer.is_correct == 0)
+            else:
+                user_attempts_q = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid)
+                user_q_attempts_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid)
+                mistakes_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid, Answer.is_correct == 0)
 
-            user_question_attempts = session.query(Answer.user_id, Answer.question_id).filter(
-                Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid).distinct().all()
+            user_attempts = user_attempts_q.distinct().count()
+            user_question_attempts = user_q_attempts_q.distinct().all()
             total_attempts = len(user_question_attempts)
-
-            mistakes = session.query(Answer.user_id, Answer.question_id).filter(
-                Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid, Answer.is_correct == 0).distinct().count()
+            mistakes = mistakes_q.distinct().count()
             error_pct = (mistakes / total_attempts * 100) if total_attempts > 0 else 0
 
             question_summary.append({
@@ -297,33 +510,33 @@ def get_exam_analytics(request):
                 total_questions = (m.number_of_questions or 0) if m else 0
 
             if cat_qids_list:
-                participant_count = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id.in_(cat_qids_list)).distinct().count()
-                user_question_attempts = session.query(
-                    Answer.user_id,
-                    Answer.question_id,
-                ).filter(
-                    Answer.schedule_id.in_(schedule_ids),
-                    Answer.question_id.in_(cat_qids_list)
-                ).group_by(Answer.user_id, Answer.question_id).all()
-                total_attempts = len(set(user_question_attempts))
+                if mode == 'daterange':
+                    if attempt_ids:
+                        cat_part_q = session.query(Answer.user_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id.in_(cat_qids_list))
+                        cat_att_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id.in_(cat_qids_list))
+                        cat_wrong_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id.in_(cat_qids_list), Answer.is_correct == 0)
+                    else:
+                        cat_part_q = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id.in_(cat_qids_list))
+                        cat_att_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id.in_(cat_qids_list))
+                        cat_wrong_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id.in_(cat_qids_list), Answer.is_correct == 0)
+                else:
+                    cat_part_q = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id.in_(cat_qids_list))
+                    cat_att_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id.in_(cat_qids_list))
+                    cat_wrong_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id.in_(cat_qids_list), Answer.is_correct == 0)
 
-                total_wrong_answers = session.query(
-                    Answer.user_id, Answer.question_id
-                ).filter(
-                    Answer.schedule_id.in_(schedule_ids),
-                    Answer.question_id.in_(cat_qids_list),
-                    Answer.is_correct == 0
-                ).distinct().count()
-
+                cat_participant_count = cat_part_q.distinct().count()
+                cat_user_q_attempts = cat_att_q.group_by(Answer.user_id, Answer.question_id).all()
+                total_attempts = len(set(cat_user_q_attempts))
+                total_wrong_answers = cat_wrong_q.distinct().count()
                 total_correct_answers = total_attempts - total_wrong_answers
             else:
                 total_attempts = 0
                 total_wrong_answers = 0
-                participant_count = 0
+                cat_participant_count = 0
                 total_correct_answers = 0
 
             error_percentage = (total_wrong_answers / total_attempts * 100) if total_attempts > 0 else 0
-            denom = (total_attempts * participant_count) if (total_attempts and participant_count) else 0
+            denom = (total_attempts * cat_participant_count) if (total_attempts and cat_participant_count) else 0
             impact_percentage = (total_wrong_answers / denom * 100) if denom > 0 else 0
 
             category_name = None
@@ -341,7 +554,7 @@ def get_exam_analytics(request):
                 'category_id': cat_id,
                 'category_name': category_name or str(cat_id),
                 'total_questions': int(total_questions),
-                'no_of_students': int(participant_count),
+                'no_of_students': int(cat_participant_count),
                 'total_attempts': int(total_attempts),
                 'correct_answers': int(total_correct_answers),
                 'wrong_answers': int(total_wrong_answers),
@@ -352,13 +565,21 @@ def get_exam_analytics(request):
         wrong_answer_distribution = []
         for q in question_summary:
             qid = q['question_id']
-            opt_counts = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid, Answer.is_correct == 0).group_by(Option.options_id, Option.option_text).all()
+            if mode == 'daterange':
+                if attempt_ids:
+                    opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == qid, Answer.is_correct == 0)
+                else:
+                    opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == qid, Answer.is_correct == 0)
+            else:
+                opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid, Answer.is_correct == 0)
+
+            opt_counts = opt_q.group_by(Option.options_id, Option.option_text).all()
             total_sel = sum([c[2] for c in opt_counts])
             dist = []
             for opt_id, opt_text, cnt in opt_counts:
                 pct = (cnt / total_sel * 100) if total_sel > 0 else 0
-                dist.append({ 'option_id': opt_id, 'option_text': opt_text, 'count': int(cnt), 'percentage': round(pct,2) })
-            wrong_answer_distribution.append({ 'question_id': qid, 'question_text': q['question_text'], 'distribution': dist })
+                dist.append({'option_id': opt_id, 'option_text': opt_text, 'count': int(cnt), 'percentage': round(pct, 2)})
+            wrong_answer_distribution.append({'question_id': qid, 'question_text': q['question_text'], 'distribution': dist})
 
         result = {
             'statusMessage': 'Analytics generated',
@@ -383,27 +604,42 @@ def get_question_wrong_answers(request):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     args = getattr(request, 'args', {})
-    schedule_ids = resolve_schedule_ids(session, args)
+    ctx = resolve_report_context(session, args)
     question_id = args.get('question_id')
-    if not schedule_ids or not question_id:
+    if not ctx.get('status') or not question_id:
         return {"statusMessage": "Missing schedule/date criteria or question_id", "status": False}, 400
 
+    schedule_ids = ctx['schedule_ids']
+    attempt_ids = ctx['attempt_ids']
+    mode = ctx['mode']
+
     try:
-        opt_counts = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == question_id).group_by(Option.options_id, Option.option_text).all()
+        if mode == 'daterange':
+            if attempt_ids:
+                opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == question_id)
+                raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == question_id, Answer.is_correct == 0)
+            else:
+                opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == question_id)
+                raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == question_id, Answer.is_correct == 0)
+        else:
+            opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == question_id)
+            raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == question_id, Answer.is_correct == 0)
+
+        opt_counts = opt_q.group_by(Option.options_id, Option.option_text).all()
         total_sel = sum([c[2] for c in opt_counts])
         distribution = []
         for opt_id, opt_text, cnt in opt_counts:
             pct = (cnt / total_sel * 100) if total_sel > 0 else 0
-            distribution.append({ 'option_id': opt_id, 'option_text': opt_text, 'count': int(cnt), 'percentage': round(pct,2) })
+            distribution.append({'option_id': opt_id, 'option_text': opt_text, 'count': int(cnt), 'percentage': round(pct, 2)})
 
-        raw_wrong = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == question_id, Answer.is_correct == 0).group_by(Answer.written_answer).all()
+        raw_wrong = raw_q.group_by(Answer.written_answer).all()
         raw_list = []
         for txt, cnt in raw_wrong:
             option_obj = session.query(Option).filter(Option.option_text == txt, Option.question_id == question_id).first()
             option_id = option_obj.options_id if option_obj else None
             raw_list.append({'text': txt, 'count': int(cnt), 'option_id': option_id})
 
-        return {'statusMessage': 'Question wrong answers retrieved', 'status': True, 'data': { 'question_id': question_id, 'distribution': distribution, 'raw': raw_list }}, 200
+        return {'statusMessage': 'Question wrong answers retrieved', 'status': True, 'data': {'question_id': question_id, 'distribution': distribution, 'raw': raw_list}}, 200
     except Exception as e:
         lineno = e.__traceback__.tb_lineno if getattr(e, "__traceback__", None) else 'N/A'
         print(f"Error fetching question wrong answers: {e} Line # {lineno}")
@@ -417,18 +653,29 @@ def get_resources_for_answer(request):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     args = getattr(request, 'args', {})
-    schedule_ids = resolve_schedule_ids(session, args)
+    ctx = resolve_report_context(session, args)
+    if not ctx.get('status'):
+        return {"statusMessage": "Missing schedule or date range criteria", "status": False}, 400
+
+    schedule_ids = ctx['schedule_ids']
+    attempt_ids = ctx['attempt_ids']
+    mode = ctx['mode']
+
     option_id = args.get('option_id', None)
     answer_id = args.get('answer_id', None)
     question_id = args.get('question_id', None)
     answer_value = args.get('answer_value', None)
 
     try:
-        if not schedule_ids:
-            return {"statusMessage": "Missing schedule or date range criteria", "status": False}, 400
+        q = session.query(Answer).filter(Answer.is_correct == 0)
 
-        q = session.query(Answer)
-        q = q.filter(Answer.schedule_id.in_(schedule_ids), Answer.is_correct == 0)
+        if mode == 'daterange':
+            if attempt_ids:
+                q = q.filter(Answer.attempt_id.in_(attempt_ids))
+            else:
+                q = q.filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'])
+        else:
+            q = q.filter(Answer.schedule_id.in_(schedule_ids))
 
         if answer_id:
             q = q.filter(Answer.answer_id == answer_id)
@@ -447,15 +694,16 @@ def get_resources_for_answer(request):
         if not answers:
             return {"statusMessage": "No answers found for given parameters", "status": False}, 404
 
-        user_ids = list({ a.user_id for a in answers })
+        user_ids = list({a.user_id for a in answers})
         users = session.query(User).filter(User.user_id.in_(user_ids)).all()
         out = []
         for user in users:
-            out.append({ 'user_id': user.user_id, 'full_name': user.full_name, 'email': user.email })
+            out.append({'user_id': user.user_id, 'full_name': user.full_name, 'email': user.email})
 
-        context = { 'schedule_ids': schedule_ids, 'question_id': question_id, 'option_id': option_id, 'answer_id': answer_id, 'answer_value': answer_value }
-        return { 'statusMessage': 'Resources (users) retrieved', 'status': True, 'context': context, 'data': out }, 200
+        context = {'schedule_ids': schedule_ids, 'question_id': question_id, 'option_id': option_id, 'answer_id': answer_id, 'answer_value': answer_value}
+        return {'statusMessage': 'Resources (users) retrieved', 'status': True, 'context': context, 'data': out}, 200
     except Exception as e:
         print('Error fetching resources for answer', e)
         return {"statusMessage": f"Error fetching resources: {str(e)}", "status": False}, 500
+
 

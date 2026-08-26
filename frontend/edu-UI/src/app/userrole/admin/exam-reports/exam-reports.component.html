@@ -412,13 +412,17 @@
 
             <!-- Row 6: Test Name (Full Width) -->
             <div class="filter-col-full">
-              <mat-form-field appearance="outline" class="filter-item mandatory-field">
+              <mat-form-field
+                appearance="outline"
+                class="filter-item mandatory-field"
+                [class.mat-form-field-invalid]="testNameError"
+              >
                 <mat-label>Test Name <span class="required-mark">*</span></mat-label>
                 <mat-select
                   [(ngModel)]="userFilters.schedule_id"
                   name="filterTestName"
                   (openedChange)="onSelectOpened($event, 'schedule')"
-                  (selectionChange)="onTestFilterSelected($event.value)"
+                  (selectionChange)="testNameError = false"
                 >
                   <div class="select-search-option" (click)="$event.stopPropagation()">
                     <input
@@ -450,6 +454,9 @@
                     {{ getTestTitle(exam) }}
                   </mat-option>
                 </mat-select>
+                <mat-hint *ngIf="testNameError" style="color: #ef4444; font-weight: 500; font-size: 11px;">
+                  Test Name is mandatory. Please select a Test Name.
+                </mat-hint>
               </mat-form-field>
             </div>
 
@@ -565,20 +572,31 @@
     <!-- Mode 1: Select Schedule -->
     <div class="selection-fields-grid" *ngIf="selectionMode === 'schedule'">
       <!-- Step 1: Select Test -->
-      <mat-form-field appearance="outline" class="selection-field">
+      <mat-form-field
+        appearance="outline"
+        class="selection-field readonly-test-field"
+        [class.test-selected]="!!displayTestName"
+      >
         <mat-label>Test <span class="required-mark">*</span></mat-label>
         <input
           matInput
           type="text"
           [value]="displayTestName"
-          placeholder="Test Name"
+          placeholder="Select Test from Filter"
           readonly
+          tabindex="-1"
+          style="cursor: default; user-select: none; caret-color: transparent;"
         />
         <mat-hint *ngIf="!uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
       </mat-form-field>
 
       <!-- Step 2: Select Date (with highlighted dates) -->
-      <mat-form-field appearance="outline" class="selection-field">
+      <mat-form-field
+        appearance="outline"
+        class="selection-field date-picker-field"
+        (click)="displayTestName && scheduleDatePicker.open()"
+        style="cursor: pointer"
+      >
         <mat-label>Schedule Date <span class="required-mark">*</span></mat-label>
         <input
           matInput
@@ -587,6 +605,8 @@
           (dateChange)="onScheduleDateSelect($event.value)"
           placeholder="Select Date"
           readonly
+          (click)="displayTestName && scheduleDatePicker.open()"
+          style="cursor: pointer"
           [disabled]="!displayTestName"
         />
         <mat-datepicker-toggle matSuffix [for]="scheduleDatePicker" [disabled]="!displayTestName"></mat-datepicker-toggle>
@@ -620,14 +640,20 @@
     <!-- Mode 2: Select Date Range -->
     <div class="selection-fields-grid date-range-mode-grid" *ngIf="selectionMode === 'daterange'">
       <!-- Select Test Name -->
-      <mat-form-field appearance="outline" class="selection-field">
+      <mat-form-field
+        appearance="outline"
+        class="selection-field readonly-test-field"
+        [class.test-selected]="!!displayTestName"
+      >
         <mat-label>Test Name <span class="required-mark">*</span></mat-label>
         <input
           matInput
           type="text"
           [value]="displayTestName"
-          placeholder="Test Name"
+          placeholder="Select Test from Filter"
           readonly
+          tabindex="-1"
+          style="cursor: default; user-select: none; caret-color: transparent;"
         />
         <mat-hint *ngIf="!uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
       </mat-form-field>
@@ -636,10 +662,10 @@
       <mat-form-field
         appearance="outline"
         class="selection-field date-range-field"
-        (click)="openDateRangeSelectionPicker()"
+        (click)="displayTestName && openDateRangeSelectionPicker()"
         style="cursor: pointer"
       >
-        <mat-label>Created Date (Choose Date Range) <span class="required-mark">*</span></mat-label>
+        <mat-label>Attempt Date Range <span class="required-mark">*</span></mat-label>
         <input
           matInput
           readonly
@@ -1058,12 +1084,13 @@
           </div>
           <div class="tab-actions">
             <div class="search">
-              <mat-form-field appearance="outline" class="search-field"
-                ><mat-icon matPrefix>search</mat-icon>
+              <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
+                <mat-icon matPrefix>search</mat-icon>
                 <input
                   matInput
                   [(ngModel)]="searchQuery"
-                  placeholder="Search by student name"
+                  (input)="onStudentSearchInput()"
+                  placeholder="Search by student name..."
                   aria-label="Search by student name"
                 />
               </mat-form-field>
@@ -1071,21 +1098,23 @@
             <div class="controls">
               <div class="action-row">
                 <button
-                  mat-stroked-button
-                  color="primary"
+                  mat-flat-button
+                  class="refresh-table-btn"
                   type="button"
-                  (click)="loadUserReport(1)"
+                  [disabled]="isUserReportRefreshing"
+                  (click)="refreshUserReportTable()"
                 >
-                  <mat-icon>search</mat-icon> Search
+                  <mat-icon [class.spinning]="isUserReportRefreshing">refresh</mat-icon>
+                  <span>{{ isUserReportRefreshing ? 'Refreshing...' : 'Refresh' }}</span>
                 </button>
-                <button mat-stroked-button type="button" (click)="exportUserCSV()">
+                <button mat-stroked-button class="export-table-btn" type="button" (click)="exportUserCSV()">
                   <mat-icon>download</mat-icon> Export CSV
                 </button>
               </div>
             </div>
           </div>
 
-          <div class="table-wrap" *ngIf="!loadingUserReport">
+          <div class="table-wrap">
             <table
               mat-table
               [dataSource]="userReportData"
@@ -1093,7 +1122,7 @@
               matSort
             >
               <ng-container matColumnDef="student_name">
-                <th mat-header-cell *matHeaderCellDef>Student</th>
+                <th mat-header-cell *matHeaderCellDef>STUDENT</th>
                 <td mat-cell *matCellDef="let row" class="cell-primary">
                   <div class="student-cell" (click)="openUserReview(row)">
                     <div class="student-avatar">
@@ -1105,35 +1134,20 @@
                   </div>
                 </td>
               </ng-container>
-              <ng-container matColumnDef="questions_attempted">
-                <th mat-header-cell *matHeaderCellDef>Marks / Total</th>
+              <ng-container matColumnDef="test_taken_date">
+                <th mat-header-cell *matHeaderCellDef>TEST DATE</th>
                 <td mat-cell *matCellDef="let row">
-                  <span class="marks-inline"
-                    >{{ row.marks_obtained }} <span class="marks-sep">/</span>
-                    {{ row.total_marks }}</span
-                  >
+                  <span class="cell-date">{{ formatDateShort(row.test_taken_date) }}</span>
                 </td>
               </ng-container>
-              <ng-container matColumnDef="correct_answers">
-                <th mat-header-cell *matHeaderCellDef>Percentage</th>
+              <ng-container matColumnDef="percentage">
+                <th mat-header-cell *matHeaderCellDef>PERCENTAGE</th>
                 <td mat-cell *matCellDef="let row">
                   <span class="percentage-value">{{ formatPercentage(row.percentage) }}</span>
                 </td>
               </ng-container>
-              <ng-container matColumnDef="wrong_answers">
-                <th mat-header-cell *matHeaderCellDef>Manual Review</th>
-                <td mat-cell *matCellDef="let row">
-                  <span
-                    class="review-status"
-                    [class.review-pending]="
-                      row.manual_review === 'pending' || row.manual_review === 'Pending'
-                    "
-                    >{{ row.manual_review }}</span
-                  >
-                </td>
-              </ng-container>
               <ng-container matColumnDef="result">
-                <th mat-header-cell *matHeaderCellDef>Result</th>
+                <th mat-header-cell *matHeaderCellDef>RESULT</th>
                 <td mat-cell *matCellDef="let row">
                   <span
                     class="result-pill"
@@ -1145,7 +1159,54 @@
                       (row.result || '').toLowerCase() === 'fail' ||
                       (row.result || '').toLowerCase() === 'failed'
                     "
-                    >{{ row.result }}</span
+                    >{{ row.result || '-' }}</span
+                  >
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="retest_date">
+                <th mat-header-cell *matHeaderCellDef>RETEST DATE</th>
+                <td mat-cell *matCellDef="let row">
+                  <span class="cell-date" *ngIf="row.retest_date">{{ formatDateShort(row.retest_date) }}</span>
+                  <span class="cell-muted" *ngIf="!row.retest_date">-</span>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="retest_percentage">
+                <th mat-header-cell *matHeaderCellDef>RETEST %</th>
+                <td mat-cell *matCellDef="let row">
+                  <span class="percentage-value" *ngIf="row.retest_percentage !== null && row.retest_percentage !== undefined">
+                    {{ formatPercentage(row.retest_percentage) }}
+                  </span>
+                  <span class="cell-muted" *ngIf="row.retest_percentage === null || row.retest_percentage === undefined">-</span>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="retest_result">
+                <th mat-header-cell *matHeaderCellDef>RETEST RESULT</th>
+                <td mat-cell *matCellDef="let row">
+                  <span
+                    class="result-pill"
+                    *ngIf="row.retest_result"
+                    [class.result-pass]="
+                      (row.retest_result || '').toLowerCase() === 'pass' ||
+                      (row.retest_result || '').toLowerCase() === 'passed'
+                    "
+                    [class.result-fail]="
+                      (row.retest_result || '').toLowerCase() === 'fail' ||
+                      (row.retest_result || '').toLowerCase() === 'failed'
+                    "
+                    >{{ row.retest_result }}</span
+                  >
+                  <span class="cell-muted" *ngIf="!row.retest_result">-</span>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="manual_review">
+                <th mat-header-cell *matHeaderCellDef>MANUAL REVIEW</th>
+                <td mat-cell *matCellDef="let row">
+                  <span
+                    class="review-status"
+                    [class.review-pending]="
+                      row.manual_review === 'pending' || row.manual_review === 'Pending'
+                    "
+                    >{{ row.manual_review || '-' }}</span
                   >
                 </td>
               </ng-container>
@@ -1154,10 +1215,13 @@
                 mat-header-row
                 *matHeaderRowDef="[
                   'student_name',
-                  'questions_attempted',
-                  'correct_answers',
-                  'wrong_answers',
+                  'test_taken_date',
+                  'percentage',
                   'result',
+                  'retest_date',
+                  'retest_percentage',
+                  'retest_result',
+                  'manual_review',
                 ]"
               ></tr>
               <tr
@@ -1166,10 +1230,13 @@
                   let row;
                   columns: [
                     'student_name',
-                    'questions_attempted',
-                    'correct_answers',
-                    'wrong_answers',
+                    'test_taken_date',
+                    'percentage',
                     'result',
+                    'retest_date',
+                    'retest_percentage',
+                    'retest_result',
+                    'manual_review',
                   ]
                 "
               ></tr>
