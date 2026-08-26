@@ -83,7 +83,7 @@
 
                         <ng-container matColumnDef="sno">
                            <th mat-header-cell *matHeaderCellDef>S.No</th>
-                           <td mat-cell *matCellDef="let row">
+                           <td mat-cell *matCellDef="let row" class="cell-center">
                               {{ getSNo(activeSource, row) }}
                            </td>
                         </ng-container>
@@ -91,14 +91,19 @@
                         <ng-container matColumnDef="title">
                            <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
                            <td mat-cell *matCellDef="let row" class="cell-primary">
-                              <div class="exam-cell">
-                                 <!-- <div class="exam-avatar exam-avatar--active">{{ (row.title || '?').charAt(0).toUpperCase() }}</div> -->
-                                 <div class="exam-info">
-                                    <span class="exam-name">{{ row.title }}</span>
-                                    <div *ngIf="row.scheduleTest" class="schedule-range-inline">
-                                       <span class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</span>
-                                       <span class="schedule-separator">–</span>
-                                       <span class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</span>
+                              <div class="attempt-cell-stack">
+                                 <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
+                                    <div class="attempt-title-block">
+                                       <span *ngIf="idx === 0" class="exam-name">{{ row.title }}</span>
+                                       <span *ngIf="idx > 0" class="attempt-number-title">Attempt {{ item.attemptNumber }}<ng-container *ngIf="item.dateDisplay"> - {{ item.dateDisplay }}</ng-container></span>
+                                       <div *ngIf="idx === 0 && item.dateDisplay" class="attempt-date-sub">
+                                          {{ item.dateDisplay }}
+                                       </div>
+                                       <div *ngIf="row.scheduleTest" class="schedule-range-inline">
+                                          <span class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</span>
+                                          <span class="schedule-separator">–</span>
+                                          <span class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</span>
+                                       </div>
                                     </div>
                                  </div>
                               </div>
@@ -107,29 +112,33 @@
 
                         <ng-container matColumnDef="duration">
                            <th mat-header-cell *matHeaderCellDef>Duration</th>
-                           <td mat-cell *matCellDef="let row">
+                           <td mat-cell *matCellDef="let row" class="cell-center">
                               <span class="duration-chip">{{ row.duration_mins || '—' }} min</span>
                            </td>
                         </ng-container>
 
                         <ng-container matColumnDef="questions">
                            <th mat-header-cell *matHeaderCellDef>Questions</th>
-                           <td mat-cell *matCellDef="let row">{{ row.total_questions || 0 }}</td>
+                           <td mat-cell *matCellDef="let row" class="cell-center">{{ row.total_questions || 0 }}</td>
                         </ng-container>
 
                         <ng-container matColumnDef="pass_mark">
                            <th mat-header-cell *matHeaderCellDef>Pass %</th>
-                           <td mat-cell *matCellDef="let row">{{ row.pass_mark || 0 }}%</td>
+                           <td mat-cell *matCellDef="let row" class="cell-center">{{ row.pass_mark || 0 }}%</td>
                         </ng-container>
 
                         <ng-container matColumnDef="number_of_attempts">
                            <th mat-header-cell *matHeaderCellDef>Attempts</th>
-                           <td mat-cell *matCellDef="let row">
-                              <div class="attempts-cell">
-                                 <div class="attempts-used-text">{{ getUsedAttempts(row) }} / {{ row.number_of_attempts || 1 }} Used</div>
-                                 <div class="attempts-remaining-text">{{ getRemainingAttempts(row) }} Remaining</div>
-                                 <div class="attempts-progress-bar">
-                                    <div class="attempts-progress-fill" [style.width.%]="getAttemptProgressPercent(row)"></div>
+                           <td mat-cell *matCellDef="let row" class="cell-center">
+                              <div class="attempt-cell-stack">
+                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
+                                    <div class="attempts-cell">
+                                       <div class="attempts-used-text">{{ item.attemptsUsedDisplay }}</div>
+                                       <div class="attempts-remaining-text">{{ item.attemptsRemainingDisplay }}</div>
+                                       <div class="attempts-progress-bar">
+                                          <div class="attempts-progress-fill" [style.width.%]="item.progressPercent"></div>
+                                       </div>
+                                    </div>
                                  </div>
                               </div>
                            </td>
@@ -137,23 +146,36 @@
 
                         <ng-container matColumnDef="status">
                            <th mat-header-cell *matHeaderCellDef>Status</th>
-                           <td mat-cell *matCellDef="let row">
-                              <div class="status-pill"
-                                 [ngClass]="isUpcomingTest(row.type) ? 'status-pill--upcoming' : 'status-pill--active'">
-                                 <span class="status-dot-sm"></span>{{ isUpcomingTest(row.type) ? 'UPCOMING' : 'ACTIVE' }}
+                           <td mat-cell *matCellDef="let row" class="cell-center">
+                              <div class="attempt-cell-stack">
+                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
+                                    <div class="status-pill" [ngClass]="{
+                                       'status-pill--active': item.statusType === 'PASS' || item.statusType === 'ACTIVE',
+                                       'status-pill--fail': item.statusType === 'FAIL',
+                                       'status-pill--upcoming': item.statusType === 'UPCOMING'
+                                    }">
+                                       <span class="status-dot-sm"></span>{{ item.statusType }}
+                                    </div>
+                                 </div>
                               </div>
                            </td>
                         </ng-container>
 
                         <ng-container matColumnDef="actions">
                            <th mat-header-cell *matHeaderCellDef>Actions</th>
-                           <td mat-cell *matCellDef="let row">
-                              <div class="exam-actions">
-                                 <button *ngIf="(((row.type || '') | lowercase) === 'active')" mat-flat-button
-                                    (click)="confirmStartTest(row)" class="launch-btn">
-                                    <mat-icon>rocket_launch</mat-icon> Start
-                                 </button>
-                                 <span *ngIf="isUpcomingTest(row.type)" class="upcoming-label">Scheduled</span>
+                           <td mat-cell *matCellDef="let row" class="cell-center">
+                              <div class="attempt-cell-stack">
+                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
+                                    <div class="exam-actions">
+                                       <button *ngIf="item.canReview" mat-flat-button class="review-btn" (click)="viewAttemptReview(row, item.attemptObj, $event)">
+                                          <mat-icon>rule</mat-icon> Review
+                                       </button>
+                                       <button *ngIf="item.canStart" mat-flat-button class="launch-btn" (click)="confirmStartTest(row, $event)">
+                                          <mat-icon>rocket_launch</mat-icon> Start
+                                       </button>
+                                       <span *ngIf="!item.canReview && !item.canStart && isUpcomingTest(row.type)" class="upcoming-label">Scheduled</span>
+                                    </div>
+                                 </div>
                               </div>
                            </td>
                         </ng-container>
@@ -170,126 +192,30 @@
             <mat-tab [label]="'Completed (' + completeSource.data.length + ')'">
                <div class="tab-table">
                   <div class="table-responsive">
-                     <table mat-table [dataSource]="completeSource" multiTemplateDataRows class="mat-elevation-z1 compact premium-table" matSort>
+                     <table mat-table [dataSource]="completeSource" class="mat-elevation-z1 compact premium-table" matSort>
 
                         <ng-container matColumnDef="sno">
                            <th mat-header-cell *matHeaderCellDef>S.No</th>
-                           <td mat-cell *matCellDef="let row">
+                           <td mat-cell *matCellDef="let row" class="cell-center">
                               {{ getSNo(completeSource, row) }}
                            </td>
                         </ng-container>
 
-
                         <ng-container matColumnDef="title">
                            <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
                            <td mat-cell *matCellDef="let row" class="cell-primary">
-                              <div class="exam-cell">
-                                 <!-- <div class="exam-avatar exam-avatar--completed">{{ (row.title || '?').charAt(0).toUpperCase() }}</div> -->
-                                 <div class="exam-info">
-                                    <span class="exam-name">{{ row.title }}</span>
-                                    <div *ngIf="row.scheduleTest" class="schedule-range-inline">
-                                       <span class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</span>
-                                       <span class="schedule-separator">–</span>
-                                       <span class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</span>
-                                    </div>
-                                    <a *ngIf="hasMultipleAttempts(row)" class="attempt-toggle-link" (click)="toggleRowExpand(row, $event)">
-                                       {{ isRowExpanded(row) ? 'Hide attempt details ▲' : 'View attempt details ▾' }}
-                                    </a>
-                                 </div>
-                              </div>
-                           </td>
-                        </ng-container>
-                        <ng-container matColumnDef="duration">
-                           <th mat-header-cell *matHeaderCellDef>Duration</th>
-                           <td mat-cell *matCellDef="let row">
-                              <span class="duration-chip">{{ row.duration_mins || '—' }} min</span>
-                           </td>
-                        </ng-container>
-                        <ng-container matColumnDef="questions">
-                           <th mat-header-cell *matHeaderCellDef>Questions</th>
-                           <td mat-cell *matCellDef="let row">{{ row.total_questions || 0 }}</td>
-                        </ng-container>
-                        <ng-container matColumnDef="pass_mark">
-                           <th mat-header-cell *matHeaderCellDef>Score</th>
-                           <td mat-cell *matCellDef="let row">{{ row.user_percentage != null ? (row.user_percentage | number:'1.2-2') + '%' : '—' }}</td>
-                        </ng-container>
-                        <ng-container matColumnDef="number_of_attempts">
-                           <th mat-header-cell *matHeaderCellDef>Attempts</th>
-                           <td mat-cell *matCellDef="let row">
-                              <div class="attempts-cell">
-                                 <div class="attempts-used-text">{{ getUsedAttempts(row) }} / {{ row.number_of_attempts || 1 }} Used</div>
-                                 <div class="attempts-remaining-text">{{ getRemainingAttempts(row) }} Remaining</div>
-                                 <div class="attempts-progress-bar">
-                                    <div class="attempts-progress-fill" [style.width.%]="getAttemptProgressPercent(row)"></div>
-                                 </div>
-                              </div>
-                           </td>
-                        </ng-container>
-                        <ng-container matColumnDef="status">
-                           <th mat-header-cell *matHeaderCellDef>Status</th>
-                           <td mat-cell *matCellDef="let row">
-                              <div class="status-pill" [ngClass]="isPass(row) ? 'status-pill--active' : 'status-pill--fail'">
-                                 <span class="status-dot-sm"></span>{{ isPass(row) ? 'PASS' : 'FAIL' }}
-                              </div>
-                           </td>
-                        </ng-container>
-                        <ng-container matColumnDef="actions">
-                           <th mat-header-cell *matHeaderCellDef>Actions</th>
-                           <td mat-cell *matCellDef="let row">
-                              <div class="exam-actions">
-                                 <button *ngIf="row.user_review" mat-flat-button (click)="viewReview(row)"
-                                    class="review-btn">
-                                    <mat-icon>rule</mat-icon> Review
-                                 </button>
-                              </div>
-                           </td>
-                        </ng-container>
-                        <ng-container matColumnDef="expandedDetail">
-                           <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length" class="expanded-detail-td">
-                              <div class="expanded-detail-wrapper" *ngIf="isRowExpanded(row)">
-                                 <div class="expanded-attempts-box">
-                                    <div class="attempts-subtable-responsive">
-                                       <table class="attempts-subtable">
-                                          <thead>
-                                             <tr>
-                                                <th>Attempt</th>
-                                                <th>Result</th>
-                                                <th>Score</th>
-                                                <th class="att-col-time">Completed Time</th>
-                                                <th>Action</th>
-                                             </tr>
-                                          </thead>
-                                          <tbody>
-                                             <tr *ngFor="let att of getAttemptHistory(row)">
-                                                <td class="att-name-cell">
-                                                   <strong>Attempt {{ att.attempt_number }}</strong>
-                                                </td>
-                                                <td>
-                                                   <div class="status-pill" [ngClass]="isAttemptPass(att, row) ? 'status-pill--active' : 'status-pill--fail'">
-                                                      <span class="status-dot-sm"></span>{{ isAttemptPass(att, row) ? 'PASS' : 'FAIL' }}
-                                                   </div>
-                                                </td>
-                                                <td class="att-score-cell">
-                                                   <span [class.score-fail]="!isAttemptPass(att, row)">
-                                                      {{ att.percentage != null ? (att.percentage | number:'1.2-2') + '%' : (att.score != null ? att.score + '%' : '—') }}
-                                                   </span>
-                                                </td>
-                                                <td class="att-date-cell">
-                                                   <div class="schedule-range-inline"><span class="schedule-time schedule-time--start">{{ formatAttemptDate(att.started_date || att.submitted_date) }}</span><span class="schedule-separator">–</span><span class="schedule-time schedule-time--end">{{ formatAttemptDate(att.submitted_date || att.started_date) }}</span></div>
-                                                </td>
-                                                <td class="att-action-cell">
-                                                   <button mat-flat-button class="review-btn" (click)="viewAttemptReview(row, att)">
-                                                      <mat-icon>rule</mat-icon> Review
-                                                   </button>
-                                                </td>
-                                             </tr>
-                                          </tbody>
-                                       </table>
-                                    </div>
-
-                                    <div class="attempts-box-footer">
-                                       <div class="passmark-info-text">
-                                          Pass mark: <strong>{{ row.pass_mark || 0 }}%</strong> — You need to score {{ row.pass_mark || 0 }}% or more to pass.
+                              <div class="attempt-cell-stack">
+                                 <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
+                                    <div class="attempt-title-block">
+                                       <span *ngIf="idx === 0" class="exam-name">{{ row.title }}</span>
+                                       <span *ngIf="idx > 0" class="attempt-number-title">Attempt {{ item.attemptNumber }}<ng-container *ngIf="item.dateDisplay"> - {{ item.dateDisplay }}</ng-container></span>
+                                       <div *ngIf="idx === 0 && item.dateDisplay" class="attempt-date-sub">
+                                          {{ item.dateDisplay }}
+                                       </div>
+                                       <div *ngIf="row.scheduleTest" class="schedule-range-inline">
+                                          <span class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</span>
+                                          <span class="schedule-separator">–</span>
+                                          <span class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</span>
                                        </div>
                                     </div>
                                  </div>
@@ -297,9 +223,85 @@
                            </td>
                         </ng-container>
 
+                        <ng-container matColumnDef="duration">
+                           <th mat-header-cell *matHeaderCellDef>Duration</th>
+                           <td mat-cell *matCellDef="let row" class="cell-center">
+                              <span class="duration-chip">{{ row.duration_mins || '—' }} min</span>
+                           </td>
+                        </ng-container>
+
+                        <ng-container matColumnDef="questions">
+                           <th mat-header-cell *matHeaderCellDef>Questions</th>
+                           <td mat-cell *matCellDef="let row" class="cell-center">{{ row.total_questions || 0 }}</td>
+                        </ng-container>
+
+                        <ng-container matColumnDef="pass_mark">
+                           <th mat-header-cell *matHeaderCellDef>Score</th>
+                           <td mat-cell *matCellDef="let row" class="cell-center">
+                              <div class="attempt-cell-stack">
+                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
+                                    <span class="score-value" [class.score-fail]="item.statusType === 'FAIL'" [class.score-pass]="item.statusType === 'PASS'">
+                                       {{ item.scoreDisplay }}
+                                    </span>
+                                 </div>
+                              </div>
+                           </td>
+                        </ng-container>
+
+                        <ng-container matColumnDef="number_of_attempts">
+                           <th mat-header-cell *matHeaderCellDef>Attempts</th>
+                           <td mat-cell *matCellDef="let row" class="cell-center">
+                              <div class="attempt-cell-stack">
+                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
+                                    <div class="attempts-cell">
+                                       <div class="attempts-used-text">{{ item.attemptsUsedDisplay }}</div>
+                                       <div class="attempts-remaining-text">{{ item.attemptsRemainingDisplay }}</div>
+                                       <div class="attempts-progress-bar">
+                                          <div class="attempts-progress-fill" [style.width.%]="item.progressPercent"></div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </td>
+                        </ng-container>
+
+                        <ng-container matColumnDef="status">
+                           <th mat-header-cell *matHeaderCellDef>Status</th>
+                           <td mat-cell *matCellDef="let row" class="cell-center">
+                              <div class="attempt-cell-stack">
+                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
+                                    <div class="status-pill" [ngClass]="{
+                                       'status-pill--active': item.statusType === 'PASS' || item.statusType === 'ACTIVE',
+                                       'status-pill--fail': item.statusType === 'FAIL',
+                                       'status-pill--upcoming': item.statusType === 'UPCOMING'
+                                    }">
+                                       <span class="status-dot-sm"></span>{{ item.statusType }}
+                                    </div>
+                                 </div>
+                              </div>
+                           </td>
+                        </ng-container>
+
+                        <ng-container matColumnDef="actions">
+                           <th mat-header-cell *matHeaderCellDef>Actions</th>
+                           <td mat-cell *matCellDef="let row" class="cell-center">
+                              <div class="attempt-cell-stack">
+                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
+                                    <div class="exam-actions">
+                                       <button *ngIf="item.canReview" mat-flat-button class="review-btn" (click)="viewAttemptReview(row, item.attemptObj, $event)">
+                                          <mat-icon>rule</mat-icon> Review
+                                       </button>
+                                       <button *ngIf="item.canStart" mat-flat-button class="launch-btn" (click)="confirmStartTest(row, $event)">
+                                          <mat-icon>rocket_launch</mat-icon> Start
+                                       </button>
+                                    </div>
+                                 </div>
+                              </div>
+                           </td>
+                        </ng-container>
+
                         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                        <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row" [class.expanded-main-row]="isRowExpanded(row)"></tr>
-                        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="exam-detail-row" [class.detail-row-hidden]="!isRowExpanded(row)"></tr>
+                        <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row"></tr>
                      </table>
                   </div>
                   <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons

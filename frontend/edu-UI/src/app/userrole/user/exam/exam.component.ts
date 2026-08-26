@@ -174,7 +174,7 @@ export class ConfirmInstantReviewDialogComponent {}
 @Component({
   selector: 'app-user-exams',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, MatTableModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSortModule, MatTabsModule, MatPaginatorModule, MatDialogModule, MatDatepickerModule, MatCheckboxModule, MatAutocompleteModule],
+  imports: [CommonModule, RouterModule, FormsModule, MatTableModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSortModule, MatTabsModule, MatPaginatorModule, MatDialogModule, MatDatepickerModule, MatCheckboxModule, MatAutocompleteModule, ConfirmStartTestDialogComponent, ConfirmInstantReviewDialogComponent],
   templateUrl: './exam.component.html',
   styleUrls: ['./exam.component.scss']
 })
@@ -394,13 +394,95 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     return false;
   }
 
-  viewAttemptReview(row: UserTestRow, att: any): void {
+  viewAttemptReview(row: UserTestRow, att: any, event?: Event): void {
+    if (event) event.stopPropagation();
     const targetRow: UserTestRow = {
       ...row,
-      review_attempt_id: att.attempt_id || row.review_attempt_id,
-      target_attempt_number: att.attempt_number
+      review_attempt_id: att?.attempt_id || row.review_attempt_id,
+      target_attempt_number: att?.attempt_number
     } as any;
     this.viewReview(targetRow);
+  }
+
+  trackByAttempt(index: number, item: any): any {
+    return item?.attemptNumber || index;
+  }
+
+  getAttemptRows(row: UserTestRow): Array<any> {
+    if (!row) return [];
+    if ((row as any)._cachedAttemptRows && (row as any)._cachedTabIndex === this.selectedTabIndex) {
+      return (row as any)._cachedAttemptRows;
+    }
+    const history = this.getAttemptHistory(row);
+    const maxAttempts = row.number_of_attempts || 1;
+    const isCompletedTab = this.selectedTabIndex === 1;
+    const isUpcoming = this.isUpcomingTest(row.type);
+    const canStartActive = !isCompletedTab && !isUpcoming;
+    let rows: Array<any> = [];
+
+    if (history && history.length > 0) {
+      rows = history.map((att: any, idx: number) => {
+        const attNum = att.attempt_number || (idx + 1);
+        const isPassResult = this.isAttemptPass(att, row);
+        const usedCount = attNum;
+        const remainingCount = Math.max(0, maxAttempts - usedCount);
+        const pct = (usedCount / maxAttempts) * 100;
+        const dateStr = (att.submitted_date || att.started_date) ? this.formatAttemptDate(att.submitted_date || att.started_date) : '';
+
+        return {
+          attemptNumber: attNum,
+          isFirst: idx === 0,
+          attemptObj: att,
+          scoreDisplay: att.percentage != null ? (Number(att.percentage).toFixed(2) + '%') : (att.score != null ? att.score + '%' : '—'),
+          attemptsUsedDisplay: `${usedCount} / ${maxAttempts} Used`,
+          attemptsRemainingDisplay: `${remainingCount} Remaining`,
+          progressPercent: Math.min(Math.max(pct, 0), 100),
+          statusType: isPassResult ? 'PASS' : 'FAIL',
+          canReview: !!row.user_review || isCompletedTab || !!row.review_available,
+          canStart: false,
+          dateDisplay: dateStr,
+        };
+      });
+
+      if (canStartActive && history.length < maxAttempts) {
+        const nextAttNum = history.length + 1;
+        const remainingCount = Math.max(0, maxAttempts - history.length);
+        rows.push({
+          attemptNumber: nextAttNum,
+          isFirst: false,
+          attemptObj: null,
+          scoreDisplay: '—',
+          attemptsUsedDisplay: `${history.length} / ${maxAttempts} Used`,
+          attemptsRemainingDisplay: `${remainingCount} Remaining`,
+          progressPercent: (history.length / maxAttempts) * 100,
+          statusType: 'ACTIVE',
+          canReview: false,
+          canStart: true,
+          dateDisplay: '',
+        });
+      }
+    } else {
+      const usedCount = this.getUsedAttempts(row);
+      const remainingCount = this.getRemainingAttempts(row);
+
+      rows = [{
+        attemptNumber: 1,
+        isFirst: true,
+        attemptObj: null,
+        scoreDisplay: row.user_percentage != null ? (Number(row.user_percentage).toFixed(2) + '%') : '—',
+        attemptsUsedDisplay: `${usedCount} / ${maxAttempts} Used`,
+        attemptsRemainingDisplay: `${remainingCount} Remaining`,
+        progressPercent: this.getAttemptProgressPercent(row),
+        statusType: isUpcoming ? 'UPCOMING' : (isCompletedTab ? (this.isPass(row) ? 'PASS' : 'FAIL') : 'ACTIVE'),
+        canReview: isCompletedTab || !!row.user_review || !!row.review_available,
+        canStart: canStartActive,
+        dateDisplay: '',
+      }];
+    }
+
+    (row as any)._cachedAttemptRows = rows;
+    (row as any)._cachedTabIndex = this.selectedTabIndex;
+    return rows;
   }
 
   stopFilterSearchEvent(event: Event) {
@@ -757,7 +839,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         const scheduleTest = (startVal || endVal) ? `${startVal || '—'} - ${endVal || '—'}` : '—';
         return {
           test_id: x.test_id || x.id || x.exam_id,
-          schedule_id: x.schedule_id || '',
+          schedule_id: x.schedule_id || x.test_id || x.id || x.exam_id || '',
           institute_id: x.institute_id || '',
           title: x.schedule_title || x.name || '', //exam_title
           created_by: x.created_by || '',
@@ -911,22 +993,40 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     }catch(e){ return false; }
   }
 
-  confirmStartTest(ex: UserTestRow): void {
-    this.dialog.open(ConfirmStartTestDialogComponent, {
-      width: '32.8rem',
-      maxWidth: 'calc(100vw - 2rem)',
-      autoFocus: false,
-      restoreFocus: true
-    }).afterClosed().subscribe((confirmed: boolean) => {
-      if (confirmed) this.launchTest(ex);
-    });
+  confirmStartTest(ex: UserTestRow, event?: Event): void {
+    if (event) {
+      try { event.preventDefault(); event.stopPropagation(); } catch (e) {}
+    }
+    if (!ex) return;
+    const scheduleId = ex.schedule_id || ex.test_id || '';
+    const targetEx = { ...ex, schedule_id: scheduleId };
+    try {
+      const dialogRef = this.dialog.open(ConfirmStartTestDialogComponent, {
+        width: '32.8rem',
+        maxWidth: 'calc(100vw - 2rem)',
+        autoFocus: false,
+        restoreFocus: true
+      });
+      if (dialogRef) {
+        dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+          if (confirmed) this.launchTest(targetEx);
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn('Dialog open error, launching directly:', err);
+    }
+    if (window.confirm('Are you sure you want to start this test? Once started, the timer will begin and cannot be paused.')) {
+      this.launchTest(targetEx);
+    }
   }
 
   launchTest(ex: UserTestRow){
-    if (!ex?.schedule_id) { try { notify('Schedule id missing', 'error'); } catch(e){}; return; }
+    const scheduleId = ex?.schedule_id || ex?.test_id || '';
+    if (!scheduleId) { try { notify('Schedule id missing', 'error'); } catch(e){}; return; }
     const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
     const userId = userRaw ? (JSON.parse(userRaw)?.user_id || JSON.parse(userRaw)?.id || '') : '';
-    const url = `${this.launchUrl}?schedule_id=${encodeURIComponent(String(ex.schedule_id))}&user_id=${encodeURIComponent(String(userId))}`;
+    const url = `${this.launchUrl}?schedule_id=${encodeURIComponent(String(scheduleId))}&user_id=${encodeURIComponent(String(userId))}`;
     // call launch API and navigate to user-exam page with payload
     this.http.get<any>(url).subscribe({
       next: (res) => {
