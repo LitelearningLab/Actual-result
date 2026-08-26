@@ -95,14 +95,11 @@
                                  <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
                                     <div class="attempt-title-block">
                                        <span *ngIf="idx === 0" class="exam-name">{{ row.title }}</span>
-                                       <span *ngIf="idx > 0" class="attempt-number-title">Attempt {{ item.attemptNumber }}<ng-container *ngIf="item.dateDisplay"> - {{ item.dateDisplay }}</ng-container></span>
-                                       <div *ngIf="idx === 0 && item.dateDisplay" class="attempt-date-sub">
-                                          {{ item.dateDisplay }}
-                                       </div>
-                                       <div *ngIf="row.scheduleTest" class="schedule-range-inline">
-                                          <span class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</span>
+                                       <span *ngIf="idx > 0" class="attempt-number-title">Attempt {{ item.attemptNumber }}</span>
+                                       <div *ngIf="item.scheduleRange" class="schedule-range-inline">
+                                          <span class="schedule-time schedule-time--start">{{ item.scheduleRange.split(' - ')[0] }}</span>
                                           <span class="schedule-separator">–</span>
-                                          <span class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</span>
+                                          <span class="schedule-time schedule-time--end">{{ item.scheduleRange.split(' - ')[1] || '—' }}</span>
                                        </div>
                                     </div>
                                  </div>
@@ -205,17 +202,14 @@
                            <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
                            <td mat-cell *matCellDef="let row" class="cell-primary">
                               <div class="attempt-cell-stack">
-                                 <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
+                                 <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
                                     <div class="attempt-title-block">
                                        <span *ngIf="idx === 0" class="exam-name">{{ row.title }}</span>
-                                       <span *ngIf="idx > 0" class="attempt-number-title">Attempt {{ item.attemptNumber }}<ng-container *ngIf="item.dateDisplay"> - {{ item.dateDisplay }}</ng-container></span>
-                                       <div *ngIf="idx === 0 && item.dateDisplay" class="attempt-date-sub">
-                                          {{ item.dateDisplay }}
-                                       </div>
-                                       <div *ngIf="row.scheduleTest" class="schedule-range-inline">
-                                          <span class="schedule-time schedule-time--start">{{ row.scheduleTest.split(' - ')[0] }}</span>
+                                       <span *ngIf="idx > 0" class="attempt-number-title">Attempt {{ item.attemptNumber }}</span>
+                                       <div *ngIf="item.scheduleRange" class="schedule-range-inline">
+                                          <span class="schedule-time schedule-time--start">{{ item.scheduleRange.split(' - ')[0] }}</span>
                                           <span class="schedule-separator">–</span>
-                                          <span class="schedule-time schedule-time--end">{{ row.scheduleTest.split(' - ')[1] || '—' }}</span>
+                                          <span class="schedule-time schedule-time--end">{{ item.scheduleRange.split(' - ')[1] || '—' }}</span>
                                        </div>
                                     </div>
                                  </div>

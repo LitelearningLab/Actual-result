@@ -230,7 +230,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         if (['submitted', 'evaluated'].includes(res?.attempt_status)) {
           this.stopTimer();
           this.stopStatusPolling();
-          this.ngZone.run(() => this.router.navigate(['/user-dashboard']));
+          this.ngZone.run(() => this.router.navigate(['/user/exam']));
         }
       },
       error: (err) => {
@@ -261,7 +261,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
   acknowledgeStoppedTest() {
     try { sessionStorage.removeItem('launched_exam'); } catch(e) {}
-    this.ngZone.run(() => this.router.navigate(['/user-dashboard']));
+    this.ngZone.run(() => this.router.navigate(['/user/exam']));
   }
 
   formatTime(sec: number) { const m = Math.floor(sec / 60); const s = sec % 60; return `${m}:${s.toString().padStart(2, '0')}`; }
@@ -394,7 +394,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         this.stopTimer();
         this.stopStatusPolling();
         this.stopSpeechRecognition();
-        this.ngZone.run(() => this.router.navigate(['/user-dashboard']));
+        this.ngZone.run(() => this.router.navigate(['/user/exam']));
       },
       error: (err) => {
         this.submitting = false;

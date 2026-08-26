@@ -356,7 +356,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     return [];
   }
 
-  formatAttemptDate(v: any): string {
+  formatAttemptDate(v: any, is24Hour: boolean = false): string {
     if (!v) return '—';
     let d: Date;
     if (typeof v === 'number') {
@@ -372,8 +372,14 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     const dd = String(d.getDate()).padStart(2, '0');
     const mmm = months[d.getMonth()];
     const yyyy = d.getFullYear();
-    let hh = d.getHours();
     const mm = String(d.getMinutes()).padStart(2, '0');
+
+    if (is24Hour) {
+      const hh24 = String(d.getHours()).padStart(2, '0');
+      return `${dd}-${mmm}-${yyyy} ${hh24}:${mm}`;
+    }
+
+    let hh = d.getHours();
     const ampm = hh >= 12 ? 'PM' : 'AM';
     hh = hh % 12;
     hh = hh ? hh : 12;
@@ -427,7 +433,30 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         const usedCount = attNum;
         const remainingCount = Math.max(0, maxAttempts - usedCount);
         const pct = (usedCount / maxAttempts) * 100;
-        const dateStr = (att.submitted_date || att.started_date) ? this.formatAttemptDate(att.submitted_date || att.started_date) : '';
+
+        // Active Tab: ALWAYS show original scheduled window for all rows (Attempt 1, Attempt 2, etc.)
+        // Completed Tab: ALWAYS show actual taken time (start - submit) for each attempt row
+        let scheduleRange = '';
+        if (isCompletedTab) {
+          const attStart = att.started_date ? this.formatAttemptDate(att.started_date, true) : '';
+          const attEnd = att.submitted_date ? this.formatAttemptDate(att.submitted_date, true) : (attStart || '');
+          scheduleRange = (attStart || attEnd) ? `${attStart || '—'} - ${attEnd || '—'}` : '';
+        } else {
+          scheduleRange = row.scheduleTest || '';
+        }
+
+        const attReviewViewed = Boolean(att.review_viewed || att.viewed || att.review_consumed || att.already_viewed);
+        const attReviewExplicit = typeof att.review_available !== 'undefined' ? Boolean(att.review_available) : (typeof att.user_review !== 'undefined' ? Boolean(att.user_review) : null);
+        const rowReviewAllowed = (row.user_review !== false) && (row.review_available !== false) && !(row as any).review_consumed;
+
+        let canReviewAttempt = false;
+        if ((row as any).review_consumed || attReviewViewed) {
+          canReviewAttempt = false;
+        } else if (attReviewExplicit !== null) {
+          canReviewAttempt = attReviewExplicit && rowReviewAllowed;
+        } else {
+          canReviewAttempt = rowReviewAllowed && (!!row.user_review || !!row.review_available || isCompletedTab);
+        }
 
         return {
           attemptNumber: attNum,
@@ -438,9 +467,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           attemptsRemainingDisplay: `${remainingCount} Remaining`,
           progressPercent: Math.min(Math.max(pct, 0), 100),
           statusType: isPassResult ? 'PASS' : 'FAIL',
-          canReview: !!row.user_review || isCompletedTab || !!row.review_available,
+          canReview: canReviewAttempt,
           canStart: false,
-          dateDisplay: dateStr,
+          scheduleRange: scheduleRange
         };
       });
 
@@ -458,12 +487,23 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           statusType: 'ACTIVE',
           canReview: false,
           canStart: true,
-          dateDisplay: '',
+          scheduleRange: row.scheduleTest || ''
         });
       }
     } else {
       const usedCount = this.getUsedAttempts(row);
       const remainingCount = this.getRemainingAttempts(row);
+      const isReviewForbidden = (row as any).review_consumed === true || row.user_review === false || row.review_available === false;
+      const canReviewDefault = !isReviewForbidden && (isCompletedTab || !!row.user_review || !!row.review_available);
+
+      let scheduleRange = '';
+      if (isCompletedTab) {
+        const rowStart = row.start_time ? this.formatAttemptDate(row.start_time, true) : '';
+        const rowEnd = row.end_time ? this.formatAttemptDate(row.end_time, true) : (rowStart || '');
+        scheduleRange = (rowStart || rowEnd) ? `${rowStart || '—'} - ${rowEnd || '—'}` : '';
+      } else {
+        scheduleRange = row.scheduleTest || '';
+      }
 
       rows = [{
         attemptNumber: 1,
@@ -474,9 +514,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         attemptsRemainingDisplay: `${remainingCount} Remaining`,
         progressPercent: this.getAttemptProgressPercent(row),
         statusType: isUpcoming ? 'UPCOMING' : (isCompletedTab ? (this.isPass(row) ? 'PASS' : 'FAIL') : 'ACTIVE'),
-        canReview: isCompletedTab || !!row.user_review || !!row.review_available,
+        canReview: canReviewDefault,
         canStart: canStartActive,
-        dateDisplay: '',
+        scheduleRange: scheduleRange
       }];
     }
 
@@ -737,7 +777,25 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         this.loader.hide();
       }, error: (err) => {
         console.warn('Failed to load review', err);
-        try { notify(err?.error?.statusMessage || 'This review is not available.', 'error'); } catch (e) {}
+        const msg = err?.error?.statusMessage || err?.error?.message || 'This review is not available.';
+        try { notify(msg, 'error'); } catch (e) {}
+
+        // Hide Review button if backend reports review was already viewed/consumed
+        (row as any).review_consumed = true;
+        row.user_review = false;
+        row.review_available = false;
+        if (row.attempts_history && row.attempts_history.length) {
+          const targetNo = (row as any).target_attempt_number;
+          row.attempts_history.forEach(att => {
+            if (!targetNo || att.attempt_number === targetNo) {
+              att.review_available = false;
+              att.user_review = false;
+              att.review_viewed = true;
+            }
+          });
+        }
+        delete (row as any)._cachedAttemptRows;
+
         this.reviewLoading = false; this.reviewAttempts = []; this.reviewOpen = false; this.loader.hide();
       } });
     }catch(e){ try { notify('Failed to request review', 'error'); } catch(e){} }
@@ -824,18 +882,18 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
 
       this.exams = arr.map((x: any) => {
         const normalizedType = (x.type || '').toString().toLowerCase();
-        const reviewAvailable = Boolean(x.user_review || x.review_available || x.review);
+        const reviewViewed = Boolean(x.review_viewed || x.review_consumed || x.already_viewed || x.viewed);
+        const reviewAvailable = (typeof x.user_review !== 'undefined' ? Boolean(x.user_review) : (typeof x.review_available !== 'undefined' ? Boolean(x.review_available) : Boolean(x.review))) && !reviewViewed;
         const attempted = Boolean(x.attempted);
         const completedByUser = Boolean(x.completed_by_user);
         const expired = Boolean(x.expired);
         const isCompleted = completedByUser;
-        // Expired (inactive) tests must show the configured schedule window, not attempt timestamps.
-        const useAttemptTimes = isCompleted && !expired;
-        const rawStartTime = (useAttemptTimes && x.user_start_time) ? x.user_start_time : (x.start_time || x.start || x.user_start_time);
-        const rawEndTime = (useAttemptTimes && x.user_end_time) ? x.user_end_time : (x.end_time || x.end || x.user_end_time);
-        const startVal = fmtDate(rawStartTime);
-        const endVal = fmtDate(rawEndTime);
-        const completedScheduleTest = (startVal || endVal) ? `${startVal || '—'} - ${endVal || '—'}` : '—';
+
+        // Schedule window (always preserved from original schedule start/end settings)
+        const rawScheduleStart = x.start_time || x.start || x.start_date;
+        const rawScheduleEnd = x.end_time || x.end || x.end_date;
+        const startVal = fmtDate(rawScheduleStart);
+        const endVal = fmtDate(rawScheduleEnd);
         const scheduleTest = (startVal || endVal) ? `${startVal || '—'} - ${endVal || '—'}` : '—';
         return {
           test_id: x.test_id || x.id || x.exam_id,
@@ -856,8 +914,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           start_time: startVal,
           end_time: endVal,
           // Keep the raw timestamp for reliable chronological ordering despite the formatted weekday label.
-          schedule_sort_time: dateTimestamp(rawStartTime),
-          scheduleTest: isCompleted ? completedScheduleTest : scheduleTest,
+          schedule_sort_time: dateTimestamp(rawScheduleStart),
+          scheduleTest: scheduleTest,
           user_percentage: (x.user_percentage !== undefined && x.user_percentage !== null) ? x.user_percentage : (x.percentage !== undefined && x.percentage !== null ? x.percentage : null),
           user_score: (x.user_score !== undefined && x.user_score !== null) ? x.user_score : (x.score !== undefined && x.score !== null ? x.score : null),
           user_result: x.user_result || x.result || null,
