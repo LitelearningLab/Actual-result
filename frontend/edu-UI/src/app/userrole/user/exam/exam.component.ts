@@ -402,6 +402,11 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
 
   viewAttemptReview(row: UserTestRow, att: any, event?: Event): void {
     if (event) event.stopPropagation();
+    const rows = this.getAttemptRows(row);
+    const targetItem = rows.find(r => r.attemptObj === att || (att && r.attemptNumber === att.attempt_number));
+    if (targetItem && !targetItem.canReview) {
+      return;
+    }
     const targetRow: UserTestRow = {
       ...row,
       review_attempt_id: att?.attempt_id || row.review_attempt_id,
@@ -445,17 +450,21 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           scheduleRange = row.scheduleTest || '';
         }
 
-        const attReviewViewed = Boolean(att.review_viewed || att.viewed || att.review_consumed || att.already_viewed);
+        const isMultipleReview = this.isMultipleReviewEnabled(row);
+        const isAttLocallyConsumed = !isMultipleReview && this.isAttemptReviewConsumedLocally(row, attNum);
+        const attReviewViewed = !isMultipleReview && (isAttLocallyConsumed || Boolean(att.review_viewed || att.viewed || att.review_consumed || att.already_viewed));
         const attReviewExplicit = typeof att.review_available !== 'undefined' ? Boolean(att.review_available) : (typeof att.user_review !== 'undefined' ? Boolean(att.user_review) : null);
-        const rowReviewAllowed = (row.user_review !== false) && (row.review_available !== false) && !(row as any).review_consumed;
+        const rowReviewAllowed = (row.user_review !== false) && (row.review_available !== false);
 
         let canReviewAttempt = false;
-        if ((row as any).review_consumed || attReviewViewed) {
+        if (isMultipleReview) {
+          canReviewAttempt = rowReviewAllowed;
+        } else if (attReviewViewed || !rowReviewAllowed) {
           canReviewAttempt = false;
         } else if (attReviewExplicit !== null) {
           canReviewAttempt = attReviewExplicit && rowReviewAllowed;
         } else {
-          canReviewAttempt = rowReviewAllowed && (!!row.user_review || !!row.review_available || isCompletedTab);
+          canReviewAttempt = rowReviewAllowed && (!!row.user_review || !!row.review_available);
         }
 
         return {
@@ -463,11 +472,12 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           isFirst: idx === 0,
           attemptObj: att,
           scoreDisplay: att.percentage != null ? (Number(att.percentage).toFixed(2) + '%') : (att.score != null ? att.score + '%' : '—'),
-          attemptsUsedDisplay: `${usedCount} / ${maxAttempts} Used`,
+          attemptsUsedDisplay: `${usedCount} / ${maxAttempts}`,
           attemptsRemainingDisplay: `${remainingCount} Remaining`,
           progressPercent: Math.min(Math.max(pct, 0), 100),
           statusType: isPassResult ? 'PASS' : 'FAIL',
           canReview: canReviewAttempt,
+          showReviewBtn: true,
           canStart: false,
           scheduleRange: scheduleRange
         };
@@ -481,11 +491,12 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           isFirst: false,
           attemptObj: null,
           scoreDisplay: '—',
-          attemptsUsedDisplay: `${history.length} / ${maxAttempts} Used`,
+          attemptsUsedDisplay: `${history.length} / ${maxAttempts}`,
           attemptsRemainingDisplay: `${remainingCount} Remaining`,
           progressPercent: (history.length / maxAttempts) * 100,
           statusType: 'ACTIVE',
           canReview: false,
+          showReviewBtn: false,
           canStart: true,
           scheduleRange: row.scheduleTest || ''
         });
@@ -493,8 +504,10 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     } else {
       const usedCount = this.getUsedAttempts(row);
       const remainingCount = this.getRemainingAttempts(row);
-      const isReviewForbidden = (row as any).review_consumed === true || row.user_review === false || row.review_available === false;
-      const canReviewDefault = !isReviewForbidden && (isCompletedTab || !!row.user_review || !!row.review_available);
+      const isMultipleReview = this.isMultipleReviewEnabled(row);
+      const isAttLocallyConsumed = !isMultipleReview && this.isAttemptReviewConsumedLocally(row, 1);
+      const isReviewForbidden = !isMultipleReview && (isAttLocallyConsumed || (row as any).review_consumed === true || row.user_review === false || row.review_available === false);
+      const canReviewDefault = isMultipleReview ? ((row.user_review !== false) && (row.review_available !== false)) : (!isReviewForbidden && (!!row.user_review || !!row.review_available));
 
       let scheduleRange = '';
       if (isCompletedTab) {
@@ -510,11 +523,12 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         isFirst: true,
         attemptObj: null,
         scoreDisplay: row.user_percentage != null ? (Number(row.user_percentage).toFixed(2) + '%') : '—',
-        attemptsUsedDisplay: `${usedCount} / ${maxAttempts} Used`,
+        attemptsUsedDisplay: `${usedCount} / ${maxAttempts}`,
         attemptsRemainingDisplay: `${remainingCount} Remaining`,
         progressPercent: this.getAttemptProgressPercent(row),
         statusType: isUpcoming ? 'UPCOMING' : (isCompletedTab ? (this.isPass(row) ? 'PASS' : 'FAIL') : 'ACTIVE'),
         canReview: canReviewDefault,
+        showReviewBtn: isCompletedTab || row.completed_by_user || row.attempted,
         canStart: canStartActive,
         scheduleRange: scheduleRange
       }];
@@ -686,12 +700,111 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
     } catch (e) { return ''; }
   }
 
+  private currentReviewRow: UserTestRow | null = null;
+  private currentReviewAttemptNo: number | null = null;
+
+  isMultipleReviewEnabled(row: any): boolean {
+    if (!row) return false;
+    const m = row.multiple_review !== undefined ? row.multiple_review : (row.multiple_reviews !== undefined ? row.multiple_reviews : (row.user_multiple_review !== undefined ? row.user_multiple_review : row.multiple));
+    if (m === true || m === 1 || m === '1' || m === 'true') return true;
+    const mode = String(row.review_mode || '').toLowerCase();
+    if (mode === 'multiple' || mode === 'multi') return true;
+    return false;
+  }
+
+  private getAttemptKey(row: UserTestRow, attNumber?: number): string {
+    const schedId = String(row.schedule_id || row.test_id || '');
+    const targetNo = attNumber || (row as any).target_attempt_number;
+    if (targetNo) return `${schedId}_att_${targetNo}`;
+    return schedId;
+  }
+
+  isAttemptReviewConsumedLocally(row: UserTestRow, attNumber?: number): boolean {
+    if (!row) return false;
+    const key = this.getAttemptKey(row, attNumber);
+    try {
+      const raw = sessionStorage.getItem('consumed_reviews') || '[]';
+      const list = JSON.parse(raw);
+      return Array.isArray(list) && (list.includes(String(key)) || list.includes(String(row.schedule_id || row.test_id || '')));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  private markReviewConsumed(targetRow: UserTestRow | null, attNumber?: number): void {
+    if (!targetRow) return;
+    if (this.isMultipleReviewEnabled(targetRow)) return;
+    const targetNo = attNumber || (targetRow as any).target_attempt_number || 1;
+    const key = this.getAttemptKey(targetRow, targetNo);
+    if (key) {
+      try {
+        const raw = sessionStorage.getItem('consumed_reviews') || '[]';
+        const list = JSON.parse(raw);
+        if (Array.isArray(list) && !list.includes(key)) {
+          list.push(key);
+          sessionStorage.setItem('consumed_reviews', JSON.stringify(list));
+        }
+      } catch (e) {}
+    }
+
+    const realRow = this.exams.find(e =>
+      (e.schedule_id && targetRow.schedule_id && String(e.schedule_id) === String(targetRow.schedule_id)) ||
+      (e.test_id && targetRow.test_id && String(e.test_id) === String(targetRow.test_id)) ||
+      (e.title && targetRow.title && e.title === targetRow.title)
+    ) || targetRow;
+
+    [realRow, targetRow].forEach(r => {
+      if (!r) return;
+      if (r.attempts_history && r.attempts_history.length) {
+        r.attempts_history.forEach((att: any) => {
+          if (!targetNo || Number(att.attempt_number) === Number(targetNo)) {
+            att.review_available = false;
+            att.user_review = false;
+            att.review_viewed = true;
+            att.review_consumed = true;
+          }
+        });
+        const allConsumed = r.attempts_history.every((att: any) =>
+          Boolean(att.review_viewed || att.review_consumed || att.already_viewed)
+        );
+        if (allConsumed) {
+          (r as any).review_consumed = true;
+          r.user_review = false;
+          r.review_available = false;
+        }
+      } else {
+        (r as any).review_consumed = true;
+        r.user_review = false;
+        r.review_available = false;
+      }
+      delete (r as any)._cachedAttemptRows;
+    });
+
+    try {
+      this.completeSource.data = [...this.completeSource.data];
+      this.activeSource.data = [...this.activeSource.data];
+    } catch (e) {}
+  }
+
+  private isReviewConsumedLocally(scheduleId: string): boolean {
+    if (!scheduleId) return false;
+    try {
+      const raw = sessionStorage.getItem('consumed_reviews') || '[]';
+      const list = JSON.parse(raw);
+      return Array.isArray(list) && list.includes(String(scheduleId));
+    } catch (e) {
+      return false;
+    }
+  }
+
   /**
    * Fetch review details for a user's exam and open modal.
    * Expects API: GET /review-user-exam?user_id=...&scheduler_id=...
    * Response shape assumed: { data: { attempts: [ { attempt_no, items: [ { question, answer, user_answer, status } ] } ] } }
    */
   viewReview(row: UserTestRow){
+    this.currentReviewRow = row;
+    this.currentReviewAttemptNo = (row as any).target_attempt_number || null;
     // Warn before the API consumes a one-time Instant Review (candidates/students only).
     if (!this.isAdminUser && (row.review_mode || '').toLowerCase() === 'instant' && !row.multiple_review) {
       this.dialog.open(ConfirmInstantReviewDialogComponent, {
@@ -780,21 +893,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         const msg = err?.error?.statusMessage || err?.error?.message || 'This review is not available.';
         try { notify(msg, 'error'); } catch (e) {}
 
-        // Hide Review button if backend reports review was already viewed/consumed
-        (row as any).review_consumed = true;
-        row.user_review = false;
-        row.review_available = false;
-        if (row.attempts_history && row.attempts_history.length) {
-          const targetNo = (row as any).target_attempt_number;
-          row.attempts_history.forEach(att => {
-            if (!targetNo || att.attempt_number === targetNo) {
-              att.review_available = false;
-              att.user_review = false;
-              att.review_viewed = true;
-            }
-          });
-        }
-        delete (row as any)._cachedAttemptRows;
+        this.markReviewConsumed(row, (row as any).target_attempt_number);
 
         this.reviewLoading = false; this.reviewAttempts = []; this.reviewOpen = false; this.loader.hide();
       } });
@@ -802,10 +901,15 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   }
 
   closeReview(){
+    if (this.currentReviewRow && !this.isAdminUser && ((this.currentReviewRow.review_mode || '').toLowerCase() === 'instant' || !this.currentReviewRow.multiple_review)) {
+      this.markReviewConsumed(this.currentReviewRow, this.currentReviewAttemptNo || undefined);
+    }
     this.reviewOpen = false;
     this.reviewAttempts = [];
     this.reviewSelectedAttempt = 0;
-    this.loadExams();
+    this.currentReviewRow = null;
+    this.currentReviewAttemptNo = null;
+    this.loadExams(false);
   }
 
   /** Filter review comments by category (missing / incorrect / incomplete) */
@@ -882,8 +986,25 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
 
       this.exams = arr.map((x: any) => {
         const normalizedType = (x.type || '').toString().toLowerCase();
-        const reviewViewed = Boolean(x.review_viewed || x.review_consumed || x.already_viewed || x.viewed);
-        const reviewAvailable = (typeof x.user_review !== 'undefined' ? Boolean(x.user_review) : (typeof x.review_available !== 'undefined' ? Boolean(x.review_available) : Boolean(x.review))) && !reviewViewed;
+        const schedId = String(x.schedule_id || x.test_id || x.id || x.exam_id || '');
+        const isMultipleReview = this.isMultipleReviewEnabled(x);
+
+        if (isMultipleReview && schedId) {
+          try {
+            const raw = sessionStorage.getItem('consumed_reviews') || '[]';
+            let list = JSON.parse(raw);
+            if (Array.isArray(list) && list.includes(schedId)) {
+              list = list.filter((id: string) => id !== schedId);
+              sessionStorage.setItem('consumed_reviews', JSON.stringify(list));
+            }
+          } catch (e) {}
+        }
+
+        const isLocallyConsumed = !isMultipleReview && this.isReviewConsumedLocally(schedId);
+        const reviewViewed = !isMultipleReview && (isLocallyConsumed || Boolean(x.review_viewed || x.review_consumed || x.already_viewed || x.viewed));
+        const rawAvailable = (typeof x.review_available !== 'undefined' && x.review_available !== null) ? Boolean(x.review_available) :
+                             ((typeof x.user_review !== 'undefined' && x.user_review !== null) ? Boolean(x.user_review) : Boolean(x.review));
+        const reviewAvailable = isMultipleReview ? (rawAvailable !== false) : (rawAvailable && !reviewViewed);
         const attempted = Boolean(x.attempted);
         const completedByUser = Boolean(x.completed_by_user);
         const expired = Boolean(x.expired);
@@ -897,7 +1018,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         const scheduleTest = (startVal || endVal) ? `${startVal || '—'} - ${endVal || '—'}` : '—';
         return {
           test_id: x.test_id || x.id || x.exam_id,
-          schedule_id: x.schedule_id || x.test_id || x.id || x.exam_id || '',
+          schedule_id: schedId,
           institute_id: x.institute_id || '',
           title: x.schedule_title || x.name || '', //exam_title
           created_by: x.created_by || '',
@@ -905,9 +1026,10 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           // whether review is available for this user on this exam
           user_review: reviewAvailable,
           review_available: reviewAvailable,
+          review_consumed: !isMultipleReview && (isLocallyConsumed || reviewViewed),
           review_attempt_id: x.review_attempt_id || '',
           review_mode: x.review_mode || '',
-          multiple_review: Boolean(x.multiple_review),
+          multiple_review: isMultipleReview,
           attempted,
           completed_by_user: completedByUser,
           expired,
@@ -930,6 +1052,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         };
       });
       this.loading = false;
+      this.exams.forEach(e => delete (e as any)._cachedAttemptRows);
       this.dataSource.data = this.exams;
       // populate per-tab sources
       this.updateTabDataSources();

@@ -89,7 +89,7 @@
                         </ng-container>
 
                         <ng-container matColumnDef="title">
-                           <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
+                           <th mat-header-cell *matHeaderCellDef mat-sort-header>Title ( Test schedule date and time )</th>
                            <td mat-cell *matCellDef="let row" class="cell-primary">
                               <div class="attempt-cell-stack">
                                  <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
@@ -131,10 +131,6 @@
                                  <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
                                     <div class="attempts-cell">
                                        <div class="attempts-used-text">{{ item.attemptsUsedDisplay }}</div>
-                                       <div class="attempts-remaining-text">{{ item.attemptsRemainingDisplay }}</div>
-                                       <div class="attempts-progress-bar">
-                                          <div class="attempts-progress-fill" [style.width.%]="item.progressPercent"></div>
-                                       </div>
                                     </div>
                                  </div>
                               </div>
@@ -164,13 +160,13 @@
                               <div class="attempt-cell-stack">
                                  <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
                                     <div class="exam-actions">
-                                       <button *ngIf="item.canReview" mat-flat-button class="review-btn" (click)="viewAttemptReview(row, item.attemptObj, $event)">
+                                       <button *ngIf="item.showReviewBtn" mat-flat-button class="review-btn" [disabled]="!item.canReview" (click)="viewAttemptReview(row, item.attemptObj, $event)">
                                           <mat-icon>rule</mat-icon> Review
                                        </button>
                                        <button *ngIf="item.canStart" mat-flat-button class="launch-btn" (click)="confirmStartTest(row, $event)">
                                           <mat-icon>rocket_launch</mat-icon> Start
                                        </button>
-                                       <span *ngIf="!item.canReview && !item.canStart && isUpcomingTest(row.type)" class="upcoming-label">Scheduled</span>
+                                       <span *ngIf="!item.showReviewBtn && !item.canStart && isUpcomingTest(row.type)" class="upcoming-label">Scheduled</span>
                                     </div>
                                  </div>
                               </div>
@@ -199,7 +195,7 @@
                         </ng-container>
 
                         <ng-container matColumnDef="title">
-                           <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
+                           <th mat-header-cell *matHeaderCellDef mat-sort-header>Title ( Taken date and time ) </th>
                            <td mat-cell *matCellDef="let row" class="cell-primary">
                               <div class="attempt-cell-stack">
                                  <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
@@ -249,10 +245,6 @@
                                  <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
                                     <div class="attempts-cell">
                                        <div class="attempts-used-text">{{ item.attemptsUsedDisplay }}</div>
-                                       <div class="attempts-remaining-text">{{ item.attemptsRemainingDisplay }}</div>
-                                       <div class="attempts-progress-bar">
-                                          <div class="attempts-progress-fill" [style.width.%]="item.progressPercent"></div>
-                                       </div>
                                     </div>
                                  </div>
                               </div>
@@ -282,7 +274,7 @@
                               <div class="attempt-cell-stack">
                                  <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
                                     <div class="exam-actions">
-                                       <button *ngIf="item.canReview" mat-flat-button class="review-btn" (click)="viewAttemptReview(row, item.attemptObj, $event)">
+                                       <button *ngIf="item.showReviewBtn" mat-flat-button class="review-btn" [disabled]="!item.canReview" (click)="viewAttemptReview(row, item.attemptObj, $event)">
                                           <mat-icon>rule</mat-icon> Review
                                        </button>
                                        <button *ngIf="item.canStart" mat-flat-button class="launch-btn" (click)="confirmStartTest(row, $event)">

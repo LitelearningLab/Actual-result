@@ -162,9 +162,6 @@ def review_user_exam(request, current_user=None):
                 if not claimed:
                     return {"statusMessage": "This test review has already been viewed", "status": False}, 403
                 requested_attempt.review_opened_at = now
-            elif requested_attempt.review_opened_at is None:
-                requested_attempt.review_opened_at = now
-                session.add(requested_attempt)
 
         exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
         total_questions = exam.total_questions if exam else 0

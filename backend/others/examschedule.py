@@ -399,8 +399,12 @@ def update_exam_schedule(request):
             sched.show_explanations = settings["show_explanations"]
 
             if multiple_review_requested is not None:
-                # Do not derive this value from review_mode; the admin owns it.
                 sched.multiple_review = multiple_review_requested
+                session.query(Exam_Attempt).filter(
+                    Exam_Attempt.schedule_id == schedule_id
+                ).update(
+                    {Exam_Attempt.review_opened_at: None}, synchronize_session=False
+                )
 
             access_just_enabled = (
                 sched.review_mode in ("manual", "no_review")
