@@ -1,6 +1,6 @@
 from db.db import SQLiteDB
-from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping
-from sqlalchemy import func, or_
+from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping
+from sqlalchemy import func, or_, String
 from datetime import datetime
 
 
@@ -29,7 +29,10 @@ def resolve_report_context(session, args):
         # Find all schedule IDs for the selected test / exam
         q_sched = session.query(ExamSchedule)
         if institute_id:
-            q_sched = q_sched.filter(ExamSchedule.institute_id == institute_id)
+            q_sched = q_sched.filter(
+                (ExamSchedule.institute_id == institute_id) |
+                (func.cast(ExamSchedule.institute_id, String) == str(institute_id))
+            )
 
         target_exam_ids = []
         if test_title:
@@ -45,15 +48,21 @@ def resolve_report_context(session, args):
                 func.lower(ExamSchedule.title).contains(clean_title)
             ]
             if target_exam_ids:
-                conds.append(ExamSchedule.exam_id.in_(target_exam_ids))
+                conds.append(
+                    (ExamSchedule.exam_id.in_(target_exam_ids)) |
+                    (func.cast(ExamSchedule.exam_id, String).in_([str(eid) for eid in target_exam_ids]))
+                )
 
             q_sched = q_sched.filter(or_(*conds))
         elif exam_id:
-            q_sched = q_sched.filter(ExamSchedule.exam_id == exam_id)
+            q_sched = q_sched.filter(
+                (ExamSchedule.exam_id == exam_id) |
+                (func.cast(ExamSchedule.exam_id, String) == str(exam_id))
+            )
             target_exam_ids = [exam_id]
 
         all_test_schedules = q_sched.all()
-        all_schedule_ids = [s.schedule_id for s in all_test_schedules]
+        all_schedule_ids = [s.schedule_id for s in all_test_schedules if s and s.schedule_id]
 
         # Fallback matching by title if institute filter produced no schedule
         if not all_schedule_ids and test_title:
@@ -63,23 +72,72 @@ def resolve_report_context(session, args):
                 (func.lower(ExamSchedule.title).contains(clean_title))
             )
             all_test_schedules = q_fallback.all()
-            all_schedule_ids = [s.schedule_id for s in all_test_schedules]
+            all_schedule_ids = [s.schedule_id for s in all_test_schedules if s and s.schedule_id]
 
         if not all_schedule_ids:
             return {'status': False, 'message': 'No schedules found for the selected test'}
 
-        # Find attempts where actual exam attempt date (submitted_date or started_date) is within [start_date, end_date]
+        str_sched_ids = [str(sid) for sid in all_schedule_ids]
         attempt_date_expr = func.coalesce(Exam_Attempt.submitted_date, Exam_Attempt.started_date)
         q_attempts = session.query(Exam_Attempt).filter(
-            Exam_Attempt.schedule_id.in_(all_schedule_ids),
+            (Exam_Attempt.schedule_id.in_(all_schedule_ids)) |
+            (func.cast(Exam_Attempt.schedule_id, String).in_(str_sched_ids)),
             attempt_date_expr >= start_date,
             attempt_date_expr <= end_date
         )
 
         matching_attempts = q_attempts.all()
         matching_attempt_ids = [a.attempt_id for a in matching_attempts]
-        matching_user_ids = list({a.user_id for a in matching_attempts})
+        user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
 
+        # Also pull users from ExamScheduleMapping and Answer tables
+        try:
+            mappings = session.query(ExamScheduleMapping).filter(
+                (ExamScheduleMapping.schedule_id.in_(all_schedule_ids)) |
+                (func.cast(ExamScheduleMapping.schedule_id, String).in_(str_sched_ids))
+            ).all()
+            for m in mappings:
+                if m.user_id:
+                    user_ids_set.add(m.user_id)
+                elif m.department_id:
+                    dept_users = session.query(User.user_id).filter(
+                        (User.department_id == m.department_id) |
+                        (func.cast(User.department_id, String) == str(m.department_id))
+                    ).all()
+                    for (duid,) in dept_users:
+                        if duid:
+                            user_ids_set.add(duid)
+                elif m.team_id:
+                    team_users = session.query(User.user_id).filter(
+                        (User.team_id == m.team_id) |
+                        (func.cast(User.team_id, String) == str(m.team_id))
+                    ).all()
+                    for (tuid,) in team_users:
+                        if tuid:
+                            user_ids_set.add(tuid)
+                elif m.campus_id:
+                    campus_users = session.query(User.user_id).filter(
+                        (User.campus_id == m.campus_id) |
+                        (func.cast(User.campus_id, String) == str(m.campus_id))
+                    ).all()
+                    for (cuid,) in campus_users:
+                        if cuid:
+                            user_ids_set.add(cuid)
+        except Exception:
+            pass
+
+        try:
+            ans_uids = session.query(Answer.user_id).filter(
+                (Answer.schedule_id.in_(all_schedule_ids)) |
+                (func.cast(Answer.schedule_id, String).in_(str_sched_ids))
+            ).distinct().all()
+            for (auid,) in ans_uids:
+                if auid:
+                    user_ids_set.add(auid)
+        except Exception:
+            pass
+
+        matching_user_ids = list(user_ids_set)
         resolved_exam_id = target_exam_ids[0] if target_exam_ids else (all_test_schedules[0].exam_id if all_test_schedules else None)
         pass_mark = None
         if all_test_schedules and all_test_schedules[0].pass_mark is not None:
@@ -108,15 +166,97 @@ def resolve_report_context(session, args):
         if not schedule_id:
             return {'status': False, 'message': 'Missing schedule_id or date range criteria'}
 
-        schedule_ids = [schedule_id]
-        schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == schedule_id).first()
+        str_sid = str(schedule_id).strip()
+        schedule = session.query(ExamSchedule).filter(
+            (ExamSchedule.schedule_id == schedule_id) |
+            (func.cast(ExamSchedule.schedule_id, String) == str_sid)
+        ).first()
+
+        # Fallback: search schedule by title or exam_id if not found by schedule_id directly
+        if not schedule:
+            schedule = session.query(ExamSchedule).filter(
+                (func.lower(ExamSchedule.title) == str_sid.lower()) |
+                (ExamSchedule.exam_id == schedule_id) |
+                (func.cast(ExamSchedule.exam_id, String) == str_sid)
+            ).first()
+
         if not schedule:
             return {'status': False, 'message': 'Schedule not found'}
 
-        q_attempts = session.query(Exam_Attempt).filter(Exam_Attempt.schedule_id.in_(schedule_ids))
+        found_sid = schedule.schedule_id
+        schedule_ids = [found_sid]
+        str_sched_ids = [str(found_sid)]
+
+        q_attempts = session.query(Exam_Attempt).filter(
+            (Exam_Attempt.schedule_id == found_sid) |
+            (func.cast(Exam_Attempt.schedule_id, String).in_(str_sched_ids))
+        )
         matching_attempts = q_attempts.all()
         matching_attempt_ids = [a.attempt_id for a in matching_attempts]
-        matching_user_ids = list({a.user_id for a in matching_attempts})
+        user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
+
+        # Pull assigned users from ExamScheduleMapping
+        try:
+            mappings = session.query(ExamScheduleMapping).filter(
+                (ExamScheduleMapping.schedule_id == found_sid) |
+                (func.cast(ExamScheduleMapping.schedule_id, String).in_(str_sched_ids))
+            ).all()
+            for m in mappings:
+                if m.user_id:
+                    user_ids_set.add(m.user_id)
+                elif m.department_id:
+                    dept_users = session.query(User.user_id).filter(
+                        (User.department_id == m.department_id) |
+                        (func.cast(User.department_id, String) == str(m.department_id))
+                    ).all()
+                    for (duid,) in dept_users:
+                        if duid:
+                            user_ids_set.add(duid)
+                elif m.team_id:
+                    team_users = session.query(User.user_id).filter(
+                        (User.team_id == m.team_id) |
+                        (func.cast(User.team_id, String) == str(m.team_id))
+                    ).all()
+                    for (tuid,) in team_users:
+                        if tuid:
+                            user_ids_set.add(tuid)
+                elif m.campus_id:
+                    campus_users = session.query(User.user_id).filter(
+                        (User.campus_id == m.campus_id) |
+                        (func.cast(User.campus_id, String) == str(m.campus_id))
+                    ).all()
+                    for (cuid,) in campus_users:
+                        if cuid:
+                            user_ids_set.add(cuid)
+        except Exception:
+            pass
+
+        # Pull users from Answer table
+        try:
+            ans_uids = session.query(Answer.user_id).filter(
+                (Answer.schedule_id == found_sid) |
+                (func.cast(Answer.schedule_id, String).in_(str_sched_ids))
+            ).distinct().all()
+            for (auid,) in ans_uids:
+                if auid:
+                    user_ids_set.add(auid)
+        except Exception:
+            pass
+
+        # If still no users found, fall back to institute users if schedule has institute_id
+        if not user_ids_set and schedule.institute_id:
+            try:
+                inst_users = session.query(User.user_id).filter(
+                    (User.institute_id == schedule.institute_id) |
+                    (func.cast(User.institute_id, String) == str(schedule.institute_id))
+                ).all()
+                for (iuid,) in inst_users:
+                    if iuid:
+                        user_ids_set.add(iuid)
+            except Exception:
+                pass
+
+        matching_user_ids = list(user_ids_set)
 
         pass_mark = schedule.pass_mark
         if pass_mark is None and schedule.exam_id:
@@ -196,7 +336,10 @@ def get_user_wise_report(request):
         default_pass_mark = ctx.get('pass_mark')
 
         for uid, sid in user_sched_list:
-            user = session.query(User).filter(User.user_id == uid).first()
+            user = session.query(User).filter(
+                (User.user_id == uid) |
+                (func.cast(User.user_id, String) == str(uid))
+            ).first()
             if not user:
                 continue
 

@@ -1107,12 +1107,32 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   // simple pagination controls without MatPaginator binding
   loadingUserReport = false;
 
+  isAttemptedRow(row: any): boolean {
+    if (!row) return false;
+    const res = String(row.result || row.status || '').trim().toLowerCase();
+    const hasDate = Boolean(row.test_taken_date && row.test_taken_date !== '-');
+    const isCompleted = Boolean(row.attempted || row.completed || hasDate);
+    if (res === 'no attempt' || res === 'no_attempt' || res === 'unattempted') {
+      return false;
+    }
+    return isCompleted || (!!row.result && res !== '-');
+  }
+
+  get displayedUserReportData(): any[] {
+    if (!this.userReportData) return [];
+    return this.userReportData.filter(row => this.isAttemptedRow(row));
+  }
+
+  get hasAttemptedUsers(): boolean {
+    return this.displayedUserReportData.length > 0;
+  }
+
   get totalPages(): number {
-    return Math.max(1, Math.ceil((this.userReportTotal || 0) / this.pageSize));
+    return Math.max(1, Math.ceil((this.displayedUserReportData.length || 0) / this.pageSize));
   }
 
   get userAverageScore(): number {
-    const scores = (this.userReportData || [])
+    const scores = (this.displayedUserReportData || [])
       .map((row: any) => this.toMetricNumber(row.marks_obtained ?? row.score ?? row.marks))
       .filter((value: number) => value > 0);
     return scores.length
@@ -1121,7 +1141,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   get userPassRate(): number {
-    const rows = this.userReportData || [];
+    const rows = this.displayedUserReportData || [];
     const passed = rows.filter(
       (row: any) => String(row.result || row.status || '').toLowerCase() === 'pass'
     ).length;
@@ -1287,6 +1307,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   openUserReview(row: any) {
     if (!row) return;
+    const resVal = String(row.result || row.status || '').trim().toLowerCase();
+    if (resVal === 'no attempt' || resVal === 'no_attempt' || resVal === 'unattempted') {
+      this._snack.open('This student has not attempted the test yet.', 'Close', { duration: 4000 });
+      return;
+    }
     this.currentReviewRow = row;
     try {
       this.selectedUserName =
@@ -1812,16 +1837,16 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.getTestTitle(t).toLowerCase() === selectedVal.toLowerCase()
       );
 
-      const title = selectedTest ? this.getTestTitle(selectedTest) : selectedVal;
-      this.selectedTestTitle = title;
-      this.selectedDateRangeTestTitle = title;
-      if (selectedTest) {
-        this.selectedExam = selectedTest;
-        try {
-          this.examCtrl.setValue(selectedTest);
-        } catch (e) {}
-      }
-      this.onTestTitleSelect(title);
+    const title = selectedTest ? this.getTestTitle(selectedTest) : selectedVal;
+    this.selectedTestTitle = title;
+    this.selectedDateRangeTestTitle = title;
+    if (selectedTest) {
+      this.selectedExam = selectedTest;
+      try {
+        this.examCtrl.setValue(selectedTest);
+      } catch (e) {}
+    }
+    this.onTestTitleSelect(title);
 
     this.questionCurrentPage = 1;
     this.currentPage = 1;
@@ -2648,24 +2673,33 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   loadUserReport(page: number = 1, isSilent: boolean = false) {
-    if (!this.selectedExam) return;
+    if (!this.selectedExam && !this.selectedTestTitle) return;
     this.currentPage = page || 1;
     const params: any = {
       page: String(this.currentPage),
       page_size: String(this.pageSize),
     };
-    if (this.selectedExam.isDateRange || this.selectionMode === 'daterange') {
-      params.test_title = this.selectedExam.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
-      if (this.selectedExam.start_date || this.dateRangeStart) {
-        params.start_date = this.selectedExam.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
+    if (this.selectedInstituteId || this.userFilters.institute_id) {
+      params.institute_id = this.selectedInstituteId || this.userFilters.institute_id;
+    }
+    if (this.selectedExam?.isDateRange || this.selectionMode === 'daterange') {
+      params.test_title = this.selectedExam?.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
+      if (this.selectedExam?.start_date || this.dateRangeStart) {
+        params.start_date = this.selectedExam?.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
       }
-      if (this.selectedExam.end_date || this.dateRangeEnd) {
-        params.end_date = this.selectedExam.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
+      if (this.selectedExam?.end_date || this.dateRangeEnd) {
+        params.end_date = this.selectedExam?.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
       }
     } else {
-      params.schedule_id = String(
-        this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || ''
+      const schedId = String(
+        this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || this.selectedScheduleId || ''
       );
+      if (schedId) {
+        params.schedule_id = schedId;
+      }
+      if (this.selectedTestTitle || this.selectedExam?.title) {
+        params.test_title = this.selectedExam?.title || this.selectedTestTitle;
+      }
     }
     if (this.searchQuery) params.q = this.searchQuery;
     if (this.userFilters.country_id) params.country_id = this.userFilters.country_id;
@@ -2797,6 +2831,53 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
 
+  formatAttemptDateTime(v: any): string {
+    if (!v) return '—';
+    let d: Date;
+    if (typeof v === 'number') {
+      d = new Date(v > 1e12 ? v : v * 1000);
+    } else if (/^\d+$/.test(String(v))) {
+      const n = Number(v);
+      d = new Date(n > 1e12 ? n : n * 1000);
+    } else {
+      d = new Date(String(v));
+    }
+    if (isNaN(d.getTime())) return String(v);
+
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const dayName = days[d.getDay()];
+    const dd = d.getDate();
+    const monthName = months[d.getMonth()];
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+
+    return `${dayName}, ${dd} ${monthName} ${yyyy} ${hh}:${mm}`;
+  }
+
+  formatAttemptDuration(att: any): string {
+    if (!att) return '0:00:00';
+    if (att.time_taken) return String(att.time_taken).split('.')[0];
+    if (att.timeTaken) return String(att.timeTaken).split('.')[0];
+    if (att.duration) return String(att.duration);
+    const start = att.started_date || att.started_at || att.start_time;
+    const end = att.submitted_date || att.submitted_at || att.end_time;
+    if (start && end) {
+      const s = new Date(start).getTime();
+      const e = new Date(end).getTime();
+      if (!isNaN(s) && !isNaN(e) && e >= s) {
+        const totalSecs = Math.floor((e - s) / 1000);
+        const hrs = Math.floor(totalSecs / 3600);
+        const mins = Math.floor((totalSecs % 3600) / 60);
+        const secs = totalSecs % 60;
+        return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      }
+    }
+    return '0:00:00';
+  }
+
   exportUserCSV() {
     if (!this.userReportData || !this.userReportData.length) return;
     const headers = [
@@ -2835,18 +2916,29 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   loadAnalytics() {
-    if (!this.selectedExam) return;
+    if (!this.selectedExam && !this.selectedTestTitle) return;
     const params: any = {};
-    if (this.selectedExam.isDateRange || this.selectionMode === 'daterange') {
-      params.test_title = this.selectedExam.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
-      if (this.selectedExam.start_date || this.dateRangeStart) {
-        params.start_date = this.selectedExam.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
+    if (this.selectedInstituteId || this.userFilters.institute_id) {
+      params.institute_id = this.selectedInstituteId || this.userFilters.institute_id;
+    }
+    if (this.selectedExam?.isDateRange || this.selectionMode === 'daterange') {
+      params.test_title = this.selectedExam?.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
+      if (this.selectedExam?.start_date || this.dateRangeStart) {
+        params.start_date = this.selectedExam?.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
       }
-      if (this.selectedExam.end_date || this.dateRangeEnd) {
-        params.end_date = this.selectedExam.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
+      if (this.selectedExam?.end_date || this.dateRangeEnd) {
+        params.end_date = this.selectedExam?.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
       }
     } else {
-      params.schedule_id = String(this.selectedExam.schedule_id || this.selectedExam.id || '');
+      const schedId = String(
+        this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || this.selectedScheduleId || ''
+      );
+      if (schedId) {
+        params.schedule_id = schedId;
+      }
+      if (this.selectedTestTitle || this.selectedExam?.title) {
+        params.test_title = this.selectedExam?.title || this.selectedTestTitle;
+      }
     }
 
     try {

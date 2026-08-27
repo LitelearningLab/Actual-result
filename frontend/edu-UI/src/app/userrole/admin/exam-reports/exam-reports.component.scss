@@ -812,18 +812,18 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
   }
 
   .mdc-tab--active {
-    background: #2563eb !important;
-    color: #ffffff !important;
+    background: #ffffff !important;
+    color: var(--button-1, #2563eb) !important;
     font-weight: 700 !important;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
 
     .mdc-tab__text-label {
-      color: #ffffff !important;
+      color: var(--button-1, #2563eb) !important;
       font-weight: 700 !important;
     }
 
     .tab-label-icon {
-      color: #ffffff !important;
+      color: var(--button-1, #2563eb) !important;
     }
   }
 
@@ -838,14 +838,75 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 }
 
 // ── Inner analytics tabs (Category Report / Question Summary) ──
-:host ::ng-deep .inner-analytics-tabs .mat-mdc-tab-header { background:var(--bg-1); border-bottom:0.0625rem solid var(--theme-3-border); padding:0 0.75rem; }
-:host ::ng-deep .inner-analytics-tabs .mat-mdc-tab-labels { min-height:2.5rem; gap:0.25rem; }
-:host ::ng-deep .inner-analytics-tabs .mdc-tab { color:var(--theme-3-text-3); font-weight:600; font-size:0.8125rem; padding:0 1rem; min-height:2.5rem; border-radius:0.5rem 0.5rem 0 0; transition:background 0.2s $ease, color 0.2s $ease; }
-:host ::ng-deep .inner-analytics-tabs .mdc-tab:hover { background:var(--bg-2); color:var(--theme-3-text-1); }
-:host ::ng-deep .inner-analytics-tabs .mdc-tab--active { background:var(--bg-2); color:var(--button-1); }
-:host ::ng-deep .inner-analytics-tabs .mdc-tab--active .mdc-tab__text-label { color:var(--button-1); }
-:host ::ng-deep .inner-analytics-tabs .mdc-tab__text-label { font-weight:600; letter-spacing:0.01em; transition:color 0.2s $ease; }
-:host ::ng-deep .inner-analytics-tabs .mdc-tab-indicator__content--underline { border-color:var(--button-1); border-width:0.125rem; }
+:host ::ng-deep .inner-analytics-tabs {
+  .mat-mdc-tab-header {
+    background: transparent;
+    border-bottom: 1px solid var(--theme-3-border, #e2e8f0);
+    padding: 0.75rem 1rem 0.5rem;
+  }
+
+  .mat-mdc-tab-label-container {
+    overflow: visible;
+  }
+
+  .mat-mdc-tab-labels {
+    background: #F1F3F6;
+    border-radius: 0.625rem;
+    padding: 0.25rem;
+    display: flex;
+    width: 100%;
+    gap: 0.25rem;
+    border: 1px solid #E2E8F0;
+    min-height: auto;
+  }
+
+  .mdc-tab {
+    flex: 1;
+    height: 2.375rem;
+    min-height: 2.375rem;
+    padding: 0 1.25rem;
+    border-radius: 0.5rem;
+    border: none;
+    background: transparent;
+    color: #64748B;
+    font-weight: 500;
+    font-size: 0.875rem;
+    letter-spacing: 0.01em;
+    transition: all 0.2s $ease;
+    opacity: 1;
+
+    &:hover:not(.mdc-tab--active) {
+      background: rgba(255, 255, 255, 0.6);
+      color: #1E293B;
+    }
+
+    .mdc-tab__text-label {
+      color: inherit;
+      font-weight: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.2s $ease;
+    }
+  }
+
+  .mdc-tab--active {
+    background: #ffffff !important;
+    color: var(--button-1, #2563eb) !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+
+    .mdc-tab__text-label {
+      color: var(--button-1, #2563eb) !important;
+      font-weight: 700 !important;
+    }
+  }
+
+  .mdc-tab-indicator__content--underline,
+  .mdc-tab-indicator {
+    display: none !important;
+  }
+}
 
 // ── Category Filter Banner ──
 // ── Report Actions Bar ──
@@ -1256,6 +1317,29 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 :host ::ng-deep .table-wrap.question-summary-wrap,
 :host ::ng-deep .analytics-section .table-wrap.question-summary-wrap { min-height: auto !important; max-height: none !important; }
 
+// Left align ALL question text cells and headers in question summary table
+:host ::ng-deep .mat-column-question,
+:host ::ng-deep .question-text-cell,
+:host ::ng-deep td.mat-column-question,
+:host ::ng-deep th.mat-column-question,
+:host ::ng-deep td.mat-mdc-cell.mat-column-question,
+:host ::ng-deep th.mat-mdc-header-cell.mat-column-question,
+:host ::ng-deep .question-summary-wrap .mat-column-question,
+:host ::ng-deep .question-summary-wrap td.mat-column-question,
+:host ::ng-deep .question-summary-wrap th.mat-column-question,
+:host ::ng-deep .question-summary-wrap td.question-text-cell,
+:host ::ng-deep .premium-table .mat-column-question,
+:host ::ng-deep .premium-table td.mat-column-question,
+:host ::ng-deep .premium-table th.mat-column-question,
+:host ::ng-deep .premium-table td.question-text-cell {
+  text-align: left !important;
+}
+
+:host ::ng-deep th.mat-column-question .mat-sort-header-container,
+:host ::ng-deep .question-summary-wrap th.mat-column-question .mat-sort-header-container {
+  justify-content: flex-start !important;
+}
+
 // ── Pager ──
 .pager { display:flex; align-items:center; justify-content:center; gap:1rem; padding:0.875rem 1.25rem; border-top:0.0625rem solid var(--theme-3-border); font-size:0.8125rem; font-weight:600; letter-spacing:0.01em; background:linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%); color:var(--theme-3-text-2); }
 .pager span { padding:0.25rem 0.75rem; border-radius:0.375rem; background:var(--bg-1); border:0.0625rem solid var(--theme-3-border); }
@@ -1602,10 +1686,10 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 .user-review-panel .panel-header .header-icon mat-icon { font-size:1.375rem; width:1.375rem; height:1.375rem; }
 .user-review-panel .panel-header h4 { margin:0; font-size:1.125rem; font-weight:800; letter-spacing:-0.02em; color:var(--theme-3-text-1); display:flex; align-items:center; gap:0.5rem; }
 .user-review-panel .panel-header h3 { margin:0; font-size:0.8125rem; font-weight:500; color:var(--theme-3-text-3); display:inline-flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
-.user-review-panel .panel-header .score { color:var(--theme-3-text-2); font-weight:600; padding:0.25rem 0.625rem; border-radius:0.5rem; background:var(--bg-1); border:0.0625rem solid var(--theme-3-border); font-size:0.8125rem; letter-spacing:0.01em; }
-.user-review-panel .panel-header .result { font-weight:700; padding:0.25rem 0.75rem; border-radius:62.5rem; font-size:0.75rem; letter-spacing:0.04em; text-transform:uppercase; box-shadow:0 0.125rem 0.5rem rgba(15,23,42,0.08); }
-.user-review-panel .panel-header .result.pass { color: var(--button-text-1); background: var(--button-1); }
-.user-review-panel .panel-header .result.fail { color: #fff; background: var(--theme-3-text-3); }
+.user-review-panel .panel-header .score { color:var(--theme-3-text-2); font-weight:600; padding:0.25rem 0.375rem 0.25rem 0.75rem; border-radius:62.5rem; background:var(--bg-1); border:0.0625rem solid var(--theme-3-border); font-size:0.8125rem; letter-spacing:0.01em; display:inline-flex; align-items:center; gap:0.375rem; }
+.user-review-panel .panel-header .result { font-weight:800; padding:0.15rem 0.625rem; border-radius:62.5rem; font-size:0.75rem; letter-spacing:0.04em; text-transform:uppercase; display:inline-flex; align-items:center; justify-content:center; line-height:1.3; }
+.user-review-panel .panel-header .result.pass { color: #15803d; background: #f0fdf4; border: 0.0625rem solid #bbf7d0; }
+.user-review-panel .panel-header .result.fail { color: #991b1b; background: #fdf2f2; border: 0.0625rem solid #fecdcd; }
 .user-review-panel .panel-header .review-close-btn {
   width: 2.75rem;
   height: 2.75rem;
@@ -1642,11 +1726,50 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 .user-review-panel .panel-sub { color: var(--theme-3-text-3); font-size: 0.875rem; }
 .user-review-panel .panel-body { flex:1; overflow:auto; max-height: calc(90vh - 10rem); padding: 1.5rem; }
 
-// ── Attempt header ──
+// ── Attempt header & timing strip ──
 .attempt-header { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.75rem 0; border-bottom: 0.0625rem solid rgba(0,0,0,0.06); margin-bottom: 0.875rem; }
 .attempt-header h5 { margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.75rem; font-weight: 700; letter-spacing: -0.01em; }
 .attempt-header .score-badge { background: #e9f7ef; color: #0a8043; padding: 0.375rem 0.75rem; border-radius: $radius; font-weight: 700; font-size: 0.875rem; margin-left: auto; letter-spacing: 0.01em; }
 .attempt-meta { display: flex; gap: 0.75rem; color: rgba(0,0,0,0.55); font-size: 0.8125rem; }
+
+.user-review-panel .attempt-time-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  background: var(--bg-2, #f8fafc);
+  border: 0.0625rem solid var(--theme-3-border, #e2e8f0);
+  border-radius: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 0.125rem 0.375rem rgba(15, 23, 42, 0.03);
+
+  .time-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+
+    &:not(:last-child) {
+      border-right: 0.0625rem solid var(--theme-3-border, #e2e8f0);
+    }
+  }
+
+  .col-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--theme-3-text-3, #64748b);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+  }
+
+  .col-val {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--theme-3-text-1, #1e293b);
+  }
+}
 
 // ── Question review cards ──
 .questions-list { display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem; }

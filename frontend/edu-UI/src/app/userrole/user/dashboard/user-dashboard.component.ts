@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { finalize } from 'rxjs';
 import { DynamicChartComponent } from '../../super-admin/dynamic-chart.component';
 import { PageMetaService } from '../../../shared/services/page-meta.service';
 import { UserDashboardService } from './user-dashboard.service';
@@ -73,13 +74,15 @@ export class UserDashboardComponent implements OnInit {
     this.loader.show();
     this.selectedInstituteId = id;
     // load users for this institute
-    this.svc.getUsersByInstitute(this.selectedInstituteId).subscribe({ next: (res:any)=>{
+    this.svc.getUsersByInstitute(this.selectedInstituteId).pipe(
+      finalize(() => this.loader.hide())
+    ).subscribe({ next: (res:any)=>{
       // backend returns { data: [...] } for get-users-list
       if(res && res.data) this.users = res.data.map((u:any)=> ({ id: u.user_id || u.userId || u.id, name: u.full_name || u.user_name || u.email, email: u.email }));
       else this.users = Array.isArray(res) ? res : [];
       // reset selected user to appropriate default
       this.setDefaultUser();
-    }, error: (err)=>{ console.warn('failed to load users for institute', err); this.users = []; this.setDefaultUser(); },complete: () => this.loader.hide() });
+    }, error: (err)=>{ console.warn('failed to load users for institute', err); this.users = []; this.setDefaultUser(); } });
   }
 
   onUserChange(id:any){
@@ -89,7 +92,9 @@ export class UserDashboardComponent implements OnInit {
 
   loadDashboard(){
     this.loader.show();
-    this.svc.getDashboard(this.selectedUserId).subscribe({ next: (res:any)=> this.applyDashboard(res), error: (err)=> console.warn('user dashboard load failed', err),complete: () => this.loader.hide() });
+    this.svc.getDashboard(this.selectedUserId).pipe(
+      finalize(() => this.loader.hide())
+    ).subscribe({ next: (res:any)=> this.applyDashboard(res), error: (err)=> console.warn('user dashboard load failed', err) });
   }
 
   private applyDashboard(res:any){

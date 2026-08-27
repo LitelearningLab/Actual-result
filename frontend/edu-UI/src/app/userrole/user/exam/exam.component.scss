@@ -120,13 +120,14 @@ $shadow-panel: 0 1.5rem 3.75rem rgba(5,18,40,0.22), 0 0.375rem 1rem rgba(5,18,40
 
     &.mat-mdc-tab-label-active,
     &.mdc-tab--active {
-      background-color: var(--button-1, #1677ff) !important;
-      background: var(--button-1, #1677ff) !important;
-      box-shadow: 0 2px 8px rgba(22, 119, 255, 0.25);
+      background-color: #ffffff !important;
+      background: #ffffff !important;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 
       .mdc-tab__text-label,
       .mdc-tab-label__content {
-        color: var(--button-text-1, #ffffff) !important;
+        color: var(--button-1, #2563eb) !important;
+        font-weight: 700;
       }
     }
 

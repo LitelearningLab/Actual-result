@@ -1050,9 +1050,9 @@
               <div class="summary-icon summary-icon--students"><mat-icon>groups</mat-icon></div>
               <div class="summary-copy">
                 <div class="summary-label">Students</div>
-                <div class="summary-value">{{ userReportTotal || 0 }}</div>
+                <div class="summary-value">{{ displayedUserReportData.length || 0 }}</div>
                 <div class="summary-meta">
-                  {{ userReportData.length || 0 }} visible for
+                  {{ displayedUserReportData.length || 0 }} visible for
                   {{ getTestTitle(selectedExam) || 'selected test' }}
                 </div>
               </div>
@@ -1114,10 +1114,10 @@
             </div>
           </div>
 
-          <div class="table-wrap">
+          <div class="table-wrap" *ngIf="hasAttemptedUsers && !loadingUserReport">
             <table
               mat-table
-              [dataSource]="userReportData"
+              [dataSource]="displayedUserReportData"
               class="mat-elevation-z1 compact premium-table"
               matSort
             >
@@ -1250,6 +1250,19 @@
               </button>
             </div>
           </div>
+
+          <div class="empty-reports-state" *ngIf="!hasAttemptedUsers && !loadingUserReport && reportsApplied" style="margin-top: 1.5rem;">
+            <div class="empty-state-card">
+              <div class="empty-state-icon">
+                <mat-icon>assignment_late</mat-icon>
+              </div>
+              <h4 class="empty-state-title">No one attempted this test</h4>
+              <p class="empty-state-description">
+                None of the assigned students have attempted or completed this test schedule yet.
+              </p>
+            </div>
+          </div>
+
           <div *ngIf="loadingUserReport" class="loader-placeholder">Loading user report...</div>
         </mat-tab>
       </mat-tab-group>
@@ -1268,17 +1281,17 @@
         <div class="header-info">
           <h4>Answer Sheet - {{ selectedUserName || 'User' }}</h4>
           <h3>
-            <span class="score"
-              >Score: {{ selectedUserScore || '-' }} / {{ totalMarks || '-' }} &nbsp;|&nbsp;Result:
+            <span class="score">
+              Score: {{ (selectedUserScore !== null && selectedUserScore !== undefined && selectedUserScore !== '' && selectedUserScore !== '-') ? selectedUserScore : '0' }}/{{ totalMarks || '0' }} | Result:
+              <span
+                class="result"
+                [ngClass]="{
+                  pass: (selectedUserResult || '').toLowerCase() === 'pass' || (selectedUserResult || '').toLowerCase() === 'passed',
+                  fail: (selectedUserResult || '').toLowerCase() === 'fail' || (selectedUserResult || '').toLowerCase() === 'failed'
+                }"
+                >{{ formatResult(selectedUserResult) }}</span
+              >
             </span>
-            <span
-              class="result"
-              [ngClass]="{
-                pass: (selectedUserResult || '').toLowerCase() === 'pass' || (selectedUserResult || '').toLowerCase() === 'passed',
-                fail: (selectedUserResult || '').toLowerCase() === 'fail' || (selectedUserResult || '').toLowerCase() === 'failed'
-              }"
-              >{{ formatResult(selectedUserResult) }}</span
-            >
           </h3>
         </div>
         <button
@@ -1312,6 +1325,20 @@
                 >
                   {{ att._retryingEvaluation ? 'Evaluating…' : 'Run evaluation' }}
                 </button>
+              </div>
+              <div class="attempt-time-bar">
+                <div class="time-col">
+                  <span class="col-label">TIME TAKEN</span>
+                  <span class="col-val">{{ formatAttemptDuration(att) }}</span>
+                </div>
+                <div class="time-col">
+                  <span class="col-label">STARTED</span>
+                  <span class="col-val">{{ formatAttemptDateTime(att.started_date || att.started_at || att.start_time) }}</span>
+                </div>
+                <div class="time-col">
+                  <span class="col-label">SUBMITTED</span>
+                  <span class="col-val">{{ formatAttemptDateTime(att.submitted_date || att.submitted_at || att.end_time) }}</span>
+                </div>
               </div>
               <div class="questions-list">
                 <div
