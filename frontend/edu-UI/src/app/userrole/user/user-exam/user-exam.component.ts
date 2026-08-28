@@ -167,10 +167,11 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     try { const raw = sessionStorage.getItem('launched_exam'); this.exam = raw ? JSON.parse(raw) : null; } catch(e){}
     if (this.exam) {
       const wrapper = this.exam?.data ? this.exam.data : this.exam;
-      this.schedule_id = this.exam.schedule_id || wrapper?.exam_detail?.schedule_id || wrapper?.schedule_id || this.exam.id || this.exam?.schedule_id || '';
-      this.examTitle = this.exam.title || this.exam.name || wrapper?.exam_detail?.title || wrapper?.title || wrapper?.exam_id || '';
-      this.examId = this.exam.exam_id || wrapper?.exam_detail?.exam_id || wrapper?.exam_id || this.exam.id || this.exam?.exam_id || '';
-      this.attempt_id = this.exam.attempt_id || wrapper?.exam_detail?.attempt_id || wrapper?.attempt_id || this.exam.id || this.exam?.attempt_id || '';
+      const examDetail = wrapper?.exam_detail || wrapper || {};
+      this.schedule_id = this.exam.schedule_id || examDetail?.schedule_id || wrapper?.schedule_id || this.exam.id || '';
+      this.examTitle = this.exam.title || this.exam.name || examDetail?.title || wrapper?.title || '';
+      this.examId = this.exam.exam_id || examDetail?.exam_id || wrapper?.exam_id || this.exam.id || '';
+      this.attempt_id = this.exam.attempt_id || examDetail?.attempt_id || wrapper?.attempt_id || '';
       const rawQs = Array.isArray(wrapper?.questions) ? wrapper.questions : (Array.isArray(this.exam.questions) ? this.exam.questions : []);
       this.questions = rawQs.map((q: any) => ({
         id: q.question_id || q.id,
@@ -186,11 +187,30 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         }),
         marks: q.marks || q.points || 0
       }));
-      const mins = this.exam.duration_mins || wrapper?.exam_detail?.duration_mins || wrapper?.duration_mins || this.exam?.duration || 30;
+
+      // Restore saved answers if resuming an in-progress attempt
+      const savedAns = examDetail?.saved_answers;
+      if (savedAns && typeof savedAns === 'object') {
+        this.answers = { ...savedAns };
+      } else {
+        this.answers = {};
+      }
+
+      const mins = examDetail?.duration_mins || this.exam?.duration_mins || this.exam?.duration || 30;
       this.totalSeconds = mins * 60;
-      this.remaining = this.totalSeconds;
-      this.startTimer();
-      this.startStatusPolling();
+
+      if (examDetail?.remaining_seconds !== undefined && examDetail?.remaining_seconds !== null) {
+        this.remaining = Math.max(0, Math.floor(examDetail.remaining_seconds));
+      } else {
+        this.remaining = this.totalSeconds;
+      }
+
+      if (this.remaining <= 0) {
+        this.autoSubmit();
+      } else {
+        this.startTimer();
+        this.startStatusPolling();
+      }
     }
   }
 
