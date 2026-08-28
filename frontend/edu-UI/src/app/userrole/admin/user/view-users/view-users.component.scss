@@ -104,6 +104,8 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
   align-items: center;
   gap: 0.625rem;
   padding: 0.25rem 0;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .user-avatar {
@@ -126,6 +128,8 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
   flex-direction: column;
   gap: 0.125rem;
   min-width: 0;
+  align-items: flex-start;
+  text-align: left;
 }
 
 .user-name {
@@ -135,6 +139,7 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: left;
 }
 
 .user-email {
@@ -144,6 +149,20 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 14rem;
+  text-align: left;
+}
+
+.mat-column-name,
+td.mat-column-name,
+th.mat-column-name,
+.premium-table .mat-column-name,
+.premium-table td.mat-column-name,
+.premium-table th.mat-column-name {
+  text-align: left !important;
+}
+
+th.mat-column-name .mat-sort-header-container {
+  justify-content: flex-start !important;
 }
 
 // Role badge

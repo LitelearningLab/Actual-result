@@ -1159,7 +1159,7 @@
                       (row.result || '').toLowerCase() === 'fail' ||
                       (row.result || '').toLowerCase() === 'failed'
                     "
-                    >{{ row.result || '-' }}</span
+                    >{{ formatResult(row.result) }}</span
                   >
                 </td>
               </ng-container>
@@ -1193,7 +1193,7 @@
                       (row.retest_result || '').toLowerCase() === 'fail' ||
                       (row.retest_result || '').toLowerCase() === 'failed'
                     "
-                    >{{ row.retest_result }}</span
+                    >{{ formatResult(row.retest_result) }}</span
                   >
                   <span class="cell-muted" *ngIf="!row.retest_result">-</span>
                 </td>
@@ -1280,19 +1280,6 @@
         </div>
         <div class="header-info">
           <h4>Answer Sheet - {{ selectedUserName || 'User' }}</h4>
-          <h3>
-            <span class="score">
-              Score: {{ (selectedUserScore !== null && selectedUserScore !== undefined && selectedUserScore !== '' && selectedUserScore !== '-') ? selectedUserScore : '0' }}/{{ totalMarks || '0' }} | Result:
-              <span
-                class="result"
-                [ngClass]="{
-                  pass: (selectedUserResult || '').toLowerCase() === 'pass' || (selectedUserResult || '').toLowerCase() === 'passed',
-                  fail: (selectedUserResult || '').toLowerCase() === 'fail' || (selectedUserResult || '').toLowerCase() === 'failed'
-                }"
-                >{{ formatResult(selectedUserResult) }}</span
-              >
-            </span>
-          </h3>
         </div>
         <button
           mat-icon-button
@@ -1308,38 +1295,67 @@
         <div *ngIf="userReviewLoading" class="muted">Loading review...</div>
         <div *ngIf="!userReviewLoading">
           <div *ngIf="userReviewAttempts && userReviewAttempts.length; else noUserReview">
-            <div *ngFor="let att of userReviewAttempts">
+            <div
+              *ngFor="let att of userReviewAttempts; let attIdx = index"
+              class="user-attempt-card"
+              style="margin-bottom: 2rem; border: 1px solid #cbd5e1; border-radius: 0.875rem; overflow: hidden; background: #ffffff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);"
+            >
+              <!-- Attempt Header Banner -->
               <div
-                class="q-evaluation-state pending attempt-level-banner"
-                *ngIf="hasPendingEvaluation(att)"
-                style="margin-bottom: 16px; border-radius: 8px"
+                class="attempt-title-banner"
+                style="display: flex; align-items: center; justify-content: space-between; background: #1e293b; color: #ffffff; padding: 0.875rem 1.25rem;"
               >
-                <div>
-                  <strong>AI evaluation is pending for answers in this answer sheet.</strong>
+                <div style="display: flex; align-items: center; gap: 0.625rem;">
+                  <mat-icon style="font-size: 1.25rem; width: 1.25rem; height: 1.25rem; color: #38bdf8;">history_edu</mat-icon>
+                  <span style="font-weight: 700; font-size: 0.9375rem; letter-spacing: -0.01em;">
+                    {{ att.attempt_number ? ('Attempt ' + att.attempt_number + (att.attempt_number > 1 ? ' (Retest)' : ' (Main Test)')) : (userReviewAttempts.length > 1 ? ('Attempt ' + (attIdx + 1) + (attIdx === 0 ? ' (Main Test)' : ' (Retest)')) : 'Test Attempt') }}
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  class="retry-evaluation-btn"
-                  [disabled]="att._retryingEvaluation"
-                  (click)="$event.stopPropagation(); retryEvaluation(null, att)"
+                <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; font-weight: 600;">
+                  <span>Score: {{ (att.score !== null && att.score !== undefined) ? att.score : (att.marks_obtained ?? 0) }}/{{ att.total_marks || totalMarks || 0 }} ({{ formatPercentage(att.percentage || att.score_percentage) }})</span>
+                  <span
+                    class="result-pill"
+                    [class.result-pass]="(att.result || att.status || '').toLowerCase() === 'pass' || (att.result || att.status || '').toLowerCase() === 'passed'"
+                    [class.result-fail]="(att.result || att.status || '').toLowerCase() === 'fail' || (att.result || att.status || '').toLowerCase() === 'failed'"
+                    style="padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;"
+                  >
+                    {{ formatResult(att.result || att.status) }}
+                  </span>
+                </div>
+              </div>
+
+              <div style="padding: 1.25rem;">
+                <div
+                  class="q-evaluation-state pending attempt-level-banner"
+                  *ngIf="hasPendingEvaluation(att)"
+                  style="margin-bottom: 16px; border-radius: 8px"
                 >
-                  {{ att._retryingEvaluation ? 'Evaluating…' : 'Run evaluation' }}
-                </button>
-              </div>
-              <div class="attempt-time-bar">
-                <div class="time-col">
-                  <span class="col-label">TIME TAKEN</span>
-                  <span class="col-val">{{ formatAttemptDuration(att) }}</span>
+                  <div>
+                    <strong>AI evaluation is pending for answers in this answer sheet.</strong>
+                  </div>
+                  <button
+                    type="button"
+                    class="retry-evaluation-btn"
+                    [disabled]="att._retryingEvaluation"
+                    (click)="$event.stopPropagation(); retryEvaluation(null, att)"
+                  >
+                    {{ att._retryingEvaluation ? 'Evaluating…' : 'Run evaluation' }}
+                  </button>
                 </div>
-                <div class="time-col">
-                  <span class="col-label">STARTED</span>
-                  <span class="col-val">{{ formatAttemptDateTime(att.started_date || att.started_at || att.start_time) }}</span>
+                <div class="attempt-time-bar">
+                  <div class="time-col">
+                    <span class="col-label">TIME TAKEN</span>
+                    <span class="col-val">{{ formatAttemptDuration(att) }}</span>
+                  </div>
+                  <div class="time-col">
+                    <span class="col-label">STARTED</span>
+                    <span class="col-val">{{ formatAttemptDateTime(att.started_date || att.started_at || att.start_time) }}</span>
+                  </div>
+                  <div class="time-col">
+                    <span class="col-label">SUBMITTED</span>
+                    <span class="col-val">{{ formatAttemptDateTime(att.submitted_date || att.submitted_at || att.end_time) }}</span>
+                  </div>
                 </div>
-                <div class="time-col">
-                  <span class="col-label">SUBMITTED</span>
-                  <span class="col-val">{{ formatAttemptDateTime(att.submitted_date || att.submitted_at || att.end_time) }}</span>
-                </div>
-              </div>
               <div class="questions-list">
                 <div
                   *ngFor="let q of att.review || att.questions || []; let qi = index"
@@ -2331,6 +2347,7 @@
               </div>
             </div>
           </div>
+          </div>
           <ng-template #noUserReview>
             <div class="muted">No review data available for this user.</div>
           </ng-template>
@@ -2370,8 +2387,48 @@
       </div>
       <div class="panel-body">
         <div *ngIf="selectedQuestionForWrongSummary">
+          <!-- Metadata Summary Bar from Left UI functionality -->
+          <div class="q-summary-meta-grid">
+            <div class="q-meta-card">
+              <div class="q-meta-label">Category Name</div>
+              <div class="q-meta-value highlight">
+                {{ selectedQuestionForWrongSummary.category_name || selectedCategoryFilterName || 'General' }}
+              </div>
+            </div>
+
+            <div class="q-meta-card" *ngIf="selectedQuestionForWrongSummary.question_summary || selectedQuestionForWrongSummary.summary">
+              <div class="q-meta-label">Question Summary</div>
+              <div class="q-meta-value">
+                {{ selectedQuestionForWrongSummary.question_summary || selectedQuestionForWrongSummary.summary }}
+              </div>
+            </div>
+
+            <div class="q-meta-card">
+              <div class="q-meta-label">Answer Type</div>
+              <div class="q-meta-value">
+                <span class="type-badge">
+                  {{ selectedQuestionForWrongSummary.question_type || selectedQuestionForWrongSummary.answer_type || selectedQuestionForWrongSummary.type || (selectedQuestionForWrongSummary.options?.length > 1 ? 'Multiple' : 'Single') }}
+                </span>
+              </div>
+            </div>
+
+            <div class="q-meta-card">
+              <div class="q-meta-label">Attempts</div>
+              <div class="q-meta-value stat-attempts">
+                {{ selectedQuestionForWrongSummary.attempts ?? selectedQuestionForWrongSummary.user_attempts ?? 0 }}
+              </div>
+            </div>
+
+            <div class="q-meta-card">
+              <div class="q-meta-label">No Of Mistakes</div>
+              <div class="q-meta-value stat-mistakes">
+                {{ selectedQuestionForWrongSummary.mistakes ?? selectedQuestionForWrongSummary.wrong_count ?? 0 }}
+              </div>
+            </div>
+          </div>
+
           <div class="question-title">
-            Question:
+            <span class="q-title-label">Question:</span>
             {{
               selectedQuestionForWrongSummary.question_text ||
                 selectedQuestionForWrongSummary.text ||
@@ -2379,23 +2436,67 @@
                 ''
             }}
           </div>
-          <table class="summary-table">
+
+          <!-- ALL OPTIONS Table (Target UI Layout) -->
+          <table class="q-options-table" *ngIf="selectedQuestionForWrongSummary.options && selectedQuestionForWrongSummary.options.length">
             <thead>
               <tr>
-                <th>Wrong Answers</th>
-                <th>No. of times selected</th>
-                <th>Occurrence %</th>
+                <th class="opt-col-num">OPTION<br>NUMBER</th>
+                <th class="opt-col-text">OPTIONS</th>
+                <th class="opt-col-status">STATUS</th>
               </tr>
             </thead>
             <tbody>
-              <ng-container *ngFor="let wa of selectedWrongAnswers">
+              <tr
+                *ngFor="let opt of selectedQuestionForWrongSummary.options; let idx = index"
+                [class.q-option-correct]="isCorrectOption(opt)"
+                [class.q-option-wrong-selected]="isOptionSelectedWrong(opt)"
+              >
+                <td class="opt-col-num">
+                  <span class="q-option-num-badge" [class.is-correct-num]="isCorrectOption(opt)" [class.is-wrong-num]="isOptionSelectedWrong(opt)">
+                    {{ idx + 1 }}
+                  </span>
+                </td>
+                <td class="opt-col-text">
+                  <span class="q-option-text-val" [class.is-correct-text]="isCorrectOption(opt)" [class.is-wrong-text]="isOptionSelectedWrong(opt)">
+                    {{ opt.option_text || opt.text || opt.answer }}
+                  </span>
+                </td>
+                <td class="opt-col-status">
+                  <span *ngIf="isCorrectOption(opt)" class="q-correct-tag-badge">
+                    <mat-icon>check_circle</mat-icon> Correct Answer
+                  </span>
+                  <span *ngIf="isOptionSelectedWrong(opt)" class="q-wrong-tag-badge">
+                    <mat-icon>cancel</mat-icon> Selected Wrong Option
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Wrong Answers & Occurrence Analysis Title & Table -->
+          <div class="wa-section-title-wrap">
+            <mat-icon class="wa-sec-icon">analytics</mat-icon>
+            <span>Wrong Answers & Occurrence Analysis:</span>
+          </div>
+
+          <table class="wa-analysis-table">
+            <thead>
+              <tr>
+                <th class="wa-col-ans">WRONG ANSWER</th>
+                <th class="wa-col-cnt">NO. OF TIMES SELECTED</th>
+                <th class="wa-col-pct">OCCURRENCE %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <ng-container *ngFor="let wa of (filteredWrongAnswers.length ? filteredWrongAnswers : selectedWrongAnswers)">
                 <tr
                   class="wa-interactive-row"
                   [class.wa-row-expanded]="expandedWrongAnswer === wa"
                   (click)="toggleWrongAnswerResources(selectedQuestionForWrongSummary, wa)"
                   title="Click to toggle user details for this wrong answer"
                 >
-                  <td data-label="Wrong Answer">
+                  <td class="wa-col-ans">
                     <div class="wa-answer-cell">
                       <mat-icon class="wa-chevron-icon">
                         {{ expandedWrongAnswer === wa ? 'expand_more' : 'chevron_right' }}
@@ -2403,47 +2504,179 @@
                       <span class="wa-answer-text">{{ wa.answer }}</span>
                     </div>
                   </td>
-                  <td data-label="Selected Count">
+                  <td class="wa-col-cnt">
                     <span class="wa-count-badge">{{ wa.count || '-' }}</span>
                   </td>
-                  <td data-label="Occurrence %">{{ wa.pct || '-' }}</td>
+                  <td class="wa-col-pct">{{ wa.pct || '-' }}</td>
                 </tr>
 
-                <!-- Inline Expanded Resources Row directly under the answer -->
-                <tr *ngIf="expandedWrongAnswer === wa" class="wa-inline-expansion-row">
-                  <td colspan="3">
-                    <div class="inline-resources-box">
-                      <div class="inline-resources-header">
-                        <mat-icon class="res-hdr-icon">group</mat-icon>
-                        <span class="res-hdr-title">Students / Users who selected this wrong answer:</span>
-                      </div>
+                  <!-- Inline Expanded Resources Row directly under the answer following 4-step Page Flow -->
+                  <tr *ngIf="expandedWrongAnswer === wa" class="wa-inline-expansion-row">
+                    <td colspan="3">
+                      <div class="inline-resources-box">
+                        <!-- 1. Students / Users who selected this wrong answer -->
+                        <div class="inline-section-block">
+                          <div class="inline-resources-header">
+                            <mat-icon class="res-hdr-icon">group</mat-icon>
+                            <span class="res-hdr-title">Students / Users who selected this wrong answer:</span>
+                          </div>
 
-                      <div *ngIf="wrongAnswerResourcesLoading" class="inline-res-loading">
-                        <mat-icon class="inline-spinner-icon">sync</mat-icon>
-                        <span>Loading user list...</span>
-                      </div>
+                          <div *ngIf="wrongAnswerResourcesLoading" class="inline-res-loading">
+                            <mat-icon class="inline-spinner-icon">sync</mat-icon>
+                            <span>Loading user list...</span>
+                          </div>
 
-                      <div *ngIf="!wrongAnswerResourcesLoading && expandedResources && expandedResources.length">
-                        <ul class="inline-resources-list">
-                          <li *ngFor="let r of expandedResources" class="inline-resource-item">
-                            <div class="user-avatar-badge">{{ (r.full_name || r.name || '?').charAt(0).toUpperCase() }}</div>
-                            <div class="user-info-text">
-                              <div class="user-name">{{ r.full_name || r.name }}</div>
-                              <div class="user-email small-muted" *ngIf="r.email">{{ r.email }}</div>
+                          <div *ngIf="!wrongAnswerResourcesLoading && expandedResources && expandedResources.length">
+                            <ul class="inline-resources-list">
+                              <li *ngFor="let r of expandedResources" class="inline-resource-item">
+                                <div class="user-avatar-badge">{{ (r.full_name || r.name || '?').charAt(0).toUpperCase() }}</div>
+                                <div class="user-info-text">
+                                  <div class="user-name">{{ r.full_name || r.name }}</div>
+                                  <div class="user-email small-muted" *ngIf="r.email">{{ r.email }}</div>
+                                </div>
+                              </li>
+                            </ul>
+                          </div>
+
+                          <div *ngIf="!wrongAnswerResourcesLoading && (!expandedResources || !expandedResources.length)" class="muted empty-inline-msg">
+                            No student details recorded for this answer.
+                          </div>
+                        </div>
+
+                        <!-- 2. Question Details -->
+                        <div class="inline-section-block">
+                          <div class="inline-resources-header">
+                            <mat-icon class="res-hdr-icon">quiz</mat-icon>
+                            <span class="res-hdr-title">Question Details:</span>
+                          </div>
+                          <div class="q-summary-meta-grid">
+                            <div class="q-meta-card">
+                              <div class="q-meta-label">Question Summary</div>
+                              <div class="q-meta-value highlight">
+                                {{ selectedQuestionForWrongSummary.question_summary || selectedQuestionForWrongSummary.summary || 'INCLUSIVE' }}
+                              </div>
                             </div>
-                          </li>
-                        </ul>
-                      </div>
+                            <div class="q-meta-card">
+                              <div class="q-meta-label">Answer Type</div>
+                              <div class="q-meta-value">
+                                <span class="type-badge">{{ selectedQuestionForWrongSummary.question_type || selectedQuestionForWrongSummary.answer_type || 'Multiple' }}</span>
+                              </div>
+                            </div>
+                            <div class="q-meta-card">
+                              <div class="q-meta-label">Attempts</div>
+                              <div class="q-meta-value stat-attempts">{{ selectedQuestionForWrongSummary.attempts ?? selectedQuestionForWrongSummary.user_attempts ?? 0 }}</div>
+                            </div>
+                            <div class="q-meta-card">
+                              <div class="q-meta-label">No Of Mistakes</div>
+                              <div class="q-meta-value stat-mistakes">{{ selectedQuestionForWrongSummary.mistakes ?? selectedQuestionForWrongSummary.wrong_count ?? 0 }}</div>
+                            </div>
+                          </div>
+                          <div class="question-title">
+                            <span class="q-title-label">Question:</span>
+                            {{ selectedQuestionForWrongSummary.question_text || selectedQuestionForWrongSummary.text || '' }}
+                          </div>
+                        </div>
 
-                      <div *ngIf="!wrongAnswerResourcesLoading && (!expandedResources || !expandedResources.length)" class="muted empty-inline-msg">
-                        No student details recorded for this answer.
+                        <!-- 3. Answer Options -->
+                        <div *ngIf="selectedQuestionForWrongSummary.options && selectedQuestionForWrongSummary.options.length" class="inline-section-block">
+                          <div class="inline-resources-header">
+                            <mat-icon class="res-hdr-icon">format_list_numbered</mat-icon>
+                            <span class="res-hdr-title">Answer Options:</span>
+                          </div>
+                          <table class="q-options-table">
+                            <thead>
+                              <tr>
+                                <th class="opt-col-num">OPTION NUMBER</th>
+                                <th class="opt-col-text">OPTIONS</th>
+                                <th class="opt-col-status">STATUS</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr
+                                *ngFor="let opt of selectedQuestionForWrongSummary.options; let idx = index"
+                                [class.q-option-correct]="isCorrectOption(opt)"
+                                [class.q-option-wrong-selected]="isOptionSelectedWrong(opt)"
+                              >
+                                <td class="opt-col-num">
+                                  <span class="q-option-num-badge" [class.is-correct-num]="isCorrectOption(opt)" [class.is-wrong-num]="isOptionSelectedWrong(opt)">
+                                    {{ idx + 1 }}
+                                  </span>
+                                </td>
+                                <td class="opt-col-text">
+                                  <span class="q-option-text-val" [class.is-correct-text]="isCorrectOption(opt)" [class.is-wrong-text]="isOptionSelectedWrong(opt)">
+                                    {{ opt.option_text || opt.text || opt.answer }}
+                                  </span>
+                                </td>
+                                <td class="opt-col-status">
+                                  <span *ngIf="isCorrectOption(opt)" class="q-correct-tag-badge">
+                                    <mat-icon>check_circle</mat-icon> Correct Answer
+                                  </span>
+                                  <span *ngIf="isOptionSelectedWrong(opt)" class="q-wrong-tag-badge">
+                                    <mat-icon>cancel</mat-icon> Selected Wrong Option
+                                  </span>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <!-- 4. Wrong Answers Section -->
+                        <div class="inline-section-block">
+                          <div class="inline-resources-header">
+                            <mat-icon class="res-hdr-icon">analytics</mat-icon>
+                            <span class="res-hdr-title">Wrong Answers & Occurrence Analysis:</span>
+                          </div>
+                          <table class="q-options-table" *ngIf="selectedWrongAnswers && selectedWrongAnswers.length; else comboTable">
+                            <thead>
+                              <tr>
+                                <th>Wrong Answer</th>
+                                <th class="opt-num-col">No. of Times Selected</th>
+                                <th class="opt-num-col">Occurrence %</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr *ngFor="let item of (filteredWrongAnswers.length ? filteredWrongAnswers : selectedWrongAnswers)">
+                                <td>
+                                  <span class="wa-answer-text">{{ item.answer || item.option_text || ('Option ' + (item.option_number || '')) }}</span>
+                                </td>
+                                <td class="opt-num-col">
+                                  <span class="wa-count-badge">{{ item.count || 0 }}</span>
+                                </td>
+                                <td class="opt-num-col">
+                                  {{ item.pct || (((item.count || 0) / (selectedQuestionForWrongSummary.attempts || 1) * 100).toFixed(2) + '%') }}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          <ng-template #comboTable>
+                            <table class="q-options-table" *ngIf="selectedWrongCombinations && selectedWrongCombinations.length">
+                              <thead>
+                                <tr>
+                                  <th>Wrong Answer</th>
+                                  <th class="opt-num-col">No. of Times Selected</th>
+                                  <th class="opt-num-col">Occurrence %</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr *ngFor="let combo of selectedWrongCombinations">
+                                  <td>
+                                    <span class="wa-answer-text">{{ combo.combination }}</span>
+                                  </td>
+                                  <td class="opt-num-col">
+                                    <span class="wa-count-badge">{{ combo.count }}</span>
+                                  </td>
+                                  <td class="opt-num-col">{{ combo.pct || (combo.percentage + '%') }}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </ng-template>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                </tr>
-              </ng-container>
-            </tbody>
-          </table>
+                    </td>
+                  </tr>
+                </ng-container>
+              </tbody>
+            </table>
           <div *ngIf="!selectedWrongAnswers || !selectedWrongAnswers.length" class="muted">
             No wrong answer data available for this question.
           </div>

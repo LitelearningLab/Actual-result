@@ -111,6 +111,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   selectedQuestionForWrongSummary: any = null;
   selectedWrongAnswers: Array<{ id: string; answer: string; count?: number; pct?: string } | any> =
     [];
+  selectedWrongCombinations: any[] = [];
   // resources modal state
   showResourcePanel = false;
   selectedResources: Array<{
@@ -3056,66 +3057,64 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       };
     });
 
-    if (!this.selectedWrongAnswers.length) {
-      const params: any = {
-        question_id: String(question.question_id || question.id || question.qid || ''),
-      };
-      if (this.selectedExam?.isDateRange || this.selectionMode === 'daterange') {
-        params.test_title = this.selectedExam?.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
-        if (this.selectedExam?.start_date || this.dateRangeStart) {
-          params.start_date = this.selectedExam?.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
-        }
-        if (this.selectedExam?.end_date || this.dateRangeEnd) {
-          params.end_date = this.selectedExam?.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
-        }
-      } else {
-        params.schedule_id = String(this.selectedExam?.schedule_id || this.selectedExam?.id || '');
+    const targetQid = String(question.question_id || question.id || question.qid || '');
+    const params: any = {
+      question_id: targetQid,
+    };
+    if (this.selectedExam?.isDateRange || this.selectionMode === 'daterange') {
+      params.test_title = this.selectedExam?.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
+      if (this.selectedExam?.start_date || this.dateRangeStart) {
+        params.start_date = this.selectedExam?.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
       }
+      if (this.selectedExam?.end_date || this.dateRangeEnd) {
+        params.end_date = this.selectedExam?.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
+      }
+    } else {
+      params.schedule_id = String(this.selectedExam?.schedule_id || this.selectedExam?.id || '');
+    }
 
-      if ((params.schedule_id || (params.test_title && params.start_date)) && params.question_id) {
-        this.http.get<any>(`${API_BASE}/get-question-wrong-answers`, { params }).subscribe({
-          next: (res: any) => {
-            const body = res || {};
-            const payload = body.data || body;
-            const dist = payload?.distribution || [];
+    if (params.question_id) {
+      this.http.get<any>(`${API_BASE}/get-question-wrong-answers`, { params }).subscribe({
+        next: (res: any) => {
+          const body = res || {};
+          const payload = body.data || body;
+          if (payload?.question_details) {
+            this.selectedQuestionForWrongSummary = {
+              ...(this.selectedQuestionForWrongSummary || {}),
+              ...payload.question_details
+            };
+          }
+          if (Array.isArray(payload?.combinations)) {
+            this.selectedWrongCombinations = payload.combinations;
+          } else {
+            this.selectedWrongCombinations = [];
+          }
+          const dist = payload?.distribution || [];
+          if (dist && dist.length) {
             this.selectedWrongAnswers = (dist || []).map((d: any) => ({
               answer: d.option_text || d.option || d.answer || d.text || 'Answer',
               option_id: d.option_id || d.options_id || d.optionId || null,
               answer_id: d.answer_id || d.answerId || null,
+              option_number: d.option_number || null,
               count: d.count || d.selected_count || 0,
               pct: d.percentage !== undefined ? String(d.percentage) + '%' : d.pct || null,
             }));
-            if (!this.selectedWrongAnswers.length) {
-              const raw = payload?.raw || [];
-              this.selectedWrongAnswers = (raw || []).map((r: any) => ({
-                answer: r.text || r.option_text || 'Answer',
-                count: r.count || 0,
-                pct: null,
-              }));
-            }
-            this.showWrongAnswerSummary = true;
-          },
-          error: (err: any) => {
-            console.warn('Failed to load question wrong answers', err);
-            this.showWrongAnswerSummary = true;
-          },
-        });
-        return;
-      }
-
-      const possible =
-        question.wrong_answers ||
-        question.wrong ||
-        question.mistakes_detail ||
-        question.mistakes ||
-        question.wrong_distribution;
-      if (possible && Array.isArray(possible)) {
-        this.selectedWrongAnswers = possible.map((en: any, i: number) => ({
-          answer: en.answer || en.text || en || 'Answer ' + (i + 1),
-          count: en.count || en.times || null,
-          pct: en.pct || null,
-        }));
-      }
+          } else if (payload?.raw && payload.raw.length) {
+            const raw = payload.raw;
+            this.selectedWrongAnswers = (raw || []).map((r: any) => ({
+              answer: r.text || r.option_text || 'Answer',
+              count: r.count || 0,
+              pct: r.pct || null,
+            }));
+          }
+          this.showWrongAnswerSummary = true;
+        },
+        error: (err: any) => {
+          console.warn('Failed to load question wrong answers', err);
+          this.showWrongAnswerSummary = true;
+        },
+      });
+      return;
     }
 
     this.showWrongAnswerSummary = true;
@@ -3125,9 +3124,48 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.showWrongAnswerSummary = false;
     this.selectedQuestionForWrongSummary = null;
     this.selectedWrongAnswers = [];
+    this.selectedWrongCombinations = [];
     this.expandedWrongAnswer = null;
     this.expandedResources = [];
     this.wrongAnswerResourcesLoading = false;
+  }
+
+  isCorrectOption(opt: any): boolean {
+    if (!opt) return false;
+    const val = opt.is_correct;
+    return val === 1 || val === '1' || val === true || String(val).toLowerCase() === 'true';
+  }
+
+  get filteredWrongAnswers(): any[] {
+    if (!this.selectedWrongAnswers || !this.selectedWrongAnswers.length) return [];
+    const options = this.selectedQuestionForWrongSummary?.options || [];
+    const correctOptionIds = options
+      .filter((o: any) => this.isCorrectOption(o))
+      .map((o: any) => String(o.option_id || o.id || '').toLowerCase());
+    const correctOptionTexts = options
+      .filter((o: any) => this.isCorrectOption(o))
+      .map((o: any) => String(o.option_text || o.text || o.answer || '').trim().toLowerCase());
+
+    return this.selectedWrongAnswers.filter((wa: any) => {
+      const waId = String(wa.option_id || wa.optionId || '').toLowerCase();
+      const waText = String(wa.answer || wa.option_text || wa.text || '').trim().toLowerCase();
+      if (waId && correctOptionIds.includes(waId)) return false;
+      if (waText && correctOptionTexts.includes(waText)) return false;
+      if (this.isCorrectOption(wa)) return false;
+      return true;
+    });
+  }
+
+  isOptionSelectedWrong(opt: any): boolean {
+    if (!opt || this.isCorrectOption(opt)) return false;
+    const optId = String(opt.option_id || opt.id || '').toLowerCase();
+    const optText = String(opt.option_text || opt.text || opt.answer || '').trim().toLowerCase();
+    return (this.filteredWrongAnswers || []).some((wa: any) => {
+      const waId = String(wa.option_id || wa.optionId || '').toLowerCase();
+      const waText = String(wa.answer || wa.option_text || wa.text || '').trim().toLowerCase();
+      const isMatch = (optId && waId && optId === waId) || (optText && waText && optText === waText);
+      return isMatch && (wa.count === undefined || wa.count === null || Number(wa.count) > 0);
+    });
   }
 
   toggleWrongAnswerResources(question: any, wa: any) {

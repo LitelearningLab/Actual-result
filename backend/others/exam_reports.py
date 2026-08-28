@@ -747,42 +747,173 @@ def get_question_wrong_answers(request):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     args = getattr(request, 'args', {})
-    ctx = resolve_report_context(session, args)
     question_id = args.get('question_id')
-    if not ctx.get('status') or not question_id:
-        return {"statusMessage": "Missing schedule/date criteria or question_id", "status": False}, 400
+    if not question_id:
+        return {"statusMessage": "Missing question_id parameter", "status": False}, 400
 
-    schedule_ids = ctx['schedule_ids']
-    attempt_ids = ctx['attempt_ids']
-    mode = ctx['mode']
+    ctx = resolve_report_context(session, args)
 
     try:
-        if mode == 'daterange':
-            if attempt_ids:
-                opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == question_id)
-                raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == question_id, Answer.is_correct == 0)
+        qobj = session.query(Question).filter(
+            (Question.question_id == question_id) |
+            (func.cast(Question.question_id, String) == str(question_id))
+        ).first()
+
+        target_qid = qobj.question_id if qobj else question_id
+        cat_name = None
+        if target_qid:
+            cat_mapping = session.query(QuestionMapping).filter(
+                (QuestionMapping.question_id == target_qid) |
+                (func.cast(QuestionMapping.question_id, String) == str(target_qid))
+            ).first()
+            if cat_mapping and cat_mapping.category_id:
+                cat_obj = session.query(Categories).filter(
+                    (Categories.category_id == cat_mapping.category_id) |
+                    (func.cast(Categories.category_id, String) == str(cat_mapping.category_id))
+                ).first()
+                if cat_obj:
+                    cat_name = getattr(cat_obj, 'category_name', None) or getattr(cat_obj, 'name', None)
+
+        options_db = session.query(Option).filter(
+            (Option.question_id == target_qid) |
+            (func.cast(Option.question_id, String) == str(target_qid))
+        ).order_by(Option.options_id).all()
+
+        opts_data = []
+        opt_id_to_num = {}
+        for idx, opt in enumerate(options_db, 1):
+            opt_id_to_num[str(opt.options_id)] = idx
+            if opt.option_text:
+                opt_id_to_num[opt.option_text.strip()] = idx
+            opts_data.append({
+                'option_id': str(opt.options_id),
+                'option_text': opt.option_text,
+                'option_number': idx,
+                'is_correct': int(opt.is_correct or 0)
+            })
+
+        q_type = 'Multiple' if getattr(qobj, 'question_type', '') in ['multi', 'multiple'] else 'Single' if getattr(qobj, 'question_type', '') in ['choose', 'single'] else (getattr(qobj, 'question_type', '') or 'Single')
+
+        question_details = {
+            'question_id': str(target_qid),
+            'question_text': getattr(qobj, 'question_text', None) or '',
+            'question_type': q_type,
+            'category_name': cat_name,
+            'options': opts_data
+        }
+
+        # Query wrong answer distribution & combinations
+        if ctx.get('status'):
+            schedule_ids = ctx['schedule_ids']
+            attempt_ids = ctx['attempt_ids']
+            mode = ctx['mode']
+            if mode == 'daterange':
+                if attempt_ids:
+                    opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == target_qid, Answer.is_correct == 0, func.coalesce(Option.is_correct, 0) == 0)
+                    raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == target_qid, Answer.is_correct == 0)
+                    tot_attempts = session.query(func.count(Answer.attempt_id.distinct())).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == target_qid).scalar() or 0
+                    wrong_ans_records = session.query(Answer).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == target_qid, Answer.is_correct == 0).all()
+                else:
+                    opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == target_qid, Answer.is_correct == 0, func.coalesce(Option.is_correct, 0) == 0)
+                    raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == target_qid, Answer.is_correct == 0)
+                    tot_attempts = session.query(func.count(Answer.attempt_id.distinct())).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == target_qid).scalar() or 0
+                    wrong_ans_records = session.query(Answer).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == target_qid, Answer.is_correct == 0).all()
             else:
-                opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == question_id)
-                raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == question_id, Answer.is_correct == 0)
+                opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == target_qid, Answer.is_correct == 0, func.coalesce(Option.is_correct, 0) == 0)
+                raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == target_qid, Answer.is_correct == 0)
+                tot_attempts = session.query(func.count(Answer.attempt_id.distinct())).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == target_qid).scalar() or 0
+                wrong_ans_records = session.query(Answer).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == target_qid, Answer.is_correct == 0).all()
         else:
-            opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == question_id)
-            raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == question_id, Answer.is_correct == 0)
+            opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.question_id == target_qid, Answer.is_correct == 0, func.coalesce(Option.is_correct, 0) == 0)
+            raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.question_id == target_qid, Answer.is_correct == 0)
+            tot_attempts = session.query(func.count(Answer.attempt_id.distinct())).filter(Answer.question_id == target_qid).scalar() or 0
+            wrong_ans_records = session.query(Answer).filter(Answer.question_id == target_qid, Answer.is_correct == 0).all()
 
         opt_counts = opt_q.group_by(Option.options_id, Option.option_text).all()
         total_sel = sum([c[2] for c in opt_counts])
+        total_attempts = tot_attempts if tot_attempts > 0 else (total_sel or 1)
+
+        question_details['attempts'] = total_attempts
+        question_details['mistakes'] = sum([c[1] for c in raw_q.group_by(Answer.written_answer).all()]) or sum([c[2] for c in opt_counts]) or 0
+
         distribution = []
         for opt_id, opt_text, cnt in opt_counts:
-            pct = (cnt / total_sel * 100) if total_sel > 0 else 0
-            distribution.append({'option_id': opt_id, 'option_text': opt_text, 'count': int(cnt), 'percentage': round(pct, 2)})
+            pct = (cnt / total_attempts * 100) if total_attempts > 0 else 0
+            opt_num = opt_id_to_num.get(str(opt_id))
+            distribution.append({
+                'option_id': str(opt_id),
+                'option_text': opt_text,
+                'option_number': opt_num,
+                'count': int(cnt),
+                'percentage': round(pct, 2),
+                'pct': f"{pct:.2f}%"
+            })
 
         raw_wrong = raw_q.group_by(Answer.written_answer).all()
         raw_list = []
         for txt, cnt in raw_wrong:
-            option_obj = session.query(Option).filter(Option.option_text == txt, Option.question_id == question_id).first()
-            option_id = option_obj.options_id if option_obj else None
-            raw_list.append({'text': txt, 'count': int(cnt), 'option_id': option_id})
+            option_obj = session.query(Option).filter(Option.option_text == txt, Option.question_id == target_qid).first()
+            option_id = str(option_obj.options_id) if option_obj else None
+            opt_num = opt_id_to_num.get(str(option_id)) if option_id else None
+            pct = (cnt / total_attempts * 100) if total_attempts > 0 else 0
+            raw_list.append({
+                'text': txt,
+                'count': int(cnt),
+                'option_id': option_id,
+                'option_number': opt_num,
+                'percentage': round(pct, 2),
+                'pct': f"{pct:.2f}%"
+            })
 
-        return {'statusMessage': 'Question wrong answers retrieved', 'status': True, 'data': {'question_id': question_id, 'distribution': distribution, 'raw': raw_list}}, 200
+        attempt_options_map = {}
+        for ans in wrong_ans_records:
+            att_key = ans.attempt_id or ans.user_id or ans.answer_id
+            if att_key not in attempt_options_map:
+                attempt_options_map[att_key] = set()
+            if ans.selected_option_id:
+                attempt_options_map[att_key].add(str(ans.selected_option_id))
+            elif ans.written_answer:
+                attempt_options_map[att_key].add(str(ans.written_answer).strip())
+
+        combo_counts = {}
+        for att_key, opt_set in attempt_options_map.items():
+            if not opt_set:
+                continue
+            nums = []
+            for item in opt_set:
+                if item in opt_id_to_num:
+                    nums.append(opt_id_to_num[item])
+                elif item.isdigit():
+                    nums.append(int(item))
+            nums.sort()
+            if nums:
+                combo_str = ",".join(str(n) for n in nums)
+            else:
+                combo_str = ",".join(sorted(list(opt_set)))
+            combo_counts[combo_str] = combo_counts.get(combo_str, 0) + 1
+
+        total_wrong_attempts = sum(combo_counts.values()) or len(attempt_options_map) or 1
+        combinations_list = []
+        for combo_str, count in sorted(combo_counts.items(), key=lambda x: x[1], reverse=True):
+            pct = round((count / total_wrong_attempts) * 100, 2)
+            combinations_list.append({
+                'combination': combo_str,
+                'count': count,
+                'percentage': pct,
+                'pct': f"{pct}%"
+            })
+
+        if not combinations_list and distribution:
+            for item in distribution:
+                c_name = str(item.get('option_number') or item.get('option_text') or 'Answer')
+                combinations_list.append({
+                    'combination': c_name,
+                    'count': item.get('count', 0),
+                    'percentage': item.get('percentage', 0),
+                    'pct': f"{item.get('percentage', 0)}%"
+                })
+
+        return {'statusMessage': 'Question wrong answers retrieved', 'status': True, 'data': {'question_id': str(target_qid), 'question_details': question_details, 'distribution': distribution, 'raw': raw_list, 'combinations': combinations_list}}, 200
     except Exception as e:
         lineno = e.__traceback__.tb_lineno if getattr(e, "__traceback__", None) else 'N/A'
         print(f"Error fetching question wrong answers: {e} Line # {lineno}")

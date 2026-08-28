@@ -344,7 +344,7 @@ $table-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 .premium-table td.mat-cell,
 .premium-table td.mat-mdc-cell { padding: 0.75rem 1rem !important; font-size: 0.8125rem; color: var(--theme-3-text-2); border-bottom: 1px solid var(--table-row-border) !important; vertical-align: middle; transition: all 0.2s $table-ease; }
 
-// Left align Question column in all tables
+// Left align Question and Name columns in all tables
 .mat-column-question,
 td.mat-column-question,
 th.mat-column-question,
@@ -355,10 +355,31 @@ td.question-text-cell,
 .premium-table .mat-column-question,
 .premium-table td.mat-column-question,
 .premium-table th.mat-column-question,
-.premium-table td.question-text-cell {
+.premium-table td.question-text-cell,
+.mat-column-name,
+td.mat-column-name,
+th.mat-column-name,
+td.mat-mdc-cell.mat-column-name,
+th.mat-mdc-header-cell.mat-column-name,
+.mat-column-full_name,
+td.mat-column-full_name,
+th.mat-column-full_name,
+.mat-column-username,
+td.mat-column-username,
+th.mat-column-username,
+.mat-column-student_name,
+td.mat-column-student_name,
+th.mat-column-student_name,
+.premium-table .mat-column-name,
+.premium-table td.mat-column-name,
+.premium-table th.mat-column-name {
   text-align: left !important;
 }
-th.mat-column-question .mat-sort-header-container {
+th.mat-column-question .mat-sort-header-container,
+th.mat-column-name .mat-sort-header-container,
+th.mat-column-full_name .mat-sort-header-container,
+th.mat-column-username .mat-sort-header-container,
+th.mat-column-student_name .mat-sort-header-container {
   justify-content: flex-start !important;
 }
 
