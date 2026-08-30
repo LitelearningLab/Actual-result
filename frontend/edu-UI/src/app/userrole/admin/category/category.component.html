@@ -66,7 +66,13 @@
                             <mat-label>Institute <span class="required-star">*</span></mat-label>
                             <mat-select multiple [(ngModel)]="selectedInstitutes" placeholder="Select institute"
                                 (selectionChange)="onInstituteSelectionChange()">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <mat-option *ngIf="institutesLoading" disabled>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
+                                        <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                                        <span>Loading institutes...</span>
+                                    </div>
+                                </mat-option>
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!institutesLoading">
                                     <input matInput class="select-search-input" placeholder="Search institute"
                                         [(ngModel)]="instituteFilterSearch" [ngModelOptions]="{ standalone: true }"
                                         (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
@@ -74,7 +80,7 @@
                                         (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
                                 <mat-option class="select-all-option"
-                                    *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
+                                    *ngIf="!institutesLoading && filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
                                     (click)="toggleSelectAllInstitutes()">
                                     <mat-icon class="select-all-checkbox-icon"
                                         [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'">
@@ -97,7 +103,13 @@
                             <mat-select multiple [(ngModel)]="selectedCountries" placeholder="Select Country"
                                 (openedChange)="onFilterSelectOpened($event, 'country')"
                                 (selectionChange)="onCountryFilterChange()">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <mat-option *ngIf="countriesLoading" disabled>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
+                                        <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                                        <span>Loading countries...</span>
+                                    </div>
+                                </mat-option>
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!countriesLoading">
                                     <input matInput class="select-search-input" placeholder="Search country"
                                         [(ngModel)]="countrySearch" [ngModelOptions]="{standalone: true}"
                                         (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
@@ -105,7 +117,7 @@
                                         (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
                                 <mat-option class="select-all-option"
-                                    *ngIf="filteredCountries.length && !countrySearch?.trim()"
+                                    *ngIf="!countriesLoading && filteredCountries.length && !countrySearch?.trim()"
                                     (click)="toggleSelectAllCountries()">
                                     <mat-icon class="select-all-checkbox-icon"
                                         [style.color]="isAllCountriesSelected() ? '#2563eb' : '#64748b'">
@@ -160,14 +172,20 @@
                                 [disabled]="!isInstituteSelected"
                                 (openedChange)="onFilterDepartmentOpenedChange($event)"
                                 (selectionChange)="onDepartmentFilterChange()">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <mat-option *ngIf="departmentsLoading" disabled>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
+                                        <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                                        <span>Loading departments...</span>
+                                    </div>
+                                </mat-option>
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!departmentsLoading">
                                     <input matInput class="select-search-input" placeholder="Search department"
                                         [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
                                         (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
                                         (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
                                 <mat-option class="select-all-option"
-                                    *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
+                                    *ngIf="!departmentsLoading && filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
                                     (click)="toggleSelectAllDepartments()">
                                     <mat-icon class="select-all-checkbox-icon"
                                         [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'">
@@ -191,7 +209,13 @@
                                 [disabled]="!selectedCountries.length && !filterCountry"
                                 (openedChange)="onFilterSelectOpened($event, 'city')"
                                 (selectionChange)="onCityFilterChange()">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <mat-option *ngIf="citiesLoading" disabled>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
+                                        <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                                        <span>Loading cities...</span>
+                                    </div>
+                                </mat-option>
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!citiesLoading">
                                     <input matInput class="select-search-input" placeholder="Search city"
                                         [(ngModel)]="citySearch" [ngModelOptions]="{ standalone: true }"
                                         (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
@@ -200,7 +224,7 @@
                                 </mat-option>
 
                                 <mat-option class="select-all-option"
-                                    *ngIf="filteredCities.length && !citySearch?.trim()"
+                                    *ngIf="!citiesLoading && filteredCities.length && !citySearch?.trim()"
                                     (click)="toggleSelectAllCities()">
                                     <mat-icon class="select-all-checkbox-icon"
                                         [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'">
@@ -209,7 +233,7 @@
                                     <strong>Select All</strong>
                                 </mat-option>
 
-                                <mat-option *ngIf="!filteredCities.length" disabled> No cities available </mat-option>
+                                <mat-option *ngIf="!citiesLoading && !filteredCities.length" disabled> No cities available </mat-option>
 
                                 <mat-option *ngFor="let city of filteredCities" [value]="city.name">
                                     {{ city.name }}
@@ -260,14 +284,20 @@
                                 [disabled]="!isInstituteSelected"
                                 (openedChange)="onFilterTeamOpenedChange($event)"
                                 (selectionChange)="onQuestionBankParentFilterChange()">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <mat-option *ngIf="teamsLoading" disabled>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
+                                        <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                                        <span>Loading teams...</span>
+                                    </div>
+                                </mat-option>
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!teamsLoading">
                                     <input matInput class="select-search-input" placeholder="Search team"
                                         [(ngModel)]="teamFilterSearch" [ngModelOptions]="{ standalone: true }"
                                         (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
                                         (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
                                 <mat-option class="select-all-option"
-                                    *ngIf="filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
+                                    *ngIf="!teamsLoading && filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
                                     (click)="toggleSelectAllTeams()">
                                     <mat-icon class="select-all-checkbox-icon"
                                         [style.color]="isAllTeamsSelected() ? '#2563eb' : '#64748b'">
@@ -288,7 +318,13 @@
                             <mat-select multiple [(ngModel)]="selectedCategoryNames" placeholder="Select question bank"
                                 [disabled]="!isInstituteSelected"
                                 (openedChange)="onFilterSelectOpened($event, 'questionBank')">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                <mat-option *ngIf="categoriesLoading" disabled>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
+                                        <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                                        <span>Loading question banks...</span>
+                                    </div>
+                                </mat-option>
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!categoriesLoading">
                                     <input matInput class="select-search-input" placeholder="Search question bank"
                                         [(ngModel)]="categorySearch" [ngModelOptions]="{standalone: true}"
                                         (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
@@ -296,7 +332,7 @@
                                         (input)="stopFilterSearchEvent($event)" />
                                 </mat-option>
                                 <mat-option class="select-all-option"
-                                    *ngIf="filteredCategoryOptions.length && !categorySearch?.trim()"
+                                    *ngIf="!categoriesLoading && filteredCategoryOptions.length && !categorySearch?.trim()"
                                     (click)="toggleSelectAllCategories()">
                                     <mat-icon class="select-all-checkbox-icon"
                                         [style.color]="isAllCategoriesSelected() ? '#2563eb' : '#64748b'">

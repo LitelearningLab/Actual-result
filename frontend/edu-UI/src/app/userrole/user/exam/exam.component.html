@@ -36,25 +36,6 @@
             class="filters-header-mark" aria-hidden="true"></span>
       </div>
       <div class="filter-row">
-         <mat-form-field *ngIf="isSuperAdmin && !isGlobalInstituteActive" appearance="outline" class="mandatory-field">
-            <mat-label>Institute <span class="required-star">*</span></mat-label>
-            <mat-select multiple [(ngModel)]="selectedInstitutes" placeholder="Select institute">
-               <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                  <input matInput class="select-search-input" placeholder="Search institute"
-                     [(ngModel)]="instituteFilterSearch" [ngModelOptions]="{ standalone: true }"
-                     (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
-                     (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
-               </mat-option>
-               <mat-option class="select-all-option" *ngIf="filteredInstitutesForFilter.length && !instituteFilterSearch?.trim()"
-                  (click)="toggleSelectAllInstitutes()">
-                  <mat-icon class="select-all-checkbox-icon" [style.color]="isAllInstitutesSelected() ? '#2563eb' : '#64748b'">
-                     {{ isAllInstitutesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                  </mat-icon>
-                  <strong>Select All</strong>
-               </mat-option>
-               <mat-option *ngFor="let institute of filteredInstitutesForFilter" [value]="institute.institute_id">{{ institute.name }}</mat-option>
-            </mat-select>
-         </mat-form-field>
          <mat-form-field appearance="outline">
             <mat-label>Schedule Name</mat-label>
             <mat-select [(ngModel)]="filterScheduleName" placeholder="Select Schedule Name">

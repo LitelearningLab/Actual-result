@@ -951,13 +951,40 @@ def get_resources_for_answer(request):
         else:
             q = q.filter(Answer.schedule_id.in_(schedule_ids))
 
-        if answer_id:
-            q = q.filter(Answer.answer_id == answer_id)
-        elif option_id:
+        if option_id:
             q = q.filter(Answer.selected_option_id == option_id)
+        elif answer_id:
+            q = q.filter(Answer.answer_id == answer_id)
+        elif answer_value and question_id:
+            opts = session.query(Option).filter(Option.question_id == question_id).all()
+            opt_id_to_num = {str(o.options_id): idx + 1 for idx, o in enumerate(opts)}
+            num_to_opt_id = {idx + 1: str(o.options_id) for idx, o in enumerate(opts)}
+            clean_val = str(answer_value).strip()
+            if clean_val.replace(',', '').isdigit():
+                nums = sorted([int(n.strip()) for n in clean_val.split(',') if n.strip().isdigit()])
+                target_combo_str = ",".join(str(n) for n in nums)
+                all_q_answers = session.query(Answer).filter(Answer.question_id == question_id, Answer.is_correct == 0).all()
+                att_answers_map = {}
+                for a in all_q_answers:
+                    if a.attempt_id:
+                        att_answers_map.setdefault(a.attempt_id, []).append(a)
+                matching_attempt_ids = [
+                    att_id for att_id, ans_list in att_answers_map.items()
+                    if ",".join(str(n) for n in sorted(list({
+                        opt_id_to_num[str(a.selected_option_id)]
+                        for a in ans_list
+                        if a.selected_option_id and str(a.selected_option_id) in opt_id_to_num
+                    }))) == target_combo_str
+                ]
+                if matching_attempt_ids:
+                    q = q.filter(Answer.attempt_id.in_(matching_attempt_ids))
+                elif len(nums) == 1 and nums[0] in num_to_opt_id:
+                    q = q.filter(Answer.selected_option_id == num_to_opt_id[nums[0]])
+                else:
+                    q = q.filter(Answer.question_id == question_id, Answer.written_answer == answer_value)
+            else:
+                q = q.filter(Answer.question_id == question_id, Answer.written_answer == answer_value)
         elif answer_value:
-            if question_id:
-                q = q.filter(Answer.question_id == question_id)
             q = q.filter(Answer.written_answer == answer_value)
         elif question_id:
             q = q.filter(Answer.question_id == question_id)
@@ -968,11 +995,32 @@ def get_resources_for_answer(request):
         if not answers:
             return {"statusMessage": "No answers found for given parameters", "status": False}, 404
 
-        user_ids = list({a.user_id for a in answers})
+        user_answers = {}
+        for a in answers:
+            if a.user_id:
+                uid = str(a.user_id).strip()
+                if uid not in user_answers:
+                    user_answers[uid] = set()
+                if a.attempt_id:
+                    user_answers[uid].add(a.attempt_id)
+
+        user_ids = list(user_answers.keys())
         users = session.query(User).filter(User.user_id.in_(user_ids)).all()
         out = []
         for user in users:
-            out.append({'user_id': user.user_id, 'full_name': user.full_name, 'email': user.email})
+            uid_str = str(user.user_id).strip()
+            attempt_ids = list(user_answers.get(uid_str, set()))
+            attempts = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id.in_(attempt_ids)).all() if attempt_ids else []
+            attempt_numbers = sorted(list({att.attempt_number for att in attempts if att.attempt_number is not None}))
+            attempt_str = ", ".join([f"Attempt {n}" for n in attempt_numbers]) if attempt_numbers else ""
+            selection_count = len(attempt_ids)
+            out.append({
+                'user_id': uid_str,
+                'full_name': user.full_name,
+                'email': user.email,
+                'selection_count': selection_count,
+                'attempts': attempt_str
+            })
 
         context = {'schedule_ids': schedule_ids, 'question_id': question_id, 'option_id': option_id, 'answer_id': answer_id, 'answer_value': answer_value}
         return {'statusMessage': 'Resources (users) retrieved', 'status': True, 'context': context, 'data': out}, 200

@@ -151,6 +151,12 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }> = [];
   departments: Array<{ id: string; name: string }> = [];
   teams: Array<{ id: string; name: string }> = [];
+  institutesLoading = false;
+  countriesLoading = false;
+  citiesLoading = false;
+  departmentsLoading = false;
+  teamsLoading = false;
+  categoriesLoading = false;
 
   categories: Array<{
     id: string;
@@ -906,8 +912,10 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   // load the unscoped institute list (get-institute-list); used at init and whenever
   // Country/City/Industry/Sector filters are cleared back to "Any".
   private loadInstituteOptions(onLoaded?: () => void) {
+    this.institutesLoading = true;
     this.http.get<any>(`${API_BASE}/get-institute-list`).subscribe({
       next: (res) => {
+        this.institutesLoading = false;
         const data = Array.isArray(res) ? res : res?.data || [];
         // Prefer the full institute name while retaining the abbreviation as a fallback.
         this.allInstitutes = (data || [])
@@ -921,7 +929,9 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         this.syncInstituteSearch();
         if (onLoaded) onLoaded();
       },
-      error: () => {},
+      error: () => {
+        this.institutesLoading = false;
+      },
     });
   }
 
@@ -1140,6 +1150,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   // Only show countries that have at least one registered institute (mirrors
   // view-institutes.component.ts loadRegisteredInstituteCountries), not the full world hierarchy.
   loadCountries() {
+    this.countriesLoading = true;
     const url = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -1148,10 +1159,12 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           this.locationHierarchyRaw = Array.isArray(countries) ? countries : [];
           this.loadRegisteredInstituteCountries(this.locationHierarchyRaw);
         } catch (e) {
+          this.countriesLoading = false;
           this.countries = [];
         }
       },
       error: () => {
+        this.countriesLoading = false;
         this.countries = [];
       },
     });
@@ -1159,8 +1172,10 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private loadRegisteredInstituteCountries(locationCountries: any[]) {
     this.countries = [];
+    this.countriesLoading = true;
     this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
       next: (res) => {
+        this.countriesLoading = false;
         try {
           const institutes = Array.isArray(res?.data) ? res.data : [];
           const hierarchyCountries = (locationCountries || [])
@@ -1222,6 +1237,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       },
       error: () => {
+        this.countriesLoading = false;
         this.countries = [];
       },
     });
@@ -1232,12 +1248,14 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     const codes = (Array.isArray(countryCodes) ? countryCodes : [countryCodes]).filter(Boolean);
     if (!codes.length) return;
 
+    this.citiesLoading = true;
     const requests = codes.map((code) =>
       this.http.get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: code } })
     );
 
     forkJoin(requests).subscribe({
       next: (responses) => {
+        this.citiesLoading = false;
         try {
           const uniqueSet = new Map<string, { code: string; name: string }>();
           responses.forEach((res, idx) => {
@@ -1282,6 +1300,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       },
       error: () => {
+        this.citiesLoading = false;
         this.filterCityOptions = [];
       },
     });
@@ -1365,8 +1384,10 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    this.institutesLoading = true;
     this.http.get<any>(`${API_BASE}/get-institutes`, { params }).subscribe({
       next: (res) => {
+        this.institutesLoading = false;
         try {
           const data = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
           this.institutes = data
@@ -1397,6 +1418,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       },
       error: () => {
+        this.institutesLoading = false;
         this.institutes = [];
       },
     });
@@ -1404,8 +1426,10 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private loadGlobalDepartmentTeamLists() {
     if (!this.isSuperAdmin) return;
+    this.departmentsLoading = true;
     this.http.get<any>(`${API_BASE}/get-department-list`).subscribe({
       next: (res) => {
+        this.departmentsLoading = false;
         const data = Array.isArray(res) ? res : res?.data || [];
         this.departments = (data || []).map((d: any) => ({
           id: d.department_id || d.dept_id || d.id || d.deptId,
@@ -1413,11 +1437,14 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         }));
       },
       error: () => {
+        this.departmentsLoading = false;
         this.departments = [];
       },
     });
+    this.teamsLoading = true;
     this.http.get<any>(`${API_BASE}/get-teams-list`).subscribe({
       next: (res) => {
+        this.teamsLoading = false;
         const data = Array.isArray(res) ? res : res?.data || [];
         this.teams = (data || []).map((t: any) => ({
           id: t.team_id || t.id || t.teamId,
@@ -1427,6 +1454,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         }));
       },
       error: () => {
+        this.teamsLoading = false;
         this.teams = [];
       },
     });
@@ -1462,8 +1490,10 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       params = params.set('created_before', this.filterCreationDate.toISOString().slice(0, 10));
     }
 
+    this.categoriesLoading = true;
     this.http.get<any>(`${API_BASE}/category-details`, { params }).subscribe({
       next: (res) => {
+        this.categoriesLoading = false;
         const items = Array.isArray(res) ? res : res?.data || [];
         this.categoryOptions = (items || [])
           .filter((it: any) => {
@@ -1478,23 +1508,22 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
                   );
                 }
                 if (st === 'descriptive') {
-                  return ['descriptive', 'paragraph', 'subjective'].some((t) =>
-                    catType.includes(t)
-                  );
+                  return catType.includes('descriptive') || catType.includes('desc');
                 }
-                return catType.includes(st);
+                return false;
               });
               if (!matchesType) return false;
             }
             return true;
           })
-          .map((it: any, idx: number) => ({
-            id: it.category_id || it.id || it._id || String(idx),
-            name: it.name || it.category_name || '',
+          .map((c: any) => ({
+            id: c.category_id || c.id || '',
+            name: c.name || c.category_name || '',
           }))
           .filter((c: any) => !!c.name);
       },
       error: () => {
+        this.categoriesLoading = false;
         this.categoryOptions = [];
       },
     });
@@ -1555,7 +1584,6 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       this.filterName = '';
       this.categoryOptions = [];
     }
-    // Replace lines 880-887 with:
     if (!iid) {
       this.departments = [];
       this.teams = [];
@@ -1569,10 +1597,12 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.loadCategoryOptions();
     // departments
+    this.departmentsLoading = true;
     this.http
       .get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: iid } })
       .subscribe({
         next: (res) => {
+          this.departmentsLoading = false;
           const data = Array.isArray(res) ? res : res?.data || [];
           this.departments = (data || []).map((d: any) => ({
             id: d.department_id || d.dept_id || d.id || d.deptId,
@@ -1580,12 +1610,15 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
           }));
         },
         error: () => {
+          this.departmentsLoading = false;
           this.departments = [];
         },
       });
     // teams
+    this.teamsLoading = true;
     this.http.get<any>(`${API_BASE}/get-teams-list`, { params: { institute_id: iid } }).subscribe({
       next: (res) => {
+        this.teamsLoading = false;
         const data = Array.isArray(res) ? res : res?.data || [];
         this.teams = (data || []).map((t: any) => ({
           id: t.team_id || t.id || t.teamId,
@@ -1595,6 +1628,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
         }));
       },
       error: () => {
+        this.teamsLoading = false;
         this.teams = [];
       },
     });

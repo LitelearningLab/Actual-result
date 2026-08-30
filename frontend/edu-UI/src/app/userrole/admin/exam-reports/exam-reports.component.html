@@ -120,11 +120,27 @@
                       (input)="stopFilterSearchEvent($event)"
                     />
                   </div>
-                  <mat-option value="">All</mat-option>
+                  <mat-option disabled *ngIf="institutesLoading">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
+                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                      <span>Loading institutes...</span>
+                    </div>
+                  </mat-option>
+                  <mat-option value="" *ngIf="!institutesLoading">All</mat-option>
+                  <mat-option
+                    disabled
+                    *ngIf="!filteredInstitutesForFilter.length && !institutesLoading"
+                  >
+                    No institutes found
+                  </mat-option>
                   <mat-option *ngFor="let inst of filteredInstitutesForFilter" [value]="inst.id">
                     {{ inst.name }}
                   </mat-option>
                 </mat-select>
+                <mat-hint *ngIf="institutesLoading" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                  <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+                  <span>Loading institutes...</span>
+                </mat-hint>
               </mat-form-field>
             </div>
 
@@ -153,9 +169,15 @@
                       (input)="stopFilterSearchEvent($event)"
                     />
                   </mat-option>
+                  <mat-option disabled *ngIf="countriesLoading">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
+                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                      <span>Loading countries...</span>
+                    </div>
+                  </mat-option>
                   <mat-option
                     class="select-all-option"
-                    *ngIf="filteredCountriesList.length && !searchQueries.country?.trim()"
+                    *ngIf="filteredCountriesList.length && !searchQueries.country?.trim() && !countriesLoading"
                     (click)="toggleSelectAllCountries()"
                   >
                     <mat-icon
@@ -166,10 +188,17 @@
                     </mat-icon>
                     <strong>Select All</strong>
                   </mat-option>
+                  <mat-option *ngIf="!filteredCountriesList.length && !countriesLoading" disabled>
+                    No countries available
+                  </mat-option>
                   <mat-option *ngFor="let c of filteredCountriesList" [value]="c.code">
                     {{ c.name }}
                   </mat-option>
                 </mat-select>
+                <mat-hint *ngIf="countriesLoading" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                  <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+                  <span>Loading countries...</span>
+                </mat-hint>
               </mat-form-field>
 
               <!-- City -->
@@ -195,9 +224,15 @@
                       (input)="stopFilterSearchEvent($event)"
                     />
                   </mat-option>
+                  <mat-option disabled *ngIf="citiesLoading">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
+                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                      <span>Loading cities...</span>
+                    </div>
+                  </mat-option>
                   <mat-option
                     class="select-all-option"
-                    *ngIf="filteredCities.length && !citySearch?.trim()"
+                    *ngIf="filteredCities.length && !citySearch?.trim() && !citiesLoading"
                     (click)="toggleSelectAllCities()"
                   >
                     <mat-icon
@@ -208,13 +243,17 @@
                     </mat-icon>
                     <strong>Select All</strong>
                   </mat-option>
-                  <mat-option *ngIf="!filteredCities.length" disabled>
+                  <mat-option *ngIf="!filteredCities.length && !citiesLoading" disabled>
                     No cities available
                   </mat-option>
                   <mat-option *ngFor="let city of filteredCities" [value]="city.name">
                     {{ city.name }}
                   </mat-option>
                 </mat-select>
+                <mat-hint *ngIf="citiesLoading" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                  <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+                  <span>Loading cities...</span>
+                </mat-hint>
               </mat-form-field>
             </div>
 
@@ -311,9 +350,15 @@
                       (input)="stopFilterSearchEvent($event)"
                     />
                   </div>
+                  <mat-option disabled *ngIf="departmentsLoading">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
+                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                      <span>Loading departments...</span>
+                    </div>
+                  </mat-option>
                   <mat-option
                     class="select-all-option"
-                    *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
+                    *ngIf="filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim() && !departmentsLoading"
                     (click)="$event.stopPropagation(); toggleSelectAllDepartments()"
                   >
                     <mat-icon
@@ -324,10 +369,17 @@
                     </mat-icon>
                     <strong>Select All</strong>
                   </mat-option>
+                  <mat-option *ngIf="!filteredDepartmentsForFilter.length && !departmentsLoading && (selectedInstituteId || userFilters.institute_id || userFilters.campus_id)" disabled>
+                    No departments available
+                  </mat-option>
                   <mat-option *ngFor="let d of filteredDepartmentsForFilter" [value]="d">
                     {{ d }}
                   </mat-option>
                 </mat-select>
+                <mat-hint *ngIf="departmentsLoading" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                  <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+                  <span>Loading departments...</span>
+                </mat-hint>
               </mat-form-field>
 
               <!-- Team (Right - Team moved up) -->
@@ -359,9 +411,15 @@
                       (input)="stopFilterSearchEvent($event)"
                     />
                   </div>
+                  <mat-option disabled *ngIf="teamsLoading">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
+                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                      <span>Loading teams...</span>
+                    </div>
+                  </mat-option>
                   <mat-option
                     class="select-all-option"
-                    *ngIf="filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
+                    *ngIf="filteredTeamsForFilter.length && !teamFilterSearch?.trim() && !teamsLoading"
                     (click)="$event.stopPropagation(); toggleSelectAllTeams()"
                   >
                     <mat-icon
@@ -372,10 +430,17 @@
                     </mat-icon>
                     <strong>Select All</strong>
                   </mat-option>
+                  <mat-option *ngIf="!filteredTeamsForFilter.length && !teamsLoading && (selectedInstituteId || userFilters.institute_id || userFilters.campus_id)" disabled>
+                    No teams available
+                  </mat-option>
                   <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id || t.name || t">
                     {{ t.name || t }}
                   </mat-option>
                 </mat-select>
+                <mat-hint *ngIf="teamsLoading" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                  <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+                  <span>Loading teams...</span>
+                </mat-hint>
               </mat-form-field>
             </div>
 
@@ -402,11 +467,24 @@
                       (input)="stopFilterSearchEvent($event)"
                     />
                   </div>
-                  <mat-option value="">Any</mat-option>
+                  <mat-option disabled *ngIf="campusLoading">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
+                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                      <span>Loading campuses...</span>
+                    </div>
+                  </mat-option>
+                  <mat-option value="" *ngIf="!campusLoading">Any</mat-option>
+                  <mat-option *ngIf="!filteredCampusList.length && !campusLoading && (selectedInstituteId || userFilters.institute_id)" disabled>
+                    No campuses available
+                  </mat-option>
                   <mat-option *ngFor="let cp of filteredCampusList" [value]="cp">
                     {{ cp }}
                   </mat-option>
                 </mat-select>
+                <mat-hint *ngIf="campusLoading" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                  <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+                  <span>Loading campuses...</span>
+                </mat-hint>
               </mat-form-field>
             </div>
 
@@ -437,13 +515,18 @@
                       (input)="stopFilterSearchEvent($event)"
                     />
                   </div>
-                  <mat-option value="">Any</mat-option>
-                  <mat-option disabled *ngIf="isSuperAdmin && !selectedInstituteId">
+                  <mat-option disabled *ngIf="scheduledTestsLoading">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
+                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                      <span>Loading tests...</span>
+                    </div>
+                  </mat-option>
+                  <mat-option disabled *ngIf="isSuperAdmin && !selectedInstituteId && !scheduledTestsLoading">
                     Select an institute first
                   </mat-option>
                   <mat-option
                     disabled
-                    *ngIf="!filteredScheduleList.length && !scheduledTestsLoading"
+                    *ngIf="!filteredScheduleList.length && !scheduledTestsLoading && (selectedInstituteId || !isSuperAdmin)"
                   >
                     No tests found
                   </mat-option>
@@ -454,7 +537,11 @@
                     {{ getTestTitle(exam) }}
                   </mat-option>
                 </mat-select>
-                <mat-hint *ngIf="testNameError" style="color: #ef4444; font-weight: 500; font-size: 11px;">
+                <mat-hint *ngIf="scheduledTestsLoading" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                  <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+                  <span>Loading tests...</span>
+                </mat-hint>
+                <mat-hint *ngIf="testNameError && !scheduledTestsLoading" style="color: #ef4444; font-weight: 500; font-size: 11px;">
                   Test Name is mandatory. Please select a Test Name.
                 </mat-hint>
               </mat-form-field>
@@ -587,7 +674,11 @@
           tabindex="-1"
           style="cursor: default; user-select: none; caret-color: transparent;"
         />
-        <mat-hint *ngIf="!uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
+        <mat-hint *ngIf="scheduledTestsLoading" style="color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
+          <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+          <span>Loading tests...</span>
+        </mat-hint>
+        <mat-hint *ngIf="!scheduledTestsLoading && !uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
       </mat-form-field>
 
       <!-- Step 2: Select Date (with highlighted dates) -->
@@ -655,7 +746,11 @@
           tabindex="-1"
           style="cursor: default; user-select: none; caret-color: transparent;"
         />
-        <mat-hint *ngIf="!uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
+        <mat-hint *ngIf="scheduledTestsLoading" style="color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
+          <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+          <span>Loading tests...</span>
+        </mat-hint>
+        <mat-hint *ngIf="!scheduledTestsLoading && !uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
       </mat-form-field>
 
       <!-- Created Date / Date Range -->
@@ -2450,15 +2545,14 @@
               <tr
                 *ngFor="let opt of selectedQuestionForWrongSummary.options; let idx = index"
                 [class.q-option-correct]="isCorrectOption(opt)"
-                [class.q-option-wrong-selected]="isOptionSelectedWrong(opt)"
               >
                 <td class="opt-col-num">
-                  <span class="q-option-num-badge" [class.is-correct-num]="isCorrectOption(opt)" [class.is-wrong-num]="isOptionSelectedWrong(opt)">
+                  <span class="q-option-num-badge" [class.is-correct-num]="isCorrectOption(opt)">
                     {{ idx + 1 }}
                   </span>
                 </td>
                 <td class="opt-col-text">
-                  <span class="q-option-text-val" [class.is-correct-text]="isCorrectOption(opt)" [class.is-wrong-text]="isOptionSelectedWrong(opt)">
+                  <span class="q-option-text-val" [class.is-correct-text]="isCorrectOption(opt)">
                     {{ opt.option_text || opt.text || opt.answer }}
                   </span>
                 </td>
@@ -2466,15 +2560,10 @@
                   <span *ngIf="isCorrectOption(opt)" class="q-correct-tag-badge">
                     <mat-icon>check_circle</mat-icon> Correct Answer
                   </span>
-                  <span *ngIf="isOptionSelectedWrong(opt)" class="q-wrong-tag-badge">
-                    <mat-icon>cancel</mat-icon> Selected Wrong Option
-                  </span>
                 </td>
               </tr>
             </tbody>
           </table>
-
-          <!-- Wrong Answers & Occurrence Analysis Title & Table -->
           <div class="wa-section-title-wrap">
             <mat-icon class="wa-sec-icon">analytics</mat-icon>
             <span>Wrong Answers & Occurrence Analysis:</span>
@@ -2514,7 +2603,7 @@
                   <tr *ngIf="expandedWrongAnswer === wa" class="wa-inline-expansion-row">
                     <td colspan="3">
                       <div class="inline-resources-box">
-                        <!-- 1. Students / Users who selected this wrong answer -->
+                        <!-- Students / Users who selected this wrong answer -->
                         <div class="inline-section-block">
                           <div class="inline-resources-header">
                             <mat-icon class="res-hdr-icon">group</mat-icon>
@@ -2531,7 +2620,12 @@
                               <li *ngFor="let r of expandedResources" class="inline-resource-item">
                                 <div class="user-avatar-badge">{{ (r.full_name || r.name || '?').charAt(0).toUpperCase() }}</div>
                                 <div class="user-info-text">
-                                  <div class="user-name">{{ r.full_name || r.name }}</div>
+                                  <div class="user-name">
+                                    {{ r.full_name || r.name }}
+                                    <span *ngIf="r.attempts" class="user-attempts-pill">
+                                      {{ r.attempts }}
+                                    </span>
+                                  </div>
                                   <div class="user-email small-muted" *ngIf="r.email">{{ r.email }}</div>
                                 </div>
                               </li>
@@ -2541,135 +2635,6 @@
                           <div *ngIf="!wrongAnswerResourcesLoading && (!expandedResources || !expandedResources.length)" class="muted empty-inline-msg">
                             No student details recorded for this answer.
                           </div>
-                        </div>
-
-                        <!-- 2. Question Details -->
-                        <div class="inline-section-block">
-                          <div class="inline-resources-header">
-                            <mat-icon class="res-hdr-icon">quiz</mat-icon>
-                            <span class="res-hdr-title">Question Details:</span>
-                          </div>
-                          <div class="q-summary-meta-grid">
-                            <div class="q-meta-card">
-                              <div class="q-meta-label">Question Summary</div>
-                              <div class="q-meta-value highlight">
-                                {{ selectedQuestionForWrongSummary.question_summary || selectedQuestionForWrongSummary.summary || 'INCLUSIVE' }}
-                              </div>
-                            </div>
-                            <div class="q-meta-card">
-                              <div class="q-meta-label">Answer Type</div>
-                              <div class="q-meta-value">
-                                <span class="type-badge">{{ selectedQuestionForWrongSummary.question_type || selectedQuestionForWrongSummary.answer_type || 'Multiple' }}</span>
-                              </div>
-                            </div>
-                            <div class="q-meta-card">
-                              <div class="q-meta-label">Attempts</div>
-                              <div class="q-meta-value stat-attempts">{{ selectedQuestionForWrongSummary.attempts ?? selectedQuestionForWrongSummary.user_attempts ?? 0 }}</div>
-                            </div>
-                            <div class="q-meta-card">
-                              <div class="q-meta-label">No Of Mistakes</div>
-                              <div class="q-meta-value stat-mistakes">{{ selectedQuestionForWrongSummary.mistakes ?? selectedQuestionForWrongSummary.wrong_count ?? 0 }}</div>
-                            </div>
-                          </div>
-                          <div class="question-title">
-                            <span class="q-title-label">Question:</span>
-                            {{ selectedQuestionForWrongSummary.question_text || selectedQuestionForWrongSummary.text || '' }}
-                          </div>
-                        </div>
-
-                        <!-- 3. Answer Options -->
-                        <div *ngIf="selectedQuestionForWrongSummary.options && selectedQuestionForWrongSummary.options.length" class="inline-section-block">
-                          <div class="inline-resources-header">
-                            <mat-icon class="res-hdr-icon">format_list_numbered</mat-icon>
-                            <span class="res-hdr-title">Answer Options:</span>
-                          </div>
-                          <table class="q-options-table">
-                            <thead>
-                              <tr>
-                                <th class="opt-col-num">OPTION NUMBER</th>
-                                <th class="opt-col-text">OPTIONS</th>
-                                <th class="opt-col-status">STATUS</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr
-                                *ngFor="let opt of selectedQuestionForWrongSummary.options; let idx = index"
-                                [class.q-option-correct]="isCorrectOption(opt)"
-                                [class.q-option-wrong-selected]="isOptionSelectedWrong(opt)"
-                              >
-                                <td class="opt-col-num">
-                                  <span class="q-option-num-badge" [class.is-correct-num]="isCorrectOption(opt)" [class.is-wrong-num]="isOptionSelectedWrong(opt)">
-                                    {{ idx + 1 }}
-                                  </span>
-                                </td>
-                                <td class="opt-col-text">
-                                  <span class="q-option-text-val" [class.is-correct-text]="isCorrectOption(opt)" [class.is-wrong-text]="isOptionSelectedWrong(opt)">
-                                    {{ opt.option_text || opt.text || opt.answer }}
-                                  </span>
-                                </td>
-                                <td class="opt-col-status">
-                                  <span *ngIf="isCorrectOption(opt)" class="q-correct-tag-badge">
-                                    <mat-icon>check_circle</mat-icon> Correct Answer
-                                  </span>
-                                  <span *ngIf="isOptionSelectedWrong(opt)" class="q-wrong-tag-badge">
-                                    <mat-icon>cancel</mat-icon> Selected Wrong Option
-                                  </span>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-
-                        <!-- 4. Wrong Answers Section -->
-                        <div class="inline-section-block">
-                          <div class="inline-resources-header">
-                            <mat-icon class="res-hdr-icon">analytics</mat-icon>
-                            <span class="res-hdr-title">Wrong Answers & Occurrence Analysis:</span>
-                          </div>
-                          <table class="q-options-table" *ngIf="selectedWrongAnswers && selectedWrongAnswers.length; else comboTable">
-                            <thead>
-                              <tr>
-                                <th>Wrong Answer</th>
-                                <th class="opt-num-col">No. of Times Selected</th>
-                                <th class="opt-num-col">Occurrence %</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr *ngFor="let item of (filteredWrongAnswers.length ? filteredWrongAnswers : selectedWrongAnswers)">
-                                <td>
-                                  <span class="wa-answer-text">{{ item.answer || item.option_text || ('Option ' + (item.option_number || '')) }}</span>
-                                </td>
-                                <td class="opt-num-col">
-                                  <span class="wa-count-badge">{{ item.count || 0 }}</span>
-                                </td>
-                                <td class="opt-num-col">
-                                  {{ item.pct || (((item.count || 0) / (selectedQuestionForWrongSummary.attempts || 1) * 100).toFixed(2) + '%') }}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                          <ng-template #comboTable>
-                            <table class="q-options-table" *ngIf="selectedWrongCombinations && selectedWrongCombinations.length">
-                              <thead>
-                                <tr>
-                                  <th>Wrong Answer</th>
-                                  <th class="opt-num-col">No. of Times Selected</th>
-                                  <th class="opt-num-col">Occurrence %</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr *ngFor="let combo of selectedWrongCombinations">
-                                  <td>
-                                    <span class="wa-answer-text">{{ combo.combination }}</span>
-                                  </td>
-                                  <td class="opt-num-col">
-                                    <span class="wa-count-badge">{{ combo.count }}</span>
-                                  </td>
-                                  <td class="opt-num-col">{{ combo.pct || (combo.percentage + '%') }}</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </ng-template>
                         </div>
                       </div>
                     </td>

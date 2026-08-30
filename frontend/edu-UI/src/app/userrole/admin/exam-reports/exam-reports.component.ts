@@ -241,6 +241,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   instituteFilterSearch = '';
   departmentFilterSearch = '';
   teamFilterSearch = '';
+  institutesLoading = false;
+  countriesLoading = false;
+  citiesLoading = false;
+  departmentsLoading = false;
+  teamsLoading = false;
+  campusLoading = false;
   scheduledTestsLoading = false;
   scheduledTestsMessage = '';
   private scheduledTestsRequestId = 0;
@@ -1083,15 +1089,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   getScheduleDisplayLabel(item: any): string {
     if (!item) return '';
     const name = item.title || item.schedule_name || item.name || this.getTestTitle(item);
-    const dt = this.parseScheduleDate(item.start_time || item.start_date || item.created_date || item.date || item.schedule_date);
-    if (dt) {
-      const dd = String(dt.getDate()).padStart(2, '0');
-      const mm = String(dt.getMonth() + 1).padStart(2, '0');
-      const yyyy = dt.getFullYear();
-      const hh = String(dt.getHours()).padStart(2, '0');
-      const min = String(dt.getMinutes()).padStart(2, '0');
-      return `${name} (${dd}/${mm}/${yyyy} - ${hh}:${min})`;
-    }
     return `${name}`;
   }
 
@@ -2001,8 +1998,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.userFilters.industry) params.industry = this.userFilters.industry;
     if (this.userFilters.sector) params.sector = this.userFilters.sector;
 
+    this.institutesLoading = true;
     this.http.get<any>(url, { params }).subscribe({
       next: (res: any) => {
+        this.institutesLoading = false;
         const list = Array.isArray(res) ? res : res?.institutes || res?.data || [];
         this.institutes = (list || [])
           .map((i: any) => ({
@@ -2076,7 +2075,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           }
         }
       },
-      error: (err: any) => console.warn('Failed to load institutes', err),
+      error: (err: any) => {
+        this.institutesLoading = false;
+        console.warn('Failed to load institutes', err);
+      },
     });
   }
 
@@ -2132,12 +2134,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   loadCountries() {
     this.countries = [];
+    this.countriesLoading = true;
     this.http.get<any>(`${API_BASE}/location-hierarchy`).subscribe({
       next: (locRes: any) => {
         const locationCountries =
           locRes?.data?.countries || locRes?.countries || locRes?.data || [];
         this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
           next: (instRes: any) => {
+            this.countriesLoading = false;
             try {
               const institutes = Array.isArray(instRes?.data)
                 ? instRes.data
@@ -2205,11 +2209,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             }
           },
           error: () => {
+            this.countriesLoading = false;
             this.countries = [];
           },
         });
       },
       error: () => {
+        this.countriesLoading = false;
         this.countries = [];
       },
     });
@@ -2242,8 +2248,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.http.get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: code } })
     );
 
+    this.citiesLoading = true;
     forkJoin(requests).subscribe({
       next: (responses: any[]) => {
+        this.citiesLoading = false;
         const uniqueMap = new Map<string, { code: string; name: string }>();
         responses.forEach((res: any) => {
           let rawCities: any[] = res?.data?.cities || res?.cities || [];
@@ -2262,6 +2270,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.loadInstitutes();
       },
       error: () => {
+        this.citiesLoading = false;
         this.cities = [];
         this.loadInstitutes();
       },
@@ -2308,16 +2317,22 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   loadDepartmentList(instituteId: string | null) {
     this.departmentList = [];
-    if (!instituteId) return;
+    if (!instituteId) {
+      this.departmentsLoading = false;
+      return;
+    }
+    this.departmentsLoading = true;
     const url = `${API_BASE}/get-department-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
       next: (res: any) => {
+        this.departmentsLoading = false;
         const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         this.departmentList = arr
           .map((d: any) => (d.name || d.department_name || d.department || d).toString())
           .filter((s: any) => !!s);
       },
       error: (err: any) => {
+        this.departmentsLoading = false;
         console.warn('Failed to load department list', err);
         this.departmentList = [];
       },
@@ -2326,10 +2341,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   loadTeamsList(instituteId: string | null) {
     this.teamList = [];
-    if (!instituteId) return;
+    if (!instituteId) {
+      this.teamsLoading = false;
+      return;
+    }
+    this.teamsLoading = true;
     const url = `${API_BASE}/get-teams-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
       next: (res: any) => {
+        this.teamsLoading = false;
         const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         this.teamList = arr
           .map((t: any) => ({
@@ -2341,6 +2361,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           .filter((s: any) => !!s.name);
       },
       error: (err: any) => {
+        this.teamsLoading = false;
         console.warn('Failed to load teams list', err);
         this.teamList = [];
       },
@@ -2349,10 +2370,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   loadCampusList(instituteId: string | null) {
     this.campusList = [];
-    if (!instituteId) return;
+    if (!instituteId) {
+      this.campusLoading = false;
+      return;
+    }
+    this.campusLoading = true;
     const url = `${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url).subscribe({
       next: (res: any) => {
+        this.campusLoading = false;
         console.debug('[TestReports] get-campus-list response for', instituteId, res);
         const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         this.campusList = arr
@@ -2360,6 +2386,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           .filter((s: any) => !!s);
       },
       error: (err: any) => {
+        this.campusLoading = false;
         console.warn('Failed to load campus list', err);
         this.campusList = [];
       },
@@ -2424,7 +2451,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const requestId = ++this.scheduledTestsRequestId;
     this.scheduledTestsLoading = true;
     this.scheduledTestsMessage = '';
-    this.loading.show();
 
     const params: any = {};
     if (instituteId) params.institute_id = instituteId;
@@ -2499,7 +2525,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.scheduledTestsMessage = 'Unable to parse tests.';
         }
         this.scheduledTestsLoading = false;
-        try { this.loading.hide(); } catch (e) {}
       },
       error: (err: any) => {
         if (requestId !== this.scheduledTestsRequestId) return;
@@ -2507,7 +2532,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.filteredTests$ = of([]);
         this.scheduledTestsLoading = false;
         this.scheduledTestsMessage = 'Tests could not be loaded. Use Refresh to try again.';
-        try { this.loading.hide(); } catch (e) {}
       },
     });
   }
@@ -2658,6 +2682,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     } catch (e) {}
     try {
       this.closeFiltersOverlay();
+    } catch (e) {}
+    try {
+      this.loading.hide();
     } catch (e) {}
   }
 
@@ -3089,23 +3116,38 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           } else {
             this.selectedWrongCombinations = [];
           }
-          const dist = payload?.distribution || [];
-          if (dist && dist.length) {
-            this.selectedWrongAnswers = (dist || []).map((d: any) => ({
-              answer: d.option_text || d.option || d.answer || d.text || 'Answer',
-              option_id: d.option_id || d.options_id || d.optionId || null,
-              answer_id: d.answer_id || d.answerId || null,
-              option_number: d.option_number || null,
-              count: d.count || d.selected_count || 0,
-              pct: d.percentage !== undefined ? String(d.percentage) + '%' : d.pct || null,
+          const qType = String(
+            this.selectedQuestionForWrongSummary?.question_type ||
+            this.selectedQuestionForWrongSummary?.answer_type ||
+            ''
+          ).toLowerCase();
+          const isMultiple = qType.includes('multiple') || qType.includes('multi') || qType.includes('select all');
+
+          if (isMultiple && payload?.combinations && payload.combinations.length) {
+            this.selectedWrongAnswers = (payload.combinations || []).map((c: any) => ({
+              answer: c.combination || c.text || 'Answer',
+              count: c.count || 0,
+              pct: c.pct || (c.percentage !== undefined ? c.percentage + '%' : null),
             }));
-          } else if (payload?.raw && payload.raw.length) {
-            const raw = payload.raw;
-            this.selectedWrongAnswers = (raw || []).map((r: any) => ({
-              answer: r.text || r.option_text || 'Answer',
-              count: r.count || 0,
-              pct: r.pct || null,
-            }));
+          } else {
+            const dist = payload?.distribution || [];
+            if (dist && dist.length) {
+              this.selectedWrongAnswers = (dist || []).map((d: any) => ({
+                answer: d.option_number ? String(d.option_number) : (d.option_text || d.option || d.answer || d.text || 'Answer'),
+                option_id: d.option_id || d.options_id || d.optionId || null,
+                answer_id: d.answer_id || d.answerId || null,
+                option_number: d.option_number || null,
+                count: d.count || d.selected_count || 0,
+                pct: d.percentage !== undefined ? String(d.percentage) + '%' : d.pct || null,
+              }));
+            } else if (payload?.raw && payload.raw.length) {
+              const raw = payload.raw;
+              this.selectedWrongAnswers = (raw || []).map((r: any) => ({
+                answer: r.text || r.option_text || 'Answer',
+                count: r.count || 0,
+                pct: r.pct || null,
+              }));
+            }
           }
           this.showWrongAnswerSummary = true;
         },
@@ -3196,9 +3238,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     if (wa.option_id) params.option_id = wa.option_id;
     else if (wa.optionId) params.option_id = wa.optionId;
-    if (wa.answer_id) params.answer_id = wa.answer_id;
+    else if (wa.answer_id) params.answer_id = wa.answer_id;
     else if (wa.answerId) params.answer_id = wa.answerId;
-    if (wa.answer && typeof wa.answer === 'string' && !params.answer_id) {
+    if (wa.answer && typeof wa.answer === 'string' && !params.option_id && !params.answer_id) {
       params.answer_value = wa.answer;
     }
     if (!params.question_id)

@@ -253,19 +253,25 @@ def get_questions_details(request):
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("departments"):
-            department_ids = args.get("departments").split(",")
-            category_data = session.query(CategoriesDepartments).join(Categories, Categories.category_id == CategoriesDepartments.category_id).filter(CategoriesDepartments.department_id.in_(department_ids), active_cat_filter).all()
-            category_list = [c.category_id for c in category_data]
-            mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
-            question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
+            department_ids = [d.strip() for d in args.get("departments").split(",") if d.strip()]
+            if department_ids:
+                dept_cat_ids = [d.category_id for d in session.query(CategoriesDepartments).filter(CategoriesDepartments.department_id.in_(department_ids)).all()]
+                all_dept_cat_ids = [c[0] for c in session.query(CategoriesDepartments.category_id).distinct().all()]
+                cat_query = session.query(Categories.category_id).filter(or_(Categories.category_id.in_(dept_cat_ids), ~Categories.category_id.in_(all_dept_cat_ids)), active_cat_filter)
+                category_list = [c[0] for c in cat_query.all()]
+                mappingdata = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
+                question_list = [q.question_id for q in mappingdata]
+                filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("teams"):
-            team_ids = args.get("teams").split(",")
-            category_data = session.query(CategoriesTeams).join(Categories, Categories.category_id == CategoriesTeams.category_id).filter(CategoriesTeams.team_id.in_(team_ids), active_cat_filter).all()
-            category_list = [c.category_id for c in category_data]
-            mappingdata  = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
-            question_list = [q.question_id for q in mappingdata]
-            filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
+            team_ids = [t.strip() for t in args.get("teams").split(",") if t.strip()]
+            if team_ids:
+                team_cat_ids = [t.category_id for t in session.query(CategoriesTeams).filter(CategoriesTeams.team_id.in_(team_ids)).all()]
+                all_team_cat_ids = [t[0] for t in session.query(CategoriesTeams.category_id).distinct().all()]
+                cat_query = session.query(Categories.category_id).filter(or_(Categories.category_id.in_(team_cat_ids), ~Categories.category_id.in_(all_team_cat_ids)), active_cat_filter)
+                category_list = [c[0] for c in cat_query.all()]
+                mappingdata = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
+                question_list = [q.question_id for q in mappingdata]
+                filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("created_by"):
             category_data = session.query(Categories).filter(Categories.created_by == args.get("created_by"), active_cat_filter).all()
             category_list = [c.category_id for c in category_data]
@@ -294,15 +300,21 @@ def get_questions_details(request):
         if args.get("type"):
             raw_types = [t.strip().lower() for t in str(args.get("type")).split(",") if t.strip()]
             type_conditions = []
+            cat_type_conditions = []
             for t_val in raw_types:
                 if t_val == "objective":
-                    type_conditions.extend(["choose", "multi", "fill"])
+                    type_conditions.extend(["choose", "multi", "fill", "objective", "mcq", "fill_in_the_blanks", "multiple_choice", "true_false"])
+                    cat_type_conditions.extend(["choose", "multi", "fill", "objective", "mcq", "fill_in_the_blanks", "multiple_choice", "true_false"])
                 elif t_val == "descriptive":
-                    type_conditions.extend(["descriptive", "paragraph"])
+                    type_conditions.extend(["descriptive", "paragraph", "subjective", "essay", "long_answer"])
+                    cat_type_conditions.extend(["descriptive", "paragraph", "subjective", "essay", "long_answer"])
                 else:
                     type_conditions.append(t_val)
+                    cat_type_conditions.append(t_val)
             if type_conditions:
-                filter.append(Question.question_type.in_(type_conditions))
+                cat_ids_with_type = [c[0] for c in session.query(Categories.category_id).filter(Categories.type.in_(cat_type_conditions), active_cat_filter).all()]
+                mapping_with_type = [m.question_id for m in session.query(QuestionMapping.question_id).filter(QuestionMapping.category_id.in_(cat_ids_with_type)).all()] if cat_ids_with_type else []
+                filter.append(or_(Question.question_type.in_(type_conditions), Question.question_id.in_(mapping_with_type)))
 
         questions = session.query(Question).filter(*filter).all()
         question_list = []

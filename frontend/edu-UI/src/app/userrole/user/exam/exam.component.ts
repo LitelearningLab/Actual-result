@@ -456,8 +456,12 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         const attReviewExplicit = typeof att.review_available !== 'undefined' ? Boolean(att.review_available) : (typeof att.user_review !== 'undefined' ? Boolean(att.user_review) : null);
         const rowReviewAllowed = (row.user_review !== false) && (row.review_available !== false);
 
+        const isAttSubmitted = att && (att.status === 'submitted' || att.status === 'evaluated' || !!att.submitted_date);
+
         let canReviewAttempt = false;
-        if (isMultipleReview) {
+        if (!isAttSubmitted) {
+          canReviewAttempt = false;
+        } else if (isMultipleReview) {
           canReviewAttempt = rowReviewAllowed;
         } else if (attReviewViewed || !rowReviewAllowed) {
           canReviewAttempt = false;
@@ -1138,9 +1142,17 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   isOptionSelected(item: any, opt: any): boolean {
     try {
       const arr = this.normalizeSelectedOptions(item);
-      const optText = (opt && opt.option_text) ? String(opt.option_text) : (typeof opt === 'string' ? opt : '');
+      const optText = (opt && opt.option_text) ? String(opt.option_text).trim() : (typeof opt === 'string' ? opt.trim() : '');
       const optId = (opt && opt.options_id) ? String(opt.options_id) : (opt && opt.id ? String(opt.id) : '');
-      return arr.indexOf(optText) >= 0 || (optId !== '' && arr.indexOf(optId) >= 0);
+      const expandedArr: string[] = [];
+      arr.forEach(s => {
+        if (s && s.includes(',')) {
+          s.split(',').forEach(part => expandedArr.push(part.trim()));
+        } else if (s) {
+          expandedArr.push(s.trim());
+        }
+      });
+      return expandedArr.includes(optText) || (optId !== '' && expandedArr.includes(optId));
     } catch (e) { return false; }
   }
 
@@ -1231,12 +1243,6 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   }
 
   applyFilter(){
-    if (this.isSuperAdmin && !this.isGlobalInstituteActive && (!this.selectedInstitutes || !this.selectedInstitutes.length) && !this.filterInstitute) {
-      try {
-        notify('Please select an institute', 'info');
-      } catch (e) {}
-      return;
-    }
     const q = (this.search || '').trim().toLowerCase();
     const predicate = (row: UserTestRow) => {
       const byText = (row.title || '').toLowerCase().includes(q) || (row.test_id || '').toLowerCase().includes(q);

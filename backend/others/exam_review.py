@@ -277,7 +277,7 @@ def review_user_exam(request, current_user=None):
                         Option.active_status == 1
                     ).all()
                     selected_option_texts = [opt.option_text for opt in selected_options]
-                    selected_option = ", ".join(selected_option_texts)
+                    selected_option = selected_option_texts
                     correct_answer = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).all()
                     correct_answer_data = ", ".join([ans.option_text for ans in correct_answer])
 
@@ -475,9 +475,9 @@ def validate_answers(attempt_id):
                 feedback = f"Incorrect. Missing correct options: {missing_options}. " if missing_options else "" f"Incorrectly selected options: {incorrect_options}."
 
             # Update all answer rows for this question
-            for ans in question_answers:
+            for idx, ans in enumerate(question_answers):
                 ans.is_correct = 1 if is_fully_correct else 0
-                ans.marks_awarded = awarded_marks
+                ans.marks_awarded = awarded_marks if idx == 0 else 0
                 ans.is_validated = 1
                 ans.feedback = feedback
                 session.add(ans)
@@ -497,9 +497,8 @@ def validate_answers(attempt_id):
         if attempt:
             total_score = session.query(Answer).filter_by(attempt_id=attempt_id).with_entities(func.sum(Answer.marks_awarded)).scalar() or 0
             attempt.score = total_score
-            total_possible_marks = session.query(Question).join(Answer, Answer.question_id == Question.question_id).filter(
-                Answer.attempt_id == attempt_id
-            ).with_entities(func.sum(Question.marks)).scalar() or 0
+            q_ids = [row[0] for row in session.query(Answer.question_id).filter_by(attempt_id=attempt_id).distinct().all() if row[0]]
+            total_possible_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(q_ids)).scalar() or 0 if q_ids else 0
             passing_score = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first().pass_mark
             if total_possible_marks > 0 and (total_score / total_possible_marks * 100) >= passing_score:
                 attempt.feedback = 'Pass'
