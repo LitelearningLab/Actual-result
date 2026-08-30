@@ -269,11 +269,15 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
 
   isPass(row: UserTestRow): boolean {
     if (row.user_result) {
-      const res = String(row.user_result).toLowerCase();
-      return res === 'pass' || res === 'passed' || res === 'evaluated';
+      const res = String(row.user_result).trim().toLowerCase();
+      if (res === 'pass' || res === 'passed') return true;
+      if (res === 'fail' || res === 'failed') return false;
+      if (res === 'evaluated') return true;
     }
-    if (row.user_percentage != null && row.pass_mark != null) {
-      return row.user_percentage >= row.pass_mark;
+    const pct = row.user_percentage != null ? row.user_percentage : (row.user_score != null && row.total_marks ? (row.user_score / row.total_marks * 100) : null);
+    const passMark = row.pass_mark != null ? row.pass_mark : 50;
+    if (pct != null) {
+      return pct >= passMark;
     }
     return false;
   }
@@ -388,11 +392,13 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
   }
 
   isAttemptPass(att: any, row: UserTestRow): boolean {
-    if (att.result) {
-      const res = String(att.result).toLowerCase();
-      return res === 'pass' || res === 'passed' || res === 'evaluated';
+    if (att) {
+      const res = String(att.result || att.feedback || '').trim().toLowerCase();
+      if (res === 'pass' || res === 'passed') return true;
+      if (res === 'fail' || res === 'failed') return false;
+      if (res === 'evaluated') return true;
     }
-    const pct = att.percentage != null ? att.percentage : (att.score != null ? att.score : null);
+    const pct = att?.percentage != null ? att.percentage : (att?.score != null && row.total_marks ? (att.score / row.total_marks * 100) : null);
     const passMark = row.pass_mark != null ? row.pass_mark : 50;
     if (pct != null) {
       return pct >= passMark;
@@ -450,26 +456,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           scheduleRange = row.scheduleTest || '';
         }
 
-        const isMultipleReview = this.isMultipleReviewEnabled(row);
-        const isAttLocallyConsumed = !isMultipleReview && this.isAttemptReviewConsumedLocally(row, attNum);
-        const attReviewViewed = !isMultipleReview && (isAttLocallyConsumed || Boolean(att.review_viewed || att.viewed || att.review_consumed || att.already_viewed));
-        const attReviewExplicit = typeof att.review_available !== 'undefined' ? Boolean(att.review_available) : (typeof att.user_review !== 'undefined' ? Boolean(att.user_review) : null);
-        const rowReviewAllowed = (row.user_review !== false) && (row.review_available !== false);
-
         const isAttSubmitted = att && (att.status === 'submitted' || att.status === 'evaluated' || !!att.submitted_date);
-
-        let canReviewAttempt = false;
-        if (!isAttSubmitted) {
-          canReviewAttempt = false;
-        } else if (isMultipleReview) {
-          canReviewAttempt = rowReviewAllowed;
-        } else if (attReviewViewed || !rowReviewAllowed) {
-          canReviewAttempt = false;
-        } else if (attReviewExplicit !== null) {
-          canReviewAttempt = attReviewExplicit && rowReviewAllowed;
-        } else {
-          canReviewAttempt = rowReviewAllowed && (!!row.user_review || !!row.review_available);
-        }
+        const rowReviewAllowed = (row.user_review !== false) && (row.review_available !== false);
+        const canReviewAttempt = Boolean(isAttSubmitted && rowReviewAllowed);
 
         return {
           attemptNumber: attNum,
@@ -487,7 +476,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
         };
       });
 
-      if (canStartActive && history.length < maxAttempts) {
+      const hasPassedAnyAttempt = history.some(att => this.isAttemptPass(att, row));
+      if (canStartActive && !hasPassedAnyAttempt && history.length < maxAttempts) {
         const nextAttNum = history.length + 1;
         const remainingCount = Math.max(0, maxAttempts - history.length);
         rows.push({
@@ -827,7 +817,6 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
 
   private openReview(row: UserTestRow){
     try{
-      this.loader.show();
       const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
       const userId = userRaw ? (JSON.parse(userRaw)?.user_id || JSON.parse(userRaw)?.id || '') : '';
       const schedulerId = row.schedule_id || row.test_id || '';
@@ -891,7 +880,6 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
               }
         }catch(e){ this.reviewAttempts = []; }
         this.reviewLoading = false;
-        this.loader.hide();
       }, error: (err) => {
         console.warn('Failed to load review', err);
         const msg = err?.error?.statusMessage || err?.error?.message || 'This review is not available.';
@@ -899,15 +887,12 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
 
         this.markReviewConsumed(row, (row as any).target_attempt_number);
 
-        this.reviewLoading = false; this.reviewAttempts = []; this.reviewOpen = false; this.loader.hide();
+        this.reviewLoading = false; this.reviewAttempts = []; this.reviewOpen = false;
       } });
     }catch(e){ try { notify('Failed to request review', 'error'); } catch(e){} }
   }
 
   closeReview(){
-    if (this.currentReviewRow && !this.isAdminUser && ((this.currentReviewRow.review_mode || '').toLowerCase() === 'instant' || !this.currentReviewRow.multiple_review)) {
-      this.markReviewConsumed(this.currentReviewRow, this.currentReviewAttemptNo || undefined);
-    }
     this.reviewOpen = false;
     this.reviewAttempts = [];
     this.reviewSelectedAttempt = 0;
@@ -1004,11 +989,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           } catch (e) {}
         }
 
-        const isLocallyConsumed = !isMultipleReview && this.isReviewConsumedLocally(schedId);
-        const reviewViewed = !isMultipleReview && (isLocallyConsumed || Boolean(x.review_viewed || x.review_consumed || x.already_viewed || x.viewed));
         const rawAvailable = (typeof x.review_available !== 'undefined' && x.review_available !== null) ? Boolean(x.review_available) :
                              ((typeof x.user_review !== 'undefined' && x.user_review !== null) ? Boolean(x.user_review) : Boolean(x.review));
-        const reviewAvailable = isMultipleReview ? (rawAvailable !== false) : (rawAvailable && !reviewViewed);
+        const reviewAvailable = rawAvailable !== false;
         const attempted = Boolean(x.attempted);
         const completedByUser = Boolean(x.completed_by_user);
         const expired = Boolean(x.expired);
@@ -1030,7 +1013,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy{
           // whether review is available for this user on this exam
           user_review: reviewAvailable,
           review_available: reviewAvailable,
-          review_consumed: !isMultipleReview && (isLocallyConsumed || reviewViewed),
+          review_consumed: false,
           review_attempt_id: x.review_attempt_id || '',
           review_mode: x.review_mode || '',
           multiple_review: isMultipleReview,

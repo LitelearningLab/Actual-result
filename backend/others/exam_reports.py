@@ -1,5 +1,5 @@
 from db.db import SQLiteDB
-from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping
+from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping, MarksHistory, ExamReviewComments
 from sqlalchemy import func, or_, String
 from datetime import datetime
 
@@ -448,8 +448,37 @@ def get_user_wise_report(request):
                     retest_date_str = rdt.strftime('%Y-%m-%d %H:%M:%S')
                 if pass_mark is not None:
                     retest_result = 'Pass' if (retest_pct is not None and retest_pct >= pass_mark) else 'Fail'
-                else:
-                    retest_result = 'Pass' if (retest_pct is not None and retest_pct >= 50) else 'Fail'
+            # Check if any question has manual review / mark edits / comments
+            has_manual_review = False
+            try:
+                user_att_ids = [a.attempt_id for a in all_user_sched_attempts if a.attempt_id]
+                if not user_att_ids and user_attempts:
+                    user_att_ids = [a.attempt_id for a in user_attempts if a.attempt_id]
+
+                if user_att_ids:
+                    has_history = session.query(MarksHistory).join(
+                        Answer, MarksHistory.answer_id == Answer.answer_id
+                    ).filter(Answer.attempt_id.in_(user_att_ids)).first() is not None
+
+                    has_comments = session.query(ExamReviewComments).filter(
+                        ExamReviewComments.attempt_id.in_(user_att_ids)
+                    ).first() is not None
+
+                    has_ans_manual = any(
+                        bool(getattr(a, 'edit_reason', None) or getattr(a, 'manual_marks', None) is not None)
+                        for a in answers
+                    )
+
+                    if has_history or has_comments or has_ans_manual:
+                        has_manual_review = True
+                elif answers:
+                    has_manual_review = any(
+                        bool(getattr(a, 'edit_reason', None) or getattr(a, 'manual_marks', None) is not None)
+                        for a in answers
+                    )
+            except Exception as ex:
+                print(f"[get_user_report] Error checking manual review: {ex}")
+                has_manual_review = False
 
             rows.append({
                 'user_id': uid,
@@ -466,7 +495,8 @@ def get_user_wise_report(request):
                 'retest_taken': retest_taken,
                 'retest_percentage': round(retest_pct, 2) if retest_pct is not None else None,
                 'retest_date': retest_date_str,
-                'retest_result': retest_result
+                'retest_result': retest_result,
+                'manual_review': 'Manual Review' if has_manual_review else None
             })
 
         if q:

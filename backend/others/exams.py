@@ -792,10 +792,10 @@ def get_user_exam_details(request):
             user_review_data = schedule_obj.user_review if schedule_obj else None
             user_review = False
 
-            # check scrore and feedback for last attempt
-            attempts = sorted(attempts, key=lambda x: x.attempt_number)
+            # check score and feedback for last attempt
+            attempts = sorted(attempts, key=lambda x: getattr(x, 'attempt_number', 0) or 0)
             last_attempt = attempts[-1] if attempts else None
-            feedback = last_attempt.feedback if last_attempt else ''
+            feedback = getattr(last_attempt, 'feedback', None) or getattr(last_attempt, 'result', None) if last_attempt else ''
 
             # if current time between start and end time, exam is active
             current_time = datetime.utcnow()
@@ -843,16 +843,28 @@ def get_user_exam_details(request):
             already_reviewed = bool(review_candidates) and not bool(unreviewed_attempts)
             if already_reviewed and not bool(schedule_obj.multiple_review):
                 user_review = False
+
+            effective_pass_mark = getattr(schedule_obj, 'pass_mark', None)
+            if effective_pass_mark is None:
+                effective_pass_mark = getattr(exam_obj, 'pass_mark', 0) or 0
+
+            # Check if any attempt passed
+            has_passed_attempt = any(
+                str(getattr(a, 'feedback', '') or getattr(a, 'result', '')).strip().lower() in ('pass', 'passed')
+                or (getattr(a, 'percentage', None) is not None and getattr(a, 'percentage', None) >= effective_pass_mark)
+                for a in attempts
+            )
+
             if schedule_obj.start_time <= current_time <= schedule_obj.end_time:
                 type = 'active'
-                if str(feedback).lower() == 'pass':
+                if has_passed_attempt or str(feedback).strip().lower() in ('pass', 'passed'):
                     type = 'completed'
             elif schedule_obj.end_time and current_time > schedule_obj.end_time:
                 type = 'completed'
             else:
                 type = 'upcoming'
-            if no_of_attempts <= user_attempt:
-                type = 'completed' # if no of attempts exceeded, user cannot review
+            if no_of_attempts <= user_attempt or has_passed_attempt:
+                type = 'completed' # if no of attempts exceeded or user passed, move to completed
 
             attempts_history = []
             if attempts:
@@ -860,16 +872,23 @@ def get_user_exam_details(request):
                 for att in sorted_atts:
                     att_pct = getattr(att, 'percentage', None)
                     att_score = getattr(att, 'score', None)
-                    att_pass_mark = getattr(exam_obj, 'pass_mark', 0) or 0
-                    att_result = getattr(att, 'result', None)
-                    if not att_result:
-                        if att_pct is not None:
-                            att_result = 'Passed' if att_pct >= att_pass_mark else 'Failed'
-                        elif att_score is not None and getattr(exam_obj, 'total_marks', None):
-                            pct = (att_score / exam_obj.total_marks) * 100
-                            att_result = 'Passed' if pct >= att_pass_mark else 'Failed'
+                    att_pass_mark = effective_pass_mark
+                    raw_result = getattr(att, 'feedback', None) or getattr(att, 'result', None)
+                    if raw_result and str(raw_result).strip():
+                        str_res = str(raw_result).strip().lower()
+                        if str_res in ('pass', 'passed'):
+                            att_result = 'Passed'
+                        elif str_res in ('fail', 'failed'):
+                            att_result = 'Failed'
                         else:
-                            att_result = 'Submitted' if getattr(att, 'status', '') in ('submitted', 'evaluated') else 'In Progress'
+                            att_result = str(raw_result).strip()
+                    elif att_pct is not None:
+                        att_result = 'Passed' if att_pct >= att_pass_mark else 'Failed'
+                    elif att_score is not None and getattr(exam_obj, 'total_marks', None):
+                        pct = (att_score / exam_obj.total_marks) * 100
+                        att_result = 'Passed' if pct >= att_pass_mark else 'Failed'
+                    else:
+                        att_result = 'Submitted' if getattr(att, 'status', '') in ('submitted', 'evaluated') else 'In Progress'
                     
                     submitted_dt = getattr(att, 'submitted_date', None) or getattr(att, 'started_date', None)
 
@@ -883,6 +902,21 @@ def get_user_exam_details(request):
                         'started_date': safe_utc_isoformat(getattr(att, 'started_date', None)),
                         'submitted_date': safe_utc_isoformat(submitted_dt),
                     })
+
+            disp_raw_result = getattr(displayed_attempt, 'feedback', None) or getattr(displayed_attempt, 'result', None)
+            disp_result = None
+            if disp_raw_result and str(disp_raw_result).strip():
+                str_disp = str(disp_raw_result).strip().lower()
+                if str_disp in ('pass', 'passed'):
+                    disp_result = 'Passed'
+                elif str_disp in ('fail', 'failed'):
+                    disp_result = 'Failed'
+                else:
+                    disp_result = str(disp_raw_result).strip()
+            elif displayed_attempt:
+                disp_pct = getattr(displayed_attempt, 'percentage', None)
+                if disp_pct is not None:
+                    disp_result = 'Passed' if disp_pct >= effective_pass_mark else 'Failed'
 
             scheduler_data.append({
                 'review_available': user_review,
@@ -900,7 +934,7 @@ def get_user_exam_details(request):
                 'user_end_time': getattr(displayed_attempt, 'submitted_date', None),
                 'user_percentage': getattr(displayed_attempt, 'percentage', None),
                 'user_score': getattr(displayed_attempt, 'score', None),
-                'user_result': getattr(displayed_attempt, 'result', None),
+                'user_result': disp_result,
                 "mapping_id": getattr(row, "mapping_id", None),
                 "schedule_id": getattr(schedule_obj, "schedule_id", None),
                 "schedule_title": getattr(schedule_obj, "title", None),
@@ -909,7 +943,7 @@ def get_user_exam_details(request):
                 "exam_title": getattr(exam_obj, "title", None),
                 "duration_mins": getattr(exam_obj, "duration_mins", None),
                 "total_questions": getattr(exam_obj, "total_questions", None),
-                "pass_mark": getattr(exam_obj, "pass_mark", None),
+                "pass_mark": effective_pass_mark,
                 "number_of_attempts": getattr(schedule_obj, "number_of_attempts", None),
                 "user_review" :user_review,
                 "start_time": safe_utc_isoformat(getattr(schedule_obj, "start_time", getattr(exam_obj, "start_time", None))),

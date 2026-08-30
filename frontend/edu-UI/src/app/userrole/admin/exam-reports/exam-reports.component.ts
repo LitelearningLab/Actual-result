@@ -1380,10 +1380,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     );
   }
 
-  private fetchUserReview(params: any) {
-    console.log('[fetchUserReview] Re-fetching review with params:', params);
-    this.userReviewLoading = true;
-    this.loading.show();
+  private fetchUserReview(params: any, silent: boolean = false) {
+    console.log('[fetchUserReview] Re-fetching review with params:', params, 'silent:', silent);
+    if (!silent) {
+      this.userReviewLoading = true;
+    }
     this.http.get<any>(`${API_BASE}/review-user-exam`, { params }).subscribe({
       next: (res: any) => {
         console.log('[fetchUserReview] Received review data response:', res);
@@ -1450,22 +1451,27 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           }
         } catch (e) {
           console.warn('Failed to parse review-user-exam response', e);
-          this.userReviewAttempts = [];
+          if (!silent) {
+            this.userReviewAttempts = [];
+          }
         }
-        this.loading.hide();
         this.userReviewLoading = false;
         if (!this.userReviewAttempts || !this.userReviewAttempts.length) {
-          this._snack.open('No review data available for this user.', 'Close', { duration: 4000 });
-          this.showUserReviewPanel = false;
+          if (!silent) {
+            this._snack.open('No review data available for this user.', 'Close', { duration: 4000 });
+            this.showUserReviewPanel = false;
+          }
         } else {
           this.showUserReviewPanel = true;
         }
       },
       error: (err: any) => {
         console.error('[TestReports] review-user-exam failed', err);
-        this.userReviewLoading = false;
-        this.userReviewAttempts = [];
-        if (err && err.status === 0) {
+        if (!silent) {
+          this.userReviewLoading = false;
+          this.userReviewAttempts = [];
+        }
+        if (err && err.status === 0 && !silent) {
           const snack = this._snack.open(
             'Network or server unreachable — check backend and network.',
             'Retry',
@@ -1474,7 +1480,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           snack.onAction().subscribe(() => {
             this.fetchUserReview(params);
           });
-        } else {
+        } else if (!silent) {
           const msg =
             err && err.error && err.error.statusMessage
               ? err.error.statusMessage
@@ -1484,7 +1490,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this._snack.open(msg, 'Close', { duration: 5000 });
         }
         this.showUserReviewPanel = false;
-        this.loading.hide();
       },
     });
   }
@@ -1498,6 +1503,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.totalQuestions = null;
     this.totalMarks = null;
     this.currentReviewRow = null;
+    this.refreshUserReportTable();
   }
 
   startEditMarks(q: any) {
@@ -1580,11 +1586,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     console.log('[saveMarks] Sending payload to /update-descriptive-marks:', payload);
 
-    this.loading.show();
+    q._savingMarks = true;
     this.http.post<any>(`${API_BASE}/update-descriptive-marks`, payload).subscribe({
       next: (res: any) => {
         console.log('[saveMarks] Backend responded SUCCESS:', res);
-        this.loading.hide();
+        q._savingMarks = false;
         const oldMarks = q.marks_awarded || 0;
         const oldReason = q.edit_reason || '';
         q.marks_history = Array.isArray(q.marks_history) ? q.marks_history : [];
@@ -1603,6 +1609,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         q._marksEditReason = undefined;
         q._marksReasonTouched = undefined;
 
+        if (this.currentReviewRow) {
+          this.currentReviewRow.manual_review = 'Manual Review';
+          this.currentReviewRow.has_manual_review = true;
+        }
+
         if (this.selectedUserScore !== null && typeof this.selectedUserScore === 'number') {
           this.selectedUserScore = this.selectedUserScore - oldMarks + newMarks;
         }
@@ -1610,11 +1621,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this._snack.open('Marks updated successfully', 'Close', { duration: 3000 });
 
         if (this.currentReviewParams) {
-          this.fetchUserReview(this.currentReviewParams);
+          this.fetchUserReview(this.currentReviewParams, true);
         }
       },
       error: (err: any) => {
-        this.loading.hide();
+        q._savingMarks = false;
         console.error('Failed to update marks', err);
         const msg = err?.error?.statusMessage || err?.message || 'Failed to update marks.';
         this._snack.open(msg, 'Close', { duration: 5000 });
@@ -1739,11 +1750,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.http.post<any>(`${API_BASE}/update-review-comments/${action}`, payload).subscribe({
       next: (res: any) => {
         this.loading.hide();
+        if (this.currentReviewRow) {
+          this.currentReviewRow.manual_review = 'Manual Review';
+          this.currentReviewRow.has_manual_review = true;
+        }
         this._snack.open(action === 'edit' ? 'Comment updated' : 'Comment deleted', 'Close', {
           duration: 3000,
         });
         if (this.currentReviewParams) {
-          this.fetchUserReview(this.currentReviewParams);
+          this.fetchUserReview(this.currentReviewParams, true);
         }
       },
       error: (err: any) => {

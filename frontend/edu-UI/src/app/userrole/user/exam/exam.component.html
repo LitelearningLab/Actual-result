@@ -333,7 +333,13 @@
             </button>
          </div>
 
-         <div *ngIf="reviewLoading" class="muted">Loading review...</div>
+          <div *ngIf="reviewLoading" class="professional-loader-container">
+             <div class="loader-spinner-ring"></div>
+             <div class="loader-text-group">
+                <h5 class="loader-main-text">Loading Test Review</h5>
+                <p class="loader-sub-text">Fetching questions and evaluated responses...</p>
+             </div>
+          </div>
 
          <mat-tab-group *ngIf="!reviewLoading && reviewAttempts.length" [(selectedIndex)]="reviewSelectedAttempt">
             <mat-tab *ngFor="let a of reviewAttempts; let i = index" [label]="'Attempt ' + a.attempt_number">

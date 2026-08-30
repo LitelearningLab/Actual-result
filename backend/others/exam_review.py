@@ -147,20 +147,13 @@ def review_user_exam(request, current_user=None):
         if not review_available:
             return {"statusMessage": "Review is not available for this test", "status": False}, 403
 
-        # Multiple Review is a student-only, per-attempt allowance. Admins use
-        # the same public endpoint but must never check or consume it.
-        if (is_student_request and not bool(exam_schedule.multiple_review)
-                and requested_attempt.review_opened_at):
-            return {"statusMessage": "This test review has already been viewed", "status": False}, 403
-
+        # Record first review opening for telemetry without blocking student from viewing review
         if is_student_request:
-            if not bool(exam_schedule.multiple_review):
-                claimed = session.query(Exam_Attempt).filter(
+            if not getattr(requested_attempt, 'review_opened_at', None):
+                session.query(Exam_Attempt).filter(
                     Exam_Attempt.attempt_id == requested_attempt.attempt_id,
                     Exam_Attempt.review_opened_at.is_(None)
                 ).update({Exam_Attempt.review_opened_at: now}, synchronize_session=False)
-                if not claimed:
-                    return {"statusMessage": "This test review has already been viewed", "status": False}, 403
                 requested_attempt.review_opened_at = now
 
         exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
@@ -343,7 +336,26 @@ def review_user_exam(request, current_user=None):
                         })
                     current_item["marks_history"] = history_list
                 
-            review_data["total_marks"] = total_marks if show_score else None
+            effective_total = total_marks if total_marks > 0 else (exam.total_marks if exam and exam.total_marks else 0)
+            if effective_total > 0 and attempt.score is not None:
+                correct_pct = round((float(attempt.score) / float(effective_total)) * 100, 2)
+            elif attempt.percentage is not None:
+                correct_pct = round(attempt.percentage, 2)
+            else:
+                correct_pct = None
+
+            review_data["percentage"] = correct_pct if show_score else None
+            review_data["total_marks"] = effective_total if show_score else None
+
+            # Sync attempt.percentage in DB if it was incorrectly stored
+            if correct_pct is not None and (attempt.percentage is None or abs((attempt.percentage or 0) - correct_pct) > 0.05):
+                try:
+                    attempt.percentage = correct_pct
+                    session.add(attempt)
+                    session.commit()
+                except Exception:
+                    pass
+
             attempt_reviews.append(review_data)
 
         if is_student_request:
@@ -420,8 +432,16 @@ def validate_answers(attempt_id):
                     session.add(ans)
                     continue
                 score = evaluation.get("score", 0)
-                max_marks = question.marks
-                marks_awarded = (score / question_mark) * max_marks if question_mark > 0 else 0
+                try:
+                    score_val = float(score)
+                except (TypeError, ValueError):
+                    score_val = 0.0
+                max_marks = float(question.marks) if question and question.marks else 1.0
+                # Clamp score to question marks and normalize if model gave 0-10
+                if score_val > max_marks and max_marks > 0:
+                    marks_awarded = min(max_marks, (score_val / 10.0) * max_marks)
+                else:
+                    marks_awarded = min(max_marks, max(0.0, score_val))
                 ans.is_correct = 1 if marks_awarded == max_marks else 0
                 ans.ai_marks = marks_awarded
                 # A retry must not overwrite marks that an instructor already
@@ -487,6 +507,15 @@ def validate_answers(attempt_id):
                 print(f"  Selected: {selected_option_ids}")
                 print(f"  Missing correct options: {missing_options}")
                 print(f"  Incorrectly selected options: {incorrect_options}")
+
+    # Sanitize all answer rows for this attempt so marks_awarded never exceeds question marks
+    all_ans = session.query(Answer).filter_by(attempt_id=attempt_id).all()
+    for ans_rec in all_ans:
+        q_rec = session.query(Question).filter_by(question_id=ans_rec.question_id).first()
+        if q_rec and q_rec.marks is not None and ans_rec.marks_awarded is not None and ans_rec.marks_awarded > q_rec.marks:
+            ans_rec.marks_awarded = min(float(q_rec.marks), (float(ans_rec.marks_awarded) / 10.0) * float(q_rec.marks) if ans_rec.marks_awarded > q_rec.marks else float(ans_rec.marks_awarded))
+            session.add(ans_rec)
+
     session.commit()
     session.close()
 
@@ -499,7 +528,13 @@ def validate_answers(attempt_id):
             attempt.score = total_score
             q_ids = [row[0] for row in session.query(Answer.question_id).filter_by(attempt_id=attempt_id).distinct().all() if row[0]]
             total_possible_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(q_ids)).scalar() or 0 if q_ids else 0
-            passing_score = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first().pass_mark
+            sched = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first()
+            passing_score = sched.pass_mark if (sched and sched.pass_mark is not None) else None
+            if passing_score is None and sched and sched.exam_id:
+                ex = session.query(Exam).filter_by(exam_id=sched.exam_id).first()
+                passing_score = ex.pass_mark if (ex and ex.pass_mark is not None) else 50
+            if passing_score is None:
+                passing_score = 50
             if total_possible_marks > 0 and (total_score / total_possible_marks * 100) >= passing_score:
                 attempt.feedback = 'Pass'
             else:
@@ -685,7 +720,9 @@ def update_descriptive_marks(request, current_user=None):
             if u_exist:
                 updated_by = str(u_exist.user_id)
         if not updated_by and current_user and getattr(current_user, 'user_id', None):
-            updated_by = str(getattr(current_user, 'user_id'))
+            u_check_curr = session.query(User).filter_by(user_id=str(getattr(current_user, 'user_id'))).first()
+            if u_check_curr:
+                updated_by = str(u_check_curr.user_id)
 
         answer_record = session.query(Answer).filter(Answer.answer_id == answer_id).first()
         if not answer_record:
@@ -694,6 +731,13 @@ def update_descriptive_marks(request, current_user=None):
         
         print(f"[update_descriptive_marks] Found DB Answer record: answer_id={answer_record.answer_id}, old_marks={answer_record.marks_awarded}")
         
+        # Verify previous created_by against Users table for ForeignKey constraint
+        prev_user_id = None
+        if answer_record.created_by:
+            u_prev = session.query(User).filter_by(user_id=str(answer_record.created_by)).first()
+            if u_prev:
+                prev_user_id = str(u_prev.user_id)
+
         # Save snapshot of previous state to MarksHistory
         prev_reason = getattr(answer_record, 'edit_reason', None) or getattr(answer_record, 'feedback', None)
         answer_history_record = MarksHistory(
@@ -702,8 +746,8 @@ def update_descriptive_marks(request, current_user=None):
             marks_awarded=answer_record.marks_awarded,
             source='manual',
             edit_reason=prev_reason,
-            updated_by=answer_record.created_by,
-            updated_date=answer_record.created_date or func.now()
+            updated_by=prev_user_id,
+            updated_date=datetime.datetime.utcnow()
         )
         session.add(answer_history_record)
 
@@ -711,7 +755,7 @@ def update_descriptive_marks(request, current_user=None):
         answer_record.marks_awarded = marks_awarded
         if updated_by:
             answer_record.created_by = updated_by
-        answer_record.created_date = func.now()
+        answer_record.created_date = datetime.datetime.utcnow()
         if hasattr(answer_record, 'edit_reason'):
             answer_record.edit_reason = edit_reason
         session.add(answer_record)
@@ -722,19 +766,26 @@ def update_descriptive_marks(request, current_user=None):
         if attempt:
             total_score = session.query(Answer).filter_by(attempt_id=answer_record.attempt_id).with_entities(func.sum(Answer.marks_awarded)).scalar() or 0
             attempt.score = total_score
-            total_possible_marks = session.query(Question).join(Answer, Answer.question_id == Question.question_id).filter(
-                Answer.attempt_id == answer_record.attempt_id
-            ).with_entities(func.sum(Question.marks)).scalar() or 0
+            q_ids = [row[0] for row in session.query(Answer.question_id).filter_by(attempt_id=answer_record.attempt_id).distinct().all() if row[0]]
+            total_possible_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(q_ids)).scalar() or 0 if q_ids else 0
             sched = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first()
-            passing_score = getattr(sched, 'pass_mark', 50) if sched else 50
+            if (not total_possible_marks or total_possible_marks <= 0) and sched and sched.exam_id:
+                ex = session.query(Exam).filter_by(exam_id=sched.exam_id).first()
+                total_possible_marks = ex.total_marks if ex and ex.total_marks else 0
+            passing_score = sched.pass_mark if (sched and sched.pass_mark is not None) else None
+            if passing_score is None and sched and sched.exam_id:
+                ex = session.query(Exam).filter_by(exam_id=sched.exam_id).first()
+                passing_score = ex.pass_mark if (ex and ex.pass_mark is not None) else 50
+            if passing_score is None:
+                passing_score = 50
             if total_possible_marks > 0 and (total_score / total_possible_marks * 100) >= passing_score:
                 attempt.feedback = 'Pass'
             else:
-                attempt.feedback = 'Fail'
-            attempt.percentage = (total_score / total_possible_marks * 100) if total_possible_marks > 0 else 0
+                attempt.feedback = 'Failed'
+            attempt.percentage = round((total_score / total_possible_marks * 100), 2) if total_possible_marks > 0 else 0
             session.add(attempt)
             session.commit()
-            print(f"[update_descriptive_marks] Successfully updated DB: answer_id={answer_record.answer_id} -> new_marks={marks_awarded}, new_attempt_score={attempt.score}")
+            print(f"[update_descriptive_marks] Successfully updated DB: answer_id={answer_record.answer_id} -> new_marks={marks_awarded}, new_attempt_score={attempt.score}, pct={attempt.percentage}")
             return {"statusMessage": "Descriptive marks updated successfully", "status": True}, 200
 
     except Exception as e:

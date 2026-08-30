@@ -1297,11 +1297,15 @@
                 <th mat-header-cell *matHeaderCellDef>MANUAL REVIEW</th>
                 <td mat-cell *matCellDef="let row">
                   <span
-                    class="review-status"
-                    [class.review-pending]="
-                      row.manual_review === 'pending' || row.manual_review === 'Pending'
-                    "
-                    >{{ row.manual_review || '-' }}</span
+                    *ngIf="row.manual_review === 'Manual Review' || row.manual_review === 'MANUAL REVIEW' || row.manual_review === 'manual_review' || row.has_manual_review"
+                    class="manual-review-chip"
+                  >
+                    MANUAL REVIEW
+                  </span>
+                  <span
+                    *ngIf="!row.manual_review && !row.has_manual_review"
+                    class="cell-muted"
+                  >-</span
                   >
                 </td>
               </ng-container>
@@ -1387,8 +1391,14 @@
         </button>
       </div>
       <div class="panel-body">
-        <div *ngIf="userReviewLoading" class="muted">Loading review...</div>
-        <div *ngIf="!userReviewLoading">
+        <div *ngIf="userReviewLoading && (!userReviewAttempts || !userReviewAttempts.length)" class="professional-loader-container">
+          <div class="loader-spinner-ring"></div>
+          <div class="loader-text-group">
+            <h5 class="loader-main-text">Loading Answer Sheet</h5>
+            <p class="loader-sub-text">Fetching evaluation details and questions...</p>
+          </div>
+        </div>
+        <div *ngIf="!userReviewLoading || (userReviewAttempts && userReviewAttempts.length)">
           <div *ngIf="userReviewAttempts && userReviewAttempts.length; else noUserReview">
             <div
               *ngFor="let att of userReviewAttempts; let attIdx = index"
@@ -1584,15 +1594,18 @@
                               mat-icon-button
                               class="save-marks-btn"
                               type="button"
+                              [disabled]="q._savingMarks"
                               (click)="$event.stopPropagation(); saveMarks(q)"
                               title="Save marks"
                             >
-                              <mat-icon>check</mat-icon>
+                              <mat-icon *ngIf="!q._savingMarks">check</mat-icon>
+                              <span *ngIf="q._savingMarks" class="btn-micro-spinner"></span>
                             </button>
                             <button
                               mat-icon-button
                               class="cancel-marks-btn"
                               type="button"
+                              [disabled]="q._savingMarks"
                               (click)="$event.stopPropagation(); cancelEditMarks(q)"
                               title="Cancel"
                             >

@@ -891,9 +891,11 @@ export class AdminQuestionsComponent {
       return;
     }
 
-    if (!this.aiQuestionType) {
-      const catType = (this.selectedCategory?.type || '').toLowerCase();
-      this.aiQuestionType = catType.includes('obj') ? 'choose' : (catType.includes('subj') ? 'descriptive' : 'choose');
+    if (!this.aiQuestionType || !this.aiQuestionType.trim()) {
+      try {
+        notify('Please select a Question Type', 'error');
+      } catch (e) {}
+      return;
     }
 
     if (!this.aiQuestionNumber || this.aiQuestionNumber < 1) {
@@ -927,7 +929,7 @@ export class AdminQuestionsComponent {
     }
     // fd.append('language', this.aiQuestionLanguage || 'English');
     fd.append('language', 'English');
-    fd.append('type', this.aiQuestionType || 'Descriptive');
+    fd.append('type', this.aiQuestionType);
     fd.append('number_of_questions', String(this.aiQuestionNumber || 1));
     const categoryQuestionMark = this.getCategoryQuestionMark() || this.aiMarksPerQuestion || 5;
     fd.append('marks_per_question', String(categoryQuestionMark));

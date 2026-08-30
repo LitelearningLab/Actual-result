@@ -85,12 +85,12 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         **Expected Answer Key Points:** {expected_answer}
         **Candidate's Answer:** {student_answer}
         
-        please evaluate and provide marks range between 0-10 and for each point candidate answer available in the expected answer key points mention as "Available" and for missing points mention as "Missing" and for partial answer points mention as "Partial", and correct answer points mention as "Complete" and provide the short report only for the missing part in partially answered points, and for incorrect point highlight what is incorrect based on the expected answer.
+        please evaluate and award a score between 0 and {question_mark} (maximum allowed marks is {question_mark}). For each point candidate answer available in the expected answer key points mention as "Available" and for missing points mention as "Missing" and for partial answer points mention as "Partial", and correct answer points mention as "Complete" and provide the short report only for the missing part in partially answered points, and for incorrect point highlight what is incorrect based on the expected answer.
                     Don't need a summary in the output. Also not required to mention the expected answer in the output.
         
         Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
         {{
-        "score": <number between 0-{question_mark}>,
+        "score": <number between 0 and {question_mark}>,
         "missing": "<pipe-separated list of Crisp phrase on what is missed or 'None'>",
         "incomplete": "<pipe-separated list of Crisp explanation on which part is incomplete or 'None'>",
         "incorrect": "<pipe-separated list of Crisp explanation on what is incorrect and why or 'None'>",
