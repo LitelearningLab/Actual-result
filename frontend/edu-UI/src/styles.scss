@@ -808,3 +808,20 @@ button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon {
   vertical-align: middle;
 }
 
+// Ensure Material overlays (Snackbars, Tooltips, Dialogs) are always in front of custom modals
+.cdk-overlay-container {
+  z-index: 100200 !important;
+}
+
+.cdk-global-overlay-wrapper,
+.cdk-overlay-pane {
+  z-index: 100201 !important;
+}
+
+.mat-mdc-snack-bar-container,
+.mat-snack-bar-container,
+.mat-mdc-tooltip,
+.mat-tooltip {
+  z-index: 100202 !important;
+}
+

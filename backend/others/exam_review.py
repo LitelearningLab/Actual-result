@@ -1,4 +1,5 @@
 import datetime
+import uuid
 # pyrefly: ignore [missing-import]
 from sqlalchemy import func
 from db.db import SQLiteDB
@@ -799,7 +800,12 @@ def update_descriptive_marks(request, current_user=None):
 
     try:
         data = request.json or {}
-        answer_id = data.get("answer_id", "")
+        answer_id = data.get("answer_id") or None
+        question_id = data.get("question_id") or None
+        attempt_id = data.get("attempt_id") or None
+        schedule_id = data.get("schedule_id") or None
+        user_id = data.get("user_id") or None
+
         try:
             marks_awarded = float(data.get("marks_awarded", 0))
         except (ValueError, TypeError):
@@ -807,11 +813,7 @@ def update_descriptive_marks(request, current_user=None):
         updated_by_raw = data.get("updated_by", "")
         edit_reason = str(data.get("edit_reason", "") or "").strip()
 
-        print(f"[update_descriptive_marks] Payload received: answer_id={answer_id}, marks={marks_awarded}, updated_by={updated_by_raw}, reason='{edit_reason}'")
-
-        if not answer_id:
-            print("[update_descriptive_marks] ERROR: answer_id is missing")
-            return {"statusMessage": "answer_id is required", "status": False}, 400
+        print(f"[update_descriptive_marks] Payload received: answer_id={answer_id}, question_id={question_id}, attempt_id={attempt_id}, marks={marks_awarded}, updated_by={updated_by_raw}, reason='{edit_reason}'")
 
         if not edit_reason:
             print("[update_descriptive_marks] ERROR: edit_reason is empty")
@@ -832,10 +834,45 @@ def update_descriptive_marks(request, current_user=None):
             if u_check_curr:
                 updated_by = str(u_check_curr.user_id)
 
-        answer_record = session.query(Answer).filter(Answer.answer_id == answer_id).first()
+        answer_record = None
+        if answer_id:
+            answer_record = session.query(Answer).filter(Answer.answer_id == answer_id).first()
+        if not answer_record and attempt_id and question_id:
+            answer_record = session.query(Answer).filter(
+                Answer.attempt_id == attempt_id,
+                Answer.question_id == question_id
+            ).first()
+
         if not answer_record:
-            print(f"[update_descriptive_marks] ERROR: Answer record not found for answer_id={answer_id}")
-            return {"statusMessage": "Answer record not found", "status": False}, 404
+            if not attempt_id or not question_id:
+                print(f"[update_descriptive_marks] ERROR: Neither answer_id nor (attempt_id + question_id) provided")
+                return {"statusMessage": "Answer record not found and insufficient attempt/question details provided.", "status": False}, 404
+            
+            # Create new Answer record for previously unattempted descriptive question
+            new_ans_id = str(uuid.uuid4())
+            q_obj = session.query(Question).filter(Question.question_id == question_id).first()
+            q_marks = q_obj.marks if q_obj else 0
+            
+            answer_record = Answer(
+                answer_id=new_ans_id,
+                attempt_id=attempt_id,
+                question_id=question_id,
+                schedule_id=schedule_id,
+                user_id=user_id,
+                written_answer="",
+                marks_awarded=marks_awarded,
+                manual_marks=marks_awarded,
+                manual_review_required=0,
+                is_validated=1,
+                is_correct=1 if marks_awarded >= q_marks and q_marks > 0 else 0,
+                created_by=updated_by,
+                created_date=datetime.datetime.utcnow(),
+                edit_reason=edit_reason
+            )
+            session.add(answer_record)
+            session.flush()
+            answer_id = new_ans_id
+            print(f"[update_descriptive_marks] Created new Answer record for unattempted question: answer_id={answer_id}")
         
         print(f"[update_descriptive_marks] Found DB Answer record: answer_id={answer_record.answer_id}, old_marks={answer_record.marks_awarded}")
         
@@ -849,7 +886,7 @@ def update_descriptive_marks(request, current_user=None):
         # Save snapshot of previous state to MarksHistory
         prev_reason = getattr(answer_record, 'edit_reason', None) or getattr(answer_record, 'feedback', None)
         answer_history_record = MarksHistory(
-            answer_id=answer_id,
+            answer_id=answer_record.answer_id,
             question_id=answer_record.question_id,
             marks_awarded=answer_record.marks_awarded,
             source='manual',

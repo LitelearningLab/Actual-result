@@ -450,7 +450,7 @@ def get_user_wise_report(request):
                     retest_date_str = rdt.strftime('%Y-%m-%d %H:%M:%S')
                 if pass_mark is not None:
                     retest_result = 'Pass' if (retest_pct is not None and retest_pct >= pass_mark) else 'Fail'
-            # Check if any question has manual review / mark edits / comments
+            # Check if any question has real manual review / mark edits / comments
             has_manual_review = False
             try:
                 user_att_ids = [a.attempt_id for a in all_user_sched_attempts if a.attempt_id]
@@ -460,14 +460,19 @@ def get_user_wise_report(request):
                 if user_att_ids:
                     has_history = session.query(MarksHistory).join(
                         Answer, MarksHistory.answer_id == Answer.answer_id
-                    ).filter(Answer.attempt_id.in_(user_att_ids)).first() is not None
+                    ).filter(
+                        Answer.attempt_id.in_(user_att_ids),
+                        (MarksHistory.source == 'manual') | (MarksHistory.edit_reason.isnot(None) & (MarksHistory.edit_reason != ''))
+                    ).first() is not None
 
                     has_comments = session.query(ExamReviewComments).filter(
-                        ExamReviewComments.attempt_id.in_(user_att_ids)
+                        ExamReviewComments.attempt_id.in_(user_att_ids),
+                        ExamReviewComments.comment.isnot(None),
+                        ExamReviewComments.comment != ''
                     ).first() is not None
 
                     has_ans_manual = any(
-                        bool(getattr(a, 'edit_reason', None) or getattr(a, 'manual_marks', None) is not None)
+                        bool((getattr(a, 'edit_reason', None) and str(a.edit_reason).strip()) or getattr(a, 'manual_review_required', 0) == 1)
                         for a in answers
                     )
 
@@ -475,7 +480,7 @@ def get_user_wise_report(request):
                         has_manual_review = True
                 elif answers:
                     has_manual_review = any(
-                        bool(getattr(a, 'edit_reason', None) or getattr(a, 'manual_marks', None) is not None)
+                        bool((getattr(a, 'edit_reason', None) and str(a.edit_reason).strip()) or getattr(a, 'manual_review_required', 0) == 1)
                         for a in answers
                     )
             except Exception as ex:

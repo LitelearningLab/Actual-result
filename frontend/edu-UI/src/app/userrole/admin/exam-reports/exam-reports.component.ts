@@ -1386,10 +1386,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   private fetchUserReview(params: any, silent: boolean = false) {
     console.log('[fetchUserReview] Re-fetching review with params:', params, 'silent:', silent);
     if (!silent) {
+      this.loading.show();
       this.userReviewLoading = true;
     }
     this.http.get<any>(`${API_BASE}/review-user-exam`, { params }).subscribe({
       next: (res: any) => {
+        if (!silent) {
+          this.loading.hide();
+        }
         console.log('[fetchUserReview] Received review data response:', res);
         try {
           const body = res || {};
@@ -1469,6 +1473,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         }
       },
       error: (err: any) => {
+        if (!silent) {
+          this.loading.hide();
+        }
         console.error('[TestReports] review-user-exam failed', err);
         if (!silent) {
           this.userReviewLoading = false;
@@ -1548,6 +1555,22 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     q._marksReasonError = false;
 
     const answerID = q.answer_id || null;
+    const attemptId =
+      row?.attempt_id ||
+      this.currentReviewRow?.attempt_id ||
+      this.currentReviewParams?.attempt_id ||
+      null;
+    const scheduleId =
+      row?.schedule_id ||
+      this.selectedExam?.schedule_id ||
+      this.currentReviewRow?.schedule_id ||
+      this.currentReviewParams?.schedule_id ||
+      null;
+    const userId =
+      row?.user_id ||
+      this.currentReviewRow?.user_id ||
+      this.currentReviewParams?.user_id ||
+      null;
 
     const raw =
       sessionStorage.getItem('user_profile') ||
@@ -1567,25 +1590,30 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       } catch (e) {}
     }
 
-    if (!answerID) {
-      console.warn('[saveMarks] Missing answer ID:', { answerID });
-      this._snack.open('Missing answer ID', 'Close', { duration: 3000 });
+    if (!answerID && (!attemptId || !q.question_id)) {
+      console.warn('[saveMarks] Missing question or attempt ID:', { answerID, attemptId, qid: q.question_id });
+      this._snack.open('Missing question or attempt details', 'Close', { duration: 3000 });
       return;
     }
 
     console.log('[saveMarks] Triggered with item:', {
       question_id: q.question_id,
       answer_id: answerID,
+      attempt_id: attemptId,
       editedMarks: newMarks,
       reason: editReason,
     });
 
-    const payload = {
-      answer_id: String(answerID),
+    const payload: any = {
       marks_awarded: newMarks,
       updated_by: updatedBy,
       edit_reason: editReason,
     };
+    if (answerID) payload.answer_id = String(answerID);
+    if (q.question_id) payload.question_id = String(q.question_id);
+    if (attemptId) payload.attempt_id = String(attemptId);
+    if (scheduleId) payload.schedule_id = String(scheduleId);
+    if (userId) payload.user_id = String(userId);
 
     console.log('[saveMarks] Sending payload to /update-descriptive-marks:', payload);
 
@@ -1594,6 +1622,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       next: (res: any) => {
         console.log('[saveMarks] Backend responded SUCCESS:', res);
         q._savingMarks = false;
+        if (res?.data?.answer_id) {
+          q.answer_id = res.data.answer_id;
+        }
         const oldMarks = q.marks_awarded || 0;
         const oldReason = q.edit_reason || '';
         q.marks_history = Array.isArray(q.marks_history) ? q.marks_history : [];

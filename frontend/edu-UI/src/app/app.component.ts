@@ -19,6 +19,7 @@ export class AppComponent implements OnDestroy {
   title = 'edu-UI';
   isLoggedIn$: Observable<boolean>;
   isAuthRoute = false;
+  isExamRunningRoute = false;
   private globalInstituteSub: Subscription;
   private routerSub: Subscription;
 
@@ -47,6 +48,7 @@ export class AppComponent implements OnDestroy {
   private checkIsAuthRoute(url: string): void {
     const cleanUrl = (url || '').split('?')[0].split('#')[0];
     this.isAuthRoute = cleanUrl === '/' || cleanUrl.endsWith('/login') || cleanUrl === '/login' || cleanUrl === '/home/login' || cleanUrl === '/register';
+    this.isExamRunningRoute = cleanUrl === '/user/exam/run' || cleanUrl === '/user-exam' || cleanUrl.startsWith('/user/exam/run');
   }
 
   ngOnDestroy(): void {

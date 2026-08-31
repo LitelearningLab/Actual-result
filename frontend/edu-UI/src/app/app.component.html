@@ -1,4 +1,4 @@
-<ng-container *ngIf="(isLoggedIn$ | async) && !isAuthRoute; else publicView">
+<ng-container *ngIf="(isLoggedIn$ | async) && !isAuthRoute && !isExamRunningRoute; else fullScreenView">
     <!-- Skip to main content link for accessibility -->
     <a class="skip-link" href="#main-content">Skip to main content</a>
     
@@ -24,8 +24,8 @@
     </div>
 </ng-container>
 
-<ng-template #publicView>
-    <div class="public-layout">
+<ng-template #fullScreenView>
+    <div class="public-layout exam-runner-fullscreen">
         <main role="main">
             <router-outlet></router-outlet>
         </main>

@@ -1590,14 +1590,14 @@
                             >Description is required when changing marks</small
                           >
                           <div class="marks-edit-actions">
-                            <button
-                              mat-icon-button
-                              class="save-marks-btn"
-                              type="button"
-                              [disabled]="q._savingMarks"
-                              (click)="$event.stopPropagation(); saveMarks(q)"
-                              title="Save marks"
-                            >
+                              <button
+                                mat-icon-button
+                                class="save-marks-btn"
+                                type="button"
+                                [disabled]="q._savingMarks"
+                                (click)="$event.stopPropagation(); saveMarks(q, att)"
+                                title="Save marks"
+                              >
                               <mat-icon *ngIf="!q._savingMarks">check</mat-icon>
                               <span *ngIf="q._savingMarks" class="btn-micro-spinner"></span>
                             </button>
