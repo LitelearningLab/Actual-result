@@ -1,9 +1,78 @@
 import datetime
+# pyrefly: ignore [missing-import]
 from sqlalchemy import func
 from db.db import SQLiteDB
-from db.models import User, Exam, ExamSchedule, Question, Option, Answer,Exam_Attempt, ExamScheduleMapping, ExamReviewComments,ExamReviewCommentsHistory, MarksHistory
+from db.models import User, Exam, ExamSchedule, Question, Option, Answer, Exam_Attempt, ExamScheduleMapping, ExamReviewComments, ExamReviewCommentsHistory, MarksHistory, ExamMapping, ExamQuestionMapping, QuestionMapping
 from others.settings import get_ai_confidence_threshold
 from others.llm import descriptive_evaluation, openai_client
+
+def get_exam_question_ids(session, exam_id=None, schedule_id=None, attempt_id=None):
+    """
+    Returns the ordered list of all question_ids associated with this exam/attempt.
+    """
+    exam = None
+    if attempt_id and not schedule_id:
+        att = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id == attempt_id).first()
+        if att and att.schedule_id:
+            schedule_id = att.schedule_id
+    if schedule_id and not exam_id:
+        exam_schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == schedule_id).first()
+        if exam_schedule and exam_schedule.exam_id:
+            exam_id = exam_schedule.exam_id
+    if exam_id:
+        exam = session.query(Exam).filter(Exam.exam_id == exam_id).first()
+
+    all_qids = []
+    seen = set()
+
+    # 1. ExamQuestionMapping rows
+    if exam_id:
+        eqm_rows = session.query(ExamQuestionMapping.question_id).filter(
+            ExamQuestionMapping.exam_id == exam_id
+        ).order_by(ExamQuestionMapping.order_number.asc()).all()
+        for r in eqm_rows:
+            qid = r[0] if isinstance(r, (list, tuple)) else getattr(r, 'question_id', None)
+            if qid and qid not in seen:
+                seen.add(qid)
+                all_qids.append(qid)
+
+    # 2. If ExamQuestionMapping was empty, resolve from ExamMapping
+    if exam_id and not all_qids:
+        mappings = session.query(ExamMapping).filter(ExamMapping.exam_id == exam_id).all()
+        for m in mappings:
+            cat_q_rows = session.query(QuestionMapping.question_id).filter(
+                QuestionMapping.category_id == m.category_id
+            ).all()
+            cat_qids = [r[0] if isinstance(r, (list, tuple)) else getattr(r, 'question_id', None) for r in cat_q_rows]
+            cat_qids = [q for q in cat_qids if q]
+            limit = m.number_of_questions or len(cat_qids)
+            for qid in cat_qids[:limit]:
+                if qid not in seen:
+                    seen.add(qid)
+                    all_qids.append(qid)
+
+    # 3. Include any answered questions for this attempt (in case attempt had specific random questions)
+    if attempt_id:
+        ans_rows = session.query(Answer.question_id).filter(
+            Answer.attempt_id == attempt_id
+        ).distinct().all()
+        for r in ans_rows:
+            qid = r[0] if isinstance(r, (list, tuple)) else getattr(r, 'question_id', None)
+            if qid and qid not in seen:
+                seen.add(qid)
+                all_qids.append(qid)
+
+    return all_qids, exam
+
+def get_exam_total_marks(session, exam_id=None, schedule_id=None, attempt_id=None):
+    question_ids, exam = get_exam_question_ids(session, exam_id, schedule_id, attempt_id)
+    if question_ids:
+        total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(question_ids)).scalar() or 0
+        if total_marks > 0:
+            return float(total_marks), question_ids
+    if exam and getattr(exam, 'total_questions', None) and exam.total_questions > 0:
+        return float(exam.total_questions), question_ids
+    return float(len(question_ids)), question_ids
 
 def is_review_eligible_attempt(attempt):
     """Only finalized attempts can participate in student review flows."""
@@ -176,167 +245,17 @@ def review_user_exam(request, current_user=None):
             review_data["time_taken"] = str(time_delta) if time_delta else None
             review_data["status"] = attempt.status
             review_data["score"] = attempt.score if show_score else None
-            review_data["total_questions"] = total_questions
-            review_data["percentage"] = round(attempt.percentage, 2) if show_score and attempt.percentage is not None else None
-            review_data["result"] = attempt.feedback if show_score and hasattr(attempt, 'feedback') else ""
-            review_data["review"] = []
             
-            # get question, selected option, and correct answer
-            all_answers = session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id).all()
-            latest_answers_by_qid = {}
-            first_seen_order = []
-            for ans in all_answers:
-                if ans.question_id not in latest_answers_by_qid:
-                    first_seen_order.append(ans.question_id)
-                    latest_answers_by_qid[ans.question_id] = ans
-                else:
-                    existing = latest_answers_by_qid[ans.question_id]
-                    if ans.created_date and (not existing.created_date or ans.created_date > existing.created_date):
-                        latest_answers_by_qid[ans.question_id] = ans
-            question_list = [latest_answers_by_qid[qid] for qid in first_seen_order]
-
-            total_marks = 0
-            for question_answer in question_list:
-
-                question = session.query(Question).filter(Question.question_id == question_answer.question_id).first()
-                question_type = question.question_type if question else ""
-                question_marks = question.marks if question else 0
-                total_marks += question.marks if question and question.marks else 0
-                review_comment_dict = {}
-                if question_type in ["fill", 'choose']:
-                    selected_option = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).first()
-                    correct_answer_data = selected_option.option_text if selected_option else ""
-                    selected_option = question_answer.written_answer
-                    if question_type == "choose":
-                        selected_data = session.query(Option).filter(Option.options_id == question_answer.selected_option_id, Option.active_status == 1).first()
-                        selected_option = selected_data.option_text if selected_data else ""
-                elif question_type == "descriptive":
-                    selected_option = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).first()
-                    correct_answer_data = selected_option.option_text if selected_option else ""
-                    selected_option = question_answer.written_answer
-
-                    review_comments = session.query(ExamReviewComments).filter( 
-                        ExamReviewComments.attempt_id == attempt.attempt_id,
-                        ExamReviewComments.question_id == question_answer.question_id
-                    ).order_by(ExamReviewComments.created_date.asc()).all()
-                    review_comment_dict['comments'] = []
-                    for comment in review_comments:
-                        review_comment_dict_item = {}
-                        # fetch review history from ExamReviewCommentsHistory table
-                        review_comment_dict_item['history'] = []
-                        history_comments = session.query(ExamReviewCommentsHistory).filter(
-                            ExamReviewCommentsHistory.comment_id == comment.comment_id
-                        ).order_by(ExamReviewCommentsHistory.created_date.asc()).all()
-                        for history in history_comments:
-                            history_created_by = session.query(User).filter(User.user_id == history.created_by).first()
-                            history_updated_by = session.query(User).filter(User.user_id == history.updated_by).first()
-                            review_history_dict_item = {}
-                            review_history_dict_item['history_id'] = history.history_id
-                            review_history_dict_item['comment_id'] = history.comment_id
-                            review_history_dict_item['category'] = history.category or comment.category
-                            review_history_dict_item['comment_text'] = history.comment_text
-                            review_history_dict_item['action'] = history.action
-                            review_history_dict_item['is_deleted'] = history.is_deleted
-                            review_history_dict_item['created_by'] = (history_created_by.full_name or history_created_by.user_name) if history_created_by else (history.created_by or 'Admin User')
-                            review_history_dict_item['created_date'] = history.created_date
-                            review_history_dict_item['updated_date'] = history.updated_date
-                            review_history_dict_item['updated_by'] = (history_updated_by.full_name or history_updated_by.user_name) if history_updated_by else history.updated_by
-                            review_history_dict_item['edit_reason'] = history.edit_reason
-                            review_history_dict_item['edited_by'] = (history_updated_by.full_name or history_updated_by.user_name) if history_updated_by else history.edited_by
-                            review_history_dict_item['edited_at'] = history.edited_at
-                            review_comment_dict_item['history'].append(review_history_dict_item)
-                            # add current comment
-                        created_by = session.query(User).filter(User.user_id == comment.created_by).first()
-                        updated_by = session.query(User).filter(User.user_id == comment.updated_by).first()
-                        edited_by = session.query(User).filter(User.user_id == comment.edited_by).first()
-                        review_comment_dict_item['comment_id'] = comment.comment_id
-                        review_comment_dict_item['category'] = comment.category
-                        review_comment_dict_item['comment_text'] = comment.comment_text
-                        review_comment_dict_item['action'] = comment.action
-                        review_comment_dict_item['is_deleted'] = comment.is_deleted
-                        review_comment_dict_item['created_by'] = (created_by.full_name or created_by.user_name) if created_by else (comment.created_by or 'Admin User')
-                        review_comment_dict_item['created_date'] = comment.created_date
-                        review_comment_dict_item['updated_date'] = comment.updated_date
-                        review_comment_dict_item['updated_by'] = (updated_by.full_name or updated_by.user_name) if updated_by else comment.updated_by
-                        review_comment_dict_item['edit_reason'] = comment.edit_reason
-                        review_comment_dict_item['edited_by'] = (edited_by.full_name or edited_by.user_name) if edited_by else comment.edited_by
-                        review_comment_dict_item['edited_at'] = comment.edited_at
-                        review_comment_dict['comments'].append(review_comment_dict_item)
-
-                else:
-                    selected_options = session.query(Option).join(Answer, Answer.selected_option_id == Option.options_id).filter(
-                        Answer.attempt_id == attempt.attempt_id,
-                        Answer.question_id == question_answer.question_id,
-                        Option.active_status == 1
-                    ).all()
-                    selected_option_texts = [opt.option_text for opt in selected_options]
-                    selected_option = selected_option_texts
-                    correct_answer = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).all()
-                    correct_answer_data = ", ".join([ans.option_text for ans in correct_answer])
-
-                options_list = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.active_status == 1).all()
-                updated_by = session.query(User).filter(User.user_id == question_answer.created_by).first()
-
-                evaluation_failed = (
-                    question_type == "descriptive"
-                    and not bool(question_answer.is_validated)
-                    and bool(question_answer.feedback)
-                )
-                evaluation_status = None
-                if question_type == "descriptive":
-                    evaluation_status = "failed" if evaluation_failed else ("success" if question_answer.is_validated else "pending")
-
-                review_data["review"].append({
-                    "answer_id": question_answer.answer_id,
-                    "question_id": question_answer.question_id,
-                    "question_text": question.question_text  if question else "",
-                    "question_type": question_type,
-                    "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct if show_correct_answers else 0} for opt in options_list],
-                    "selected_option": ([selected_option] if isinstance(selected_option, str) else selected_option) if show_student_answers else [],
-                    "correct_option": correct_answer_data if show_correct_answers else None,
-                    "review_comment": review_comment_dict if show_explanations else {},
-                    "is_correct": (True if question_answer.is_correct == 1 else False) if show_correct_answers else None,
-                    "marks_awarded": (question_answer.marks_awarded if question_answer.marks_awarded is not None else 0) if show_score else None,
-                    "updated_by": updated_by.full_name if updated_by else question_answer.created_by,
-                    "updated_date": question_answer.created_date,
-                    "edit_reason": getattr(question_answer, 'edit_reason', None),
-                    "question_marks": question_marks if show_score else None,
-                    "ai_marks": (question_answer.ai_marks if question_answer.ai_marks is not None else 0) if show_explanations else None,
-                    "ai_confidence": question_answer.ai_confidence if show_explanations else None,
-                    "needs_manual_review": (question_answer.ai_confidence is not None and question_answer.ai_confidence < ai_confidence_threshold) if show_explanations and question_type == 'descriptive' else False,
-                    "ai_confidence_threshold": ai_confidence_threshold if show_explanations and question_type == 'descriptive' else None,
-                    "manual_review_required": (True if question_answer.manual_review_required == 1 else False) if show_explanations else None,
-                    "manual_marks": (question_answer.manual_marks if question_answer.manual_marks is not None else 0) if show_explanations else None,
-                    "feedback": question_answer.feedback if show_explanations and not evaluation_failed and hasattr(question_answer, 'feedback') else "",
-                    "evaluation_status": evaluation_status if show_explanations else None,
-                    "evaluation_error": question_answer.feedback if show_explanations and evaluation_failed else None
-                })
-                # marks history can also be added here if needed by fetching from MarksHistory table
-                marks_history = session.query(MarksHistory).filter(
-                    MarksHistory.answer_id == question_answer.answer_id
-                ).order_by(MarksHistory.updated_date.desc()).all()
-                if marks_history and show_score:
-                    current_item = review_data["review"][-1]
-                    # If answer_record.edit_reason was missing (legacy records), use latest history source for current item
-                    if not current_item.get("edit_reason") and marks_history:
-                        current_item["edit_reason"] = getattr(marks_history[0], 'edit_reason', None) or marks_history[0].source
-
-                    history_list = []
-                    for mh in marks_history:
-                        mh_user = session.query(User).filter(User.user_id == mh.updated_by).first()
-                        reason = getattr(mh, 'edit_reason', None) or mh.source
-                        # Avoid duplicating comment if legacy data attached it to the top history item
-                        if not getattr(question_answer, 'edit_reason', None) and mh == marks_history[0]:
-                            reason = None
-                        history_list.append({
-                            "marks_awarded": mh.marks_awarded,
-                            "updated_by": mh_user.full_name if mh_user else (mh.updated_by or "System"),
-                            "updated_date": mh.updated_date,
-                            "edit_reason": reason
-                        })
-                    current_item["marks_history"] = history_list
-                
-            effective_total = total_marks if total_marks > 0 else (exam.total_marks if exam and exam.total_marks else 0)
+            # get all test questions and total marks for this exam/attempt
+            all_qids, exam_obj = get_exam_question_ids(session, exam_id=exam_schedule.exam_id, schedule_id=exam_schedule.schedule_id, attempt_id=attempt.attempt_id)
+            effective_total, _ = get_exam_total_marks(session, exam_id=exam_schedule.exam_id, schedule_id=exam_schedule.schedule_id, attempt_id=attempt.attempt_id)
+            
+            total_questions_count = len(all_qids) if all_qids else (total_questions or 0)
+            review_data["total_questions"] = total_questions_count
+            review_data["total_marks"] = effective_total if show_score else None
+            
+            # calculate correct percentage and pass/fail status
+            passing_score = exam_schedule.pass_mark if (exam_schedule and exam_schedule.pass_mark is not None) else (exam.pass_mark if (exam and exam.pass_mark is not None) else 50)
             if effective_total > 0 and attempt.score is not None:
                 correct_pct = round((float(attempt.score) / float(effective_total)) * 100, 2)
             elif attempt.percentage is not None:
@@ -344,17 +263,206 @@ def review_user_exam(request, current_user=None):
             else:
                 correct_pct = None
 
+            correct_result = ('Pass' if correct_pct >= passing_score else 'Failed') if correct_pct is not None else (attempt.feedback or '')
             review_data["percentage"] = correct_pct if show_score else None
-            review_data["total_marks"] = effective_total if show_score else None
+            review_data["result"] = correct_result if show_score else ""
 
-            # Sync attempt.percentage in DB if it was incorrectly stored
-            if correct_pct is not None and (attempt.percentage is None or abs((attempt.percentage or 0) - correct_pct) > 0.05):
+            # Sync attempt in DB if out of sync
+            if correct_pct is not None and (attempt.percentage is None or abs((attempt.percentage or 0) - correct_pct) > 0.05 or attempt.feedback != correct_result):
                 try:
                     attempt.percentage = correct_pct
+                    attempt.feedback = correct_result
                     session.add(attempt)
                     session.commit()
                 except Exception:
                     pass
+
+            review_data["review"] = []
+            
+            # get question, selected option, and correct answer
+            all_answers = session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id).all()
+            latest_answers_by_qid = {}
+            for ans in all_answers:
+                if ans.question_id not in latest_answers_by_qid:
+                    latest_answers_by_qid[ans.question_id] = ans
+                else:
+                    existing = latest_answers_by_qid[ans.question_id]
+                    if ans.created_date and (not existing.created_date or ans.created_date > existing.created_date):
+                        latest_answers_by_qid[ans.question_id] = ans
+
+            # If all_qids is empty (fallback), use whatever is in latest_answers_by_qid
+            display_qids = all_qids if all_qids else list(latest_answers_by_qid.keys())
+
+            for qid in display_qids:
+                question = session.query(Question).filter(Question.question_id == qid).first()
+                question_type = question.question_type if question else ""
+                question_marks = question.marks if question and question.marks is not None else 1
+                options_list = session.query(Option).filter(Option.question_id == qid, Option.active_status == 1).all()
+
+                if qid in latest_answers_by_qid:
+                    question_answer = latest_answers_by_qid[qid]
+                    review_comment_dict = {}
+                    if question_type in ["fill", 'choose']:
+                        selected_option = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).first()
+                        correct_answer_data = selected_option.option_text if selected_option else ""
+                        selected_option = question_answer.written_answer
+                        if question_type == "choose":
+                            selected_data = session.query(Option).filter(Option.options_id == question_answer.selected_option_id, Option.active_status == 1).first()
+                            selected_option = selected_data.option_text if selected_data else ""
+                    elif question_type == "descriptive":
+                        selected_option = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).first()
+                        correct_answer_data = selected_option.option_text if selected_option else ""
+                        selected_option = question_answer.written_answer
+
+                        review_comments = session.query(ExamReviewComments).filter( 
+                            ExamReviewComments.attempt_id == attempt.attempt_id,
+                            ExamReviewComments.question_id == question_answer.question_id
+                        ).order_by(ExamReviewComments.created_date.asc()).all()
+                        review_comment_dict['comments'] = []
+                        for comment in review_comments:
+                            review_comment_dict_item = {}
+                            review_comment_dict_item['history'] = []
+                            history_comments = session.query(ExamReviewCommentsHistory).filter(
+                                ExamReviewCommentsHistory.comment_id == comment.comment_id
+                            ).order_by(ExamReviewCommentsHistory.created_date.asc()).all()
+                            for history in history_comments:
+                                history_created_by = session.query(User).filter(User.user_id == history.created_by).first()
+                                history_updated_by = session.query(User).filter(User.user_id == history.updated_by).first()
+                                review_history_dict_item = {}
+                                review_history_dict_item['history_id'] = history.history_id
+                                review_history_dict_item['comment_id'] = history.comment_id
+                                review_history_dict_item['category'] = history.category or comment.category
+                                review_history_dict_item['comment_text'] = history.comment_text
+                                review_history_dict_item['action'] = history.action
+                                review_history_dict_item['is_deleted'] = history.is_deleted
+                                review_history_dict_item['created_by'] = (history_created_by.full_name or history_created_by.user_name) if history_created_by else (history.created_by or 'Admin User')
+                                review_history_dict_item['created_date'] = history.created_date
+                                review_history_dict_item['updated_date'] = history.updated_date
+                                review_history_dict_item['updated_by'] = (history_updated_by.full_name or history_updated_by.user_name) if history_updated_by else history.updated_by
+                                review_history_dict_item['edit_reason'] = history.edit_reason
+                                review_history_dict_item['edited_by'] = (history_updated_by.full_name or history_updated_by.user_name) if history_updated_by else history.edited_by
+                                review_history_dict_item['edited_at'] = history.edited_at
+                                review_comment_dict_item['history'].append(review_history_dict_item)
+                            created_by = session.query(User).filter(User.user_id == comment.created_by).first()
+                            updated_by = session.query(User).filter(User.user_id == comment.updated_by).first()
+                            edited_by = session.query(User).filter(User.user_id == comment.edited_by).first()
+                            review_comment_dict_item['comment_id'] = comment.comment_id
+                            review_comment_dict_item['category'] = comment.category
+                            review_comment_dict_item['comment_text'] = comment.comment_text
+                            review_comment_dict_item['action'] = comment.action
+                            review_comment_dict_item['is_deleted'] = comment.is_deleted
+                            review_comment_dict_item['created_by'] = (created_by.full_name or created_by.user_name) if created_by else (comment.created_by or 'Admin User')
+                            review_comment_dict_item['created_date'] = comment.created_date
+                            review_comment_dict_item['updated_date'] = comment.updated_date
+                            review_comment_dict_item['updated_by'] = (updated_by.full_name or updated_by.user_name) if updated_by else comment.updated_by
+                            review_comment_dict_item['edit_reason'] = comment.edit_reason
+                            review_comment_dict_item['edited_by'] = (edited_by.full_name or edited_by.user_name) if edited_by else comment.edited_by
+                            review_comment_dict_item['edited_at'] = comment.edited_at
+                            review_comment_dict['comments'].append(review_comment_dict_item)
+                    else:
+                        selected_options = session.query(Option).join(Answer, Answer.selected_option_id == Option.options_id).filter(
+                            Answer.attempt_id == attempt.attempt_id,
+                            Answer.question_id == question_answer.question_id,
+                            Option.active_status == 1
+                        ).all()
+                        selected_option_texts = [opt.option_text for opt in selected_options]
+                        selected_option = selected_option_texts
+                        correct_answer = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).all()
+                        correct_answer_data = ", ".join([ans.option_text for ans in correct_answer])
+
+                    updated_by = session.query(User).filter(User.user_id == question_answer.created_by).first()
+
+                    evaluation_failed = (
+                        question_type == "descriptive"
+                        and not bool(question_answer.is_validated)
+                        and bool(question_answer.feedback)
+                    )
+                    evaluation_status = None
+                    if question_type == "descriptive":
+                        evaluation_status = "failed" if evaluation_failed else ("success" if question_answer.is_validated else "pending")
+
+                    review_data["review"].append({
+                        "answer_id": question_answer.answer_id,
+                        "question_id": question_answer.question_id,
+                        "question_text": question.question_text if question else "",
+                        "question_type": question_type,
+                        "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct if show_correct_answers else 0} for opt in options_list],
+                        "selected_option": ([selected_option] if isinstance(selected_option, str) else selected_option) if show_student_answers else [],
+                        "correct_option": correct_answer_data if show_correct_answers else None,
+                        "review_comment": review_comment_dict if show_explanations else {},
+                        "is_correct": (True if question_answer.is_correct == 1 else False) if show_correct_answers else None,
+                        "marks_awarded": (question_answer.marks_awarded if question_answer.marks_awarded is not None else 0) if show_score else None,
+                        "updated_by": updated_by.full_name if updated_by else question_answer.created_by,
+                        "updated_date": question_answer.created_date,
+                        "edit_reason": getattr(question_answer, 'edit_reason', None),
+                        "question_marks": question_marks if show_score else None,
+                        "ai_marks": (question_answer.ai_marks if question_answer.ai_marks is not None else 0) if show_explanations else None,
+                        "ai_confidence": question_answer.ai_confidence if show_explanations else None,
+                        "needs_manual_review": (question_answer.ai_confidence is not None and question_answer.ai_confidence < ai_confidence_threshold) if show_explanations and question_type == 'descriptive' else False,
+                        "ai_confidence_threshold": ai_confidence_threshold if show_explanations and question_type == 'descriptive' else None,
+                        "manual_review_required": (True if question_answer.manual_review_required == 1 else False) if show_explanations else None,
+                        "manual_marks": (question_answer.manual_marks if question_answer.manual_marks is not None else 0) if show_explanations else None,
+                        "feedback": question_answer.feedback if show_explanations and not evaluation_failed and hasattr(question_answer, 'feedback') else "",
+                        "evaluation_status": evaluation_status if show_explanations else None,
+                        "evaluation_error": question_answer.feedback if show_explanations and evaluation_failed else None
+                    })
+                    # marks history can also be added here if needed by fetching from MarksHistory table
+                    marks_history = session.query(MarksHistory).filter(
+                        MarksHistory.answer_id == question_answer.answer_id
+                    ).order_by(MarksHistory.updated_date.desc()).all()
+                    if marks_history and show_score:
+                        current_item = review_data["review"][-1]
+                        if not current_item.get("edit_reason") and marks_history:
+                            current_item["edit_reason"] = getattr(marks_history[0], 'edit_reason', None) or marks_history[0].source
+
+                        history_list = []
+                        for mh in marks_history:
+                            mh_user = session.query(User).filter(User.user_id == mh.updated_by).first()
+                            reason = getattr(mh, 'edit_reason', None) or mh.source
+                            if not getattr(question_answer, 'edit_reason', None) and mh == marks_history[0]:
+                                reason = None
+                            history_list.append({
+                                "marks_awarded": mh.marks_awarded,
+                                "updated_by": mh_user.full_name if mh_user else (mh.updated_by or "System"),
+                                "updated_date": mh.updated_date,
+                                "edit_reason": reason
+                            })
+                        current_item["marks_history"] = history_list
+
+                else:
+                    # Unattempted question
+                    if question_type in ["fill", 'choose']:
+                        selected_option = session.query(Option).filter(Option.question_id == qid, Option.is_correct == 1, Option.active_status == 1).first()
+                        correct_answer_data = selected_option.option_text if selected_option else ""
+                    else:
+                        correct_answers = session.query(Option).filter(Option.question_id == qid, Option.is_correct == 1, Option.active_status == 1).all()
+                        correct_answer_data = ", ".join([ans.option_text for ans in correct_answers])
+
+                    review_data["review"].append({
+                        "answer_id": None,
+                        "question_id": qid,
+                        "question_text": question.question_text if question else "",
+                        "question_type": question_type,
+                        "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct if show_correct_answers else 0} for opt in options_list],
+                        "selected_option": [] if show_student_answers else [],
+                        "correct_option": correct_answer_data if show_correct_answers else None,
+                        "review_comment": {} if show_explanations else {},
+                        "is_correct": False if show_correct_answers else None,
+                        "marks_awarded": 0 if show_score else None,
+                        "updated_by": None,
+                        "updated_date": None,
+                        "edit_reason": None,
+                        "question_marks": question_marks if show_score else None,
+                        "ai_marks": 0 if show_explanations else None,
+                        "ai_confidence": None,
+                        "needs_manual_review": False,
+                        "ai_confidence_threshold": None,
+                        "manual_review_required": False if show_explanations else None,
+                        "manual_marks": 0 if show_explanations else None,
+                        "feedback": "Not attempted" if show_explanations and question_type == 'descriptive' else "",
+                        "evaluation_status": "not_attempted" if show_explanations else None,
+                        "evaluation_error": None
+                    })
 
             attempt_reviews.append(review_data)
 
@@ -526,9 +634,9 @@ def validate_answers(attempt_id):
         if attempt:
             total_score = session.query(Answer).filter_by(attempt_id=attempt_id).with_entities(func.sum(Answer.marks_awarded)).scalar() or 0
             attempt.score = total_score
-            q_ids = [row[0] for row in session.query(Answer.question_id).filter_by(attempt_id=attempt_id).distinct().all() if row[0]]
-            total_possible_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(q_ids)).scalar() or 0 if q_ids else 0
             sched = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first()
+            exam_id = sched.exam_id if sched else None
+            total_possible_marks, _ = get_exam_total_marks(session, exam_id=exam_id, schedule_id=attempt.schedule_id, attempt_id=attempt_id)
             passing_score = sched.pass_mark if (sched and sched.pass_mark is not None) else None
             if passing_score is None and sched and sched.exam_id:
                 ex = session.query(Exam).filter_by(exam_id=sched.exam_id).first()
@@ -539,7 +647,7 @@ def validate_answers(attempt_id):
                 attempt.feedback = 'Pass'
             else:
                 attempt.feedback = 'Failed'
-            attempt.percentage = (total_score / total_possible_marks * 100) if total_possible_marks > 0 else 0
+            attempt.percentage = round((total_score / total_possible_marks * 100), 2) if total_possible_marks > 0 else 0
             attempt.status = 'evaluated'
             session.add(attempt)
             session.commit()
@@ -766,12 +874,9 @@ def update_descriptive_marks(request, current_user=None):
         if attempt:
             total_score = session.query(Answer).filter_by(attempt_id=answer_record.attempt_id).with_entities(func.sum(Answer.marks_awarded)).scalar() or 0
             attempt.score = total_score
-            q_ids = [row[0] for row in session.query(Answer.question_id).filter_by(attempt_id=answer_record.attempt_id).distinct().all() if row[0]]
-            total_possible_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(q_ids)).scalar() or 0 if q_ids else 0
             sched = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first()
-            if (not total_possible_marks or total_possible_marks <= 0) and sched and sched.exam_id:
-                ex = session.query(Exam).filter_by(exam_id=sched.exam_id).first()
-                total_possible_marks = ex.total_marks if ex and ex.total_marks else 0
+            exam_id = sched.exam_id if sched else None
+            total_possible_marks, _ = get_exam_total_marks(session, exam_id=exam_id, schedule_id=attempt.schedule_id, attempt_id=attempt.attempt_id)
             passing_score = sched.pass_mark if (sched and sched.pass_mark is not None) else None
             if passing_score is None and sched and sched.exam_id:
                 ex = session.query(Exam).filter_by(exam_id=sched.exam_id).first()
