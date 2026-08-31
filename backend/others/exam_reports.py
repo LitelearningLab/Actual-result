@@ -2,6 +2,8 @@ from db.db import SQLiteDB
 from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping, MarksHistory, ExamReviewComments
 from sqlalchemy import func, or_, String
 from datetime import datetime
+from others.llm import openai_client, analyze_wrong_answers_ai
+
 
 
 def resolve_report_context(session, args):
@@ -651,6 +653,7 @@ def get_exam_analytics(request):
                 'category_id': category_id,
                 'category_name': category_name,
                 'question_text': qobj.question_text,
+                'question_type': qobj.question_type,
                 'user_attempts': int(user_attempts),
                 'attempts': int(total_attempts),
                 'mistakes': int(mistakes),
@@ -822,7 +825,17 @@ def get_question_wrong_answers(request):
                 'is_correct': int(opt.is_correct or 0)
             })
 
-        q_type = 'Multiple' if getattr(qobj, 'question_type', '') in ['multi', 'multiple'] else 'Single' if getattr(qobj, 'question_type', '') in ['choose', 'single'] else (getattr(qobj, 'question_type', '') or 'Single')
+        raw_qtype = (getattr(qobj, 'question_type', '') or '').strip().lower()
+        if raw_qtype in ['multi', 'multiple']:
+            q_type = 'Multiple'
+        elif raw_qtype in ['choose', 'single']:
+            q_type = 'Single'
+        elif raw_qtype == 'fill':
+            q_type = 'fill'
+        elif raw_qtype in ['descriptive', 'description', 'subjective', 'essay', 'paragraph']:
+            q_type = 'descriptive'
+        else:
+            q_type = getattr(qobj, 'question_type', '') or 'Single'
 
         question_details = {
             'question_id': str(target_qid),
@@ -864,7 +877,7 @@ def get_question_wrong_answers(request):
         total_attempts = tot_attempts if tot_attempts > 0 else (total_sel or 1)
 
         question_details['attempts'] = total_attempts
-        question_details['mistakes'] = sum([c[1] for c in raw_q.group_by(Answer.written_answer).all()]) or sum([c[2] for c in opt_counts]) or 0
+        question_details['mistakes'] = sum([c[1] for c in raw_q.group_by(Answer.written_answer).all()]) or sum([c[2] for c in opt_counts]) or len(wrong_ans_records) or 0
 
         distribution = []
         for opt_id, opt_text, cnt in opt_counts:
@@ -922,7 +935,7 @@ def get_question_wrong_answers(request):
                 combo_str = ",".join(sorted(list(opt_set)))
             combo_counts[combo_str] = combo_counts.get(combo_str, 0) + 1
 
-        total_wrong_attempts = sum(combo_counts.values()) or len(attempt_options_map) or 1
+        total_wrong_attempts = sum(combo_counts.values()) or len(attempt_options_map) or len(wrong_ans_records) or 1
         combinations_list = []
         for combo_str, count in sorted(combo_counts.items(), key=lambda x: x[1], reverse=True):
             pct = round((count / total_wrong_attempts) * 100, 2)
@@ -943,7 +956,127 @@ def get_question_wrong_answers(request):
                     'pct': f"{item.get('percentage', 0)}%"
                 })
 
-        return {'statusMessage': 'Question wrong answers retrieved', 'status': True, 'data': {'question_id': str(target_qid), 'question_details': question_details, 'distribution': distribution, 'raw': raw_list, 'combinations': combinations_list}}, 200
+        # --- AI Analytics & Misconception Clustering for Fill & Descriptive Questions ---
+        ai_insights = None
+        ai_clusters = []
+        is_text_question = raw_qtype in ['fill', 'descriptive', 'description', 'subjective', 'essay', 'paragraph']
+
+        if is_text_question and wrong_ans_records:
+            expected_answer_text = ""
+            if opts_data:
+                for o in opts_data:
+                    if o.get('is_correct'):
+                        expected_answer_text = o.get('option_text', '')
+                        break
+                if not expected_answer_text and opts_data:
+                    expected_answer_text = opts_data[0].get('option_text', '')
+
+            wrong_items = []
+            answer_map = {}
+            for a in wrong_ans_records:
+                w_txt = (a.written_answer or "").strip()
+                if w_txt:
+                    aid = str(a.answer_id)
+                    wrong_items.append({
+                        "answer_id": aid,
+                        "user_id": str(a.user_id),
+                        "written_answer": w_txt
+                    })
+                    answer_map[aid] = {
+                        "answer_id": aid,
+                        "user_id": str(a.user_id),
+                        "written_answer": w_txt
+                    }
+
+            if wrong_items:
+                try:
+                    openai_inst = openai_client()
+                    ai_res = analyze_wrong_answers_ai(
+                        openai_inst,
+                        getattr(qobj, 'question_text', '') or '',
+                        q_type,
+                        expected_answer_text,
+                        wrong_items
+                    )
+                    if ai_res.get('status'):
+                        ai_insights = {
+                            "diagnostic_summary": ai_res.get("diagnostic_summary", ""),
+                            "recommendations": ai_res.get("recommendations", "")
+                        }
+                        raw_clusters = ai_res.get("clusters", [])
+                        assigned_aids = set()
+                        for c_idx, cl in enumerate(raw_clusters, 1):
+                            c_aids = [str(x) for x in cl.get("answer_ids", []) if str(x) in answer_map]
+                            assigned_aids.update(c_aids)
+                            c_count = len(c_aids) if c_aids else 1
+                            c_pct = round((c_count / total_wrong_attempts) * 100, 2)
+                            samples = []
+                            for aid in c_aids:
+                                w_ans = answer_map.get(aid, {}).get("written_answer")
+                                if w_ans and w_ans not in samples:
+                                    samples.append(w_ans)
+                            ai_clusters.append({
+                                'cluster_id': f"cluster_{c_idx}",
+                                'theme_name': cl.get("theme_name", f"Misconception Theme {c_idx}"),
+                                'explanation': cl.get("explanation", ""),
+                                'answer_ids': c_aids,
+                                'samples': samples[:3],
+                                'count': c_count,
+                                'percentage': c_pct,
+                                'pct': f"{c_pct}%"
+                            })
+
+                        # Catch any unassigned answers into a fallback group
+                        unassigned = [aid for aid in answer_map if aid not in assigned_aids]
+                        if unassigned:
+                            u_count = len(unassigned)
+                            u_pct = round((u_count / total_wrong_attempts) * 100, 2)
+                            u_samples = [answer_map[aid]["written_answer"] for aid in unassigned[:3]]
+                            ai_clusters.append({
+                                'cluster_id': f"cluster_misc",
+                                'theme_name': "Other Variations / Incomplete Responses",
+                                'explanation': "Individual variations, alternative phrasing, or incomplete submissions.",
+                                'answer_ids': unassigned,
+                                'samples': u_samples,
+                                'count': u_count,
+                                'percentage': u_pct,
+                                'pct': f"{u_pct}%"
+                            })
+                except Exception as ai_err:
+                    print(f"Error executing AI wrong answer analysis: {ai_err}")
+
+            # Fallback clusters if AI was unavailable
+            if not ai_clusters and raw_list:
+                for r_idx, r in enumerate(raw_list, 1):
+                    ai_clusters.append({
+                        'cluster_id': f"cluster_{r_idx}",
+                        'theme_name': r.get('text', 'Submitted Answer')[:60] + ('...' if len(r.get('text', '')) > 60 else ''),
+                        'explanation': 'Student submission variation.',
+                        'answer_ids': [str(a.answer_id) for a in wrong_ans_records if (a.written_answer or '').strip() == (r.get('text') or '').strip()],
+                        'samples': [r.get('text', '')],
+                        'count': r.get('count', 1),
+                        'percentage': r.get('percentage', 0),
+                        'pct': r.get('pct', '0%')
+                    })
+                if not ai_insights:
+                    ai_insights = {
+                        "diagnostic_summary": f"Identified {len(raw_list)} variation(s) across {question_details.get('mistakes', 0)} incorrect student response(s).",
+                        "recommendations": "Review student responses against the expected answer key points."
+                    }
+
+        return {
+            'statusMessage': 'Question wrong answers retrieved',
+            'status': True,
+            'data': {
+                'question_id': str(target_qid),
+                'question_details': question_details,
+                'distribution': distribution,
+                'raw': raw_list,
+                'combinations': combinations_list,
+                'ai_insights': ai_insights,
+                'ai_clusters': ai_clusters
+            }
+        }, 200
     except Exception as e:
         lineno = e.__traceback__.tb_lineno if getattr(e, "__traceback__", None) else 'N/A'
         print(f"Error fetching question wrong answers: {e} Line # {lineno}")
@@ -967,6 +1100,7 @@ def get_resources_for_answer(request):
 
     option_id = args.get('option_id', None)
     answer_id = args.get('answer_id', None)
+    answer_ids = args.get('answer_ids', None)
     question_id = args.get('question_id', None)
     answer_value = args.get('answer_value', None)
 
@@ -981,7 +1115,11 @@ def get_resources_for_answer(request):
         else:
             q = q.filter(Answer.schedule_id.in_(schedule_ids))
 
-        if option_id:
+        if answer_ids:
+            a_ids = [x.strip() for x in str(answer_ids).split(',') if x.strip()]
+            if a_ids:
+                q = q.filter(Answer.answer_id.in_(a_ids))
+        elif option_id:
             q = q.filter(Answer.selected_option_id == option_id)
         elif answer_id:
             q = q.filter(Answer.answer_id == answer_id)
@@ -1019,7 +1157,7 @@ def get_resources_for_answer(request):
         elif question_id:
             q = q.filter(Answer.question_id == question_id)
         else:
-            return {"statusMessage": "Missing identifier (answer_id or option_id or question_id or answer_value)", "status": False}, 400
+            return {"statusMessage": "Missing identifier (answer_id, answer_ids, option_id, question_id, or answer_value)", "status": False}, 400
 
         answers = q.all()
         if not answers:
@@ -1044,10 +1182,16 @@ def get_resources_for_answer(request):
             attempt_numbers = sorted(list({att.attempt_number for att in attempts if att.attempt_number is not None}))
             attempt_str = ", ".join([f"Attempt {n}" for n in attempt_numbers]) if attempt_numbers else ""
             selection_count = len(attempt_ids)
+
+            # Get user's written answer for this question
+            user_ans_row = next((a for a in answers if str(a.user_id).strip() == uid_str), None)
+            written_ans = user_ans_row.written_answer if user_ans_row else None
+
             out.append({
                 'user_id': uid_str,
                 'full_name': user.full_name,
                 'email': user.email,
+                'written_answer': written_ans,
                 'selection_count': selection_count,
                 'attempts': attempt_str
             })

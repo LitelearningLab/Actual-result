@@ -108,10 +108,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   wrongDistribution: any[] = [];
   // wrong answer modal state
   showWrongAnswerSummary = false;
+  wrongAnswerSummaryLoading = false;
   selectedQuestionForWrongSummary: any = null;
   selectedWrongAnswers: Array<{ id: string; answer: string; count?: number; pct?: string } | any> =
     [];
   selectedWrongCombinations: any[] = [];
+  aiInsights: { diagnostic_summary?: string; recommendations?: string } | null = null;
+  aiClusters: any[] = [];
   // resources modal state
   showResourcePanel = false;
   selectedResources: Array<{
@@ -3045,9 +3048,53 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     });
   }
 
+  isTextQuestion(question?: any): boolean {
+    const q = question || this.selectedQuestionForWrongSummary;
+    if (!q) return false;
+    const qType = String(
+      q.question_type ||
+      q.answer_type ||
+      q.type ||
+      ''
+    ).trim().toLowerCase();
+
+    if (
+      qType === 'choose' ||
+      qType === 'single' ||
+      qType === 'multi' ||
+      qType === 'multiple' ||
+      qType === 'choice' ||
+      qType.includes('choice') ||
+      qType.includes('choose') ||
+      qType.includes('single') ||
+      qType.includes('multi')
+    ) {
+      return false;
+    }
+
+    return (
+      qType === 'fill' ||
+      qType === 'descriptive' ||
+      qType === 'description' ||
+      qType === 'subjective' ||
+      qType === 'essay' ||
+      qType === 'paragraph' ||
+      qType.includes('fill') ||
+      qType.includes('descript') ||
+      qType.includes('subjective') ||
+      qType.includes('essay')
+    );
+  }
+
   openWrongAnswerSummary(question: any) {
     if (!question) return;
     this.selectedQuestionForWrongSummary = question;
+    this.showWrongAnswerSummary = true;
+    this.wrongAnswerSummaryLoading = true;
+    this.aiInsights = null;
+    this.aiClusters = [];
+    this.expandedWrongAnswer = null;
+    this.expandedResources = [];
     const qid = question.id || question.question_id || question.sno || question.qid || null;
     let entries: any[] = [];
     try {
@@ -3118,6 +3165,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (params.question_id) {
       this.http.get<any>(`${API_BASE}/get-question-wrong-answers`, { params }).subscribe({
         next: (res: any) => {
+          this.wrongAnswerSummaryLoading = false;
           const body = res || {};
           const payload = body.data || body;
           if (payload?.question_details) {
@@ -3125,6 +3173,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
               ...(this.selectedQuestionForWrongSummary || {}),
               ...payload.question_details
             };
+          }
+          if (payload?.ai_insights) {
+            this.aiInsights = payload.ai_insights;
+          }
+          if (Array.isArray(payload?.ai_clusters)) {
+            this.aiClusters = payload.ai_clusters;
+          } else {
+            this.aiClusters = [];
           }
           if (Array.isArray(payload?.combinations)) {
             this.selectedWrongCombinations = payload.combinations;
@@ -3137,8 +3193,16 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             ''
           ).toLowerCase();
           const isMultiple = qType.includes('multiple') || qType.includes('multi') || qType.includes('select all');
+          const isText = this.isTextQuestion(this.selectedQuestionForWrongSummary);
 
-          if (isMultiple && payload?.combinations && payload.combinations.length) {
+          if (isText && this.aiClusters && this.aiClusters.length) {
+            this.selectedWrongAnswers = this.aiClusters.map((c: any) => ({
+              ...c,
+              answer: c.theme_name || 'Misconception Theme',
+              count: c.count || 0,
+              pct: c.pct || (c.percentage !== undefined ? c.percentage + '%' : null),
+            }));
+          } else if (isMultiple && payload?.combinations && payload.combinations.length) {
             this.selectedWrongAnswers = (payload.combinations || []).map((c: any) => ({
               answer: c.combination || c.text || 'Answer',
               count: c.count || 0,
@@ -3164,24 +3228,26 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
               }));
             }
           }
-          this.showWrongAnswerSummary = true;
         },
         error: (err: any) => {
           console.warn('Failed to load question wrong answers', err);
-          this.showWrongAnswerSummary = true;
+          this.wrongAnswerSummaryLoading = false;
         },
       });
       return;
     }
 
-    this.showWrongAnswerSummary = true;
+    this.wrongAnswerSummaryLoading = false;
   }
 
   closeWrongAnswerSummary() {
     this.showWrongAnswerSummary = false;
+    this.wrongAnswerSummaryLoading = false;
     this.selectedQuestionForWrongSummary = null;
     this.selectedWrongAnswers = [];
     this.selectedWrongCombinations = [];
+    this.aiInsights = null;
+    this.aiClusters = [];
     this.expandedWrongAnswer = null;
     this.expandedResources = [];
     this.wrongAnswerResourcesLoading = false;
@@ -3195,6 +3261,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   get filteredWrongAnswers(): any[] {
     if (!this.selectedWrongAnswers || !this.selectedWrongAnswers.length) return [];
+    if (this.isTextQuestion(this.selectedQuestionForWrongSummary)) {
+      return this.selectedWrongAnswers;
+    }
     const options = this.selectedQuestionForWrongSummary?.options || [];
     const correctOptionIds = options
       .filter((o: any) => this.isCorrectOption(o))
@@ -3251,11 +3320,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       params.schedule_id = String(this.selectedExam?.schedule_id || this.selectedExam?.id || '');
     }
 
-    if (wa.option_id) params.option_id = wa.option_id;
+    if (wa.answer_ids && Array.isArray(wa.answer_ids) && wa.answer_ids.length) {
+      params.answer_ids = wa.answer_ids.join(',');
+    } else if (wa.option_id) params.option_id = wa.option_id;
     else if (wa.optionId) params.option_id = wa.optionId;
     else if (wa.answer_id) params.answer_id = wa.answer_id;
     else if (wa.answerId) params.answer_id = wa.answerId;
-    if (wa.answer && typeof wa.answer === 'string' && !params.option_id && !params.answer_id) {
+    if (wa.answer && typeof wa.answer === 'string' && !params.option_id && !params.answer_id && !params.answer_ids) {
       params.answer_value = wa.answer;
     }
     if (!params.question_id)

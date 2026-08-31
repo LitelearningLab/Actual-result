@@ -148,3 +148,92 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         }
     
     return result
+
+
+def analyze_wrong_answers_ai(api_client, question_text, question_type, expected_answer, wrong_answers_list):
+    """
+    Analyzes student wrong answers using LLM to provide:
+    - Diagnostic summary of why students made mistakes
+    - Recommendations / remediation points
+    - Semantic clustering of wrong answers into misconception themes with matched answer IDs
+    """
+    if not wrong_answers_list:
+        return {
+            "status": True,
+            "diagnostic_summary": "No wrong answers recorded for this question.",
+            "recommendations": "No remediation required.",
+            "clusters": []
+        }
+
+    system_message = """You are an expert educational assessment analyst and pedagogical AI.
+Your task is to analyze incorrect student submissions for a specific exam question and generate actionable analytics.
+Always respond ONLY with a single, valid JSON object (no markdown, no surrounding text).
+Follow these guidelines:
+1. Group/cluster all incorrect student answers into meaningful misconception themes or error patterns.
+2. For each theme:
+   - Provide a concise 'theme_name' (e.g., 'Confused Thread with Process', 'Incomplete Exception Handling', 'Synonym/Syntax Variation').
+   - Provide a clear 'explanation' of the core misconception or knowledge gap.
+   - List the 'answer_ids' belonging to this theme (each answer ID from the input must be mapped to exactly one theme).
+3. Provide an executive 'diagnostic_summary' explaining overall student struggle areas.
+4. Provide constructive, actionable 'recommendations' for the instructor on what key topics to re-teach.
+
+Output Format:
+{
+  "diagnostic_summary": "Brief analytical summary of why students struggled...",
+  "recommendations": "Actionable points for instructors to clarify...",
+  "clusters": [
+    {
+      "theme_name": "Short descriptive theme name",
+      "explanation": "Why students made this error and what is misunderstood",
+      "answer_ids": ["id1", "id2"]
+    }
+  ]
+}"""
+
+    # Prepare sanitized input payload
+    items = []
+    for idx, item in enumerate(wrong_answers_list):
+        items.append({
+            "answer_id": str(item.get("answer_id") or f"ans_{idx}"),
+            "student_answer": (item.get("written_answer") or "").strip()
+        })
+
+    user_message = f"""Question Type: {question_type}
+Question: {question_text}
+Expected / Correct Answer: {expected_answer}
+
+Incorrect Student Submissions to Analyze:
+{json.dumps(items, ensure_ascii=False, indent=2)}
+
+Please cluster these incorrect submissions into distinct misconception themes and provide the analytical diagnostic summary and recommendations."""
+
+    try:
+        response = api_client.chat_completion(system_message, user_message, max_tokens=3000, temperature=0.2)
+        response_json = response.json()
+        if response.status_code != 200:
+            return {"status": False, "error": response_json.get("error", "AI service returned error")}
+
+        result_text = response_json['choices'][0]['message']['content'].strip()
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+            result_text = result_text.strip()
+
+        parsed = json.loads(result_text)
+        return {
+            "status": True,
+            "diagnostic_summary": parsed.get("diagnostic_summary", ""),
+            "recommendations": parsed.get("recommendations", ""),
+            "clusters": parsed.get("clusters", [])
+        }
+    except Exception as e:
+        print(f"Error in analyze_wrong_answers_ai: {str(e)} - Line # : {getattr(e, '__traceback__', None) and e.__traceback__.tb_lineno}")
+        return {
+            "status": False,
+            "error": str(e),
+            "diagnostic_summary": "Automatic AI analysis could not be generated at this time.",
+            "recommendations": "Review individual student answers manually.",
+            "clusters": []
+        }
+

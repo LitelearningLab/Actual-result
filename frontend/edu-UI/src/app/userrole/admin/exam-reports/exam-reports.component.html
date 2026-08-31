@@ -2545,118 +2545,182 @@
             }}
           </div>
 
-          <!-- ALL OPTIONS Table (Target UI Layout) -->
-          <table class="q-options-table" *ngIf="selectedQuestionForWrongSummary.options && selectedQuestionForWrongSummary.options.length">
-            <thead>
-              <tr>
-                <th class="opt-col-num">OPTION<br>NUMBER</th>
-                <th class="opt-col-text">OPTIONS</th>
-                <th class="opt-col-status">STATUS</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                *ngFor="let opt of selectedQuestionForWrongSummary.options; let idx = index"
-                [class.q-option-correct]="isCorrectOption(opt)"
-              >
-                <td class="opt-col-num">
-                  <span class="q-option-num-badge" [class.is-correct-num]="isCorrectOption(opt)">
-                    {{ idx + 1 }}
-                  </span>
-                </td>
-                <td class="opt-col-text">
-                  <span class="q-option-text-val" [class.is-correct-text]="isCorrectOption(opt)">
-                    {{ opt.option_text || opt.text || opt.answer }}
-                  </span>
-                </td>
-                <td class="opt-col-status">
-                  <span *ngIf="isCorrectOption(opt)" class="q-correct-tag-badge">
-                    <mat-icon>check_circle</mat-icon> Correct Answer
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="wa-section-title-wrap">
-            <mat-icon class="wa-sec-icon">analytics</mat-icon>
-            <span>Wrong Answers & Occurrence Analysis:</span>
+          <!-- Loading State Animation for AI Analytics (ONLY for Fill & Descriptive) -->
+          <div class="wrong-summary-loading-container" *ngIf="wrongAnswerSummaryLoading && isTextQuestion()">
+            <div class="ai-loading-spinner-wrap">
+              <div class="ai-glow-spinner"></div>
+              <mat-icon class="ai-sparkle-icon">auto_awesome</mat-icon>
+            </div>
+            <h4 class="ai-loading-title">Analyzing Question with AI...</h4>
+            <p class="ai-loading-sub">Synthesizing misconception themes, identifying concept gaps, and clustering responses.</p>
           </div>
 
-          <table class="wa-analysis-table">
-            <thead>
-              <tr>
-                <th class="wa-col-ans">WRONG ANSWER</th>
-                <th class="wa-col-cnt">NO. OF TIMES SELECTED</th>
-                <th class="wa-col-pct">OCCURRENCE %</th>
-              </tr>
-            </thead>
-            <tbody>
-              <ng-container *ngFor="let wa of (filteredWrongAnswers.length ? filteredWrongAnswers : selectedWrongAnswers)">
-                <tr
-                  class="wa-interactive-row"
-                  [class.wa-row-expanded]="expandedWrongAnswer === wa"
-                  (click)="toggleWrongAnswerResources(selectedQuestionForWrongSummary, wa)"
-                  title="Click to toggle user details for this wrong answer"
-                >
-                  <td class="wa-col-ans">
-                    <div class="wa-answer-cell">
-                      <mat-icon class="wa-chevron-icon">
-                        {{ expandedWrongAnswer === wa ? 'expand_more' : 'chevron_right' }}
-                      </mat-icon>
-                      <span class="wa-answer-text">{{ wa.answer }}</span>
-                    </div>
-                  </td>
-                  <td class="wa-col-cnt">
-                    <span class="wa-count-badge">{{ wa.count || '-' }}</span>
-                  </td>
-                  <td class="wa-col-pct">{{ wa.pct || '-' }}</td>
+          <!-- Normal / Standard Blue Loading State (for Single & Multiple Choice) -->
+          <div class="professional-loader-container" *ngIf="wrongAnswerSummaryLoading && !isTextQuestion()" style="padding: 3.5rem 1.5rem; min-height: 14rem;">
+            <div class="loader-spinner-ring"></div>
+            <div class="loader-text-group">
+              <h5 class="loader-main-text">Loading Wrong Answer Summary</h5>
+              <p class="loader-sub-text">Fetching option distribution and attempt details...</p>
+            </div>
+          </div>
+
+          <div *ngIf="!wrongAnswerSummaryLoading">
+            <!-- ALL OPTIONS Table (Target UI Layout) -->
+            <table class="q-options-table" *ngIf="selectedQuestionForWrongSummary.options && selectedQuestionForWrongSummary.options.length">
+              <thead>
+                <tr>
+                  <th class="opt-col-num">OPTION<br>NUMBER</th>
+                  <th class="opt-col-text">OPTIONS</th>
+                  <th class="opt-col-status">STATUS</th>
                 </tr>
+              </thead>
+              <tbody>
+                <tr
+                  *ngFor="let opt of selectedQuestionForWrongSummary.options; let idx = index"
+                  [class.q-option-correct]="isCorrectOption(opt)"
+                >
+                  <td class="opt-col-num">
+                    <span class="q-option-num-badge" [class.is-correct-num]="isCorrectOption(opt)">
+                      {{ idx + 1 }}
+                    </span>
+                  </td>
+                  <td class="opt-col-text">
+                    <span class="q-option-text-val" [class.is-correct-text]="isCorrectOption(opt)">
+                      {{ opt.option_text || opt.text || opt.answer }}
+                    </span>
+                  </td>
+                  <td class="opt-col-status">
+                    <span *ngIf="isCorrectOption(opt)" class="q-correct-tag-badge">
+                      <mat-icon>check_circle</mat-icon> Correct Answer
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <!-- AI Analytics & Pedagogical Insights Summary -->
+            <div class="ai-analytics-card" *ngIf="aiInsights">
+              <div class="ai-analytics-header">
+                <div class="ai-badge">
+                  <mat-icon>auto_awesome</mat-icon>
+                  <span>AI Powered Analytics</span>
+                </div>
+                <div class="ai-card-title">Misconception & Diagnostic Analysis</div>
+              </div>
+              <div class="ai-analytics-content">
+                <div class="ai-summary-block" *ngIf="aiInsights.diagnostic_summary">
+                  <div class="ai-block-label">
+                    <mat-icon>psychology</mat-icon>
+                    <strong>Diagnostic Summary:</strong>
+                  </div>
+                  <p class="ai-summary-text">{{ aiInsights.diagnostic_summary }}</p>
+                </div>
+                <div class="ai-rec-block" *ngIf="aiInsights.recommendations">
+                  <div class="ai-block-label">
+                    <mat-icon>lightbulb</mat-icon>
+                    <strong>Remediation Recommendations:</strong>
+                  </div>
+                  <p class="ai-rec-text">{{ aiInsights.recommendations }}</p>
+                </div>
+              </div>
+            </div>
 
-                  <!-- Inline Expanded Resources Row directly under the answer following 4-step Page Flow -->
-                  <tr *ngIf="expandedWrongAnswer === wa" class="wa-inline-expansion-row">
-                    <td colspan="3">
-                      <div class="inline-resources-box">
-                        <!-- Students / Users who selected this wrong answer -->
-                        <div class="inline-section-block">
-                          <div class="inline-resources-header">
-                            <mat-icon class="res-hdr-icon">group</mat-icon>
-                            <span class="res-hdr-title">Students / Users who selected this wrong answer:</span>
+            <div class="wa-section-title-wrap">
+              <mat-icon class="wa-sec-icon">{{ (isTextQuestion() && aiClusters?.length) ? 'psychology' : 'analytics' }}</mat-icon>
+              <span>{{ (isTextQuestion() && aiClusters?.length) ? 'AI Misconception Clusters & Occurrence Analysis:' : 'Wrong Answers & Occurrence Analysis:' }}</span>
+            </div>
+
+            <table class="wa-analysis-table">
+              <thead>
+                <tr>
+                  <th class="wa-col-ans">{{ (isTextQuestion() && aiClusters?.length) ? 'MISCONCEPTION THEME & EXPLANATION' : 'WRONG ANSWER' }}</th>
+                  <th class="wa-col-cnt">{{ (isTextQuestion() && aiClusters?.length) ? 'NO. OF STUDENTS' : 'NO. OF TIMES SELECTED' }}</th>
+                  <th class="wa-col-pct">OCCURRENCE %</th>
+                </tr>
+              </thead>
+              <tbody>
+                <ng-container *ngFor="let wa of (filteredWrongAnswers.length ? filteredWrongAnswers : selectedWrongAnswers)">
+                  <tr
+                    class="wa-interactive-row"
+                    [class.wa-row-expanded]="expandedWrongAnswer === wa"
+                    (click)="toggleWrongAnswerResources(selectedQuestionForWrongSummary, wa)"
+                    title="Click to toggle user details for this wrong answer"
+                  >
+                    <td class="wa-col-ans">
+                      <div class="wa-answer-cell">
+                        <mat-icon class="wa-chevron-icon">
+                          {{ expandedWrongAnswer === wa ? 'expand_more' : 'chevron_right' }}
+                        </mat-icon>
+                        <div class="wa-content-col">
+                          <div class="wa-theme-title">
+                            <span class="wa-theme-badge" *ngIf="isTextQuestion() && wa.cluster_id">AI Theme</span>
+                            <span class="wa-answer-text">{{ wa.theme_name || wa.answer }}</span>
                           </div>
-
-                          <div *ngIf="wrongAnswerResourcesLoading" class="inline-res-loading">
-                            <mat-icon class="inline-spinner-icon">sync</mat-icon>
-                            <span>Loading user list...</span>
+                          <div class="wa-explanation" *ngIf="wa.explanation">
+                            {{ wa.explanation }}
                           </div>
-
-                          <div *ngIf="!wrongAnswerResourcesLoading && expandedResources && expandedResources.length">
-                            <ul class="inline-resources-list">
-                              <li *ngFor="let r of expandedResources" class="inline-resource-item">
-                                <div class="user-avatar-badge">{{ (r.full_name || r.name || '?').charAt(0).toUpperCase() }}</div>
-                                <div class="user-info-text">
-                                  <div class="user-name">
-                                    {{ r.full_name || r.name }}
-                                    <span *ngIf="r.attempts" class="user-attempts-pill">
-                                      {{ r.attempts }}
-                                    </span>
-                                  </div>
-                                  <div class="user-email small-muted" *ngIf="r.email">{{ r.email }}</div>
-                                </div>
-                              </li>
-                            </ul>
-                          </div>
-
-                          <div *ngIf="!wrongAnswerResourcesLoading && (!expandedResources || !expandedResources.length)" class="muted empty-inline-msg">
-                            No student details recorded for this answer.
+                          <div class="wa-samples-preview" *ngIf="wa.samples && wa.samples.length">
+                            <span class="samples-label">Sample Responses:</span>
+                            <span class="sample-pill" *ngFor="let s of wa.samples">"{{ s.length > 80 ? (s | slice:0:80) + '...' : s }}"</span>
                           </div>
                         </div>
                       </div>
                     </td>
+                    <td class="wa-col-cnt">
+                      <span class="wa-count-badge">{{ wa.count || '-' }}</span>
+                    </td>
+                    <td class="wa-col-pct">{{ wa.pct || '-' }}</td>
                   </tr>
-                </ng-container>
-              </tbody>
-            </table>
-          <div *ngIf="!selectedWrongAnswers || !selectedWrongAnswers.length" class="muted">
-            No wrong answer data available for this question.
+
+                    <!-- Inline Expanded Resources Row directly under the answer following 4-step Page Flow -->
+                    <tr *ngIf="expandedWrongAnswer === wa" class="wa-inline-expansion-row">
+                      <td colspan="3">
+                        <div class="inline-resources-box">
+                          <!-- Students / Users who selected this wrong answer -->
+                          <div class="inline-section-block">
+                            <div class="inline-resources-header">
+                              <mat-icon class="res-hdr-icon">group</mat-icon>
+                              <span class="res-hdr-title">Students / Users who submitted this response:</span>
+                            </div>
+
+                            <div *ngIf="wrongAnswerResourcesLoading" class="inline-res-loading">
+                              <mat-icon class="inline-spinner-icon">sync</mat-icon>
+                              <span>Loading user list...</span>
+                            </div>
+
+                            <div *ngIf="!wrongAnswerResourcesLoading && expandedResources && expandedResources.length">
+                              <ul class="inline-resources-list">
+                                <li *ngFor="let r of expandedResources" class="inline-resource-item">
+                                  <div class="user-avatar-badge">{{ (r.full_name || r.name || '?').charAt(0).toUpperCase() }}</div>
+                                  <div class="user-info-text">
+                                    <div class="user-name">
+                                      {{ r.full_name || r.name }}
+                                      <span *ngIf="r.attempts" class="user-attempts-pill">
+                                        {{ r.attempts }}
+                                      </span>
+                                    </div>
+                                    <div class="user-email small-muted" *ngIf="r.email">{{ r.email }}</div>
+                                    <div class="user-submitted-ans" *ngIf="r.written_answer">
+                                      <span class="ans-label">Submitted Response:</span>
+                                      <span class="ans-quote">"{{ r.written_answer }}"</span>
+                                    </div>
+                                  </div>
+                                </li>
+                              </ul>
+                            </div>
+
+                            <div *ngIf="!wrongAnswerResourcesLoading && (!expandedResources || !expandedResources.length)" class="muted empty-inline-msg">
+                              No student details recorded for this response.
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-container>
+                </tbody>
+              </table>
+            <div *ngIf="!selectedWrongAnswers || !selectedWrongAnswers.length" class="muted">
+              No wrong answer data available for this question.
+            </div>
           </div>
         </div>
       </div>
