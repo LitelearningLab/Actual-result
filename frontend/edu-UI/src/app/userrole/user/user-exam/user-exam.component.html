@@ -66,12 +66,12 @@
         <div class="nav-list nav-grid" role="tablist" aria-label="Question numbers">
           <button *ngFor="let q of questions; let i = index" type="button" class="nav-item" role="tab"
             (click)="scrollToQuestion(i)" 
-            [attr.aria-label]="'Question ' + (i+1) + (answers[q.id || i] ? ', answered' : ', not answered')"
+            [attr.aria-label]="'Question ' + (i+1) + (isAnswered(q, i) ? ', answered' : ', not answered')"
             [attr.aria-selected]="currentIndex === i"
-            [class.answered]="answers[q.id || i]" 
+            [class.answered]="isAnswered(q, i)" 
             [class.active]="currentIndex === i">
             <span class="nav-num">{{ i+1 }}</span>
-            <mat-icon class="nav-check" *ngIf="answers[q.id || i]">check</mat-icon>
+            <mat-icon class="nav-check" *ngIf="isAnswered(q, i)">check</mat-icon>
           </button>
         </div>
         <div class="nav-controls">
@@ -92,7 +92,7 @@
       <section class="q-list" aria-label="Test questions">
         <article *ngFor="let q of questions; let i = index" class="q-card" [attr.id]="'q-' + i" 
           [class.current]="currentIndex === i"
-          [class.completed]="answers[q.id || i]"
+          [class.completed]="isAnswered(q, i)" 
           role="region" [attr.aria-labelledby]="'q-text-' + i">
           
           <!-- Question Header -->
@@ -110,7 +110,7 @@
                    q.type === 'fill' || q.type === 'Fill' ? 'Fill Blank' : 'Long Answer' }}
               </span>
             </div>
-            <div class="q-status" *ngIf="answers[q.id || i]">
+            <div class="q-status" *ngIf="isAnswered(q, i)">
               <mat-icon class="status-icon">check_circle</mat-icon>
               <span>Answered</span>
             </div>
@@ -151,7 +151,7 @@
             <div class="input-wrapper">
               <mat-icon class="input-icon">edit</mat-icon>
               <input type="text" [id]="'fill-' + i" [(ngModel)]="answers[q.id || i]" (ngModelChange)="scheduleAutosave()" [disabled]="testStopped" placeholder="Type your answer here..." />
-              <mat-icon class="input-clear" *ngIf="answers[q.id || i] && !testStopped" (click)="answers[q.id || i] = ''; scheduleAutosave()">close</mat-icon>
+              <mat-icon class="input-clear" *ngIf="isAnswered(q, i) && !testStopped" (click)="answers[q.id || i] = ''; scheduleAutosave()">close</mat-icon>
             </div>
           </div>
 
@@ -177,7 +177,7 @@
                   <span class="rec-dot"></span> Listening... Speak now
                 </span>
               </p>
-              <span class="char-count" *ngIf="answers[q.id || i]">{{ (answers[q.id || i] || '').length }} characters</span>
+              <span class="char-count" *ngIf="isAnswered(q, i)">{{ (answers[q.id || i] || '').length }} characters</span>
             </div>
           </div>
         </article>

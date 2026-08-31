@@ -1,9 +1,11 @@
-import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { Observable, of } from 'rxjs';
+import { map, catchError, switchMap } from 'rxjs/operators';
 import { API_BASE } from 'src/app/shared/api.config';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
@@ -43,18 +45,25 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   currentIndex = 0;
 
   showConfirm = false;
+  isSubmitted = false;
 
   // Voice input properties
   recognition: any = null;
   recordingQuestionId: string | number | null = null;
   speechSupported = false;
+
+  isAnswered(q: any, i: number): boolean {
+    if (!q) return false;
+    const key = q.id !== undefined && q.id !== null && q.id !== '' ? q.id : i;
+    const ans = this.answers[key] !== undefined ? this.answers[key] : (this.answers[String(key)] !== undefined ? this.answers[String(key)] : this.answers[Number(key)]);
+    if (ans === undefined || ans === null) return false;
+    if (Array.isArray(ans)) return ans.length > 0;
+    if (typeof ans === 'string') return ans.trim().length > 0;
+    return true;
+  }
+
   get answeredCount() {
-    return this.questions.filter((q, i) => {
-      const key = q.id || i;
-      const ans = this.answers[key];
-      if (q.type === 'multi' || q.type === 'Multi') return Array.isArray(ans) && ans.length > 0;
-      return !!ans;
-    }).length;
+    return this.questions.filter((q, i) => this.isAnswered(q, i)).length;
   }
   get progressPercent() {
     return this.questions.length ? Math.round((this.answeredCount / this.questions.length) * 100) : 0;
@@ -78,6 +87,79 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   constructor(private http: HttpClient, private confirmService: ConfirmService, private ngZone: NgZone, private router: Router) {
     // Initialize speech recognition
     this.initSpeechRecognition();
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  warnBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.isSubmitted && !this.testStopped && !!this.attempt_id && !!this.exam) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  }
+
+  canDeactivate(): Observable<boolean> | boolean {
+    if (this.isSubmitted || this.submitting || this.testStopped || !this.attempt_id || !this.exam) {
+      return true;
+    }
+    return this.confirmService.confirm({
+      title: 'Exit & Submit Test?',
+      message: 'Leaving the test will submit your attempt immediately. Only the questions you have answered so far will be evaluated.\n\nAre you sure you want to exit and submit?',
+      confirmText: 'Exit & Submit',
+      cancelText: 'Stay on Test'
+    }).pipe(
+      switchMap(ok => {
+        if (!ok) return of(false);
+        return this.performSubmitOnExit();
+      })
+    );
+  }
+
+  private performSubmitOnExit(): Observable<boolean> {
+    const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || sessionStorage.getItem('user_info');
+    let userId = '';
+    try { const u = userRaw ? JSON.parse(userRaw) : null; userId = u?.user_id || u?.id || u?.email || ''; } catch (e) {}
+
+    const timeTakenMins = Math.round((this.totalSeconds - this.remaining) / 60);
+    const resolvedScheduleId = this.schedule_id || this.exam?.schedule_id || this.exam?.data?.exam_detail?.schedule_id || this.exam?.data?.schedule_id || this.exam?.id || this.exam?.exam_id || '';
+
+    const payload: any = {
+      exam_id: this.examId || this.exam?.exam_id || this.exam?.data?.exam_detail?.exam_id,
+      schedule_id: resolvedScheduleId,
+      user_id: userId,
+      attempt_id: this.attempt_id || this.exam?.attempt_id,
+      answers: this.answers,
+      submitted_at: new Date().toISOString(),
+      time_taken_mins: timeTakenMins
+    };
+
+    this.submitting = true;
+    return this.http.post<any>(this.submitUrl, payload).pipe(
+      map((res) => {
+        this.isSubmitted = true;
+        this.submitting = false;
+        try {
+          sessionStorage.removeItem('launched_exam');
+        } catch (e) {}
+        this.stopTimer();
+        this.stopStatusPolling();
+        this.stopSpeechRecognition();
+        try {
+          notify('Your test was submitted and evaluated with your answered questions.', 'success');
+        } catch (e) {}
+        return true;
+      }),
+      catchError((err) => {
+        this.isSubmitted = true;
+        this.submitting = false;
+        try {
+          sessionStorage.removeItem('launched_exam');
+        } catch (e) {}
+        this.stopTimer();
+        this.stopStatusPolling();
+        this.stopSpeechRecognition();
+        return of(true);
+      })
+    );
   }
 
   initSpeechRecognition() {
@@ -300,18 +382,24 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
   isMultiSelected(qid: any, optVal: any): boolean {
     const key = String(qid);
-    const answers = this.answers[key] || [];
-    return Array.isArray(answers) && answers.indexOf(optVal) !== -1;
+    const answers = this.answers[key] || this.answers[qid] || [];
+    return Array.isArray(answers) && answers.some(a => String(a) === String(optVal));
   }
 
   toggleMulti(qid: any, optId: any) {
     if (this.testStopped) return;
     const key = String(qid);
-    const set = Array.isArray(this.answers[key]) ? this.answers[key] : [];
-    const idx = set.indexOf(String(optId));
+    const set = Array.isArray(this.answers[key]) ? [...this.answers[key]] : [];
+    const valStr = String(optId);
+    const idx = set.findIndex(item => String(item) === valStr);
     if (idx >= 0) set.splice(idx, 1);
-    else set.push(String(optId));
-    this.answers[key] = set;
+    else set.push(valStr);
+    if (set.length === 0) {
+      delete this.answers[key];
+      delete this.answers[qid];
+    } else {
+      this.answers[key] = set;
+    }
     this.scheduleAutosave();
   }
 
@@ -392,6 +480,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
     this.http.post<any>(this.submitUrl, payload).subscribe({
       next: (res) => {
+        this.isSubmitted = true;
         const completedAt = new Date().toISOString();
         const result = {
           ...(res?.data || res || {}),

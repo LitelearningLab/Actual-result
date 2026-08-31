@@ -870,11 +870,15 @@ def get_user_exam_details(request):
             if attempts:
                 sorted_atts = sorted(attempts, key=lambda a: getattr(a, 'attempt_number', 0) or 0)
                 for att in sorted_atts:
-                    att_pct = getattr(att, 'percentage', None)
-                    att_score = getattr(att, 'score', None)
+                    att_status = getattr(att, 'status', None)
+                    is_in_progress = att_status == 'in_progress'
+                    att_pct = getattr(att, 'percentage', None) if not is_in_progress else None
+                    att_score = getattr(att, 'score', None) if not is_in_progress else None
                     att_pass_mark = effective_pass_mark
                     raw_result = getattr(att, 'feedback', None) or getattr(att, 'result', None)
-                    if raw_result and str(raw_result).strip():
+                    if is_in_progress:
+                        att_result = 'In Progress'
+                    elif raw_result and str(raw_result).strip():
                         str_res = str(raw_result).strip().lower()
                         if str_res in ('pass', 'passed'):
                             att_result = 'Passed'
@@ -888,19 +892,19 @@ def get_user_exam_details(request):
                         pct = (att_score / exam_obj.total_marks) * 100
                         att_result = 'Passed' if pct >= att_pass_mark else 'Failed'
                     else:
-                        att_result = 'Submitted' if getattr(att, 'status', '') in ('submitted', 'evaluated') else 'In Progress'
+                        att_result = 'Submitted' if att_status in ('submitted', 'evaluated') else 'In Progress'
                     
-                    submitted_dt = getattr(att, 'submitted_date', None) or getattr(att, 'started_date', None)
+                    submitted_dt = getattr(att, 'submitted_date', None)
 
                     attempts_history.append({
                         'attempt_id': str(getattr(att, 'attempt_id', '')),
                         'attempt_number': getattr(att, 'attempt_number', 1),
-                        'status': getattr(att, 'status', None),
+                        'status': att_status,
                         'score': att_score,
                         'percentage': att_pct,
                         'result': att_result,
                         'started_date': safe_utc_isoformat(getattr(att, 'started_date', None)),
-                        'submitted_date': safe_utc_isoformat(submitted_dt),
+                        'submitted_date': safe_utc_isoformat(submitted_dt) if submitted_dt else None,
                     })
 
             disp_raw_result = getattr(displayed_attempt, 'feedback', None) or getattr(displayed_attempt, 'result', None)

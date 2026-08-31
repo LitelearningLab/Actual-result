@@ -609,7 +609,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
           scheduleRange = row.scheduleTest || '';
         }
 
-        const isAttSubmitted = att && (att.status === 'submitted' || att.status === 'evaluated' || !!att.submitted_date);
+        const isInProgress = att && att.status === 'in_progress';
+        const isAttSubmitted = att && (att.status === 'submitted' || att.status === 'evaluated');
         const rowReviewAllowed = (row.user_review !== false) && (row.review_available !== false);
         const canReviewAttempt = Boolean(isAttSubmitted && rowReviewAllowed);
 
@@ -618,17 +619,19 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
           isFirst: idx === 0,
           attemptObj: att,
           scoreDisplay:
-            att.percentage != null
-              ? Number(att.percentage).toFixed(2) + '%'
-              : att.score != null
-                ? att.score + '%'
-                : '—',
+            isInProgress
+              ? '—'
+              : att.percentage != null
+                ? Number(att.percentage).toFixed(2) + '%'
+                : att.score != null
+                  ? att.score + '%'
+                  : '—',
           attemptsUsedDisplay: `${usedCount} / ${maxAttempts}`,
           attemptsRemainingDisplay: `${remainingCount} Remaining`,
           progressPercent: Math.min(Math.max(pct, 0), 100),
-          statusType: isPassResult ? 'PASS' : 'FAIL',
+          statusType: isInProgress ? 'ACTIVE' : (isPassResult ? 'PASS' : 'FAIL'),
           canReview: canReviewAttempt,
-          showReviewBtn: true,
+          showReviewBtn: !isInProgress,
           canStart: false,
           scheduleRange: scheduleRange,
         };

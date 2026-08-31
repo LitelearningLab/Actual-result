@@ -33,6 +33,8 @@ $ease: cubic-bezier(0.4, 0, 0.2, 1); $ease-bounce: cubic-bezier(0.34, 1.56, 0.64
 .btn[disabled] { opacity:0.5; cursor:not-allowed; }
 .btn-submit { background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%); }
 .btn-submit:hover:not([disabled]) { background:linear-gradient(135deg,#16a34a 0%,#15803d 100%); }
+.btn-exit { background:var(--bg-1); color:#ef4444; border:0.0625rem solid rgba(239,68,68,0.3); }
+.btn-exit:hover:not([disabled]) { background:rgba(239,68,68,0.08); border-color:#ef4444; color:#dc2626; transform:translateY(-0.0625rem); }
 .btn-secondary { background:var(--bg-2); color:var(--theme-3-text-2); border:0.0625rem solid var(--theme-3-border); }
 .btn-secondary:hover:not([disabled]) { background:var(--theme-2-hanover-bg); border-color:var(--button-1); color:var(--button-1); }
 .btn-primary { background:var(--button-1); }

@@ -27,6 +27,7 @@ import { GlobalInstituteScopeGuard } from '../shared/guards/global-institute-sco
 import { scheduleTestUnsavedChangesGuard } from '../shared/guards/schedule-test-unsaved-changes.guard';
 import { InstituteScopeInactiveComponent } from '../shared/components/institute-scope-inactive/institute-scope-inactive.component';
 import { AdminSettingsComponent } from '../userrole/admin/settings/settings.component';
+import { userExamExitGuard } from '../shared/guards/user-exam-exit.guard';
 import { UnauthGuard } from '../shared/guards/unauth.guard';
 
 const routes: Routes = [
@@ -53,7 +54,7 @@ const routes: Routes = [
   , { path: 'admin/settings', component: AdminSettingsComponent, canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'user/exam', component: UserExamComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
   , { path: 'user-dashboard', component: UserDashboardComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','super-admin'] } }
-  , { path: 'user/exam/run', component: UserExamRunnerComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','super-admin'] } }
+  , { path: 'user/exam/run', component: UserExamRunnerComponent, canActivate: [PermissionGuard], canDeactivate: [userExamExitGuard], data: { requiredRole: ['user','admin','super_admin','super-admin'] } }
   , { path: 'user-exam', redirectTo: 'user/exam/run', pathMatch: 'full' }
 ];
 
