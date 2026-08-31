@@ -188,8 +188,15 @@ $grad-rose: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%);
 :host ::ng-deep .filter-field .mat-focused mat-icon[matPrefix] {
   color: $primary;
 }
-:host ::ng-deep .filter-field.mat-focused .mat-mdc-floating-label {
+:host ::ng-deep .filter-field.mat-focused .mat-mdc-floating-label,
+:host ::ng-deep .filter-field .mat-mdc-floating-label.mdc-floating-label--float-above {
   color: $primary;
+  background: #ffffff !important;
+  z-index: 10 !important;
+  padding: 0 0.375rem !important;
+  display: inline-block !important;
+  width: max-content !important;
+  border-radius: 0.25rem;
 }
 
 .refresh-status {
