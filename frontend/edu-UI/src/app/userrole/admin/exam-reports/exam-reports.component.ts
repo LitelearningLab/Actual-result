@@ -2891,18 +2891,38 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.questionCurrentPage < this.questionTotalPages) this.questionCurrentPage++;
   }
 
+  private parseDateUTC(dateLike: any): Date {
+    if (!dateLike) return new Date(NaN);
+    if (dateLike instanceof Date) return dateLike;
+    if (typeof dateLike === 'number') return new Date(dateLike > 1e12 ? dateLike : dateLike * 1000);
+    const s = String(dateLike).trim();
+    if (/^\d+$/.test(s)) {
+      const n = Number(s);
+      return new Date(n > 1e12 ? n : n * 1000);
+    }
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(s)) {
+      return new Date(s.replace(' ', 'T') + 'Z');
+    }
+    return new Date(s);
+  }
+
   formatDateShort(dateLike: any): string {
     if (!dateLike) return '-';
     try {
-      const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
+      const d = this.parseDateUTC(dateLike);
       if (isNaN(d.getTime())) return String(dateLike);
-      const dd = String(d.getDate()).padStart(2, '0');
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const mm = months[d.getMonth()];
-      const yyyy = d.getFullYear();
-      const hh = String(d.getHours()).padStart(2, '0');
-      const min = String(d.getMinutes()).padStart(2, '0');
-      return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
+      const formatter = new Intl.DateTimeFormat('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata',
+      });
+      const parts = formatter.formatToParts(d);
+      const getPart = (t: string) => parts.find((p) => p.type === t)?.value || '';
+      return `${getPart('day')}-${getPart('month')}-${getPart('year')} ${getPart('hour')}:${getPart('minute')}`;
     } catch (e) {
       return String(dateLike);
     }
@@ -2910,28 +2930,26 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   formatAttemptDateTime(v: any): string {
     if (!v) return '—';
-    let d: Date;
-    if (typeof v === 'number') {
-      d = new Date(v > 1e12 ? v : v * 1000);
-    } else if (/^\d+$/.test(String(v))) {
-      const n = Number(v);
-      d = new Date(n > 1e12 ? n : n * 1000);
-    } else {
-      d = new Date(String(v));
+    try {
+      const d = this.parseDateUTC(v);
+      if (isNaN(d.getTime())) return String(v);
+
+      const formatter = new Intl.DateTimeFormat('en-IN', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata',
+      });
+      const parts = formatter.formatToParts(d);
+      const getPart = (t: string) => parts.find((p) => p.type === t)?.value || '';
+      return `${getPart('weekday')}, ${getPart('day')} ${getPart('month')} ${getPart('year')} ${getPart('hour')}:${getPart('minute')}`;
+    } catch (e) {
+      return String(v);
     }
-    if (isNaN(d.getTime())) return String(v);
-
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-    const dayName = days[d.getDay()];
-    const dd = d.getDate();
-    const monthName = months[d.getMonth()];
-    const yyyy = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-
-    return `${dayName}, ${dd} ${monthName} ${yyyy} ${hh}:${mm}`;
   }
 
   formatAttemptDuration(att: any): string {

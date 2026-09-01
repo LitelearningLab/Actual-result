@@ -1,5 +1,5 @@
 from db.db import SQLiteDB
-from db.models import User, Exam_Attempt, Answer, ExamSchedule
+from db.models import User, Exam_Attempt, Answer, ExamSchedule, Exam
 from sqlalchemy import func
 import datetime
 
@@ -27,7 +27,9 @@ def user_dashboard_details(user_id=None):
         # count answers for that attempt
         try:
             answers = session.query(Answer).filter(Answer.user_id == user_id, Answer.attempt_id == last_attempt.attempt_id).all()
-            total_questions = len(answers)
+            sched = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == last_attempt.schedule_id).first() if getattr(last_attempt, 'schedule_id', None) else None
+            exam = session.query(Exam).filter(Exam.exam_id == sched.exam_id).first() if (sched and sched.exam_id) else None
+            total_questions = (exam.total_questions if (exam and exam.total_questions) else len(answers)) or len(answers)
             correct = sum(1 for a in answers if getattr(a, 'is_correct', 0))
             accuracy = round((correct / total_questions) * 100, 2) if total_questions else 0
         except Exception:

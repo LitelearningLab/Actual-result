@@ -82,6 +82,18 @@
                                           <span class="schedule-separator">–</span>
                                           <span class="schedule-time schedule-time--end">{{ item.scheduleRange.split(' - ')[1] || '—' }}</span>
                                        </div>
+                                       <div *ngIf="item.isInProgress" class="active-attempt-live-stats">
+                                          <span class="active-stat-badge active-stat-time">
+                                             <mat-icon class="stat-icon">timer</mat-icon>
+                                             <span class="stat-label">Time Remaining:</span>
+                                             <strong class="stat-val">{{ formatSeconds(item.remainingSeconds) }}</strong>
+                                          </span>
+                                          <span class="active-stat-badge active-stat-answered">
+                                             <mat-icon class="stat-icon">task_alt</mat-icon>
+                                             <span class="stat-label">Answered:</span>
+                                             <strong class="stat-val">{{ item.answeredCount }} / {{ item.totalQuestions || row.total_questions || 0 }}</strong>
+                                          </span>
+                                       </div>
                                     </div>
                                  </div>
                               </div>
@@ -141,13 +153,16 @@
                               <div class="attempt-cell-stack">
                                  <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
                                     <div class="exam-actions">
+                                       <button *ngIf="item.canContinue" mat-flat-button class="continue-btn" (click)="continueTest(row, item.attemptObj, $event)">
+                                          <mat-icon>play_circle</mat-icon> Continue Test
+                                       </button>
                                        <button *ngIf="item.showReviewBtn" mat-flat-button class="review-btn" [disabled]="!item.canReview" (click)="viewAttemptReview(row, item.attemptObj, $event)">
                                           <mat-icon>rule</mat-icon> Review
                                        </button>
                                        <button *ngIf="item.canStart" mat-flat-button class="launch-btn" (click)="confirmStartTest(row, $event)">
                                           <mat-icon>rocket_launch</mat-icon> Start
                                        </button>
-                                       <span *ngIf="!item.showReviewBtn && !item.canStart && isUpcomingTest(row.type)" class="upcoming-label">Scheduled</span>
+                                       <span *ngIf="!item.canContinue && !item.showReviewBtn && !item.canStart && isUpcomingTest(row.type)" class="upcoming-label">Scheduled</span>
                                     </div>
                                  </div>
                               </div>
@@ -307,7 +322,9 @@
                <!-- <div>Pass mark: {{ exam.pass_mark || 0 }}</div> -->
             </div>
             <div class="actions">
-               <button *ngIf="(((exam.type || '') | lowercase) === 'active')" mat-button color="primary"
+               <button *ngIf="exam.has_in_progress" mat-flat-button class="continue-btn"
+                  (click)="continueTest(exam, null, $event)"><mat-icon>play_circle</mat-icon> Continue Test</button>
+               <button *ngIf="!exam.has_in_progress && (((exam.type || '') | lowercase) === 'active')" mat-button color="primary"
                   (click)="confirmStartTest(exam)">Launch</button>
             </div>
          </div>

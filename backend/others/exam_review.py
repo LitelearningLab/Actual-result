@@ -52,7 +52,7 @@ def get_exam_question_ids(session, exam_id=None, schedule_id=None, attempt_id=No
                     seen.add(qid)
                     all_qids.append(qid)
 
-    # 3. Include any answered questions for this attempt (in case attempt had specific random questions)
+    # 3. Include any additional questions that were answered in this attempt (e.g. from randomization or fallback)
     if attempt_id:
         ans_rows = session.query(Answer.question_id).filter(
             Answer.attempt_id == attempt_id
@@ -80,23 +80,19 @@ def is_review_eligible_attempt(attempt):
     return getattr(attempt, 'status', None) in ('submitted', 'evaluated')
 
 def finalize_expired_attempts(session, exam_schedule, attempts, now=None):
-    """Finalize timed-out attempts even when the student's browser never submitted."""
+    """Finalize timed-out attempts when schedule end_time passes or remaining_seconds hits 0."""
     now = now or datetime.datetime.utcnow()
-    exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
-    duration_mins = int(getattr(exam, 'duration_mins', 0) or 0)
     finalized_ids = []
     for attempt in attempts:
-        if attempt.status != 'in_progress' or not attempt.started_date:
+        if attempt.status != 'in_progress':
             continue
-        duration_deadline = attempt.started_date + datetime.timedelta(minutes=duration_mins) if duration_mins > 0 else None
-        deadlines = [value for value in (duration_deadline, exam_schedule.end_time) if value]
-        if not deadlines:
-            continue
-        deadline = min(deadlines)
-        if now >= deadline:
-            # The effective deadline is authoritative when a browser closes or loses connectivity.
+        schedule_expired = bool(exam_schedule and exam_schedule.end_time and now >= exam_schedule.end_time)
+        time_ran_out = getattr(attempt, 'remaining_seconds', None) is not None and attempt.remaining_seconds <= 0
+        if schedule_expired or time_ran_out:
+            deadline = exam_schedule.end_time if (schedule_expired and exam_schedule.end_time) else now
             attempt.status = 'submitted'
             attempt.submitted_date = deadline
+            attempt.remaining_seconds = 0
             session.add(attempt)
             finalized_ids.append(attempt.attempt_id)
     if finalized_ids:

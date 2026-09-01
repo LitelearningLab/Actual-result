@@ -407,6 +407,7 @@ class Exam_Attempt(Base):
     score = Column(Float, default=0.0)
     percentage = Column(Float)
     feedback = Column(Text)
+    remaining_seconds = Column(Integer)
 
 class ExamReviewComments(Base):
     __tablename__ = 'ExamReviewComments'

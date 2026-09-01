@@ -20,6 +20,10 @@
           </div>
           <span *ngIf="remaining <= 300" class="timer-alert" aria-hidden="true">!</span>
         </div>
+        <button type="button" class="btn btn-exit" (click)="promptLeaveTest()" [disabled]="submitting || testStopped">
+          <mat-icon>logout</mat-icon>
+          <span>Leave</span>
+        </button>
         <button type="button" class="btn btn-submit" (click)="openConfirm()" [disabled]="submitting || testStopped" [attr.aria-busy]="submitting">
           <mat-icon>send</mat-icon>
           <span>{{ submitting ? 'Submitting...' : 'Submit' }}</span>
@@ -120,8 +124,7 @@
           <p class="q-text" [id]="'q-text-' + i">{{ q.question || q.text }}</p>
 
           <!-- Single choice -->
-          <fieldset *ngIf="q.type === 'choose' || q.type === 'Choose' || q.type === 'MCQ'" class="q-options">
-            <legend class="sr-only">Select one answer</legend>
+          <div *ngIf="q.type === 'choose' || q.type === 'Choose' || q.type === 'MCQ'" class="q-options" role="radiogroup" aria-label="Select one answer">
             <label class="opt" *ngFor="let o of q.options; let oi = index" 
               [class.selected]="answers[q.id || i] === getOptVal(o)">
               <span class="opt-letter">{{ 'ABCDEFGH'[oi] }}</span>
@@ -130,11 +133,10 @@
               <span class="opt-text">{{ getOptText(o) }}</span>
               <mat-icon class="opt-check" *ngIf="answers[q.id || i] === getOptVal(o)">check_circle</mat-icon>
             </label>
-          </fieldset>
+          </div>
 
           <!-- Multiple choice -->
-          <fieldset *ngIf="q.type === 'multi' || q.type === 'Multi'" class="q-options">
-            <legend class="sr-only">Select all that apply</legend>
+          <div *ngIf="q.type === 'multi' || q.type === 'Multi'" class="q-options" role="group" aria-label="Select all that apply">
             <label class="opt" *ngFor="let o of q.options; let oi = index"
               [class.selected]="isMultiSelected(q.id || i, getOptVal(o))">
               <span class="opt-letter">{{ 'ABCDEFGH'[oi] }}</span>
@@ -143,7 +145,7 @@
               <span class="opt-text">{{ getOptText(o) }}</span>
               <mat-icon class="opt-check" *ngIf="isMultiSelected(q.id || i, getOptVal(o))">check_circle</mat-icon>
             </label>
-          </fieldset>
+          </div>
 
           <!-- Fill in the blank -->
           <div *ngIf="q.type === 'fill' || q.type === 'Fill'" class="q-input">

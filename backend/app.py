@@ -502,7 +502,9 @@ def active_exam_status_route():
     if not current_user:
         return jsonify({"statusMessage": "Authenticated user not found", "status": False}), 401
     response_data, status_code = get_active_exam_status(
-        request.args.get('attempt_id'), current_user.user_id
+        request.args.get('attempt_id'),
+        current_user.user_id,
+        request.args.get('remaining_seconds'),
     )
     return jsonify(response_data), status_code
 

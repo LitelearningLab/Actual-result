@@ -1,5 +1,5 @@
 from db.db import SQLiteDB
-from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping, MarksHistory, ExamReviewComments
+from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping, MarksHistory, ExamReviewComments, ExamReviewCommentsHistory
 from sqlalchemy import func, or_, String
 from datetime import datetime
 from others.llm import openai_client, analyze_wrong_answers_ai
@@ -396,10 +396,20 @@ def get_user_wise_report(request):
             correct = sum(1 for qid, is_corr in grouped.items() if is_corr == 1)
             wrong = questions_attempted - correct
 
-            question_ids = list(grouped.keys())
+            sched_obj = next((s for s in ctx.get('schedules', []) if str(s.schedule_id) == str(sid)), None)
             total_marks = 0
-            if question_ids:
-                total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(question_ids)).scalar() or 0
+            if sched_obj and sched_obj.exam_id:
+                eqm_qids = [qm.question_id for qm in session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == sched_obj.exam_id).all()]
+                if eqm_qids:
+                    total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(eqm_qids)).scalar() or 0
+                if not total_marks:
+                    ex_obj = session.query(Exam).filter(Exam.exam_id == sched_obj.exam_id).first()
+                    if ex_obj and getattr(ex_obj, 'total_questions', None):
+                        total_marks = ex_obj.total_questions
+            if not total_marks:
+                question_ids = list(grouped.keys())
+                if question_ids:
+                    total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(question_ids)).scalar() or 0
 
             marks = sum((a.marks_awarded or 0) for a in answers)
 
@@ -408,7 +418,6 @@ def get_user_wise_report(request):
             else:
                 user_attempts = session.query(Exam_Attempt).filter(Exam_Attempt.schedule_id == sid, Exam_Attempt.user_id == uid).all()
 
-            sched_obj = next((s for s in ctx.get('schedules', []) if str(s.schedule_id) == str(sid)), None)
             pass_mark = sched_obj.pass_mark if (sched_obj and sched_obj.pass_mark is not None) else default_pass_mark
 
             best_percentage = None
@@ -428,9 +437,9 @@ def get_user_wise_report(request):
             if user_attempts:
                 dt = user_attempts[0].submitted_date or user_attempts[0].started_date
                 if dt:
-                    attempt_date_str = dt.strftime('%Y-%m-%d %H:%M:%S')
+                    attempt_date_str = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
             if not attempt_date_str and answers and answers[0].created_date:
-                attempt_date_str = answers[0].created_date.strftime('%Y-%m-%d %H:%M:%S')
+                attempt_date_str = answers[0].created_date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
             all_user_sched_attempts = session.query(Exam_Attempt).filter(
                 Exam_Attempt.schedule_id == sid,
@@ -447,7 +456,7 @@ def get_user_wise_report(request):
                 retest_pct = best_retest.percentage
                 rdt = best_retest.submitted_date or best_retest.started_date
                 if rdt:
-                    retest_date_str = rdt.strftime('%Y-%m-%d %H:%M:%S')
+                    retest_date_str = rdt.strftime('%Y-%m-%dT%H:%M:%SZ')
                 if pass_mark is not None:
                     retest_result = 'Pass' if (retest_pct is not None and retest_pct >= pass_mark) else 'Fail'
             # Check if any question has real manual review / mark edits / comments
@@ -463,34 +472,68 @@ def get_user_wise_report(request):
                 if ans_ids:
                     has_history = session.query(MarksHistory).filter(
                         MarksHistory.answer_id.in_(ans_ids),
-                        (MarksHistory.source == 'manual') | (MarksHistory.edit_reason.isnot(None) & (MarksHistory.edit_reason != ''))
+                        (
+                            (MarksHistory.edit_reason.isnot(None) & (MarksHistory.edit_reason != '')) |
+                            (
+                                MarksHistory.updated_by.isnot(None) &
+                                (MarksHistory.updated_by != '') &
+                                (MarksHistory.updated_by != 'SYSTEM') &
+                                (MarksHistory.updated_by != 'System') &
+                                (MarksHistory.updated_by != 'cac37fab-4de6-4792-969b-96e57e3c910a')
+                            )
+                        )
                     ).first() is not None
                 elif user_att_ids:
                     has_history = session.query(MarksHistory).join(
                         Answer, MarksHistory.answer_id == Answer.answer_id
                     ).filter(
                         Answer.attempt_id.in_(user_att_ids),
-                        (MarksHistory.source == 'manual') | (MarksHistory.edit_reason.isnot(None) & (MarksHistory.edit_reason != ''))
+                        (
+                            (MarksHistory.edit_reason.isnot(None) & (MarksHistory.edit_reason != '')) |
+                            (
+                                MarksHistory.updated_by.isnot(None) &
+                                (MarksHistory.updated_by != '') &
+                                (MarksHistory.updated_by != 'SYSTEM') &
+                                (MarksHistory.updated_by != 'System') &
+                                (MarksHistory.updated_by != 'cac37fab-4de6-4792-969b-96e57e3c910a')
+                            )
+                        )
                     ).first() is not None
 
-                has_comments = False
+                has_manual_comment = False
                 if user_att_ids:
-                    has_comments = session.query(ExamReviewComments).filter(
+                    has_manual_comment = session.query(ExamReviewComments).filter(
                         ExamReviewComments.attempt_id.in_(user_att_ids),
-                        ExamReviewComments.comment_text.isnot(None),
-                        ExamReviewComments.comment_text != ''
+                        (
+                            (ExamReviewComments.edit_reason.isnot(None) & (ExamReviewComments.edit_reason != '')) |
+                            (
+                                ExamReviewComments.edited_by.isnot(None) &
+                                (ExamReviewComments.edited_by != '') &
+                                (ExamReviewComments.edited_by != 'SYSTEM') &
+                                (ExamReviewComments.edited_by != 'cac37fab-4de6-4792-969b-96e57e3c910a')
+                            )
+                        )
                     ).first() is not None
+                    if not has_manual_comment:
+                        has_manual_comment = session.query(ExamReviewCommentsHistory).filter(
+                            ExamReviewCommentsHistory.attempt_id.in_(user_att_ids),
+                            (ExamReviewCommentsHistory.edit_reason.isnot(None) & (ExamReviewCommentsHistory.edit_reason != ''))
+                        ).first() is not None
 
                 has_ans_manual = any(
                     bool(
                         (getattr(a, 'edit_reason', None) and str(a.edit_reason).strip()) or
                         getattr(a, 'manual_review_required', 0) == 1 or
-                        getattr(a, 'manual_marks', None) is not None
+                        (
+                            getattr(a, 'manual_marks', None) is not None and
+                            getattr(a, 'ai_marks', None) is not None and
+                            a.manual_marks != a.ai_marks
+                        )
                     )
                     for a in answers
                 )
 
-                if has_history or has_comments or has_ans_manual:
+                if has_history or has_manual_comment or has_ans_manual:
                     has_manual_review = True
             except Exception as ex:
                 print(f"[get_user_report] Error checking manual review: {ex}")

@@ -4,8 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { Observable, of } from 'rxjs';
-import { map, catchError, switchMap } from 'rxjs/operators';
+import { Observable, of, throwError } from 'rxjs';
+import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { API_BASE } from 'src/app/shared/api.config';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
@@ -92,6 +92,17 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   @HostListener('window:beforeunload', ['$event'])
   warnBeforeUnload(event: BeforeUnloadEvent): void {
     if (!this.isSubmitted && !this.testStopped && !!this.attempt_id && !!this.exam) {
+      this.persistExamState();
+      try {
+        const payload = JSON.stringify({
+          attempt_id: this.attempt_id,
+          answers: this.answers,
+          remaining_seconds: this.remaining
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(this.autosaveUrl, new Blob([payload], { type: 'application/json' }));
+        }
+      } catch (e) {}
       event.preventDefault();
       event.returnValue = '';
     }
@@ -102,64 +113,33 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       return true;
     }
     return this.confirmService.confirm({
-      title: 'Exit & Submit Test?',
-      message: 'Leaving the test will submit your attempt immediately. Only the questions you have answered so far will be evaluated.\n\nAre you sure you want to exit and submit?',
-      confirmText: 'Exit & Submit',
-      cancelText: 'Stay on Test'
+      title: 'Leave Test?',
+      message: 'Are you sure you want to leave the test?\n\nLeaving will immediately complete and submit your test with the answers you have saved so far. Unanswered questions will remain unanswered.',
+      confirmText: 'Leave',
+      cancelText: 'Stay in Test'
     }).pipe(
       switchMap(ok => {
         if (!ok) return of(false);
-        return this.performSubmitOnExit();
+        return this.executeSubmit().pipe(
+          map(() => true),
+          catchError(() => of(true))
+        );
       })
     );
   }
 
-  private performSubmitOnExit(): Observable<boolean> {
-    const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || sessionStorage.getItem('user_info');
-    let userId = '';
-    try { const u = userRaw ? JSON.parse(userRaw) : null; userId = u?.user_id || u?.id || u?.email || ''; } catch (e) {}
-
-    const timeTakenMins = Math.round((this.totalSeconds - this.remaining) / 60);
-    const resolvedScheduleId = this.schedule_id || this.exam?.schedule_id || this.exam?.data?.exam_detail?.schedule_id || this.exam?.data?.schedule_id || this.exam?.id || this.exam?.exam_id || '';
-
-    const payload: any = {
-      exam_id: this.examId || this.exam?.exam_id || this.exam?.data?.exam_detail?.exam_id,
-      schedule_id: resolvedScheduleId,
-      user_id: userId,
-      attempt_id: this.attempt_id || this.exam?.attempt_id,
-      answers: this.answers,
-      submitted_at: new Date().toISOString(),
-      time_taken_mins: timeTakenMins
-    };
-
-    this.submitting = true;
-    return this.http.post<any>(this.submitUrl, payload).pipe(
-      map((res) => {
-        this.isSubmitted = true;
-        this.submitting = false;
-        try {
-          sessionStorage.removeItem('launched_exam');
-        } catch (e) {}
-        this.stopTimer();
-        this.stopStatusPolling();
-        this.stopSpeechRecognition();
-        try {
-          notify('Your test was submitted and evaluated with your answered questions.', 'success');
-        } catch (e) {}
-        return true;
-      }),
-      catchError((err) => {
-        this.isSubmitted = true;
-        this.submitting = false;
-        try {
-          sessionStorage.removeItem('launched_exam');
-        } catch (e) {}
-        this.stopTimer();
-        this.stopStatusPolling();
-        this.stopSpeechRecognition();
-        return of(true);
-      })
-    );
+  promptLeaveTest() {
+    if (this.submitting || this.isSubmitted || this.testStopped) return;
+    this.confirmService.confirm({
+      title: 'Leave Test?',
+      message: 'Are you sure you want to leave the test?\n\nLeaving will immediately complete and submit your test with the answers you have saved so far. Unanswered questions will remain unanswered.',
+      confirmText: 'Leave',
+      cancelText: 'Stay in Test'
+    }).subscribe(ok => {
+      if (ok) {
+        this.submit();
+      }
+    });
   }
 
   initSpeechRecognition() {
@@ -184,6 +164,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
             if (this.testStopped) return;
             const currentAnswer = this.answers[this.recordingQuestionId] || '';
             this.answers[this.recordingQuestionId] = currentAnswer + (currentAnswer ? ' ' : '') + finalTranscript;
+            this.persistExamState();
             this.scheduleAutosave();
           }
         });
@@ -245,8 +226,49 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     return this.recordingQuestionId === questionId;
   }
 
+  persistExamState() {
+    if (!this.exam) return;
+    try {
+      const wrapper = this.exam?.data ? this.exam.data : this.exam;
+      const examDetail = wrapper?.exam_detail || wrapper || {};
+      examDetail.saved_answers = { ...this.answers };
+      if (this.exam.data && this.exam.data !== examDetail) {
+        this.exam.data.saved_answers = { ...this.answers };
+      }
+      this.exam.saved_answers = { ...this.answers };
+      this.exam.answers = { ...this.answers };
+
+      sessionStorage.setItem('launched_exam', JSON.stringify(this.exam));
+      if (this.attempt_id) {
+        localStorage.setItem('exam_answers_' + this.attempt_id, JSON.stringify(this.answers));
+        localStorage.setItem('exam_state_' + this.attempt_id, JSON.stringify({
+          test_start_time: examDetail.test_start_time,
+          test_end_time: examDetail.test_end_time,
+          duration_mins: examDetail.duration_mins || this.totalSeconds / 60,
+          remaining_seconds: this.remaining
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to persist exam state to storage', e);
+    }
+  }
+
+  clearExamState() {
+    try {
+      sessionStorage.removeItem('launched_exam');
+      if (this.attempt_id) {
+        localStorage.removeItem('exam_answers_' + this.attempt_id);
+        localStorage.removeItem('exam_state_' + this.attempt_id);
+      }
+    } catch (e) {}
+  }
+
   ngOnInit() {
-    try { const raw = sessionStorage.getItem('launched_exam'); this.exam = raw ? JSON.parse(raw) : null; } catch(e){}
+    try {
+      const raw = sessionStorage.getItem('launched_exam');
+      this.exam = raw ? JSON.parse(raw) : null;
+    } catch(e){}
+
     if (this.exam) {
       const wrapper = this.exam?.data ? this.exam.data : this.exam;
       const examDetail = wrapper?.exam_detail || wrapper || {};
@@ -270,22 +292,76 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         marks: q.marks || q.points || 0
       }));
 
-      // Restore saved answers if resuming an in-progress attempt
-      const savedAns = examDetail?.saved_answers;
-      if (savedAns && typeof savedAns === 'object') {
-        this.answers = { ...savedAns };
-      } else {
-        this.answers = {};
+      // 1. Restore saved answers from all available storage levels
+      let restoredAnswers: any = {};
+      if (examDetail?.saved_answers && typeof examDetail.saved_answers === 'object') {
+        restoredAnswers = { ...restoredAnswers, ...examDetail.saved_answers };
+      }
+      if (this.exam?.saved_answers && typeof this.exam.saved_answers === 'object') {
+        restoredAnswers = { ...restoredAnswers, ...this.exam.saved_answers };
+      }
+      if (this.exam?.answers && typeof this.exam.answers === 'object') {
+        restoredAnswers = { ...restoredAnswers, ...this.exam.answers };
+      }
+      if (this.attempt_id) {
+        try {
+          const localAns = localStorage.getItem('exam_answers_' + this.attempt_id);
+          if (localAns) {
+            const parsedLocal = JSON.parse(localAns);
+            if (parsedLocal && typeof parsedLocal === 'object') {
+              restoredAnswers = { ...restoredAnswers, ...parsedLocal };
+            }
+          }
+        } catch (e) {}
       }
 
-      const mins = examDetail?.duration_mins || this.exam?.duration_mins || this.exam?.duration || 30;
+      // Ensure multi-choice answers are normalized to arrays for checkbox state
+      this.questions.forEach((q, i) => {
+        const key = q.id !== undefined && q.id !== null && q.id !== '' ? String(q.id) : String(i);
+        const qType = (q.type || '').toLowerCase();
+        if (qType === 'multi') {
+          const val = restoredAnswers[key] !== undefined ? restoredAnswers[key] : (restoredAnswers[q.id || ''] !== undefined ? restoredAnswers[q.id || ''] : restoredAnswers[i]);
+          if (val !== undefined && val !== null && !Array.isArray(val)) {
+            restoredAnswers[key] = [String(val)];
+          }
+        }
+      });
+
+      this.answers = restoredAnswers;
+
+      // 2. Setup persistent countdown timer based on start / end timestamps
+      const mins = Number(examDetail?.duration_mins || this.exam?.duration_mins || this.exam?.duration || 30);
       this.totalSeconds = mins * 60;
 
-      if (examDetail?.remaining_seconds !== undefined && examDetail?.remaining_seconds !== null) {
-        this.remaining = Math.max(0, Math.floor(examDetail.remaining_seconds));
+      let localState: any = null;
+      if (this.attempt_id) {
+        try {
+          const rawState = localStorage.getItem('exam_state_' + this.attempt_id);
+          if (rawState) localState = JSON.parse(rawState);
+        } catch (e) {}
+      }
+
+      const now = Date.now();
+      const serverRemSec = (examDetail?.remaining_seconds !== undefined && examDetail?.remaining_seconds !== null)
+        ? Math.max(0, Math.floor(Number(examDetail.remaining_seconds)))
+        : null;
+
+      // When starting fresh or continuing a paused test, initialize remaining time
+      if (serverRemSec !== null) {
+        this.remaining = serverRemSec;
+      } else if (localState?.remaining_seconds !== undefined && localState?.remaining_seconds !== null) {
+        this.remaining = Math.max(0, Math.floor(Number(localState.remaining_seconds)));
       } else {
         this.remaining = this.totalSeconds;
       }
+
+      const endTime = now + (this.remaining * 1000);
+      const startTime = endTime - (this.totalSeconds * 1000);
+
+      examDetail.test_start_time = startTime;
+      examDetail.test_end_time = endTime;
+      examDetail.remaining_seconds = this.remaining;
+      this.persistExamState();
 
       if (this.remaining <= 0) {
         this.autoSubmit();
@@ -296,21 +372,39 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     }
   }
 
-  ngOnDestroy() { this.stopTimer(); this.stopStatusPolling(); this.stopSpeechRecognition(); if (this.autosaveTimer) clearTimeout(this.autosaveTimer); }
+  ngOnDestroy() {
+    this.stopTimer();
+    this.stopStatusPolling();
+    this.stopSpeechRecognition();
+    if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
+  }
 
   startTimer() {
     this.stopTimer();
-    this.intervalRef = setInterval(() => {
-      if (this.remaining > 0) {
+    const updateCountdown = () => {
+      const wrapper = this.exam?.data ? this.exam.data : this.exam;
+      const examDetail = wrapper?.exam_detail || wrapper || {};
+      const endTime = Number(examDetail?.test_end_time);
+      if (endTime && !isNaN(endTime)) {
+        this.remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+      } else if (this.remaining > 0) {
         this.remaining--;
-      } else {
+      }
+      if (this.remaining <= 0) {
+        this.stopTimer();
         this.autoSubmit();
       }
+    };
+    updateCountdown();
+    this.intervalRef = setInterval(() => {
+      this.ngZone.run(() => {
+        updateCountdown();
+      });
     }, 1000);
   }
 
   autoSubmit() {
-    if (this.submitting) return;
+    if (this.submitting || this.isSubmitted || this.testStopped) return;
     try { notify('Time is up! Your test will be submitted automatically.', 'info'); } catch(e){}
     this.submit();
   }
@@ -326,7 +420,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
   checkActiveExamStatus() {
     if (this.testStopped || !this.attempt_id) return;
-    this.http.get<any>(this.statusUrl, { params: { attempt_id: this.attempt_id } }).subscribe({
+    this.http.get<any>(this.statusUrl, { params: { attempt_id: this.attempt_id, remaining_seconds: this.remaining } }).subscribe({
       next: (res) => {
         if (res?.published === false) this.stopActiveTest();
         if (['submitted', 'evaluated'].includes(res?.attempt_status)) {
@@ -362,7 +456,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   }
 
   acknowledgeStoppedTest() {
-    try { sessionStorage.removeItem('launched_exam'); } catch(e) {}
+    this.clearExamState();
     this.ngZone.run(() => this.router.navigate(['/user/exam']));
   }
 
@@ -400,20 +494,27 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     } else {
       this.answers[key] = set;
     }
+    this.persistExamState();
     this.scheduleAutosave();
   }
 
   selectOne(qid: any, optId: any) {
     if (this.testStopped) return;
     this.answers[String(qid)] = String(optId);
+    this.persistExamState();
     this.scheduleAutosave();
   }
 
   scheduleAutosave() {
     if (this.testStopped || !this.attempt_id) return;
+    this.persistExamState();
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
     this.autosaveTimer = setTimeout(() => {
-      this.http.post<any>(this.autosaveUrl, { attempt_id: this.attempt_id, answers: this.answers }).subscribe({
+      this.http.post<any>(this.autosaveUrl, {
+        attempt_id: this.attempt_id,
+        answers: this.answers,
+        remaining_seconds: this.remaining
+      }).subscribe({
         error: (err) => { if (err?.status !== 409) console.warn('Answer autosave failed', err); }
       });
     }, 500);
@@ -423,9 +524,12 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     try {
       const el = document.getElementById('q-' + index);
       if (el) {
-        const scrollContainer = document.querySelector('.app-content');
+        const scrollContainer =
+          document.querySelector('.exam-runner-fullscreen') ||
+          document.querySelector('.public-layout') ||
+          document.querySelector('.app-content');
         if (scrollContainer) {
-          const stickyOffset = 200;
+          const stickyOffset = 180;
           const containerRect = scrollContainer.getBoundingClientRect();
           const elementRect = el.getBoundingClientRect();
           const scrollTop = scrollContainer.scrollTop + elementRect.top - containerRect.top - stickyOffset;
@@ -457,10 +561,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     });
   }
 
-  submit() {
-    if (this.submitting || this.testStopped) return;
-    this.showConfirm = false;
-    this.submitting = true;
+  private buildSubmitPayload(): any {
     const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || sessionStorage.getItem('user_info');
     let userId = '';
     try { const u = userRaw ? JSON.parse(userRaw) : null; userId = u?.user_id || u?.id || u?.email || ''; } catch (e) {}
@@ -468,7 +569,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     const timeTakenMins = Math.round((this.totalSeconds - this.remaining) / 60);
     const resolvedScheduleId = this.schedule_id || this.exam?.schedule_id || this.exam?.data?.exam_detail?.schedule_id || this.exam?.data?.schedule_id || this.exam?.id || this.exam?.exam_id || '';
 
-    const payload: any = {
+    return {
       exam_id: this.examId || this.exam?.exam_id || this.exam?.data?.exam_detail?.exam_id,
       schedule_id: resolvedScheduleId,
       user_id: userId,
@@ -477,42 +578,66 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       submitted_at: new Date().toISOString(),
       time_taken_mins: timeTakenMins
     };
+  }
 
-    this.http.post<any>(this.submitUrl, payload).subscribe({
-      next: (res) => {
-        this.isSubmitted = true;
-        const completedAt = new Date().toISOString();
-        const result = {
-          ...(res?.data || res || {}),
-          owner_user_id: userId,
-          test_id: this.examId,
-          title: this.examTitle,
-          user: userId,
-          date: completedAt,
-          score: res?.score || 0,
-          total_marks: res?.total_marks || 0,
-          status: 'Submitted'
-        };
-        try {
-          sessionStorage.removeItem('launched_exam');
-          const existing = JSON.parse(sessionStorage.getItem('user_completed_exams') || '[]');
-          existing.push(result);
-          sessionStorage.setItem('user_completed_exams', JSON.stringify(existing));
-        } catch (e) {}
+  private handleSuccessfulSubmit(res: any) {
+    this.isSubmitted = true;
+    const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || sessionStorage.getItem('user_info');
+    let userId = '';
+    try { const u = userRaw ? JSON.parse(userRaw) : null; userId = u?.user_id || u?.id || u?.email || ''; } catch (e) {}
 
-        this.stopTimer();
-        this.stopStatusPolling();
-        this.stopSpeechRecognition();
-        this.ngZone.run(() => this.router.navigate(['/user/exam']));
-      },
-      error: (err) => {
+    const completedAt = new Date().toISOString();
+    const result = {
+      ...(res?.data || res || {}),
+      owner_user_id: userId,
+      test_id: this.examId,
+      title: this.examTitle,
+      user: userId,
+      date: completedAt,
+      score: res?.score || 0,
+      total_marks: res?.total_marks || 0,
+      status: 'Submitted'
+    };
+    try {
+      this.clearExamState();
+      const existing = JSON.parse(sessionStorage.getItem('user_completed_exams') || '[]');
+      existing.push(result);
+      sessionStorage.setItem('user_completed_exams', JSON.stringify(existing));
+    } catch (e) {}
+
+    this.stopTimer();
+    this.stopStatusPolling();
+    this.stopSpeechRecognition();
+  }
+
+  executeSubmit(): Observable<any> {
+    if (this.submitting || this.testStopped) return of(null);
+    this.showConfirm = false;
+    this.submitting = true;
+    const payload = this.buildSubmitPayload();
+
+    return this.http.post<any>(this.submitUrl, payload).pipe(
+      tap(res => {
+        this.handleSuccessfulSubmit(res);
+      }),
+      catchError(err => {
         this.submitting = false;
         if (err?.status === 409 && err?.error?.errorCode === 'EXAM_UNPUBLISHED') {
           this.stopActiveTest();
-          return;
+        } else {
+          notify(err?.error?.statusMessage || 'Failed to submit exam. Please try again.', 'error');
         }
-        notify(err?.error?.statusMessage || 'Failed to submit exam. Please try again.', 'error');
-      }
+        return throwError(() => err);
+      })
+    );
+  }
+
+  submit() {
+    this.executeSubmit().subscribe({
+      next: () => {
+        this.ngZone.run(() => this.router.navigate(['/user/exam']));
+      },
+      error: () => {}
     });
   }
 }
