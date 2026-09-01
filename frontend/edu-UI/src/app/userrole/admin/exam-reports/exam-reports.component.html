@@ -2473,14 +2473,20 @@
   class="wrong-summary-backdrop"
   (click)="closeWrongAnswerSummary()"
 >
-  <div class="wrong-summary-panel" (click)="$event.stopPropagation()">
+  <div class="wrong-summary-panel desc-analysis-modal-panel" (click)="$event.stopPropagation()">
     <div class="card">
-      <div class="panel-header">
+      <div class="panel-header desc-panel-header">
         <div class="header-info">
-          <div class="header-icon"><mat-icon>rule_folder</mat-icon></div>
+          <div class="desc-modal-icon-box">
+            <mat-icon>{{ isDescriptiveQuestion() ? 'search' : 'rule_folder' }}</mat-icon>
+          </div>
           <div class="header-copy">
-            <h4>Wrong Answer Summary</h4>
-            <div class="panel-sub">Details for selected question</div>
+            <h4 class="desc-main-modal-title">
+              {{ isDescriptiveQuestion() ? getDescriptiveModalTitle() : 'Wrong Answer Summary' }}
+            </h4>
+            <div class="panel-sub desc-modal-subtitle">
+              {{ isDescriptiveQuestion() ? 'Overall Performance Insights' : 'Details for selected question' }}
+            </div>
           </div>
         </div>
         <button
@@ -2493,182 +2499,393 @@
           <mat-icon aria-hidden="true">close</mat-icon>
         </button>
       </div>
-      <div class="panel-body">
+
+      <div class="panel-body desc-modal-body">
         <div *ngIf="selectedQuestionForWrongSummary">
-          <!-- Metadata Summary Bar from Left UI functionality -->
-          <div class="q-summary-meta-grid">
-            <div class="q-meta-card">
-              <div class="q-meta-label">Category Name</div>
-              <div class="q-meta-value highlight">
-                {{ selectedQuestionForWrongSummary.category_name || selectedCategoryFilterName || 'General' }}
-              </div>
-            </div>
 
-            <div class="q-meta-card" *ngIf="selectedQuestionForWrongSummary.question_summary || selectedQuestionForWrongSummary.summary">
-              <div class="q-meta-label">Question Summary</div>
-              <div class="q-meta-value">
-                {{ selectedQuestionForWrongSummary.question_summary || selectedQuestionForWrongSummary.summary }}
-              </div>
-            </div>
-
-            <div class="q-meta-card">
-              <div class="q-meta-label">Answer Type</div>
-              <div class="q-meta-value">
-                <span class="type-badge">
-                  {{ selectedQuestionForWrongSummary.question_type || selectedQuestionForWrongSummary.answer_type || selectedQuestionForWrongSummary.type || (selectedQuestionForWrongSummary.options?.length > 1 ? 'Multiple' : 'Single') }}
-                </span>
-              </div>
-            </div>
-
-            <div class="q-meta-card">
-              <div class="q-meta-label">Attempts</div>
-              <div class="q-meta-value stat-attempts">
-                {{ selectedQuestionForWrongSummary.attempts ?? selectedQuestionForWrongSummary.user_attempts ?? 0 }}
-              </div>
-            </div>
-
-            <div class="q-meta-card">
-              <div class="q-meta-label">No Of Mistakes</div>
-              <div class="q-meta-value stat-mistakes">
-                {{ selectedQuestionForWrongSummary.mistakes ?? selectedQuestionForWrongSummary.wrong_count ?? 0 }}
-              </div>
-            </div>
-          </div>
-
-          <div class="question-title">
-            <span class="q-title-label">Question:</span>
-            {{
-              selectedQuestionForWrongSummary.question_text ||
-                selectedQuestionForWrongSummary.text ||
-                selectedQuestionForWrongSummary.name ||
-                ''
-            }}
-          </div>
-
-          <!-- Loading State Animation for AI Analytics (ONLY for Fill & Descriptive) -->
-          <div class="wrong-summary-loading-container" *ngIf="wrongAnswerSummaryLoading && isTextQuestion()">
-            <div class="ai-loading-spinner-wrap">
-              <div class="ai-glow-spinner"></div>
-              <mat-icon class="ai-sparkle-icon">auto_awesome</mat-icon>
-            </div>
-            <h4 class="ai-loading-title">Analyzing Question with AI...</h4>
-            <p class="ai-loading-sub">Synthesizing misconception themes, identifying concept gaps, and clustering responses.</p>
-          </div>
-
-          <!-- Normal / Standard Blue Loading State (for Single & Multiple Choice) -->
-          <div class="professional-loader-container" *ngIf="wrongAnswerSummaryLoading && !isTextQuestion()" style="padding: 3.5rem 1.5rem; min-height: 14rem;">
-            <div class="loader-spinner-ring"></div>
-            <div class="loader-text-group">
-              <h5 class="loader-main-text">Loading Wrong Answer Summary</h5>
-              <p class="loader-sub-text">Fetching option distribution and attempt details...</p>
-            </div>
-          </div>
-
-          <div *ngIf="!wrongAnswerSummaryLoading">
-            <!-- ALL OPTIONS Table (Target UI Layout) -->
-            <table class="q-options-table" *ngIf="selectedQuestionForWrongSummary.options && selectedQuestionForWrongSummary.options.length">
-              <thead>
-                <tr>
-                  <th class="opt-col-num">OPTION<br>NUMBER</th>
-                  <th class="opt-col-text">OPTIONS</th>
-                  <th class="opt-col-status">STATUS</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  *ngFor="let opt of selectedQuestionForWrongSummary.options; let idx = index"
-                  [class.q-option-correct]="isCorrectOption(opt)"
-                >
-                  <td class="opt-col-num">
-                    <span class="q-option-num-badge" [class.is-correct-num]="isCorrectOption(opt)">
-                      {{ idx + 1 }}
-                    </span>
-                  </td>
-                  <td class="opt-col-text">
-                    <span class="q-option-text-val" [class.is-correct-text]="isCorrectOption(opt)">
-                      {{ opt.option_text || opt.text || opt.answer }}
-                    </span>
-                  </td>
-                  <td class="opt-col-status">
-                    <span *ngIf="isCorrectOption(opt)" class="q-correct-tag-badge">
-                      <mat-icon>check_circle</mat-icon> Correct Answer
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <!-- AI Analytics & Pedagogical Insights Summary -->
-            <div class="ai-analytics-card" *ngIf="aiInsights">
-              <div class="ai-analytics-header">
-                <div class="ai-badge">
-                  <mat-icon>auto_awesome</mat-icon>
-                  <span>AI Powered Analytics</span>
+          <!-- ════════════════════════════════════════════════════════════════════ -->
+          <!-- DESCRIPTIVE QUESTION ANALYSIS VIEW (MATCHING DESIGN REFERENCE) -->
+          <!-- ════════════════════════════════════════════════════════════════════ -->
+          <ng-container *ngIf="isDescriptiveQuestion()">
+            <!-- 4 Summary Cards Grid -->
+            <div class="desc-summary-cards-grid">
+              <!-- Card 1: Category Name -->
+              <div class="desc-summary-card">
+                <div class="desc-card-label">CATEGORY NAME</div>
+                <div class="desc-card-val desc-cat-title">
+                  {{ descriptiveAnalysisData?.question?.category_name || selectedQuestionForWrongSummary.category_name || selectedCategoryFilterName || 'Question Bank' }}
                 </div>
-                <div class="ai-card-title">Misconception & Diagnostic Analysis</div>
               </div>
-              <div class="ai-analytics-content">
-                <div class="ai-summary-block" *ngIf="aiInsights.diagnostic_summary">
-                  <div class="ai-block-label">
-                    <mat-icon>psychology</mat-icon>
-                    <strong>Diagnostic Summary:</strong>
-                  </div>
-                  <p class="ai-summary-text">{{ aiInsights.diagnostic_summary }}</p>
+
+              <!-- Card 2: Answer Type -->
+              <div class="desc-summary-card">
+                <div class="desc-card-label">ANSWER TYPE</div>
+                <div class="desc-card-val">
+                  <span class="desc-badge-pill">{{ getQuestionTypeLabel() }}</span>
+                </div>
+              </div>
+
+              <!-- Card 3: Total Attempts -->
+              <div class="desc-summary-card">
+                <div class="desc-card-label">TOTAL ATTEMPTS</div>
+                <div class="desc-card-val desc-stat-bold">
+                  {{ descriptiveAnalysisData?.summary?.total_attempts ?? selectedQuestionForWrongSummary.attempts ?? selectedQuestionForWrongSummary.user_attempts ?? 0 }}
+                </div>
+              </div>
+
+              <!-- Card 4: Total Incorrect -->
+              <div class="desc-summary-card">
+                <div class="desc-card-label">TOTAL INCORRECT</div>
+                <div class="desc-card-val desc-stat-red">
+                  {{ descriptiveAnalysisData?.summary?.total_incorrect ?? selectedQuestionForWrongSummary.mistakes ?? selectedQuestionForWrongSummary.wrong_count ?? 0 }}
                 </div>
               </div>
             </div>
 
-            <div class="wa-section-title-wrap">
-              <mat-icon class="wa-sec-icon">{{ (isTextQuestion() && aiClusters?.length) ? 'psychology' : 'analytics' }}</mat-icon>
-              <span>{{ (isTextQuestion() && aiClusters?.length) ? 'AI Misconception Clusters & Occurrence Analysis:' : 'Wrong Answers & Occurrence Analysis:' }}</span>
+            <!-- Question Banner Box -->
+            <div class="desc-question-banner">
+              <strong class="q-banner-label">Question:</strong>
+              <span class="q-banner-text">
+                {{ selectedQuestionForWrongSummary.question_text || selectedQuestionForWrongSummary.text || descriptiveAnalysisData?.question?.question_text || '' }}
+              </span>
             </div>
 
-            <table class="wa-analysis-table">
-              <thead>
-                <tr>
-                  <th class="wa-col-ans">{{ (isTextQuestion() && aiClusters?.length) ? 'MISCONCEPTION THEME & EXPLANATION' : 'WRONG ANSWER' }}</th>
-                  <th class="wa-col-cnt">{{ (isTextQuestion() && aiClusters?.length) ? 'NO. OF STUDENTS' : 'NO. OF TIMES SELECTED' }}</th>
-                  <th class="wa-col-pct">OCCURRENCE %</th>
-                </tr>
-              </thead>
-              <tbody>
-                <ng-container *ngFor="let wa of (filteredWrongAnswers.length ? filteredWrongAnswers : selectedWrongAnswers)">
-                  <tr
-                    class="wa-interactive-row"
-                    [class.wa-row-expanded]="expandedWrongAnswer === wa"
-                    (click)="toggleWrongAnswerResources(selectedQuestionForWrongSummary, wa)"
-                    title="Click to toggle user details for this wrong answer"
-                  >
-                    <td class="wa-col-ans">
-                      <div class="wa-answer-cell">
-                        <mat-icon class="wa-chevron-icon">
-                          {{ expandedWrongAnswer === wa ? 'expand_more' : 'chevron_right' }}
-                        </mat-icon>
-                        <div class="wa-content-col">
-                          <div class="wa-theme-title">
-                            <span class="wa-theme-badge" *ngIf="isTextQuestion() && wa.cluster_id">AI Theme</span>
-                            <span class="wa-answer-text">{{ wa.theme_name || wa.answer }}</span>
-                          </div>
-                          <div class="wa-explanation" *ngIf="wa.explanation">
-                            {{ wa.explanation }}
-                          </div>
-                          <div class="wa-samples-preview" *ngIf="wa.samples && wa.samples.length">
-                            <span class="samples-label">Sample Responses:</span>
-                            <span class="sample-pill" *ngFor="let s of wa.samples">"{{ s.length > 80 ? (s | slice:0:80) + '...' : s }}"</span>
-                          </div>
-                        </div>
+            <!-- Single Column 'ANSWER' Table with Green Correct Answer Theme -->
+            <div class="desc-correct-answer-table-wrap" *ngIf="getCorrectAnswerText()">
+              <table class="desc-correct-answer-table">
+                <thead>
+                  <tr>
+                    <th class="desc-th-answer-col">ANSWER</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="desc-correct-answer-row">
+                    <td class="desc-td-answer-cell">
+                      <div class="desc-answer-content-wrap">
+                        <span class="desc-answer-full-text">{{ getCorrectAnswerText() }}</span>
                       </div>
                     </td>
-                    <td class="wa-col-cnt">
-                      <span class="wa-count-badge">{{ wa.count || '-' }}</span>
-                    </td>
-                    <td class="wa-col-pct">{{ wa.pct || '-' }}</td>
                   </tr>
+                </tbody>
+              </table>
+            </div>
 
-                    <!-- Inline Expanded Resources Row directly under the answer following 4-step Page Flow -->
+            <!-- Loading State Animation for AI Analytics -->
+            <div class="wrong-summary-loading-container" *ngIf="wrongAnswerSummaryLoading">
+              <div class="ai-loading-spinner-wrap">
+                <div class="ai-glow-spinner"></div>
+                <mat-icon class="ai-sparkle-icon">auto_awesome</mat-icon>
+              </div>
+              <h4 class="ai-loading-title">Analyzing Descriptive Responses with AI...</h4>
+              <p class="ai-loading-sub">Classifying relevance, clustering misconception themes, and calculating occurrence percentages.</p>
+            </div>
+
+            <!-- Main Content when Loaded -->
+            <div *ngIf="!wrongAnswerSummaryLoading">
+              <!-- AI Powered Analytics Card (Misconception & Diagnostic Analysis) -->
+              <div class="ai-powerful-card" *ngIf="descriptiveAnalysisData?.diagnostic_summary || aiInsights?.diagnostic_summary">
+                <div class="ai-powerful-header">
+                  <div class="ai-powerful-badge">
+                    <span class="sparkle-star">✦</span>
+                    <span>AI Powered Analytics</span>
+                  </div>
+                  <div class="ai-powerful-title">Misconception & Diagnostic Analysis</div>
+                </div>
+                <p class="ai-powerful-desc">
+                  {{ descriptiveAnalysisData?.diagnostic_summary || aiInsights?.diagnostic_summary }}
+                </p>
+              </div>
+
+              <!-- Main Misconception Table -->
+              <div class="desc-misconception-table-wrap" *ngIf="descriptiveAnalysisData?.categories?.length">
+                <!-- Dark Table Header (#17233D) -->
+                <div class="desc-table-header">
+                  <div class="desc-th-col desc-th-category">CATEGORIES & MISCONCEPTION CLUSTERS</div>
+                  <div class="desc-th-col desc-th-students">NO. OF STUDENTS</div>
+                  <div class="desc-th-col desc-th-occurrence">OCCURRENCE %</div>
+                </div>
+
+                <!-- Table Body / Categories Accordion -->
+                <div class="desc-table-body">
+                  <ng-container *ngFor="let cat of descriptiveAnalysisData.categories">
+                    <!-- Top-Level Category Header Row -->
+                    <div
+                      class="desc-cat-row"
+                      [class.desc-cat-expanded]="isDescriptiveCategoryExpanded(cat.key)"
+                      (click)="toggleDescriptiveCategory(cat.key)"
+                    >
+                      <div class="desc-td-col desc-td-cat-name">
+                        <mat-icon class="desc-chevron">
+                          {{ isDescriptiveCategoryExpanded(cat.key) ? 'expand_more' : 'chevron_right' }}
+                        </mat-icon>
+                        <span class="desc-cat-heading">{{ cat.name }}</span>
+                      </div>
+                      <div class="desc-td-col desc-td-students">
+                        <span class="desc-count-circle">{{ cat.student_count ?? 0 }}</span>
+                      </div>
+                      <div class="desc-td-col desc-td-occurrence">
+                        <span class="desc-pct-text">{{ cat.occurrence_percentage ?? 0 }}%</span>
+                      </div>
+                    </div>
+
+                    <!-- Category 1 Expanded: Relevant but Incorrect Misconception Clusters -->
+                    <div
+                      class="desc-cat-content-block"
+                      *ngIf="cat.key === 'relevant_but_incorrect' && isDescriptiveCategoryExpanded(cat.key)"
+                    >
+                      <ng-container *ngFor="let cluster of cat.clusters">
+                        <!-- Misconception Theme Row -->
+                        <div
+                          class="desc-cluster-row"
+                          [class.desc-cluster-expanded]="isDescriptiveClusterExpanded(cluster.cluster_id)"
+                          (click)="toggleDescriptiveCluster(cluster.cluster_id)"
+                        >
+                          <div class="desc-td-col desc-td-cluster-info">
+                            <mat-icon class="desc-chevron-sub">
+                              {{ isDescriptiveClusterExpanded(cluster.cluster_id) ? 'expand_more' : 'chevron_right' }}
+                            </mat-icon>
+                            <div class="desc-cluster-text-group">
+                              <div class="desc-theme-name">Theme: {{ cluster.theme_name }}</div>
+                              <div class="desc-theme-explanation" *ngIf="cluster.explanation">
+                                {{ cluster.explanation }}
+                              </div>
+                              <!-- Verbatim Student Quotes -->
+                              <div class="desc-sample-quotes" *ngIf="cluster.samples && cluster.samples.length">
+                                <span *ngFor="let s of cluster.samples; let last = last">“{{ s }}”{{ last ? '' : ', ' }}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="desc-td-col desc-td-students">
+                            <span class="desc-count-circle">{{ cluster.student_count || cluster.count || 0 }}</span>
+                          </div>
+                          <div class="desc-td-col desc-td-occurrence">
+                            <span class="desc-pct-text">{{ cluster.occurrence_percentage || cluster.percentage || 0 }}%</span>
+                          </div>
+                        </div>
+
+                        <!-- Expanded Student Roster for this Theme -->
+                        <div
+                          class="desc-cluster-students-block"
+                          *ngIf="isDescriptiveClusterExpanded(cluster.cluster_id)"
+                        >
+                          <div class="desc-students-inner-card">
+                            <div class="desc-students-header">
+                              <mat-icon>groups</mat-icon>
+                              <span>Students in this Misconception Cluster ({{ cluster.students?.length || 0 }} students):</span>
+                            </div>
+                            <ul class="desc-student-roster-list" *ngIf="cluster.students && cluster.students.length">
+                              <li *ngFor="let student of cluster.students" class="desc-student-item">
+                                <div class="user-avatar-badge">
+                                  {{ (student.full_name || student.name || 'S').charAt(0).toUpperCase() }}
+                                </div>
+                                <div class="desc-student-meta">
+                                  <div class="desc-student-name-row">
+                                    <span class="desc-student-fullname">{{ student.full_name || student.name }}</span>
+                                    <span class="user-attempts-pill" *ngIf="student.attempts">{{ student.attempts }}</span>
+                                  </div>
+                                  <div class="desc-student-email small-muted" *ngIf="student.email">{{ student.email }}</div>
+                                  <div class="desc-student-submitted" *ngIf="student.written_answer">
+                                    <span class="ans-label">Submitted Response:</span>
+                                    <span class="ans-quote">“{{ student.written_answer }}”</span>
+                                  </div>
+                                </div>
+                              </li>
+                            </ul>
+                            <div *ngIf="!cluster.students || !cluster.students.length" class="muted empty-inline-msg">
+                              No individual student records found for this cluster.
+                            </div>
+                          </div>
+                        </div>
+                      </ng-container>
+
+                      <div *ngIf="!cat.clusters || !cat.clusters.length" class="desc-empty-inline-note">
+                        No recurring misconception patterns were identified.
+                      </div>
+                    </div>
+
+                    <!-- Category 2 Expanded: Completely Irrelevant and Incorrect Answers -->
+                    <div
+                      class="desc-cat-content-block desc-cluster-students-block"
+                      *ngIf="cat.key === 'completely_irrelevant_and_incorrect' && isDescriptiveCategoryExpanded(cat.key)"
+                    >
+                      <!-- Student Roster for Irrelevant Answers -->
+                      <div class="desc-students-inner-card" *ngIf="cat.students && cat.students.length">
+                        <ul class="desc-student-roster-list">
+                          <li *ngFor="let student of cat.students" class="desc-student-item">
+                            <div class="user-avatar-badge">
+                              {{ (student.full_name || student.name || 'S').charAt(0).toUpperCase() }}
+                            </div>
+                            <div class="desc-student-meta">
+                              <div class="desc-student-name-row">
+                                <span class="desc-student-fullname">{{ student.full_name || student.name }}</span>
+                                <span class="user-attempts-pill" *ngIf="student.attempts">{{ student.attempts }}</span>
+                              </div>
+                              <div class="desc-student-email small-muted" *ngIf="student.email">{{ student.email }}</div>
+                              <div class="desc-student-submitted" *ngIf="student.written_answer">
+                                <span class="ans-label">Submitted Response:</span>
+                                <span class="ans-quote">“{{ student.written_answer }}”</span>
+                              </div>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+                      <div *ngIf="!cat.students || !cat.students.length" class="desc-empty-inline-note">
+                        No student records found in this category.
+                      </div>
+                    </div>
+                  </ng-container>
+                </div>
+              </div>
+
+              <!-- Empty State if No Incorrect Responses -->
+              <div *ngIf="descriptiveAnalysisData?.summary?.total_incorrect === 0" class="desc-empty-all-correct">
+                <mat-icon class="all-correct-icon">check_circle</mat-icon>
+                <h5>All Submissions Correct!</h5>
+                <p>No incorrect descriptive responses available for analysis.</p>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- ════════════════════════════════════════════════════════════════════ -->
+          <!-- OBJECTIVE QUESTION ANALYSIS VIEW (Single & Multiple Choice) -->
+          <!-- ════════════════════════════════════════════════════════════════════ -->
+          <ng-container *ngIf="!isDescriptiveQuestion()">
+            <!-- Metadata Summary Bar from Left UI functionality -->
+            <div class="q-summary-meta-grid">
+              <div class="q-meta-card">
+                <div class="q-meta-label">Category Name</div>
+                <div class="q-meta-value highlight">
+                  {{ selectedQuestionForWrongSummary.category_name || selectedCategoryFilterName || 'General' }}
+                </div>
+              </div>
+
+              <div class="q-meta-card" *ngIf="selectedQuestionForWrongSummary.question_summary || selectedQuestionForWrongSummary.summary">
+                <div class="q-meta-label">Question Summary</div>
+                <div class="q-meta-value">
+                  {{ selectedQuestionForWrongSummary.question_summary || selectedQuestionForWrongSummary.summary }}
+                </div>
+              </div>
+
+              <div class="q-meta-card">
+                <div class="q-meta-label">Answer Type</div>
+                <div class="q-meta-value">
+                  <span class="type-badge">
+                    {{ selectedQuestionForWrongSummary.question_type || selectedQuestionForWrongSummary.answer_type || selectedQuestionForWrongSummary.type || (selectedQuestionForWrongSummary.options?.length > 1 ? 'Multiple' : 'Single') }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="q-meta-card">
+                <div class="q-meta-label">Attempts</div>
+                <div class="q-meta-value stat-attempts">
+                  {{ selectedQuestionForWrongSummary.attempts ?? selectedQuestionForWrongSummary.user_attempts ?? 0 }}
+                </div>
+              </div>
+
+              <div class="q-meta-card">
+                <div class="q-meta-label">No Of Mistakes</div>
+                <div class="q-meta-value stat-mistakes">
+                  {{ selectedQuestionForWrongSummary.mistakes ?? selectedQuestionForWrongSummary.wrong_count ?? 0 }}
+                </div>
+              </div>
+            </div>
+
+            <div class="question-title">
+              <span class="q-title-label">Question:</span>
+              {{
+                selectedQuestionForWrongSummary.question_text ||
+                  selectedQuestionForWrongSummary.text ||
+                  selectedQuestionForWrongSummary.name ||
+                  ''
+              }}
+            </div>
+
+            <!-- Normal Blue Loading State for Objective -->
+            <div class="professional-loader-container" *ngIf="wrongAnswerSummaryLoading" style="padding: 3.5rem 1.5rem; min-height: 14rem;">
+              <div class="loader-spinner-ring"></div>
+              <div class="loader-text-group">
+                <h5 class="loader-main-text">Loading Wrong Answer Summary</h5>
+                <p class="loader-sub-text">Fetching option distribution and attempt details...</p>
+              </div>
+            </div>
+
+            <div *ngIf="!wrongAnswerSummaryLoading">
+              <!-- ALL OPTIONS Table -->
+              <table class="q-options-table" *ngIf="selectedQuestionForWrongSummary.options && selectedQuestionForWrongSummary.options.length">
+                <thead>
+                  <tr>
+                    <th class="opt-col-num">OPTION<br>NUMBER</th>
+                    <th class="opt-col-text">OPTIONS</th>
+                    <th class="opt-col-status">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    *ngFor="let opt of selectedQuestionForWrongSummary.options; let idx = index"
+                    [class.q-option-correct]="isCorrectOption(opt)"
+                  >
+                    <td class="opt-col-num">
+                      <span class="q-option-num-badge" [class.is-correct-num]="isCorrectOption(opt)">
+                        {{ idx + 1 }}
+                      </span>
+                    </td>
+                    <td class="opt-col-text">
+                      <span class="q-option-text-val" [class.is-correct-text]="isCorrectOption(opt)">
+                        {{ opt.option_text || opt.text || opt.answer }}
+                      </span>
+                    </td>
+                    <td class="opt-col-status">
+                      <span *ngIf="isCorrectOption(opt)" class="q-correct-tag-badge">
+                        <mat-icon>check_circle</mat-icon> Correct Answer
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="wa-section-title-wrap">
+                <mat-icon class="wa-sec-icon">analytics</mat-icon>
+                <span>Wrong Answers & Occurrence Analysis:</span>
+              </div>
+
+              <table class="wa-analysis-table">
+                <thead>
+                  <tr>
+                    <th class="wa-col-ans">WRONG ANSWER</th>
+                    <th class="wa-col-cnt">NO. OF TIMES SELECTED</th>
+                    <th class="wa-col-pct">OCCURRENCE %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <ng-container *ngFor="let wa of (filteredWrongAnswers.length ? filteredWrongAnswers : selectedWrongAnswers)">
+                    <tr
+                      class="wa-interactive-row"
+                      [class.wa-row-expanded]="expandedWrongAnswer === wa"
+                      (click)="toggleWrongAnswerResources(selectedQuestionForWrongSummary, wa)"
+                      title="Click to toggle user details for this wrong answer"
+                    >
+                      <td class="wa-col-ans">
+                        <div class="wa-answer-cell">
+                          <mat-icon class="wa-chevron-icon">
+                            {{ expandedWrongAnswer === wa ? 'expand_more' : 'chevron_right' }}
+                          </mat-icon>
+                          <div class="wa-content-col">
+                            <div class="wa-theme-title">
+                              <span class="wa-answer-text">{{ wa.theme_name || wa.answer }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="wa-col-cnt">
+                        <span class="wa-count-badge">{{ wa.count || '-' }}</span>
+                      </td>
+                      <td class="wa-col-pct">{{ wa.pct || '-' }}</td>
+                    </tr>
+
+                    <!-- Inline Expanded Resources Row -->
                     <tr *ngIf="expandedWrongAnswer === wa" class="wa-inline-expansion-row">
                       <td colspan="3">
                         <div class="inline-resources-box">
-                          <!-- Students / Users who selected this wrong answer -->
                           <div class="inline-section-block">
                             <div class="inline-resources-header">
                               <mat-icon class="res-hdr-icon">group</mat-icon>
@@ -2692,10 +2909,6 @@
                                       </span>
                                     </div>
                                     <div class="user-email small-muted" *ngIf="r.email">{{ r.email }}</div>
-                                    <div class="user-submitted-ans" *ngIf="r.written_answer">
-                                      <span class="ans-label">Submitted Response:</span>
-                                      <span class="ans-quote">"{{ r.written_answer }}"</span>
-                                    </div>
                                   </div>
                                 </li>
                               </ul>
@@ -2711,14 +2924,18 @@
                   </ng-container>
                 </tbody>
               </table>
-            <div *ngIf="!selectedWrongAnswers || !selectedWrongAnswers.length" class="muted">
-              No wrong answer data available for this question.
+
+              <div *ngIf="!selectedWrongAnswers || !selectedWrongAnswers.length" class="muted">
+                No wrong answer data available for this question.
+              </div>
             </div>
-          </div>
+          </ng-container>
+
         </div>
       </div>
-      <div class="summary-actions">
-        <button mat-stroked-button color="primary" (click)="closeWrongAnswerSummary()">
+
+      <div class="summary-actions desc-summary-actions">
+        <button mat-stroked-button class="desc-close-btn" (click)="closeWrongAnswerSummary()">
           Close
         </button>
       </div>

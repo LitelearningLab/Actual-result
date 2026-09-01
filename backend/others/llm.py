@@ -152,42 +152,76 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
 
 def analyze_wrong_answers_ai(api_client, question_text, question_type, expected_answer, wrong_answers_list):
     """
-    Analyzes student wrong answers using LLM to provide:
-    - Diagnostic summary of why students made mistakes
-    - Recommendations / remediation points
-    - Semantic clustering of wrong answers into misconception themes with matched answer IDs
+    Analyzes student incorrect/sub-optimal answers using LLM to provide:
+    - Relevance classification: Relevant but Incorrect vs. Completely Irrelevant and Incorrect
+    - Semantic misconception clustering with representative sample answer IDs
+    - Diagnostic summary of why students struggled (pedagogical, without marks/grades)
+    - Actionable recommendations
     """
     if not wrong_answers_list:
         return {
             "status": True,
-            "diagnostic_summary": "No wrong answers recorded for this question.",
+            "diagnostic_summary": "No incorrect answers recorded for this question.",
             "recommendations": "No remediation required.",
+            "categories": {
+                "relevant_but_incorrect": {
+                    "clusters": []
+                },
+                "completely_irrelevant_and_incorrect": {
+                    "answer_ids": []
+                }
+            },
             "clusters": []
         }
 
-    system_message = """You are an expert educational assessment analyst and pedagogical AI.
-Your task is to analyze incorrect student submissions for a specific exam question and generate actionable analytics.
-Always respond ONLY with a single, valid JSON object (no markdown, no surrounding text).
-Follow these guidelines:
-1. Group/cluster all incorrect student answers into meaningful misconception themes or error patterns.
-2. For each theme:
-   - Provide a concise 'theme_name' (e.g., 'Confused Thread with Process', 'Incomplete Exception Handling', 'Synonym/Syntax Variation').
-   - Provide a clear 'explanation' of the core misconception or knowledge gap.
-   - List the 'answer_ids' belonging to this theme (each answer ID from the input must be mapped to exactly one theme).
-3. Provide an executive 'diagnostic_summary' explaining overall student struggle areas.
-4. Provide constructive, actionable 'recommendations' for the instructor on what key topics to re-teach.
+    system_message = """You are an expert educational evaluator, assessment specialist, and pedagogical data analyst.
+Your task is to analyze and validate a batch of student descriptive answers for an online test to identify completely irrelevant responses and deeply analyze relevant but incorrect answers to uncover specific learner misconceptions, enabling targeted corrective action.
+You are NOT grading the answers or assigning marks. Do NOT calculate scores or percentages.
+
+Always respond ONLY with a single, valid JSON object (no markdown formatting, no surrounding text).
+
+Categorize all provided student responses into the following two major categories:
+
+1. "completely_irrelevant_and_incorrect":
+   - Definition: Answers that have absolutely no logical or contextual connection to the question or core topic, or are entirely non-sensical, gibberish, blank, or off-topic.
+   - Requirement: Assign their answer IDs under "answer_ids".
+
+2. "relevant_but_incorrect":
+   - Definition: Answers where the student understood the context or topic of the question but provided incorrect information, flawed logic, or misapplied concepts.
+   - Deep-Dive Misconception Analysis: Dynamically identify the underlying types of misunderstandings (e.g., conceptual confusion, process inversion, calculation errors, vocabulary mismatch, overgeneralisation, missing prerequisite knowledge).
+   - Quantification & Clustering: Group similar incorrect understandings together into cohesive clusters. For each distinct misunderstanding identified:
+     * "theme_name": A short, descriptive name for the specific error/misconception (e.g., "Confusing Labeled vs. Unlabeled Data", "Process Inversion in Model Training").
+     * "explanation": A deep-dive explanation of the specific flawed logic or misconception.
+     * "answer_ids": Array of answer IDs belonging to this cluster. Every relevant answer ID must belong to exactly one cluster.
+     * "sample_answer_ids": 1-2 most representative answer IDs from this cluster.
+
+Pedagogical Synthesis:
+- "diagnostic_summary": A concise executive diagnostic summary highlighting the core patterns of student misunderstandings and conceptual gaps.
+- "recommendations": Concrete, actionable pedagogical recommendations for educators to reinforce these weak areas.
+
+Crucial Rules:
+- Every input answer_id MUST appear in exactly one place (either under one relevant cluster or under completely_irrelevant_and_incorrect).
+- Use only the provided answer IDs. Do NOT invent new IDs or mutate answer text.
 
 Output Format:
 {
-  "diagnostic_summary": "Brief analytical summary of why students struggled...",
-  "recommendations": "Actionable points for instructors to clarify...",
-  "clusters": [
-    {
-      "theme_name": "Short descriptive theme name",
-      "explanation": "Why students made this error and what is misunderstood",
-      "answer_ids": ["id1", "id2"]
+  "diagnostic_summary": "Concise pedagogical summary of student misconception patterns...",
+  "recommendations": "Targeted corrective actions and remediation advice for instructors...",
+  "categories": {
+    "relevant_but_incorrect": {
+      "clusters": [
+        {
+          "theme_name": "Short descriptive misconception label",
+          "explanation": "Deep-dive pedagogical explanation of the specific error or misconception",
+          "answer_ids": ["id1", "id2"],
+          "sample_answer_ids": ["id1"]
+        }
+      ]
+    },
+    "completely_irrelevant_and_incorrect": {
+      "answer_ids": ["id3"]
     }
-  ]
+  }
 }"""
 
     # Prepare sanitized input payload
@@ -200,15 +234,15 @@ Output Format:
 
     user_message = f"""Question Type: {question_type}
 Question: {question_text}
-Expected / Correct Answer: {expected_answer}
+Expected / Rubric Key Points: {expected_answer}
 
-Incorrect Student Submissions to Analyze:
+Incorrect Student Submissions to Analyze ({len(items)} submissions):
 {json.dumps(items, ensure_ascii=False, indent=2)}
 
-Please cluster these incorrect submissions into distinct misconception themes and provide the analytical diagnostic summary and recommendations."""
+Please classify relevance, cluster misconceptions, and provide the diagnostic summary."""
 
     try:
-        response = api_client.chat_completion(system_message, user_message, max_tokens=3000, temperature=0.2)
+        response = api_client.chat_completion(system_message, user_message, max_tokens=3500, temperature=0.2)
         response_json = response.json()
         if response.status_code != 200:
             return {"status": False, "error": response_json.get("error", "AI service returned error")}
@@ -221,11 +255,28 @@ Please cluster these incorrect submissions into distinct misconception themes an
             result_text = result_text.strip()
 
         parsed = json.loads(result_text)
+        
+        # Normalize and ensure categories structure
+        categories = parsed.get("categories") or {}
+        rel_cat = categories.get("relevant_but_incorrect") or {}
+        irrel_cat = categories.get("completely_irrelevant_and_incorrect") or {}
+        
+        rel_clusters = rel_cat.get("clusters") or parsed.get("clusters") or []
+        irrel_answer_ids = irrel_cat.get("answer_ids") or []
+
         return {
             "status": True,
             "diagnostic_summary": parsed.get("diagnostic_summary", ""),
             "recommendations": parsed.get("recommendations", ""),
-            "clusters": parsed.get("clusters", [])
+            "categories": {
+                "relevant_but_incorrect": {
+                    "clusters": rel_clusters
+                },
+                "completely_irrelevant_and_incorrect": {
+                    "answer_ids": irrel_answer_ids
+                }
+            },
+            "clusters": rel_clusters
         }
     except Exception as e:
         print(f"Error in analyze_wrong_answers_ai: {str(e)} - Line # : {getattr(e, '__traceback__', None) and e.__traceback__.tb_lineno}")
@@ -234,6 +285,14 @@ Please cluster these incorrect submissions into distinct misconception themes an
             "error": str(e),
             "diagnostic_summary": "Automatic AI analysis could not be generated at this time.",
             "recommendations": "Review individual student answers manually.",
+            "categories": {
+                "relevant_but_incorrect": {
+                    "clusters": []
+                },
+                "completely_irrelevant_and_incorrect": {
+                    "answer_ids": []
+                }
+            },
             "clusters": []
         }
 

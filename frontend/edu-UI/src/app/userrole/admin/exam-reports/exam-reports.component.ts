@@ -115,6 +115,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   selectedWrongCombinations: any[] = [];
   aiInsights: { diagnostic_summary?: string; recommendations?: string } | null = null;
   aiClusters: any[] = [];
+  descriptiveAnalysisData: any = null;
+  expandedDescriptiveCategories: { [key: string]: boolean } = { 'relevant_but_incorrect': true, 'completely_irrelevant_and_incorrect': false };
+  expandedDescriptiveClusters: { [key: string]: boolean } = {};
+  expandedDescriptiveStudents: { [key: string]: boolean } = {};
   // resources modal state
   showResourcePanel = false;
   selectedResources: Array<{
@@ -3231,6 +3235,23 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           } else {
             this.aiClusters = [];
           }
+          if (payload?.descriptive_analysis) {
+            this.descriptiveAnalysisData = payload.descriptive_analysis;
+            this.expandedDescriptiveCategories = {
+              'relevant_but_incorrect': true,
+              'completely_irrelevant_and_incorrect': false
+            };
+            const relCat = (this.descriptiveAnalysisData.categories || []).find((c: any) => c.key === 'relevant_but_incorrect');
+            if (relCat && relCat.clusters && relCat.clusters.length > 0) {
+              this.expandedDescriptiveClusters = {
+                [relCat.clusters[0].cluster_id]: true
+              };
+            } else {
+              this.expandedDescriptiveClusters = {};
+            }
+          } else {
+            this.descriptiveAnalysisData = null;
+          }
           if (Array.isArray(payload?.combinations)) {
             this.selectedWrongCombinations = payload.combinations;
           } else {
@@ -3297,15 +3318,129 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.selectedWrongCombinations = [];
     this.aiInsights = null;
     this.aiClusters = [];
+    this.descriptiveAnalysisData = null;
+    this.expandedDescriptiveCategories = {};
+    this.expandedDescriptiveClusters = {};
+    this.expandedDescriptiveStudents = {};
     this.expandedWrongAnswer = null;
     this.expandedResources = [];
     this.wrongAnswerResourcesLoading = false;
+  }
+
+  toggleDescriptiveCategory(catKey: string) {
+    this.expandedDescriptiveCategories[catKey] = !this.expandedDescriptiveCategories[catKey];
+  }
+
+  isDescriptiveCategoryExpanded(catKey: string): boolean {
+    return !!this.expandedDescriptiveCategories[catKey];
+  }
+
+  toggleDescriptiveCluster(clusterId: string) {
+    this.expandedDescriptiveClusters[clusterId] = !this.expandedDescriptiveClusters[clusterId];
+  }
+
+  isDescriptiveClusterExpanded(clusterId: string): boolean {
+    return !!this.expandedDescriptiveClusters[clusterId];
+  }
+
+  toggleDescriptiveStudents(idKey: string) {
+    this.expandedDescriptiveStudents[idKey] = !this.expandedDescriptiveStudents[idKey];
+  }
+
+  isDescriptiveStudentsExpanded(idKey: string): boolean {
+    return !!this.expandedDescriptiveStudents[idKey];
+  }
+
+  isDescriptiveQuestion(question?: any): boolean {
+    const q = question || this.selectedQuestionForWrongSummary;
+    if (!q) return false;
+    const qType = String(
+      q.question_type ||
+      q.questionType ||
+      q.answer_type ||
+      q.type ||
+      ''
+    ).trim().toLowerCase();
+
+    return (
+      qType === 'descriptive' ||
+      qType === 'description' ||
+      qType === 'subjective' ||
+      qType === 'essay' ||
+      qType === 'paragraph' ||
+      qType === 'fill' ||
+      qType.includes('descript') ||
+      qType.includes('subjective') ||
+      qType.includes('essay') ||
+      qType.includes('fill')
+    );
+  }
+
+  getQuestionTypeLabel(question?: any): string {
+    const q = question || this.selectedQuestionForWrongSummary;
+    if (!q) return 'descriptive';
+    const qType = String(
+      q.question_type ||
+      q.questionType ||
+      q.answer_type ||
+      q.type ||
+      ''
+    ).trim().toLowerCase();
+
+    if (qType === 'fill' || qType.includes('fill')) {
+      return 'fill in the blanks';
+    }
+    if (qType === 'descriptive' || qType.includes('descript') || qType === 'subjective' || qType === 'essay' || qType === 'paragraph') {
+      return 'descriptive';
+    }
+    if (qType === 'multi' || qType.includes('multi')) {
+      return 'multiple';
+    }
+    if (qType === 'single' || qType === 'choose' || qType.includes('choice')) {
+      return 'single';
+    }
+    return q.question_type || q.answer_type || q.type || 'descriptive';
+  }
+
+  getDescriptiveModalTitle(question?: any): string {
+    const q = question || this.selectedQuestionForWrongSummary;
+    const qType = String(
+      q?.question_type ||
+      q?.questionType ||
+      q?.answer_type ||
+      q?.type ||
+      ''
+    ).trim().toLowerCase();
+
+    if (qType === 'fill' || qType.includes('fill')) {
+      return 'Fill in the Blanks Answer Analysis & Occurrence Breakdown';
+    }
+    return 'Descriptive Answer Analysis & Occurrence Breakdown';
   }
 
   isCorrectOption(opt: any): boolean {
     if (!opt) return false;
     const val = opt.is_correct;
     return val === 1 || val === '1' || val === true || String(val).toLowerCase() === 'true';
+  }
+
+  getCorrectAnswerText(): string {
+    if (!this.selectedQuestionForWrongSummary) return '';
+    const opts = this.selectedQuestionForWrongSummary.options || [];
+    const correctOpt = opts.find((o: any) => this.isCorrectOption(o));
+    if (correctOpt) {
+      return (correctOpt.option_text || correctOpt.text || correctOpt.answer || '').trim();
+    }
+    if (opts.length > 0) {
+      return (opts[0].option_text || opts[0].text || opts[0].answer || '').trim();
+    }
+    return (
+      this.selectedQuestionForWrongSummary.expected_answer ||
+      this.selectedQuestionForWrongSummary.expected_answer_text ||
+      this.selectedQuestionForWrongSummary.correct_answer ||
+      this.selectedQuestionForWrongSummary.answer ||
+      ''
+    ).trim();
   }
 
   get filteredWrongAnswers(): any[] {

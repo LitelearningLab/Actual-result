@@ -1017,6 +1017,7 @@ def get_question_wrong_answers(request):
         # --- AI Analytics & Misconception Clustering for Fill & Descriptive Questions ---
         ai_insights = None
         ai_clusters = []
+        descriptive_analysis = None
         is_text_question = raw_qtype in ['fill', 'descriptive', 'description', 'subjective', 'essay', 'paragraph']
 
         if is_text_question and wrong_ans_records:
@@ -1031,20 +1032,85 @@ def get_question_wrong_answers(request):
 
             wrong_items = []
             answer_map = {}
+            user_ids_set = set()
+            attempt_ids_set = set()
+
             for a in wrong_ans_records:
+                aid = str(a.answer_id)
+                uid = str(a.user_id) if a.user_id is not None else ""
+                att_id = str(a.attempt_id) if a.attempt_id is not None else ""
                 w_txt = (a.written_answer or "").strip()
-                if w_txt:
-                    aid = str(a.answer_id)
-                    wrong_items.append({
-                        "answer_id": aid,
-                        "user_id": str(a.user_id),
-                        "written_answer": w_txt
-                    })
-                    answer_map[aid] = {
-                        "answer_id": aid,
-                        "user_id": str(a.user_id),
-                        "written_answer": w_txt
-                    }
+
+                wrong_items.append({
+                    "answer_id": aid,
+                    "user_id": uid,
+                    "attempt_id": att_id,
+                    "written_answer": w_txt
+                })
+                answer_map[aid] = {
+                    "answer_id": aid,
+                    "user_id": uid,
+                    "attempt_id": att_id,
+                    "written_answer": w_txt
+                }
+                if uid:
+                    user_ids_set.add(uid)
+                if att_id:
+                    attempt_ids_set.add(att_id)
+
+            # Pre-fetch users and attempts for instant roster expansion
+            users_db = session.query(User).filter(User.user_id.in_(list(user_ids_set))).all() if user_ids_set else []
+            user_info_map = {}
+            for u in users_db:
+                u_k = str(u.user_id).strip().lower()
+                user_info_map[u_k] = {
+                    "user_id": str(u.user_id).strip(),
+                    "full_name": u.full_name or u.username or "Student",
+                    "email": u.email or ""
+                }
+
+            # Query all attempts for these users ordered chronologically by start date
+            user_attempts_db = session.query(Exam_Attempt).filter(
+                Exam_Attempt.user_id.in_(list(user_ids_set))
+            ).order_by(Exam_Attempt.user_id, Exam_Attempt.started_date.asc(), Exam_Attempt.attempt_number.asc()).all() if user_ids_set else []
+
+            # Assign accurate attempt numbers per user (using attempt_number or chronological sequence)
+            user_attempt_seq = {}
+            attempt_num_map = {}
+            for att in user_attempts_db:
+                uk = str(att.user_id).strip().lower()
+                user_attempt_seq[uk] = user_attempt_seq.get(uk, 0) + 1
+                seq_num = att.attempt_number if (att.attempt_number is not None and att.attempt_number > 0) else user_attempt_seq[uk]
+                ak = str(att.attempt_id).strip().lower()
+                attempt_num_map[ak] = f"Attempt {seq_num}"
+
+            def build_student_obj(aid):
+                ans_item = answer_map.get(str(aid), {})
+                uid = ans_item.get("user_id", "")
+                att_id = ans_item.get("attempt_id", "")
+                uid_clean = str(uid).strip().lower()
+                att_clean = str(att_id).strip().lower()
+                u_info = user_info_map.get(uid_clean, {
+                    "user_id": uid,
+                    "full_name": "Student",
+                    "email": ""
+                })
+                att_label = attempt_num_map.get(att_clean)
+                if not att_label:
+                    att_label = "Attempt 1"
+                return {
+                    "user_id": uid,
+                    "full_name": u_info.get("full_name", "Student"),
+                    "name": u_info.get("full_name", "Student"),
+                    "email": u_info.get("email", ""),
+                    "attempt_id": att_id,
+                    "attempts": att_label,
+                    "answer_id": aid,
+                    "written_answer": ans_item.get("written_answer", "")
+                }
+
+            total_incorrect_submissions = len(wrong_items)
+            denom = total_incorrect_submissions if total_incorrect_submissions > 0 else 1
 
             if wrong_items:
                 try:
@@ -1057,70 +1123,238 @@ def get_question_wrong_answers(request):
                         wrong_items
                     )
                     if ai_res.get('status'):
+                        diag_summary = ai_res.get("diagnostic_summary", "")
+                        rec_text = ai_res.get("recommendations", "")
                         ai_insights = {
-                            "diagnostic_summary": ai_res.get("diagnostic_summary", ""),
-                            "recommendations": ai_res.get("recommendations", "")
+                            "diagnostic_summary": diag_summary,
+                            "recommendations": rec_text
                         }
-                        raw_clusters = ai_res.get("clusters", [])
+
+                        categories_dict = ai_res.get("categories") or {}
+                        raw_rel_cat = categories_dict.get("relevant_but_incorrect") or {}
+                        raw_irrel_cat = categories_dict.get("completely_irrelevant_and_incorrect") or {}
+
+                        raw_clusters = raw_rel_cat.get("clusters") or ai_res.get("clusters") or []
+                        raw_irrel_aids = raw_irrel_cat.get("answer_ids") or []
+
                         assigned_aids = set()
+                        rel_clusters_formatted = []
+
                         for c_idx, cl in enumerate(raw_clusters, 1):
-                            c_aids = [str(x) for x in cl.get("answer_ids", []) if str(x) in answer_map]
+                            c_aids = [str(x) for x in cl.get("answer_ids", []) if str(x) in answer_map and str(x) not in assigned_aids]
+                            if not c_aids:
+                                continue
                             assigned_aids.update(c_aids)
-                            c_count = len(c_aids) if c_aids else 1
-                            c_pct = round((c_count / total_wrong_attempts) * 100, 2)
+                            c_count = len(c_aids)
+                            c_pct = round((c_count / denom) * 100, 2)
+
+                            # Retrieve real student sample responses
+                            sample_ids = [str(x) for x in cl.get("sample_answer_ids", []) if str(x) in c_aids]
+                            if not sample_ids:
+                                sample_ids = c_aids[:2]
                             samples = []
-                            for aid in c_aids:
-                                w_ans = answer_map.get(aid, {}).get("written_answer")
+                            for sid in sample_ids:
+                                w_ans = answer_map.get(sid, {}).get("written_answer")
                                 if w_ans and w_ans not in samples:
                                     samples.append(w_ans)
-                            ai_clusters.append({
+                            if not samples:
+                                for aid in c_aids[:2]:
+                                    w_ans = answer_map.get(aid, {}).get("written_answer")
+                                    if w_ans and w_ans not in samples:
+                                        samples.append(w_ans)
+
+                            cluster_students = [build_student_obj(aid) for aid in c_aids]
+
+                            rel_clusters_formatted.append({
                                 'cluster_id': f"cluster_{c_idx}",
                                 'theme_name': cl.get("theme_name", f"Misconception Theme {c_idx}"),
                                 'explanation': cl.get("explanation", ""),
                                 'answer_ids': c_aids,
-                                'samples': samples[:3],
+                                'sample_answer_ids': sample_ids,
+                                'samples': samples,
+                                'sample_answers': [{'answer_id': sid, 'answer_text': answer_map.get(sid, {}).get("written_answer", "")} for sid in sample_ids],
                                 'count': c_count,
+                                'student_count': c_count,
                                 'percentage': c_pct,
-                                'pct': f"{c_pct}%"
+                                'occurrence_percentage': c_pct,
+                                'pct': f"{c_pct}%",
+                                'students': cluster_students
                             })
 
-                        # Catch any unassigned answers into a fallback group
+                        # Irrelevant answers
+                        irrel_aids = [str(x) for x in raw_irrel_aids if str(x) in answer_map and str(x) not in assigned_aids]
+                        assigned_aids.update(irrel_aids)
+
+                        # Check unassigned answers
                         unassigned = [aid for aid in answer_map if aid not in assigned_aids]
                         if unassigned:
-                            u_count = len(unassigned)
-                            u_pct = round((u_count / total_wrong_attempts) * 100, 2)
-                            u_samples = [answer_map[aid]["written_answer"] for aid in unassigned[:3]]
-                            ai_clusters.append({
-                                'cluster_id': f"cluster_misc",
-                                'theme_name': "Other Variations / Incomplete Responses",
-                                'explanation': "Individual variations, alternative phrasing, or incomplete submissions.",
-                                'answer_ids': unassigned,
-                                'samples': u_samples,
-                                'count': u_count,
-                                'percentage': u_pct,
-                                'pct': f"{u_pct}%"
-                            })
+                            # Classify empty or pure whitespace/nonsense into irrelevant, others into a fallback theme
+                            unassigned_irrel = []
+                            unassigned_rel = []
+                            for aid in unassigned:
+                                w_txt = answer_map[aid]["written_answer"]
+                                if not w_txt or len(w_txt.strip()) < 3:
+                                    unassigned_irrel.append(aid)
+                                else:
+                                    unassigned_rel.append(aid)
+
+                            if unassigned_irrel:
+                                irrel_aids.extend(unassigned_irrel)
+                                assigned_aids.update(unassigned_irrel)
+
+                            if unassigned_rel:
+                                assigned_aids.update(unassigned_rel)
+                                u_count = len(unassigned_rel)
+                                u_pct = round((u_count / denom) * 100, 2)
+                                u_samples = [answer_map[aid]["written_answer"] for aid in unassigned_rel[:2] if answer_map[aid]["written_answer"]]
+                                rel_clusters_formatted.append({
+                                    'cluster_id': "cluster_misc",
+                                    'theme_name': "Other Student Response Variations",
+                                    'explanation': "Individual phrasing variations or partially addressed points.",
+                                    'answer_ids': unassigned_rel,
+                                    'sample_answer_ids': unassigned_rel[:2],
+                                    'samples': u_samples,
+                                    'sample_answers': [{'answer_id': aid, 'answer_text': answer_map.get(aid, {}).get("written_answer", "")} for aid in unassigned_rel[:2]],
+                                    'count': u_count,
+                                    'student_count': u_count,
+                                    'percentage': u_pct,
+                                    'occurrence_percentage': u_pct,
+                                    'pct': f"{u_pct}%",
+                                    'students': [build_student_obj(aid) for aid in unassigned_rel]
+                                })
+
+                        # Compute top-level category metrics
+                        rel_total_count = sum(c['student_count'] for c in rel_clusters_formatted)
+                        rel_total_pct = round((rel_total_count / denom) * 100, 2) if denom > 0 else 0
+
+                        irrel_count = len(irrel_aids)
+                        irrel_pct = round((irrel_count / denom) * 100, 2) if denom > 0 else 0
+                        irrel_samples = [answer_map[aid]["written_answer"] for aid in irrel_aids[:3] if answer_map.get(aid, {}).get("written_answer")]
+                        irrel_students = [build_student_obj(aid) for aid in irrel_aids]
+
+                        descriptive_analysis = {
+                            "status": True,
+                            "question": {
+                                "question_id": str(target_qid),
+                                "question_text": getattr(qobj, 'question_text', '') or '',
+                                "category_name": cat_name or 'Descriptive Question Bank',
+                                "question_type": q_type
+                            },
+                            "summary": {
+                                "total_attempts": total_attempts,
+                                "total_incorrect": total_incorrect_submissions
+                            },
+                            "diagnostic_summary": diag_summary,
+                            "recommendations": rec_text,
+                            "categories": [
+                                {
+                                    "key": "relevant_but_incorrect",
+                                    "name": "Relevant but Incorrect Answers",
+                                    "student_count": rel_total_count,
+                                    "occurrence_percentage": rel_total_pct,
+                                    "pct": f"{rel_total_pct}%",
+                                    "clusters": rel_clusters_formatted
+                                },
+                                {
+                                    "key": "completely_irrelevant_and_incorrect",
+                                    "name": "Completely Irrelevant and Incorrect Answers",
+                                    "student_count": irrel_count,
+                                    "occurrence_percentage": irrel_pct,
+                                    "pct": f"{irrel_pct}%",
+                                    "sample_answers": [{'answer_id': aid, 'answer_text': answer_map.get(aid, {}).get("written_answer", "")} for aid in irrel_aids[:3]],
+                                    "samples": irrel_samples,
+                                    "answer_ids": irrel_aids,
+                                    "students": irrel_students,
+                                    "clusters": []
+                                }
+                            ]
+                        }
+                        ai_clusters = rel_clusters_formatted
+
                 except Exception as ai_err:
                     print(f"Error executing AI wrong answer analysis: {ai_err}")
 
-            # Fallback clusters if AI was unavailable
-            if not ai_clusters and raw_list:
-                for r_idx, r in enumerate(raw_list, 1):
-                    ai_clusters.append({
-                        'cluster_id': f"cluster_{r_idx}",
-                        'theme_name': r.get('text', 'Submitted Answer')[:60] + ('...' if len(r.get('text', '')) > 60 else ''),
-                        'explanation': 'Student submission variation.',
-                        'answer_ids': [str(a.answer_id) for a in wrong_ans_records if (a.written_answer or '').strip() == (r.get('text') or '').strip()],
-                        'samples': [r.get('text', '')],
-                        'count': r.get('count', 1),
-                        'percentage': r.get('percentage', 0),
-                        'pct': r.get('pct', '0%')
+            # Fallback if AI was unavailable or returned empty
+            if not descriptive_analysis and wrong_items:
+                irrel_aids = []
+                rel_groups = {}
+                for item in wrong_items:
+                    aid = item["answer_id"]
+                    txt = item["written_answer"].strip()
+                    if not txt or len(txt) < 3:
+                        irrel_aids.append(aid)
+                    else:
+                        rel_groups.setdefault(txt[:80], []).append(aid)
+
+                fallback_clusters = []
+                for c_idx, (g_txt, g_aids) in enumerate(rel_groups.items(), 1):
+                    g_count = len(g_aids)
+                    g_pct = round((g_count / denom) * 100, 2)
+                    fallback_clusters.append({
+                        'cluster_id': f"cluster_{c_idx}",
+                        'theme_name': f"Response Pattern {c_idx}: " + (g_txt if len(g_txt) <= 50 else g_txt[:50] + '...'),
+                        'explanation': "Student submitted response variation.",
+                        'answer_ids': g_aids,
+                        'sample_answer_ids': g_aids[:2],
+                        'samples': [answer_map[g_aids[0]]["written_answer"]],
+                        'sample_answers': [{'answer_id': g_aids[0], 'answer_text': answer_map[g_aids[0]]["written_answer"]}],
+                        'count': g_count,
+                        'student_count': g_count,
+                        'percentage': g_pct,
+                        'occurrence_percentage': g_pct,
+                        'pct': f"{g_pct}%",
+                        'students': [build_student_obj(aid) for aid in g_aids]
                     })
-                if not ai_insights:
-                    ai_insights = {
-                        "diagnostic_summary": f"Identified {len(raw_list)} variation(s) across {question_details.get('mistakes', 0)} incorrect student response(s).",
-                        "recommendations": "Review student responses against the expected answer key points."
-                    }
+
+                rel_count = sum(c['student_count'] for c in fallback_clusters)
+                rel_pct = round((rel_count / denom) * 100, 2)
+                irrel_count = len(irrel_aids)
+                irrel_pct = round((irrel_count / denom) * 100, 2)
+
+                ai_insights = {
+                    "diagnostic_summary": f"Identified patterns across {total_incorrect_submissions} incorrect student response(s). (Deterministic grouping)",
+                    "recommendations": "Review student responses against the expected answer key points."
+                }
+                ai_clusters = fallback_clusters
+
+                descriptive_analysis = {
+                    "status": True,
+                    "is_fallback": True,
+                    "question": {
+                        "question_id": str(target_qid),
+                        "question_text": getattr(qobj, 'question_text', '') or '',
+                        "category_name": cat_name or 'Descriptive Question Bank',
+                        "question_type": q_type
+                    },
+                    "summary": {
+                        "total_attempts": total_attempts,
+                        "total_incorrect": total_incorrect_submissions
+                    },
+                    "diagnostic_summary": ai_insights["diagnostic_summary"],
+                    "recommendations": ai_insights["recommendations"],
+                    "categories": [
+                        {
+                            "key": "relevant_but_incorrect",
+                            "name": "Relevant but Incorrect Answers",
+                            "student_count": rel_count,
+                            "occurrence_percentage": rel_pct,
+                            "pct": f"{rel_pct}%",
+                            "clusters": fallback_clusters
+                        },
+                        {
+                            "key": "completely_irrelevant_and_incorrect",
+                            "name": "Completely Irrelevant and Incorrect Answers",
+                            "student_count": irrel_count,
+                            "occurrence_percentage": irrel_pct,
+                            "pct": f"{irrel_pct}%",
+                            "sample_answers": [{'answer_id': aid, 'answer_text': answer_map.get(aid, {}).get("written_answer", "")} for aid in irrel_aids[:3]],
+                            "samples": [answer_map[aid]["written_answer"] for aid in irrel_aids[:3] if answer_map.get(aid, {}).get("written_answer")],
+                            "answer_ids": irrel_aids,
+                            "students": [build_student_obj(aid) for aid in irrel_aids],
+                            "clusters": []
+                        }
+                    ]
+                }
 
         return {
             'statusMessage': 'Question wrong answers retrieved',
@@ -1132,7 +1366,8 @@ def get_question_wrong_answers(request):
                 'raw': raw_list,
                 'combinations': combinations_list,
                 'ai_insights': ai_insights,
-                'ai_clusters': ai_clusters
+                'ai_clusters': ai_clusters,
+                'descriptive_analysis': descriptive_analysis
             }
         }, 200
     except Exception as e:
