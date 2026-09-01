@@ -457,7 +457,15 @@ def get_user_wise_report(request):
                 if not user_att_ids and user_attempts:
                     user_att_ids = [a.attempt_id for a in user_attempts if a.attempt_id]
 
-                if user_att_ids:
+                ans_ids = [a.answer_id for a in answers if getattr(a, 'answer_id', None)]
+
+                has_history = False
+                if ans_ids:
+                    has_history = session.query(MarksHistory).filter(
+                        MarksHistory.answer_id.in_(ans_ids),
+                        (MarksHistory.source == 'manual') | (MarksHistory.edit_reason.isnot(None) & (MarksHistory.edit_reason != ''))
+                    ).first() is not None
+                elif user_att_ids:
                     has_history = session.query(MarksHistory).join(
                         Answer, MarksHistory.answer_id == Answer.answer_id
                     ).filter(
@@ -465,24 +473,25 @@ def get_user_wise_report(request):
                         (MarksHistory.source == 'manual') | (MarksHistory.edit_reason.isnot(None) & (MarksHistory.edit_reason != ''))
                     ).first() is not None
 
+                has_comments = False
+                if user_att_ids:
                     has_comments = session.query(ExamReviewComments).filter(
                         ExamReviewComments.attempt_id.in_(user_att_ids),
-                        ExamReviewComments.comment.isnot(None),
-                        ExamReviewComments.comment != ''
+                        ExamReviewComments.comment_text.isnot(None),
+                        ExamReviewComments.comment_text != ''
                     ).first() is not None
 
-                    has_ans_manual = any(
-                        bool((getattr(a, 'edit_reason', None) and str(a.edit_reason).strip()) or getattr(a, 'manual_review_required', 0) == 1)
-                        for a in answers
+                has_ans_manual = any(
+                    bool(
+                        (getattr(a, 'edit_reason', None) and str(a.edit_reason).strip()) or
+                        getattr(a, 'manual_review_required', 0) == 1 or
+                        getattr(a, 'manual_marks', None) is not None
                     )
+                    for a in answers
+                )
 
-                    if has_history or has_comments or has_ans_manual:
-                        has_manual_review = True
-                elif answers:
-                    has_manual_review = any(
-                        bool((getattr(a, 'edit_reason', None) and str(a.edit_reason).strip()) or getattr(a, 'manual_review_required', 0) == 1)
-                        for a in answers
-                    )
+                if has_history or has_comments or has_ans_manual:
+                    has_manual_review = True
             except Exception as ex:
                 print(f"[get_user_report] Error checking manual review: {ex}")
                 has_manual_review = False
@@ -503,7 +512,8 @@ def get_user_wise_report(request):
                 'retest_percentage': round(retest_pct, 2) if retest_pct is not None else None,
                 'retest_date': retest_date_str,
                 'retest_result': retest_result,
-                'manual_review': 'Manual Review' if has_manual_review else None
+                'manual_review': 'Manual Review' if has_manual_review else None,
+                'has_manual_review': has_manual_review
             })
 
         if q:
