@@ -232,11 +232,18 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       const wrapper = this.exam?.data ? this.exam.data : this.exam;
       const examDetail = wrapper?.exam_detail || wrapper || {};
       examDetail.saved_answers = { ...this.answers };
+      examDetail.remaining_seconds = this.remaining;
       if (this.exam.data && this.exam.data !== examDetail) {
         this.exam.data.saved_answers = { ...this.answers };
+        this.exam.data.remaining_seconds = this.remaining;
+        this.exam.data.test_end_time = examDetail.test_end_time;
+        this.exam.data.test_start_time = examDetail.test_start_time;
       }
       this.exam.saved_answers = { ...this.answers };
       this.exam.answers = { ...this.answers };
+      this.exam.remaining_seconds = this.remaining;
+      this.exam.test_end_time = examDetail.test_end_time;
+      this.exam.test_start_time = examDetail.test_start_time;
 
       sessionStorage.setItem('launched_exam', JSON.stringify(this.exam));
       if (this.attempt_id) {
@@ -342,24 +349,34 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       }
 
       const now = Date.now();
-      const serverRemSec = (examDetail?.remaining_seconds !== undefined && examDetail?.remaining_seconds !== null)
-        ? Math.max(0, Math.floor(Number(examDetail.remaining_seconds)))
-        : null;
+      const existingEndTime = Number(examDetail?.test_end_time || (localState?.test_end_time && Number(localState.test_end_time) > now ? localState.test_end_time : null));
 
-      // When starting fresh or continuing a paused test, initialize remaining time
-      if (serverRemSec !== null) {
-        this.remaining = serverRemSec;
-      } else if (localState?.remaining_seconds !== undefined && localState?.remaining_seconds !== null) {
-        this.remaining = Math.max(0, Math.floor(Number(localState.remaining_seconds)));
+      if (existingEndTime && !isNaN(existingEndTime) && existingEndTime > 0) {
+        // Page was refreshed during an active session -> continue from saved end time
+        this.remaining = Math.max(0, Math.floor((existingEndTime - now) / 1000));
+        examDetail.test_end_time = existingEndTime;
+        examDetail.test_start_time = examDetail.test_start_time || localState?.test_start_time || (existingEndTime - (this.totalSeconds * 1000));
       } else {
-        this.remaining = this.totalSeconds;
+        // Fresh start or newly resumed test -> initialize remaining seconds and calculate new end time
+        const serverRemSec = (examDetail?.remaining_seconds !== undefined && examDetail?.remaining_seconds !== null)
+          ? Math.max(0, Math.floor(Number(examDetail.remaining_seconds)))
+          : null;
+
+        if (serverRemSec !== null) {
+          this.remaining = serverRemSec;
+        } else if (localState?.remaining_seconds !== undefined && localState?.remaining_seconds !== null) {
+          this.remaining = Math.max(0, Math.floor(Number(localState.remaining_seconds)));
+        } else {
+          this.remaining = this.totalSeconds;
+        }
+
+        const endTime = now + (this.remaining * 1000);
+        const startTime = endTime - (this.totalSeconds * 1000);
+
+        examDetail.test_start_time = startTime;
+        examDetail.test_end_time = endTime;
       }
 
-      const endTime = now + (this.remaining * 1000);
-      const startTime = endTime - (this.totalSeconds * 1000);
-
-      examDetail.test_start_time = startTime;
-      examDetail.test_end_time = endTime;
       examDetail.remaining_seconds = this.remaining;
       this.persistExamState();
 
