@@ -606,8 +606,7 @@
                               <div class="opt-badge">
                                  <span *ngIf="isOptionSelected(q,opt)" class="badge"
                                     [ngClass]="isOptionCorrect(opt) ? 'correct' : 'your-answer'">Your Answer</span>
-                                 <span *ngIf="isOptionCorrect(opt)" class="badge"
-                                    [ngClass]="isOptionSelected(q,opt) ? 'correct' : 'missed'">Correct Answer</span>
+                                 <span *ngIf="isOptionCorrect(opt)" class="badge correct">Correct Answer</span>
                               </div>
                            </div>
                         </div>
