@@ -1050,10 +1050,27 @@ def submit_exam_answers(data):
         exam_attempt = (
             session.query(Exam_Attempt).filter_by(attempt_id=attempt_id).first()
         )
-        if exam_attempt:
-            exam_attempt.submitted_date = submitted_date
-            exam_attempt.status = "submitted"
-            session.commit()
+        if not exam_attempt:
+            session.close()
+            return {"statusMessage": "Attempt not found", "status": False}, 404
+        if exam_attempt.status in ("submitted", "evaluated"):
+            session.close()
+            return {
+                "statusMessage": "Exam attempt has already been submitted",
+                "status": False,
+                "errorCode": "ALREADY_SUBMITTED",
+            }, 400
+        if exam_attempt.status != "in_progress":
+            session.close()
+            return {
+                "statusMessage": "Exam attempt is not in progress",
+                "status": False,
+                "errorCode": "INVALID_ATTEMPT_STATUS",
+            }, 400
+
+        exam_attempt.submitted_date = submitted_date
+        exam_attempt.status = "submitted"
+        session.commit()
 
         for question_id, answer_value in answers.items():
             if isinstance(answer_value, list):

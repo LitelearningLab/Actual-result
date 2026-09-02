@@ -1826,6 +1826,23 @@ def submit_exam_answers(data, authenticated_user_id=None):
         ):
             session.close()
             return {"statusMessage": "Attempt not found", "status": False}, 404
+
+        if exam_attempt.status in ("submitted", "evaluated"):
+            session.close()
+            return {
+                "statusMessage": "Exam attempt has already been submitted",
+                "status": False,
+                "errorCode": "ALREADY_SUBMITTED",
+            }, 400
+
+        if exam_attempt.status != "in_progress":
+            session.close()
+            return {
+                "statusMessage": "Exam attempt is not in progress",
+                "status": False,
+                "errorCode": "INVALID_ATTEMPT_STATUS",
+            }, 400
+
         # The authenticated attempt is authoritative; client identifiers are compatibility hints only.
         user_id = exam_attempt.user_id
         attempt_schedule_id = exam_attempt.schedule_id
