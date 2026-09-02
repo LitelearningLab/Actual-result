@@ -120,28 +120,9 @@ def normalize_global_scope_request():
                 pass
 
     return None
-# Initialize JWT Validator
-def initialize_jwt_validator(request):
-    jwt_validator = JWTValidator(jwt_secret)
-    return jwt_validator.token_validation(request)
-
-def jwt_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if request.method == 'OPTIONS':
-            return jsonify({}), 200
-        # return f(*args, **kwargs)
-        validation_result = initialize_jwt_validator(request)
-        if validation_result != "Access granted":
-            return jsonify({"status": False, "statusMessage": validation_result}), 401
-        scope_result = normalize_global_scope_request()
-        if scope_result is not None:
-            return scope_result
-   
-        return f(*args, **kwargs)
-    return decorated_function
-
 def get_current_user_from_request():
+    if hasattr(g, 'current_user') and g.current_user is not None:
+        return g.current_user
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return None
@@ -155,7 +136,9 @@ def get_current_user_from_request():
         session = db.connect()
         if not session:
             return None
-        return session.query(User).filter_by(email=email).first()
+        user = session.query(User).filter_by(email=email).first()
+        g.current_user = user
+        return user
     except Exception:
         return None
 
@@ -167,6 +150,60 @@ def is_admin(user):
     role = str(getattr(user, "user_role", "") or "").lower()
     return role in ("admin", "super_admin", "superadmin", "super-admin")
 
+# Initialize JWT Validator
+def initialize_jwt_validator(request):
+    jwt_validator = JWTValidator(jwt_secret)
+    return jwt_validator.token_validation(request)
+
+def jwt_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            return jsonify({}), 200
+        validation_result = initialize_jwt_validator(request)
+        if validation_result != "Access granted":
+            return jsonify({"status": False, "statusMessage": validation_result}), 401
+        scope_result = normalize_global_scope_request()
+        if scope_result is not None:
+            return scope_result
+   
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            return jsonify({}), 200
+        validation_result = initialize_jwt_validator(request)
+        if validation_result != "Access granted":
+            return jsonify({"status": False, "statusMessage": validation_result}), 401
+        scope_result = normalize_global_scope_request()
+        if scope_result is not None:
+            return scope_result
+        current_user = get_current_user_from_request()
+        if not current_user or not is_admin(current_user):
+            return jsonify({"status": False, "statusMessage": "Admin access required"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+def super_admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            return jsonify({}), 200
+        validation_result = initialize_jwt_validator(request)
+        if validation_result != "Access granted":
+            return jsonify({"status": False, "statusMessage": validation_result}), 401
+        scope_result = normalize_global_scope_request()
+        if scope_result is not None:
+            return scope_result
+        current_user = get_current_user_from_request()
+        if not current_user or not is_super_admin(current_user):
+            return jsonify({"status": False, "statusMessage": "Super Admin access required"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
 def get_pagination():
     return (request.args.get('pageNumber', 1, type=int),
             request.args.get('pageSize', 25, type=int))
@@ -174,11 +211,9 @@ def get_pagination():
 edu_blueprint = Blueprint('edu', __name__, url_prefix='/edu/api')
 
 @edu_blueprint.route('/settings/ai-confidence-threshold', methods=['GET', 'PUT'])
-@jwt_required
+@admin_required
 def ai_confidence_threshold_route():
     current_user = get_current_user_from_request()
-    if not current_user or not is_admin(current_user):
-        return jsonify({"status": False, "statusMessage": "Admin access required"}), 403
     if request.method == 'GET':
         response_data, status_code = get_ai_confidence_threshold_response()
     else:
@@ -186,7 +221,7 @@ def ai_confidence_threshold_route():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/register-institute', methods=['POST'])
-@jwt_required
+@super_admin_required
 def register_institute():
     data = request.json
 
@@ -194,19 +229,19 @@ def register_institute():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/update-institute', methods=['PUT'])
-@jwt_required
+@super_admin_required
 def update_institute_route():
     response_data, status_code = update_institute(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-institutes', methods=['GET'])
-@jwt_required
+@super_admin_required
 def get_institutes():
     response_data, status_code = get_institute_details(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-institute-list', methods=['GET'])
-@jwt_required
+@admin_required
 def get_institute_list_route():
     current_user = get_current_user_from_request()
     response_data, status_code = get_institute_list(current_user, request)
@@ -214,7 +249,7 @@ def get_institute_list_route():
 
 
 @edu_blueprint.route('/institutes/list', methods=['GET'])
-@jwt_required
+@admin_required
 def institutes_list_route():
     # reuse existing get_institute_list function and normalize output
     current_user = get_current_user_from_request()
@@ -256,10 +291,12 @@ def get_pages_list_route():
 
 # delete method for institute, user, category, exam-schedule, question, exam
 @edu_blueprint.route('/delete/<page>/<id>', methods=['DELETE'])
-@jwt_required
+@admin_required
 def delete_page(page, id):
-    # get deleted_by 
-    deleted_by = request.args.get('current_user', 'system')
+    current_user = get_current_user_from_request()
+    if page == 'institute' and not is_super_admin(current_user):
+        return jsonify({"statusMessage": "Super Admin access required to delete institute", "status": False}), 403
+    deleted_by = getattr(current_user, 'user_name', None) or request.args.get('current_user', 'system')
     if page == 'institute':
         response_data, status_code = delete_institute(id, deleted_by)
     elif page == 'user':
@@ -280,12 +317,14 @@ def delete_page(page, id):
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/<page>/<action>/<uuid>', methods=['PUT'])
-@jwt_required
+@admin_required
 def manage_page(page, action, uuid):
-    # get updated_by 
-    updated_by = request.json.get('current_user', 'system')
+    current_user = get_current_user_from_request()
     if action not in ["activate", "deactivate"]:
         return jsonify({"error": f"Invalid action '{action}'. Use 'activate' or 'deactivate' ."}), 400
+    if page == 'institute' and not is_super_admin(current_user):
+        return jsonify({"error": "Super Admin access required to manage institute"}), 403
+    updated_by = getattr(current_user, 'user_name', None) or (request.json or {}).get('current_user', 'system')
     if page == 'institute':
         response_data, status_code =  manage_institute(action, uuid, updated_by)
     elif page == 'user':
@@ -300,13 +339,13 @@ def manage_page(page, action, uuid):
     return response_data, status_code
 
 @edu_blueprint.route('/get-campus-list', methods=['GET'])
-@jwt_required
+@admin_required
 def get_campus_list_route():
     response_data, status_code = get_campus_list(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/register-user', methods=['POST'])
-@jwt_required
+@admin_required
 def register_user():
     data = request.json
 
@@ -316,17 +355,29 @@ def register_user():
 @edu_blueprint.route('/update-user/<user_id>', methods=['PUT', 'OPTIONS'])
 @jwt_required
 def update_user(user_id):
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    current_user = get_current_user_from_request()
+    if not current_user:
+        return jsonify({"status": False, "statusMessage": "Authenticated user not found"}), 401
+    if not is_admin(current_user) and str(current_user.user_id) != str(user_id):
+        return jsonify({"status": False, "statusMessage": "Unauthorized to modify other users"}), 403
     response_data, status_code = update_user_details(user_id, request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-user-page-access/<user_id>', methods=['GET'])
 @jwt_required
 def get_user_page_access_route(user_id):
+    current_user = get_current_user_from_request()
+    if not current_user:
+        return jsonify({"status": False, "statusMessage": "Authenticated user not found"}), 401
+    if not is_admin(current_user) and str(current_user.user_id) != str(user_id):
+        return jsonify({"status": False, "statusMessage": "Unauthorized access to other user profile"}), 403
     response_data, status_code = get_user_page_access(user_id)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/bulk-register-users', methods=['POST'])
-@jwt_required
+@admin_required
 def bulk_upload_users():
     response_data, status_code = user_bulk_upload(request)
     if status_code == 400:
@@ -352,44 +403,44 @@ def bulk_upload_users():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/upload-questions', methods=['POST'])
-@jwt_required
+@admin_required
 def bulk_upload_questions_route():
     response_data, status_code = bulk_upload_questions(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/create-question-using-ai', methods=['POST'])
-@jwt_required
+@admin_required
 def create_question_using_ai_route():
     response_data, status_code = create_question_using_llm(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/fine-tune-question', methods=['POST'])
-@jwt_required
+@admin_required
 def fine_tune_question_route():
     response_data, status_code = fine_tune_questions_using_llm(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-users', methods=['GET'])
-@jwt_required
+@admin_required
 def get_users():
     response_data, status_code = get_user_details(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-users-list', methods=['GET'])
-@jwt_required
+@admin_required
 def get_users_list():
     current_user = get_current_user_from_request()
     response_data, status_code = get_user_list(request, current_user)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-user-limit', methods=['GET'])
-@jwt_required
+@admin_required
 def get_user_limit_route():
     response_data, status_code = get_user_limit(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-exams-list', methods=['GET'])
-@jwt_required
+@admin_required
 def get_exams_list():
     response_data, status_code = get_exam_list(request)
     return jsonify(response_data), status_code
@@ -397,6 +448,15 @@ def get_exams_list():
 @edu_blueprint.route('/get-user-exams-details', methods=['GET'])
 @jwt_required
 def get_user_exams():
+    current_user = get_current_user_from_request()
+    if not current_user:
+        return jsonify({"status": False, "statusMessage": "Authenticated user not found"}), 401
+    if not is_admin(current_user):
+        query_dict = request.args.to_dict()
+        query_dict['user_id'] = str(current_user.user_id)
+        if current_user.institute_id:
+            query_dict['institute_id'] = str(current_user.institute_id)
+        request.args = ImmutableMultiDict(query_dict)
     response_data, status_code = get_user_exam_details(request)
     return jsonify(response_data), status_code
 
@@ -408,32 +468,27 @@ def review_user_exam_route():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/validate-answers/<attempt_id>', methods=['POST'])
-@jwt_required
+@admin_required
 def validate_answers_route(attempt_id):
     current_user = get_current_user_from_request()
-    if not current_user or not is_admin(current_user):
-        return jsonify({"status": False, "statusMessage": "Admin access required"}), 403
     response_data, status_code = validate_answers(attempt_id)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/update-review-comments/<action>', methods=['POST'])
-@jwt_required
+@admin_required
 def update_review_comments_route(action):
     current_user = get_current_user_from_request()
     response_data, status_code = update_review_comments(request, action, current_user)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/update-manual-review-status', methods=['PUT'])
-@jwt_required
+@admin_required
 def update_manual_review_status_route():
-    current_user = get_current_user_from_request()
-    if not current_user or not is_admin(current_user):
-        return jsonify({"status": False, "statusMessage": "Admin access required"}), 403
     response_data, status_code = update_manual_review_status(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/update-descriptive-marks', methods=['POST'])
-@jwt_required
+@admin_required
 def update_descriptive_marks_route():
     current_user = get_current_user_from_request()
     from others.exam_review import update_descriptive_marks
@@ -441,28 +496,21 @@ def update_descriptive_marks_route():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/delete-exam', methods=['DELETE', 'OPTIONS'])
+@admin_required
 def delete_exam_route():
-    # Handle CORS preflight
     if request.method == 'OPTIONS':
         return jsonify({}), 200
-    # Validate JWT for DELETE
-    validation_result = initialize_jwt_validator(request)
-    if validation_result != "Access granted":
-        return jsonify({"status": False, "statusMessage": validation_result}), 401
-    scope_result = normalize_global_scope_request()
-    if scope_result is not None:
-        return scope_result
-    
     exam_id = request.args.get('exam_id') or request.args.get('id')
     if not exam_id:
         return jsonify({"statusMessage": "exam_id is required", "status": False}), 400
     from others.exams import delete_exam
-    deleted_by = request.args.get('current_user', 'system')
+    current_user = get_current_user_from_request()
+    deleted_by = getattr(current_user, 'user_name', None) or request.args.get('current_user', 'system')
     response_data, status_code = delete_exam(exam_id, deleted_by)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-exams-details', methods=['GET'])
-@jwt_required
+@admin_required
 def get_exams():
     response_data, status_code = get_exam_details(request)
     return jsonify(response_data), status_code
@@ -471,8 +519,16 @@ def get_exams():
 @edu_blueprint.route('/launch-exam', methods=['GET'])
 @jwt_required
 def launch_exam_route():
+    current_user = get_current_user_from_request()
+    if not current_user:
+        return jsonify({"statusMessage": "Authenticated user not found", "status": False}), 401
     schedule_id = request.args.get('schedule_id')
-    user_id = request.args.get('user_id')
+    if not schedule_id:
+        return jsonify({"statusMessage": "schedule_id is required", "status": False}), 400
+    if is_admin(current_user):
+        user_id = request.args.get('user_id') or str(current_user.user_id)
+    else:
+        user_id = str(current_user.user_id)
     response_data, status_code = launch_exam_details(schedule_id, user_id)
     return jsonify(response_data), status_code
 
@@ -509,88 +565,88 @@ def active_exam_status_route():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/register-exam', methods=['POST'])
-@jwt_required
+@admin_required
 def register_exam_route():
     response_data, status_code = add_exam(request)
     return jsonify(response_data), status_code
 
 
 @edu_blueprint.route('/update-exam', methods=['POST', 'PUT'])
-@jwt_required
+@admin_required
 def update_exam_route():
     from others.exams import update_exam
     response_data, status_code = update_exam(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/add-exam-schedule', methods=['POST'])
-@jwt_required
+@admin_required
 def add_exam_schedule_route():
     response_data, status_code = add_exam_schedule(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-exam-schedule-details', methods=['GET'])
-@jwt_required
+@admin_required
 def get_exam_schedule_details_route():
     response_data, status_code = get_exam_schedule_details(request)
     return jsonify(response_data), status_code
 
 
 @edu_blueprint.route('/get-exam-user-report', methods=['GET'])
-@jwt_required
+@admin_required
 def get_exam_user_report_route():
     response_data, status_code = get_user_wise_report(request)
     return jsonify(response_data), status_code
 
 
 @edu_blueprint.route('/get-exam-analytics', methods=['GET'])
-@jwt_required
+@admin_required
 def get_exam_analytics_route():
     response_data, status_code = get_exam_analytics(request)
     return jsonify(response_data), status_code
 
 
 @edu_blueprint.route('/get-question-wrong-answers', methods=['GET'])
-@jwt_required
+@admin_required
 def get_question_wrong_answers_route():
     response_data, status_code = get_question_wrong_answers(request)
     return jsonify(response_data), status_code
 
 
 @edu_blueprint.route('/get-answer-resources', methods=['GET'])
-@jwt_required
+@admin_required
 def get_answer_resources_route():
     response_data, status_code = get_resources_for_answer(request)
     return jsonify(response_data), status_code
 
 
 @edu_blueprint.route('/update-exam-schedule', methods=['POST', 'PUT'])
-@jwt_required
+@admin_required
 def update_exam_schedule_route():
     response_data, status_code = update_exam_schedule(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/add-question', methods=['POST'])
-@jwt_required
+@admin_required
 def add_question_route():
     response_data, status_code = add_question(request)
     return jsonify(response_data), status_code
 
 
 @edu_blueprint.route('/update-question/<question_id>', methods=['PUT'])
-@jwt_required
+@admin_required
 def update_question_route(question_id):
     from others.questions import update_question
     response_data, status_code = update_question(question_id, request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-questions-details', methods=['GET'])
-@jwt_required
+@admin_required
 def get_questions_route():
     response_data, status_code = get_questions_details(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/add-categories', methods=['POST'])
-@jwt_required
+@admin_required
 def add_categories_route():
     try:
         response_data, status_code = add_categories(request)
@@ -604,7 +660,7 @@ def add_categories_route():
 
 
 @edu_blueprint.route('/update-category/<category_id>', methods=['PUT', 'OPTIONS'])
-@jwt_required
+@admin_required
 def update_category_route(category_id):
     try:
         from others.category import update_category
@@ -618,31 +674,31 @@ def update_category_route(category_id):
         }), 500
 
 @edu_blueprint.route('/get-categories-list', methods=['GET'])
-@jwt_required
+@admin_required
 def get_categories_route():
     response_data, status_code = get_categories_list(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/category-details', methods=['GET'])
-@jwt_required
+@admin_required
 def get_category_details_route():
     response_data, status_code = get_category_details(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/location-hierarchy', methods=['GET'])
-@jwt_required
+@admin_required
 def get_location_hierarchy():
     response_data, status_code = get_location_hierarchy_details(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/registered-countries', methods=['GET'])
-@jwt_required
+@admin_required
 def get_registered_countries():
     response_data, status_code = get_registered_countries_details(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-department-list', methods=['GET'])
-@jwt_required
+@admin_required
 def get_department_details():
     filter_by_institute = ('institute_id' in request.args) or ('institute' in request.args)
     institute_id = request.args.get('institute_id') or request.args.get('institute')
@@ -650,7 +706,7 @@ def get_department_details():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-teams-list', methods=['GET'])
-@jwt_required
+@admin_required
 def get_team_details():
     filter_by_institute = ('institute_id' in request.args) or ('institute' in request.args)
     institute_id = request.args.get('institute_id') or request.args.get('institute')
@@ -658,10 +714,8 @@ def get_team_details():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/superadmin-dashboard', methods=['GET'])
-@jwt_required
+@super_admin_required
 def superadmin_dashboard_route():
-    # response_data = superadmin_dashboard_details()
-    # return jsonify(response_data), 200
     try:
         response_data = superadmin_dashboard_details()
         return jsonify(response_data), 200
@@ -670,7 +724,7 @@ def superadmin_dashboard_route():
 
 
 @edu_blueprint.route('/admin-dashboard', methods=['GET'])
-@jwt_required
+@admin_required
 def admin_dashboard_route():
     institute_id = request.args.get('institute_id')
     response_data = admin_dashboard_details(institute_id)
@@ -698,7 +752,7 @@ def user_dashboard_route():
 
 
 @edu_blueprint.route('/dashboard/users', methods=['GET'])
-@jwt_required
+@admin_required
 def dashboard_users_route():
     response_data = dashboard_users_list()
     return jsonify(response_data), 200
@@ -756,21 +810,21 @@ def submit_demo_request_route():
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/demo-requests', methods=['GET'])
-@jwt_required
+@admin_required
 def get_demo_requests_route():
     """Get all demo requests with pagination and filtering (admin only)"""
     response_data, status_code = get_demo_requests(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/demo-request/<request_id>', methods=['GET'])
-@jwt_required
+@admin_required
 def get_demo_request_details_route(request_id):
     """Get a single demo request by ID (admin only)"""
     response_data, status_code = get_demo_request_by_id(request_id)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/demo-request/<request_id>', methods=['PUT'])
-@jwt_required
+@admin_required
 def update_demo_request_route(request_id):
     """Update demo request status and notes (admin only)"""
     data = request.json
@@ -778,7 +832,7 @@ def update_demo_request_route(request_id):
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/demo-request/<request_id>', methods=['DELETE'])
-@jwt_required
+@admin_required
 def delete_demo_request_route(request_id):
     """Delete a demo request (admin only)"""
     response_data, status_code = delete_demo_request(request_id)

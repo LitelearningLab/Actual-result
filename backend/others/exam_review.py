@@ -213,14 +213,18 @@ def review_user_exam(request, current_user=None):
         if not review_available:
             return {"statusMessage": "Review is not available for this test", "status": False}, 403
 
-        # Record first review opening for telemetry without blocking student from viewing review
-        if is_student_request:
+        # Record first review opening for telemetry and consumption tracking
+        if is_student_request and requested_attempt:
             if not getattr(requested_attempt, 'review_opened_at', None):
-                session.query(Exam_Attempt).filter(
-                    Exam_Attempt.attempt_id == requested_attempt.attempt_id,
-                    Exam_Attempt.review_opened_at.is_(None)
-                ).update({Exam_Attempt.review_opened_at: now}, synchronize_session=False)
-                requested_attempt.review_opened_at = now
+                try:
+                    session.query(Exam_Attempt).filter(
+                        Exam_Attempt.attempt_id == requested_attempt.attempt_id,
+                        Exam_Attempt.review_opened_at.is_(None)
+                    ).update({Exam_Attempt.review_opened_at: now}, synchronize_session=False)
+                    session.commit()
+                    requested_attempt.review_opened_at = now
+                except Exception:
+                    session.rollback()
 
         exam = session.query(Exam).filter(Exam.exam_id == exam_schedule.exam_id).first()
         total_questions = exam.total_questions if exam else 0

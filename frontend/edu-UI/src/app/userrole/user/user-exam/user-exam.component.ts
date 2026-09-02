@@ -209,7 +209,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   }
 
   toggleVoiceInput(questionId: string | number) {
-    if (this.testStopped) return;
+    if (this.testStopped || this.submitting || this.isSubmitted) return;
     if (!this.speechSupported) {
       notify('Voice input is not supported in your browser. Please use Chrome or Edge.', 'error');
       return;
@@ -525,7 +525,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   }
 
   toggleMulti(qid: any, optId: any) {
-    if (this.testStopped) return;
+    if (this.testStopped || this.submitting || this.isSubmitted) return;
     const key = String(qid);
     const set = Array.isArray(this.answers[key]) ? [...this.answers[key]] : [];
     const valStr = String(optId);
@@ -543,17 +543,18 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   }
 
   selectOne(qid: any, optId: any) {
-    if (this.testStopped) return;
+    if (this.testStopped || this.submitting || this.isSubmitted) return;
     this.answers[String(qid)] = String(optId);
     this.persistExamState();
     this.scheduleAutosave();
   }
 
   scheduleAutosave() {
-    if (this.testStopped || !this.attempt_id) return;
+    if (this.testStopped || this.submitting || this.isSubmitted || !this.attempt_id) return;
     this.persistExamState();
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
     this.autosaveTimer = setTimeout(() => {
+      if (this.testStopped || this.submitting || this.isSubmitted) return;
       this.http.post<any>(this.autosaveUrl, {
         attempt_id: this.attempt_id,
         answers: this.answers,
@@ -658,6 +659,8 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     if (this.submitting || this.testStopped) return of(null);
     this.showConfirm = false;
     this.submitting = true;
+    this.stopTimer();
+    this.stopStatusPolling();
     const payload = this.buildSubmitPayload();
 
     return this.http.post<any>(this.submitUrl, payload).pipe(
@@ -669,6 +672,8 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         if (err?.status === 409 && err?.error?.errorCode === 'EXAM_UNPUBLISHED') {
           this.stopActiveTest();
         } else {
+          this.startTimer();
+          this.startStatusPolling();
           notify(err?.error?.statusMessage || 'Failed to submit exam. Please try again.', 'error');
         }
         return throwError(() => err);

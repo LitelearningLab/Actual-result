@@ -883,24 +883,73 @@ def get_user_exam_details(request):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     try:
-        filter = []
         args = getattr(request, "args", {})
-        conds = []
-        if args.get("user_id", None):
-            conds.append(ExamScheduleMapping.user_id == args["user_id"])
-        if args.get("institute_id", None):
-            conds.append(ExamSchedule.institute_id == args["institute_id"])
-        if args.get("department_id", None):
-            conds.append(ExamSchedule.department_id == args["department_id"])
-        if args.get("team_id", None):
-            conds.append(ExamSchedule.team_id == args["team_id"])
-        # combine all provided conditions with OR (any one matching)
-        if conds:
-            filter.append(or_(*conds))
+        user_id = args.get("user_id", None)
+        institute_id = args.get("institute_id", None)
+        department_id = args.get("department_id", None)
+        team_id = args.get("team_id", None)
 
-        # join with Institute to fetch institute details as well
+        eligible_schedule_ids = set()
+
+        if user_id:
+            user_obj = session.query(User).filter_by(user_id=user_id).first()
+            user_dept_id = department_id or (getattr(user_obj, "department_id", None) if user_obj else None)
+            user_team_id = team_id or (getattr(user_obj, "team_id", None) if user_obj else None)
+            user_campus_id = getattr(user_obj, "campus_id", None) if user_obj else None
+
+            mapping_conds = [ExamScheduleMapping.user_id == user_id]
+            if user_dept_id:
+                mapping_conds.append(ExamScheduleMapping.department_id == user_dept_id)
+            if user_team_id:
+                mapping_conds.append(ExamScheduleMapping.team_id == user_team_id)
+            if user_campus_id:
+                mapping_conds.append(ExamScheduleMapping.campus_id == user_campus_id)
+
+            # 1. Mapped schedules for this user, their department, team, or campus
+            mapped_rows = (
+                session.query(ExamScheduleMapping.schedule_id)
+                .join(ExamSchedule, ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id)
+                .filter(
+                    ExamSchedule.published == 1,
+                    or_(*mapping_conds)
+                )
+                .distinct()
+                .all()
+            )
+            for (s_id,) in mapped_rows:
+                if s_id:
+                    eligible_schedule_ids.add(str(s_id))
+
+            # 2. All schedules where the user has any attempt (in_progress, submitted, evaluated)
+            attempt_rows = (
+                session.query(Exam_Attempt.schedule_id)
+                .filter(Exam_Attempt.user_id == user_id)
+                .distinct()
+                .all()
+            )
+            for (s_id,) in attempt_rows:
+                if s_id:
+                    eligible_schedule_ids.add(str(s_id))
+        elif institute_id:
+            # Fallback for admin overview by institute
+            inst_rows = (
+                session.query(ExamSchedule.schedule_id)
+                .filter(
+                    ExamSchedule.institute_id == institute_id,
+                    ExamSchedule.published == 1,
+                )
+                .all()
+            )
+            for (s_id,) in inst_rows:
+                if s_id:
+                    eligible_schedule_ids.add(str(s_id))
+
+        if not eligible_schedule_ids:
+            return {"statusMessage": "No exams found", "status": True, "data": []}, 200
+
+        # Query unique (ExamSchedule, Exam) pairs for all eligible schedule IDs
         rows = (
-            session.query(ExamScheduleMapping, ExamSchedule, Exam)
+            session.query(ExamSchedule, Exam)
             .options(
                 load_only(
                     ExamSchedule.schedule_id,
@@ -922,82 +971,22 @@ def get_user_exam_details(request):
                     ExamSchedule.updated_date,
                 )
             )
-            .join(
-                ExamSchedule,
-                ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id,
-            )
             .join(Exam, ExamSchedule.exam_id == Exam.exam_id)
-            .filter(ExamSchedule.published == 1, *filter)
+            .filter(ExamSchedule.schedule_id.in_(list(eligible_schedule_ids)))
             .all()
         )
 
-        # Include completed history when the schedule still exists but its
-        # current user mapping was changed after this user submitted it.
-        user_id = args.get("user_id", None)
-        if user_id:
-            returned_schedule_ids = {str(item[1].schedule_id) for item in rows}
-            completed_schedule_ids = {
-                str(item[0])
-                for item in session.query(Exam_Attempt.schedule_id)
-                .filter(
-                    Exam_Attempt.user_id == user_id,
-                    or_(
-                        Exam_Attempt.submitted_date.isnot(None),
-                        Exam_Attempt.status.in_(("submitted", "evaluated")),
-                    ),
-                )
-                .distinct()
-                .all()
-            }
-            missing_schedule_ids = completed_schedule_ids - returned_schedule_ids
-            if missing_schedule_ids:
-                history_rows = (
-                    session.query(ExamSchedule, Exam)
-                    .options(
-                        load_only(
-                            ExamSchedule.schedule_id,
-                            ExamSchedule.exam_id,
-                            ExamSchedule.title,
-                            ExamSchedule.institute_id,
-                            ExamSchedule.start_time,
-                            ExamSchedule.end_time,
-                            ExamSchedule.number_of_attempts,
-                            ExamSchedule.user_review,
-                            ExamSchedule.multiple_review,
-                            ExamSchedule.review_mode,
-                            ExamSchedule.manual_review_enabled,
-                            ExamSchedule.review_at,
-                            ExamSchedule.review_end_at,
-                            ExamSchedule.created_by,
-                            ExamSchedule.created_date,
-                            ExamSchedule.updated_by,
-                            ExamSchedule.updated_date,
-                        )
-                    )
-                    .join(Exam, ExamSchedule.exam_id == Exam.exam_id)
-                    .filter(
-                        # Completed attempts are student history and must remain
-                        # visible even if the admin later unpublishes the schedule.
-                        ExamSchedule.schedule_id.in_(missing_schedule_ids)
-                    )
-                    .all()
-                )
-                rows.extend((None, schedule, exam) for schedule, exam in history_rows)
-
-        # keep exams as list of Exam objects for existing usage
-        Schedule_list = [row[0] for row in rows]
-        schedules = [row[1] for row in rows]
-        exams = [row[2] for row in rows]
-        if exams is None or len(exams) == 0:
-            # An empty student list is a valid result. Returning 404 makes the
-            # UI preserve its previous data, leaving an unpublished Active test
-            # visible until the page is recreated.
+        if not rows:
             return {"statusMessage": "No exams found", "status": True, "data": []}, 200
 
         scheduler_data = []
-        for idx, row in enumerate(Schedule_list):
-            schedule_obj = schedules[idx]
-            exam_obj = exams[idx]
+        seen_schedule_ids = set()
+
+        for schedule_obj, exam_obj in rows:
+            if not schedule_obj or str(schedule_obj.schedule_id) in seen_schedule_ids:
+                continue
+            seen_schedule_ids.add(str(schedule_obj.schedule_id))
+
             # get attempt data for this user and schedule
             user_id = args.get("user_id", None)
             attempts = (
@@ -1265,6 +1254,15 @@ def get_user_exam_details(request):
                         )
 
                     submitted_dt = getattr(att, "submitted_date", None)
+                    att_review_opened = getattr(att, "review_opened_at", None)
+                    att_review_viewed = bool(att_review_opened)
+                    is_multi = bool(schedule_obj.multiple_review)
+                    if not user_review:
+                        att_review_available = False
+                    elif not is_multi and att_review_viewed:
+                        att_review_available = False
+                    else:
+                        att_review_available = att_status in ("submitted", "evaluated")
 
                     attempts_history.append(
                         {
@@ -1285,6 +1283,10 @@ def get_user_exam_details(request):
                             "remaining_seconds": remaining_seconds,
                             "answered_count": answered_count,
                             "is_in_progress": is_in_progress,
+                            "review_opened_at": safe_utc_isoformat(att_review_opened) if att_review_opened else None,
+                            "review_viewed": att_review_viewed,
+                            "review_consumed": att_review_viewed and not is_multi,
+                            "review_available": att_review_available,
                         }
                     )
 
@@ -1339,9 +1341,11 @@ def get_user_exam_details(request):
                     "user_score": disp_score,
                     "user_result": disp_result,
                     "total_marks": exam_total_marks,
-                    "mapping_id": getattr(row, "mapping_id", None),
+                    "mapping_id": None,
                     "schedule_id": getattr(schedule_obj, "schedule_id", None),
                     "schedule_title": getattr(schedule_obj, "title", None),
+                    "title": getattr(schedule_obj, "title", None) or getattr(exam_obj, "title", None),
+                    "name": getattr(schedule_obj, "title", None) or getattr(exam_obj, "title", None),
                     "institute_id": getattr(schedule_obj, "institute_id", None),
                     "exam_id": getattr(exam_obj, "exam_id", None),
                     "exam_title": getattr(exam_obj, "title", None),

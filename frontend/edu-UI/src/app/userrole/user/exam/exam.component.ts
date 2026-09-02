@@ -615,8 +615,26 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
         const isInProgress = att && (att.status === 'in_progress' || att.is_in_progress);
         const isAttSubmitted = att && (att.status === 'submitted' || att.status === 'evaluated');
-        const rowReviewAllowed = row.user_review !== false && row.review_available !== false;
-        const canReviewAttempt = Boolean(isAttSubmitted && rowReviewAllowed);
+        const isMultipleReview = this.isMultipleReviewEnabled(row);
+        const isAttLocallyConsumed =
+          !isMultipleReview &&
+          (this.isAttemptReviewConsumedLocally(row, attNum) ||
+            Boolean(att.review_consumed || att.review_viewed));
+        const isReviewForbidden =
+          !isMultipleReview &&
+          (isAttLocallyConsumed ||
+            att.user_review === false ||
+            att.review_available === false ||
+            row.user_review === false ||
+            row.review_available === false);
+        const canReviewAttempt = Boolean(
+          isAttSubmitted &&
+            (isMultipleReview
+              ? row.user_review !== false &&
+                row.review_available !== false &&
+                att.review_available !== false
+              : !isReviewForbidden)
+        );
         const remSec =
           att?.remaining_seconds !== undefined && att?.remaining_seconds !== null
             ? att.remaining_seconds
@@ -1023,6 +1041,17 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
           (r as any).review_consumed = true;
           r.user_review = false;
           r.review_available = false;
+          const schedKey = String(targetRow.schedule_id || targetRow.test_id || '');
+          if (schedKey) {
+            try {
+              const raw = sessionStorage.getItem('consumed_reviews') || '[]';
+              const list = JSON.parse(raw);
+              if (Array.isArray(list) && !list.includes(schedKey)) {
+                list.push(schedKey);
+                sessionStorage.setItem('consumed_reviews', JSON.stringify(list));
+              }
+            } catch (e) {}
+          }
         }
       } else {
         (r as any).review_consumed = true;
@@ -1211,6 +1240,14 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
               );
               if (idx >= 0) this.reviewSelectedAttempt = idx;
             }
+            if (!this.isMultipleReviewEnabled(row)) {
+              const effectiveAttNo =
+                (row as any).target_attempt_number ||
+                this.currentReviewAttemptNo ||
+                this.reviewAttempts[this.reviewSelectedAttempt]?.attempt_number ||
+                1;
+              this.markReviewConsumed(row, effectiveAttNo);
+            }
           } catch (e) {
             this.reviewAttempts = [];
           }
@@ -1239,6 +1276,14 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   closeReview() {
+    if (this.currentReviewRow && !this.isMultipleReviewEnabled(this.currentReviewRow)) {
+      const effectiveAttNo =
+        (this.currentReviewRow as any).target_attempt_number ||
+        this.currentReviewAttemptNo ||
+        this.reviewAttempts[this.reviewSelectedAttempt]?.attempt_number ||
+        1;
+      this.markReviewConsumed(this.currentReviewRow, effectiveAttNo);
+    }
     this.reviewOpen = false;
     this.reviewAttempts = [];
     this.reviewSelectedAttempt = 0;
