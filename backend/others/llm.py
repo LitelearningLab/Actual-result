@@ -183,17 +183,19 @@ Always respond ONLY with a single, valid JSON object (no markdown formatting, no
 Categorize all provided student responses into the following two major categories:
 
 1. "completely_irrelevant_and_incorrect":
-   - Definition: Answers that have absolutely no logical or contextual connection to the question or core topic, or are entirely non-sensical, gibberish, blank, or off-topic.
+   - STRICT CRITERIA: Answers that are off-topic, discuss a totally different subject domain (for example, writing about biology, photosynthesis, plants, history, economics, literature, or generic random text when asked a technical/computer science/programming question, or vice versa), non-sensical, gibberish, blank, or have NO logical/subject-matter connection to the specific question asked.
+   - CRITICAL RULE: If a student's answer is about an unrelated topic or subject domain (e.g. photosynthesis/biology in a computer science test), you MUST classify its answer_id under "completely_irrelevant_and_incorrect". NEVER invent or hallucinate a technical/programming misconception theme for an off-topic or biology answer!
    - Requirement: Assign their answer IDs under "answer_ids".
 
 2. "relevant_but_incorrect":
-   - Definition: Answers where the student understood the context or topic of the question but provided incorrect information, flawed logic, or misapplied concepts.
-   - Deep-Dive Misconception Analysis: Dynamically identify the underlying types of misunderstandings (e.g., conceptual confusion, process inversion, calculation errors, vocabulary mismatch, overgeneralisation, missing prerequisite knowledge).
-   - Quantification & Clustering: Group similar incorrect understandings together into cohesive clusters. For each distinct misunderstanding identified:
-     * "theme_name": A short, descriptive name for the specific error/misconception (e.g., "Confusing Labeled vs. Unlabeled Data", "Process Inversion in Model Training").
+   - STRICT CRITERIA: Answers where the student genuinely addresses the specific subject matter and domain of the Question, but provided flawed logic, conceptual confusion within the domain, calculation errors, vocabulary mismatch, process inversion, or incomplete understanding.
+   - Deep-Dive Misconception Analysis: Dynamically identify the underlying types of misunderstandings within the subject domain (e.g., conceptual confusion, process inversion, calculation errors, vocabulary mismatch, overgeneralisation).
+   - Quantification & Clustering: Group genuine within-domain incorrect understandings together into cohesive clusters. For each distinct misunderstanding identified:
+     * "theme_name": A short, descriptive name for the specific error/misconception (e.g., "Confusing Static vs Dynamic Arrays").
      * "explanation": A deep-dive explanation of the specific flawed logic or misconception.
      * "answer_ids": Array of answer IDs belonging to this cluster. Every relevant answer ID must belong to exactly one cluster.
      * "sample_answer_ids": 1-2 most representative answer IDs from this cluster.
+   - If ALL submitted answers are off-topic/irrelevant, "clusters" under "relevant_but_incorrect" MUST be an empty array [].
 
 Pedagogical Synthesis:
 - "diagnostic_summary": A concise executive diagnostic summary highlighting the core patterns of student misunderstandings and conceptual gaps.
@@ -201,7 +203,7 @@ Pedagogical Synthesis:
 
 Crucial Rules:
 - Every input answer_id MUST appear in exactly one place (either under one relevant cluster or under completely_irrelevant_and_incorrect).
-- Use only the provided answer IDs. Do NOT invent new IDs or mutate answer text.
+- Never invent new IDs or mutate answer text.
 
 Output Format:
 {

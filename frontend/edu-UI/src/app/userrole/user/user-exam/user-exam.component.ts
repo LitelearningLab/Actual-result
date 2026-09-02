@@ -51,6 +51,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   recognition: any = null;
   recordingQuestionId: string | number | null = null;
   speechSupported = false;
+  baseAnswerBeforeRecording = '';
 
   isAnswered(q: any, i: number): boolean {
     if (!q) return false;
@@ -153,26 +154,33 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
       this.recognition.onresult = (event: any) => {
         this.ngZone.run(() => {
-          let finalTranscript = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              finalTranscript += transcript;
+          if (this.recordingQuestionId === null || this.testStopped) return;
+
+          let accumulatedFinal = '';
+          let currentInterim = '';
+
+          for (let i = 0; i < event.results.length; i++) {
+            const res = event.results[i];
+            if (res.isFinal) {
+              accumulatedFinal += res[0].transcript + ' ';
+            } else {
+              currentInterim += res[0].transcript;
             }
           }
-          if (finalTranscript && this.recordingQuestionId !== null) {
-            if (this.testStopped) return;
-            const currentAnswer = this.answers[this.recordingQuestionId] || '';
-            this.answers[this.recordingQuestionId] = currentAnswer + (currentAnswer ? ' ' : '') + finalTranscript;
-            this.persistExamState();
-            this.scheduleAutosave();
-          }
+
+          const base = this.baseAnswerBeforeRecording ? this.baseAnswerBeforeRecording.trim() + ' ' : '';
+          const fullText = (base + accumulatedFinal + currentInterim).replace(/\s+/g, ' ').trim();
+          this.answers[this.recordingQuestionId] = fullText;
+          this.scheduleAutosave();
         });
       };
 
       this.recognition.onerror = (event: any) => {
         console.warn('Speech recognition error:', event.error);
         this.ngZone.run(() => {
+          if (event.error === 'no-speech') {
+            return; // Ignore silence/pause
+          }
           this.recordingQuestionId = null;
           if (event.error === 'not-allowed') {
             notify('Microphone access denied. Please allow microphone access to use voice input.', 'error');
@@ -184,7 +192,15 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
       this.recognition.onend = () => {
         this.ngZone.run(() => {
-          this.recordingQuestionId = null;
+          if (this.recordingQuestionId !== null) {
+            const currentAnswer = this.answers[this.recordingQuestionId];
+            if (currentAnswer && typeof currentAnswer === 'string') {
+              this.answers[this.recordingQuestionId] = currentAnswer.trim();
+            }
+            this.persistExamState();
+            this.scheduleAutosave();
+            this.recordingQuestionId = null;
+          }
         });
       };
     } else {
@@ -201,20 +217,31 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
     if (this.recordingQuestionId === questionId) {
       // Stop recording
-      this.recognition.stop();
+      try {
+        this.recognition.stop();
+      } catch (e) {}
+      if (this.recordingQuestionId !== null) {
+        const currentAnswer = this.answers[this.recordingQuestionId];
+        if (currentAnswer && typeof currentAnswer === 'string') {
+          this.answers[this.recordingQuestionId] = currentAnswer.trim();
+        }
+        this.persistExamState();
+        this.scheduleAutosave();
+      }
       this.recordingQuestionId = null;
     } else {
       // Stop any existing recording first
       if (this.recordingQuestionId !== null) {
-        this.recognition.stop();
+        try { this.recognition.stop(); } catch(e) {}
       }
       // Start new recording
       this.recordingQuestionId = questionId;
+      this.baseAnswerBeforeRecording = (this.answers[questionId] || '').toString();
       try {
         this.recognition.start();
       } catch (e) {
         // Recognition might already be running
-        this.recognition.stop();
+        try { this.recognition.stop(); } catch(err){}
         setTimeout(() => {
           try { this.recognition.start(); } catch(err){}
         }, 100);

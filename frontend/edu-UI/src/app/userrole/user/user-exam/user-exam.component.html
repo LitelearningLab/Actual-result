@@ -159,26 +159,27 @@
 
           <!-- Descriptive -->
           <div *ngIf="q.type === 'descriptive' || q.type === 'Paragraph'" class="q-input descriptive-input">
-            <div class="textarea-wrapper">
+            <div class="textarea-wrapper" [class.is-recording]="isRecording(q.id || i)">
               <label class="sr-only" [for]="'desc-' + i">Your answer</label>
               <textarea [id]="'desc-' + i" rows="6" [(ngModel)]="answers[q.id || i]" (ngModelChange)="scheduleAutosave()" [disabled]="testStopped" placeholder="Write your detailed answer here..."></textarea>
-              <button type="button" class="voice-btn" *ngIf="speechSupported" [disabled]="testStopped"
-                (click)="toggleVoiceInput(q.id || i)" 
-                [class.recording]="isRecording(q.id || i)"
-                [attr.aria-label]="isRecording(q.id || i) ? 'Stop voice input' : 'Start voice input'"
-                title="Voice input"
-                aria-live="polite">
-                <mat-icon *ngIf="!isRecording(q.id || i)">mic</mat-icon>
-                <mat-icon *ngIf="isRecording(q.id || i)" class="rec-icon">stop</mat-icon>
-              </button>
             </div>
             <div class="textarea-footer">
-              <p class="voice-hint" *ngIf="speechSupported">
-                <span *ngIf="!isRecording(q.id || i)"><mat-icon>mic</mat-icon> Click mic to use voice input</span>
-                <span *ngIf="isRecording(q.id || i)" class="recording-status" role="status" aria-live="polite">
-                  <span class="rec-dot"></span> Listening... Speak now
-                </span>
-              </p>
+              <div class="voice-controls" *ngIf="speechSupported">
+                <button type="button" class="voice-action-btn" [disabled]="testStopped"
+                  (click)="toggleVoiceInput(q.id || i)" 
+                  [class.recording]="isRecording(q.id || i)"
+                  [attr.aria-label]="isRecording(q.id || i) ? 'Stop voice input' : 'Start voice input'"
+                  [title]="isRecording(q.id || i) ? 'Stop recording' : 'Click to use voice input'"
+                  aria-live="polite">
+                  <mat-icon class="voice-btn-icon">{{ isRecording(q.id || i) ? 'stop' : 'mic' }}</mat-icon>
+                  <span class="voice-btn-label">{{ isRecording(q.id || i) ? 'Stop Recording' : 'Voice Input' }}</span>
+                </button>
+                <div *ngIf="isRecording(q.id || i)" class="recording-status" role="status" aria-live="polite">
+                  <span class="rec-dot"></span>
+                  <span class="rec-text">Listening... Speak now</span>
+                </div>
+                <span *ngIf="!isRecording(q.id || i)" class="voice-hint-text">Click to speak your answer</span>
+              </div>
               <span class="char-count" *ngIf="isAnswered(q, i)">{{ (answers[q.id || i] || '').length }} characters</span>
             </div>
           </div>

@@ -2615,8 +2615,8 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 .q-descriptive .desc-header .desc-score { width: 8.75rem; flex: 0 0 8.75rem; display: flex; flex-direction: column; align-items: center; }
 .q-descriptive .desc-header .score-label { font-size: 0.8125rem; color: rgba(0,0,0,0.55); }
 .q-descriptive .desc-header .score-value { font-size: 1.125rem; font-weight: 800; color: #f39c12; background: #fff; padding: 0.75rem 0.5rem; border-radius: 0.625rem; border: 0.0625rem solid rgba(0,0,0,0.04); margin-top: 0.375rem; }
-.q-descriptive .desc-model { padding: 0.75rem; background-color: var(--theme-2); border-radius: 0.625rem; border: 0.0625rem solid var(--bblue-border); border-left: 0.1875rem solid var(--bblue-border); }
-.q-descriptive .desc-student { padding: 0.75rem; background-color: var(--green-bg); border-radius: 0.625rem; border: 0.0625rem solid var(--bgreen-border); border-left: 0.1875rem solid var(--bgreen-border); }
+.q-descriptive .desc-model { padding: 0.75rem; background-color: var(--theme-2); border-radius: 0.625rem; border: 0.0625rem solid var(--bblue-border); border-left: 0.1875rem solid var(--bblue-border); margin-top: 0.875rem; }
+.q-descriptive .desc-student { padding: 0.75rem; background-color: var(--green-bg); border-radius: 0.625rem; border: 0.0625rem solid var(--bgreen-border); border-left: 0.1875rem solid var(--bgreen-border); margin-top: 0.875rem; }
 .q-descriptive .desc-model .model-label,
 .q-descriptive .desc-student .student-label { font-weight: 700; color: rgba(0,0,0,0.7); margin-bottom: 0.375rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .q-descriptive .desc-model .model-text,

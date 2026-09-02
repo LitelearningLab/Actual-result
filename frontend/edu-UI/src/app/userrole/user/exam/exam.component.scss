@@ -661,7 +661,7 @@ tr.exam-detail-row {
 .q-descriptive .desc-header .score-label { font-size:0.8125rem; color:var(--theme-3-text-3); }
 .q-descriptive .desc-header .score-value { font-size:1.125rem; font-weight:800; color:var(--orange-text); background:var(--bg-1); padding:0.75rem 0.5rem; border-radius:0.625rem; border:0.0625rem solid var(--theme-3-border); margin-top:0.375rem; }
 .q-descriptive .desc-model { padding:0.75rem; background-color:var(--theme-2); border-radius:0.625rem; border:0.0625rem solid var(--bblue-border); border-left:0.1875rem solid var(--bblue-border); }
-.desc-student { padding:0.75rem; background-color:var(--green-bg); border-radius:0.625rem; border:0.0625rem solid var(--bgreen-border); border-left:0.1875rem solid var(--bgreen-border); }
+.desc-student { padding:0.75rem; background-color:var(--green-bg); border-radius:0.625rem; border:0.0625rem solid var(--bgreen-border); border-left:0.1875rem solid var(--bgreen-border); margin-top:0.875rem; }
 .desc-student .student-label { font-weight:700; color:var(--theme-3-text-2); margin-bottom:0.375rem; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; }
 .desc-student .answer-text { color:var(--theme-3-text-1); line-height:1.55; }
 .q-descriptive .desc-score { width:8.75rem; background:var(--bg-1); border:0.0625rem solid var(--theme-3-border); padding:0.625rem; border-radius:0.625rem; display:flex; flex-direction:column; align-items:center; justify-content:center; }

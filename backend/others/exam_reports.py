@@ -1109,6 +1109,14 @@ def get_question_wrong_answers(request):
                     "written_answer": ans_item.get("written_answer", "")
                 }
 
+            def sort_student_roster(students_list):
+                def get_sort_key(s):
+                    name = (s.get("full_name") or s.get("name") or "").lower()
+                    att_str = str(s.get("attempts") or "Attempt 1").replace("Attempt", "").strip()
+                    att_num = int(att_str) if att_str.isdigit() else 1
+                    return (name, att_num)
+                return sorted(students_list, key=get_sort_key)
+
             total_incorrect_submissions = len(wrong_items)
             denom = total_incorrect_submissions if total_incorrect_submissions > 0 else 1
 
@@ -1163,7 +1171,7 @@ def get_question_wrong_answers(request):
                                     if w_ans and w_ans not in samples:
                                         samples.append(w_ans)
 
-                            cluster_students = [build_student_obj(aid) for aid in c_aids]
+                            cluster_students = sort_student_roster([build_student_obj(aid) for aid in c_aids])
 
                             rel_clusters_formatted.append({
                                 'cluster_id': f"cluster_{c_idx}",
@@ -1220,7 +1228,7 @@ def get_question_wrong_answers(request):
                                     'percentage': u_pct,
                                     'occurrence_percentage': u_pct,
                                     'pct': f"{u_pct}%",
-                                    'students': [build_student_obj(aid) for aid in unassigned_rel]
+                                    'students': sort_student_roster([build_student_obj(aid) for aid in unassigned_rel])
                                 })
 
                         # Compute top-level category metrics
@@ -1230,7 +1238,7 @@ def get_question_wrong_answers(request):
                         irrel_count = len(irrel_aids)
                         irrel_pct = round((irrel_count / denom) * 100, 2) if denom > 0 else 0
                         irrel_samples = [answer_map[aid]["written_answer"] for aid in irrel_aids[:3] if answer_map.get(aid, {}).get("written_answer")]
-                        irrel_students = [build_student_obj(aid) for aid in irrel_aids]
+                        irrel_students = sort_student_roster([build_student_obj(aid) for aid in irrel_aids])
 
                         descriptive_analysis = {
                             "status": True,
@@ -1303,13 +1311,14 @@ def get_question_wrong_answers(request):
                         'percentage': g_pct,
                         'occurrence_percentage': g_pct,
                         'pct': f"{g_pct}%",
-                        'students': [build_student_obj(aid) for aid in g_aids]
+                        'students': sort_student_roster([build_student_obj(aid) for aid in g_aids])
                     })
 
                 rel_count = sum(c['student_count'] for c in fallback_clusters)
                 rel_pct = round((rel_count / denom) * 100, 2)
                 irrel_count = len(irrel_aids)
                 irrel_pct = round((irrel_count / denom) * 100, 2)
+                irrel_students = sort_student_roster([build_student_obj(aid) for aid in irrel_aids])
 
                 ai_insights = {
                     "diagnostic_summary": f"Identified patterns across {total_incorrect_submissions} incorrect student response(s). (Deterministic grouping)",
@@ -1350,7 +1359,7 @@ def get_question_wrong_answers(request):
                             "sample_answers": [{'answer_id': aid, 'answer_text': answer_map.get(aid, {}).get("written_answer", "")} for aid in irrel_aids[:3]],
                             "samples": [answer_map[aid]["written_answer"] for aid in irrel_aids[:3] if answer_map.get(aid, {}).get("written_answer")],
                             "answer_ids": irrel_aids,
-                            "students": [build_student_obj(aid) for aid in irrel_aids],
+                            "students": irrel_students,
                             "clusters": []
                         }
                     ]
