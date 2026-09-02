@@ -614,33 +614,37 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
         const isInProgress = att && (att.status === 'in_progress' || att.is_in_progress);
         const isAttSubmitted = att && (att.status === 'submitted' || att.status === 'evaluated');
-        const rowReviewAllowed = (row.user_review !== false) && (row.review_available !== false);
+        const rowReviewAllowed = row.user_review !== false && row.review_available !== false;
         const canReviewAttempt = Boolean(isAttSubmitted && rowReviewAllowed);
-        const remSec = att?.remaining_seconds !== undefined && att?.remaining_seconds !== null
-          ? att.remaining_seconds
-          : row.remaining_seconds;
-        const ansCount = att?.answered_count !== undefined && att?.answered_count !== null
-          ? att.answered_count
-          : (row.answered_count || 0);
+        const remSec =
+          att?.remaining_seconds !== undefined && att?.remaining_seconds !== null
+            ? att.remaining_seconds
+            : row.remaining_seconds;
+        const ansCount =
+          att?.answered_count !== undefined && att?.answered_count !== null
+            ? att.answered_count
+            : row.answered_count || 0;
 
         return {
           attemptNumber: attNum,
           isFirst: idx === 0,
           attemptObj: att,
-          scoreDisplay:
-            isInProgress
-              ? '—'
-              : att.percentage != null
-                ? Number(att.percentage).toFixed(2) + '%'
+          scoreDisplay: isInProgress
+            ? '—'
+            : att.percentage != null
+              ? Number(att.percentage).toFixed(2) + '%'
+              : att.score != null && (row.total_marks || 0) > 0
+                ? Number((att.score / row.total_marks!) * 100).toFixed(2) + '%'
                 : att.score != null
                   ? att.score + '%'
                   : '—',
           attemptsUsedDisplay: `${usedCount} / ${maxAttempts}`,
           attemptsRemainingDisplay: `${remainingCount} Remaining`,
           progressPercent: Math.min(Math.max(pct, 0), 100),
-          statusType: isInProgress ? 'ACTIVE' : (isPassResult ? 'PASS' : 'FAIL'),
+          statusType: isInProgress ? 'ACTIVE' : isPassResult ? 'PASS' : 'FAIL',
           canReview: canReviewAttempt,
-          showReviewBtn: !isInProgress && canReviewAttempt,
+          showReviewBtn:
+            !isInProgress && (isAttSubmitted || isCompletedTab || row.completed_by_user || row.attempted),
           canStart: false,
           canContinue: isInProgress && !isCompletedTab,
           isInProgress: isInProgress,
@@ -652,8 +656,15 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       });
 
       const hasPassedAnyAttempt = history.some((att) => this.isAttemptPass(att, row));
-      const hasAnyInProgress = history.some((att) => att.status === 'in_progress' || att.is_in_progress);
-      if (canStartActive && !hasPassedAnyAttempt && !hasAnyInProgress && history.length < maxAttempts) {
+      const hasAnyInProgress = history.some(
+        (att) => att.status === 'in_progress' || att.is_in_progress
+      );
+      if (
+        canStartActive &&
+        !hasPassedAnyAttempt &&
+        !hasAnyInProgress &&
+        history.length < maxAttempts
+      ) {
         const nextAttNum = history.length + 1;
         const remainingCount = Math.max(0, maxAttempts - history.length);
         rows.push({
@@ -706,12 +717,11 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
           attemptNumber: 1,
           isFirst: true,
           attemptObj: null,
-          scoreDisplay:
-            isRowInProgress
-              ? '—'
-              : row.user_percentage != null
-                ? Number(row.user_percentage).toFixed(2) + '%'
-                : '—',
+          scoreDisplay: isRowInProgress
+            ? '—'
+            : row.user_percentage != null
+              ? Number(row.user_percentage).toFixed(2) + '%'
+              : '—',
           attemptsUsedDisplay: `${usedCount} / ${maxAttempts}`,
           attemptsRemainingDisplay: `${remainingCount} Remaining`,
           progressPercent: this.getAttemptProgressPercent(row),
@@ -723,7 +733,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
                 : 'FAIL'
               : 'ACTIVE',
           canReview: canReviewDefault,
-          showReviewBtn: !isRowInProgress && (isCompletedTab || row.completed_by_user || row.attempted),
+          showReviewBtn:
+            !isRowInProgress && (isCompletedTab || row.completed_by_user || row.attempted),
           canStart: !isRowInProgress && canStartActive,
           canContinue: isRowInProgress && !isCompletedTab,
           isInProgress: isRowInProgress,
@@ -1264,8 +1275,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.pageMeta.setMeta('User Tests', 'Explore and manage your tests');
-    // Refresh server-calculated review availability without interrupting the student UI.
-    this.reviewRefreshTimer = setInterval(() => this.loadExams(false), 60000);
+    // Refresh server-calculated review availability without interrupting the student UI (every 20s).
+    this.reviewRefreshTimer = setInterval(() => this.loadExams(false), 20000);
   }
 
   ngOnDestroy(): void {
@@ -1527,14 +1538,34 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       // Show the most recently dated tests first in both tabs.
       (b.schedule_sort_time || 0) - (a.schedule_sort_time || 0);
 
-    // Active tab includes in-progress attempts, active schedules, and upcoming schedules
-    this.activeSource.data = this.exams
-      .filter((e) => Boolean(e.has_in_progress) || isActive(e.type) || isUpcoming(e.type))
-      .sort(byScheduleDate);
+    const hasPassed = (e: UserTestRow) => {
+      if (this.isPass(e)) return true;
+      const history = this.getAttemptHistory(e);
+      return Boolean(history && history.some((att) => this.isAttemptPass(att, e)));
+    };
 
-    // Completed tab includes ONLY completed tests with NO in-progress attempt
-    const isComplete = (exam: UserTestRow) =>
-      Boolean(exam.completed_by_user) && !Boolean(exam.has_in_progress) && lc(exam.type) === 'completed';
+    const hasAttemptsLeft = (e: UserTestRow) => {
+      const max = e.number_of_attempts || 1;
+      const used = this.getUsedAttempts(e);
+      return used < max;
+    };
+
+    // Completed tab includes ONLY tests where user passed, exhausted attempts without in-progress, or marked completed
+    const isComplete = (exam: UserTestRow) => {
+      if (Boolean(exam.has_in_progress)) return false;
+      if (lc(exam.type) === 'completed') return true;
+      if (hasPassed(exam)) return true;
+      if (Boolean(exam.completed_by_user) && !hasAttemptsLeft(exam)) return true;
+      return false;
+    };
+
+    // Active tab includes in-progress attempts, active schedules, and upcoming schedules (excluding completed/passed tests)
+    this.activeSource.data = this.exams
+      .filter((e) => {
+        if (isComplete(e) && !Boolean(e.has_in_progress)) return false;
+        return Boolean(e.has_in_progress) || isActive(e.type) || isUpcoming(e.type);
+      })
+      .sort(byScheduleDate);
 
     this.completeSource.data = this.exams.filter(isComplete).sort(byScheduleDate);
   }

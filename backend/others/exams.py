@@ -18,6 +18,7 @@ from db.models import (
 from db.db import SQLiteDB
 from others.exam_review import (
     finalize_expired_attempts,
+    get_exam_total_marks,
     is_after_everyone_finished_available,
     is_review_eligible_attempt,
     validate_answers,
@@ -1131,6 +1132,14 @@ def get_user_exam_details(request):
             if effective_pass_mark is None:
                 effective_pass_mark = getattr(exam_obj, "pass_mark", 0) or 0
 
+            exam_total_marks, _ = get_exam_total_marks(
+                session,
+                exam_id=getattr(exam_obj, "exam_id", None) if exam_obj else None,
+                schedule_id=getattr(schedule_obj, "schedule_id", None) if schedule_obj else None,
+            )
+            if not exam_total_marks:
+                exam_total_marks = float(getattr(exam_obj, "total_marks", 0) or 0)
+
             # Check if any attempt passed
             has_passed_attempt = any(
                 str(getattr(a, "feedback", "") or getattr(a, "result", ""))
@@ -1140,6 +1149,11 @@ def get_user_exam_details(request):
                 or (
                     getattr(a, "percentage", None) is not None
                     and getattr(a, "percentage", None) >= effective_pass_mark
+                )
+                or (
+                    getattr(a, "score", None) is not None
+                    and exam_total_marks > 0
+                    and (float(a.score) / float(exam_total_marks) * 100) >= effective_pass_mark
                 )
                 for a in attempts
             )
@@ -1173,13 +1187,19 @@ def get_user_exam_details(request):
                 for att in sorted_atts:
                     att_status = getattr(att, "status", None)
                     is_in_progress = att_status == "in_progress"
-                    att_pct = (
-                        getattr(att, "percentage", None) if not is_in_progress else None
-                    )
                     att_score = (
                         getattr(att, "score", None) if not is_in_progress else None
                     )
                     att_pass_mark = effective_pass_mark
+                    att_pct = (
+                        getattr(att, "percentage", None) if not is_in_progress else None
+                    )
+                    if (
+                        att_pct is None
+                        and att_score is not None
+                        and exam_total_marks > 0
+                    ):
+                        att_pct = round((float(att_score) / float(exam_total_marks)) * 100, 2)
                     raw_result = getattr(att, "feedback", None) or getattr(
                         att, "result", None
                     )
@@ -1218,6 +1238,14 @@ def get_user_exam_details(request):
                         active_answered_count = answered_count
                     elif att_pct is not None:
                         att_result = "Passed" if att_pct >= att_pass_mark else "Failed"
+                        if att.percentage is None or att.percentage != att_pct or att.feedback != att_result:
+                            try:
+                                att.percentage = att_pct
+                                att.feedback = att_result
+                                session.add(att)
+                                session.commit()
+                            except Exception:
+                                pass
                     elif raw_result and str(raw_result).strip():
                         str_res = str(raw_result).strip().lower()
                         if str_res in ("pass", "passed"):
@@ -1226,10 +1254,8 @@ def get_user_exam_details(request):
                             att_result = "Failed"
                         else:
                             att_result = str(raw_result).strip()
-                    elif att_score is not None and getattr(
-                        exam_obj, "total_marks", None
-                    ):
-                        pct = (att_score / exam_obj.total_marks) * 100
+                    elif att_score is not None and exam_total_marks > 0:
+                        pct = (att_score / exam_total_marks) * 100
                         att_result = "Passed" if pct >= att_pass_mark else "Failed"
                     else:
                         att_result = (
@@ -1262,6 +1288,11 @@ def get_user_exam_details(request):
                         }
                     )
 
+            disp_score = (
+                getattr(displayed_attempt, "score", None)
+                if displayed_attempt
+                else None
+            )
             disp_raw_result = getattr(displayed_attempt, "feedback", None) or getattr(
                 displayed_attempt, "result", None
             )
@@ -1271,6 +1302,8 @@ def get_user_exam_details(request):
                 if displayed_attempt
                 else None
             )
+            if disp_pct is None and disp_score is not None and exam_total_marks > 0:
+                disp_pct = round((float(disp_score) / float(exam_total_marks)) * 100, 2)
             if disp_pct is not None:
                 disp_result = "Passed" if disp_pct >= effective_pass_mark else "Failed"
             elif disp_raw_result and str(disp_raw_result).strip():
@@ -1302,9 +1335,10 @@ def get_user_exam_details(request):
                     # the Started/Submitted values in the Test Review API.
                     "user_start_time": getattr(displayed_attempt, "started_date", None),
                     "user_end_time": getattr(displayed_attempt, "submitted_date", None),
-                    "user_percentage": getattr(displayed_attempt, "percentage", None),
-                    "user_score": getattr(displayed_attempt, "score", None),
+                    "user_percentage": disp_pct,
+                    "user_score": disp_score,
                     "user_result": disp_result,
+                    "total_marks": exam_total_marks,
                     "mapping_id": getattr(row, "mapping_id", None),
                     "schedule_id": getattr(schedule_obj, "schedule_id", None),
                     "schedule_title": getattr(schedule_obj, "title", None),

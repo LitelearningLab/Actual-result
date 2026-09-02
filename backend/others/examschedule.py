@@ -349,6 +349,13 @@ def update_exam_schedule(request):
             multiple_review_requested = _as_bool(
                 data.get("multiple_review", data.get("multiplereview")), False
             )
+            sched.multiple_review = multiple_review_requested
+            if multiple_review_requested:
+                session.query(Exam_Attempt).filter(
+                    Exam_Attempt.schedule_id == schedule_id
+                ).update(
+                    {Exam_Attempt.review_opened_at: None}, synchronize_session=False
+                )
 
         if "manual_review_enabled" in data:
             sched.manual_review_enabled = _as_bool(
@@ -398,14 +405,6 @@ def update_exam_schedule(request):
             sched.show_student_answers = settings["show_student_answers"]
             sched.show_explanations = settings["show_explanations"]
 
-            if multiple_review_requested is not None:
-                sched.multiple_review = multiple_review_requested
-                session.query(Exam_Attempt).filter(
-                    Exam_Attempt.schedule_id == schedule_id
-                ).update(
-                    {Exam_Attempt.review_opened_at: None}, synchronize_session=False
-                )
-
             access_just_enabled = (
                 sched.review_mode in ("manual", "no_review")
                 and bool(sched.manual_review_enabled)
@@ -437,8 +436,6 @@ def update_exam_schedule(request):
                 ).update(
                     {Exam_Attempt.review_opened_at: None}, synchronize_session=False
                 )
-        elif multiple_review_requested is not None:
-            sched.multiple_review = multiple_review_requested
 
         # Timing remains editable until the first attempt exists.
         if not has_attendance:
