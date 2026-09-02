@@ -5,6 +5,7 @@ from flask_cors import CORS
 from auth.auth import JWTValidator
 from configparser import ConfigParser
 from werkzeug.datastructures import ImmutableMultiDict
+from werkzeug.exceptions import HTTPException
 
 from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, delete_institute, manage_institute, update_institute
 from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details, delete_user
@@ -878,6 +879,14 @@ def add_local_cors_headers(response):
 
 @app.errorhandler(Exception)
 def handle_global_exception(e):
+    if isinstance(e, HTTPException):
+        response = jsonify({
+            "status": False,
+            "statusMessage": e.description or str(e)
+        })
+        response.status_code = e.code
+        return add_local_cors_headers(response)
+
     print(f"Unhandled Exception: {e}")
     response = jsonify({"status": False, "statusMessage": f"Server error: {str(e)}"})
     response.status_code = 500
