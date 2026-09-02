@@ -954,6 +954,19 @@ def launch_exam_details(exam_id, user_id):
         else:
             attempt_number = 1
 
+        exam_data = session.query(Exam).filter_by(exam_id=exam_id).first()
+        if not exam_data:
+            return {"statusMessage": "Exam not found", "status": False}, 404
+
+        max_allowed_attempts = (
+            exam_data.number_of_attempts if (exam_data.number_of_attempts and exam_data.number_of_attempts > 0) else 1
+        )
+        if attempt_number > max_allowed_attempts:
+            return {
+                "statusMessage": f"Maximum attempts ({max_allowed_attempts}) reached for this test",
+                "status": False,
+            }, 400
+
         new_attempt = Exam_Attempt(
             exam_id=exam_id,
             user_id=user_id,
@@ -963,10 +976,6 @@ def launch_exam_details(exam_id, user_id):
         )
         session.add(new_attempt)
         session.commit()
-
-        exam_data = session.query(Exam).filter_by(exam_id=exam_id).first()
-        if not exam_data:
-            return {"statusMessage": "Exam not found", "status": False}, 404
         exam_detail = {
             "exam_id": exam_data.exam_id,
             "title": exam_data.title,

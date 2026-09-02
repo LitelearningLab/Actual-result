@@ -292,7 +292,7 @@
             </mat-tab>
          </mat-tab-group>
 
-         <div *ngIf="loading" class="muted">Loading exams...</div>
+         <div *ngIf="loading && (!exams || exams.length === 0)" class="muted">Loading exams...</div>
          <div *ngIf="!loading && (!exams || exams.length === 0)" class="muted">No exams available.</div>
       </div>
       <!-- mobile card list (shown only <960px via CSS) -->

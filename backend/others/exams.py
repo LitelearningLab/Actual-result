@@ -1598,6 +1598,17 @@ def launch_exam_details(schedule_id, user_id):
             attempt_number = (
                 (existing_attempt.attempt_number + 1) if existing_attempt else 1
             )
+            max_allowed_attempts = (
+                exam_schedule.number_of_attempts
+                if (exam_schedule and exam_schedule.number_of_attempts is not None and exam_schedule.number_of_attempts > 0)
+                else (exam_data.number_of_attempts if (exam_data and exam_data.number_of_attempts is not None and exam_data.number_of_attempts > 0) else 1)
+            )
+            if attempt_number > max_allowed_attempts:
+                return {
+                    "statusMessage": f"Maximum attempts ({max_allowed_attempts}) reached for this test",
+                    "status": False,
+                }, 400
+
             initial_rem_sec = duration_mins * 60
             if exam_schedule and exam_schedule.end_time:
                 sched_rem = max(

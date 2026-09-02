@@ -327,6 +327,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
   private examsUrl = `${API_BASE}/get-user-exams-details`;
   private launchUrl = `${API_BASE}/launch-exam`;
   private reviewRefreshTimer?: ReturnType<typeof setInterval>;
+  private isFetchingExams = false;
 
   isGlobalInstituteActive = false;
 
@@ -1275,8 +1276,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.pageMeta.setMeta('User Tests', 'Explore and manage your tests');
-    // Refresh server-calculated review availability without interrupting the student UI (every 20s).
-    this.reviewRefreshTimer = setInterval(() => this.loadExams(false), 20000);
+    // Refresh server-calculated review availability without interrupting the student UI (every 3s for instant updates).
+    this.reviewRefreshTimer = setInterval(() => this.loadExams(false), 3000);
   }
 
   ngOnDestroy(): void {
@@ -1299,7 +1300,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.launchTest(targetEx);
   }
 
-  formatSeconds(sec: number | null | undefined): string {
+formatSeconds(sec: number | null | undefined): string {
     if (sec === null || sec === undefined || isNaN(sec)) return '—';
     const total = Math.max(0, Math.floor(sec));
     const m = Math.floor(total / 60);
@@ -1310,9 +1311,12 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
   loadExams(showLoader = true) {
     if (!this.instituteId) return;
     // Skip a polling cycle while another exam-list request is still active.
-    if (this.loading) return;
-    if (showLoader) this.loader.show();
-    this.loading = true;
+    if (this.isFetchingExams) return;
+    if (showLoader) {
+      this.loader.show();
+      this.loading = true;
+    }
+    this.isFetchingExams = true;
     // include session user data as a payload in the query string
     const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
     let userObj: any = null;
@@ -1327,6 +1331,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const url = `${this.examsUrl}?user_id=${encodeURIComponent(userId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
+        this.isFetchingExams = false;
         const arr = Array.isArray(res?.data) ? res.data : [];
         const fmtDate = (v: any): string => {
           if (v === null || v === undefined || v === '') return '';
@@ -1459,7 +1464,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
             type: x.type,
           };
         });
-        this.loading = false;
+        if (showLoader) {
+          this.loading = false;
+        }
         this.exams.forEach((e) => delete (e as any)._cachedAttemptRows);
         this.dataSource.data = this.exams;
         // populate per-tab sources
@@ -1518,9 +1525,10 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err) => {
         console.warn('Failed to load tests', err);
-        this.loading = false;
+        this.isFetchingExams = false;
         // Preserve the current table if only the background availability refresh fails.
         if (showLoader) {
+          this.loading = false;
           this.exams = [];
           this.loader.hide();
         }
