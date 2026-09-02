@@ -1485,6 +1485,49 @@ def launch_exam_details(schedule_id, user_id):
         if not exam_schedule:
             return {"statusMessage": "Schedule not found", "status": False}, 404
 
+        # Verify that the student is authorized/assigned to this test or is an admin
+        user_obj = session.query(User).filter_by(user_id=user_id).first()
+        is_user_admin = user_obj and str(getattr(user_obj, "user_role", "") or "").lower() in ("admin", "super_admin", "superadmin", "super-admin")
+
+        if not is_user_admin:
+            mapping_conditions = [ExamScheduleMapping.user_id == user_id]
+            if user_obj:
+                if getattr(user_obj, "department_id", None):
+                    mapping_conditions.append(ExamScheduleMapping.department_id == user_obj.department_id)
+                if getattr(user_obj, "team_id", None):
+                    mapping_conditions.append(ExamScheduleMapping.team_id == user_obj.team_id)
+                if getattr(user_obj, "campus_id", None):
+                    mapping_conditions.append(ExamScheduleMapping.campus_id == user_obj.campus_id)
+
+            is_assigned = (
+                session.query(ExamScheduleMapping)
+                .filter(
+                    ExamScheduleMapping.schedule_id == schedule_id,
+                    or_(*mapping_conditions)
+                )
+                .first()
+            )
+
+            # Also allow if user already has an existing attempt (e.g., resuming in-progress attempt)
+            has_attempt = (
+                session.query(Exam_Attempt)
+                .filter_by(schedule_id=schedule_id, user_id=user_id)
+                .first()
+            )
+
+            if not is_assigned and not has_attempt:
+                return {
+                    "statusMessage": "You are not authorized to access this exam",
+                    "status": False,
+                }, 403
+
+            # Check if exam schedule has not started yet
+            if exam_schedule.start_time and datetime.utcnow() < exam_schedule.start_time:
+                return {
+                    "statusMessage": "This exam has not started yet",
+                    "status": False,
+                }, 400
+
         # get Exam details
         exam_data = session.query(Exam).filter_by(exam_id=exam_schedule.exam_id).first()
 
