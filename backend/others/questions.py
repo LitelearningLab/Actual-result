@@ -572,6 +572,12 @@ def create_question_using_llm(request):
     number_of_questions = int(gv("number_of_questions", 1) or 1)
     complexity = gv("complexity", "medium")
     source_text = gv("source_text", "")
+    if not str(source_text or '').strip() and not question_file:
+        return {
+            "status": False,
+            "statusMessage": "Topic or content is required.",
+            "error": "Topic or content is required."
+        }, 400
     additional_instructions = gv("additional_instructions", "")
     question_mark = int(gv("marks_per_question", 2) or 2)
     if question_mark >= 2 and question_mark <=4:
