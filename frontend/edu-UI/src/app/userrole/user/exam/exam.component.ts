@@ -1757,6 +1757,8 @@ formatSeconds(sec: number | null | undefined): string {
     const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
     const userId = userRaw ? JSON.parse(userRaw)?.user_id || JSON.parse(userRaw)?.id || '' : '';
     const url = `${this.launchUrl}?schedule_id=${encodeURIComponent(String(scheduleId))}&user_id=${encodeURIComponent(String(userId))}`;
+    
+    this.loader.show();
     // call launch API and navigate to user-exam page with payload
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -1764,11 +1766,13 @@ formatSeconds(sec: number | null | undefined): string {
         try {
           sessionStorage.setItem('launched_exam', JSON.stringify(res?.data || res));
         } catch (e) {}
+        this.loader.hide();
         // navigate to user exam page
         // window.location.href = '/user-exam';
         this.router.navigate(['/user/exam/run']);
       },
       error: (err) => {
+        this.loader.hide();
         console.warn('Failed to launch exam', err);
         const message = err?.error?.statusMessage || err?.error?.message || 'Could not launch test';
         try {

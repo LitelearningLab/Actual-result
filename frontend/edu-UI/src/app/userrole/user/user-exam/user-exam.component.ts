@@ -8,6 +8,7 @@ import { Observable, of, throwError } from 'rxjs';
 import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { API_BASE } from 'src/app/shared/api.config';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
+import { LoaderService } from 'src/app/shared/services/loader.service';
 import { notify } from 'src/app/shared/global-notify';
 
 // Web Speech API typings
@@ -85,7 +86,13 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   private autosaveTimer: any = null;
   private statusUrl = `${API_BASE}/active-exam-status`;
 
-  constructor(private http: HttpClient, private confirmService: ConfirmService, private ngZone: NgZone, private router: Router) {
+  constructor(
+    private http: HttpClient,
+    private confirmService: ConfirmService,
+    private ngZone: NgZone,
+    private router: Router,
+    private loader: LoaderService
+  ) {
     // Initialize speech recognition
     this.initSpeechRecognition();
   }
@@ -298,6 +305,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    this.loader.hide();
     try {
       const raw = sessionStorage.getItem('launched_exam');
       this.exam = raw ? JSON.parse(raw) : null;
