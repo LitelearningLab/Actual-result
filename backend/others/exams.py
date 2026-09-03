@@ -422,6 +422,9 @@ def update_exam(request):
 
         categories_list = data.get("categories", [])
         for category in categories_list:
+            category_id = category.get("category_id")
+            if not category_id:
+                continue
             raw_noq = category.get("number_of_questions") if category.get("number_of_questions") is not None else category.get("questions", 0)
             try:
                 number_of_questions = int(raw_noq or 0)

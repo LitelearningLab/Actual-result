@@ -590,6 +590,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this._randomBlockClickHandler)
         document.removeEventListener('click', this._randomBlockClickHandler, true);
     } catch (e) {}
+    try {
+      sessionStorage.removeItem('edit_exam');
+    } catch (e) {}
   }
 
   // Called when the Enable Filters checkbox toggles

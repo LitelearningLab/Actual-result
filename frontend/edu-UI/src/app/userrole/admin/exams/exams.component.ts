@@ -2164,6 +2164,9 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     return this.teams.filter((t) => (t.name || '').toLowerCase().includes(term));
   }
   openCreateTest(): void {
+    try {
+      sessionStorage.removeItem('edit_exam');
+    } catch (e) {}
     this.saveTestsReturnState();
     this.router.navigate(['/create-exam']);
   }
