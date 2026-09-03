@@ -566,9 +566,17 @@ def get_user_wise_report(request):
         order = args.get('order', 'asc')
         reverse = (order.lower() == 'desc')
         try:
-            rows.sort(key=lambda r: (r.get(sort_by) is None, r.get(sort_by)), reverse=reverse)
-        except Exception:
-            rows.sort(key=lambda r: r.get('student_name', '').lower())
+            if sort_by == 'student_name':
+                rows.sort(key=lambda r: (r.get('student_name') is None, (r.get('student_name') or '').lower()), reverse=reverse)
+            elif sort_by in ('test_taken_date', 'date'):
+                rows.sort(key=lambda r: (r.get('test_taken_date') is None, r.get('test_taken_date') or ''), reverse=reverse)
+            elif sort_by == 'percentage':
+                rows.sort(key=lambda r: (r.get('percentage') is None, float(r.get('percentage')) if r.get('percentage') is not None else -1.0), reverse=reverse)
+            else:
+                rows.sort(key=lambda r: (r.get(sort_by) is None, r.get(sort_by)), reverse=reverse)
+        except Exception as ex:
+            print(f"[get_user_report] Sort error: {ex}")
+            rows.sort(key=lambda r: (r.get('student_name') or '').lower())
 
         total = len(rows)
         start = (page - 1) * page_size

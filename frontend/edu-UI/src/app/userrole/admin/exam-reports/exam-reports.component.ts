@@ -135,6 +135,20 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   // user report state
   userReportData: any[] = [];
   userReportTotal = 0;
+  userSortColumn: string = '';
+  userSortDirection: 'asc' | 'desc' = 'asc';
+
+  toggleUserReportSort(column: string) {
+    if (this.userSortColumn === column) {
+      this.userSortDirection = this.userSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.userSortColumn = column;
+      this.userSortDirection = 'asc';
+    }
+    this.currentPage = 1;
+    this.loadUserReport(1, true);
+  }
+
   // user review panel state
   showUserReviewPanel = false;
   userReviewAttempts: any[] = [];
@@ -1125,7 +1139,27 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   get displayedUserReportData(): any[] {
     if (!this.userReportData) return [];
-    return this.userReportData.filter(row => this.isAttemptedRow(row));
+    let list = this.userReportData.filter(row => this.isAttemptedRow(row));
+    if (this.userSortColumn) {
+      list = [...list].sort((a: any, b: any) => {
+        if (this.userSortColumn === 'student_name') {
+          const valA = (a.student_name || a.name || a.user_name || '').toString().toLowerCase().trim();
+          const valB = (b.student_name || b.name || b.user_name || '').toString().toLowerCase().trim();
+          const cmp = valA.localeCompare(valB);
+          return this.userSortDirection === 'asc' ? cmp : -cmp;
+        } else if (this.userSortColumn === 'test_taken_date') {
+          const timeA = a.test_taken_date ? new Date(this.parseDateUTC(a.test_taken_date)).getTime() : 0;
+          const timeB = b.test_taken_date ? new Date(this.parseDateUTC(b.test_taken_date)).getTime() : 0;
+          return this.userSortDirection === 'asc' ? timeA - timeB : timeB - timeA;
+        } else if (this.userSortColumn === 'percentage') {
+          const pctA = a.percentage !== null && a.percentage !== undefined && a.percentage !== '' ? Number(a.percentage) : -1;
+          const pctB = b.percentage !== null && b.percentage !== undefined && b.percentage !== '' ? Number(b.percentage) : -1;
+          return this.userSortDirection === 'asc' ? pctA - pctB : pctB - pctA;
+        }
+        return 0;
+      });
+    }
+    return list;
   }
 
   get hasAttemptedUsers(): boolean {
@@ -2800,6 +2834,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       params.team_id = this.userFilters.teams_id;
     }
     if (this.userFilters.active_status) params.active_status = this.userFilters.active_status;
+    if (this.userSortColumn) {
+      params.sort_by = this.userSortColumn;
+      params.order = this.userSortDirection;
+    }
     const afterDate = this.userFilters.created_after || this.userFilters.joined_after;
     if (afterDate)
       params.created_after = afterDate instanceof Date ? afterDate.toISOString() : afterDate;
@@ -2978,7 +3016,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   exportUserCSV() {
-    if (!this.userReportData || !this.userReportData.length) return;
+    if (!this.displayedUserReportData || !this.displayedUserReportData.length) return;
     const headers = [
       'Student Name',
       'TEST DATE',
@@ -2989,7 +3027,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       'RETEST RESULT',
       'MANUAL REVIEW',
     ];
-    const rows = this.userReportData.map((r: any) => [
+    const rows = this.displayedUserReportData.map((r: any) => [
       r.student_name,
       this.formatDateShort(r.test_taken_date),
       r.percentage !== null && r.percentage !== undefined ? `${r.percentage}%` : '',

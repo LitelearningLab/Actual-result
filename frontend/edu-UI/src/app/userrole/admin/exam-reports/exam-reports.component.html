@@ -1217,7 +1217,23 @@
               matSort
             >
               <ng-container matColumnDef="student_name">
-                <th mat-header-cell *matHeaderCellDef>STUDENT</th>
+                <th
+                  mat-header-cell
+                  *matHeaderCellDef
+                  class="sortable-header"
+                  (click)="toggleUserReportSort('student_name')"
+                  [attr.aria-sort]="userSortColumn === 'student_name' ? (userSortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
+                  title="Click to sort by Student"
+                >
+                  <div class="header-sort-wrap left-aligned">
+                    <span>STUDENT</span>
+                    <span class="sort-icon-box" [class.active]="userSortColumn === 'student_name'">
+                      <mat-icon class="sort-icon" *ngIf="userSortColumn !== 'student_name'">unfold_more</mat-icon>
+                      <mat-icon class="sort-icon active" *ngIf="userSortColumn === 'student_name' && userSortDirection === 'asc'">arrow_upward</mat-icon>
+                      <mat-icon class="sort-icon active" *ngIf="userSortColumn === 'student_name' && userSortDirection === 'desc'">arrow_downward</mat-icon>
+                    </span>
+                  </div>
+                </th>
                 <td mat-cell *matCellDef="let row" class="cell-primary">
                   <div class="student-cell" (click)="openUserReview(row)">
                     <div class="student-avatar">
@@ -1230,13 +1246,45 @@
                 </td>
               </ng-container>
               <ng-container matColumnDef="test_taken_date">
-                <th mat-header-cell *matHeaderCellDef>TEST DATE</th>
+                <th
+                  mat-header-cell
+                  *matHeaderCellDef
+                  class="sortable-header"
+                  (click)="toggleUserReportSort('test_taken_date')"
+                  [attr.aria-sort]="userSortColumn === 'test_taken_date' ? (userSortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
+                  title="Click to sort by Test Date"
+                >
+                  <div class="header-sort-wrap center-aligned">
+                    <span>TEST DATE</span>
+                    <span class="sort-icon-box" [class.active]="userSortColumn === 'test_taken_date'">
+                      <mat-icon class="sort-icon" *ngIf="userSortColumn !== 'test_taken_date'">unfold_more</mat-icon>
+                      <mat-icon class="sort-icon active" *ngIf="userSortColumn === 'test_taken_date' && userSortDirection === 'asc'">arrow_upward</mat-icon>
+                      <mat-icon class="sort-icon active" *ngIf="userSortColumn === 'test_taken_date' && userSortDirection === 'desc'">arrow_downward</mat-icon>
+                    </span>
+                  </div>
+                </th>
                 <td mat-cell *matCellDef="let row">
                   <span class="cell-date">{{ formatDateShort(row.test_taken_date) }}</span>
                 </td>
               </ng-container>
               <ng-container matColumnDef="percentage">
-                <th mat-header-cell *matHeaderCellDef>PERCENTAGE</th>
+                <th
+                  mat-header-cell
+                  *matHeaderCellDef
+                  class="sortable-header"
+                  (click)="toggleUserReportSort('percentage')"
+                  [attr.aria-sort]="userSortColumn === 'percentage' ? (userSortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
+                  title="Click to sort by Percentage"
+                >
+                  <div class="header-sort-wrap center-aligned">
+                    <span>PERCENTAGE</span>
+                    <span class="sort-icon-box" [class.active]="userSortColumn === 'percentage'">
+                      <mat-icon class="sort-icon" *ngIf="userSortColumn !== 'percentage'">unfold_more</mat-icon>
+                      <mat-icon class="sort-icon active" *ngIf="userSortColumn === 'percentage' && userSortDirection === 'asc'">arrow_upward</mat-icon>
+                      <mat-icon class="sort-icon active" *ngIf="userSortColumn === 'percentage' && userSortDirection === 'desc'">arrow_downward</mat-icon>
+                    </span>
+                  </div>
+                </th>
                 <td mat-cell *matCellDef="let row">
                   <span class="percentage-value">{{ formatPercentage(row.percentage) }}</span>
                 </td>
