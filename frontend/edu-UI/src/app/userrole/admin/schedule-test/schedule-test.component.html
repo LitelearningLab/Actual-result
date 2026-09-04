@@ -855,10 +855,11 @@
           <ng-container *ngIf="isSuperAdmin">
             <!-- Row 1: Institute * (Full Width) -->
             <div class="filter-col-full" *ngIf="!isGlobalInstituteActive">
-              <mat-form-field appearance="outline" class="filter-item mandatory-field">
+              <mat-form-field appearance="outline" class="filter-item mandatory-field" floatLabel="always">
                 <mat-icon matPrefix>apartment</mat-icon>
                 <mat-label>Institute <span class="required-star">*</span></mat-label>
                 <mat-select [(ngModel)]="filterInstitute" (selectionChange)="onFilterInstituteSelected($event.value)"
+                  placeholder="Select institute"
                   (openedChange)="onFilterSelectOpened($event, 'country')">
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                     <input matInput class="select-search-input" placeholder="Search institute"
@@ -866,7 +867,6 @@
                       (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
                       (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
                   </mat-option>
-                  <mat-option value="">Any</mat-option>
                   <mat-option *ngFor="let inst of filteredInstitutesForFilter()" [value]="inst.institute_id">
                     {{ inst.name }}
                   </mat-option>
@@ -877,13 +877,13 @@
             <!-- Row 2: Country & City (2 Columns) -->
             <div class="filter-col-full filter-row-two-col">
               <!-- Country (Left) -->
-              <mat-form-field appearance="outline" class="filter-item">
+              <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
                 <mat-icon matPrefix>public</mat-icon>
                 <mat-label>Country</mat-label>
                 <mat-select
                   multiple
                   [(ngModel)]="selectedCountries"
-                  placeholder="Select Country"
+                  placeholder="Any"
                   (selectionChange)="onCountryFilterChange()"
                   (openedChange)="onFilterSelectOpened($event, 'country')"
                 >
@@ -925,13 +925,13 @@
               </mat-form-field>
 
               <!-- City (Right) -->
-              <mat-form-field appearance="outline" class="filter-item">
+              <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
                 <mat-icon matPrefix>location_city</mat-icon>
                 <mat-label>City</mat-label>
                 <mat-select
                   multiple
                   [(ngModel)]="selectedCities"
-                  placeholder="Select City"
+                  placeholder="Any"
                   [disabled]="!selectedCountries.length && !filterCountry"
                   (openedChange)="onFilterSelectOpened($event, 'city')"
                   (selectionChange)="onCityFilterChange()"
@@ -980,10 +980,10 @@
             <!-- Row 3: Industry & Sector (2 Columns) -->
             <div class="filter-col-full filter-row-two-col">
               <!-- Industry (Left) -->
-              <mat-form-field appearance="outline" class="filter-item">
+              <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
                 <mat-icon matPrefix>work</mat-icon>
                 <mat-label>Industry</mat-label>
-                <mat-select [(ngModel)]="filterIndustry" placeholder="Industry type"
+                <mat-select [(ngModel)]="filterIndustry" placeholder="Any"
                   (selectionChange)="onIndustryFilterChange()" (openedChange)="onFilterSelectOpened($event, 'industry')">
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                     <input matInput class="select-search-input" placeholder="Search industry" [(ngModel)]="industrySearch"
@@ -997,10 +997,10 @@
               </mat-form-field>
 
               <!-- Sector (Right) -->
-              <mat-form-field appearance="outline" class="filter-item">
+              <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
                 <mat-icon matPrefix>category</mat-icon>
                 <mat-label>Sector</mat-label>
-                <mat-select [(ngModel)]="filterSector" placeholder="Industry sector" [disabled]="!filterIndustry"
+                <mat-select [(ngModel)]="filterSector" placeholder="Any" [disabled]="!filterIndustry"
                   (openedChange)="onFilterSelectOpened($event, 'sector')" (selectionChange)="loadInstitutes()">
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                     <input matInput class="select-search-input" placeholder="Search sector" [(ngModel)]="sectorSearch"
@@ -1017,10 +1017,10 @@
             <!-- Row 4: Departments & Teams (2 Columns) -->
             <div class="filter-col-full filter-row-two-col">
               <!-- Departments (Left) -->
-              <mat-form-field appearance="outline" class="filter-item">
+              <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
                 <mat-icon matPrefix>business_center</mat-icon>
                 <mat-label>Departments</mat-label>
-                <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select departments"
+                <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Any"
                   (selectionChange)="onDepartmentSelectionChange()"
                   (openedChange)="onFilterDepartmentOpenedChange($event)">
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
@@ -1036,10 +1036,10 @@
               </mat-form-field>
 
               <!-- Teams (Right) -->
-              <mat-form-field appearance="outline" class="filter-item">
+              <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
                 <mat-icon matPrefix>groups</mat-icon>
                 <mat-label>Teams</mat-label>
-                <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select teams"
+                <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Any"
                   (selectionChange)="onTeamSelectionChange()" (openedChange)="onFilterTeamOpenedChange($event)">
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                     <input matInput class="select-search-input" placeholder="Search team" [(ngModel)]="teamFilterSearch"
@@ -1056,10 +1056,10 @@
 
             <!-- Row 5: Test Name (Full Width) -->
             <div class="filter-col-full">
-              <mat-form-field appearance="outline" class="filter-item mandatory-field">
+              <mat-form-field appearance="outline" class="filter-item mandatory-field" floatLabel="always">
                 <mat-icon matPrefix>assignment</mat-icon>
                 <mat-label>Test Name <span class="required-star">*</span></mat-label>
-                <mat-select [(ngModel)]="filterExamName" (selectionChange)="onFilterTestNameSelected($event.value)" required>
+                <mat-select [(ngModel)]="filterExamName" (selectionChange)="onFilterTestNameSelected($event.value)" placeholder="Select test name" required>
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                     <input matInput class="select-search-input" placeholder="Search test name"
                       [(ngModel)]="examNameSearch" [ngModelOptions]="{ standalone: true }"
@@ -1078,10 +1078,10 @@
           <ng-container *ngIf="!isSuperAdmin">
             <!-- Row 1: Test Name (Full Width) -->
             <div class="filter-col-full">
-              <mat-form-field appearance="outline" class="filter-item mandatory-field">
+              <mat-form-field appearance="outline" class="filter-item mandatory-field" floatLabel="always">
                 <mat-icon matPrefix>assignment</mat-icon>
                 <mat-label>Test Name <span class="required-star">*</span></mat-label>
-                <mat-select [(ngModel)]="filterExamName" (selectionChange)="onFilterTestNameSelected($event.value)" required>
+                <mat-select [(ngModel)]="filterExamName" (selectionChange)="onFilterTestNameSelected($event.value)" placeholder="Select test name" required>
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                     <input matInput class="select-search-input" placeholder="Search test name"
                       [(ngModel)]="examNameSearch" [ngModelOptions]="{ standalone: true }"
@@ -1097,10 +1097,10 @@
 
             <!-- Row 2: Departments & Teams (Side by side 2 columns) -->
             <div class="filter-col-full filter-row-two-col">
-              <mat-form-field appearance="outline" class="filter-item">
+              <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
                 <mat-icon matPrefix>business_center</mat-icon>
                 <mat-label>Departments</mat-label>
-                <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Select departments"
+                <mat-select multiple [(ngModel)]="selectedDepartments" placeholder="Any"
                   (selectionChange)="onDepartmentSelectionChange()"
                   (openedChange)="onFilterDepartmentOpenedChange($event)">
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
@@ -1115,10 +1115,10 @@
                 </mat-select>
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="filter-item">
+              <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
                 <mat-icon matPrefix>groups</mat-icon>
                 <mat-label>Teams</mat-label>
-                <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Select teams"
+                <mat-select multiple [(ngModel)]="selectedTeams" placeholder="Any"
                   (selectionChange)="onTeamSelectionChange()" (openedChange)="onFilterTeamOpenedChange($event)">
                   <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                     <input matInput class="select-search-input" placeholder="Search team" [(ngModel)]="teamFilterSearch"

@@ -248,24 +248,23 @@ html, body { width:100%; margin:0; padding:0; min-height:100%; background-color:
 .question-bank-filter-panel .mat-mdc-text-field-wrapper,
 .category-filters-panel .mat-mdc-text-field-wrapper,
 .global-filter-section .mat-mdc-text-field-wrapper {
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
 }
 
 .filters-panel .mat-mdc-form-field-infix,
 .question-bank-filter-panel .mat-mdc-form-field-infix,
 .category-filters-panel .mat-mdc-form-field-infix,
 .global-filter-section .mat-mdc-form-field-infix {
-  min-height: 3.5rem;
-  padding-top: 0.9rem;
-  padding-bottom: 0.9rem;
+  min-height: unset;
+  padding: 0;
 }
 
 .filters-panel .mat-mdc-select-trigger,
 .question-bank-filter-panel .mat-mdc-select-trigger,
 .category-filters-panel .mat-mdc-select-trigger,
 .global-filter-section .mat-mdc-select-trigger {
-  min-height: 1.5rem;
-  display: flex;
+  min-height: unset;
+  display: inline-flex;
   align-items: center;
 }
 
@@ -273,5 +272,6 @@ html, body { width:100%; margin:0; padding:0; min-height:100%; background-color:
 .question-bank-filter-panel .mat-mdc-select-value,
 .category-filters-panel .mat-mdc-select-value,
 .global-filter-section .mat-mdc-select-value {
-  font-size: 1rem;
+  font-size: 0.875rem;
 }
+

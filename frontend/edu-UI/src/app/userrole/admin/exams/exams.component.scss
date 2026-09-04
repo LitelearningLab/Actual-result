@@ -110,33 +110,27 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
   display: none;
 }
 
-:host ::ng-deep .filters-panel .mat-mdc-text-field-wrapper,
-:host ::ng-deep .filters-panel .mat-mdc-form-field-flex,
-:host ::ng-deep .filters-panel .mat-mdc-form-field-infix {
-  min-height: 3.5rem;
-}
-
 :host ::ng-deep .filters-panel .mat-mdc-text-field-wrapper {
-  border-radius: 0.75rem !important;
+  border-radius: 0.625rem !important;
 }
 
 :host ::ng-deep .filters-panel .mat-mdc-form-field-infix {
-  padding-top: 0.85rem;
-  padding-bottom: 0.85rem;
+  min-height: unset;
+  padding: 0;
 }
 
 :host ::ng-deep .filters-panel .mat-mdc-select-trigger {
-  min-height: 1.5rem;
-  display: flex;
+  min-height: unset;
+  display: inline-flex;
   align-items: center;
 }
 
 :host ::ng-deep .filters-panel .mat-mdc-select-value {
-  font-size: 1rem;
+  font-size: 0.875rem;
 }
 
 :host ::ng-deep .filters-panel .mat-mdc-select-arrow-wrapper {
-  transform: translateY(0.0625rem);
+  transform: none;
 }
 
 :host ::ng-deep .filters-panel .mat-mdc-autocomplete-panel,
