@@ -50,6 +50,182 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import { getLocaleDateFormat } from 'src/app/shared/date/localized-date-adapter';
 
+export interface TimezoneOption {
+  value: string;
+  label: string;
+  offset: string;
+  countryCode?: string;
+  countryName?: string;
+  campusName?: string;
+  subLabel?: string;
+}
+
+const COUNTRY_TIMEZONE_MAP: Record<
+  string,
+  Array<{ value: string; label: string; offset: string; desc?: string }>
+> = {
+  IN: [
+    { value: 'Asia/Kolkata', label: '(UTC+05:30) Asia/Kolkata (IST)', offset: '+05:30', desc: 'India' },
+  ],
+  US: [
+    { value: 'America/New_York', label: '(UTC-05:00) America/New_York (Eastern)', offset: '-05:00', desc: 'US Eastern' },
+    { value: 'America/Chicago', label: '(UTC-06:00) America/Chicago (Central)', offset: '-06:00', desc: 'US Central' },
+    { value: 'America/Denver', label: '(UTC-07:00) America/Denver (Mountain)', offset: '-07:00', desc: 'US Mountain' },
+    { value: 'America/Los_Angeles', label: '(UTC-08:00) America/Los_Angeles (Pacific)', offset: '-08:00', desc: 'US Pacific' },
+    { value: 'America/Anchorage', label: '(UTC-09:00) America/Anchorage (Alaska)', offset: '-09:00', desc: 'US Alaska' },
+    { value: 'Pacific/Honolulu', label: '(UTC-10:00) Pacific/Honolulu (Hawaii)', offset: '-10:00', desc: 'US Hawaii' },
+  ],
+  GB: [
+    { value: 'Europe/London', label: '(UTC+00:00) Europe/London (GMT/BST)', offset: '+00:00', desc: 'United Kingdom' },
+  ],
+  UK: [
+    { value: 'Europe/London', label: '(UTC+00:00) Europe/London (GMT/BST)', offset: '+00:00', desc: 'United Kingdom' },
+  ],
+  AE: [
+    { value: 'Asia/Dubai', label: '(UTC+04:00) Asia/Dubai (GST)', offset: '+04:00', desc: 'UAE / Dubai' },
+  ],
+  SG: [
+    { value: 'Asia/Singapore', label: '(UTC+08:00) Asia/Singapore (SGT)', offset: '+08:00', desc: 'Singapore' },
+  ],
+  AU: [
+    { value: 'Australia/Sydney', label: '(UTC+10:00) Australia/Sydney (AEST)', offset: '+10:00', desc: 'Australia (Sydney/NSW)' },
+    { value: 'Australia/Melbourne', label: '(UTC+10:00) Australia/Melbourne (AEST)', offset: '+10:00', desc: 'Australia (Melbourne/VIC)' },
+    { value: 'Australia/Brisbane', label: '(UTC+10:00) Australia/Brisbane (AEST)', offset: '+10:00', desc: 'Australia (Brisbane/QLD)' },
+    { value: 'Australia/Adelaide', label: '(UTC+09:30) Australia/Adelaide (ACST)', offset: '+09:30', desc: 'Australia (Adelaide/SA)' },
+    { value: 'Australia/Perth', label: '(UTC+08:00) Australia/Perth (AWST)', offset: '+08:00', desc: 'Australia (Perth/WA)' },
+  ],
+  CA: [
+    { value: 'America/Toronto', label: '(UTC-05:00) America/Toronto (Eastern)', offset: '-05:00', desc: 'Canada (Toronto/ON)' },
+    { value: 'America/Vancouver', label: '(UTC-08:00) America/Vancouver (Pacific)', offset: '-08:00', desc: 'Canada (Vancouver/BC)' },
+  ],
+  DE: [
+    { value: 'Europe/Berlin', label: '(UTC+01:00) Europe/Berlin (CET/CEST)', offset: '+01:00', desc: 'Germany' },
+  ],
+  FR: [
+    { value: 'Europe/Paris', label: '(UTC+01:00) Europe/Paris (CET/CEST)', offset: '+01:00', desc: 'France' },
+  ],
+  JP: [
+    { value: 'Asia/Tokyo', label: '(UTC+09:00) Asia/Tokyo (JST)', offset: '+09:00', desc: 'Japan' },
+  ],
+  CN: [
+    { value: 'Asia/Shanghai', label: '(UTC+08:00) Asia/Shanghai (CST)', offset: '+08:00', desc: 'China' },
+  ],
+  HK: [
+    { value: 'Asia/Hong_Kong', label: '(UTC+08:00) Asia/Hong_Kong (HKT)', offset: '+08:00', desc: 'Hong Kong' },
+  ],
+  MY: [
+    { value: 'Asia/Kuala_Lumpur', label: '(UTC+08:00) Asia/Kuala_Lumpur (MYT)', offset: '+08:00', desc: 'Malaysia' },
+  ],
+  SA: [
+    { value: 'Asia/Riyadh', label: '(UTC+03:00) Asia/Riyadh (AST)', offset: '+03:00', desc: 'Saudi Arabia' },
+  ],
+  QA: [
+    { value: 'Asia/Qatar', label: '(UTC+03:00) Asia/Qatar (AST)', offset: '+03:00', desc: 'Qatar' },
+  ],
+  KW: [
+    { value: 'Asia/Kuwait', label: '(UTC+03:00) Asia/Kuwait (AST)', offset: '+03:00', desc: 'Kuwait' },
+  ],
+  ZA: [
+    { value: 'Africa/Johannesburg', label: '(UTC+02:00) Africa/Johannesburg (SAST)', offset: '+02:00', desc: 'South Africa' },
+  ],
+  NZ: [
+    { value: 'Pacific/Auckland', label: '(UTC+12:00) Pacific/Auckland (NZST/NZDT)', offset: '+12:00', desc: 'New Zealand' },
+  ],
+  BR: [
+    { value: 'America/Sao_Paulo', label: '(UTC-03:00) America/Sao_Paulo (BRT)', offset: '-03:00', desc: 'Brazil' },
+  ],
+  MX: [
+    { value: 'America/Mexico_City', label: '(UTC-06:00) America/Mexico_City (CST)', offset: '-06:00', desc: 'Mexico' },
+  ],
+  NG: [
+    { value: 'Africa/Lagos', label: '(UTC+01:00) Africa/Lagos (WAT)', offset: '+01:00', desc: 'Nigeria' },
+  ],
+  KE: [
+    { value: 'Africa/Nairobi', label: '(UTC+03:00) Africa/Nairobi (EAT)', offset: '+03:00', desc: 'Kenya' },
+  ],
+  EG: [
+    { value: 'Africa/Cairo', label: '(UTC+02:00) Africa/Cairo (EET)', offset: '+02:00', desc: 'Egypt' },
+  ],
+  PH: [
+    { value: 'Asia/Manila', label: '(UTC+08:00) Asia/Manila (PHT)', offset: '+08:00', desc: 'Philippines' },
+  ],
+  ID: [
+    { value: 'Asia/Jakarta', label: '(UTC+07:00) Asia/Jakarta (WIB)', offset: '+07:00', desc: 'Indonesia' },
+  ],
+  LK: [
+    { value: 'Asia/Colombo', label: '(UTC+05:30) Asia/Colombo (SLST)', offset: '+05:30', desc: 'Sri Lanka' },
+  ],
+  BD: [
+    { value: 'Asia/Dhaka', label: '(UTC+06:00) Asia/Dhaka (BST)', offset: '+06:00', desc: 'Bangladesh' },
+  ],
+  PK: [
+    { value: 'Asia/Karachi', label: '(UTC+05:00) Asia/Karachi (PKT)', offset: '+05:00', desc: 'Pakistan' },
+  ],
+  NP: [
+    { value: 'Asia/Kathmandu', label: '(UTC+05:45) Asia/Kathmandu (NPT)', offset: '+05:45', desc: 'Nepal' },
+  ],
+  IE: [
+    { value: 'Europe/Dublin', label: '(UTC+00:00) Europe/Dublin (GMT/IST)', offset: '+00:00', desc: 'Ireland' },
+  ],
+  NL: [
+    { value: 'Europe/Amsterdam', label: '(UTC+01:00) Europe/Amsterdam (CET/CEST)', offset: '+01:00', desc: 'Netherlands' },
+  ],
+  CH: [
+    { value: 'Europe/Zurich', label: '(UTC+01:00) Europe/Zurich (CET/CEST)', offset: '+01:00', desc: 'Switzerland' },
+  ],
+  SE: [
+    { value: 'Europe/Stockholm', label: '(UTC+01:00) Europe/Stockholm (CET/CEST)', offset: '+01:00', desc: 'Sweden' },
+  ],
+};
+
+function normalizeCountryCode(input: string): string {
+  if (!input) return '';
+  const trimmed = input.trim().toUpperCase();
+  if (COUNTRY_TIMEZONE_MAP[trimmed]) return trimmed;
+  const nameLookup: Record<string, string> = {
+    INDIA: 'IN',
+    'UNITED STATES': 'US',
+    'UNITED STATES OF AMERICA': 'US',
+    USA: 'US',
+    'UNITED KINGDOM': 'GB',
+    UK: 'GB',
+    BRITAIN: 'GB',
+    'UNITED ARAB EMIRATES': 'AE',
+    UAE: 'AE',
+    DUBAI: 'AE',
+    SINGAPORE: 'SG',
+    AUSTRALIA: 'AU',
+    CANADA: 'CA',
+    GERMANY: 'DE',
+    FRANCE: 'FR',
+    JAPAN: 'JP',
+    CHINA: 'CN',
+    'HONG KONG': 'HK',
+    MALAYSIA: 'MY',
+    'SAUDI ARABIA': 'SA',
+    QATAR: 'QA',
+    KUWAIT: 'KW',
+    'SOUTH AFRICA': 'ZA',
+    'NEW ZEALAND': 'NZ',
+    BRAZIL: 'BR',
+    MEXICO: 'MX',
+    NIGERIA: 'NG',
+    KENYA: 'KE',
+    EGYPT: 'EG',
+    PHILIPPINES: 'PH',
+    INDONESIA: 'ID',
+    'SRI LANKA': 'LK',
+    BANGLADESH: 'BD',
+    PAKISTAN: 'PK',
+    NEPAL: 'NP',
+    IRELAND: 'IE',
+    NETHERLANDS: 'NL',
+    SWITZERLAND: 'CH',
+    SWEDEN: 'SE',
+  };
+  return nameLookup[trimmed] || '';
+}
+
 @Component({
   selector: 'app-admin-schedule-test',
   standalone: true,
@@ -181,8 +357,12 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     IT: ['IT'],
   };
 
+  availableTimezones: TimezoneOption[] = [];
+  rawInstitutesList: any[] = [];
+
   model: any = {
     institute: '',
+    timezone: 'Asia/Kolkata',
     // schedule name shown on the schedule list (user-provided)
     schedulerName: '',
     // selected exam id from catalog (optional)
@@ -609,11 +789,13 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       this.loadSuperAdminUserLocationsForStep2();
     }
     this.updateInstituteDisabledState();
+    this.updateAvailableTimezones();
   }
 
   private initializeValidationForms(): void {
     this.scheduleTimingForm = this.fb.group(
       {
+        timezone: [this.model.timezone || 'Asia/Kolkata', Validators.required],
         startDate: [this.model.startDate, Validators.required],
         startTime: [
           this.model.startTime,
@@ -1223,6 +1405,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         next: (res) => {
           try {
             const institutes = Array.isArray(res?.data) ? res.data : [];
+            this.rawInstitutesList = institutes;
+            this.updateAvailableTimezones();
             const hierarchyCountries = (locationCountries || [])
               .map((country: any) => ({
                 code: country.country_code || country.code || country.id,
@@ -2214,6 +2398,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     if (this.isSuperAdmin) {
       this.loadSuperAdminUserLocationsForStep2();
     }
+    this.loadCampusList(this.model.institute);
+    this.updateAvailableTimezones();
     // Prioritize the test list. Loading every institute dependency at the same
     // time makes the local backend compete for database connections and delays
     // the dropdown the user is waiting for.
@@ -2691,6 +2877,10 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     this.filterExamName = ''; // Reset selected test name when institute changes
 
     const targetInstitute = this.filterInstitute || this.model.institute;
+    if (targetInstitute) {
+      this.loadCampusList(targetInstitute);
+    }
+    this.updateAvailableTimezones();
 
     // Load departments, teams, test options, and exams for the selected institute
     this.loadDepartments(targetInstitute);
@@ -3624,7 +3814,10 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   loadCampusList(instituteId: string) {
     this.campusList = [];
     this.userCampuses = [];
-    if (!instituteId) return;
+    if (!instituteId) {
+      this.updateAvailableTimezones();
+      return;
+    }
     const url = `${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instituteId)}`;
     this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
       next: (res) => {
@@ -3646,13 +3839,165 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         this.campusList = arr
           .map((c: any) => (c.name || c.campus_name || c.campus || c).toString())
           .filter((s: any) => !!s);
+        this.updateAvailableTimezones();
       },
       error: (err) => {
         console.warn('Failed to load campus list', err);
         this.campusList = [];
         this.userCampuses = [];
+        this.updateAvailableTimezones();
       },
     });
+  }
+
+  updateAvailableTimezones(): void {
+    const instId = String(
+      this.model.institute || this.filterInstitute || this.getAdminInstituteId() || ''
+    ).trim();
+
+    // 1. Find matching institute from loaded raw institutes or institutes list
+    const foundInstitute = this.rawInstitutesList.find(
+      (inst: any) => String(inst.institute_id || inst.id) === instId
+    );
+
+    // 2. Collect country codes/names and campuses
+    const locationsToProcess: Array<{
+      countryCode?: string;
+      countryName?: string;
+      campusName?: string;
+      cityName?: string;
+    }> = [];
+
+    // Check institute-level country
+    if (foundInstitute) {
+      const rawCountry = foundInstitute?.country;
+      const cCode =
+        foundInstitute?.country_id ||
+        foundInstitute?.country_code ||
+        (typeof rawCountry === 'object' ? rawCountry?.country_code || rawCountry?.id : rawCountry);
+      const cName =
+        foundInstitute?.country_name ||
+        (typeof rawCountry === 'object' ? rawCountry?.country_name || rawCountry?.name : rawCountry);
+      if (cCode || cName) {
+        locationsToProcess.push({
+          countryCode: String(cCode || ''),
+          countryName: String(cName || ''),
+          campusName: 'Main Location',
+        });
+      }
+
+      // Check institute campuses
+      if (Array.isArray(foundInstitute.campuses)) {
+        foundInstitute.campuses.forEach((c: any) => {
+          const rawCC = c?.country;
+          const campusCCode =
+            c?.country_id ||
+            c?.country_code ||
+            (typeof rawCC === 'object' ? rawCC?.country_code || rawCC?.id : rawCC);
+          const campusCName =
+            c?.country_name ||
+            (typeof rawCC === 'object' ? rawCC?.country_name || rawCC?.name : rawCC);
+          const campusTitle = c?.name || c?.campus_name || '';
+          if (campusCCode || campusCName || campusTitle) {
+            locationsToProcess.push({
+              countryCode: String(campusCCode || ''),
+              countryName: String(campusCName || ''),
+              campusName: campusTitle,
+              cityName: c?.city_name || c?.city || '',
+            });
+          }
+        });
+      }
+    }
+
+    // Also include userCampuses (loaded via /get-campus-list)
+    if (this.userCampuses && this.userCampuses.length > 0) {
+      this.userCampuses.forEach((uc) => {
+        if (
+          this.selectedUserCampuses.length > 0 &&
+          !this.selectedUserCampuses.includes(uc.id)
+        ) {
+          return;
+        }
+        if (this.userFilters.campus_id && this.userFilters.campus_id !== uc.id) {
+          return;
+        }
+
+        locationsToProcess.push({
+          countryCode: uc.country_id,
+          countryName: uc.country_name,
+          campusName: uc.name,
+          cityName: uc.city_name,
+        });
+      });
+    }
+
+    // Map gathered locations to timezone options
+    const optionsMap = new Map<string, TimezoneOption>();
+
+    locationsToProcess.forEach((loc) => {
+      const normalizedCode = normalizeCountryCode(loc.countryCode || loc.countryName || '');
+      const tzList = normalizedCode ? COUNTRY_TIMEZONE_MAP[normalizedCode] : null;
+
+      if (tzList && tzList.length > 0) {
+        tzList.forEach((tz) => {
+          const key = tz.value;
+          const existing = optionsMap.get(key);
+          const subLabelParts: string[] = [];
+          if (loc.campusName && loc.campusName !== 'Main Location') {
+            subLabelParts.push(loc.campusName);
+          }
+          if (loc.cityName) {
+            subLabelParts.push(loc.cityName);
+          }
+          if (loc.countryName) {
+            subLabelParts.push(loc.countryName);
+          }
+          const subLabel = subLabelParts.join(' • ') || (tz.desc || loc.countryName || '');
+
+          if (!existing) {
+            optionsMap.set(key, {
+              value: tz.value,
+              label: tz.label,
+              offset: tz.offset,
+              countryCode: normalizedCode || loc.countryCode,
+              countryName: loc.countryName || tz.desc,
+              campusName: loc.campusName,
+              subLabel,
+            });
+          } else if (subLabel && !existing.subLabel?.includes(loc.campusName || '')) {
+            existing.subLabel = `${existing.subLabel}, ${subLabel}`;
+          }
+        });
+      }
+    });
+
+    // If no specific options were found, default to standard India / registered list
+    if (optionsMap.size === 0) {
+      const defaultIndia = COUNTRY_TIMEZONE_MAP['IN'][0];
+      optionsMap.set(defaultIndia.value, {
+        value: defaultIndia.value,
+        label: defaultIndia.label,
+        offset: defaultIndia.offset,
+        countryCode: 'IN',
+        countryName: 'India',
+        subLabel: 'Standard Default',
+      });
+    }
+
+    this.availableTimezones = Array.from(optionsMap.values());
+
+    // Check if currently selected timezone is valid in available list
+    const currentTz = this.scheduleTimingForm?.get('timezone')?.value || this.model.timezone;
+    const isValid = this.availableTimezones.some((tz) => tz.value === currentTz);
+
+    if (!isValid && this.availableTimezones.length > 0) {
+      const nextTz = this.availableTimezones[0].value;
+      this.model.timezone = nextTz;
+      this.scheduleTimingForm?.get('timezone')?.setValue(nextTz, { emitEvent: false });
+    } else if (isValid && currentTz) {
+      this.model.timezone = currentTz;
+    }
   }
 
   schedule() {
@@ -3840,6 +4185,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       show_correct_answers: boolean;
       show_student_answers: boolean;
       show_explanations: boolean;
+      timezone?: string;
       schedule_id?: any;
       updated_by?: any;
     } = {
@@ -3852,6 +4198,10 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       categories: Array.isArray(this.model.categories) ? this.model.categories : undefined,
       start_time: startIso,
       end_time: endIso,
+      timezone:
+        this.scheduleTimingForm?.get('timezone')?.value ||
+        this.model.timezone ||
+        'Asia/Kolkata',
       created_by:
         sessionStorage.getItem('user_id') || sessionStorage.getItem('username') || 'admin',
       published: this.model.publish || false,
@@ -3975,6 +4325,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         // scheduler name used in template; also set legacy testName for compatibility
         this.model.schedulerName = e.title || e.testName || e.schedulerName || '';
         this.model.testName = this.model.testName || this.model.schedulerName;
+        if (e.timezone) {
+          this.model.timezone = e.timezone;
+        }
         // ensure exams dropdown is loaded for the institute before attempting to bind exam id
         try {
           this.loadExams(this.model.institute);
@@ -4131,6 +4484,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
           '';
         this.model.schedulerName = v.title || v.testName || v.schedulerName || '';
         this.model.testName = this.model.testName || this.model.schedulerName;
+        if (v.timezone) {
+          this.model.timezone = v.timezone;
+        }
         if (v.start_time) {
           const dt = new Date(v.start_time);
           this.model.startDate = dt.toISOString().slice(0, 10);

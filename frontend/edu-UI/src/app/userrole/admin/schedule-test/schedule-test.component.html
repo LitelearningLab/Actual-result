@@ -147,6 +147,32 @@
                 </div>
 
                 <div [formGroup]="scheduleTimingForm" class="schedule-timing-fields">
+                  <!-- Timezone row -->
+                  <div class="field-row schedule-timezone-row">
+                    <mat-form-field appearance="outline" class="field-full timezone-select-field">
+                      <mat-icon matPrefix>public</mat-icon>
+                      <mat-label>Timezone*</mat-label>
+                      <mat-select formControlName="timezone" placeholder="Select timezone"
+                        [disabled]="readOnly || scheduleFieldsLocked">
+                        <mat-option *ngFor="let tz of availableTimezones" [value]="tz.value">
+                          <div class="timezone-option-label">
+                            <span class="tz-primary">{{ tz.label }}</span>
+                            <span *ngIf="tz.subLabel" class="tz-badge">{{ tz.subLabel }}</span>
+                          </div>
+                        </mat-option>
+                      </mat-select>
+                      <mat-hint align="start" *ngIf="availableTimezones.length === 1">
+                        Timezone based on registered location ({{ availableTimezones[0].subLabel || availableTimezones[0].countryName }}).
+                      </mat-hint>
+                      <mat-hint align="start" *ngIf="availableTimezones.length > 1">
+                        Timezones available for registered institute and campus locations.
+                      </mat-hint>
+                      <mat-error *ngIf="scheduleTimingForm.get('timezone')?.hasError('required')">
+                        Timezone is required.
+                      </mat-error>
+                    </mat-form-field>
+                  </div>
+
                   <!-- Start row -->
                   <div class="schedule-row">
                     <mat-form-field appearance="outline" class="schedule-field date-field">

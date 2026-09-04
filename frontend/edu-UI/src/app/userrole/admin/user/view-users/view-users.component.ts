@@ -1773,6 +1773,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         if (requestId !== this.instituteRequestId) {
           return;
         }
+        this.loadingInstitutes = false;
 
         const data = res?.data || [];
         this.institutes = data.map((i: any) => ({
@@ -1847,6 +1848,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           return;
         }
 
+        this.loadingInstitutes = false;
         this.institutes = [];
         this.loading.hide();
       },
