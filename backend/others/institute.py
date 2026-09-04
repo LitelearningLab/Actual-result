@@ -584,18 +584,22 @@ def get_institute_details(request):
         filters.append(Institute.active_status == (1 if args.get("active_status") == 'true' else 0))
     if args.get("country"):
         country_val = str(args.get("country")).strip()
-        if ',' in country_val:
-            filters.append(InstituteCampus.country_id.in_([c.strip() for c in country_val.split(',') if c.strip()]))
-        else:
-            filters.append(InstituteCampus.country_id.in_([country_val]))
+        country_list = [c.strip() for c in country_val.split(',') if c.strip()] if ',' in country_val else [country_val]
+        matched_cids = [c.country_id for c in session.query(Country).filter(or_(Country.country_id.in_(country_list), Country.country_name.in_(country_list))).all()]
+        all_cids = list(set(country_list + matched_cids))
+        filters.append(InstituteCampus.country_id.in_(all_cids))
     if args.get("city"):
         city_val = str(args.get("city") or '').strip()
         if city_val:
-            if ',' in city_val:
-                city_list = [c.strip() for c in city_val.split(',') if c.strip()]
-                filters.append(or_(*[InstituteCampus.city_name.ilike(f"%{c}%") for c in city_list]))
-            else:
-                filters.append(InstituteCampus.city_name.ilike(f"%{city_val}%"))
+            city_list = [c.strip() for c in city_val.split(',') if c.strip()] if ',' in city_val else [city_val]
+            city_conds = []
+            for c in city_list:
+                city_conds.append(InstituteCampus.city_name.ilike(f"%{c}%"))
+                city_conds.append(InstituteCampus.city_id == c)
+                matched_city_ids = [ct.city_id for ct in session.query(City).filter(City.city_name.ilike(f"%{c}%")).all()]
+                if matched_city_ids:
+                    city_conds.append(InstituteCampus.city_id.in_(matched_city_ids))
+            filters.append(or_(*city_conds))
 
     # If country or city filters are present, join with InstituteCampus
     if any(arg in args for arg in ["country", "city"]):
@@ -767,19 +771,22 @@ def get_institute_list(current_user=None, request=None):
         query = query.join(InstituteCampus, Institute.institute_id == InstituteCampus.institute_id)
         if args.get("country"):
             country_val = str(args.get("country")).strip()
-            if ',' in country_val:
-                country_list = [c.strip() for c in country_val.split(',') if c.strip()]
-                query = query.filter(InstituteCampus.country_id.in_(country_list))
-            else:
-                query = query.filter(InstituteCampus.country_id == country_val)
+            country_list = [c.strip() for c in country_val.split(',') if c.strip()] if ',' in country_val else [country_val]
+            matched_cids = [c.country_id for c in session.query(Country).filter(or_(Country.country_id.in_(country_list), Country.country_name.in_(country_list))).all()]
+            all_cids = list(set(country_list + matched_cids))
+            query = query.filter(InstituteCampus.country_id.in_(all_cids))
         if args.get("city"):
             city_val = str(args.get("city") or '').strip()
             if city_val:
-                if ',' in city_val:
-                    city_list = [c.strip() for c in city_val.split(',') if c.strip()]
-                    query = query.filter(or_(*[InstituteCampus.city_name.ilike(f"%{c}%") for c in city_list]))
-                else:
-                    query = query.filter(InstituteCampus.city_name.ilike(f"%{city_val}%"))
+                city_list = [c.strip() for c in city_val.split(',') if c.strip()] if ',' in city_val else [city_val]
+                city_conds = []
+                for c in city_list:
+                    city_conds.append(InstituteCampus.city_name.ilike(f"%{c}%"))
+                    city_conds.append(InstituteCampus.city_id == c)
+                    matched_city_ids = [ct.city_id for ct in session.query(City).filter(City.city_name.ilike(f"%{c}%")).all()]
+                    if matched_city_ids:
+                        city_conds.append(InstituteCampus.city_id.in_(matched_city_ids))
+                query = query.filter(or_(*city_conds))
 
     active_institutes = query.distinct().all()
     result = []

@@ -884,6 +884,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     } else {
       this.selectedCountries = items.map((c) => c.code);
     }
+    this.onCountryFilterChange();
   }
 
   // --- Active Status Multi-Select Logic ---
@@ -933,10 +934,10 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     } else {
       this.selectedCities = items.map((c) => c.name);
     }
+    this.onCityFilterChange();
   }
 
-  // Load canonical cities for the selected country, then keep only cities used by
-  // registered institutes/campuses in that country.
+  // Load only cities used by registered institutes/campuses in the selected country/countries.
   private loadCitiesForCountry(countryCode: string) {
     if (!countryCode) {
       this.filterCityOptions = [];
@@ -953,33 +954,74 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
           .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase())
         : '';
 
-    this.http
-      .get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: countryCode } })
-      .subscribe({
-        next: (res) => {
-          const rawCities = res?.data?.cities || [];
+    const selectedCountryKeys = countryCode
+      .split(',')
+      .map((c) => c.trim().toLowerCase())
+      .filter(Boolean);
+
+    this.http.get<any>(this.apiUrl).subscribe({
+      next: (res) => {
+        try {
+          const institutes = Array.isArray(res?.data) ? res.data : [];
           const uniqueSet = new Map<string, { code: string; name: string }>();
 
-          rawCities.forEach((c: any) => {
-            const rawName = c.name || c.city_name || c.city || '';
-            if (rawName) {
-              const formatted = toTitleCase(rawName);
-              if (!uniqueSet.has(formatted.toLowerCase())) {
-                uniqueSet.set(formatted.toLowerCase(), { code: formatted, name: formatted });
+          institutes.forEach((inst: any) => {
+            const locations = [
+              inst,
+              ...(Array.isArray(inst?.campuses) ? inst.campuses : []),
+            ];
+
+            locations.forEach((loc: any) => {
+              if (!loc) return;
+              const rawCountry = loc?.country;
+              const cId = String(
+                loc?.country_id ||
+                loc?.country_code ||
+                (typeof rawCountry === 'object'
+                  ? rawCountry?.country_id || rawCountry?.id || rawCountry?.country_code || rawCountry?.code
+                  : rawCountry) ||
+                ''
+              ).trim().toLowerCase();
+
+              const cName = String(
+                loc?.country_name ||
+                (typeof rawCountry === 'object'
+                  ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
+                  : rawCountry) ||
+                this.campusCountryName(loc) ||
+                ''
+              ).trim().toLowerCase();
+
+              const matchesCountry = selectedCountryKeys.some(
+                (key) => key === cId || key === cName || (cName && cName.includes(key)) || (cId && key.includes(cId))
+              );
+
+              if (matchesCountry) {
+                const cityName = this.campusCityName(loc) || loc?.city_name || loc?.city?.city_name || loc?.city?.name || (typeof loc?.city === 'string' ? loc.city : '');
+                if (cityName && String(cityName).trim()) {
+                  const formatted = toTitleCase(String(cityName).trim());
+                  if (formatted && !uniqueSet.has(formatted.toLowerCase())) {
+                    uniqueSet.set(formatted.toLowerCase(), { code: formatted, name: formatted });
+                  }
+                }
               }
-            }
+            });
           });
 
           this.filterCityOptions = Array.from(uniqueSet.values()).sort((a, b) =>
             a.name.localeCompare(b.name)
           );
-          this.loadingCities = false;
-        },
-        error: () => {
+        } catch (e) {
           this.filterCityOptions = [];
+        } finally {
           this.loadingCities = false;
-        },
-      });
+        }
+      },
+      error: () => {
+        this.filterCityOptions = [];
+        this.loadingCities = false;
+      },
+    });
   }
   get filteredIndustryTypes(): string[] {
     const term = (this.industrySearch || '').trim().toLowerCase();
