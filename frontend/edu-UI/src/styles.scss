@@ -843,3 +843,38 @@ button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon {
   z-index: 100202 !important;
 }
 
+// Global Select Dropdown Status & Loading Styles
+.mat-mdc-option.dropdown-status-option {
+  pointer-events: none !important;
+  color: #64748b !important;
+  font-size: 0.85rem !important;
+  justify-content: center !important;
+  text-align: center !important;
+  cursor: default !important;
+  padding: 0.75rem 1rem !important;
+  min-height: 2.75rem !important;
+
+  .mat-pseudo-checkbox,
+  .mat-mdc-option-pseudo-checkbox {
+    display: none !important;
+  }
+}
+
+.dropdown-loading-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #2563eb;
+  font-weight: 500;
+  font-size: 0.875rem;
+
+  .spin-icon {
+    font-size: 1.125rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    animation: spin-inline 1s linear infinite;
+  }
+}
+
+

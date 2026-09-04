@@ -125,6 +125,9 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   states: Array<{ code: string; name: string }> = [];
   cities: Array<{ code: string; name: string }> = [];
   instituteOptions: Array<{ id: string; name: string }> = [];
+  loadingCountries = false;
+  loadingCities = false;
+  loadingInstitutes = false;
   // raw location hierarchy returned by API (countries -> states -> cities)
   private locationHierarchyRaw: any[] = [];
   // City options for the filter dropdown, scoped to the selected country via a server-side
@@ -810,6 +813,7 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     else if (this.filters.sector) params.sector = this.filters.sector;
 
     const url = `${API_BASE}/get-institute-list`;
+    this.loadingInstitutes = true;
     this.http.get<any>(url, { params }).subscribe({
       next: (res) => {
         try {
@@ -823,10 +827,13 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
             .filter((i: any) => !!i.name);
         } catch (e) {
           this.instituteOptions = [];
+        } finally {
+          this.loadingInstitutes = false;
         }
       },
       error: () => {
         this.instituteOptions = [];
+        this.loadingInstitutes = false;
       },
     });
   }
@@ -933,8 +940,10 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   private loadCitiesForCountry(countryCode: string) {
     if (!countryCode) {
       this.filterCityOptions = [];
+      this.loadingCities = false;
       return;
     }
+    this.loadingCities = true;
     this.filterCityOptions = [];
 
     const toTitleCase = (str: string) =>
@@ -964,9 +973,11 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
           this.filterCityOptions = Array.from(uniqueSet.values()).sort((a, b) =>
             a.name.localeCompare(b.name)
           );
+          this.loadingCities = false;
         },
         error: () => {
           this.filterCityOptions = [];
+          this.loadingCities = false;
         },
       });
   }
@@ -1154,11 +1165,13 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
       },
       error: () => {
         this.instituteOptions = [];
+        this.loadingInstitutes = false;
       },
     });
   }
 
   loadCountries() {
+    this.loadingCountries = true;
     const url = `${API_BASE}/location-hierarchy`;
     // this.loader.show();
     this.http.get<any>(url).subscribe({
@@ -1216,12 +1229,14 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
       error: () => {
         this.countries = [];
         this.cities = [];
+        this.loadingCountries = false;
       },
       complete: () => { },
     });
   }
 
   private loadRegisteredInstituteCountries(locationCountries: any[]) {
+    this.loadingCountries = true;
     this.countries = [];
     this.http.get<any>(this.apiUrl).subscribe({
       next: (res) => {
@@ -1283,10 +1298,13 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
           );
         } catch (e) {
           this.countries = [];
+        } finally {
+          this.loadingCountries = false;
         }
       },
       error: () => {
         this.countries = [];
+        this.loadingCountries = false;
       },
     });
   }

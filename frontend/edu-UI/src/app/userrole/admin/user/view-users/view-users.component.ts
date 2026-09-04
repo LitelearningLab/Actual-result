@@ -153,6 +153,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   departmentFilterSearch = '';
   teamFilterSearch = '';
 
+  loadingInstitutes = false;
+  loadingCountries = false;
+  loadingCities = false;
+  loadingDepartments = false;
+  loadingTeams = false;
+  loadingCampuses = false;
+
   // Industry -> Sector dependency (mirrors view-institutes.component.ts)
   industryTypes = ['School', 'College', 'BPO', 'Bank', 'IT'];
   industrySectors = ['School', 'Engineering', 'Arts', 'Healthcare', 'Finance', 'Banking', 'IT'];
@@ -918,8 +925,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       .filter(Boolean);
     if (!ids.length) {
       this.departments = [];
+      this.loadingDepartments = false;
       return;
     }
+    this.loadingDepartments = true;
     const requests = ids.map((id) =>
       this.http.get<any>(`${API_BASE}/get-department-list`, { params: { institute_id: id } })
     );
@@ -938,9 +947,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           if (d.id && !unique.has(d.id)) unique.set(d.id, d);
         });
         this.departments = Array.from(unique.values());
+        this.loadingDepartments = false;
       },
       error: () => {
         this.departments = [];
+        this.loadingDepartments = false;
       },
     });
   }
@@ -948,6 +959,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   // load teams for the selected institute(s)
   loadTeams(instituteId: string) {
     const url = `${API_BASE}/get-teams-list`;
+    this.loadingTeams = true;
     this.http.get<any>(url, { params: { institute_id: instituteId } }).subscribe({
       next: (res) => {
         try {
@@ -961,10 +973,13 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         } catch (e) {
           this.teams = [];
           this.teamSearch = '';
+        } finally {
+          this.loadingTeams = false;
         }
       },
       error: () => {
         this.teams = [];
+        this.loadingTeams = false;
       },
     });
   }
@@ -977,8 +992,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       .filter(Boolean);
     if (!ids.length) {
       this.campuses = [];
+      this.loadingCampuses = false;
       return;
     }
+    this.loadingCampuses = true;
     const requests = ids.map((id) =>
       this.http.get<any>(`${API_BASE}/get-campus-list`, { params: { institute_id: id } })
     );
@@ -1003,9 +1020,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           if (c.id && !unique.has(c.id)) unique.set(c.id, c);
         });
         this.campuses = Array.from(unique.values());
+        this.loadingCampuses = false;
       },
       error: () => {
         this.campuses = [];
+        this.loadingCampuses = false;
       },
     });
   }
@@ -1732,6 +1751,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   loadInstitutes() {
     const requestId = ++this.instituteRequestId;
+    this.loadingInstitutes = true;
     this.loading.show();
     const url = `${API_BASE}/get-institute-list`;
     const params: any = {};
@@ -1991,6 +2011,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.loadAdminUserLocations();
       return;
     }
+    this.loadingCountries = true;
     this.countries = [];
     const hierarchyUrl = `${API_BASE}/location-hierarchy`;
     this.http.get<any>(hierarchyUrl).subscribe({
@@ -2083,18 +2104,23 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                 }
               } catch (e) {
                 this.countries = [];
+              } finally {
+                this.loadingCountries = false;
               }
             },
             error: () => {
               this.countries = [];
+              this.loadingCountries = false;
             },
           });
         } catch (e) {
           this.countries = [];
+          this.loadingCountries = false;
         }
       },
       error: () => {
         this.countries = [];
+        this.loadingCountries = false;
       },
     });
   }
@@ -2113,6 +2139,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           : [];
 
     if (!selectedCountryCodes.length) {
+      this.loadingCities = false;
       if (this.isSuperAdmin) {
         this.refreshInstituteScope();
       }
@@ -2140,9 +2167,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.cities = Array.from(uniqueCities.values()).sort((a, b) => a.name.localeCompare(b.name));
       const validCityNames = new Set(this.cities.map((c) => c.name));
       this.selectedCities = (this.selectedCities || []).filter((name) => validCityNames.has(name));
+      this.loadingCities = false;
       return;
     }
 
+    this.loadingCities = true;
     const requests = selectedCountryCodes.map((code) =>
       this.http.get<any>(`${API_BASE}/location-hierarchy`, { params: { country_id: code } })
     );
@@ -2180,20 +2209,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             }
 
             (Array.isArray(citiesRaw) ? citiesRaw : []).forEach((c: any) => {
-              const rawName = c.city_name || c.name || c.city || '';
-              if (rawName) {
-                const formattedName = rawName
-                  .trim()
-                  .replace(
-                    /\w\S*/g,
-                    (txt: string) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
-                  );
-                if (!uniqueCities.has(formattedName.toLowerCase())) {
-                  uniqueCities.set(formattedName.toLowerCase(), {
-                    code: String(c.city_code || c.code || c.id || formattedName),
-                    name: formattedName,
-                  });
-                }
+              const code = c.city_code || c.code || c.id || c.name;
+              const name = c.city_name || c.name || c.city;
+              if (name && !uniqueCities.has(name.toLowerCase())) {
+                uniqueCities.set(name.toLowerCase(), { code, name });
               }
             });
           });
@@ -2204,10 +2223,17 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           this.cities = Array.from(uniqueCities.values()).sort((a, b) =>
             a.name.localeCompare(b.name)
           );
+          const validCityNames = new Set(this.cities.map((c) => c.name));
+          this.selectedCities = (this.selectedCities || []).filter((name) =>
+            validCityNames.has(name)
+          );
         } catch (e) {
           this.states = [];
           this.cities = [];
+        } finally {
+          this.loadingCities = false;
         }
+
         if (this.isSuperAdmin) {
           this.refreshInstituteScope();
         } else {
@@ -2224,6 +2250,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       error: () => {
         this.states = [];
         this.cities = [];
+        this.loadingCities = false;
         if (this.isSuperAdmin) {
           this.refreshInstituteScope();
         }

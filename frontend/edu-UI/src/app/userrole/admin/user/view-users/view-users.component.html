@@ -125,6 +125,15 @@
                 </mat-icon>
                 <strong>Select All</strong>
               </mat-option>
+              <mat-option disabled *ngIf="loadingInstitutes" class="dropdown-status-option">
+                <div class="dropdown-loading-wrap">
+                  <mat-icon class="spin-icon">sync</mat-icon>
+                  <span>Loading institutes...</span>
+                </div>
+              </mat-option>
+              <mat-option disabled *ngIf="!loadingInstitutes && !filteredInstitutesForFilter.length" class="dropdown-status-option">
+                <span>No institutes found</span>
+              </mat-option>
               <mat-option
                 *ngFor="let inst of filteredInstitutesForFilter; trackBy: trackById"
                 [value]="inst.institute_id"
@@ -167,6 +176,15 @@
                     {{ isAllCountriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
                   </mat-icon>
                   <strong>Select All</strong>
+                </mat-option>
+                <mat-option disabled *ngIf="loadingCountries" class="dropdown-status-option">
+                  <div class="dropdown-loading-wrap">
+                    <mat-icon class="spin-icon">sync</mat-icon>
+                    <span>Loading countries...</span>
+                  </div>
+                </mat-option>
+                <mat-option disabled *ngIf="!loadingCountries && !filteredCountriesForFilter.length" class="dropdown-status-option">
+                  <span>No countries found</span>
                 </mat-option>
                 <mat-option *ngFor="let c of filteredCountriesForFilter; trackBy: trackByCode" [value]="c.code">{{
                   c.name
@@ -214,9 +232,15 @@
                   <strong>Select All</strong>
                 </mat-option>
 
-                <!-- Fallback when no cities available -->
-                <mat-option *ngIf="!filteredCitiesForFilter.length" disabled>
-                  No cities available
+                <!-- Loading & No cities available fallback -->
+                <mat-option disabled *ngIf="loadingCities" class="dropdown-status-option">
+                  <div class="dropdown-loading-wrap">
+                    <mat-icon class="spin-icon">sync</mat-icon>
+                    <span>Loading cities...</span>
+                  </div>
+                </mat-option>
+                <mat-option disabled *ngIf="!loadingCities && !filteredCitiesForFilter.length" class="dropdown-status-option">
+                  <span>No cities found</span>
                 </mat-option>
 
                 <!-- City Options with Checkboxes -->
@@ -262,6 +286,9 @@
                   </mat-icon>
                   <strong>Select All</strong>
                 </mat-option>
+                <mat-option disabled *ngIf="!filteredIndustryTypesForFilter.length" class="dropdown-status-option">
+                  <span>No industries found</span>
+                </mat-option>
                 <mat-option *ngFor="let t of filteredIndustryTypesForFilter; trackBy: trackByValue" [value]="t">{{
                   t
                 }}</mat-option>
@@ -302,6 +329,9 @@
                     {{ isAllSectorsSelected() ? 'check_box' : 'check_box_outline_blank' }}
                   </mat-icon>
                   <strong>Select All</strong>
+                </mat-option>
+                <mat-option disabled *ngIf="!filteredSectorsForFilter.length" class="dropdown-status-option">
+                  <span>No sectors found</span>
                 </mat-option>
                 <mat-option *ngFor="let s of filteredSectorsForFilter; trackBy: trackByValue" [value]="s">{{
                   s
@@ -345,6 +375,15 @@
                 </mat-icon>
                 <strong>Select All</strong>
               </mat-option>
+              <mat-option disabled *ngIf="loadingDepartments" class="dropdown-status-option">
+                <div class="dropdown-loading-wrap">
+                  <mat-icon class="spin-icon">sync</mat-icon>
+                  <span>Loading departments...</span>
+                </div>
+              </mat-option>
+              <mat-option disabled *ngIf="!loadingDepartments && !filteredDepartmentsForFilter.length" class="dropdown-status-option">
+                <span>No departments found</span>
+              </mat-option>
               <mat-option *ngFor="let d of filteredDepartmentsForFilter; trackBy: trackById" [value]="d.id">{{
                 d.name
               }}</mat-option>
@@ -385,6 +424,15 @@
                 </mat-icon>
                 <strong>Select All</strong>
               </mat-option>
+              <mat-option disabled *ngIf="loadingTeams" class="dropdown-status-option">
+                <div class="dropdown-loading-wrap">
+                  <mat-icon class="spin-icon">sync</mat-icon>
+                  <span>Loading teams...</span>
+                </div>
+              </mat-option>
+              <mat-option disabled *ngIf="!loadingTeams && !filteredTeamsForFilter.length" class="dropdown-status-option">
+                <span>No teams found</span>
+              </mat-option>
               <mat-option *ngFor="let t of filteredTeamsForFilter; trackBy: trackById" [value]="t.id">{{
                 t.name
               }}</mat-option>
@@ -413,6 +461,15 @@
                   (keyup)="stopFilterSearchEvent($event)"
                   (input)="stopFilterSearchEvent($event)"
                 />
+              </mat-option>
+              <mat-option disabled *ngIf="loadingCampuses" class="dropdown-status-option">
+                <div class="dropdown-loading-wrap">
+                  <mat-icon class="spin-icon">sync</mat-icon>
+                  <span>Loading campuses...</span>
+                </div>
+              </mat-option>
+              <mat-option disabled *ngIf="!loadingCampuses && !filteredCampusesForFilter.length" class="dropdown-status-option">
+                <span>No campuses found</span>
               </mat-option>
 
               <!-- Select All Checkbox Option -->
