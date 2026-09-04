@@ -48,6 +48,7 @@ import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
+import { getLocaleDateFormat } from 'src/app/shared/date/localized-date-adapter';
 
 @Component({
   selector: 'app-admin-schedule-test',
@@ -230,6 +231,10 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   draftBannerVisible = true;
   private dirty = false;
   private submitted = false;
+
+  get dateFormatPlaceholder(): string {
+    return getLocaleDateFormat();
+  }
 
   scheduled: any[] = [
     {
