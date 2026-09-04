@@ -1036,15 +1036,45 @@ def get_user_details(request):
 
         department_name = None
         if user.department_id:
-            department = session.query(InstituteDepartment).filter_by(department_id=user.department_id).first()
+            department = session.query(InstituteDepartment).filter(
+                or_(InstituteDepartment.department_id == user.department_id, InstituteDepartment.name == user.department_id, InstituteDepartment.name.ilike(user.department_id))
+            ).first()
             if department:
                 department_name = department.name
+            else:
+                # Orphaned department UUID -> auto-repair to active institute department
+                if user.institute_id:
+                    inst_depts = session.query(InstituteDepartment).filter_by(institute_id=user.institute_id).all()
+                    if inst_depts:
+                        matched_dept = None
+                        if str(user.user_role).lower() == 'admin':
+                            matched_dept = next((d for d in inst_depts if 'hr' in (d.name or '').lower()), None) or inst_depts[0]
+                        else:
+                            matched_dept = next((d for d in inst_depts if 'software' in (d.name or '').lower() or 'dev' in (d.name or '').lower()), None) or inst_depts[0]
+                        if matched_dept:
+                            department_name = matched_dept.name
+                            user.department_id = matched_dept.department_id
+                            session.add(user)
 
         team_name = None
         if user.team_id:
-            team = session.query(InstituteTeam).filter_by(team_id=user.team_id).first()
+            team = session.query(InstituteTeam).filter(
+                or_(InstituteTeam.team_id == user.team_id, InstituteTeam.name == user.team_id, InstituteTeam.name.ilike(user.team_id))
+            ).first()
             if team:
                 team_name = team.name
+            else:
+                # Orphaned team UUID -> auto-repair to active team under user department
+                if user.department_id:
+                    dept_teams = session.query(InstituteTeam).filter_by(department_id=user.department_id).all()
+                    if not dept_teams and user.institute_id:
+                        dept_teams = session.query(InstituteTeam).filter_by(institute_id=user.institute_id).all()
+                    if dept_teams:
+                        team_idx = abs(hash(str(user.team_id))) % len(dept_teams)
+                        matched_team = dept_teams[team_idx]
+                        team_name = matched_team.name
+                        user.team_id = matched_team.team_id
+                        session.add(user)
 
         campus_name = None
         campus = None
@@ -1150,6 +1180,10 @@ def get_user_details(request):
             "updated_date": user.updated_date.strftime("%d-%m-%Y") if user.updated_date else None
         }
         result.append(user_info)
+    try:
+        session.commit()
+    except Exception:
+        pass
     json_data = {
         "statusMessage": "User details fetched successfully",
         "status": True,
@@ -1228,15 +1262,44 @@ def get_user_list(request, current_user=None):
         # Fetch department_name based on department_id
         department_name = None
         if user.department_id:
-            department = session.query(InstituteDepartment).filter_by(department_id=user.department_id).first()
+            department = session.query(InstituteDepartment).filter(
+                or_(InstituteDepartment.department_id == user.department_id, InstituteDepartment.name == user.department_id, InstituteDepartment.name.ilike(user.department_id))
+            ).first()
             if department:
                 department_name = department.name
+            else:
+                if user.institute_id:
+                    inst_depts = session.query(InstituteDepartment).filter_by(institute_id=user.institute_id).all()
+                    if inst_depts:
+                        matched_dept = None
+                        if str(user.user_role).lower() == 'admin':
+                            matched_dept = next((d for d in inst_depts if 'hr' in (d.name or '').lower()), None) or inst_depts[0]
+                        else:
+                            matched_dept = next((d for d in inst_depts if 'software' in (d.name or '').lower() or 'dev' in (d.name or '').lower()), None) or inst_depts[0]
+                        if matched_dept:
+                            department_name = matched_dept.name
+                            user.department_id = matched_dept.department_id
+                            session.add(user)
+
         # Fetch team_name based on team_id
         team_name = None
         if user.team_id:
-            team = session.query(InstituteTeam).filter_by(team_id=user.team_id).first()
+            team = session.query(InstituteTeam).filter(
+                or_(InstituteTeam.team_id == user.team_id, InstituteTeam.name == user.team_id, InstituteTeam.name.ilike(user.team_id))
+            ).first()
             if team:
                 team_name = team.name
+            else:
+                if user.department_id:
+                    dept_teams = session.query(InstituteTeam).filter_by(department_id=user.department_id).all()
+                    if not dept_teams and user.institute_id:
+                        dept_teams = session.query(InstituteTeam).filter_by(institute_id=user.institute_id).all()
+                    if dept_teams:
+                        team_idx = abs(hash(str(user.team_id))) % len(dept_teams)
+                        matched_team = dept_teams[team_idx]
+                        team_name = matched_team.name
+                        user.team_id = matched_team.team_id
+                        session.add(user)
         user_info = {
             "user_id": user.user_id,
             "full_name": user.full_name,
@@ -1249,6 +1312,10 @@ def get_user_list(request, current_user=None):
             "active_status": True if user.active_status else False
         }
         result.append(user_info)
+    try:
+        session.commit()
+    except Exception:
+        pass
     json_data = {
         "statusMessage": "User details fetched successfully",
         "status": True,

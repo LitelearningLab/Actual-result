@@ -364,16 +364,19 @@ def update_institute(request):
     # update departments & teams if departments_structured is provided
     departments_structured = data.get('departments_structured', None)
     if departments_structured is not None and isinstance(departments_structured, list):
-        # Delete existing teams and departments for this institute to prevent orphaned data
-        session.query(InstituteTeam).filter(
-            InstituteTeam.institute_id == institute_id
-        ).delete(synchronize_session=False)
+        # Fetch existing departments and teams for this institute to preserve their IDs
+        existing_dept_records = session.query(InstituteDepartment).filter_by(institute_id=institute_id).all()
+        existing_depts_by_name = {d.name.strip().lower(): d for d in existing_dept_records if d.name}
+        existing_depts_by_id = {d.department_id: d for d in existing_dept_records if d.department_id}
 
-        session.query(InstituteDepartment).filter(
-            InstituteDepartment.institute_id == institute_id
-        ).delete(synchronize_session=False)
-        
-        session.flush()
+        existing_team_records = session.query(InstituteTeam).filter_by(institute_id=institute_id).all()
+        existing_teams_by_name_and_dept = {
+            (t.name.strip().lower(), t.department_id): t for t in existing_team_records if t.name
+        }
+        existing_teams_by_id = {t.team_id: t for t in existing_team_records if t.team_id}
+
+        active_dept_ids = set()
+        active_team_ids = set()
 
         for dept_info in departments_structured:
             dept_name = (
@@ -383,30 +386,81 @@ def update_institute(request):
             if not dept_name:
                 continue
 
-            new_department = InstituteDepartment(
-                institute_id=institute_id,
-                name=dept_name,
-                created_by=data.get("current_user", 'system')
-            )
-            session.add(new_department)
-            session.flush()
+            dept_id_param = dept_info.get('id') or dept_info.get('department_id') or dept_info.get('dept_id') if isinstance(dept_info, dict) else None
+            dept_key = dept_name.lower()
+
+            # Reuse existing department record if present to keep user linkages intact
+            dept_obj = None
+            if dept_id_param and dept_id_param in existing_depts_by_id:
+                dept_obj = existing_depts_by_id[dept_id_param]
+                dept_obj.name = dept_name
+            elif dept_key in existing_depts_by_name:
+                dept_obj = existing_depts_by_name[dept_key]
+                dept_obj.name = dept_name
+            else:
+                dept_obj = InstituteDepartment(
+                    institute_id=institute_id,
+                    name=dept_name,
+                    created_by=data.get("current_user", 'system')
+                )
+                session.add(dept_obj)
+                session.flush()
+
+            active_dept_ids.add(dept_obj.department_id)
 
             teams_list = dept_info.get('teams') if isinstance(dept_info, dict) else []
-            for team_name in teams_list or []:
+            for team_item in teams_list or []:
                 team_str = (
-                    team_name.get('name') if isinstance(team_name, dict) else str(team_name)
+                    team_item.get('name') if isinstance(team_item, dict) else str(team_item)
                 ).strip()
 
                 if not team_str:
                     continue
 
-                new_team = InstituteTeam(
-                    institute_id=institute_id,
-                    department_id=new_department.department_id,
-                    name=team_str,
-                    created_by=data.get("current_user", 'system')
-                )
-                session.add(new_team)
+                team_id_param = team_item.get('id') or team_item.get('team_id') if isinstance(team_item, dict) else None
+                team_key = (team_str.lower(), dept_obj.department_id)
+
+                # Reuse existing team record if present
+                team_obj = None
+                if team_id_param and team_id_param in existing_teams_by_id:
+                    team_obj = existing_teams_by_id[team_id_param]
+                    team_obj.name = team_str
+                    team_obj.department_id = dept_obj.department_id
+                elif team_key in existing_teams_by_name_and_dept:
+                    team_obj = existing_teams_by_name_and_dept[team_key]
+                    team_obj.name = team_str
+                else:
+                    team_obj = InstituteTeam(
+                        institute_id=institute_id,
+                        department_id=dept_obj.department_id,
+                        name=team_str,
+                        created_by=data.get("current_user", 'system')
+                    )
+                    session.add(team_obj)
+                    session.flush()
+
+                active_team_ids.add(team_obj.team_id)
+
+        # Delete only teams and departments that were removed from the incoming list
+        if active_team_ids:
+            session.query(InstituteTeam).filter(
+                InstituteTeam.institute_id == institute_id,
+                ~InstituteTeam.team_id.in_(list(active_team_ids))
+            ).delete(synchronize_session=False)
+        else:
+            session.query(InstituteTeam).filter(
+                InstituteTeam.institute_id == institute_id
+            ).delete(synchronize_session=False)
+
+        if active_dept_ids:
+            session.query(InstituteDepartment).filter(
+                InstituteDepartment.institute_id == institute_id,
+                ~InstituteDepartment.department_id.in_(list(active_dept_ids))
+            ).delete(synchronize_session=False)
+        else:
+            session.query(InstituteDepartment).filter(
+                InstituteDepartment.institute_id == institute_id
+            ).delete(synchronize_session=False)
     else:
         # Fallback flat lists update
         department_list = data.get('department', None)
