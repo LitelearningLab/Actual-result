@@ -2146,6 +2146,92 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       return;
     }
 
+    if (this.isSuperAdmin) {
+      this.loadingCities = true;
+      const selectedCodes = selectedCountryCodes.map((c) => String(c).trim().toLowerCase());
+      this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
+        next: (res) => {
+          try {
+            const institutes = Array.isArray(res?.data) ? res.data : [];
+            const uniqueCities = new Map<string, { code: string; name: string }>();
+
+            const toTitleCase = (str: string) =>
+              str
+                ? str
+                  .trim()
+                  .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase())
+                : '';
+
+            institutes.forEach((inst: any) => {
+              const locations = [
+                inst,
+                ...(Array.isArray(inst?.campuses) ? inst.campuses : []),
+              ];
+
+              locations.forEach((loc: any) => {
+                if (!loc) return;
+                const rawCountry = loc?.country;
+                const cId = String(
+                  loc?.country_id ||
+                  loc?.country_code ||
+                  (typeof rawCountry === 'object'
+                    ? rawCountry?.country_id || rawCountry?.id || rawCountry?.country_code || rawCountry?.code
+                    : rawCountry) ||
+                  ''
+                ).trim().toLowerCase();
+
+                const cName = String(
+                  loc?.country_name ||
+                  (typeof rawCountry === 'object'
+                    ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
+                    : rawCountry) ||
+                  ''
+                ).trim().toLowerCase();
+
+                const matchesCountry = selectedCodes.some(
+                  (key) => key === cId || key === cName || (cName && cName.includes(key)) || (cId && key.includes(cId))
+                );
+
+                if (matchesCountry) {
+                  const rawCity = loc?.city;
+                  const cityName =
+                    loc?.city_name ||
+                    (typeof rawCity === 'object' ? rawCity?.city_name || rawCity?.name : rawCity) ||
+                    (typeof loc?.city === 'string' ? loc.city : '');
+
+                  if (cityName && String(cityName).trim()) {
+                    const formatted = toTitleCase(String(cityName).trim());
+                    if (formatted && !uniqueCities.has(formatted.toLowerCase())) {
+                      uniqueCities.set(formatted.toLowerCase(), { code: formatted, name: formatted });
+                    }
+                  }
+                }
+              });
+            });
+
+            this.cities = Array.from(uniqueCities.values()).sort((a, b) =>
+              a.name.localeCompare(b.name)
+            );
+            const validCityNames = new Set(this.cities.map((c) => c.name));
+            this.selectedCities = (this.selectedCities || []).filter((name) =>
+              validCityNames.has(name)
+            );
+          } catch (e) {
+            this.cities = [];
+          } finally {
+            this.loadingCities = false;
+          }
+          this.refreshInstituteScope();
+        },
+        error: () => {
+          this.cities = [];
+          this.loadingCities = false;
+          this.refreshInstituteScope();
+        },
+      });
+      return;
+    }
+
     if (!this.isSuperAdmin && this.allUserCities && this.allUserCities.length > 0) {
       const selectedCodes = selectedCountryCodes.map((c) => String(c).toLowerCase());
       const relevantCities = this.allUserCities.filter((c) =>
@@ -2401,6 +2487,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   }
 
   openFiltersOverlay() {
+    if ((this.selectedCountries && this.selectedCountries.length) || this.filters.country) {
+      this.onCountryChange();
+    }
     if (!this.filtersBtn) return;
     if (this.filtersOverlayRef) {
       try {
