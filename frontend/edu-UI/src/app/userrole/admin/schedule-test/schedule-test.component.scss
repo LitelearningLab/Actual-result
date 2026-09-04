@@ -26,16 +26,96 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 /* ── Form actions ── */
-.form-card .form-actions {
+.form-card .form-actions,
+.form-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  margin-top: 0.75rem;
-  padding: 0.625rem 1.25rem;
-  background: var(--bg-2);
-  border: 1px solid var(--theme-3-border);
+  margin-top: 1.25rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-2, #f8fafc);
+  border: 1px solid var(--theme-3-border, #e2e8f0);
   border-radius: 0.5rem;
+}
+
+.next-btn,
+.prev-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 1.25rem !important;
+  height: 2.375rem !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  transition: all 0.2s $ease !important;
+
+  span {
+    order: 1 !important;
+  }
+
+  mat-icon {
+    order: 2 !important;
+    font-size: 1.125rem !important;
+    width: 1.125rem !important;
+    height: 1.125rem !important;
+    line-height: 1.125rem !important;
+    margin: 0 !important;
+  }
+}
+
+.next-btn {
+  background: var(--button-1, #2563eb) !important;
+  color: #ffffff !important;
+  border: none !important;
+
+  &:hover:not([disabled]) {
+    background: #1d4ed8 !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3) !important;
+  }
+
+  &[disabled],
+  &:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    background: #94a3b8 !important;
+    color: #f1f5f9 !important;
+  }
+}
+
+.prev-btn {
+  background: #ffffff !important;
+  color: var(--theme-3-text-2, #374151) !important;
+  border: 1px solid var(--theme-3-border, #d1d5db) !important;
+
+  span {
+    order: 2 !important;
+  }
+
+  mat-icon {
+    order: 1 !important;
+  }
+
+  &:hover:not([disabled]) {
+    background: var(--theme-3-hanover-bg, #f1f5f9) !important;
+    color: var(--theme-3-text-1, #111827) !important;
+  }
+}
+
+.submit-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  border-radius: 0.5rem !important;
+  padding: 0 1.25rem !important;
+  height: 2.375rem !important;
 }
 
 .step-actions {
@@ -172,32 +252,39 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
 .section-icon {
-  color: var(--button-1);
-  font-size: 1.25rem;
-  width: 1.25rem;
-  height: 1.25rem;
+  color: var(--button-1, #2563eb);
+  font-size: 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
   margin-top: 0.125rem;
   flex-shrink: 0;
 }
 
+.section-header-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .section-heading {
   margin: 0;
-  font: 600 1rem/1.2 inherit;
-  color: var(--theme-3-text-1);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--theme-3-text-1, #0f2337);
 }
 
 .section-desc {
-  margin: 0.125rem 0 0;
-  font: 400 0.8rem/1.4 inherit;
-  color: var(--theme-3-text-3);
-}
-
-.section-header-text {
-  flex: 1;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--theme-3-text-3, #5a6973);
 }
 
 /* ── Step 1 layout ── */
@@ -319,10 +406,15 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .schedule-timezone-row {
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.625rem;
 
   .timezone-select-field {
+    max-width: 440px;
     width: 100%;
+
+    ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+      margin-top: 0.25rem;
+    }
   }
 
   .tz-trigger-badge {
@@ -577,24 +669,40 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 .settings-card-header {
   display: flex;
-  gap: 0.625rem;
-  margin-bottom: 0.875rem;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
-.settings-card-header>mat-icon {
-  color: var(--button-1);
+.settings-card-header > mat-icon {
+  color: var(--button-1, #2563eb);
+  font-size: 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.125rem;
+  flex-shrink: 0;
+}
+
+.settings-card-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .settings-card-header h3 {
   margin: 0;
-  font: 600 0.95rem/1.2 inherit;
-  color: var(--theme-3-text-1);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--theme-3-text-1, #0f2337);
 }
 
 .settings-card-header p {
-  margin: 0.2rem 0 0;
-  font: 400 0.78rem/1.4 inherit;
-  color: var(--theme-3-text-3);
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--theme-3-text-3, #5a6973);
 }
 
 .toggle-setting {
