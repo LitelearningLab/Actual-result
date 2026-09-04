@@ -2,7 +2,7 @@
 from functools import wraps
 from flask import Blueprint, Flask, request, jsonify, Response, g
 from flask_cors import CORS
-from auth.auth import JWTValidator
+from auth.auth import JWTValidator, get_user_country_details
 from configparser import ConfigParser
 from werkzeug.datastructures import ImmutableMultiDict
 from werkzeug.exceptions import HTTPException
@@ -31,7 +31,7 @@ from dashboard.user_dashboard import user_dashboard_details, dashboard_users_lis
 
 from others.demo_request import submit_demo_request, get_demo_requests, get_demo_request_by_id, update_demo_request_status, delete_demo_request
 from db.db import SQLiteDB
-from db.models import User
+from db.models import User, Institute
 from others.settings import get_ai_confidence_threshold_response, update_ai_confidence_threshold
 
 from dotenv import load_dotenv
@@ -780,6 +780,21 @@ def validate_session_route():
     user = get_current_user_from_request()
     if not user:
         return jsonify({"status": False, "statusMessage": "Invalid session"}), 401
+    
+    db = SQLiteDB()
+    session = db.connect()
+    country_info = {"country_id": None, "country_name": "United States", "country_code": "US", "locale": "en-US"}
+    institute_name = None
+    if session:
+        try:
+            country_info = get_user_country_details(session, user)
+            if user.institute_id:
+                inst = session.query(Institute).filter_by(institute_id=str(user.institute_id)).first()
+                if inst:
+                    institute_name = inst.name
+        finally:
+            session.close()
+
     return jsonify({
         "status": True,
         "user": {
@@ -788,7 +803,12 @@ def validate_session_route():
             "username": user.user_name,
             "email": user.email,
             "role": user.user_role,
-            "institute_id": str(user.institute_id) if user.institute_id else None
+            "institute": institute_name,
+            "institute_id": str(user.institute_id) if user.institute_id else None,
+            "country_id": country_info.get("country_id"),
+            "country_name": country_info.get("country_name"),
+            "country_code": country_info.get("country_code"),
+            "locale": country_info.get("locale")
         }
     }), 200
 

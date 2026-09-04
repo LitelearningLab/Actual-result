@@ -55,6 +55,10 @@ export class AuthService {
           sessionStorage.setItem('user', JSON.stringify(user));
           sessionStorage.setItem('isLogin', 'true');
           if (user.role) sessionStorage.setItem('userRole', user.role);
+          if (user.locale) sessionStorage.setItem('locale', user.locale);
+          if (user.country_code) sessionStorage.setItem('country_code', user.country_code);
+          if (user.country_name) sessionStorage.setItem('country_name', user.country_name);
+          if (user.country_id) sessionStorage.setItem('country_id', user.country_id);
           const uid = user.id || user.user_id || user.userId;
           if (uid) this.pageAccess.fetchForUser(uid.toString()).subscribe();
         } else {
@@ -96,6 +100,10 @@ export class AuthService {
               if (u.role) sessionStorage.setItem('userRole', u.role);
               if (u.institute) sessionStorage.setItem('institute', u.institute);
               if (u.institute_id) sessionStorage.setItem('institute_id', u.institute_id.toString());
+              if (u.locale) sessionStorage.setItem('locale', u.locale);
+              if (u.country_code) sessionStorage.setItem('country_code', u.country_code);
+              if (u.country_name) sessionStorage.setItem('country_name', u.country_name);
+              if (u.country_id) sessionStorage.setItem('country_id', u.country_id);
             } catch (e) {
               sessionStorage.setItem('user', JSON.stringify(resp.user));
               this._user.next(resp.user);
@@ -149,6 +157,10 @@ export class AuthService {
       sessionStorage.removeItem('institute');
       sessionStorage.removeItem('user_id');
       sessionStorage.removeItem('institute_id');
+      sessionStorage.removeItem('locale');
+      sessionStorage.removeItem('country_code');
+      sessionStorage.removeItem('country_name');
+      sessionStorage.removeItem('country_id');
       sessionStorage.removeItem('launched_exam');
       sessionStorage.removeItem('test_result');
       sessionStorage.removeItem('last_submission');

@@ -2,7 +2,7 @@ import { Platform } from '@angular/cdk/platform';
 import { Inject, Injectable, Optional } from '@angular/core';
 import { MAT_DATE_LOCALE, NativeDateAdapter } from '@angular/material/core';
 
-export const INDIAN_DATE_FORMATS = {
+export const LOCALIZED_DATE_FORMATS = {
   parse: {
     dateInput: 'dateInput',
   },
@@ -14,8 +14,11 @@ export const INDIAN_DATE_FORMATS = {
   },
 };
 
+// Backwards-compatibility alias
+export const INDIAN_DATE_FORMATS = LOCALIZED_DATE_FORMATS;
+
 @Injectable()
-export class IndianDateAdapter extends NativeDateAdapter {
+export class LocalizedDateAdapter extends NativeDateAdapter {
   constructor(
     @Optional() @Inject(MAT_DATE_LOCALE) matDateLocale: string,
     platform: Platform
@@ -32,11 +35,17 @@ export class IndianDateAdapter extends NativeDateAdapter {
       const trimmed = value.trim();
       if (!trimmed) return null;
 
-      // Date inputs use one unambiguous format throughout the UI.
       const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
       if (match) {
-        const day = Number(match[1]);
-        const month = Number(match[2]) - 1;
+        let locale = 'en-IN';
+        try {
+          const stored = sessionStorage.getItem('locale');
+          if (stored && stored.trim()) locale = stored.trim();
+        } catch (e) {}
+
+        const isUS = locale.toLowerCase().endsWith('-us') || locale.toLowerCase() === 'en-us';
+        const day = Number(isUS ? match[2] : match[1]);
+        const month = Number(isUS ? match[1] : match[2]) - 1;
         const year = Number(match[3]);
         const parsed = new Date(year, month, day);
 
@@ -52,7 +61,6 @@ export class IndianDateAdapter extends NativeDateAdapter {
       }
     }
 
-    // Do not let the browser interpret free-form date strings differently by locale.
     if (typeof value === 'string') return null;
 
     const timestamp = typeof value === 'number' ? value : Date.parse(String(value));
@@ -62,21 +70,34 @@ export class IndianDateAdapter extends NativeDateAdapter {
 
   override format(date: Date, displayFormat: unknown): string {
     if (!this.isValid(date)) {
-      throw Error('IndianDateAdapter: Cannot format invalid date.');
+      throw Error('LocalizedDateAdapter: Cannot format invalid date.');
     }
 
+    let locale = 'en-IN';
+    try {
+      const stored = sessionStorage.getItem('locale');
+      if (stored && stored.trim()) locale = stored.trim();
+    } catch (e) {}
+
     if (displayFormat === 'monthYearLabel') {
-      return date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+      return date.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
     }
 
     if (displayFormat === 'monthYearA11yLabel') {
-      return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+      return date.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
     }
 
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
 
+    if (locale.toLowerCase().endsWith('-us') || locale.toLowerCase() === 'en-us') {
+      return `${month}/${day}/${year}`;
+    }
+
     return `${day}/${month}/${year}`;
   }
 }
+
+// Backwards-compatibility alias
+export const IndianDateAdapter = LocalizedDateAdapter;

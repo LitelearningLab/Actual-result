@@ -8,7 +8,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { SharedModule } from './shared/shared.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
-import { IndianDateAdapter, INDIAN_DATE_FORMATS } from './shared/date/indian-date-adapter';
+import { LocalizedDateAdapter, LOCALIZED_DATE_FORMATS } from './shared/date/localized-date-adapter';
 
 @NgModule({
   imports: [
@@ -20,9 +20,8 @@ import { IndianDateAdapter, INDIAN_DATE_FORMATS } from './shared/date/indian-dat
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
-    { provide: DateAdapter, useClass: IndianDateAdapter },
-    { provide: MAT_DATE_FORMATS, useValue: INDIAN_DATE_FORMATS },
-    { provide: MAT_DATE_LOCALE, useValue: 'en-IN' }
+    { provide: DateAdapter, useClass: LocalizedDateAdapter },
+    { provide: MAT_DATE_FORMATS, useValue: LOCALIZED_DATE_FORMATS }
   ]
 })
 export class AppModule { }

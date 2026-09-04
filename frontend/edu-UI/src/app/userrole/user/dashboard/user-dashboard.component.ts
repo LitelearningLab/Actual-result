@@ -31,8 +31,13 @@ export class UserDashboardComponent implements OnInit {
   ngOnInit(): void {
     try{ this.pageMeta.setMeta('User Dashboard','Performance overview & analytics'); } catch(e){}
     this.isRegularUser = this.getLoggedInRole() === 'user';
-    // fetch institutes first, then users for the default institute
-    this.svc.getInstitutes().subscribe({ next: (inst:any)=>{ this.institutes = inst || []; this.setDefaultInstitute(); }, error: ()=>{ this.setDefaultInstitute(); } });
+    if (this.isRegularUser) {
+      this.selectedUserId = this.svc.getLoggedInUserId();
+      this.loadDashboard();
+    } else {
+      // fetch institutes first, then users for the default institute
+      this.svc.getInstitutes().subscribe({ next: (inst:any)=>{ this.institutes = inst || []; this.setDefaultInstitute(); }, error: ()=>{ this.setDefaultInstitute(); } });
+    }
   }
 
   private getLoggedInRole(): string {

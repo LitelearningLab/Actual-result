@@ -1,5 +1,5 @@
-from db.models import Institute, User, AppSession, Credential
-from sqlalchemy import or_
+from db.models import Institute, User, AppSession, Credential, Country, InstituteCampus
+from sqlalchemy import or_, func
 
 import datetime
 import re
@@ -13,6 +13,64 @@ from passlib.hash import argon2
 import pandas as pd
 
 from db.db import SQLiteDB
+
+def get_user_country_details(session, user):
+    """
+    Resolves country and locale information for a user.
+    Checks user.country_id -> campus.country_id -> institute.country.
+    """
+    if not user or not session:
+        return {
+            "country_id": None,
+            "country_name": "United States",
+            "country_code": "US",
+            "locale": "en-US",
+            "currency_code": "USD"
+        }
+
+    country = None
+
+    # 1. Directly from user record
+    if getattr(user, 'country_id', None):
+        country = session.query(Country).filter_by(country_id=str(user.country_id)).first()
+
+    # 2. Fallback to campus country if available
+    if not country and getattr(user, 'campus_id', None):
+        campus = session.query(InstituteCampus).filter_by(campus_id=str(user.campus_id)).first()
+        if campus and campus.country_id:
+            country = session.query(Country).filter_by(country_id=str(campus.country_id)).first()
+
+    # 3. Fallback to institute country if available
+    if not country and getattr(user, 'institute_id', None):
+        inst = session.query(Institute).filter_by(institute_id=str(user.institute_id)).first()
+        if inst and getattr(inst, 'country', None):
+            country = session.query(Country).filter(
+                or_(
+                    Country.country_name.ilike(inst.country),
+                    Country.country_id == str(inst.country),
+                    Country.iso2.ilike(inst.country),
+                    Country.iso3.ilike(inst.country)
+                )
+            ).first()
+
+    if country:
+        iso2 = (country.iso2 or "US").strip().upper()
+        locale = f"en-{iso2}"
+        return {
+            "country_id": str(country.country_id),
+            "country_name": country.country_name,
+            "country_code": iso2,
+            "locale": locale,
+            "currency_code": getattr(country, 'currency_code', None) or "USD"
+        }
+
+    return {
+        "country_id": None,
+        "country_name": "United States",
+        "country_code": "US",
+        "locale": "en-US",
+        "currency_code": "USD"
+    }
 
 class JWTValidator:
     def __init__(self, jwt_secret, issuer=None, audience=None):
@@ -154,10 +212,17 @@ class JWTValidator:
             if not identifier or not password:
                 return {"statusMessage": "Email/username and password are required", "status": False}, 400
 
+            clean_id = identifier.strip().lower()
             user = session.query(User).filter(
-                or_(User.email == identifier, User.user_name == identifier)
+                or_(
+                    func.lower(User.email) == clean_id,
+                    func.lower(User.user_name) == clean_id,
+                    User.email == identifier,
+                    User.user_name == identifier
+                )
             ).first()
             if not user:
+                print(f"[Auth] User not found for identifier: {identifier}", flush=True)
                 return {
                     "statusMessage": "Invalid email/username or password",
                     "status": False
@@ -197,6 +262,8 @@ class JWTValidator:
             session.add(session_data)
             session.commit()
 
+            country_info = get_user_country_details(session, user)
+
             json_data = {
                 "statusMessage": "Login successful",
                 "user": {
@@ -207,7 +274,11 @@ class JWTValidator:
                     'institute': institute.name if institute else None,
                     'institute_short_name': institute.short_name if institute else None,
                     'institute_id': str(user.institute_id) if user.institute_id else None,
-                    'role': user.user_role
+                    'role': user.user_role,
+                    'country_id': country_info.get('country_id'),
+                    'country_name': country_info.get('country_name'),
+                    'country_code': country_info.get('country_code'),
+                    'locale': country_info.get('locale')
                 },
                 "status": True,
                 "token": token
@@ -256,6 +327,8 @@ class JWTValidator:
             if user.institute_id:
                 institute = session.query(Institute).filter_by(institute_id=str(user.institute_id)).first()
 
+            country_info = get_user_country_details(session, user)
+
             json_data = {
                 "status": True,
                 "statusMessage": "Token refreshed",
@@ -267,7 +340,11 @@ class JWTValidator:
                     'email': user.email,
                     'institute': institute.name if institute else None,
                     'institute_id': str(user.institute_id) if user.institute_id else None,
-                    'role': user.user_role
+                    'role': user.user_role,
+                    'country_id': country_info.get('country_id'),
+                    'country_name': country_info.get('country_name'),
+                    'country_code': country_info.get('country_code'),
+                    'locale': country_info.get('locale')
                 }
             }
             return json_data, 200
