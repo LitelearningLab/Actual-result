@@ -9,6 +9,7 @@ import { HttpClient } from '@angular/common/http';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { API_BASE } from 'src/app/shared/api.config';
+import { APP_VERSION } from '../../../../environments/version';
 import { PageMetaService } from '../../services/page-meta.service';
 import { GlobalInstituteContextService } from '../../services/global-institute-context.service';
 
@@ -23,6 +24,7 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
   @ViewChild('logoutConfirmationDialog') logoutConfirmationDialog!: TemplateRef<any>;
   isUserPanelOpen = false;
   isLogin = false;
+  appVersion = APP_VERSION;
   moduleName: string = '';
   moduleData: string = '';
 
