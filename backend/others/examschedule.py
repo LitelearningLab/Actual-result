@@ -151,13 +151,32 @@ def add_exam_schedule(request):
                 raise ValueError(
                     "Review date and time must be after the test schedule and in the future"
                 )
-    except ValueError as error:
+    except (ValueError, TypeError) as error:
         return {"statusMessage": str(error), "status": False}, 400
+    except Exception as error:
+        return {"statusMessage": f"Invalid review settings: {str(error)}", "status": False}, 400
+
     # This is independent of review timing and only controls repeat opening.
     multiple_review = _as_bool(
         data.get("multiple_review", data.get("multiplereview")), False
     )
     created_by = data.get("created_by")
+
+    try:
+        if duration_mins is not None and duration_mins != "":
+            duration_mins = int(duration_mins)
+        else:
+            duration_mins = 10
+    except (ValueError, TypeError):
+        duration_mins = 10
+
+    try:
+        if total_questions is not None and total_questions != "":
+            total_questions = int(total_questions)
+        else:
+            total_questions = 0
+    except (ValueError, TypeError):
+        total_questions = 0
 
     missing_fields = [
         field
@@ -220,9 +239,19 @@ def add_exam_schedule(request):
         session.flush()
         schedule_id = add_schedule.schedule_id
 
-        assigned_user_ids = data.get("assigned_user_ids", [])
+        assigned_user_ids_raw = data.get("assigned_user_ids", [])
+        assigned_user_ids = []
+        if isinstance(assigned_user_ids_raw, list):
+            for u in assigned_user_ids_raw:
+                if isinstance(u, dict):
+                    uid = u.get("user_id") or u.get("id") or u.get("_id")
+                    if uid:
+                        assigned_user_ids.append(str(uid))
+                elif u and isinstance(u, (str, int)):
+                    assigned_user_ids.append(str(u))
+
         for user_id in assigned_user_ids:
-            mapping = ExamScheduleMapping(schedule_id=schedule_id, user_id=user_id)
+            mapping = ExamScheduleMapping(schedule_id=str(schedule_id), user_id=user_id)
             session.add(mapping)
         session.commit()
         json_data = {"statusMessage": "Schedule added successfully", "status": True}
@@ -230,7 +259,8 @@ def add_exam_schedule(request):
     except Exception as e:
         session.rollback()
         print(
-            f"{e!r} occurred while inserting exam at line {sys.exc_info()[-1].tb_lineno}"
+            f"{e!r} occurred while inserting exam at line {sys.exc_info()[-1].tb_lineno}",
+            flush=True
         )
         error_text = str(getattr(e, "orig", e)).lower()
         schema_error_markers = (
@@ -244,7 +274,7 @@ def add_exam_schedule(request):
         ):
             status_message = "Database schema is out of date. Apply the migrations in backend/db/migrations."
         else:
-            status_message = "Error inserting exam"
+            status_message = f"Error inserting exam: {str(e)}"
         json_data = {
             "statusMessage": status_message,
             "status": False,

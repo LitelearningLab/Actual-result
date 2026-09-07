@@ -582,8 +582,15 @@ def update_exam_route():
 @edu_blueprint.route('/add-exam-schedule', methods=['POST'])
 @admin_required
 def add_exam_schedule_route():
-    response_data, status_code = add_exam_schedule(request)
-    return jsonify(response_data), status_code
+    try:
+        response_data, status_code = add_exam_schedule(request)
+        return jsonify(response_data), status_code
+    except Exception as exc:
+        print(f"Unhandled add-exam-schedule error: {exc}", flush=True)
+        return jsonify({
+            "status": False,
+            "statusMessage": f"Failed to save scheduled test: {str(exc)}"
+        }), 500
 
 @edu_blueprint.route('/get-exam-schedule-details', methods=['GET'])
 @admin_required
