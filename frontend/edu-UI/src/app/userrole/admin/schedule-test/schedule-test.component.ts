@@ -698,54 +698,12 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   applyTimezoneToScheduleTiming(tz: string): void {
     if (!tz) return;
     try {
-      let startDateStr = '';
-      let startTimeStr = '';
-      let endDateStr = '';
-      let endTimeStr = '';
-
-      // If dates/times are already set (e.g. editing an existing schedule or user typed dates),
-      // preserve the existing scheduled instant or convert it to the new timezone instead of resetting to NOW.
-      if (this.model.startDate && this.model.startTime) {
-        const existingStartDt =
-          this.parseDateInTimezone(
-            this.model.startDate,
-            this.model.startTime,
-            this.model.timezone || tz
-          ) || new Date(`${this.model.startDate}T${this.model.startTime}`);
-
-        if (!isNaN(existingStartDt.getTime())) {
-          const sRes = this.getDateTimeInTimezone(tz, existingStartDt);
-          startDateStr = sRes.dateStr;
-          startTimeStr = sRes.timeStr;
-        }
-      }
-
-      if (!startDateStr) {
-        const defaultRes = this.getDateTimeInTimezone(tz);
-        startDateStr = defaultRes.dateStr;
-        startTimeStr = defaultRes.timeStr;
-      }
-
-      if (this.model.endDate && this.model.endTime) {
-        const existingEndDt =
-          this.parseDateInTimezone(
-            this.model.endDate,
-            this.model.endTime,
-            this.model.timezone || tz
-          ) || new Date(`${this.model.endDate}T${this.model.endTime}`);
-
-        if (!isNaN(existingEndDt.getTime())) {
-          const eRes = this.getDateTimeInTimezone(tz, existingEndDt);
-          endDateStr = eRes.dateStr;
-        }
-      }
-
-      if (!endDateStr) {
-        endDateStr = startDateStr;
-      }
-
-      // Keep end time as user-entered value (or default '23:59') for all countries without timezone conversion shift
-      endTimeStr = this.model.endTime || '23:59';
+      // Get the live date and time in the selected timezone
+      const defaultRes = this.getDateTimeInTimezone(tz);
+      const startDateStr = defaultRes.dateStr;
+      const startTimeStr = defaultRes.timeStr;
+      const endDateStr = defaultRes.dateStr;
+      const endTimeStr = '23:59';
 
       this.model.timezone = tz;
       this.model.startDate = startDateStr;

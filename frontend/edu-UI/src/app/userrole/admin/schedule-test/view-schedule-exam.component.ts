@@ -1613,12 +1613,12 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
       next: (res) => {
         const arr = Array.isArray(res) ? res : res?.data || [];
         this.schedules = arr.map((s: any, idx: number) => {
-          const instObj = s.institute && typeof s.institute === 'object' ? s.institute : null;
+          const instObj = s.institute && typeof s.institute === 'object' ? s.institute : (s.instituteDetails || null);
           const instituteName = instObj
-            ? instObj.name || instObj.institute_name || ''
+            ? instObj.name || instObj.institute_name || instObj.short_name || ''
             : typeof s.institute === 'string'
               ? s.institute
-              : s.institute_name || '';
+              : s.institute_name || s.institute_title || s.instituteName || '';
           const instituteId = instObj
             ? instObj.institute_id || instObj.id || ''
             : s.institute_id || s.instituteId || '';
@@ -1653,14 +1653,14 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
 
           return {
             id: s.id || s.schedule_id || s._id || String(idx),
-            title: s.title || s.testName || s.name || 'Untitled',
+            title: s.title || s.testName || s.name || s.schedulerName || s.schedule_title || s.test_name || s.exam_title || 'Untitled Test',
             institute: instituteName,
             institute_id: instituteId,
-            start: formatDate(s.start_time || s.startDateTime || s.start || null),
-            end: formatDate(s.end_time || s.endDateTime || s.end || null),
+            start: formatDate(s.start_time || s.startDateTime || s.start_date_time || s.test_start_time || s.start || s.startDate || null),
+            end: formatDate(s.end_time || s.endDateTime || s.end_date_time || s.test_end_time || s.end || s.endDate || null),
             publish:
               typeof s.publish !== 'undefined'
-                ? s.publish
+                ? !!s.publish
                 : typeof s.published !== 'undefined'
                   ? !!s.published
                   : false,

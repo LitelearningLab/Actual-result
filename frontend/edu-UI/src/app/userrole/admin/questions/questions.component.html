@@ -848,7 +848,7 @@
               color="primary"
               type="button"
               (click)="handlePrimaryAIGenerateClick()"
-              [disabled]="isGenerating || (!hasGeneratedQuestionsWithoutAnswers && !sourceText?.trim() && !aiPrompt?.trim() && !selectedSourceFile)"
+              [disabled]="isGenerating || (!hasGeneratedQuestionsWithoutAnswers && !sourceText.trim() && !aiPrompt.trim() && !selectedSourceFile)"
             >
               <mat-icon>{{ hasGeneratedQuestionsWithoutAnswers ? 'question_answer' : 'auto_awesome' }}</mat-icon>
               <span *ngIf="isGenerating">{{ hasGeneratedQuestionsWithoutAnswers ? 'Generating Answers...' : 'Generating Questions...' }}</span>

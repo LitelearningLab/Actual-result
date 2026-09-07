@@ -391,7 +391,6 @@
                         <mat-label>State</mat-label>
                         <mat-icon matPrefix>map</mat-icon>
                         <mat-select formControlName="state"
-                          [disabled]="!form.get('headOffice.country')?.value || !stateOptions.length || loadingStates"
                           (openedChange)="onHeadOfficeStateOpened($event)">
                           <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                             <input matInput class="select-search-input" placeholder="Search state"
@@ -542,7 +541,6 @@
                             <mat-label>State</mat-label>
                             <mat-icon matPrefix>map</mat-icon>
                             <mat-select formControlName="state"
-                              [disabled]="!c.get('country')?.value || !(campusStateOptions[(c.get('_cid')?.value)] || []).length || campusLoadingStates[(c.get('_cid')?.value)]"
                               (openedChange)="onCampusStateOpened(c, $event)">
                               <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                                 <input matInput class="select-search-input" placeholder="Search state"

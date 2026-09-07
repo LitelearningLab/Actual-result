@@ -606,7 +606,7 @@
                   <mat-form-field appearance="outline" class="field-half local-institute-field">
                     <mat-label>Institute</mat-label>
                     <mat-icon matPrefix>business</mat-icon>
-                    <mat-select id="institute" formControlName="institute" aria-label="Institute" [disabled]="!isSuperAdmin">
+                    <mat-select id="institute" formControlName="institute" aria-label="Institute">
                       <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                         <input
                           matInput
@@ -928,7 +928,7 @@
                   <mat-icon>arrow_back</mat-icon>
                   <span>Back</span>
                 </button>
-                <button mat-flat-button color="primary" type="submit" class="submit-btn">
+                <button mat-flat-button color="primary" type="submit" class="submit-btn" (click)="submit(stepper)">
                   <mat-icon *ngIf="!isEditing">person_add</mat-icon>
                   <mat-icon *ngIf="isEditing">save</mat-icon>
                   <span *ngIf="!isEditing">Register User</span>

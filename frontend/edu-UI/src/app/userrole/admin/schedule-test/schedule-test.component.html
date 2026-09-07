@@ -153,7 +153,6 @@
                       <mat-icon matPrefix>public</mat-icon>
                       <mat-label>Timezone*</mat-label>
                       <mat-select formControlName="timezone" placeholder="Select timezone"
-                        [disabled]="readOnly || scheduleFieldsLocked"
                         (openedChange)="onTimezoneDropdownOpened($event)">
                         <mat-select-trigger>
                           <ng-container *ngIf="getSelectedTimezoneOption() as selectedTz">

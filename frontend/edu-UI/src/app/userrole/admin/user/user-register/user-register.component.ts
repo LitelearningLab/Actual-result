@@ -570,19 +570,46 @@ export class AdminUserRegisterComponent implements OnInit {
       const u = JSON.parse(raw);
       this.isEditing = true;
       this.editingUserId = u.user_id || u.id || null;
+
+      let parsedJoiningDate: any = '';
+      if (u.joining_date) {
+        if (u.joining_date instanceof Date && !isNaN(u.joining_date.getTime())) {
+          parsedJoiningDate = u.joining_date;
+        } else if (typeof u.joining_date === 'string') {
+          const rawDateStr = u.joining_date.trim();
+          const d = new Date(rawDateStr);
+          if (!isNaN(d.getTime())) {
+            parsedJoiningDate = d;
+          } else {
+            parsedJoiningDate = rawDateStr.length >= 10 ? rawDateStr.substring(0, 10) : rawDateStr;
+          }
+        }
+      }
+
       this.form.patchValue({
         institute: u.institute?.institute_id || u.institute_id || u.institute || '',
         role: u.user_role || u.role || '',
         username: u.user_name || '',
         name: u.full_name || u.user_name || u.name || '',
         email: u.email || '',
-        joining_date: u.joining_date ? (typeof u.joining_date === 'string' ? (u.joining_date.length >= 10 ? u.joining_date.substring(0, 10) : u.joining_date) : '') : '',
+        joining_date: parsedJoiningDate,
         department: u.department?.department_id || u.department_id || u.department || '',
         team: u.team?.team_id || u.team_id || u.team || '',
         phone: u.contact_no || u.phone || '',
         active: (typeof u.active_status === 'boolean') ? u.active_status : (u.active_status === 1 || u.active_status === '1'),
         note: u.notes || u.note || ''
       });
+
+      // Clear required password validators in edit mode
+      const pwd = this.form.get('password');
+      const cpwd = this.form.get('confirmPassword');
+      pwd?.setValidators([Validators.minLength(6)]);
+      pwd?.setValue('', { emitEvent: false });
+      pwd?.updateValueAndValidity({ emitEvent: false });
+      cpwd?.clearValidators();
+      cpwd?.setValue('', { emitEvent: false });
+      cpwd?.updateValueAndValidity({ emitEvent: false });
+
       const iid = this.form.get('institute')?.value || u.institute?.institute_id || u.institute_id || u.institute || this.loggedInstitute || sessionStorage.getItem('global_institute_id') || '';
       if (iid) { this.loadDepartments(iid); this.loadTeams(iid); this.loadCampusList(iid); this.loadLocationHierarchy(iid); }
       try {
@@ -599,15 +626,6 @@ export class AdminUserRegisterComponent implements OnInit {
         }
         this.initPermissions();
         this.setPermissionsFromUser(u);
-      } catch (e) { }
-      sessionStorage.removeItem('edit_user');
-      try {
-        if (this.isEditing) {
-          const pwd = this.form.get('password');
-          const cpwd = this.form.get('confirmPassword');
-          pwd?.clearValidators(); pwd?.setValue(''); pwd?.updateValueAndValidity();
-          cpwd?.clearValidators(); cpwd?.setValue(''); cpwd?.updateValueAndValidity();
-        }
       } catch (e) { }
     } catch (e) { /* ignore parse errors */ }
   }
@@ -1207,23 +1225,67 @@ export class AdminUserRegisterComponent implements OnInit {
   }
 
   back() {
-    // navigate back to view users
+    sessionStorage.removeItem('edit_user');
     this.router.navigate(['/view-users']);
   }
 
   submit(stepper?: any) {
-    this.loader.show();
+    if (this.isEditing) {
+      const pwd = this.form.get('password')?.value;
+      const cpwd = this.form.get('confirmPassword')?.value;
+      if (!pwd && !cpwd) {
+        this.form.get('password')?.clearValidators();
+        this.form.get('password')?.updateValueAndValidity({ emitEvent: false });
+        this.form.get('confirmPassword')?.clearValidators();
+        this.form.get('confirmPassword')?.updateValueAndValidity({ emitEvent: false });
+      }
+    }
+
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      const roleControl = this.form.get('role');
-      if (roleControl?.invalid) {
-        roleControl.markAsTouched();
-        this.goToStep(stepper, this.isEditing ? 1 : 2);
-        this.notify.error('Please select a role before registering.');
-      }
       this.loader.hide();
+
+      const invalidControls: string[] = [];
+      Object.keys(this.form.controls).forEach((key) => {
+        const ctrl = this.form.get(key);
+        if (ctrl && ctrl.invalid) {
+          invalidControls.push(key);
+        }
+      });
+
+      console.warn('Cannot submit form. Invalid controls:', invalidControls, this.form.errors);
+
+      const fieldLabels: Record<string, string> = {
+        name: 'Full Name',
+        username: 'User Name',
+        email: 'Email',
+        password: 'Password',
+        confirmPassword: 'Confirm Password',
+        joining_date: 'Joining Date',
+        institute: 'Institute',
+        role: 'Role',
+        department: 'Department',
+        team: 'Team',
+        phone: 'Phone',
+      };
+
+      const step1Fields = ['name', 'username', 'email', 'password', 'confirmPassword', 'joining_date', 'phone'];
+      const step2Fields = ['institute', 'role', 'department', 'team', 'campus', 'country', 'state', 'city'];
+
+      const firstInvalidKey = invalidControls[0];
+      const errorLabel = fieldLabels[firstInvalidKey] || firstInvalidKey || 'required fields';
+
+      if (invalidControls.some((f) => step1Fields.includes(f))) {
+        this.goToStep(stepper, 0);
+      } else if (invalidControls.some((f) => step2Fields.includes(f))) {
+        this.goToStep(stepper, 1);
+      }
+
+      this.notify.error(`Please correct the field "${errorLabel}" before saving.`);
       return;
     }
+
+    this.loader.show();
     const v = this.form.value;
     const currentUserRaw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
     let current_user: any = null;
@@ -1250,7 +1312,6 @@ export class AdminUserRegisterComponent implements OnInit {
       display_name: v.name,
       full_name: v.name,
       email: v.email,
-      password: v.password,
       user_role: v.role,
       institute_id: v.institute,
       campus_id: v.campus || null,
@@ -1265,6 +1326,11 @@ export class AdminUserRegisterComponent implements OnInit {
       note: v.note,
       current_user: (current_user && (current_user.user_id || current_user.id)) ? (current_user.user_id || current_user.id) : null
     };
+
+    if (v.password && String(v.password).trim()) {
+      payload.password = String(v.password).trim();
+    }
+
     // include page-level permissions if any
     try {
       const pages: any[] = [];
@@ -1282,26 +1348,37 @@ export class AdminUserRegisterComponent implements OnInit {
       this.http.put<any>(url, payload).subscribe({
         next: (res) => {
           this.submitting = false;
-          this.notify.success(res?.statusMessage || 'User updated');
+          this.loader.hide();
+          sessionStorage.removeItem('edit_user');
+          this.notify.success(res?.statusMessage || 'User updated successfully');
           this.router.navigate(['/view-users']);
         },
-        error: (err) => { this.submitting = false; console.error('Update failed', err); this.notify.error('Failed to update user. See console.'); this.loader.hide(); }
+        error: (err) => {
+          this.submitting = false;
+          this.loader.hide();
+          console.error('Update failed', err);
+          const serverMsg = err?.error?.statusMessage || err?.error?.message || err?.statusMessage || err?.message;
+          this.notify.error(serverMsg ? `Failed to update user: ${serverMsg}` : 'Failed to update user.');
+        }
       });
     } else {
       const url = `${API_BASE}/register-user`;
-      // if user cannot change institute (non-super admin), ensure payload uses loggedInstitute
       if (!this.isSuperAdmin && this.loggedInstitute) {
         payload.institute_id = this.loggedInstitute;
       }
       this.http.post<any>(url, payload).subscribe({
-        next: (res) => { this.submitting = false; this.notify.success(res?.statusMessage || 'User registered'); this.router.navigate(['/view-users']); },
-        complete: () => { this.loader.hide(); },
+        next: (res) => {
+          this.submitting = false;
+          this.loader.hide();
+          this.notify.success(res?.statusMessage || 'User registered successfully');
+          this.router.navigate(['/view-users']);
+        },
         error: (err) => {
           this.submitting = false;
           this.loader.hide();
           console.error('Register failed', err);
           const serverMsg = err?.error?.statusMessage || err?.error?.message || err?.statusMessage || err?.message || (typeof err === 'string' ? err : null);
-          this.notify.error(serverMsg ? `Failed to register user. ${serverMsg}` : 'Failed to register user.');
+          this.notify.error(serverMsg ? `Failed to register user: ${serverMsg}` : 'Failed to register user.');
         }
       });
     }
