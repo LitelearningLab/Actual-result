@@ -582,8 +582,12 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       const year = parts.find((p) => p.type === 'year')?.value;
       const month = parts.find((p) => p.type === 'month')?.value;
       const day = parts.find((p) => p.type === 'day')?.value;
-      let hour = parts.find((p) => p.type === 'hour')?.value || '00';
-      if (hour === '24') hour = '00';
+      let hourStr = parts.find((p) => p.type === 'hour')?.value || '00';
+      const dayPeriod = parts.find((p) => p.type === 'dayPeriod')?.value?.toLowerCase();
+      let hour = Number(hourStr);
+      if (dayPeriod === 'pm' && hour < 12) hour += 12;
+      if (dayPeriod === 'am' && hour === 12) hour = 0;
+      if (hour === 24) hour = 0;
       const minute = parts.find((p) => p.type === 'minute')?.value || '00';
 
       return {
@@ -599,23 +603,57 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     }
   }
 
-  private parseDateInTimezone(dateStr: string, timeStr: string, tz: string): Date | null {
+  private parseDateInTimezone(dateStr: any, timeStr: string, tz: string): Date | null {
     if (!dateStr) return null;
     try {
-      let sDate = dateStr;
+      let sDate = '';
       let sTime = timeStr || '';
+      if (dateStr instanceof Date) {
+        if (isNaN(dateStr.getTime())) return null;
+        const pad = (n: number) => String(n).padStart(2, '0');
+        sDate = `${dateStr.getFullYear()}-${pad(dateStr.getMonth() + 1)}-${pad(dateStr.getDate())}`;
+      } else {
+        sDate = String(dateStr).trim();
+      }
+
       if (sDate.includes('T')) {
         const parts = sDate.split('T');
         sDate = parts[0];
         if (!sTime) sTime = parts[1];
       }
-      const dateMatch = sDate.match(/^(\d{4})[^\d]?(\d{1,2})[^\d]?(\d{1,2})$/);
-      if (!dateMatch) return null;
-      const y = Number(dateMatch[1]);
-      const m = Number(dateMatch[2]);
-      const day = Number(dateMatch[3]);
-      let hh = 0,
-        mm = 0;
+
+      let y = 0, m = 0, day = 0;
+      const isoMatch = sDate.match(/^(\d{4})[^\d]?(\d{1,2})[^\d]?(\d{1,2})$/);
+      const usOrEuMatch = sDate.match(/^(\d{1,2})[^\d](\d{1,2})[^\d](\d{4})$/);
+
+      if (isoMatch) {
+        y = Number(isoMatch[1]);
+        m = Number(isoMatch[2]);
+        day = Number(isoMatch[3]);
+      } else if (usOrEuMatch) {
+        y = Number(usOrEuMatch[3]);
+        const p1 = Number(usOrEuMatch[1]);
+        const p2 = Number(usOrEuMatch[2]);
+        // If first part is > 12, it's DD/MM/YYYY; otherwise default to MM/DD/YYYY
+        if (p1 > 12) {
+          day = p1;
+          m = p2;
+        } else {
+          m = p1;
+          day = p2;
+        }
+      } else {
+        const d = new Date(sDate);
+        if (!isNaN(d.getTime())) {
+          y = d.getFullYear();
+          m = d.getMonth() + 1;
+          day = d.getDate();
+        } else {
+          return null;
+        }
+      }
+
+      let hh = 0, mm = 0;
       if (sTime) {
         const tparts = sTime.split(':').map((v) => Number(v));
         if (!isNaN(tparts[0])) hh = tparts[0];
@@ -640,7 +678,11 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       const tzYear = Number(parts.find((p) => p.type === 'year')?.value);
       const tzMonth = Number(parts.find((p) => p.type === 'month')?.value);
       const tzDay = Number(parts.find((p) => p.type === 'day')?.value);
-      let tzHour = Number(parts.find((p) => p.type === 'hour')?.value || 0);
+      let tzHourStr = parts.find((p) => p.type === 'hour')?.value || '0';
+      const dayPeriod = parts.find((p) => p.type === 'dayPeriod')?.value?.toLowerCase();
+      let tzHour = Number(tzHourStr);
+      if (dayPeriod === 'pm' && tzHour < 12) tzHour += 12;
+      if (dayPeriod === 'am' && tzHour === 12) tzHour = 0;
       if (tzHour === 24) tzHour = 0;
       const tzMin = Number(parts.find((p) => p.type === 'minute')?.value || 0);
 
@@ -695,14 +737,15 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         if (!isNaN(existingEndDt.getTime())) {
           const eRes = this.getDateTimeInTimezone(tz, existingEndDt);
           endDateStr = eRes.dateStr;
-          endTimeStr = eRes.timeStr;
         }
       }
 
       if (!endDateStr) {
         endDateStr = startDateStr;
-        endTimeStr = this.model.endTime || '23:59';
       }
+
+      // Keep end time as user-entered value (or default '23:59') for all countries without timezone conversion shift
+      endTimeStr = this.model.endTime || '23:59';
 
       this.model.timezone = tz;
       this.model.startDate = startDateStr;
@@ -4205,12 +4248,14 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         });
       });
     }
-       // Check if currently selected/saved timezone is valid in available list
+    // Check if currently selected/saved timezone is valid in available list
     const currentTz = this.scheduleTimingForm?.get('timezone')?.value || this.model.timezone;
     let isValid = optionsMap.has(currentTz);
 
     if (currentTz && typeof currentTz === 'string' && currentTz.trim()) {
-      const tzRecord = COUNTRY_TIMEZONE_RECORDS.find((rec) => rec.timezone === currentTz);
+      const tzRecord = COUNTRY_TIMEZONE_RECORDS.find(
+        (rec) => rec.timezone === currentTz || rec.label === currentTz || rec.shortName === currentTz
+      );
       if (!isValid) {
         optionsMap.set(currentTz, {
           value: currentTz,
@@ -4227,11 +4272,13 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     this.availableTimezones = Array.from(optionsMap.values());
 
     if (!isValid && this.availableTimezones.length > 0) {
-      const nextTz = this.availableTimezones[0].value;
-      this.model.timezone = nextTz;
-      this.scheduleTimingForm?.get('timezone')?.setValue(nextTz, { emitEvent: false });
-      if (!this.readOnly) {
-        this.applyTimezoneToScheduleTiming(nextTz);
+      if (!this.model.timezone && !this.isEditMode) {
+        const nextTz = this.availableTimezones[0].value;
+        this.model.timezone = nextTz;
+        this.scheduleTimingForm?.get('timezone')?.setValue(nextTz, { emitEvent: false });
+        if (!this.readOnly) {
+          this.applyTimezoneToScheduleTiming(nextTz);
+        }
       }
     } else if (isValid && currentTz) {
       this.model.timezone = currentTz;
