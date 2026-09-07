@@ -269,6 +269,12 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     );
   }
 
+  getTimezoneLabel(): string {
+    const opt = this.getSelectedTimezoneOption();
+    if (!opt) return this.model.timezone || '—';
+    return opt.label || opt.value || this.model.timezone || '—';
+  }
+
   onTimezoneDropdownOpened(opened: boolean): void {
     if (opened) {
       setTimeout(() => {
@@ -356,12 +362,24 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     else this.model.assignBatches.push(name);
   }
 
-  ngOnInit(): void {
+  get isEditMode(): boolean {
+    return !!(this.model && (this.model.schedule_id || this.model.id || this.model._id));
+  }
+
+  updatePageMeta(): void {
     try {
-      this.pageMeta.setMeta('Test Schedule', 'Schedule and manage tests for your institute');
+      const isEdit = this.isEditMode;
+      this.pageMeta.setMeta(
+        isEdit ? 'Edit Test Schedule' : 'Create Test Schedule',
+        isEdit ? 'Update scheduled test details and settings' : 'Schedule and manage tests for your institute'
+      );
     } catch (e) {
       /* ignore if service not available */
     }
+  }
+
+  ngOnInit(): void {
+    this.updatePageMeta();
     this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
     this._globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe(() => {
       this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
@@ -550,7 +568,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     date: Date = new Date()
   ): { dateStr: string; timeStr: string } {
     try {
-      const dtf = new Intl.DateTimeFormat('en-CA', {
+      const dtf = new Intl.DateTimeFormat('en-GB', {
         timeZone: tz,
         year: 'numeric',
         month: '2-digit',
@@ -558,6 +576,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
+        hourCycle: 'h23',
       });
       const parts = dtf.formatToParts(date);
       const year = parts.find((p) => p.type === 'year')?.value;
@@ -569,7 +588,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
 
       return {
         dateStr: `${year}-${month}-${day}`,
-        timeStr: `${hour}:${minute}`,
+        timeStr: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
       };
     } catch (e) {
       const pad = (n: number) => String(n).padStart(2, '0');
@@ -580,26 +599,127 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     }
   }
 
+  private parseDateInTimezone(dateStr: string, timeStr: string, tz: string): Date | null {
+    if (!dateStr) return null;
+    try {
+      let sDate = dateStr;
+      let sTime = timeStr || '';
+      if (sDate.includes('T')) {
+        const parts = sDate.split('T');
+        sDate = parts[0];
+        if (!sTime) sTime = parts[1];
+      }
+      const dateMatch = sDate.match(/^(\d{4})[^\d]?(\d{1,2})[^\d]?(\d{1,2})$/);
+      if (!dateMatch) return null;
+      const y = Number(dateMatch[1]);
+      const m = Number(dateMatch[2]);
+      const day = Number(dateMatch[3]);
+      let hh = 0,
+        mm = 0;
+      if (sTime) {
+        const tparts = sTime.split(':').map((v) => Number(v));
+        if (!isNaN(tparts[0])) hh = tparts[0];
+        if (!isNaN(tparts[1])) mm = tparts[1];
+      }
+
+      const guessUtc = new Date(Date.UTC(y, (m || 1) - 1, day || 1, hh || 0, mm || 0, 0));
+      if (isNaN(guessUtc.getTime())) return null;
+
+      const dtf = new Intl.DateTimeFormat('en-GB', {
+        timeZone: tz,
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: false,
+        hourCycle: 'h23',
+      });
+      const parts = dtf.formatToParts(guessUtc);
+      const tzYear = Number(parts.find((p) => p.type === 'year')?.value);
+      const tzMonth = Number(parts.find((p) => p.type === 'month')?.value);
+      const tzDay = Number(parts.find((p) => p.type === 'day')?.value);
+      let tzHour = Number(parts.find((p) => p.type === 'hour')?.value || 0);
+      if (tzHour === 24) tzHour = 0;
+      const tzMin = Number(parts.find((p) => p.type === 'minute')?.value || 0);
+
+      const tzAsUtc = Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMin, 0);
+      const diff = tzAsUtc - guessUtc.getTime();
+
+      return new Date(guessUtc.getTime() - diff);
+    } catch (e) {
+      return null;
+    }
+  }
+
   applyTimezoneToScheduleTiming(tz: string): void {
     if (!tz) return;
     try {
-      const { dateStr, timeStr } = this.getDateTimeInTimezone(tz);
-      this.model.startDate = dateStr;
-      this.model.startTime = timeStr;
-      this.model.endDate = dateStr;
-      if (!this.model.endTime) {
-        this.model.endTime = '23:59';
+      let startDateStr = '';
+      let startTimeStr = '';
+      let endDateStr = '';
+      let endTimeStr = '';
+
+      // If dates/times are already set (e.g. editing an existing schedule or user typed dates),
+      // preserve the existing scheduled instant or convert it to the new timezone instead of resetting to NOW.
+      if (this.model.startDate && this.model.startTime) {
+        const existingStartDt =
+          this.parseDateInTimezone(
+            this.model.startDate,
+            this.model.startTime,
+            this.model.timezone || tz
+          ) || new Date(`${this.model.startDate}T${this.model.startTime}`);
+
+        if (!isNaN(existingStartDt.getTime())) {
+          const sRes = this.getDateTimeInTimezone(tz, existingStartDt);
+          startDateStr = sRes.dateStr;
+          startTimeStr = sRes.timeStr;
+        }
       }
-      this.model.startDateTime = `${dateStr}T${timeStr}`;
-      this.model.endDateTime = `${dateStr}T${this.model.endTime || '23:59'}`;
+
+      if (!startDateStr) {
+        const defaultRes = this.getDateTimeInTimezone(tz);
+        startDateStr = defaultRes.dateStr;
+        startTimeStr = defaultRes.timeStr;
+      }
+
+      if (this.model.endDate && this.model.endTime) {
+        const existingEndDt =
+          this.parseDateInTimezone(
+            this.model.endDate,
+            this.model.endTime,
+            this.model.timezone || tz
+          ) || new Date(`${this.model.endDate}T${this.model.endTime}`);
+
+        if (!isNaN(existingEndDt.getTime())) {
+          const eRes = this.getDateTimeInTimezone(tz, existingEndDt);
+          endDateStr = eRes.dateStr;
+          endTimeStr = eRes.timeStr;
+        }
+      }
+
+      if (!endDateStr) {
+        endDateStr = startDateStr;
+        endTimeStr = this.model.endTime || '23:59';
+      }
+
+      this.model.timezone = tz;
+      this.model.startDate = startDateStr;
+      this.model.startTime = startTimeStr;
+      this.model.endDate = endDateStr;
+      this.model.endTime = endTimeStr;
+      this.model.startDateTime = `${startDateStr}T${startTimeStr}`;
+      this.model.endDateTime = `${endDateStr}T${endTimeStr}`;
 
       if (this.scheduleTimingForm) {
         this.scheduleTimingForm.patchValue(
           {
-            startDate: dateStr,
-            startTime: timeStr,
-            endDate: dateStr,
-            endTime: this.model.endTime || '23:59',
+            timezone: tz,
+            startDate: startDateStr,
+            startTime: startTimeStr,
+            endDate: endDateStr,
+            endTime: endTimeStr,
           },
           { emitEvent: false }
         );
@@ -4085,12 +4205,26 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         });
       });
     }
+       // Check if currently selected/saved timezone is valid in available list
+    const currentTz = this.scheduleTimingForm?.get('timezone')?.value || this.model.timezone;
+    let isValid = optionsMap.has(currentTz);
+
+    if (currentTz && typeof currentTz === 'string' && currentTz.trim()) {
+      const tzRecord = COUNTRY_TIMEZONE_RECORDS.find((rec) => rec.timezone === currentTz);
+      if (!isValid) {
+        optionsMap.set(currentTz, {
+          value: currentTz,
+          label: tzRecord?.label || currentTz,
+          offset: tzRecord?.utcOffset || '',
+          countryCode: tzRecord?.countryCode,
+          countryName: tzRecord?.countryName,
+          subLabel: tzRecord?.subLabel || tzRecord?.countryName || 'Schedule Timezone',
+        });
+        isValid = true;
+      }
+    }
 
     this.availableTimezones = Array.from(optionsMap.values());
-
-    // Check if currently selected timezone is valid in available list
-    const currentTz = this.scheduleTimingForm?.get('timezone')?.value || this.model.timezone;
-    const isValid = this.availableTimezones.some((tz) => tz.value === currentTz);
 
     if (!isValid && this.availableTimezones.length > 0) {
       const nextTz = this.availableTimezones[0].value;
@@ -4101,6 +4235,9 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       }
     } else if (isValid && currentTz) {
       this.model.timezone = currentTz;
+      if (this.scheduleTimingForm && this.scheduleTimingForm.get('timezone')?.value !== currentTz) {
+        this.scheduleTimingForm.get('timezone')?.setValue(currentTz, { emitEvent: false });
+      }
     }
   }
 
@@ -4127,23 +4264,16 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     const total_questions = Number(this.model.totalQuestions) || 0;
 
     // compute end_time by adding duration minutes to the start datetime
-    // If explicit endDate/endTime provided, prefer those values for end_time
     let startIso: string | null = null;
     let endIso: string | null = null;
-    // Helper: robust Date parser that accepts:
-    // - Date objects
-    // - ISO strings (with T)
-    // - space-separated datetimes like 'YYYY-MM-DD HH:mm'
-    // - separate date (YYYY-MM-DD) and time (HH:mm) parts
+    const selectedTz =
+      this.scheduleTimingForm?.get('timezone')?.value || this.model.timezone || 'Asia/Kolkata';
+
+    // Helper: robust Date parser that takes timezone into account
     const parseDateInput = (dateLike: any, timeLike?: any): Date | null => {
       try {
-        // Date instance
         if (dateLike instanceof Date) {
           if (isNaN(dateLike.getTime())) return null;
-
-          // Angular Material's datepicker returns a Date at midnight. Preserve the
-          // selected calendar date, but apply the value from the separate time
-          // control so edits submit the date and time shown in the form.
           const result = new Date(dateLike.getTime());
           if (timeLike !== undefined && timeLike !== null && String(timeLike).trim()) {
             const timeMatch = String(timeLike)
@@ -4155,7 +4285,6 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
           return result;
         }
 
-        // numeric timestamp
         if (typeof dateLike === 'number' && !isNaN(dateLike)) {
           const d = new Date(dateLike);
           return isNaN(d.getTime()) ? null : d;
@@ -4167,19 +4296,18 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         const sTime =
           typeof timeLike !== 'undefined' && timeLike !== null ? String(timeLike).trim() : '';
 
-        // If dateLike already contains a time part (T or space), try direct parse first
+        const parsedInTz = this.parseDateInTimezone(sDate, sTime, selectedTz);
+        if (parsedInTz) return parsedInTz;
+
         if (sDate.includes('T') || sDate.includes(' ')) {
-          // normalize space to 'T' for Date parsing
           const tryIso = sDate.includes('T') ? sDate : sDate.replace(' ', 'T');
           const d = new Date(tryIso);
           if (!isNaN(d.getTime())) return d;
-          // sometimes datetime-local strings lack seconds/zone - try appending ':00' where appropriate
           const alt = tryIso.replace(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})$/, '$1:00');
           const d2 = new Date(alt);
           if (!isNaN(d2.getTime())) return d2;
         }
 
-        // If only date part provided (YYYY-MM-DD or with slashes), parse numbers
         const dateMatch = sDate.match(/^(\d{4})[^\d]?(\d{1,2})[^\d]?(\d{1,2})$/);
         if (dateMatch) {
           const y = Number(dateMatch[1]);
@@ -4196,7 +4324,6 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
           if (!isNaN(dt.getTime())) return dt;
         }
 
-        // As a last resort, attempt Date() on combined strings
         if (sDate) {
           const combined = sTime ? `${sDate}T${sTime}` : sDate;
           const d3 = new Date(combined);
@@ -4339,69 +4466,35 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       } catch (e) {
         payload['updated_by'] = sessionStorage.getItem('username') || 'admin';
       }
-      const putUrl = `${API_BASE}/update-exam-schedule`;
-      this.http.post<any>(putUrl, payload).subscribe({
-        next: (resp) => {
-          const ok = typeof resp?.status === 'undefined' ? true : !!resp.status;
-          try {
-            const msg =
-              resp?.statusMessage || resp?.message || 'Scheduled test updated successfully';
-            notify(msg, ok ? 'success' : 'error');
-          } catch (e) {}
-          if (ok) {
-            this.submitted = true;
-            this.goBack();
-          }
-        },
-        error: (err) => {
-          console.error('Failed to update scheduled test', err);
-          try {
-            notify(
-              err?.error?.statusMessage ||
-                err?.error?.message ||
-                'Failed to update scheduled test. See console for details.',
-              'error'
-            );
-          } catch (e) {}
-        },
-      });
-    } else {
-      // POST to backend API to persist the scheduled test
-      const postUrl = `${API_BASE}/add-exam-schedule`;
-      this.http.post<any>(postUrl, payload).subscribe({
-        next: (resp) => {
-          const ok = typeof resp?.status === 'undefined' ? true : !!resp.status;
-          try {
-            const msg = resp?.statusMessage || resp?.message || 'Scheduled test saved successfully';
-            notify(msg, ok ? 'success' : 'error');
-          } catch (e) {}
-          if (ok) {
-            // on success add to local scheduled list for UI
-            this.scheduled.push({
-              institute: this.model.institute,
-              testName: this.model.testName,
-              start,
-              duration,
-              published: this.model.publish,
-            });
-            this.model.testName = '';
-            this.submitted = true;
-            this.goBack();
-          }
-        },
-        error: (err) => {
-          console.error('Failed to save scheduled test', err);
-          try {
-            notify(
-              err?.error?.statusMessage ||
-                err?.error?.message ||
-                'Failed to save scheduled test. See console for details.',
-              'error'
-            );
-          } catch (e) {}
-        },
-      });
     }
+
+    const isEditMode = !!(payload as any).schedule_id;
+    const saveObservable = isEditMode
+      ? this.http.put<any>(`${API_BASE}/update-exam-schedule`, payload)
+      : this.http.post<any>(`${API_BASE}/add-exam-schedule`, payload);
+
+    saveObservable.subscribe({
+      next: (res) => {
+        if (res && res.status) {
+          notify(
+            res.statusMessage ||
+              (isEditMode ? 'Schedule updated successfully' : 'Schedule created successfully'),
+            'success'
+          );
+          sessionStorage.removeItem('edit_exam');
+          sessionStorage.removeItem('view_exam');
+          this.dirty = false;
+          this.router.navigate(['/view-schedule-exam']);
+        } else {
+          notify(res?.statusMessage || 'Failed to save schedule', 'error');
+        }
+      },
+      error: (err) => {
+        const msg =
+          err?.error?.statusMessage || err?.message || 'Error occurred while saving schedule';
+        notify(msg, 'error');
+      },
+    });
   }
 
   applyEditOrView() {
@@ -4412,6 +4505,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         const e = JSON.parse(rawEdit);
         // preserve schedule id for update detection
         this.model.schedule_id = e.schedule_id || e.id || e._id || e.scheduleId || null;
+        this.updatePageMeta();
         this.scheduleFieldsLocked = this.normalizeBoolean(e.has_attendance);
         // map fields into the form model where possible
         this.model.institute =
@@ -4438,28 +4532,43 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
         } catch (e) {
           /* noop */
         }
+
+        const parseUtcDate = (val: any): Date => {
+          if (!val) return new Date(NaN);
+          if (val instanceof Date) return val;
+          let s = String(val).trim();
+          if (s && !s.endsWith('Z') && !s.includes('+') && !s.match(/-\d{2}:\d{2}$/)) {
+            s += 'Z';
+          }
+          return new Date(s);
+        };
+
         // try to parse start_time ISO into combined datetime-local format and legacy date/time
         if (e.start_time) {
-          const dt = new Date(e.start_time);
-          // legacy split fields
-          this.model.startDate = dt.toISOString().slice(0, 10);
-          this.model.startTime = dt.toTimeString().slice(0, 5);
-          // combined field used by the datetime-local input
-          this.model.startDateTime = this.toLocalDateTimeInput(dt);
-          // end time: prefer explicit end_time, otherwise compute using duration
+          const dt = parseUtcDate(e.start_time);
+          const tz = e.timezone || this.model.timezone || 'Asia/Kolkata';
+          this.model.timezone = tz;
+
+          const { dateStr: sDate, timeStr: sTime } = this.getDateTimeInTimezone(tz, dt);
+          this.model.startDate = sDate;
+          this.model.startTime = sTime;
+          this.model.startDateTime = `${sDate}T${sTime}`;
+
           if (e.end_time) {
-            const edt = new Date(e.end_time);
-            this.model.endDateTime = this.toLocalDateTimeInput(edt);
-            this.model.endDate = edt.toISOString().slice(0, 10);
-            this.model.endTime = edt.toTimeString().slice(0, 5);
+            const edt = parseUtcDate(e.end_time);
+            const { dateStr: eDate, timeStr: eTime } = this.getDateTimeInTimezone(tz, edt);
+            this.model.endDate = eDate;
+            this.model.endTime = eTime;
+            this.model.endDateTime = `${eDate}T${eTime}`;
           } else {
             const dur =
               Number(e.duration_mins || e.duration || this.model.durationMin) ||
               this.model.durationMin;
             const endDt = new Date(dt.getTime() + dur * 60000);
-            this.model.endDateTime = this.toLocalDateTimeInput(endDt);
-            this.model.endDate = endDt.toISOString().slice(0, 10);
-            this.model.endTime = endDt.toTimeString().slice(0, 5);
+            const { dateStr: eDate, timeStr: eTime } = this.getDateTimeInTimezone(tz, endDt);
+            this.model.endDate = eDate;
+            this.model.endTime = eTime;
+            this.model.endDateTime = `${eDate}T${eTime}`;
           }
         }
         this.model.durationMin = e.duration_mins || e.duration || this.model.durationMin;

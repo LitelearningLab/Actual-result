@@ -522,15 +522,25 @@ def get_exam_details(request):
         if args.get("name", None):
             filter.append(Exam.title.ilike(f"%{args.get('name')}%"))
         if args.get("created_before", None):
-            created_before = datetime.fromisoformat(
-                args["created_before"].replace("Z", "+00:00")
-            )
-            filter.append(Exam.created_date <= created_before)
+            try:
+                cb_val = str(args["created_before"]).strip()
+                created_before = datetime.fromisoformat(
+                    cb_val.replace("Z", "+00:00")
+                )
+                if len(cb_val) <= 10 or (created_before.hour == 0 and created_before.minute == 0 and created_before.second == 0):
+                    created_before = created_before.replace(hour=23, minute=59, second=59, microsecond=999999)
+                filter.append(Exam.created_date <= created_before)
+            except Exception as e:
+                print(f"Error parsing created_before date in exams: {e}", flush=True)
         if args.get("created_after", None):
-            created_after = datetime.fromisoformat(
-                args["created_after"].replace("Z", "+00:00")
-            )
-            filter.append(Exam.created_date >= created_after)
+            try:
+                ca_val = str(args["created_after"]).strip()
+                created_after = datetime.fromisoformat(
+                    ca_val.replace("Z", "+00:00")
+                )
+                filter.append(Exam.created_date >= created_after)
+            except Exception as e:
+                print(f"Error parsing created_after date in exams: {e}", flush=True)
         created_by = args.get("created_by", None)
         if created_by:
             user = (
@@ -1430,15 +1440,25 @@ def get_exam_list(request):
         if args.get("name", None):
             filter.append(Exam.title.ilike(f"%{args.get('name')}%"))
         if args.get("created_after", None):
-            created_after = datetime.fromisoformat(
-                args["created_after"].replace("Z", "+00:00")
-            )
-            filter.append(Exam.created_date >= created_after)
+            try:
+                ca_val = str(args["created_after"]).strip()
+                created_after = datetime.fromisoformat(
+                    ca_val.replace("Z", "+00:00")
+                )
+                filter.append(Exam.created_date >= created_after)
+            except Exception as e:
+                print(f"Error parsing created_after date in exams: {e}", flush=True)
         if args.get("created_before", None):
-            created_before = datetime.fromisoformat(
-                args["created_before"].replace("Z", "+00:00")
-            )
-            filter.append(Exam.created_date <= created_before)
+            try:
+                cb_val = str(args["created_before"]).strip()
+                created_before = datetime.fromisoformat(
+                    cb_val.replace("Z", "+00:00")
+                )
+                if len(cb_val) <= 10 or (created_before.hour == 0 and created_before.minute == 0 and created_before.second == 0):
+                    created_before = created_before.replace(hour=23, minute=59, second=59, microsecond=999999)
+                filter.append(Exam.created_date <= created_before)
+            except Exception as e:
+                print(f"Error parsing created_before date in exams: {e}", flush=True)
         if args.get("created_by", None):
             filter.append(Exam.created_by == args["created_by"])
 

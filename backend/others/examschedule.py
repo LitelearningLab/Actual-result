@@ -16,8 +16,21 @@ from db.db import SQLiteDB
 import sys
 import datetime
 from others.exam_review import validate_answers
-from sqlalchemy import func, or_, String
+from sqlalchemy import func, or_, String, text
 from sqlalchemy.exc import DBAPIError
+
+
+def _ensure_timezone_column(session):
+    try:
+        session.execute(
+            text(
+                "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('ExamSchedules') AND name = 'timezone') "
+                "ALTER TABLE ExamSchedules ADD timezone NVARCHAR(100) NULL"
+            )
+        )
+        session.commit()
+    except Exception:
+        pass
 
 VALID_REVIEW_MODES = {
     "no_review",
@@ -34,6 +47,17 @@ def _as_bool(value, default=False):
     if isinstance(value, str):
         return value.strip().lower() in ("1", "true", "yes", "on")
     return bool(value)
+
+
+def _format_utc_iso(dt):
+    if dt is None:
+        return None
+    if isinstance(dt, datetime.datetime):
+        s = dt.isoformat()
+        if not s.endswith("Z") and "+" not in s:
+            s += "Z"
+        return s
+    return str(dt)
 
 
 def _parse_iso_datetime(value, field_name):
@@ -199,6 +223,8 @@ def add_exam_schedule(request):
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
+    _ensure_timezone_column(session)
+
     try:
         exam = session.query(Exam).filter_by(exam_id=exam_id).first()
         if not exam:
@@ -215,6 +241,7 @@ def add_exam_schedule(request):
             institute_id=institute_id,
             start_time=start_time,
             end_time=end_time,
+            timezone=data.get("timezone"),
             published=1 if published else 0,
             multiple_review=multiple_review,
             user_review=1 if review_settings["instant_review"] else 0,
@@ -291,6 +318,8 @@ def delete_exam_schedule(schedule_id, deleted_by):
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
+    _ensure_timezone_column(session)
+
     if not schedule_id:
         return {"statusMessage": "schedule_id is required", "status": False}, 400
 
@@ -320,6 +349,8 @@ def update_exam_schedule(request):
     session = db.connect()
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    _ensure_timezone_column(session)
 
     data = request.json
     schedule_id = data.get("schedule_id") or data.get("id") or data.get("scheduleId")
@@ -352,6 +383,8 @@ def update_exam_schedule(request):
             sched.exam_id = data.get("exam_id")
         if "institute_id" in data and not has_attendance:
             sched.institute_id = data.get("institute_id")
+        if "timezone" in data and not has_attendance:
+            sched.timezone = data.get("timezone")
         if "duration_mins" in data and not has_attendance:
             try:
                 sched.duration_mins = int(data.get("duration_mins") or 0)
@@ -528,6 +561,8 @@ def get_exam_schedule_details(request):
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
+    _ensure_timezone_column(session)
+
     try:
         filter = []
         args = getattr(request, "args", {})
@@ -594,15 +629,25 @@ def get_exam_schedule_details(request):
                 == str(args.get("created_by")).strip()
             )
         if args.get("created_before"):
-            created_before = datetime.datetime.fromisoformat(
-                args.get("created_before").replace("Z", "+00:00")
-            )
-            filter.append(ExamSchedule.created_date < created_before)
+            try:
+                cb_val = str(args.get("created_before")).strip()
+                created_before = datetime.datetime.fromisoformat(
+                    cb_val.replace("Z", "+00:00")
+                )
+                if len(cb_val) <= 10 or (created_before.hour == 0 and created_before.minute == 0 and created_before.second == 0):
+                    created_before = created_before.replace(hour=23, minute=59, second=59, microsecond=999999)
+                filter.append(ExamSchedule.created_date <= created_before)
+            except Exception as e:
+                print(f"Error parsing created_before date: {e}", flush=True)
         if args.get("created_after"):
-            created_after = datetime.datetime.fromisoformat(
-                args.get("created_after").replace("Z", "+00:00")
-            )
-            filter.append(ExamSchedule.created_date > created_after)
+            try:
+                ca_val = str(args.get("created_after")).strip()
+                created_after = datetime.datetime.fromisoformat(
+                    ca_val.replace("Z", "+00:00")
+                )
+                filter.append(ExamSchedule.created_date >= created_after)
+            except Exception as e:
+                print(f"Error parsing created_after date: {e}", flush=True)
         if args.get("active"):
             active = 0 if args.get("active").lower() == "true" else 1
             filter.append(ExamSchedule.published == active)
@@ -826,16 +871,17 @@ def get_exam_schedule_details(request):
                         "name": institute_name,
                     },
                     "assigned_users": user_list,
-                    "start_time": schedule.start_time,
-                    "end_time": schedule.end_time,
+                    "start_time": _format_utc_iso(schedule.start_time),
+                    "end_time": _format_utc_iso(schedule.end_time),
+                    "timezone": schedule.timezone,
                     "created_by": (
                         created_by_user.full_name if created_by_user else None
                     ),
-                    "created_date": schedule.created_date,
+                    "created_date": _format_utc_iso(schedule.created_date),
                     "updated_by": (
                         updated_by_user.full_name if updated_by_user else None
                     ),
-                    "updated_date": schedule.updated_date,
+                    "updated_date": _format_utc_iso(schedule.updated_date),
                     "published": True if schedule.published == 1 else False,
                     "user_review": True if schedule.user_review == 1 else False,
                     "instant_review": True if schedule.user_review == 1 else False,
@@ -843,8 +889,8 @@ def get_exam_schedule_details(request):
                     "review_mode": schedule.review_mode
                     or ("instant" if schedule.user_review == 1 else "no_review"),
                     "manual_review_enabled": bool(schedule.manual_review_enabled),
-                    "review_at": schedule.review_at,
-                    "review_end_at": schedule.review_end_at,
+                    "review_at": _format_utc_iso(schedule.review_at),
+                    "review_end_at": _format_utc_iso(schedule.review_end_at),
                     "show_score": (
                         True
                         if schedule.show_score is None
@@ -933,6 +979,8 @@ def manage_schedule(action, uuid, updated_by="system"):
     session = db.connect()
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    _ensure_timezone_column(session)
 
     try:
         sched = session.query(ExamSchedule).filter_by(schedule_id=uuid).first()

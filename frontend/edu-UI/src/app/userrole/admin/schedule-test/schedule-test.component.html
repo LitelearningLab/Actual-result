@@ -746,6 +746,12 @@
                     <span class="review-label">Test</span><span class="review-value">{{ selectedTestName || '—'
                       }}</span>
                   </div>
+                  <div class="review-item" *ngIf="selectedExam">
+                    <span class="review-label">Test details</span><span class="review-value">{{
+                      selectedExam.total_questions || selectedExam.question_count || '-' }} Questions • {{
+                      selectedExam.duration_mins || selectedExam.duration || '-' }} mins • {{ selectedExam.pass_mark
+                      || selectedExam.passing_score || '-' }}% Pass</span>
+                  </div>
                   <div class="review-item">
                     <span class="review-label">Schedule name</span><span class="review-value">{{ model.schedulerName ||
                       '—' }}</span>
@@ -758,6 +764,9 @@
                 <h4 class="review-section-title"><mat-icon>schedule</mat-icon> Timing</h4>
                 <div class="review-items">
                   <div class="review-item">
+                    <span class="review-label">Timezone</span><span class="review-value">{{ getTimezoneLabel() }}</span>
+                  </div>
+                  <div class="review-item">
                     <span class="review-label">Start</span><span class="review-value">{{ formatDate(model.startDate) }}
                       {{ model.startTime || '' }}</span>
                   </div>
@@ -769,6 +778,12 @@
                     <span class="review-label">Publish</span><span class="review-value"><span class="status-pill"
                         [class.active]="model.publish">{{
                         model.publish ? 'Yes' : 'No'
+                        }}</span></span>
+                  </div>
+                  <div class="review-item">
+                    <span class="review-label">Multiple review</span><span class="review-value"><span class="status-pill"
+                        [class.active]="model.multiplereview">{{
+                        model.multiplereview ? 'Yes' : 'No'
                         }}</span></span>
                   </div>
                   <div class="review-item">
@@ -831,9 +846,7 @@
             <button *ngIf="!readOnly" mat-flat-button color="primary" type="button" class="submit-btn"
               (click)="schedule()">
               <mat-icon>event_available</mat-icon>
-              <span>{{
-                model && (model.testName || model.schedulerName) ? 'Update' : 'Schedule Test'
-                }}</span>
+              <span>{{ isEditMode ? 'Update' : 'Create' }}</span>
             </button>
             <button *ngIf="readOnly" mat-stroked-button type="button" (click)="goBack()">
               <mat-icon>arrow_back</mat-icon>

@@ -1923,6 +1923,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     try {
       const source = row && row.raw ? row.raw : row;
       const payload = { ...source, schedule_id: source.schedule_id || id };
+      if (source.timezone || row?.timezone) payload.timezone = source.timezone || row.timezone;
       if (typeof row?.publish !== 'undefined') payload.publish = !!row.publish;
       try {
         const normalizeBool = (v: any) => {

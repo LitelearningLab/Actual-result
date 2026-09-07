@@ -284,6 +284,7 @@ class ExamSchedule(Base):
      show_correct_answers = Column(Boolean, default=True)
      show_student_answers = Column(Boolean, default=True)
      show_explanations = Column(Boolean, default=True)
+     timezone = Column(String(100), nullable=True)
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
      updated_by = Column(String)
