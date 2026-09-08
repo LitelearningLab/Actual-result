@@ -604,13 +604,18 @@ def get_user_wise_report(request):
 
 
 def get_exam_analytics(request):
+    import time
+    t_start = time.perf_counter()
     db = SQLiteDB()
     session = db.connect()
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     args = getattr(request, 'args', {})
+    t0 = time.perf_counter()
     ctx = resolve_report_context(session, args)
+    t_ctx = time.perf_counter() - t0
+
     if not ctx.get('status'):
         return {"statusMessage": ctx.get('message', "No schedules found matching criteria"), "status": False}, 400
 
@@ -620,6 +625,7 @@ def get_exam_analytics(request):
     exam_id = ctx.get('exam_id')
 
     try:
+        t1 = time.perf_counter()
         if not exam_id and schedule_ids:
             sched = session.query(ExamSchedule).filter(ExamSchedule.schedule_id.in_(schedule_ids)).first()
             if sched:
@@ -642,7 +648,6 @@ def get_exam_analytics(request):
 
         mappings = session.query(ExamMapping).filter(ExamMapping.exam_id == exam_id).all() if exam_id else []
 
-        question_summary = []
         eqm_qids = [qm.question_id for qm in session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == exam_id).all()] if exam_id else []
 
         cat_ids = [m.category_id for m in mappings if m.category_id]
@@ -670,51 +675,120 @@ def get_exam_analytics(request):
                 combined_qids.append(qid)
 
         question_ids = combined_qids
+        t_setup = time.perf_counter() - t1
 
+        # --- BULK FETCHING TO ELIMINATE N+1 QUERIES ---
+        t_bulk_start = time.perf_counter()
+
+        # 1. Bulk fetch all Question objects
+        q_objs = session.query(Question).filter(Question.question_id.in_(question_ids)).all() if question_ids else []
+        q_map = {str(q.question_id): q for q in q_objs}
+
+        # 2. Bulk fetch Question -> Category Mappings
+        cat_mappings = session.query(
+            QuestionMapping.question_id, Categories.category_id, Categories.name, Categories.type
+        ).join(
+            Categories, QuestionMapping.category_id == Categories.category_id
+        ).filter(QuestionMapping.question_id.in_(question_ids)).all() if question_ids else []
+
+        q_cat_map = {}
+        for qid_val, cid_val, cname_val, ctype_val in cat_mappings:
+            q_cat_map[str(qid_val)] = (cid_val, cname_val, ctype_val)
+
+        # Fallback ExamQuestionMapping categories
+        eqm_cats = session.query(
+            ExamQuestionMapping.question_id, ExamQuestionMapping.category_id, Categories.name, Categories.type
+        ).outerjoin(
+            Categories, ExamQuestionMapping.category_id == Categories.category_id
+        ).filter(
+            ExamQuestionMapping.exam_id == exam_id,
+            ExamQuestionMapping.question_id.in_(question_ids)
+        ).all() if (exam_id and question_ids) else []
+
+        eqm_cat_map = {}
+        for qid_val, cid_val, cname_val, ctype_val in eqm_cats:
+            eqm_cat_map[str(qid_val)] = (cid_val, cname_val or str(cid_val), ctype_val or '')
+
+        # 3. Bulk fetch Answers for statistics
+        if mode == 'daterange':
+            if attempt_ids:
+                answers_db = session.query(Answer.question_id, Answer.user_id, Answer.attempt_id, Answer.is_correct, Answer.selected_option_id).filter(
+                    Answer.attempt_id.in_(attempt_ids),
+                    Answer.question_id.in_(question_ids)
+                ).all() if question_ids else []
+            else:
+                answers_db = session.query(Answer.question_id, Answer.user_id, Answer.attempt_id, Answer.is_correct, Answer.selected_option_id).filter(
+                    Answer.schedule_id.in_(schedule_ids),
+                    Answer.created_date >= ctx['start_date'],
+                    Answer.created_date <= ctx['end_date'],
+                    Answer.question_id.in_(question_ids)
+                ).all() if question_ids else []
+        else:
+            answers_db = session.query(Answer.question_id, Answer.user_id, Answer.attempt_id, Answer.is_correct, Answer.selected_option_id).filter(
+                Answer.schedule_id.in_(schedule_ids),
+                Answer.question_id.in_(question_ids)
+            ).all() if question_ids else []
+
+        # Pre-group answers by question_id in memory
+        user_attempts_map = {}
+        user_q_attempts_map = {}
+        mistakes_map = {}
+        wrong_opt_counts = {}
+
+        for qid_val, uid_val, att_val, is_corr, opt_val in answers_db:
+            sqid = str(qid_val)
+            if sqid not in user_attempts_map:
+                user_attempts_map[sqid] = set()
+                user_q_attempts_map[sqid] = set()
+                mistakes_map[sqid] = set()
+                wrong_opt_counts[sqid] = {}
+
+            if uid_val is not None:
+                user_attempts_map[sqid].add(str(uid_val))
+                user_q_attempts_map[sqid].add((str(uid_val), str(att_val or '')))
+
+            if is_corr == 0:
+                mistakes_map[sqid].add((str(uid_val or ''), str(att_val or '')))
+                if opt_val is not None:
+                    sopt = str(opt_val)
+                    wrong_opt_counts[sqid][sopt] = wrong_opt_counts[sqid].get(sopt, 0) + 1
+
+        # 4. Bulk fetch Options for wrong answer distribution
+        options_db = session.query(Option.options_id, Option.option_text, Option.question_id, Option.is_correct).filter(
+            Option.question_id.in_(question_ids)
+        ).all() if question_ids else []
+
+        q_options_map = {}
+        for opt_id, opt_txt, qid_val, is_corr in options_db:
+            sqid = str(qid_val)
+            if sqid not in q_options_map:
+                q_options_map[sqid] = []
+            q_options_map[sqid].append((str(opt_id), opt_txt, int(is_corr or 0)))
+
+        t_bulk_fetch = time.perf_counter() - t_bulk_start
+
+        # Build question_summary array in memory
+        t_calc_start = time.perf_counter()
+        question_summary = []
         for idx, qid in enumerate(question_ids, start=1):
-            qobj = session.query(Question).filter(Question.question_id == qid).first()
+            sqid = str(qid)
+            qobj = q_map.get(sqid)
             if not qobj:
                 continue
 
-            category_data = session.query(Categories).join(
-                QuestionMapping, QuestionMapping.category_id == Categories.category_id
-            ).filter(
-                QuestionMapping.question_id == qid
-            ).first()
-            category_name = category_data.name if category_data else None
-            category_id = category_data.category_id if category_data else None
-
-            if not category_id and exam_id:
-                try:
-                    eqm = session.query(ExamQuestionMapping).filter(
-                        ExamQuestionMapping.exam_id == exam_id,
-                        ExamQuestionMapping.question_id == qid
-                    ).first()
-                    if eqm and eqm.category_id:
-                        cat = session.query(Categories).filter(Categories.category_id == eqm.category_id).first()
-                        category_id = eqm.category_id
-                        category_name = cat.name if cat else str(eqm.category_id)
-                except Exception:
-                    pass
-
-            if mode == 'daterange':
-                if attempt_ids:
-                    user_attempts_q = session.query(Answer.user_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == qid)
-                    user_q_attempts_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == qid)
-                    mistakes_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == qid, Answer.is_correct == 0)
-                else:
-                    user_attempts_q = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == qid)
-                    user_q_attempts_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == qid)
-                    mistakes_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == qid, Answer.is_correct == 0)
+            c_info = q_cat_map.get(sqid)
+            if c_info:
+                category_id, category_name, _ = c_info
             else:
-                user_attempts_q = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid)
-                user_q_attempts_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid)
-                mistakes_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid, Answer.is_correct == 0)
+                eqm_info = eqm_cat_map.get(sqid)
+                if eqm_info:
+                    category_id, category_name, _ = eqm_info
+                else:
+                    category_id, category_name = None, None
 
-            user_attempts = user_attempts_q.distinct().count()
-            user_question_attempts = user_q_attempts_q.distinct().all()
-            total_attempts = len(user_question_attempts)
-            mistakes = mistakes_q.distinct().count()
+            user_attempts = len(user_attempts_map.get(sqid, set()))
+            total_attempts = len(user_q_attempts_map.get(sqid, set()))
+            mistakes = len(mistakes_map.get(sqid, set()))
             error_pct = (mistakes / total_attempts * 100) if total_attempts > 0 else 0
 
             question_summary.append({
@@ -730,6 +804,7 @@ def get_exam_analytics(request):
                 'error_percentage': round(error_pct, 2)
             })
 
+        # Build category_rows in memory
         category_rows = []
         mapped_cat_ids = []
         for m in mappings:
@@ -745,35 +820,31 @@ def get_exam_analytics(request):
                 if cid_str and cid_str not in mapped_cat_ids:
                     mapped_cat_ids.append(cid_str)
 
+        cat_db_objs = session.query(Categories).filter(Categories.category_id.in_(mapped_cat_ids)).all() if mapped_cat_ids else []
+        cat_info_map = {str(c.category_id): c for c in cat_db_objs}
+
         for cat_id in mapped_cat_ids:
             cat_qs = [q for q in question_summary if q.get('category_id') is not None and str(q.get('category_id')) == str(cat_id)]
-            cat_qids_list = [q['question_id'] for q in cat_qs]
+            cat_qids_list = [str(q['question_id']) for q in cat_qs]
 
             if cat_qs:
                 total_questions = len(cat_qs)
             else:
-                m = next((mp for mp in mappings if mp.category_id == cat_id), None)
+                m = next((mp for mp in mappings if str(mp.category_id) == str(cat_id)), None)
                 total_questions = (m.number_of_questions or 0) if m else 0
 
             if cat_qids_list:
-                if mode == 'daterange':
-                    if attempt_ids:
-                        cat_part_q = session.query(Answer.user_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id.in_(cat_qids_list))
-                        cat_att_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id.in_(cat_qids_list))
-                        cat_wrong_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id.in_(cat_qids_list), Answer.is_correct == 0)
-                    else:
-                        cat_part_q = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id.in_(cat_qids_list))
-                        cat_att_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id.in_(cat_qids_list))
-                        cat_wrong_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id.in_(cat_qids_list), Answer.is_correct == 0)
-                else:
-                    cat_part_q = session.query(Answer.user_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id.in_(cat_qids_list))
-                    cat_att_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id.in_(cat_qids_list))
-                    cat_wrong_q = session.query(Answer.user_id, Answer.question_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id.in_(cat_qids_list), Answer.is_correct == 0)
+                cat_participants = set()
+                cat_user_q_attempts = set()
+                total_wrong_answers = 0
+                for cqid in cat_qids_list:
+                    cat_participants.update(user_attempts_map.get(cqid, set()))
+                    for uid, att in user_q_attempts_map.get(cqid, set()):
+                        cat_user_q_attempts.add((uid, cqid, att))
+                    total_wrong_answers += len(mistakes_map.get(cqid, set()))
 
-                cat_participant_count = cat_part_q.distinct().count()
-                cat_user_q_attempts = cat_att_q.group_by(Answer.user_id, Answer.question_id).all()
-                total_attempts = len(set(cat_user_q_attempts))
-                total_wrong_answers = cat_wrong_q.distinct().count()
+                cat_participant_count = len(cat_participants)
+                total_attempts = len(cat_user_q_attempts)
                 total_correct_answers = total_attempts - total_wrong_answers
             else:
                 total_attempts = 0
@@ -789,15 +860,12 @@ def get_exam_analytics(request):
             category_type = None
             if cat_qs and cat_qs[0].get('category_name'):
                 category_name = cat_qs[0]['category_name']
-            
-            try:
-                cat = session.query(Categories).filter(Categories.category_id == cat_id).first()
-                if cat:
-                    if not category_name:
-                        category_name = cat.name
-                    category_type = cat.type
-            except Exception:
-                pass
+
+            cat_obj = cat_info_map.get(str(cat_id))
+            if cat_obj:
+                if not category_name:
+                    category_name = cat_obj.name
+                category_type = cat_obj.type
 
             category_rows.append({
                 'category_id': cat_id,
@@ -813,24 +881,46 @@ def get_exam_analytics(request):
                 'impact_percentage': round(impact_percentage, 2)
             })
 
+        # Build wrong_answer_distribution in memory
         wrong_answer_distribution = []
         for q in question_summary:
-            qid = q['question_id']
-            if mode == 'daterange':
-                if attempt_ids:
-                    opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == qid, Answer.is_correct == 0)
-                else:
-                    opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == qid, Answer.is_correct == 0)
-            else:
-                opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == qid, Answer.is_correct == 0)
+            sqid = str(q['question_id'])
+            opts = q_options_map.get(sqid, [])
+            opts_wrong_counts = wrong_opt_counts.get(sqid, {})
 
-            opt_counts = opt_q.group_by(Option.options_id, Option.option_text).all()
-            total_sel = sum([c[2] for c in opt_counts])
             dist = []
-            for opt_id, opt_text, cnt in opt_counts:
-                pct = (cnt / total_sel * 100) if total_sel > 0 else 0
-                dist.append({'option_id': opt_id, 'option_text': opt_text, 'count': int(cnt), 'percentage': round(pct, 2)})
-            wrong_answer_distribution.append({'question_id': qid, 'question_text': q['question_text'], 'distribution': dist})
+            total_sel = 0
+            for opt_id, opt_text, is_corr in opts:
+                if is_corr == 0:
+                    cnt = opts_wrong_counts.get(opt_id, 0)
+                    total_sel += cnt
+                    dist.append({
+                        'option_id': opt_id,
+                        'option_text': opt_text,
+                        'count': int(cnt),
+                        'percentage': 0
+                    })
+
+            for d in dist:
+                pct = (d['count'] / total_sel * 100) if total_sel > 0 else 0
+                d['percentage'] = round(pct, 2)
+
+            wrong_answer_distribution.append({
+                'question_id': q['question_id'],
+                'question_text': q['question_text'],
+                'distribution': dist
+            })
+        t_calc = time.perf_counter() - t_calc_start
+
+        t_total = time.perf_counter() - t_start
+
+        print(f"\n[OPTIMIZED BENCHMARK] /get-exam-analytics:")
+        print(f"  Total Questions: {len(question_ids)}, Categories: {len(mapped_cat_ids)}")
+        print(f"  1. Context Resolution: {t_ctx*1000:.2f} ms")
+        print(f"  2. Setup & ID Mapping: {t_setup*1000:.2f} ms")
+        print(f"  3. Bulk SQL Query Fetch (5 queries total): {t_bulk_fetch*1000:.2f} ms")
+        print(f"  4. In-Memory Report Calculation: {t_calc*1000:.2f} ms")
+        print(f"  --> TOTAL FLASK API EXECUTION: {t_total*1000:.2f} ms ({t_total:.3f} sec)\n")
 
         result = {
             'statusMessage': 'Analytics generated',
@@ -842,6 +932,10 @@ def get_exam_analytics(request):
             }
         }
         return result, 200
+    except Exception as e:
+        lineno = e.__traceback__.tb_lineno if getattr(e, "__traceback__", None) else 'N/A'
+        print(f"Error generating analytics: {e} Line # {lineno}")
+        return {"statusMessage": f"Error generating analytics: {str(e)}", "status": False}, 500
     except Exception as e:
         lineno = e.__traceback__.tb_lineno if getattr(e, "__traceback__", None) else 'N/A'
         print(f"Error generating analytics: {e} Line # {lineno}")

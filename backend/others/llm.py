@@ -37,7 +37,7 @@ class openai_client:
             "Content-Type": "application/json",
         }
 
-    def chat_completion(self, system_message, InputData, aimodel =1, max_tokens: int = 5200, temperature: float = 0.2):
+    def chat_completion(self, system_message, InputData, aimodel =1, max_tokens: int = 5200, temperature: float = 0.2, timeout: float = 30.0):
         if not self.api_key:
             return _ErrorResponse(
                 503,
@@ -62,7 +62,7 @@ class openai_client:
         }
 
         try:
-            response = httpx.post(self.url, headers=self.headers, json=payload, verify=False, timeout=30.0)
+            response = httpx.post(self.url, headers=self.headers, json=payload, verify=False, timeout=timeout)
         except httpx.ReadTimeout:
             response = _ErrorResponse(504, "OpenAI request timed out")
         except httpx.RequestError as exc:
@@ -244,7 +244,7 @@ Incorrect Student Submissions to Analyze ({len(items)} submissions):
 Please classify relevance, cluster misconceptions, and provide the diagnostic summary."""
 
     try:
-        response = api_client.chat_completion(system_message, user_message, max_tokens=3500, temperature=0.2)
+        response = api_client.chat_completion(system_message, user_message, max_tokens=3500, temperature=0.2, timeout=12.0)
         response_json = response.json()
         if response.status_code != 200:
             return {"status": False, "error": response_json.get("error", "AI service returned error")}

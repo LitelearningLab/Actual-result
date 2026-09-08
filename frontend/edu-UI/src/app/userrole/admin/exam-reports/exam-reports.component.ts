@@ -106,6 +106,35 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   questionSummary: any[] = [];
   filteredQuestionSummary: any[] = [];
   wrongDistribution: any[] = [];
+  loadingAnalytics = false;
+  loadedAnalyticsCacheKey: string | null = null;
+  loadedUserReportCacheKey: string | null = null;
+
+  getFilterCacheKey(): string {
+    const inst = this.selectedInstituteId || this.userFilters.institute_id || '';
+    const mode = this.selectionMode || 'schedule';
+    let testKey = '';
+    if (this.selectedExam?.isDateRange || mode === 'daterange') {
+      const title = this.selectedExam?.title || this.selectedDateRangeTestTitle || this.selectedTestTitle || '';
+      const start = this.selectedExam?.start_date || (this.dateRangeStart ? this.formatDateToYYYYMMDD(this.dateRangeStart) : '');
+      const end = this.selectedExam?.end_date || (this.dateRangeEnd ? this.formatDateToYYYYMMDD(this.dateRangeEnd) : '');
+      testKey = `range_${title}_${start}_${end}`;
+    } else {
+      const schedId = String(
+        this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || this.selectedScheduleId || ''
+      );
+      const title = this.selectedExam?.title || this.selectedTestTitle || '';
+      testKey = `sched_${schedId}_${title}`;
+    }
+    const country = this.userFilters.country_id || '';
+    const city = this.userFilters.city_id || '';
+    const campus = this.userFilters.campus_id || '';
+    const depts = Array.isArray(this.userFilters.department_id) ? this.userFilters.department_id.join(',') : (this.userFilters.department_id || '');
+    const teams = Array.isArray(this.userFilters.teams_id) ? this.userFilters.teams_id.join(',') : (this.userFilters.teams_id || '');
+    const status = this.userFilters.active_status || '';
+    return `${inst}|${testKey}|${country}|${city}|${campus}|${depts}|${teams}|${status}`;
+  }
+
   // wrong answer modal state
   showWrongAnswerSummary = false;
   wrongAnswerSummaryLoading = false;
@@ -1259,7 +1288,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       category.category_name || category.name || 'Selected Category';
     this.activeMainTabIndex = 0;
     this.questionCurrentPage = 1;
-    if (this.questionSummary && this.questionSummary.length) {
+    const currentKey = this.getFilterCacheKey();
+    if (this.loadedAnalyticsCacheKey === currentKey && this.questionSummary && this.questionSummary.length) {
       this.filteredQuestionSummary = (this.questionSummary || []).filter(
         (q: any) => this._getQuestionCategoryId(q) === cid
       );
@@ -1461,14 +1491,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   private fetchUserReview(params: any, silent: boolean = false) {
     console.log('[fetchUserReview] Re-fetching review with params:', params, 'silent:', silent);
     if (!silent) {
-      this.loading.show();
       this.userReviewLoading = true;
     }
     this.http.get<any>(`${API_BASE}/review-user-exam`, { params }).subscribe({
       next: (res: any) => {
-        if (!silent) {
-          this.loading.hide();
-        }
         console.log('[fetchUserReview] Received review data response:', res);
         try {
           const body = res || {};
@@ -1560,9 +1586,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         }
       },
       error: (err: any) => {
-        if (!silent) {
-          this.loading.hide();
-        }
         console.error('[TestReports] review-user-exam failed', err);
         if (!silent) {
           this.userReviewLoading = false;
@@ -1867,10 +1890,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       updated_by: this.updatedBy,
       edit_reason: editReason,
     };
-    this.loading.show();
+    rc._saving = true;
     this.http.post<any>(`${API_BASE}/update-review-comments/${action}`, payload).subscribe({
       next: (res: any) => {
-        this.loading.hide();
+        rc._saving = false;
         if (this.currentReviewRow) {
           this.currentReviewRow.manual_review = 'Manual Review';
           this.currentReviewRow.has_manual_review = true;
@@ -1883,7 +1906,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         }
       },
       error: (err: any) => {
-        this.loading.hide();
+        rc._saving = false;
         console.error('Failed to update review comment', err);
         const msg =
           err && err.error && err.error.statusMessage
@@ -2826,12 +2849,19 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   onTabChange(event: any) {
     const idx = event.index;
-    if (!this.selectedExam) {
+    if (!this.selectedExam && !this.selectedTestTitle) {
       return;
     }
+    const currentKey = this.getFilterCacheKey();
     if (idx === 0) {
+      if (this.loadedAnalyticsCacheKey === currentKey && this.categoryAnalytics && this.categoryAnalytics.length) {
+        return;
+      }
       this.loadAnalytics();
     } else if (idx === 1) {
+      if (this.loadedUserReportCacheKey === currentKey && this.userReportData && this.userReportData.length) {
+        return;
+      }
       this.loadUserReport(1);
     }
   }
@@ -2839,6 +2869,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   loadUserReport(page: number = 1, isSilent: boolean = false) {
     if (!this.selectedExam && !this.selectedTestTitle) return;
     this.currentPage = page || 1;
+    const currentKey = this.getFilterCacheKey();
     const params: any = {
       page: String(this.currentPage),
       page_size: String(this.pageSize),
@@ -2897,9 +2928,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     if (!isSilent) {
       this.loadingUserReport = true;
-      try {
-        this.loading.show();
-      } catch (e) {}
     }
 
     this.http.get<any>(`${API_BASE}/get-exam-user-report`, { params }).subscribe({
@@ -2920,17 +2948,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             this.userReportData = [];
             this.userReportTotal = 0;
           }
+          this.loadedUserReportCacheKey = currentKey;
         } catch (e) {
           console.warn('Error parsing user report response', e);
           this.userReportData = [];
           this.userReportTotal = 0;
         } finally {
           this.loadingUserReport = false;
-          if (!isSilent) {
-            try {
-              this.loading.hide();
-            } catch (e) {}
-          }
         }
       },
       error: (err: any) => {
@@ -2938,18 +2962,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.userReportData = [];
         this.userReportTotal = 0;
         this.loadingUserReport = false;
-        if (!isSilent) {
-          try {
-            this.loading.hide();
-          } catch (e) {}
-        }
       },
       complete: () => {
-        if (!isSilent) {
-          try {
-            this.loading.hide();
-          } catch (e) {}
-        }
+        this.loadingUserReport = false;
       },
     });
   }
@@ -3103,6 +3118,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   loadAnalytics() {
     if (!this.selectedExam && !this.selectedTestTitle) return;
+    const currentKey = this.getFilterCacheKey();
     const params: any = {};
     if (this.selectedInstituteId || this.userFilters.institute_id) {
       params.institute_id = this.selectedInstituteId || this.userFilters.institute_id;
@@ -3127,9 +3143,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       }
     }
 
-    try {
-      this.loading.show();
-    } catch (e) {}
+    this.loadingAnalytics = true;
     this.http.get<any>(`${API_BASE}/get-exam-analytics`, { params }).subscribe({
       next: (res: any) => {
         console.debug('[TestReports] get-exam-analytics response:', res);
@@ -3145,6 +3159,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.wrongDistribution = Array.isArray(payload.wrong_answer_distribution)
             ? payload.wrong_answer_distribution
             : payload.wrong_answer_distribution || payload.distribution || [];
+          this.loadedAnalyticsCacheKey = currentKey;
           this.questionCurrentPage = 1;
           if (this._pendingCategoryFilter) {
             const cid = String(this._pendingCategoryFilter);
@@ -3166,9 +3181,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.questionSummary = [];
           this.wrongDistribution = [];
         } finally {
-          try {
-            this.loading.hide();
-          } catch (e) {}
+          this.loadingAnalytics = false;
         }
       },
       error: (err: any) => {
@@ -3176,14 +3189,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.categoryAnalytics = [];
         this.questionSummary = [];
         this.wrongDistribution = [];
-        try {
-          this.loading.hide();
-        } catch (e) {}
+        this.loadingAnalytics = false;
       },
       complete: () => {
-        try {
-          this.loading.hide();
-        } catch (e) {}
+        this.loadingAnalytics = false;
       },
     });
   }
