@@ -2630,14 +2630,14 @@
 
             <!-- Main Content when Loaded -->
             <div *ngIf="!wrongAnswerSummaryLoading">
-              <!-- AI Powered Analytics Card (Misconception & Diagnostic Analysis) -->
+              <!-- AI Powered Analytics Card (Diagnostic Analysis) -->
               <div class="ai-powerful-card" *ngIf="descriptiveAnalysisData?.diagnostic_summary || aiInsights?.diagnostic_summary">
                 <div class="ai-powerful-header">
                   <div class="ai-powerful-badge">
                     <span class="sparkle-star">✦</span>
                     <span>AI Powered Analytics</span>
                   </div>
-                  <div class="ai-powerful-title">Misconception & Diagnostic Analysis</div>
+                  <div class="ai-powerful-title">Diagnostic Analysis</div>
                 </div>
                 <p class="ai-powerful-desc">
                   {{ descriptiveAnalysisData?.diagnostic_summary || aiInsights?.diagnostic_summary }}

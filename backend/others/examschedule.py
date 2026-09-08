@@ -262,10 +262,6 @@ def add_exam_schedule(request):
             number_of_attempts=number_of_attempts_val,
             pass_mark=pass_mark_val,
         )
-        session.add(add_schedule)
-        session.flush()
-        schedule_id = add_schedule.schedule_id
-
         assigned_user_ids_raw = data.get("assigned_user_ids", [])
         assigned_user_ids = []
         if isinstance(assigned_user_ids_raw, list):
@@ -276,6 +272,16 @@ def add_exam_schedule(request):
                         assigned_user_ids.append(str(uid))
                 elif u and isinstance(u, (str, int)):
                     assigned_user_ids.append(str(u))
+
+        if not assigned_user_ids:
+            return {
+                "statusMessage": "At least one user must be assigned to the schedule.",
+                "status": False,
+            }, 400
+
+        session.add(add_schedule)
+        session.flush()
+        schedule_id = add_schedule.schedule_id
 
         for user_id in assigned_user_ids:
             mapping = ExamScheduleMapping(schedule_id=str(schedule_id), user_id=user_id)
@@ -528,12 +534,28 @@ def update_exam_schedule(request):
 
         # Rebuild assigned user mappings if provided
         if "assigned_user_ids" in data and not has_attendance:
+            assigned_user_ids_raw = data.get("assigned_user_ids") or []
+            assigned_user_ids = []
+            if isinstance(assigned_user_ids_raw, list):
+                for u in assigned_user_ids_raw:
+                    if isinstance(u, dict):
+                        uid = u.get("user_id") or u.get("id") or u.get("_id")
+                        if uid:
+                            assigned_user_ids.append(str(uid))
+                    elif u and isinstance(u, (str, int)):
+                        assigned_user_ids.append(str(u))
+
+            if not assigned_user_ids:
+                return {
+                    "statusMessage": "At least one user must be assigned to the schedule.",
+                    "status": False,
+                }, 400
+
             try:
                 # Delete existing mappings for this schedule
                 session.query(ExamScheduleMapping).filter_by(
                     schedule_id=schedule_id
                 ).delete()
-                assigned_user_ids = data.get("assigned_user_ids") or []
                 for user_id in assigned_user_ids:
                     mapping = ExamScheduleMapping(
                         schedule_id=schedule_id, user_id=user_id

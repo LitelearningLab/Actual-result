@@ -384,7 +384,7 @@
       </mat-step>
 
       <!-- ═══ STEP 2: SELECT USERS ═══ -->
-      <mat-step>
+      <mat-step [completed]="selectedUsers.length > 0">
         <ng-template matStepLabel>Select users</ng-template>
         <div class="step-content">
           <div *ngIf="scheduleFieldsLocked" class="running-test-banner"
@@ -397,8 +397,8 @@
             <div class="section-header">
               <mat-icon class="section-icon">people</mat-icon>
               <div class="section-header-text">
-                <h2 class="section-heading">Select Users</h2>
-                <p class="section-desc">Choose which users to assign this test to.</p>
+                <h2 class="section-heading">Select Users <span class="required-star" style="color: #dc2626;">*</span></h2>
+                <p class="section-desc">Choose which users to assign this test to (at least 1 user required). Selected: <strong>{{ selectedUsers.length }}</strong></p>
               </div>
               <button #userFiltersBtn mat-stroked-button color="primary" type="button"
                 (click)="openUserFiltersOverlay(); $event.stopPropagation()" aria-haspopup="true"
@@ -706,15 +706,23 @@
             </div>
           </div>
 
-          <div class="form-actions">
-            <button mat-button matStepperPrevious type="button" class="prev-btn">
-              <mat-icon>arrow_back</mat-icon>
-              <span>Back</span>
-            </button>
-            <button mat-button matStepperNext type="button" class="next-btn">
-              <span>Next</span>
-              <mat-icon>arrow_forward</mat-icon>
-            </button>
+          <div class="form-actions" style="display: flex; flex-direction: column; align-items: stretch; gap: 0.5rem;">
+            <div *ngIf="selectedUsers.length === 0" class="user-selection-warning" style="color: #dc2626; font-size: 0.875rem; display: flex; align-items: center; justify-content: flex-end; gap: 0.35rem;">
+              <mat-icon style="font-size: 1.1rem; width: 1.1rem; height: 1.1rem;">error_outline</mat-icon>
+              <span>At least one user must be assigned to the schedule.</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+              <button mat-button matStepperPrevious type="button" class="prev-btn">
+                <mat-icon>arrow_back</mat-icon>
+                <span>Back</span>
+              </button>
+              <button mat-button type="button" class="next-btn"
+                [disabled]="readOnly || selectedUsers.length === 0"
+                (click)="goToStep3(stepper)">
+                <span>Next</span>
+                <mat-icon>arrow_forward</mat-icon>
+              </button>
+            </div>
           </div>
         </div>
       </mat-step>
@@ -829,7 +837,7 @@
                           getUserNameById(uid) || uid
                           }}</span>
                       </ng-container>
-                      <ng-template #noAssigned><span class="muted">No users assigned</span></ng-template>
+                      <ng-template #noAssigned><span class="error-text" style="color: #dc2626; font-weight: 500;">No users assigned (At least 1 user required)</span></ng-template>
                     </span>
                   </div>
                 </div>

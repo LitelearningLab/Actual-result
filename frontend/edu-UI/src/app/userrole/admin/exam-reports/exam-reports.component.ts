@@ -3426,16 +3426,16 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     ).trim().toLowerCase();
 
     if (qType === 'fill' || qType.includes('fill')) {
-      return 'fill in the blanks';
+      return 'Fill in the blanks';
     }
     if (qType === 'descriptive' || qType.includes('descript') || qType === 'subjective' || qType === 'essay' || qType === 'paragraph') {
-      return 'descriptive';
+      return 'Descriptive';
     }
     if (qType === 'multi' || qType.includes('multi')) {
-      return 'multiple';
+      return 'Multiple';
     }
     if (qType === 'single' || qType === 'choose' || qType.includes('choice')) {
-      return 'single';
+      return 'Single';
     }
     return q.question_type || q.answer_type || q.type || 'descriptive';
   }

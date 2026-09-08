@@ -2611,6 +2611,14 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     stepper.next();
   }
 
+  goToStep3(stepper: any): void {
+    if (!this.selectedUsers || this.selectedUsers.length === 0) {
+      notify('Please select at least one user to assign to this schedule.', 'error');
+      return;
+    }
+    stepper.next();
+  }
+
   // Called when the Enable Filters checkbox toggles
   onFilterToggle(enabled: boolean) {
     this.filterEnabled = !!enabled;
@@ -4261,6 +4269,10 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       } else {
         notify('Choose a valid review date and enter time as HH:MM.', 'error');
       }
+      return;
+    }
+    if (!this.selectedUsers || this.selectedUsers.length === 0) {
+      notify('Please select at least one user to assign to this schedule.', 'error');
       return;
     }
     // build payload matching the DB columns described by the user
