@@ -45,11 +45,34 @@ def add_question(request):
                 "status": False
             }
             return json_data, 400
-        # json_data = {
-        #     "statusMessage": "Category ID is required",
-        #     "status": False,
-        # }
-        # return json_data, 400
+
+        # Duplicate Question Checks
+        seen_in_batch = set()
+        for q in valid_questions:
+            norm_text = str(q.get("text", "")).strip().lower()
+            if norm_text in seen_in_batch:
+                return {
+                    "statusMessage": f"Duplicate question detected: '{q.get('text', '').strip()}'. Duplicate questions cannot be added a second time.",
+                    "status": False
+                }, 400
+            seen_in_batch.add(norm_text)
+
+        # Check existing questions in database for this category
+        existing_q_texts = (
+            session.query(Question.question_text)
+            .join(QuestionMapping, Question.question_id == QuestionMapping.question_id)
+            .filter(QuestionMapping.category_id == category_id)
+            .all()
+        )
+        existing_text_set = {str(row[0]).strip().lower() for row in existing_q_texts if row[0]}
+
+        for q in valid_questions:
+            norm_text = str(q.get("text", "")).strip().lower()
+            if norm_text in existing_text_set:
+                return {
+                    "statusMessage": f"Question '{q.get('text', '').strip()}' has already been saved in this category. Duplicate questions cannot be added a second time.",
+                    "status": False
+                }, 400
 
         for data in valid_questions:
             question_type = data.get("type")
@@ -572,13 +595,17 @@ def create_question_using_llm(request):
     number_of_questions = int(gv("number_of_questions", 1) or 1)
     complexity = gv("complexity", "medium")
     source_text = gv("source_text", "")
-    if not str(source_text or '').strip() and not question_file:
+    additional_instructions = gv("additional_instructions", "")
+
+    if not str(source_text or '').strip() and str(additional_instructions or '').strip():
+        source_text = str(additional_instructions).strip()
+
+    if not str(source_text or '').strip() and not str(additional_instructions or '').strip() and not question_file:
         return {
             "status": False,
             "statusMessage": "Topic or content is required.",
             "error": "Topic or content is required."
         }, 400
-    additional_instructions = gv("additional_instructions", "")
     question_mark = int(gv("marks_per_question", 2) or 2)
     if question_mark >= 2 and question_mark <=4:
         recommended_words_count = '60-65 words'

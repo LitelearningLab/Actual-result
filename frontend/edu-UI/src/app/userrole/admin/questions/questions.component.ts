@@ -131,6 +131,7 @@ export class AdminQuestionsComponent {
   aiPrompt: string = '';
   // live preview / generated content
   generatedQuestions: Array<any> = [];
+  savedQuestionTexts: Set<string> = new Set<string>();
   private aiAnswerGenerationPending = false;
   showPreview: boolean = true;
 
@@ -902,6 +903,14 @@ export class AdminQuestionsComponent {
       this.aiQuestionNumber = 5;
     }
 
+    const effectiveSourceText = (this.sourceText || '').trim() || (this.aiPrompt || '').trim();
+    if (!effectiveSourceText && !this.selectedSourceFile) {
+      try {
+        notify('Topic or content is required', 'error');
+      } catch (e) {}
+      return;
+    }
+
     this.isGenerating = true;
     this.loader.show();
 
@@ -937,7 +946,7 @@ export class AdminQuestionsComponent {
     fd.append('user_role', this.aiUserRole || '');
     fd.append('target_users', this.aiTargetUsers || '');
     fd.append('complexity', this.aiQuestionComplexity || 'medium');
-    fd.append('source_text', this.sourceText || '');
+    fd.append('source_text', effectiveSourceText);
     fd.append('additional_instructions', this.aiPrompt || '');
     fd.append('question_mark', String(categoryQuestionMark));
 
@@ -2975,6 +2984,37 @@ export class AdminQuestionsComponent {
       }
     }
 
+    if (!this.isEditing) {
+      if (!this.savedQuestionTexts) {
+        this.savedQuestionTexts = new Set<string>();
+      }
+      const seenBatch = new Set<string>();
+      for (let q of validQuestions) {
+        const normText = (q.text || '').trim().toLowerCase();
+        if (!normText) continue;
+        if (seenBatch.has(normText)) {
+          this.confirmService.confirm({
+            title: 'Duplicate Question Warning',
+            message: `Duplicate question detected: "${q.text.trim()}". Duplicate questions cannot be added a second time.`,
+            confirmText: 'OK',
+            cancelText: 'Close',
+          });
+          return;
+        }
+        seenBatch.add(normText);
+
+        if (this.savedQuestionTexts.has(normText)) {
+          this.confirmService.confirm({
+            title: 'Duplicate Question Warning',
+            message: `Question "${q.text.trim()}" has already been saved. Duplicate questions cannot be added a second time.`,
+            confirmText: 'OK',
+            cancelText: 'Close',
+          });
+          return;
+        }
+      }
+    }
+
     const payload = validQuestions.map((q: any) => {
       const p = JSON.parse(JSON.stringify(q));
       if (q.type === 'fill' || q.type === 'descriptive') {
@@ -3068,19 +3108,36 @@ export class AdminQuestionsComponent {
                 const msg = res?.statusMessage || res?.message || 'Questions saved successfully';
                 const ok = typeof res?.status === 'undefined' ? true : !!res.status;
                 notify(msg, ok ? 'success' : 'error');
+                if (ok) {
+                  validQuestions.forEach((q: any) => {
+                    const normText = (q.text || '').trim().toLowerCase();
+                    if (normText) this.savedQuestionTexts.add(normText);
+                  });
+                }
               } catch (e) {}
               // Keep questions intact on screen after saving
             },
             error: (err) => {
               console.error('Failed to save questions', err);
-              try {
-                notify(
-                  err?.error?.statusMessage ||
-                    err?.error?.message ||
-                    'Failed to save questions. See console for details.',
-                  'error'
-                );
-              } catch (e) {}
+              const errMsg =
+                err?.error?.statusMessage ||
+                err?.error?.message ||
+                'Failed to save questions. See console for details.';
+              if (
+                errMsg.toLowerCase().includes('duplicate') ||
+                errMsg.toLowerCase().includes('already been saved')
+              ) {
+                this.confirmService.confirm({
+                  title: 'Duplicate Question Warning',
+                  message: errMsg,
+                  confirmText: 'OK',
+                  cancelText: 'Close',
+                });
+              } else {
+                try {
+                  notify(errMsg, 'error');
+                } catch (e) {}
+              }
               this.loader.hide();
             },
             complete: () => {
