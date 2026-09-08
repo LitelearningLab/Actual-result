@@ -782,19 +782,24 @@ def get_exam_analytics(request):
             impact_percentage = (total_wrong_answers / denom * 100) if denom > 0 else 0
 
             category_name = None
+            category_type = None
             if cat_qs and cat_qs[0].get('category_name'):
                 category_name = cat_qs[0]['category_name']
-            else:
-                try:
-                    cat = session.query(Categories).filter(Categories.category_id == cat_id).first()
-                    if cat:
+            
+            try:
+                cat = session.query(Categories).filter(Categories.category_id == cat_id).first()
+                if cat:
+                    if not category_name:
                         category_name = cat.name
-                except Exception:
-                    category_name = None
+                    category_type = cat.type
+            except Exception:
+                pass
 
             category_rows.append({
                 'category_id': cat_id,
                 'category_name': category_name or str(cat_id),
+                'category_type': category_type or '',
+                'type': category_type or '',
                 'total_questions': int(total_questions),
                 'no_of_students': int(cat_participant_count),
                 'total_attempts': int(total_attempts),

@@ -333,6 +333,35 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return String(val).toUpperCase();
   }
 
+  formatCategoryType(typeVal: any): string {
+    if (!typeVal) return '-';
+    const raw = String(typeVal).trim();
+    if (!raw) return '-';
+    const key = raw.toLowerCase().replace(/[\s-]+/g, '_');
+    const typeMap: { [key: string]: string } = {
+      single_choice: 'Single Choice',
+      singlechoice: 'Single Choice',
+      single: 'Single Choice',
+      choose: 'Single Choice',
+      multiple_choice: 'Multiple Choice',
+      multiplechoice: 'Multiple Choice',
+      multi: 'Multiple Choice',
+      mcq: 'Multiple Choice',
+      descriptive: 'Descriptive',
+      subjective: 'Descriptive',
+      fill_in_blanks: 'Fill in the Blanks',
+      fill_in_the_blanks: 'Fill in the Blanks',
+      fill_in_blank: 'Fill in the Blanks',
+      coding: 'Coding',
+      objective: 'Objective',
+    };
+    if (typeMap[key]) return typeMap[key];
+    return raw
+      .split('_')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+  }
+
   get selectedInstituteName(): string {
     if (!this.selectedInstituteId) return '';
     const found = this.institutes.find((i) => String(i.id) === String(this.selectedInstituteId));
