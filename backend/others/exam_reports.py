@@ -570,8 +570,12 @@ def get_user_wise_report(request):
                 rows.sort(key=lambda r: (r.get('student_name') is None, (r.get('student_name') or '').lower()), reverse=reverse)
             elif sort_by in ('test_taken_date', 'date'):
                 rows.sort(key=lambda r: (r.get('test_taken_date') is None, r.get('test_taken_date') or ''), reverse=reverse)
+            elif sort_by == 'retest_date':
+                rows.sort(key=lambda r: (r.get('retest_date') is None, r.get('retest_date') or ''), reverse=reverse)
             elif sort_by == 'percentage':
                 rows.sort(key=lambda r: (r.get('percentage') is None, float(r.get('percentage')) if r.get('percentage') is not None else -1.0), reverse=reverse)
+            elif sort_by == 'retest_percentage':
+                rows.sort(key=lambda r: (r.get('retest_percentage') is None, float(r.get('retest_percentage')) if r.get('retest_percentage') is not None else -1.0), reverse=reverse)
             else:
                 rows.sort(key=lambda r: (r.get(sort_by) is None, r.get(sort_by)), reverse=reverse)
         except Exception as ex:

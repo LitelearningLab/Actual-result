@@ -368,8 +368,8 @@ def review_user_exam(request, current_user=None):
                         ).all()
                         selected_option_texts = [opt.option_text for opt in selected_options]
                         selected_option = selected_option_texts
-                        correct_answer = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).all()
-                        correct_answer_data = ", ".join([ans.option_text for ans in correct_answer])
+                        correct_answer = [opt for opt in options_list if str(getattr(opt, 'is_correct', 0)).lower() in ('1', 'true')]
+                        correct_answer_data = ", ".join([ans.option_text for ans in correct_answer if ans.option_text])
 
                     updated_by = session.query(User).filter(User.user_id == question_answer.created_by).first()
 
@@ -382,6 +382,10 @@ def review_user_exam(request, current_user=None):
                     if question_type == "descriptive":
                         evaluation_status = "failed" if evaluation_failed else ("success" if question_answer.is_validated else "pending")
 
+                    q_ans_list = [a for a in all_answers if str(a.question_id) == str(question_answer.question_id)]
+                    q_max_marks = max((a.marks_awarded or 0 for a in q_ans_list), default=0)
+                    q_is_correct = any(a.is_correct == 1 for a in q_ans_list)
+
                     review_data["review"].append({
                         "answer_id": question_answer.answer_id,
                         "question_id": question_answer.question_id,
@@ -391,8 +395,8 @@ def review_user_exam(request, current_user=None):
                         "selected_option": ([selected_option] if isinstance(selected_option, str) else selected_option) if show_student_answers else [],
                         "correct_option": correct_answer_data if show_correct_answers else None,
                         "review_comment": review_comment_dict if show_explanations else {},
-                        "is_correct": (True if question_answer.is_correct == 1 else False) if show_correct_answers else None,
-                        "marks_awarded": (question_answer.marks_awarded if question_answer.marks_awarded is not None else 0) if show_score else None,
+                        "is_correct": q_is_correct if show_correct_answers else None,
+                        "marks_awarded": q_max_marks if show_score else None,
                         "updated_by": updated_by.full_name if updated_by else question_answer.created_by,
                         "updated_date": question_answer.created_date,
                         "edit_reason": getattr(question_answer, 'edit_reason', None),
@@ -583,11 +587,10 @@ def validate_answers(attempt_id):
                             )
                             session.add(review_comment)
         else:
-
             # get the correct options for the question
-            correct_option_ids = set(
-                str(opt.options_id).lower() for opt in session.query(Option).filter_by(question_id=question_id, is_correct=1).all()
-            )
+            all_q_options = session.query(Option).filter_by(question_id=question_id).all()
+            correct_opts = [opt for opt in all_q_options if str(getattr(opt, 'is_correct', 0)).lower() in ('1', 'true')]
+            correct_option_ids = set(str(opt.options_id).lower() for opt in correct_opts)
 
             selected_option_ids = set(
                 str(ans.selected_option_id).lower() for ans in question_answers if ans.selected_option_id
@@ -597,16 +600,16 @@ def validate_answers(attempt_id):
             incorrect_options = selected_option_ids - correct_option_ids
 
             is_fully_correct = len(correct_option_ids) > 0 and len(missing_options) == 0 and len(incorrect_options) == 0
-            awarded_marks = question.marks if is_fully_correct else 0
+            awarded_marks = (question.marks if question and question.marks is not None else 1) if is_fully_correct else 0
             if is_fully_correct:
                 feedback = None
             else:
                 feedback = f"Incorrect. Missing correct options: {missing_options}. " if missing_options else "" f"Incorrectly selected options: {incorrect_options}."
 
             # Update all answer rows for this question
-            for idx, ans in enumerate(question_answers):
+            for ans in question_answers:
                 ans.is_correct = 1 if is_fully_correct else 0
-                ans.marks_awarded = awarded_marks if idx == 0 else 0
+                ans.marks_awarded = awarded_marks
                 ans.is_validated = 1
                 ans.feedback = feedback
                 session.add(ans)

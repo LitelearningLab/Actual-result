@@ -1315,14 +1315,46 @@
                 </td>
               </ng-container>
               <ng-container matColumnDef="retest_date">
-                <th mat-header-cell *matHeaderCellDef>RETEST DATE</th>
+                <th
+                  mat-header-cell
+                  *matHeaderCellDef
+                  class="sortable-header"
+                  (click)="toggleUserReportSort('retest_date')"
+                  [attr.aria-sort]="userSortColumn === 'retest_date' ? (userSortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
+                  title="Click to sort by Retest Date"
+                >
+                  <div class="header-sort-wrap center-aligned">
+                    <span>RETEST DATE</span>
+                    <span class="sort-icon-box" [class.active]="userSortColumn === 'retest_date'">
+                      <mat-icon class="sort-icon" *ngIf="userSortColumn !== 'retest_date'">unfold_more</mat-icon>
+                      <mat-icon class="sort-icon active" *ngIf="userSortColumn === 'retest_date' && userSortDirection === 'asc'">arrow_upward</mat-icon>
+                      <mat-icon class="sort-icon active" *ngIf="userSortColumn === 'retest_date' && userSortDirection === 'desc'">arrow_downward</mat-icon>
+                    </span>
+                  </div>
+                </th>
                 <td mat-cell *matCellDef="let row">
                   <span class="cell-date" *ngIf="row.retest_date">{{ formatDateShort(row.retest_date) }}</span>
                   <span class="cell-muted" *ngIf="!row.retest_date">-</span>
                 </td>
               </ng-container>
               <ng-container matColumnDef="retest_percentage">
-                <th mat-header-cell *matHeaderCellDef>RETEST %</th>
+                <th
+                  mat-header-cell
+                  *matHeaderCellDef
+                  class="sortable-header"
+                  (click)="toggleUserReportSort('retest_percentage')"
+                  [attr.aria-sort]="userSortColumn === 'retest_percentage' ? (userSortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
+                  title="Click to sort by Retest %"
+                >
+                  <div class="header-sort-wrap center-aligned">
+                    <span>RETEST %</span>
+                    <span class="sort-icon-box" [class.active]="userSortColumn === 'retest_percentage'">
+                      <mat-icon class="sort-icon" *ngIf="userSortColumn !== 'retest_percentage'">unfold_more</mat-icon>
+                      <mat-icon class="sort-icon active" *ngIf="userSortColumn === 'retest_percentage' && userSortDirection === 'asc'">arrow_upward</mat-icon>
+                      <mat-icon class="sort-icon active" *ngIf="userSortColumn === 'retest_percentage' && userSortDirection === 'desc'">arrow_downward</mat-icon>
+                    </span>
+                  </div>
+                </th>
                 <td mat-cell *matCellDef="let row">
                   <span class="percentage-value" *ngIf="row.retest_percentage !== null && row.retest_percentage !== undefined">
                     {{ formatPercentage(row.retest_percentage) }}
@@ -2438,14 +2470,8 @@
                     <div
                       *ngFor="let opt of q.options || []; let oi = index"
                       class="q-option"
-                      [class.correct]="opt.is_correct == 1 || opt.is_correct === true"
-                      [class.selected]="
-                        (q.selected_option || []).indexOf(opt.option_text || opt) !== -1
-                      "
-                      [class.missed]="
-                        opt.is_correct &&
-                        (q.selected_option || []).indexOf(opt.option_text || opt) === -1
-                      "
+                      [class.correct]="isCorrectOption(opt)"
+                      [class.selected]="!isCorrectOption(opt) && isOptionSelected(q, opt)"
                     >
                       <div class="opt-left">
                         <span class="opt-mark">{{ getOptionLetter(oi) }}</span>
@@ -2453,56 +2479,30 @@
                       <div class="opt-body">
                         <div class="opt-text">{{ opt.option_text || opt }}</div>
                       </div>
-                      <div class="opt-badge" *ngIf="q.question_type == 'choose'">
+                      <div class="opt-badge" *ngIf="(q.question_type || q.type) == 'choose'">
                         <span
-                          *ngIf="
-                            (q.selected_option || []).indexOf(opt.option_text || opt) !== -1 &&
-                            !(opt.is_correct == 1 || opt.is_correct === true)
-                          "
-                          class="badge your-answer"
-                          >Student Answer</span
-                        >
-                        <span
-                          *ngIf="
-                            (q.selected_option || []).indexOf(opt.option_text || opt) !== -1 &&
-                            (opt.is_correct == 1 || opt.is_correct === true)
-                          "
+                          *ngIf="isCorrectOption(opt)"
                           class="badge correct"
                           >Correct Answer</span
                         >
                         <span
-                          *ngIf="
-                            opt.is_correct &&
-                            (q.selected_option || []).indexOf(opt.option_text || opt) === -1
-                          "
-                          class="badge missed"
-                          >Correct Answer</span
+                          *ngIf="isOptionSelected(q, opt)"
+                          class="badge"
+                          [ngClass]="isCorrectOption(opt) ? 'correct' : 'your-answer'"
+                          >Student Answer</span
                         >
                       </div>
-                      <div class="opt-badge" *ngIf="q.question_type == 'multi'">
+                      <div class="opt-badge" *ngIf="(q.question_type || q.type) == 'multi'">
                         <span
-                          *ngIf="
-                            (q.selected_option || []).indexOf(opt.option_text || opt) !== -1 &&
-                            (opt.is_correct == 1 || opt.is_correct === true)
-                          "
+                          *ngIf="isCorrectOption(opt)"
                           class="badge correct"
                           >Correct Option</span
                         >
                         <span
-                          *ngIf="
-                            (q.selected_option || []).indexOf(opt.option_text || opt) !== -1 &&
-                            !(opt.is_correct == 1 || opt.is_correct === true)
-                          "
-                          class="badge your-answer"
+                          *ngIf="isOptionSelected(q, opt)"
+                          class="badge"
+                          [ngClass]="isCorrectOption(opt) ? 'correct' : 'your-answer'"
                           >Student Selected</span
-                        >
-                        <span
-                          *ngIf="
-                            opt.is_correct &&
-                            (q.selected_option || []).indexOf(opt.option_text || opt) === -1
-                          "
-                          class="badge missed"
-                          >Missed Correct Option</span
                         >
                       </div>
                     </div>

@@ -1180,9 +1180,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           const timeA = a.test_taken_date ? new Date(this.parseDateUTC(a.test_taken_date)).getTime() : 0;
           const timeB = b.test_taken_date ? new Date(this.parseDateUTC(b.test_taken_date)).getTime() : 0;
           return this.userSortDirection === 'asc' ? timeA - timeB : timeB - timeA;
+        } else if (this.userSortColumn === 'retest_date') {
+          const timeA = a.retest_date && a.retest_date !== '-' ? new Date(this.parseDateUTC(a.retest_date)).getTime() : 0;
+          const timeB = b.retest_date && b.retest_date !== '-' ? new Date(this.parseDateUTC(b.retest_date)).getTime() : 0;
+          return this.userSortDirection === 'asc' ? timeA - timeB : timeB - timeA;
         } else if (this.userSortColumn === 'percentage') {
           const pctA = a.percentage !== null && a.percentage !== undefined && a.percentage !== '' ? Number(a.percentage) : -1;
           const pctB = b.percentage !== null && b.percentage !== undefined && b.percentage !== '' ? Number(b.percentage) : -1;
+          return this.userSortDirection === 'asc' ? pctA - pctB : pctB - pctA;
+        } else if (this.userSortColumn === 'retest_percentage') {
+          const pctA = a.retest_percentage !== null && a.retest_percentage !== undefined && a.retest_percentage !== '' ? Number(a.retest_percentage) : -1;
+          const pctB = b.retest_percentage !== null && b.retest_percentage !== undefined && b.retest_percentage !== '' ? Number(b.retest_percentage) : -1;
           return this.userSortDirection === 'asc' ? pctA - pctB : pctB - pctA;
         }
         return 0;
@@ -1484,6 +1492,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
                 );
                 if (!Array.isArray(q.options) && q.options && typeof q.options === 'object') {
                   q.options = Object.keys(q.options).map((k) => q.options[k]);
+                }
+                const qType = (q.question_type || q.type || '').toString().toLowerCase();
+                if (qType === 'choose' || qType === 'multi' || qType === 'single' || qType === 'multiple') {
+                  const opts = q.options || [];
+                  const correctOpts = opts.filter((o: any) => this.isCorrectOption(o));
+                  const selectedOpts = opts.filter((o: any) => this.isOptionSelected(q, o));
+                  const wrongSelected = selectedOpts.filter((o: any) => !this.isCorrectOption(o));
+                  const missedCorrect = correctOpts.filter((o: any) => !this.isOptionSelected(q, o));
+                  if (correctOpts.length > 0 && wrongSelected.length === 0 && missedCorrect.length === 0) {
+                    q.marks_awarded = q.question_marks || q.marks || 1;
+                    q.is_correct = true;
+                  }
                 }
               } catch (e) {}
               return q;
@@ -3490,6 +3510,31 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const val = opt.is_correct;
     return val === 1 || val === '1' || val === true || String(val).toLowerCase() === 'true';
   }
+
+  isOptionSelected(q: any, opt: any): boolean {
+    if (!q || !opt) return false;
+    const selected = q.selected_option || q.student_answer || q.user_answer || [];
+    const optText = (typeof opt === 'object' ? (opt.option_text || opt.text || opt.answer || '') : opt).toString().trim();
+    const optId = (typeof opt === 'object' ? (opt.option_id || opt.id || '') : '').toString().trim();
+
+    if (Array.isArray(selected)) {
+      return selected.some((s: any) => {
+        const sStr = (typeof s === 'object' ? (s.option_text || s.text || s.id || s.answer || '') : s).toString().trim();
+        return (optText && sStr === optText) || (optId && sStr === optId);
+      });
+    } else if (typeof selected === 'string' || typeof selected === 'number') {
+      const sStr = selected.toString().trim();
+      if (sStr.includes(',')) {
+        return sStr.split(',').some(p => {
+          const part = p.trim();
+          return (optText && part === optText) || (optId && part === optId);
+        });
+      }
+      return (optText && sStr === optText) || (optId && sStr === optId);
+    }
+    return false;
+  }
+
 
   getCorrectAnswerText(): string {
     if (!this.selectedQuestionForWrongSummary) return '';
