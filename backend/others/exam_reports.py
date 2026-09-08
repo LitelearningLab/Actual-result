@@ -1,5 +1,5 @@
 from db.db import SQLiteDB
-from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping, MarksHistory, ExamReviewComments, ExamReviewCommentsHistory
+from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping, MarksHistory, ExamReviewComments, ExamReviewCommentsHistory, InstituteDepartment, InstituteTeam, InstituteCampus, Country, State, City
 from sqlalchemy import func, or_, String
 from datetime import datetime
 from others.llm import openai_client, analyze_wrong_answers_ai
@@ -1171,13 +1171,121 @@ def get_question_wrong_answers(request):
 
             # Pre-fetch users and attempts for instant roster expansion
             users_db = session.query(User).filter(User.user_id.in_(list(user_ids_set))).all() if user_ids_set else []
+
+            # Gather IDs for batch loading department, team, campus, country, state, city
+            desc_dept_ids = {str(u.department_id).strip() for u in users_db if u.department_id}
+            desc_team_ids = {str(u.team_id).strip() for u in users_db if u.team_id}
+            desc_campus_ids = {str(u.campus_id).strip() for u in users_db if u.campus_id}
+            desc_country_ids = {str(u.country_id).strip() for u in users_db if u.country_id}
+            desc_state_ids = {str(u.state_id).strip() for u in users_db if u.state_id}
+            desc_city_ids = {str(u.city_id).strip() for u in users_db if u.city_id}
+
+            desc_dept_map = {}
+            if desc_dept_ids:
+                depts = session.query(InstituteDepartment).filter(
+                    or_(InstituteDepartment.department_id.in_(list(desc_dept_ids)), InstituteDepartment.name.in_(list(desc_dept_ids)))
+                ).all()
+                for d in depts:
+                    desc_dept_map[str(d.department_id)] = d.name
+                    desc_dept_map[d.name] = d.name
+
+            desc_team_map = {}
+            if desc_team_ids:
+                teams = session.query(InstituteTeam).filter(
+                    or_(InstituteTeam.team_id.in_(list(desc_team_ids)), InstituteTeam.name.in_(list(desc_team_ids)))
+                ).all()
+                for t in teams:
+                    desc_team_map[str(t.team_id)] = t.name
+                    desc_team_map[t.name] = t.name
+
+            desc_campus_map = {}
+            if desc_campus_ids:
+                campuses = session.query(InstituteCampus).filter(
+                    or_(InstituteCampus.campus_id.in_(list(desc_campus_ids)), InstituteCampus.name.in_(list(desc_campus_ids)))
+                ).all()
+                for c in campuses:
+                    desc_campus_map[str(c.campus_id)] = c
+                    desc_campus_map[c.name] = c
+                    if getattr(c, 'country_id', None):
+                        desc_country_ids.add(str(c.country_id).strip())
+
+            desc_country_map = {}
+            if desc_country_ids:
+                countries = session.query(Country).filter(
+                    or_(Country.country_id.in_(list(desc_country_ids)), Country.country_name.in_(list(desc_country_ids)))
+                ).all()
+                for co in countries:
+                    desc_country_map[str(co.country_id)] = co.country_name
+                    desc_country_map[co.country_name] = co.country_name
+
+            desc_state_map = {}
+            if desc_state_ids:
+                states = session.query(State).filter(
+                    or_(State.state_id.in_(list(desc_state_ids)), State.state_name.in_(list(desc_state_ids)))
+                ).all()
+                for st in states:
+                    desc_state_map[str(st.state_id)] = st.state_name
+                    desc_state_map[st.state_name] = st.state_name
+
+            desc_city_map = {}
+            if desc_city_ids:
+                cities = session.query(City).filter(
+                    or_(City.city_id.in_(list(desc_city_ids)), City.city_name.in_(list(desc_city_ids)))
+                ).all()
+                for ci in cities:
+                    desc_city_map[str(ci.city_id)] = ci.city_name
+                    desc_city_map[ci.city_name] = ci.city_name
+
             user_info_map = {}
             for u in users_db:
                 u_k = str(u.user_id).strip().lower()
+
+                dept_name = desc_dept_map.get(str(u.department_id)) if u.department_id else None
+                if not dept_name and u.department_id:
+                    dept_name = str(u.department_id)
+
+                team_name = desc_team_map.get(str(u.team_id)) if u.team_id else None
+                if not team_name and u.team_id:
+                    team_name = str(u.team_id)
+
+                campus_obj = desc_campus_map.get(str(u.campus_id)) if u.campus_id else None
+                country_name = desc_country_map.get(str(u.country_id)) if u.country_id else None
+                if not country_name and campus_obj and getattr(campus_obj, 'country_id', None):
+                    country_name = desc_country_map.get(str(campus_obj.country_id))
+                if not country_name and u.country_id:
+                    country_name = str(u.country_id)
+
+                campus_name = campus_obj.name if campus_obj else (str(u.campus_id) if u.campus_id else None)
+                city_name = desc_city_map.get(str(u.city_id)) if u.city_id else (campus_obj.city_name if campus_obj and getattr(campus_obj, 'city_name', None) else None)
+                if not city_name and u.city_id:
+                    city_name = str(u.city_id)
+
+                state_name = desc_state_map.get(str(u.state_id)) if u.state_id else None
+                if not state_name and u.state_id:
+                    state_name = str(u.state_id)
+
+                loc_parts = []
+                if campus_name and campus_name != country_name:
+                    loc_parts.append(campus_name)
+                elif city_name and city_name != country_name:
+                    loc_parts.append(city_name)
+                if country_name:
+                    loc_parts.append(country_name)
+
+                location_str = ", ".join(loc_parts) if loc_parts else (country_name or campus_name or city_name or state_name or None)
+
                 user_info_map[u_k] = {
                     "user_id": str(u.user_id).strip(),
                     "full_name": u.full_name or u.username or "Student",
-                    "email": u.email or ""
+                    "email": u.email or "",
+                    "department_name": dept_name,
+                    "dept": dept_name,
+                    "team_name": team_name,
+                    "team": team_name,
+                    "location": location_str,
+                    "country_name": country_name,
+                    "campus_name": campus_name,
+                    "city_name": city_name
                 }
 
             # Query all attempts for these users ordered chronologically by start date
@@ -1214,6 +1322,14 @@ def get_question_wrong_answers(request):
                     "full_name": u_info.get("full_name", "Student"),
                     "name": u_info.get("full_name", "Student"),
                     "email": u_info.get("email", ""),
+                    "department_name": u_info.get("department_name"),
+                    "dept": u_info.get("dept"),
+                    "team_name": u_info.get("team_name"),
+                    "team": u_info.get("team"),
+                    "location": u_info.get("location"),
+                    "country_name": u_info.get("country_name"),
+                    "campus_name": u_info.get("campus_name"),
+                    "city_name": u_info.get("city_name"),
                     "attempt_id": att_id,
                     "attempts": att_label,
                     "answer_id": aid,
@@ -1587,11 +1703,93 @@ def get_resources_for_answer(request):
 
         user_ids = list(user_answers.keys())
         users = session.query(User).filter(User.user_id.in_(user_ids)).all()
+
+        # Gather IDs for batch loading department, team, campus, country, state, city
+        dept_ids = {str(u.department_id).strip() for u in users if u.department_id}
+        team_ids = {str(u.team_id).strip() for u in users if u.team_id}
+        campus_ids = {str(u.campus_id).strip() for u in users if u.campus_id}
+        country_ids = {str(u.country_id).strip() for u in users if u.country_id}
+        state_ids = {str(u.state_id).strip() for u in users if u.state_id}
+        city_ids = {str(u.city_id).strip() for u in users if u.city_id}
+
+        # Query departments
+        dept_map = {}
+        if dept_ids:
+            depts = session.query(InstituteDepartment).filter(
+                or_(InstituteDepartment.department_id.in_(list(dept_ids)), InstituteDepartment.name.in_(list(dept_ids)))
+            ).all()
+            for d in depts:
+                dept_map[str(d.department_id)] = d.name
+                dept_map[d.name] = d.name
+
+        # Query teams
+        team_map = {}
+        if team_ids:
+            teams = session.query(InstituteTeam).filter(
+                or_(InstituteTeam.team_id.in_(list(team_ids)), InstituteTeam.name.in_(list(team_ids)))
+            ).all()
+            for t in teams:
+                team_map[str(t.team_id)] = t.name
+                team_map[t.name] = t.name
+
+        # Query campuses
+        campus_map = {}
+        if campus_ids:
+            campuses = session.query(InstituteCampus).filter(
+                or_(InstituteCampus.campus_id.in_(list(campus_ids)), InstituteCampus.name.in_(list(campus_ids)))
+            ).all()
+            for c in campuses:
+                campus_map[str(c.campus_id)] = c
+                campus_map[c.name] = c
+                if getattr(c, 'country_id', None):
+                    country_ids.add(str(c.country_id).strip())
+
+        # Query countries
+        country_map = {}
+        if country_ids:
+            countries = session.query(Country).filter(
+                or_(Country.country_id.in_(list(country_ids)), Country.country_name.in_(list(country_ids)))
+            ).all()
+            for co in countries:
+                country_map[str(co.country_id)] = co.country_name
+                country_map[co.country_name] = co.country_name
+
+        # Query states
+        state_map = {}
+        if state_ids:
+            states = session.query(State).filter(
+                or_(State.state_id.in_(list(state_ids)), State.state_name.in_(list(state_ids)))
+            ).all()
+            for st in states:
+                state_map[str(st.state_id)] = st.state_name
+                state_map[st.state_name] = st.state_name
+
+        # Query cities
+        city_map = {}
+        if city_ids:
+            cities = session.query(City).filter(
+                or_(City.city_id.in_(list(city_ids)), City.city_name.in_(list(city_ids)))
+            ).all()
+            for ci in cities:
+                city_map[str(ci.city_id)] = ci.city_name
+                city_map[ci.city_name] = ci.city_name
+
+        # Batch load attempt records for all users
+        all_att_ids = set()
+        for att_set in user_answers.values():
+            all_att_ids.update(att_set)
+        
+        att_map = {}
+        if all_att_ids:
+            atts_db = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id.in_(list(all_att_ids))).all()
+            for att in atts_db:
+                att_map[str(att.attempt_id)] = att
+
         out = []
         for user in users:
             uid_str = str(user.user_id).strip()
             attempt_ids = list(user_answers.get(uid_str, set()))
-            attempts = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id.in_(attempt_ids)).all() if attempt_ids else []
+            attempts = [att_map[str(aid)] for aid in attempt_ids if str(aid) in att_map]
             attempt_numbers = sorted(list({att.attempt_number for att in attempts if att.attempt_number is not None}))
             attempt_str = ", ".join([f"Attempt {n}" for n in attempt_numbers]) if attempt_numbers else ""
             selection_count = len(attempt_ids)
@@ -1600,13 +1798,59 @@ def get_resources_for_answer(request):
             user_ans_row = next((a for a in answers if str(a.user_id).strip() == uid_str), None)
             written_ans = user_ans_row.written_answer if user_ans_row else None
 
+            # Department name resolution
+            dept_name = dept_map.get(str(user.department_id)) if user.department_id else None
+            if not dept_name and user.department_id:
+                dept_name = str(user.department_id)
+
+            # Team name resolution
+            team_name = team_map.get(str(user.team_id)) if user.team_id else None
+            if not team_name and user.team_id:
+                team_name = str(user.team_id)
+
+            # Campus, Country, City, State resolution
+            campus_obj = campus_map.get(str(user.campus_id)) if user.campus_id else None
+            country_name = country_map.get(str(user.country_id)) if user.country_id else None
+            if not country_name and campus_obj and getattr(campus_obj, 'country_id', None):
+                country_name = country_map.get(str(campus_obj.country_id))
+            if not country_name and user.country_id:
+                country_name = str(user.country_id)
+
+            campus_name = campus_obj.name if campus_obj else (str(user.campus_id) if user.campus_id else None)
+            city_name = city_map.get(str(user.city_id)) if user.city_id else (campus_obj.city_name if campus_obj and getattr(campus_obj, 'city_name', None) else None)
+            if not city_name and user.city_id:
+                city_name = str(user.city_id)
+
+            state_name = state_map.get(str(user.state_id)) if user.state_id else None
+            if not state_name and user.state_id:
+                state_name = str(user.state_id)
+
+            # Build location string
+            loc_parts = []
+            if campus_name and campus_name != country_name:
+                loc_parts.append(campus_name)
+            elif city_name and city_name != country_name:
+                loc_parts.append(city_name)
+            if country_name:
+                loc_parts.append(country_name)
+            
+            location_str = ", ".join(loc_parts) if loc_parts else (country_name or campus_name or city_name or state_name or None)
+
             out.append({
                 'user_id': uid_str,
                 'full_name': user.full_name,
                 'email': user.email,
                 'written_answer': written_ans,
                 'selection_count': selection_count,
-                'attempts': attempt_str
+                'attempts': attempt_str,
+                'department_name': dept_name,
+                'dept': dept_name,
+                'team_name': team_name,
+                'team': team_name,
+                'location': location_str,
+                'country_name': country_name,
+                'campus_name': campus_name,
+                'city_name': city_name
             })
 
         context = {'schedule_ids': schedule_ids, 'question_id': question_id, 'option_id': option_id, 'answer_id': answer_id, 'answer_value': answer_value}

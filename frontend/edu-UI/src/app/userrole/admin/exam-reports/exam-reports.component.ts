@@ -3609,6 +3609,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
 
     this.expandedWrongAnswer = wa;
+
+    // Instant client-side cache check
+    const cached = wa.students || wa.resources;
+    if (cached && Array.isArray(cached) && cached.length) {
+      this.expandedResources = cached;
+      this.wrongAnswerResourcesLoading = false;
+      return;
+    }
+
     this.expandedResources = [];
     this.wrongAnswerResourcesLoading = true;
 
@@ -3642,11 +3651,16 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.wrongAnswerResourcesLoading = false;
         const body = res || {};
         const payload = body.data || body;
-        if (Array.isArray(payload)) this.expandedResources = payload;
-        else if (Array.isArray(body.data)) this.expandedResources = body.data;
-        else if (Array.isArray(payload.resources)) this.expandedResources = payload.resources;
-        else if (Array.isArray(body.data?.data)) this.expandedResources = body.data.data;
-        else this.expandedResources = payload || [];
+        let list: any[] = [];
+        if (Array.isArray(payload)) list = payload;
+        else if (Array.isArray(body.data)) list = body.data;
+        else if (Array.isArray(payload.resources)) list = payload.resources;
+        else if (Array.isArray(body.data?.data)) list = body.data.data;
+        else list = payload || [];
+
+        wa.resources = list;
+        wa.students = list;
+        this.expandedResources = list;
       },
       error: (err: any) => {
         console.warn('Failed to fetch resources', err);

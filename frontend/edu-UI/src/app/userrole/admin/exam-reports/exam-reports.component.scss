@@ -2178,6 +2178,43 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
   }
 }
 
+.user-details-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.3rem;
+  margin-bottom: 0.2rem;
+
+  .meta-part {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.3rem !important;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    padding: 0.15rem 0.45rem;
+    border-radius: 6px;
+    font-size: 0.725rem;
+    font-weight: 500;
+    color: #334155;
+    line-height: 1;
+
+    .meta-icon {
+      font-size: 14px !important;
+      width: 14px !important;
+      height: 14px !important;
+      line-height: 14px !important;
+      min-width: 14px !important;
+      min-height: 14px !important;
+      color: #475569;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      vertical-align: middle;
+    }
+  }
+}
+
 // ── AI Analytics Loading State Animation ──
 .wrong-summary-loading-container {
   display: flex;

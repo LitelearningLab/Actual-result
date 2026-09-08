@@ -2747,7 +2747,17 @@
                                     <span class="desc-student-fullname">{{ student.full_name || student.name }}</span>
                                     <span class="user-attempts-pill" *ngIf="student.attempts">{{ student.attempts }}</span>
                                   </div>
-                                  <div class="desc-student-email small-muted" *ngIf="student.email">{{ student.email }}</div>
+                                  <div class="user-details-meta small-muted" *ngIf="student.department_name || student.dept || student.team_name || student.team || student.location || student.country_name || student.campus_name">
+                                    <span *ngIf="student.department_name || student.dept" class="meta-part" title="Department">
+                                      <mat-icon class="meta-icon">business</mat-icon>{{ student.department_name || student.dept }}
+                                    </span>
+                                    <span *ngIf="student.team_name || student.team" class="meta-part" title="Team">
+                                      <mat-icon class="meta-icon">groups</mat-icon>{{ student.team_name || student.team }}
+                                    </span>
+                                    <span *ngIf="student.location || student.country_name || student.campus_name" class="meta-part" title="Location">
+                                      <mat-icon class="meta-icon">place</mat-icon>{{ student.location || student.country_name || student.campus_name }}
+                                    </span>
+                                  </div>
                                   <div class="desc-student-submitted" *ngIf="student.written_answer">
                                     <span class="ans-label">Submitted Response:</span>
                                     <span class="ans-quote">“{{ student.written_answer }}”</span>
@@ -2784,7 +2794,17 @@
                                 <span class="desc-student-fullname">{{ student.full_name || student.name }}</span>
                                 <span class="user-attempts-pill" *ngIf="student.attempts">{{ student.attempts }}</span>
                               </div>
-                              <div class="desc-student-email small-muted" *ngIf="student.email">{{ student.email }}</div>
+                                  <div class="user-details-meta small-muted" *ngIf="student.department_name || student.dept || student.team_name || student.team || student.location || student.country_name || student.campus_name">
+                                    <span *ngIf="student.department_name || student.dept" class="meta-part" title="Department">
+                                      <mat-icon class="meta-icon">business</mat-icon>{{ student.department_name || student.dept }}
+                                    </span>
+                                    <span *ngIf="student.team_name || student.team" class="meta-part" title="Team">
+                                      <mat-icon class="meta-icon">groups</mat-icon>{{ student.team_name || student.team }}
+                                    </span>
+                                    <span *ngIf="student.location || student.country_name || student.campus_name" class="meta-part" title="Location">
+                                      <mat-icon class="meta-icon">place</mat-icon>{{ student.location || student.country_name || student.campus_name }}
+                                    </span>
+                                  </div>
                               <div class="desc-student-submitted" *ngIf="student.written_answer">
                                 <span class="ans-label">Submitted Response:</span>
                                 <span class="ans-quote">“{{ student.written_answer }}”</span>
@@ -2972,7 +2992,17 @@
                                         {{ r.attempts }}
                                       </span>
                                     </div>
-                                    <div class="user-email small-muted" *ngIf="r.email">{{ r.email }}</div>
+                                    <div class="user-details-meta small-muted" *ngIf="r.department_name || r.dept || r.team_name || r.team || r.location || r.country_name || r.campus_name">
+                                      <span *ngIf="r.department_name || r.dept" class="meta-part" title="Department">
+                                        <mat-icon class="meta-icon">business</mat-icon>{{ r.department_name || r.dept }}
+                                      </span>
+                                      <span *ngIf="r.team_name || r.team" class="meta-part" title="Team">
+                                        <mat-icon class="meta-icon">groups</mat-icon>{{ r.team_name || r.team }}
+                                      </span>
+                                      <span *ngIf="r.location || r.country_name || r.campus_name" class="meta-part" title="Location">
+                                        <mat-icon class="meta-icon">place</mat-icon>{{ r.location || r.country_name || r.campus_name }}
+                                      </span>
+                                    </div>
                                   </div>
                                 </li>
                               </ul>
