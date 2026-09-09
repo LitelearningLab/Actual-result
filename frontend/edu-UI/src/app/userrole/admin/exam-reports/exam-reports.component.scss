@@ -4762,9 +4762,9 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
 
   .metric-row {
     display: grid;
-    grid-template-columns: 180px 60px 1fr;
+    grid-template-columns: minmax(180px, max-content) 1fr 50px;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     font-size: 0.95rem;
 
     .metric-label {
@@ -4773,27 +4773,46 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
       white-space: nowrap;
     }
 
+    .bar-container {
+      height: 12px;
+      background: #f1f5f9;
+      border-radius: 6px;
+      overflow: hidden;
+      width: 100%;
+      border: 1px solid #e2e8f0;
+
+      .bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #2563eb, #0284c7);
+        border-radius: 6px;
+        transition: width 0.4s ease;
+
+        &.fill-strong {
+          background: linear-gradient(90deg, #22c55e, #16a34a);
+        }
+
+        &.fill-good {
+          background: linear-gradient(90deg, #10b981, #059669);
+        }
+
+        &.fill-average {
+          background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+
+        &.fill-weak {
+          background: linear-gradient(90deg, #f87171, #ef4444);
+        }
+
+        &.fill-pending {
+          background: #cbd5e1;
+        }
+      }
+    }
+
     .metric-value {
       color: #0f172a;
       font-weight: 800;
       text-align: right;
-    }
-
-    .dots-indicator {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-
-      .dot {
-        font-size: 14px;
-        line-height: 1;
-        color: #cbd5e1;
-        transition: color 0.2s ease;
-
-        &.filled {
-          color: #0284c7;
-        }
-      }
     }
   }
 }
@@ -4808,7 +4827,7 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
 
   .subtopic-row {
     display: grid;
-    grid-template-columns: 180px 1fr 50px 85px;
+    grid-template-columns: minmax(180px, max-content) 1fr 50px 85px;
     align-items: center;
     gap: 12px;
     font-size: 0.9rem;
@@ -4817,8 +4836,6 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
       color: #1e293b;
       font-weight: 600;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .bar-container {

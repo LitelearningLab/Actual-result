@@ -1293,12 +1293,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     );
   }
 
+  _activeCategoryId: string | null = null;
+
   openCategoryQuestionSummary(category: any) {
     if (!category) return;
     const cid = String(
       category.category_id || category.id || category._id || category.categoryId || ''
     );
     if (!cid) return;
+    this._activeCategoryId = cid;
     this.selectedCategoryFilterName =
       category.category_name || category.name || 'Selected Category';
 
@@ -1363,7 +1366,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.subtopicPerformanceList = (res.data.subtopic_performance || []).map((item: any) => ({
             ...item,
             fullSubtopic: item.subtopic,
-            subtopic: item.subtopic && item.subtopic.length > 20 ? item.subtopic.substring(0, 17).trim() + '...' : item.subtopic
+            subtopic: item.subtopic
           }));
         }
       },
@@ -1383,6 +1386,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.descriptiveQualitySummary = null;
     this.subtopicPerformanceList = [];
     this._pendingCategoryFilter = null;
+    this._activeCategoryId = null;
     this.questionCurrentPage = 1;
   }
 
@@ -1394,6 +1398,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       arr.push({ filled: i < filledCount });
     }
     return arr;
+  }
+
+  getQualityMetricClass(pct: number): string {
+    const val = pct || 0;
+    if (val === 0) return 'fill-pending';
+    if (val >= 75) return 'fill-strong';
+    if (val >= 60) return 'fill-good';
+    if (val >= 40) return 'fill-average';
+    return 'fill-weak';
   }
 
   openCreatedDateRangePicker(): void {
@@ -3261,8 +3274,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
               this.activeMainTabIndex = 0;
               this.innerAnalyticsTabIndex = 1;
             } catch (e) {}
+          } else if (this._activeCategoryId) {
+            const cid = String(this._activeCategoryId);
+            this.filteredQuestionSummary = (this.questionSummary || [])
+              .filter((q: any) => this._getQuestionCategoryId(q) === cid)
+              .map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
           } else {
             this.filteredQuestionSummary = [];
+          }
+
+          if (this.isDescriptiveCategoryActive && this._activeCategoryId) {
+            this.loadDescriptiveAiAnalysis(this._activeCategoryId);
           }
         } catch (e) {
           console.error('[TestReports] Error parsing analytics response', e);

@@ -763,6 +763,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     if (this.submitting || this.testStopped) return of(null);
     this.showConfirm = false;
     this.submitting = true;
+    try { this.loader.show(); } catch (e) {}
     this.stopTimer();
     this.stopStatusPolling();
     const payload = this.buildSubmitPayload();
@@ -773,6 +774,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       }),
       catchError(err => {
         this.submitting = false;
+        try { this.loader.hide(); } catch (e) {}
         if (err?.status === 409 && err?.error?.errorCode === 'EXAM_UNPUBLISHED') {
           this.stopActiveTest();
         } else {
@@ -788,9 +790,17 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   submit() {
     this.executeSubmit().subscribe({
       next: () => {
-        this.ngZone.run(() => this.router.navigate(['/user/exam']));
+        this.ngZone.run(() => {
+          this.router.navigate(['/user/exam']).then(() => {
+            try { this.loader.hide(); } catch (e) {}
+          }).catch(() => {
+            try { this.loader.hide(); } catch (e) {}
+          });
+        });
       },
-      error: () => {}
+      error: () => {
+        try { this.loader.hide(); } catch (e) {}
+      }
     });
   }
 }

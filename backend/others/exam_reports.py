@@ -1,6 +1,6 @@
 from db.db import SQLiteDB
 from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping, MarksHistory, ExamReviewComments, ExamReviewCommentsHistory, InstituteDepartment, InstituteTeam, InstituteCampus, Country, State, City
-from sqlalchemy import func, or_, String
+from sqlalchemy import func, or_, and_, String
 from datetime import datetime
 from others.llm import openai_client, analyze_wrong_answers_ai, generate_ai_subtopics
 
@@ -77,7 +77,27 @@ def resolve_report_context(session, args):
             all_schedule_ids = [s.schedule_id for s in all_test_schedules if s and s.schedule_id]
 
         if not all_schedule_ids:
-            return {'status': False, 'message': 'No schedules found for the selected test'}
+            attempt_date_expr = func.coalesce(Exam_Attempt.submitted_date, Exam_Attempt.started_date)
+            q_attempts = session.query(Exam_Attempt).filter(
+                attempt_date_expr >= start_date,
+                attempt_date_expr <= end_date
+            )
+            matching_attempts = q_attempts.all()
+            matching_attempt_ids = [a.attempt_id for a in matching_attempts]
+            user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
+            return {
+                'status': True,
+                'mode': 'daterange',
+                'schedules': [],
+                'schedule_ids': [],
+                'attempt_ids': matching_attempt_ids,
+                'attempts': matching_attempts,
+                'user_ids': list(user_ids_set),
+                'exam_id': target_exam_ids[0] if target_exam_ids else None,
+                'pass_mark': None,
+                'start_date': start_date,
+                'end_date': end_date
+            }
 
         str_sched_ids = [str(sid) for sid in all_schedule_ids]
         attempt_date_expr = func.coalesce(Exam_Attempt.submitted_date, Exam_Attempt.started_date)
@@ -1949,34 +1969,53 @@ def get_descriptive_ai_analysis(request):
 
         question_ids = [str(q.question_id) for q in q_objs if q and q.question_id]
 
-        # 2. Fetch student answers for these questions
+        # 2. Fetch student answers for these questions strictly within the schedule/attempt context
         answers_db = []
         if question_ids:
-            if schedule_ids or attempt_ids:
-                if mode == 'daterange':
-                    if attempt_ids:
-                        answers_db = session.query(Answer).filter(
-                            Answer.attempt_id.in_(attempt_ids),
-                            Answer.question_id.in_(question_ids)
-                        ).all()
-                    else:
-                        answers_db = session.query(Answer).filter(
-                            Answer.schedule_id.in_(schedule_ids),
-                            Answer.created_date >= ctx['start_date'],
-                            Answer.created_date <= ctx['end_date'],
-                            Answer.question_id.in_(question_ids)
-                        ).all()
-                else:
-                    answers_db = session.query(Answer).filter(
-                        Answer.schedule_id.in_(schedule_ids),
-                        Answer.question_id.in_(question_ids)
-                    ).all()
+            str_qids = [str(q).strip() for q in question_ids]
+            str_sched_ids = [str(s).strip() for s in schedule_ids] if schedule_ids else []
+            str_att_ids = [str(a).strip() for a in attempt_ids] if attempt_ids else []
 
-            # If no answers in current schedule context, check if any answers exist across attempts for these questions
-            if not answers_db:
-                answers_db = session.query(Answer).filter(
-                    Answer.question_id.in_(question_ids)
-                ).all()
+            qid_filter = or_(
+                Answer.question_id.in_(question_ids),
+                func.cast(Answer.question_id, String).in_(str_qids)
+            )
+
+            if mode == 'daterange':
+                dr_conds = []
+                if attempt_ids:
+                    dr_conds.append(Answer.attempt_id.in_(attempt_ids))
+                    dr_conds.append(func.cast(Answer.attempt_id, String).in_(str_att_ids))
+                if schedule_ids:
+                    dr_conds.append(Answer.schedule_id.in_(schedule_ids))
+                    dr_conds.append(func.cast(Answer.schedule_id, String).in_(str_sched_ids))
+                if ctx.get('start_date') and ctx.get('end_date'):
+                    dr_conds.append(
+                        and_(
+                            Answer.created_date >= ctx['start_date'],
+                            Answer.created_date <= ctx['end_date']
+                        )
+                    )
+
+                if dr_conds:
+                    answers_db = session.query(Answer).filter(
+                        or_(*dr_conds),
+                        qid_filter
+                    ).all()
+            else:
+                context_conds = []
+                if attempt_ids:
+                    context_conds.append(Answer.attempt_id.in_(attempt_ids))
+                    context_conds.append(func.cast(Answer.attempt_id, String).in_(str_att_ids))
+                if schedule_ids:
+                    context_conds.append(Answer.schedule_id.in_(schedule_ids))
+                    context_conds.append(func.cast(Answer.schedule_id, String).in_(str_sched_ids))
+
+                if context_conds:
+                    answers_db = session.query(Answer).filter(
+                        or_(*context_conds),
+                        qid_filter
+                    ).all()
 
         total_ans = len(answers_db)
 
@@ -2021,15 +2060,30 @@ def get_descriptive_ai_analysis(request):
 
         try:
             openai_inst = openai_client()
-            q_dicts = [{"question_id": str(q.question_id), "question_text": q.question_text or ""} for q in q_objs if q and q.question_id]
-            ai_subtopic_map = generate_ai_subtopics(openai_inst, q_dicts, category_name)
+            q_dicts = [
+                {"question_id": str(q.question_id).strip(), "question_text": q.question_text or ""}
+                for q in q_objs if q and q.question_id
+            ]
+            raw_ai_map = generate_ai_subtopics(openai_inst, q_dicts, category_name) or {}
+            # Normalize all keys in ai_subtopic_map to stripped strings
+            ai_subtopic_map = {str(k).strip(): str(v).strip() for k, v in raw_ai_map.items()}
         except Exception as ai_sub_err:
-            print(f"Failed to generate AI subtopics, falling back to dynamic extraction: {ai_sub_err}")
+            print(f"[get_descriptive_ai_analysis] AI subtopic fallback: {ai_sub_err}")
+            ai_subtopic_map = {}
+
+        # Index answers by normalized string question_id for O(1) matching
+        answers_by_qid = {}
+        for ans in answers_db:
+            ans_qid = str(ans.question_id).strip()
+            answers_by_qid.setdefault(ans_qid, []).append(ans)
 
         for q in q_objs:
             q_text = q.question_text or ""
-            qid_str = str(q.question_id)
+            qid_str = str(q.question_id).strip()
+
+            # Retrieve subtopic using normalized key
             subtopic_name = ai_subtopic_map.get(qid_str) or _infer_subtopic_dynamic(q_text, category_name)
+            subtopic_name = _format_subtopic_name(subtopic_name)
 
             if subtopic_name not in subtopic_map:
                 subtopic_map[subtopic_name] = {
@@ -2040,15 +2094,14 @@ def get_descriptive_ai_analysis(request):
                 }
 
             subtopic_map[subtopic_name]['q_count'] += 1
-            max_m = float(q.marks if q.marks else 1.0)
+            max_m = float(q.marks if q.marks is not None and q.marks > 0 else 1.0)
 
-            q_answers = [a for a in answers_db if str(a.question_id) == qid_str]
-            if q_answers:
-                for a in q_answers:
-                    aw = float(a.marks_awarded if a.marks_awarded is not None else (a.ai_marks or 0.0))
-                    subtopic_map[subtopic_name]['awarded'] += aw
-                    subtopic_map[subtopic_name]['possible'] += max_m
-                    subtopic_map[subtopic_name]['attempts'] += 1
+            q_answers = answers_by_qid.get(qid_str, [])
+            for a in q_answers:
+                aw = float(a.marks_awarded if a.marks_awarded is not None else (a.ai_marks or 0.0))
+                subtopic_map[subtopic_name]['awarded'] += aw
+                subtopic_map[subtopic_name]['possible'] += max_m
+                subtopic_map[subtopic_name]['attempts'] += 1
 
         subtopic_list = []
         for sub_name, data in subtopic_map.items():
@@ -2102,43 +2155,58 @@ def get_descriptive_ai_analysis(request):
 
 def _format_subtopic_name(name: str) -> str:
     name = (name or "").strip()
-    if len(name) > 20:
-        return name[:17].rstrip() + "..."
+    # Normalize internal spaces
+    name = " ".join(name.split())
+    if not name:
+        return "Core Concepts"
+    # Allow reasonable length for readable topics (up to 32 chars)
+    if len(name) > 32:
+        return name[:29].rstrip() + "..."
     return name
 
 
-def _infer_subtopic_dynamic(question_text, category_name=""):
-    """
-    Dynamic 100% non-hardcoded subtopic extraction fallback when AI service is unavailable.
-    Does NOT hardcode any subjects, topics, or keywords.
-    """
+def _infer_subtopic_dynamic(question_text: str, category_name: str = "") -> str:
     import re
     text = (question_text or "").strip()
+    if not text:
+        return _clean_category_fallback(category_name)
 
-    # Dynamic concept pattern extraction from natural question phrases
-    m = re.search(r'(?:concept of|explain|describe|what is|define|overview of|purpose of|importance of|significance of)\s+([A-Za-z0-9\s\-\_]{3,35})', text, re.IGNORECASE)
-    if m:
-        extracted = m.group(1).split('.')[0].split('?')[0].split(',')[0].strip().title()
-        words = [w for w in extracted.split() if w.lower() not in ['a', 'an', 'the', 'and', 'or', 'in', 'of', 'for', 'to', 'its', 'procedure', 'operations', 'management']]
-        if words:
-            return _format_subtopic_name(" ".join(words))
-        elif len(extracted) > 2:
-            return _format_subtopic_name(extracted)
+    # 1. Match common instruction patterns
+    patterns = [
+        r'(?:concept of|overview of|purpose of|importance of|significance of|definition of)\s+([^?.!,:\n]+)',
+        r'(?:explain|describe|what is|define|discuss|differentiate between|compare)\s+([^?.!,:\n]+)',
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            candidate = m.group(1).strip()
+            # Clean common filler stopwords
+            stop_words = {'a', 'an', 'the', 'and', 'or', 'in', 'of', 'for', 'to', 'its', 'with', 'briefly', 'detail'}
+            words = [w for w in candidate.split() if w.lower() not in stop_words]
+            if words:
+                extracted = " ".join(words[:4]).title()
+                return _format_subtopic_name(extracted)
 
-    # Dynamic keyphrase extraction without any hardcoded subject rules
-    words = [w for w in text.split() if len(w) > 3 and w.lower() not in ['question', 'answer', 'explain', 'describe', 'define', 'what', 'which', 'how', 'select', 'choose']]
-    if words:
-        return _format_subtopic_name(" ".join(words[:3]).title())
+    # 2. Extract leading noun phrases / first significant words
+    stop_words_fallback = {'what', 'which', 'how', 'explain', 'describe', 'define', 'state', 'list', 'write', 'give', 'discuss', 'is', 'are', 'the', 'an', 'a'}
+    tokens = [w for w in re.sub(r'[^a-zA-Z0-9\s]', '', text).split() if len(w) > 2 and w.lower() not in stop_words_fallback]
+    if tokens:
+        return _format_subtopic_name(" ".join(tokens[:3]).title())
 
-    clean_cat = (category_name or "").strip()
-    if clean_cat:
+    return _clean_category_fallback(category_name)
+
+
+def _clean_category_fallback(category_name: str) -> str:
+    import re
+    clean = (category_name or "").strip()
+    if clean:
         for drop in ['Descriptive', 'Question Bank', 'QuestionBank', 'Bank', 'Questions', '–', '-', 'qb']:
-            clean_cat = re.sub(r'(?i)\b' + re.escape(drop) + r'\b', '', clean_cat).strip()
-        clean_cat = re.sub(r'\s+', ' ', clean_cat).strip(' -–_')
-        if clean_cat and len(clean_cat) > 2:
-            return _format_subtopic_name(clean_cat)
-
+            clean = re.sub(r'(?i)\b' + re.escape(drop) + r'\b', '', clean).strip()
+        clean = re.sub(r'\s+', ' ', clean).strip(' -–_')
+        if clean and len(clean) > 2:
+            return _format_subtopic_name(clean.title())
     return "Core Concepts"
+
 
 
 

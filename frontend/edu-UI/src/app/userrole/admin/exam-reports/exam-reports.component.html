@@ -1061,50 +1061,50 @@
                         <div class="metrics-list" *ngIf="descriptiveQualitySummary">
                           <div class="metric-row">
                             <span class="metric-label">Missing</span>
-                            <span class="metric-value">{{ descriptiveQualitySummary.missing_percentage || 0 }}%</span>
-                            <div class="dots-indicator">
-                              <span
-                                *ngFor="let dot of getDotArray(descriptiveQualitySummary.missing_percentage)"
-                                class="dot"
-                                [class.filled]="dot.filled"
-                              >●</span>
+                            <div class="bar-container">
+                              <div
+                                class="bar-fill"
+                                [style.width.%]="descriptiveQualitySummary.missing_percentage || 0"
+                                [ngClass]="getQualityMetricClass(descriptiveQualitySummary.missing_percentage)"
+                              ></div>
                             </div>
+                            <span class="metric-value">{{ descriptiveQualitySummary.missing_percentage || 0 }}%</span>
                           </div>
 
                           <div class="metric-row">
                             <span class="metric-label">Incomplete</span>
-                            <span class="metric-value">{{ descriptiveQualitySummary.incomplete_percentage || 0 }}%</span>
-                            <div class="dots-indicator">
-                              <span
-                                *ngFor="let dot of getDotArray(descriptiveQualitySummary.incomplete_percentage)"
-                                class="dot"
-                                [class.filled]="dot.filled"
-                              >●</span>
+                            <div class="bar-container">
+                              <div
+                                class="bar-fill"
+                                [style.width.%]="descriptiveQualitySummary.incomplete_percentage || 0"
+                                [ngClass]="getQualityMetricClass(descriptiveQualitySummary.incomplete_percentage)"
+                              ></div>
                             </div>
+                            <span class="metric-value">{{ descriptiveQualitySummary.incomplete_percentage || 0 }}%</span>
                           </div>
 
                           <div class="metric-row">
                             <span class="metric-label">Incorrect</span>
-                            <span class="metric-value">{{ descriptiveQualitySummary.incorrect_percentage || 0 }}%</span>
-                            <div class="dots-indicator">
-                              <span
-                                *ngFor="let dot of getDotArray(descriptiveQualitySummary.incorrect_percentage)"
-                                class="dot"
-                                [class.filled]="dot.filled"
-                              >●</span>
+                            <div class="bar-container">
+                              <div
+                                class="bar-fill"
+                                [style.width.%]="descriptiveQualitySummary.incorrect_percentage || 0"
+                                [ngClass]="getQualityMetricClass(descriptiveQualitySummary.incorrect_percentage)"
+                              ></div>
                             </div>
+                            <span class="metric-value">{{ descriptiveQualitySummary.incorrect_percentage || 0 }}%</span>
                           </div>
 
                           <div class="metric-row">
                             <span class="metric-label">Explanation Quality</span>
-                            <span class="metric-value">{{ descriptiveQualitySummary.explanation_quality_percentage || 0 }}%</span>
-                            <div class="dots-indicator">
-                              <span
-                                *ngFor="let dot of getDotArray(descriptiveQualitySummary.explanation_quality_percentage)"
-                                class="dot"
-                                [class.filled]="dot.filled"
-                              >●</span>
+                            <div class="bar-container">
+                              <div
+                                class="bar-fill"
+                                [style.width.%]="descriptiveQualitySummary.explanation_quality_percentage || 0"
+                                [ngClass]="getQualityMetricClass(descriptiveQualitySummary.explanation_quality_percentage)"
+                              ></div>
                             </div>
+                            <span class="metric-value">{{ descriptiveQualitySummary.explanation_quality_percentage || 0 }}%</span>
                           </div>
                         </div>
                       </div>
