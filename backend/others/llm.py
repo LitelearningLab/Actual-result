@@ -298,3 +298,66 @@ Please classify relevance, cluster misconceptions, and provide the diagnostic su
             "clusters": []
         }
 
+
+def generate_ai_subtopics(api_client, questions_list, category_name=""):
+    """
+    Uses OpenAI AI to dynamically analyze a list of questions (and category context) 
+    and infer a concise, high-level Subtopic for each question (max 20 characters per subtopic).
+    Returns a dictionary mapping question_id -> subtopic_name.
+    """
+    if not questions_list:
+        return {}
+
+    system_message = """You are an expert educational curriculum AI taxonomy classifier.
+Given a list of questions from an assessment/question bank and a Category Name, categorize each question under an appropriate, concise Subtopic title.
+
+Rules:
+1. Each Subtopic name MUST be concise (2 to 4 words) and AT MOST 20 characters (e.g., "Front Desk", "Room Status", "Night Audit", "Memory Mgmt", "Control Flow").
+2. DO NOT hardcode any subject rules. Dynamically analyze the semantic meaning of each question text across ANY subject domain (Hospitality, Software, Medical, Business, Science, etc.).
+3. Questions covering similar concepts MUST be assigned the exact same Subtopic name.
+4. Output MUST be ONLY a single valid JSON object mapping each question_id to its identified subtopic string:
+{
+  "question_id_1": "Subtopic Title 1",
+  "question_id_2": "Subtopic Title 2"
+}
+"""
+
+    input_payload = {
+        "category_name": category_name or "",
+        "questions": [
+            {
+                "question_id": str(q.get("question_id")),
+                "question_text": q.get("question_text", "")
+            }
+            for q in questions_list
+        ]
+    }
+
+    user_message = f"Please analyze and categorize these {len(questions_list)} questions into subtopics:\n{json.dumps(input_payload, ensure_ascii=False, indent=2)}"
+
+    try:
+        response = api_client.chat_completion(system_message, user_message, max_tokens=1500, temperature=0.2, timeout=10.0)
+        if response and getattr(response, 'status_code', None) == 200:
+            res_json = response.json()
+            result_text = res_json['choices'][0]['message']['content'].strip()
+            if result_text.startswith('```'):
+                result_text = result_text.split('```')[1]
+                if result_text.startswith('json'):
+                    result_text = result_text[4:]
+                result_text = result_text.strip()
+
+            parsed = json.loads(result_text)
+            if isinstance(parsed, dict):
+                formatted_result = {}
+                for qid, stitle in parsed.items():
+                    stitle = str(stitle or "").strip()
+                    if len(stitle) > 20:
+                        stitle = stitle[:17].rstrip() + "..."
+                    formatted_result[str(qid)] = stitle
+                return formatted_result
+    except Exception as e:
+        print(f"Error in generate_ai_subtopics LLM call: {e}")
+
+    return {}
+
+

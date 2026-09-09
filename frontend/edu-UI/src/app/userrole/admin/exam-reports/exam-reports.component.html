@@ -1117,7 +1117,7 @@
                         </div>
                         <div class="subtopics-list" *ngIf="subtopicPerformanceList && subtopicPerformanceList.length">
                           <div class="subtopic-row" *ngFor="let item of subtopicPerformanceList">
-                            <span class="subtopic-name">{{ item.subtopic }}</span>
+                            <span class="subtopic-name" [attr.title]="item.fullSubtopic || item.subtopic">{{ item.subtopic }}</span>
                             <div class="bar-container">
                               <div
                                 class="bar-fill"

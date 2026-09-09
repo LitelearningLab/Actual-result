@@ -1360,7 +1360,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.descriptiveAiLoading = false;
         if (res && res.status && res.data) {
           this.descriptiveQualitySummary = res.data.answer_quality_analysis || null;
-          this.subtopicPerformanceList = res.data.subtopic_performance || [];
+          this.subtopicPerformanceList = (res.data.subtopic_performance || []).map((item: any) => ({
+            ...item,
+            fullSubtopic: item.subtopic,
+            subtopic: item.subtopic && item.subtopic.length > 20 ? item.subtopic.substring(0, 17).trim() + '...' : item.subtopic
+          }));
         }
       },
       error: (err: any) => {

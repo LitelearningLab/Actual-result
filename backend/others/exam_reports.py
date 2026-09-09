@@ -2,7 +2,7 @@ from db.db import SQLiteDB
 from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping, MarksHistory, ExamReviewComments, ExamReviewCommentsHistory, InstituteDepartment, InstituteTeam, InstituteCampus, Country, State, City
 from sqlalchemy import func, or_, String
 from datetime import datetime
-from others.llm import openai_client, analyze_wrong_answers_ai
+from others.llm import openai_client, analyze_wrong_answers_ai, generate_ai_subtopics
 
 
 
@@ -2015,12 +2015,21 @@ def get_descriptive_ai_analysis(request):
             incorrect_pct = 0
             explanation_quality_pct = 0
 
-        # 4. Dynamic Subtopic Performance Grouping from questions in selected Question Bank
+        # 4. Dynamic AI-Powered Subtopic Performance Grouping
         subtopic_map = {}
+        ai_subtopic_map = {}
+
+        try:
+            openai_inst = openai_client()
+            q_dicts = [{"question_id": str(q.question_id), "question_text": q.question_text or ""} for q in q_objs if q and q.question_id]
+            ai_subtopic_map = generate_ai_subtopics(openai_inst, q_dicts, category_name)
+        except Exception as ai_sub_err:
+            print(f"Failed to generate AI subtopics, falling back to dynamic extraction: {ai_sub_err}")
 
         for q in q_objs:
             q_text = q.question_text or ""
-            subtopic_name = _infer_subtopic(q_text, category_name)
+            qid_str = str(q.question_id)
+            subtopic_name = ai_subtopic_map.get(qid_str) or _infer_subtopic_dynamic(q_text, category_name)
 
             if subtopic_name not in subtopic_map:
                 subtopic_map[subtopic_name] = {
@@ -2033,7 +2042,7 @@ def get_descriptive_ai_analysis(request):
             subtopic_map[subtopic_name]['q_count'] += 1
             max_m = float(q.marks if q.marks else 1.0)
 
-            q_answers = [a for a in answers_db if str(a.question_id) == str(q.question_id)]
+            q_answers = [a for a in answers_db if str(a.question_id) == qid_str]
             if q_answers:
                 for a in q_answers:
                     aw = float(a.marks_awarded if a.marks_awarded is not None else (a.ai_marks or 0.0))
@@ -2091,82 +2100,47 @@ def get_descriptive_ai_analysis(request):
         return {"statusMessage": f"Error generating descriptive AI analysis: {str(e)}", "status": False}, 500
 
 
-def _infer_subtopic(question_text, category_name=""):
+def _format_subtopic_name(name: str) -> str:
+    name = (name or "").strip()
+    if len(name) > 20:
+        return name[:17].rstrip() + "..."
+    return name
+
+
+def _infer_subtopic_dynamic(question_text, category_name=""):
+    """
+    Dynamic 100% non-hardcoded subtopic extraction fallback when AI service is unavailable.
+    Does NOT hardcode any subjects, topics, or keywords.
+    """
     import re
-    text = (question_text or "").lower()
-    cat = (category_name or "").lower()
-    is_cpp = any(k in cat for k in ['c++', 'cpp', 'c plus plus']) or 'c++' in text
-    is_java = 'java' in cat and 'javascript' not in cat
+    text = (question_text or "").strip()
 
-    # 1. Standard I/O & Streams (cin / cout / iostream / printf / scanf)
-    if any(k in text for k in ['cin', 'cout', 'iostream', 'scanf', 'printf', 'system.out', 'input and output', 'input/output', 'standard input']):
-        return "I/O Streams & Formatting" if is_cpp else "Streams & I/O Operations"
-
-    # 2. Variables, Data Types & Constants
-    if any(k in text for k in ['data type', 'primitive', 'variables in', 'variable definition', 'what are variables', 'float', 'integer', 'boolean', 'char', 'const', 'type casting']):
-        return "Variables & Data Types"
-
-    # 3. Control Flow, Loops & Conditionals
-    if any(k in text for k in ['conditional statement', 'if statement', 'switch case', 'loop', 'for loop', 'while loop', 'do-while', 'break', 'continue']):
-        return "Control Flow & Loops"
-
-    # 4. Functions, Methods & Modular Programming
-    if any(k in text for k in ['function', 'parameter', 'return type', 'argument', 'pass by value', 'pass by reference', 'method signature', 'inline function']):
-        return "Functions & Scope"
-
-    # 5. Object-Oriented Programming (OOP)
-    if any(k in text for k in ['class and object', 'class and an object', 'polymorphism', 'inheritance', 'encapsulation', 'abstraction', 'oop', 'constructor', 'destructor', 'virtual function', 'interface', 'abstract class']):
-        return "Object-Oriented Programming (OOP)"
-
-    # 6. Pointers, Dynamic Memory & Allocation
-    if any(k in text for k in ['pointer', 'reference', 'malloc', 'free', 'new and delete', 'delete[]', 'dynamic memory', 'memory leak', 'heap', 'stack memory', 'buffer overflow', 'garbage collection', 'jvm']):
-        if is_cpp or 'pointer' in text:
-            return "Pointers & Memory Management"
-        elif is_java or 'jvm' in text or 'garbage collection' in text:
-            return "JVM & Memory Management"
-        return "Memory Management"
-
-    # 7. Exception Handling
-    if any(k in text for k in ['exception', 'try-catch', 'try catch', 'throw', 'throws', 'finally', 'error handling']):
-        return "Exception Handling"
-
-    # 8. Data Structures, STL & Collections
-    if any(k in text for k in ['stl', 'vector', 'collection', 'arraylist', 'hashmap', 'linkedlist', 'tree', 'graph', 'stack', 'queue', 'hash table', 'binary tree', 'data structure', 'set', 'map']):
-        return "STL & Data Structures" if is_cpp else "Collections & Data Structures"
-
-    # 9. Multithreading & Concurrency
-    if any(k in text for k in ['multithread', 'thread', 'concurrency', 'deadlock', 'synchronized', 'semaphore', 'mutex', 'race condition', 'async', 'await']):
-        return "Multithreading & Concurrency"
-
-    # 10. Database & SQL
-    if any(k in text for k in ['sql', 'query', 'database', 'acid', 'transaction', 'normalization', 'join', 'index', 'mongodb', 'orm']):
-        return "Database & Persistence"
-
-    # 11. Networking & Web APIs
-    if any(k in text for k in ['rest api', 'http', 'tcp', 'udp', 'socket', 'ip address', 'protocol', 'endpoint', 'jwt', 'oauth', 'web service', 'microservice', 'client-server']):
-        return "Networking & Web APIs"
-
-    # 12. Operating Systems
-    if any(k in text for k in ['cpu scheduling', 'paging', 'virtual memory', 'kernel', 'operating system', 'file system', 'process management', 'system call']):
-        return "Operating Systems"
-
-    # 13. Dynamic Concept Pattern Extraction ("Explain the concept of ...", "Define ...")
-    m = re.search(r'(?:concept of|explain|describe|what is|define|overview of|purpose of)\s+([A-Za-z0-9\s\-\_]{3,35})', text)
+    # Dynamic concept pattern extraction from natural question phrases
+    m = re.search(r'(?:concept of|explain|describe|what is|define|overview of|purpose of|importance of|significance of)\s+([A-Za-z0-9\s\-\_]{3,35})', text, re.IGNORECASE)
     if m:
         extracted = m.group(1).split('.')[0].split('?')[0].split(',')[0].strip().title()
-        if len(extracted) > 2 and extracted.lower() not in ['a', 'the', 'an', 'c++', 'java', 'python', 'simple']:
-            return extracted
+        words = [w for w in extracted.split() if w.lower() not in ['a', 'an', 'the', 'and', 'or', 'in', 'of', 'for', 'to', 'its', 'procedure', 'operations', 'management']]
+        if words:
+            return _format_subtopic_name(" ".join(words))
+        elif len(extracted) > 2:
+            return _format_subtopic_name(extracted)
 
-    # Clean fallback from category name
-    clean_cat = category_name.strip()
-    for drop in ['Descriptive', 'Question Bank', 'QuestionBank', 'Bank', 'Questions', '–', '-', 'qb']:
-        clean_cat = re.sub(r'(?i)\b' + re.escape(drop) + r'\b', '', clean_cat).strip()
-    clean_cat = re.sub(r'\s+', ' ', clean_cat).strip(' -–_')
+    # Dynamic keyphrase extraction without any hardcoded subject rules
+    words = [w for w in text.split() if len(w) > 3 and w.lower() not in ['question', 'answer', 'explain', 'describe', 'define', 'what', 'which', 'how', 'select', 'choose']]
+    if words:
+        return _format_subtopic_name(" ".join(words[:3]).title())
 
-    if clean_cat and len(clean_cat) > 2:
-        return clean_cat
+    clean_cat = (category_name or "").strip()
+    if clean_cat:
+        for drop in ['Descriptive', 'Question Bank', 'QuestionBank', 'Bank', 'Questions', '–', '-', 'qb']:
+            clean_cat = re.sub(r'(?i)\b' + re.escape(drop) + r'\b', '', clean_cat).strip()
+        clean_cat = re.sub(r'\s+', ' ', clean_cat).strip(' -–_')
+        if clean_cat and len(clean_cat) > 2:
+            return _format_subtopic_name(clean_cat)
 
     return "Core Concepts"
+
+
 
 
 
