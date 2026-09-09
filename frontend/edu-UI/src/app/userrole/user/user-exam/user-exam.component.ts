@@ -85,6 +85,13 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   private autosaveUrl = `${API_BASE}/autosave-exam`;
   private autosaveTimer: any = null;
   private statusUrl = `${API_BASE}/active-exam-status`;
+  private ocrUrl = `${API_BASE}/ocr-extract`;
+
+  // OCR Upload properties
+  extractingQuestionId: string | number | null = null;
+  showOcrConfirmModal = false;
+  pendingOcrText = '';
+  pendingQuestionId: string | number | null = null;
 
   constructor(
     private http: HttpClient,
@@ -258,6 +265,95 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
   isRecording(questionId: string | number): boolean {
     return this.recordingQuestionId === questionId;
+  }
+
+  // ── OCR Image Upload Methods ──
+  isExtracting(qId: string | number): boolean {
+    if (this.extractingQuestionId === null || qId === null || qId === undefined) return false;
+    return String(this.extractingQuestionId) === String(qId);
+  }
+
+  onImageSelected(event: any, questionId: string | number) {
+    if (this.testStopped || this.submitting || this.isSubmitted) return;
+    const files = event?.target?.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (!file.type.startsWith('image/')) {
+      notify('Please select a valid image file (JPEG, PNG, WebP, etc.).', 'error');
+      event.target.value = '';
+      return;
+    }
+
+    this.extractingQuestionId = questionId;
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+
+    this.http.post<any>(this.ocrUrl, formData).subscribe({
+      next: (res) => {
+        this.extractingQuestionId = null;
+        if (event?.target) event.target.value = '';
+
+        if (res && res.status && res.text) {
+          const extractedText = res.text.trim();
+          if (!extractedText) {
+            notify('No readable text was found in the uploaded image.', 'info');
+            return;
+          }
+          this.processExtractedText(questionId, extractedText);
+        } else {
+          notify(res?.statusMessage || 'Could not extract text from image.', 'error');
+        }
+      },
+      error: (err) => {
+        this.extractingQuestionId = null;
+        if (event?.target) event.target.value = '';
+        console.error('OCR Extraction Error:', err);
+        notify(err?.error?.statusMessage || 'Error processing image. Please try again.', 'error');
+      }
+    });
+  }
+
+  processExtractedText(questionId: string | number, text: string) {
+    const key = questionId !== undefined && questionId !== null ? questionId : '';
+    const currentVal = this.answers[key] !== undefined ? this.answers[key] : (this.answers[String(key)] !== undefined ? this.answers[String(key)] : '');
+    const existing = typeof currentVal === 'string' ? currentVal.trim() : '';
+
+    if (!existing) {
+      this.answers[key] = text;
+      this.persistExamState();
+      this.scheduleAutosave();
+      notify('Extracted text inserted into answer box.', 'success');
+    } else {
+      this.pendingQuestionId = key;
+      this.pendingOcrText = text;
+      this.showOcrConfirmModal = true;
+    }
+  }
+
+  confirmOcrAction(mode: 'append' | 'overwrite') {
+    if (this.pendingQuestionId === null) return;
+    const key = this.pendingQuestionId;
+    const currentVal = this.answers[key] !== undefined ? this.answers[key] : (this.answers[String(key)] !== undefined ? this.answers[String(key)] : '');
+    const existing = typeof currentVal === 'string' ? currentVal.trim() : '';
+
+    if (mode === 'append') {
+      this.answers[key] = existing ? (existing + '\n\n' + this.pendingOcrText) : this.pendingOcrText;
+      notify('Extracted text appended to your answer.', 'success');
+    } else {
+      this.answers[key] = this.pendingOcrText;
+      notify('Answer box overwritten with extracted text.', 'success');
+    }
+
+    this.persistExamState();
+    this.scheduleAutosave();
+    this.cancelOcrConfirmModal();
+  }
+
+  cancelOcrConfirmModal() {
+    this.showOcrConfirmModal = false;
+    this.pendingOcrText = '';
+    this.pendingQuestionId = null;
   }
 
   persistExamState() {

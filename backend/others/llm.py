@@ -26,8 +26,8 @@ class openai_client:
         self.api_key = (api_key or os.getenv("OPENAI_API_KEY") or
                         os.getenv("api_key") or config.get("OPENAI_API_KEY") or
                         config.get("api_key") or "").strip()
-        configured_model1 = os.getenv("OPENAI_MODEL_1") or os.getenv("model1") or config.get("model1") or ""
-        configured_model2 = os.getenv("OPENAI_MODEL_2") or os.getenv("model2") or config.get("model2") or configured_model1
+        configured_model1 = os.getenv("OPENAI_MODEL_1") or os.getenv("model1") or config.get("OPENAI_MODEL_1") or config.get("model1") or "gpt-4o-mini"
+        configured_model2 = os.getenv("OPENAI_MODEL_2") or os.getenv("model2") or config.get("OPENAI_MODEL_2") or config.get("model2") or configured_model1
         self.model1 = (model or configured_model1).strip()
         self.model2 = (model or configured_model2).strip()
 

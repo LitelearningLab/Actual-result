@@ -164,21 +164,42 @@
               <textarea [id]="'desc-' + i" rows="6" [(ngModel)]="answers[q.id || i]" (ngModelChange)="scheduleAutosave()" [disabled]="testStopped || submitting || isSubmitted" placeholder="Write your detailed answer here..."></textarea>
             </div>
             <div class="textarea-footer">
-              <div class="voice-controls" *ngIf="speechSupported">
-                <button type="button" class="voice-action-btn" [disabled]="testStopped || submitting || isSubmitted"
-                  (click)="toggleVoiceInput(q.id || i)" 
-                  [class.recording]="isRecording(q.id || i)"
-                  [attr.aria-label]="isRecording(q.id || i) ? 'Stop voice input' : 'Start voice input'"
-                  [title]="isRecording(q.id || i) ? 'Stop recording' : 'Click to use voice input'"
-                  aria-live="polite">
-                  <mat-icon class="voice-btn-icon">{{ isRecording(q.id || i) ? 'stop' : 'mic' }}</mat-icon>
-                  <span class="voice-btn-label">{{ isRecording(q.id || i) ? 'Stop Recording' : 'Voice Input' }}</span>
-                </button>
-                <div *ngIf="isRecording(q.id || i)" class="recording-status" role="status" aria-live="polite">
-                  <span class="rec-dot"></span>
-                  <span class="rec-text">Listening... Speak now</span>
+              <div class="input-actions-group">
+                <div class="voice-controls" *ngIf="speechSupported">
+                  <button type="button" class="voice-action-btn" [disabled]="testStopped || submitting || isSubmitted || isExtracting(q.id || i)"
+                    (click)="toggleVoiceInput(q.id || i)" 
+                    [class.recording]="isRecording(q.id || i)"
+                    [attr.aria-label]="isRecording(q.id || i) ? 'Stop voice input' : 'Start voice input'"
+                    [title]="isRecording(q.id || i) ? 'Stop recording' : 'Click to use voice input'"
+                    aria-live="polite">
+                    <mat-icon class="voice-btn-icon">{{ isRecording(q.id || i) ? 'stop' : 'mic' }}</mat-icon>
+                    <span class="voice-btn-label">{{ isRecording(q.id || i) ? 'Stop Recording' : 'Voice Input' }}</span>
+                  </button>
+                  <div *ngIf="isRecording(q.id || i)" class="recording-status" role="status" aria-live="polite">
+                    <span class="rec-dot"></span>
+                    <span class="rec-text">Listening... Speak now</span>
+                  </div>
+                  <span *ngIf="!isRecording(q.id || i)" class="voice-hint-text">Click to speak your answer</span>
                 </div>
-                <span *ngIf="!isRecording(q.id || i)" class="voice-hint-text">Click to speak your answer</span>
+
+                <div class="upload-controls">
+                  <input type="file" #imageInput [id]="'file-input-' + i" accept="image/*" style="display:none;" (change)="onImageSelected($event, q.id || i)" />
+                  <button type="button" class="upload-action-btn" [disabled]="testStopped || submitting || isSubmitted || isExtracting(q.id || i)"
+                    (click)="imageInput.click()"
+                    [class.extracting]="isExtracting(q.id || i)"
+                    [attr.aria-label]="isExtracting(q.id || i) ? 'Extracting text...' : 'Upload image to scan text'"
+                    [title]="isExtracting(q.id || i) ? 'Extracting text...' : 'Click to upload image'"
+                    aria-live="polite">
+                    <mat-icon class="upload-btn-icon" *ngIf="!isExtracting(q.id || i)">cloud_upload</mat-icon>
+                    <span class="btn-spinner" *ngIf="isExtracting(q.id || i)"></span>
+                    <span class="upload-btn-label">{{ isExtracting(q.id || i) ? 'Extracting text...' : 'Upload Image' }}</span>
+                  </button>
+                  <div *ngIf="isExtracting(q.id || i)" class="extracting-status" role="status" aria-live="polite">
+                    <span class="rec-dot ocr-dot"></span>
+                    <span class="rec-text">Extracting text...</span>
+                  </div>
+                  <span *ngIf="!isExtracting(q.id || i)" class="upload-hint-text">Scan text from photo</span>
+                </div>
               </div>
               <span class="char-count" *ngIf="isAnswered(q, i)">{{ (answers[q.id || i] || '').length }} characters</span>
             </div>
@@ -195,6 +216,26 @@
       <button type="button" class="fab" (click)="scrollToQuestion(questions.length - 1)" aria-label="Go to last question" title="Last question">
         <mat-icon>vertical_align_bottom</mat-icon>
       </button>
+    </div>
+
+    <!-- OCR Replace / Append Confirmation Dialog -->
+    <div *ngIf="showOcrConfirmModal" class="confirm-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="ocr-confirm-title">
+      <div class="confirm-dialog ocr-modal">
+        <div class="confirm-icon ocr-icon"><mat-icon>file_copy</mat-icon></div>
+        <h2 id="ocr-confirm-title" class="confirm-title">Replace or Append Text?</h2>
+        <p class="confirm-body">
+          Your answer box already contains text. Choose whether to append the extracted text to your existing content or overwrite it completely.
+        </p>
+        <div class="ocr-preview-box" *ngIf="pendingOcrText">
+          <span class="ocr-preview-label">Extracted Text Preview:</span>
+          <p class="ocr-preview-content">{{ pendingOcrText }}</p>
+        </div>
+        <div class="confirm-actions ocr-actions">
+          <button type="button" class="btn btn-outline" (click)="cancelOcrConfirmModal()">Cancel</button>
+          <button type="button" class="btn btn-secondary" (click)="confirmOcrAction('append')">Append to Existing</button>
+          <button type="button" class="btn btn-primary" (click)="confirmOcrAction('overwrite')">Overwrite Existing</button>
+        </div>
+      </div>
     </div>
 
     <!-- A stopped test is terminal: the student can only acknowledge and leave. -->

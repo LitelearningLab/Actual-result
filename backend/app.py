@@ -19,6 +19,8 @@ from others.exam_reports import get_user_wise_report, get_exam_analytics
 from others.exam_reports import get_question_wrong_answers
 from others.exam_reports import get_resources_for_answer, get_descriptive_ai_analysis
 
+from others.ocr import extract_text_from_image
+
 # Flask Application Core - Name Resolution Fix Reload
 import os
 from masters.location import get_location_hierarchy_details, get_registered_countries_details
@@ -210,6 +212,12 @@ def get_pagination():
             request.args.get('pageSize', 25, type=int))
 
 edu_blueprint = Blueprint('edu', __name__, url_prefix='/edu/api')
+
+@edu_blueprint.route('/ocr-extract', methods=['POST'])
+@jwt_required
+def ocr_extract_route():
+    response_data, status_code = extract_text_from_image(request)
+    return jsonify(response_data), status_code
 
 @edu_blueprint.route('/settings/ai-confidence-threshold', methods=['GET', 'PUT'])
 @admin_required
