@@ -1277,6 +1277,21 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   selectedCategoryFilterName: string = '';
+  selectedCategoryType: string = '';
+  descriptiveAiLoading: boolean = false;
+  descriptiveQualitySummary: any = null;
+  subtopicPerformanceList: any[] = [];
+
+  get isDescriptiveCategoryActive(): boolean {
+    const t = (this.selectedCategoryType || '').toLowerCase();
+    return (
+      t === 'descriptive' ||
+      t === 'subjective' ||
+      t === 'essay' ||
+      t === 'description' ||
+      t.includes('descript')
+    );
+  }
 
   openCategoryQuestionSummary(category: any) {
     if (!category) return;
@@ -1286,8 +1301,21 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!cid) return;
     this.selectedCategoryFilterName =
       category.category_name || category.name || 'Selected Category';
+
+    const rawType = String(category.category_type || category.type || category.question_type || '').toLowerCase();
+    this.selectedCategoryType = rawType;
+
     this.activeMainTabIndex = 0;
     this.questionCurrentPage = 1;
+
+    // Trigger AI analysis ONLY if the clicked question bank is Descriptive
+    if (this.isDescriptiveCategoryActive) {
+      this.loadDescriptiveAiAnalysis(cid);
+    } else {
+      this.descriptiveQualitySummary = null;
+      this.subtopicPerformanceList = [];
+    }
+
     const currentKey = this.getFilterCacheKey();
     if (this.loadedAnalyticsCacheKey === currentKey && this.questionSummary && this.questionSummary.length) {
       this.filteredQuestionSummary = (this.questionSummary || []).filter(
@@ -1300,11 +1328,68 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.loadAnalytics();
   }
 
+  loadDescriptiveAiAnalysis(categoryId: string) {
+    this.descriptiveAiLoading = true;
+    this.descriptiveQualitySummary = null;
+    this.subtopicPerformanceList = [];
+
+    const params: any = { category_id: categoryId };
+    if (this.selectedInstituteId || this.userFilters.institute_id) {
+      params.institute_id = this.selectedInstituteId || this.userFilters.institute_id;
+    }
+    if (this.selectedExam?.isDateRange || this.selectionMode === 'daterange') {
+      params.test_title = this.selectedExam?.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
+      if (this.selectedExam?.start_date || this.dateRangeStart) {
+        params.start_date = this.selectedExam?.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
+      }
+      if (this.selectedExam?.end_date || this.dateRangeEnd) {
+        params.end_date = this.selectedExam?.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
+      }
+    } else {
+      const schedId = String(
+        this.selectedExam?.schedule_id || this.selectedExam?.id || this.selectedExam?.scheduleId || this.selectedScheduleId || ''
+      );
+      if (schedId) params.schedule_id = schedId;
+      if (this.selectedTestTitle || this.selectedExam?.title) {
+        params.test_title = this.selectedExam?.title || this.selectedTestTitle;
+      }
+    }
+
+    this.http.get<any>(`${API_BASE}/get-descriptive-ai-analysis`, { params }).subscribe({
+      next: (res: any) => {
+        this.descriptiveAiLoading = false;
+        if (res && res.status && res.data) {
+          this.descriptiveQualitySummary = res.data.answer_quality_analysis || null;
+          this.subtopicPerformanceList = res.data.subtopic_performance || [];
+        }
+      },
+      error: (err: any) => {
+        this.descriptiveAiLoading = false;
+        console.warn('Failed to load descriptive AI analysis', err);
+        this.descriptiveQualitySummary = null;
+        this.subtopicPerformanceList = [];
+      }
+    });
+  }
+
   clearCategoryFilter() {
     this.filteredQuestionSummary = [];
     this.selectedCategoryFilterName = '';
+    this.selectedCategoryType = '';
+    this.descriptiveQualitySummary = null;
+    this.subtopicPerformanceList = [];
     this._pendingCategoryFilter = null;
     this.questionCurrentPage = 1;
+  }
+
+  getDotArray(pct: number): Array<{ filled: boolean }> {
+    const dotsCount = 10;
+    const filledCount = Math.min(10, Math.max(0, Math.round((pct || 0) / 10)));
+    const arr = [];
+    for (let i = 0; i < dotsCount; i++) {
+      arr.push({ filled: i < filledCount });
+    }
+    return arr;
   }
 
   openCreatedDateRangePicker(): void {

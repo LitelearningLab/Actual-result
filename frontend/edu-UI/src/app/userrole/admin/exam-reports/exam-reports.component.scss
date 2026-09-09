@@ -4681,4 +4681,233 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
   }
 }
 
+/* ==========================================
+   DESCRIPTIVE QUESTION BANK AI ANALYSIS CARDS
+   ========================================== */
+.descriptive-ai-container {
+  margin: 16px 0 24px 0;
+  width: 100%;
+}
+
+.descriptive-ai-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  color: #0284c7;
+  font-weight: 600;
+  font-size: 0.95rem;
+
+  .rotating-spinner {
+    animation: spin 1.2s linear infinite;
+  }
+}
+
+.descriptive-ai-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.descriptive-ai-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  color: #0f172a;
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06);
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+
+    .header-icon {
+      color: #0284c7;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #0f172a;
+    }
+  }
+}
+
+/* Left Card: Answer Quality Analysis */
+.quality-card {
+  .metrics-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .metric-row {
+    display: grid;
+    grid-template-columns: 180px 60px 1fr;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.95rem;
+
+    .metric-label {
+      color: #475569;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .metric-value {
+      color: #0f172a;
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .dots-indicator {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+
+      .dot {
+        font-size: 14px;
+        line-height: 1;
+        color: #cbd5e1;
+        transition: color 0.2s ease;
+
+        &.filled {
+          color: #0284c7;
+        }
+      }
+    }
+  }
+}
+
+/* Right Card: SUBTOPIC PERFORMANCE */
+.subtopic-card {
+  .subtopics-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .subtopic-row {
+    display: grid;
+    grid-template-columns: 180px 1fr 50px 85px;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+
+    .subtopic-name {
+      color: #1e293b;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bar-container {
+      height: 12px;
+      background: #f1f5f9;
+      border-radius: 6px;
+      overflow: hidden;
+      width: 100%;
+      border: 1px solid #e2e8f0;
+
+      .bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #2563eb, #0284c7);
+        border-radius: 6px;
+        transition: width 0.4s ease;
+
+        &.fill-strong {
+          background: linear-gradient(90deg, #22c55e, #16a34a);
+        }
+
+        &.fill-good {
+          background: linear-gradient(90deg, #10b981, #059669);
+        }
+
+        &.fill-average {
+          background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+
+        &.fill-weak {
+          background: linear-gradient(90deg, #f87171, #ef4444);
+        }
+
+        &.fill-pending {
+          background: #cbd5e1;
+        }
+      }
+    }
+
+    .subtopic-pct {
+      color: #0f172a;
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+
+      &.status-strong {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+      }
+
+      &.status-good {
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+      }
+
+      &.status-average {
+        background: #fef3c7;
+        color: #b45309;
+        border: 1px solid #fde68a;
+      }
+
+      &.status-weak {
+        background: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+      }
+
+      &.status-pending,
+      &.status-na {
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+      }
+    }
+  }
+}
+
+
+
 

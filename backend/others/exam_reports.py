@@ -1044,6 +1044,7 @@ def get_question_wrong_answers(request):
         opt_counts = opt_q.group_by(Option.options_id, Option.option_text).all()
         total_sel = sum([c[2] for c in opt_counts])
         total_attempts = tot_attempts if tot_attempts > 0 else (total_sel or 1)
+        total_attempts = max(total_attempts, len(wrong_ans_records))
 
         question_details['attempts'] = total_attempts
         question_details['mistakes'] = sum([c[1] for c in raw_q.group_by(Answer.written_answer).all()]) or sum([c[2] for c in opt_counts]) or len(wrong_ans_records) or 0
@@ -1345,6 +1346,8 @@ def get_question_wrong_answers(request):
                 return sorted(students_list, key=get_sort_key)
 
             total_incorrect_submissions = len(wrong_items)
+            if total_attempts < total_incorrect_submissions:
+                total_attempts = total_incorrect_submissions
             denom = total_incorrect_submissions if total_incorrect_submissions > 0 else 1
 
             if wrong_items:
@@ -1858,5 +1861,313 @@ def get_resources_for_answer(request):
     except Exception as e:
         print('Error fetching resources for answer', e)
         return {"statusMessage": f"Error fetching resources: {str(e)}", "status": False}, 500
+
+
+def get_descriptive_ai_analysis(request):
+    import re
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    args = getattr(request, 'args', {})
+    category_id = args.get('category_id') or args.get('category') or args.get('question_bank_id')
+    ctx = resolve_report_context(session, args)
+
+    schedule_ids = ctx.get('schedule_ids', []) if (ctx and ctx.get('status')) else []
+    attempt_ids = ctx.get('attempt_ids', []) if (ctx and ctx.get('status')) else []
+    mode = ctx.get('mode', 'schedule') if (ctx and ctx.get('status')) else 'schedule'
+    exam_id = ctx.get('exam_id') if (ctx and ctx.get('status')) else None
+
+    try:
+        cat_obj = None
+        category_name = "Descriptive Question Bank"
+        if category_id:
+            cat_obj = session.query(Categories).filter(
+                (Categories.category_id == category_id) |
+                (func.cast(Categories.category_id, String) == str(category_id))
+            ).first()
+            if cat_obj:
+                category_name = cat_obj.name or category_name
+
+        # 1. Find all question IDs belonging strictly to this category_id
+        target_qids = set()
+
+        if category_id:
+            str_cat_id = str(category_id).strip()
+
+            # Query from QuestionMapping
+            qm_rows = session.query(QuestionMapping.question_id).filter(
+                (QuestionMapping.category_id == category_id) |
+                (func.cast(QuestionMapping.category_id, String) == str_cat_id)
+            ).all()
+            for (qid,) in qm_rows:
+                if qid:
+                    target_qids.add(str(qid))
+
+            # Query from ExamQuestionMapping
+            eqm_rows = session.query(ExamQuestionMapping.question_id).filter(
+                (ExamQuestionMapping.category_id == category_id) |
+                (func.cast(ExamQuestionMapping.category_id, String) == str_cat_id)
+            ).all()
+            for (qid,) in eqm_rows:
+                if qid:
+                    target_qids.add(str(qid))
+
+            # Query from ExamMapping - strictly scoped to this category_id
+            em_rows = session.query(ExamMapping.exam_id).filter(
+                (ExamMapping.category_id == category_id) |
+                (func.cast(ExamMapping.category_id, String) == str_cat_id)
+            ).all()
+            for (eid,) in em_rows:
+                if eid:
+                    eq_rows = session.query(ExamQuestionMapping.question_id).filter(
+                        ExamQuestionMapping.exam_id == eid,
+                        (ExamQuestionMapping.category_id == category_id) |
+                        (func.cast(ExamQuestionMapping.category_id, String) == str_cat_id)
+                    ).all()
+                    for (qid,) in eq_rows:
+                        if qid:
+                            target_qids.add(str(qid))
+
+        # Fallback: if category_id questions not directly mapped, filter exam questions by category_id if possible
+        if not target_qids and exam_id:
+            eqm_q = session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == exam_id)
+            if category_id:
+                eqm_q = eqm_q.filter(
+                    (ExamQuestionMapping.category_id == category_id) |
+                    (func.cast(ExamQuestionMapping.category_id, String) == str_cat_id)
+                )
+            eqm_rows = eqm_q.all()
+            for (qid,) in eqm_rows:
+                if qid:
+                    target_qids.add(str(qid))
+
+        q_objs = []
+        if target_qids:
+            q_objs = session.query(Question).filter(Question.question_id.in_(list(target_qids))).all()
+
+        question_ids = [str(q.question_id) for q in q_objs if q and q.question_id]
+
+        # 2. Fetch student answers for these questions
+        answers_db = []
+        if question_ids:
+            if schedule_ids or attempt_ids:
+                if mode == 'daterange':
+                    if attempt_ids:
+                        answers_db = session.query(Answer).filter(
+                            Answer.attempt_id.in_(attempt_ids),
+                            Answer.question_id.in_(question_ids)
+                        ).all()
+                    else:
+                        answers_db = session.query(Answer).filter(
+                            Answer.schedule_id.in_(schedule_ids),
+                            Answer.created_date >= ctx['start_date'],
+                            Answer.created_date <= ctx['end_date'],
+                            Answer.question_id.in_(question_ids)
+                        ).all()
+                else:
+                    answers_db = session.query(Answer).filter(
+                        Answer.schedule_id.in_(schedule_ids),
+                        Answer.question_id.in_(question_ids)
+                    ).all()
+
+            # If no answers in current schedule context, check if any answers exist across attempts for these questions
+            if not answers_db:
+                answers_db = session.query(Answer).filter(
+                    Answer.question_id.in_(question_ids)
+                ).all()
+
+        total_ans = len(answers_db)
+
+        # 3. Calculate Answer Quality Analysis from actual user answers
+        if total_ans > 0:
+            missing_count = 0
+            incomplete_count = 0
+            incorrect_count = 0
+            total_awarded = 0.0
+            total_possible = 0.0
+
+            for ans in answers_db:
+                q = next((q for q in q_objs if str(q.question_id) == str(ans.question_id)), None)
+                max_marks = float(q.marks if q and q.marks else 1.0)
+                awarded = float(ans.marks_awarded if ans.marks_awarded is not None else (ans.ai_marks or 0.0))
+                total_awarded += awarded
+                total_possible += max_marks
+
+                ratio = awarded / max_marks if max_marks > 0 else 0.0
+                fb = (ans.feedback or '').lower()
+
+                if ratio == 0.0 or ans.is_correct == 0 or 'incorrect' in fb:
+                    incorrect_count += 1
+                if ratio < 0.8 or 'missing' in fb or 'missed' in fb:
+                    missing_count += 1
+                if 0.1 <= ratio < 0.8 or 'incomplete' in fb or 'partial' in fb:
+                    incomplete_count += 1
+
+            missing_pct = round((missing_count / total_ans) * 100)
+            incomplete_pct = round((incomplete_count / total_ans) * 100)
+            incorrect_pct = round((incorrect_count / total_ans) * 100)
+            explanation_quality_pct = round((total_awarded / total_possible) * 100) if total_possible > 0 else 0
+        else:
+            missing_pct = 0
+            incomplete_pct = 0
+            incorrect_pct = 0
+            explanation_quality_pct = 0
+
+        # 4. Dynamic Subtopic Performance Grouping from questions in selected Question Bank
+        subtopic_map = {}
+
+        for q in q_objs:
+            q_text = q.question_text or ""
+            subtopic_name = _infer_subtopic(q_text, category_name)
+
+            if subtopic_name not in subtopic_map:
+                subtopic_map[subtopic_name] = {
+                    'awarded': 0.0,
+                    'possible': 0.0,
+                    'q_count': 0,
+                    'attempts': 0
+                }
+
+            subtopic_map[subtopic_name]['q_count'] += 1
+            max_m = float(q.marks if q.marks else 1.0)
+
+            q_answers = [a for a in answers_db if str(a.question_id) == str(q.question_id)]
+            if q_answers:
+                for a in q_answers:
+                    aw = float(a.marks_awarded if a.marks_awarded is not None else (a.ai_marks or 0.0))
+                    subtopic_map[subtopic_name]['awarded'] += aw
+                    subtopic_map[subtopic_name]['possible'] += max_m
+                    subtopic_map[subtopic_name]['attempts'] += 1
+
+        subtopic_list = []
+        for sub_name, data in subtopic_map.items():
+            if data['possible'] > 0 and data['attempts'] > 0:
+                pct = round((data['awarded'] / data['possible']) * 100)
+                if pct >= 75:
+                    status = "Strong"
+                elif pct >= 60:
+                    status = "Good"
+                elif pct >= 40:
+                    status = "Average"
+                else:
+                    status = "Weak"
+            else:
+                pct = 0
+                status = "Pending"
+
+            subtopic_list.append({
+                "subtopic": sub_name,
+                "percentage": pct,
+                "status": status,
+                "question_count": data['q_count'],
+                "attempts_count": data['attempts']
+            })
+
+        subtopic_list.sort(key=lambda s: (s['attempts_count'] > 0, s['percentage']), reverse=True)
+
+        return {
+            "statusMessage": "Descriptive AI Analysis generated",
+            "status": True,
+            "data": {
+                "category_id": str(category_id) if category_id else None,
+                "category_name": category_name,
+                "total_questions": len(q_objs),
+                "total_answers_analyzed": total_ans,
+                "answer_quality_analysis": {
+                    "missing_percentage": missing_pct,
+                    "incomplete_percentage": incomplete_pct,
+                    "incorrect_percentage": incorrect_pct,
+                    "explanation_quality_percentage": explanation_quality_pct
+                },
+                "subtopic_performance": subtopic_list
+            }
+        }, 200
+
+    except Exception as e:
+        lineno = getattr(e, '__traceback__', None) and e.__traceback__.tb_lineno
+        print(f"Error in get_descriptive_ai_analysis: {e} Line # {lineno}")
+        return {"statusMessage": f"Error generating descriptive AI analysis: {str(e)}", "status": False}, 500
+
+
+def _infer_subtopic(question_text, category_name=""):
+    import re
+    text = (question_text or "").lower()
+    cat = (category_name or "").lower()
+    is_cpp = any(k in cat for k in ['c++', 'cpp', 'c plus plus']) or 'c++' in text
+    is_java = 'java' in cat and 'javascript' not in cat
+
+    # 1. Standard I/O & Streams (cin / cout / iostream / printf / scanf)
+    if any(k in text for k in ['cin', 'cout', 'iostream', 'scanf', 'printf', 'system.out', 'input and output', 'input/output', 'standard input']):
+        return "I/O Streams & Formatting" if is_cpp else "Streams & I/O Operations"
+
+    # 2. Variables, Data Types & Constants
+    if any(k in text for k in ['data type', 'primitive', 'variables in', 'variable definition', 'what are variables', 'float', 'integer', 'boolean', 'char', 'const', 'type casting']):
+        return "Variables & Data Types"
+
+    # 3. Control Flow, Loops & Conditionals
+    if any(k in text for k in ['conditional statement', 'if statement', 'switch case', 'loop', 'for loop', 'while loop', 'do-while', 'break', 'continue']):
+        return "Control Flow & Loops"
+
+    # 4. Functions, Methods & Modular Programming
+    if any(k in text for k in ['function', 'parameter', 'return type', 'argument', 'pass by value', 'pass by reference', 'method signature', 'inline function']):
+        return "Functions & Scope"
+
+    # 5. Object-Oriented Programming (OOP)
+    if any(k in text for k in ['class and object', 'class and an object', 'polymorphism', 'inheritance', 'encapsulation', 'abstraction', 'oop', 'constructor', 'destructor', 'virtual function', 'interface', 'abstract class']):
+        return "Object-Oriented Programming (OOP)"
+
+    # 6. Pointers, Dynamic Memory & Allocation
+    if any(k in text for k in ['pointer', 'reference', 'malloc', 'free', 'new and delete', 'delete[]', 'dynamic memory', 'memory leak', 'heap', 'stack memory', 'buffer overflow', 'garbage collection', 'jvm']):
+        if is_cpp or 'pointer' in text:
+            return "Pointers & Memory Management"
+        elif is_java or 'jvm' in text or 'garbage collection' in text:
+            return "JVM & Memory Management"
+        return "Memory Management"
+
+    # 7. Exception Handling
+    if any(k in text for k in ['exception', 'try-catch', 'try catch', 'throw', 'throws', 'finally', 'error handling']):
+        return "Exception Handling"
+
+    # 8. Data Structures, STL & Collections
+    if any(k in text for k in ['stl', 'vector', 'collection', 'arraylist', 'hashmap', 'linkedlist', 'tree', 'graph', 'stack', 'queue', 'hash table', 'binary tree', 'data structure', 'set', 'map']):
+        return "STL & Data Structures" if is_cpp else "Collections & Data Structures"
+
+    # 9. Multithreading & Concurrency
+    if any(k in text for k in ['multithread', 'thread', 'concurrency', 'deadlock', 'synchronized', 'semaphore', 'mutex', 'race condition', 'async', 'await']):
+        return "Multithreading & Concurrency"
+
+    # 10. Database & SQL
+    if any(k in text for k in ['sql', 'query', 'database', 'acid', 'transaction', 'normalization', 'join', 'index', 'mongodb', 'orm']):
+        return "Database & Persistence"
+
+    # 11. Networking & Web APIs
+    if any(k in text for k in ['rest api', 'http', 'tcp', 'udp', 'socket', 'ip address', 'protocol', 'endpoint', 'jwt', 'oauth', 'web service', 'microservice', 'client-server']):
+        return "Networking & Web APIs"
+
+    # 12. Operating Systems
+    if any(k in text for k in ['cpu scheduling', 'paging', 'virtual memory', 'kernel', 'operating system', 'file system', 'process management', 'system call']):
+        return "Operating Systems"
+
+    # 13. Dynamic Concept Pattern Extraction ("Explain the concept of ...", "Define ...")
+    m = re.search(r'(?:concept of|explain|describe|what is|define|overview of|purpose of)\s+([A-Za-z0-9\s\-\_]{3,35})', text)
+    if m:
+        extracted = m.group(1).split('.')[0].split('?')[0].split(',')[0].strip().title()
+        if len(extracted) > 2 and extracted.lower() not in ['a', 'the', 'an', 'c++', 'java', 'python', 'simple']:
+            return extracted
+
+    # Clean fallback from category name
+    clean_cat = category_name.strip()
+    for drop in ['Descriptive', 'Question Bank', 'QuestionBank', 'Bank', 'Questions', '–', '-', 'qb']:
+        clean_cat = re.sub(r'(?i)\b' + re.escape(drop) + r'\b', '', clean_cat).strip()
+    clean_cat = re.sub(r'\s+', ' ', clean_cat).strip(' -–_')
+
+    if clean_cat and len(clean_cat) > 2:
+        return clean_cat
+
+    return "Core Concepts"
+
+
 
 

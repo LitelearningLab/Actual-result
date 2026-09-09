@@ -1040,6 +1040,119 @@
                       <mat-icon>close</mat-icon> <span>Show All Questions</span>
                     </button>
                   </div>
+
+                  <!-- Descriptive Question Bank AI Analysis Section (Renders ONLY for Descriptive QB) -->
+                  <div
+                    class="descriptive-ai-container"
+                    *ngIf="isDescriptiveCategoryActive && (descriptiveQualitySummary || subtopicPerformanceList?.length || descriptiveAiLoading)"
+                  >
+                    <div *ngIf="descriptiveAiLoading" class="descriptive-ai-loading">
+                      <mat-icon class="rotating-spinner">sync</mat-icon>
+                      <span>Generating Descriptive AI Analysis...</span>
+                    </div>
+
+                    <div class="descriptive-ai-grid" *ngIf="!descriptiveAiLoading">
+                      <!-- Left Card: Answer Quality Analysis -->
+                      <div class="descriptive-ai-card quality-card">
+                        <div class="card-header">
+                          <mat-icon class="header-icon">analytics</mat-icon>
+                          <h3>Answer Quality Analysis</h3>
+                        </div>
+                        <div class="metrics-list" *ngIf="descriptiveQualitySummary">
+                          <div class="metric-row">
+                            <span class="metric-label">Missing</span>
+                            <span class="metric-value">{{ descriptiveQualitySummary.missing_percentage || 0 }}%</span>
+                            <div class="dots-indicator">
+                              <span
+                                *ngFor="let dot of getDotArray(descriptiveQualitySummary.missing_percentage)"
+                                class="dot"
+                                [class.filled]="dot.filled"
+                              >●</span>
+                            </div>
+                          </div>
+
+                          <div class="metric-row">
+                            <span class="metric-label">Incomplete</span>
+                            <span class="metric-value">{{ descriptiveQualitySummary.incomplete_percentage || 0 }}%</span>
+                            <div class="dots-indicator">
+                              <span
+                                *ngFor="let dot of getDotArray(descriptiveQualitySummary.incomplete_percentage)"
+                                class="dot"
+                                [class.filled]="dot.filled"
+                              >●</span>
+                            </div>
+                          </div>
+
+                          <div class="metric-row">
+                            <span class="metric-label">Incorrect</span>
+                            <span class="metric-value">{{ descriptiveQualitySummary.incorrect_percentage || 0 }}%</span>
+                            <div class="dots-indicator">
+                              <span
+                                *ngFor="let dot of getDotArray(descriptiveQualitySummary.incorrect_percentage)"
+                                class="dot"
+                                [class.filled]="dot.filled"
+                              >●</span>
+                            </div>
+                          </div>
+
+                          <div class="metric-row">
+                            <span class="metric-label">Explanation Quality</span>
+                            <span class="metric-value">{{ descriptiveQualitySummary.explanation_quality_percentage || 0 }}%</span>
+                            <div class="dots-indicator">
+                              <span
+                                *ngFor="let dot of getDotArray(descriptiveQualitySummary.explanation_quality_percentage)"
+                                class="dot"
+                                [class.filled]="dot.filled"
+                              >●</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Right Card: SUBTOPIC PERFORMANCE -->
+                      <div class="descriptive-ai-card subtopic-card">
+                        <div class="card-header">
+                          <mat-icon class="header-icon">bar_chart</mat-icon>
+                          <h3>SUBTOPIC PERFORMANCE</h3>
+                        </div>
+                        <div class="subtopics-list" *ngIf="subtopicPerformanceList && subtopicPerformanceList.length">
+                          <div class="subtopic-row" *ngFor="let item of subtopicPerformanceList">
+                            <span class="subtopic-name">{{ item.subtopic }}</span>
+                            <div class="bar-container">
+                              <div
+                                class="bar-fill"
+                                [style.width.%]="item.percentage || 0"
+                                [ngClass]="{
+                                  'fill-strong': item.status === 'Strong',
+                                  'fill-good': item.status === 'Good',
+                                  'fill-average': item.status === 'Average',
+                                  'fill-weak': item.status === 'Weak',
+                                  'fill-pending': item.status === 'Pending' || item.status === 'N/A'
+                                }"
+                              ></div>
+                            </div>
+                            <span class="subtopic-pct">{{ item.percentage }}%</span>
+                            <span
+                              class="status-badge"
+                              [ngClass]="{
+                                'status-strong': item.status === 'Strong',
+                                'status-good': item.status === 'Good',
+                                'status-average': item.status === 'Average',
+                                'status-weak': item.status === 'Weak',
+                                'status-pending': item.status === 'Pending' || item.status === 'N/A'
+                              }"
+                            >
+                              {{ item.status }}
+                            </span>
+                          </div>
+                        </div>
+                        <div class="empty-subtopics-msg" *ngIf="!subtopicPerformanceList || !subtopicPerformanceList.length" style="padding: 20px; color: #64748b; font-size: 13px; text-align: center;">
+                          <span>No subtopics available for this question bank</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div class="table-wrap question-summary-wrap">
                     <table
                       mat-table
@@ -2713,10 +2826,7 @@
                               <div class="desc-theme-explanation" *ngIf="cluster.explanation">
                                 {{ cluster.explanation }}
                               </div>
-                              <!-- Verbatim Student Quotes -->
-                              <div class="desc-sample-quotes" *ngIf="cluster.samples && cluster.samples.length">
-                                <span *ngFor="let s of cluster.samples; let last = last">“{{ s }}”{{ last ? '' : ', ' }}</span>
-                              </div>
+
                             </div>
                           </div>
                           <div class="desc-td-col desc-td-students">
@@ -2758,10 +2868,7 @@
                                       <mat-icon class="meta-icon">place</mat-icon>{{ student.location || student.country_name || student.campus_name }}
                                     </span>
                                   </div>
-                                  <div class="desc-student-submitted" *ngIf="student.written_answer">
-                                    <span class="ans-label">Submitted Response:</span>
-                                    <span class="ans-quote">“{{ student.written_answer }}”</span>
-                                  </div>
+
                                 </div>
                               </li>
                             </ul>
@@ -2805,10 +2912,7 @@
                                       <mat-icon class="meta-icon">place</mat-icon>{{ student.location || student.country_name || student.campus_name }}
                                     </span>
                                   </div>
-                              <div class="desc-student-submitted" *ngIf="student.written_answer">
-                                <span class="ans-label">Submitted Response:</span>
-                                <span class="ans-quote">“{{ student.written_answer }}”</span>
-                              </div>
+
                             </div>
                           </li>
                         </ul>

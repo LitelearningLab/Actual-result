@@ -19,58 +19,56 @@ def get_user_country_details(session, user):
     Resolves country and locale information for a user.
     Checks user.country_id -> campus.country_id -> institute.country.
     """
-    if not user or not session:
-        return {
-            "country_id": None,
-            "country_name": "United States",
-            "country_code": "US",
-            "locale": "en-US",
-            "currency_code": "USD"
-        }
-
-    country = None
-
-    # 1. Directly from user record
-    if getattr(user, 'country_id', None):
-        country = session.query(Country).filter_by(country_id=str(user.country_id)).first()
-
-    # 2. Fallback to campus country if available
-    if not country and getattr(user, 'campus_id', None):
-        campus = session.query(InstituteCampus).filter_by(campus_id=str(user.campus_id)).first()
-        if campus and campus.country_id:
-            country = session.query(Country).filter_by(country_id=str(campus.country_id)).first()
-
-    # 3. Fallback to institute country if available
-    if not country and getattr(user, 'institute_id', None):
-        inst = session.query(Institute).filter_by(institute_id=str(user.institute_id)).first()
-        if inst and getattr(inst, 'country', None):
-            country = session.query(Country).filter(
-                or_(
-                    Country.country_name.ilike(inst.country),
-                    Country.country_id == str(inst.country),
-                    Country.iso2.ilike(inst.country),
-                    Country.iso3.ilike(inst.country)
-                )
-            ).first()
-
-    if country:
-        iso2 = (country.iso2 or "US").strip().upper()
-        locale = f"en-{iso2}"
-        return {
-            "country_id": str(country.country_id),
-            "country_name": country.country_name,
-            "country_code": iso2,
-            "locale": locale,
-            "currency_code": getattr(country, 'currency_code', None) or "USD"
-        }
-
-    return {
+    default_country = {
         "country_id": None,
         "country_name": "United States",
         "country_code": "US",
         "locale": "en-US",
         "currency_code": "USD"
     }
+    if not user or not session:
+        return default_country
+
+    country = None
+
+    try:
+        # 1. Directly from user record
+        if getattr(user, 'country_id', None):
+            country = session.query(Country).filter_by(country_id=str(user.country_id)).first()
+
+        # 2. Fallback to campus country if available
+        if not country and getattr(user, 'campus_id', None):
+            campus = session.query(InstituteCampus).filter_by(campus_id=str(user.campus_id)).first()
+            if campus and getattr(campus, 'country_id', None):
+                country = session.query(Country).filter_by(country_id=str(campus.country_id)).first()
+
+        # 3. Fallback to institute country if available
+        if not country and getattr(user, 'institute_id', None):
+            inst = session.query(Institute).filter_by(institute_id=str(user.institute_id)).first()
+            if inst and getattr(inst, 'country', None):
+                country = session.query(Country).filter(
+                    or_(
+                        Country.country_name.ilike(inst.country),
+                        Country.country_id == str(inst.country),
+                        Country.iso2.ilike(inst.country),
+                        Country.iso3.ilike(inst.country)
+                    )
+                ).first()
+
+        if country:
+            iso2 = (getattr(country, 'iso2', None) or "US").strip().upper()
+            locale = f"en-{iso2}"
+            return {
+                "country_id": str(country.country_id),
+                "country_name": getattr(country, 'country_name', 'United States'),
+                "country_code": iso2,
+                "locale": locale,
+                "currency_code": getattr(country, 'currency_code', None) or "USD"
+            }
+    except Exception as ce:
+        print(f"[Auth] Warning resolving country details: {ce}", flush=True)
+
+    return default_country
 
 class JWTValidator:
     def __init__(self, jwt_secret, issuer=None, audience=None):
@@ -258,9 +256,13 @@ class JWTValidator:
             if isinstance(token, bytes):
                 token = token.decode('utf-8')
 
-            session_data = AppSession(user_id=uid_str, token=token)
-            session.add(session_data)
-            session.commit()
+            try:
+                session_data = AppSession(user_id=uid_str, token=token)
+                session.add(session_data)
+                session.commit()
+            except Exception as se_err:
+                print(f"[Auth] Warning saving session record: {se_err}", flush=True)
+                session.rollback()
 
             country_info = get_user_country_details(session, user)
 
@@ -286,7 +288,9 @@ class JWTValidator:
 
             return json_data, 200
         except Exception as e:
-            print(f"Login error: {e}", flush=True)
+            import traceback
+            tb = traceback.format_exc()
+            print(f"Login error:\n{tb}", flush=True)
             return {"statusMessage": str(e), "status": False}, 500
         finally:
             if session:

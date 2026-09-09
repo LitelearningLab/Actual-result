@@ -17,7 +17,7 @@ from others.questions import add_question, get_questions_details, bulk_upload_qu
 from others.exam_review import review_user_exam, validate_answers, update_review_comments, update_manual_review_status
 from others.exam_reports import get_user_wise_report, get_exam_analytics
 from others.exam_reports import get_question_wrong_answers
-from others.exam_reports import get_resources_for_answer
+from others.exam_reports import get_resources_for_answer, get_descriptive_ai_analysis
 
 # Flask Application Core - Name Resolution Fix Reload
 import os
@@ -624,6 +624,13 @@ def get_question_wrong_answers_route():
 @admin_required
 def get_answer_resources_route():
     response_data, status_code = get_resources_for_answer(request)
+    return jsonify(response_data), status_code
+
+
+@edu_blueprint.route('/get-descriptive-ai-analysis', methods=['GET'])
+@admin_required
+def get_descriptive_ai_analysis_route():
+    response_data, status_code = get_descriptive_ai_analysis(request)
     return jsonify(response_data), status_code
 
 
