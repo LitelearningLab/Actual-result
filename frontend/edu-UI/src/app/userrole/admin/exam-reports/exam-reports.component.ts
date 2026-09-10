@@ -3116,14 +3116,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
         timeZone: 'Asia/Kolkata',
       });
       const parts = formatter.formatToParts(d);
       const getPart = (t: string) => parts.find((p) => p.type === t)?.value || '';
-      return `${getPart('day')}-${getPart('month')}-${getPart('year')} ${getPart('hour')}:${getPart('minute')}`;
+      return `${getPart('day')}-${getPart('month')}-${getPart('year')}`;
     } catch (e) {
       return String(dateLike);
     }
