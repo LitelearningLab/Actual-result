@@ -1170,9 +1170,82 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
   }
 }
 
+.kpi-under-toolbar {
+  margin: 0.5rem 0 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--theme-3-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+
+  .controls .action-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .attempt-breakdown-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.825rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+
+    .btn-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      color: #64748b;
+    }
+
+    &:hover {
+      border-color: #2563eb;
+      color: #2563eb;
+      background: #f0f9ff;
+      .btn-icon {
+        color: #2563eb;
+      }
+    }
+
+    &.active {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: #ffffff;
+      border-color: #1d4ed8;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+
+      .btn-icon {
+        color: #ffffff;
+      }
+    }
+  }
+}
+
+.attempt-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.8rem;
+
+  &.pill-first {
+    background: #e0f2fe;
+    color: #0369a1;
+  }
+
+  &.pill-second {
+    background: #fef3c7;
+    color: #b45309;
+  }
+}
+
 .report-summary-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.75rem; padding:0.875rem 1rem; background:linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%); border-bottom:1px solid var(--theme-3-border); }
 .analytics-summary-grid { padding:0.25rem 0 0.5rem; background:transparent; border-bottom:none; }
-.summary-card { display:flex; align-items:center; gap:0.625rem; min-width:0; padding:0.5rem 0.875rem; border:1px solid var(--theme-3-border); border-radius:0.75rem; background:linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%); box-shadow:0 0.125rem 0.5rem var(--theme-3-hanover-bg); transition:transform 0.25s $ease-bounce, border-color 0.25s $ease, box-shadow 0.25s $ease; }
+.summary-card { display:flex; align-items:center; gap:0.625rem; min-width:0; padding:0.5rem 0.875rem; border:1px solid var(--theme-3-border); border-radius:0.75rem; background:linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%); box-shadow:0 0.125rem 0.5rem var(--theme-3-hanover-bg); transition:transform 0.25s $ease-bounce, border-color 0.25s $ease, box-shadow 0.25s $ease; cursor: pointer; }
 .summary-card:hover { transform:translateY(-0.125rem); border-color:var(--button-1); box-shadow:0 0.5rem 1rem var(--theme-3-hanover-bg); }
 .summary-icon { width:2.25rem; height:2.25rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; border-radius:0.625rem; background:var(--theme-2-hanover-bg); color:var(--button-1); transition:transform 0.2s $ease-bounce; }
 .summary-icon:hover { transform:scale(1.05); }
@@ -1189,7 +1262,7 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 .summary-copy { display:flex; flex-direction:column; gap:0.125rem; min-width:0; }
 .summary-label { font-size:var(--font-xs); font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--theme-3-text-3); }
 .summary-value { font-size:clamp(1.125rem, 0.95rem + 0.5vw, 1.5rem); font-weight:800; line-height:1.1; letter-spacing:-0.03em; color:var(--theme-3-text-1); }
-.summary-meta { font-size:var(--font-xsm); font-weight:500; color:var(--theme-3-text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.summary-meta { font-size:var(--font-xsm); font-weight:500; color:var(--theme-3-text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor: pointer; }
 
 // ════════════════════════════════════════════════════════════════════════════════
 // TAB ACTIONS — Compact Search & Action Bar (Inside Tabs)
@@ -4827,7 +4900,7 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
 
   .subtopic-row {
     display: grid;
-    grid-template-columns: minmax(180px, max-content) 1fr 50px 85px;
+    grid-template-columns: minmax(140px, 180px) 1fr 50px 85px;
     align-items: center;
     gap: 12px;
     font-size: 0.9rem;
@@ -4836,6 +4909,9 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
       color: #1e293b;
       font-weight: 600;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
     }
 
     .bar-container {

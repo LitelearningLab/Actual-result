@@ -110,6 +110,32 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   loadedAnalyticsCacheKey: string | null = null;
   loadedUserReportCacheKey: string | null = null;
 
+  showAttemptBreakdown = false;
+
+  toggleAttemptsBreakdown() {
+    this.showAttemptBreakdown = !this.showAttemptBreakdown;
+    if (this.showAttemptBreakdown) {
+      this.closeSidebarAuto();
+    }
+  }
+
+  closeSidebarAuto() {
+    try {
+      const sideNavBtn = document.querySelector('.collapse-toggle') as HTMLElement;
+      const sideNavEl = document.querySelector('.app-side-nav') as HTMLElement;
+      if (sideNavBtn && sideNavEl && !sideNavEl.classList.contains('collapsed')) {
+        sideNavBtn.click();
+      }
+    } catch (e) {}
+  }
+
+  getCategoryDisplayedColumns(): string[] {
+    if (this.showAttemptBreakdown) {
+      return ['category', 'type', 'questions', 'users_attempted', 'first_attempt', 'second_attempt', 'total_attempts', 'mistakes', 'error_pct'];
+    }
+    return ['category', 'type', 'questions', 'users_attempted', 'total_attempts', 'mistakes', 'error_pct'];
+  }
+
   getFilterCacheKey(): string {
     const inst = this.selectedInstituteId || this.userFilters.institute_id || '';
     const mode = this.selectionMode || 'schedule';
@@ -1358,7 +1384,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.descriptiveQualitySummary = res.data.answer_quality_analysis || null;
           this.subtopicPerformanceList = (res.data.subtopic_performance || []).slice(0, 6).map((item: any) => ({
             ...item,
-            fullSubtopic: item.subtopic,
+            fullSubtopic: item.full_subtopic || item.fullSubtopic || item.subtopic,
             subtopic: item.subtopic
           }));
         }
@@ -3202,6 +3228,64 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const a = document.createElement('a');
     a.href = url;
     a.download = `exam_user_report_${this.selectedExam ? this.selectedExam.schedule_id || this.selectedExam.id || 'report' : 'report'}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  analyticsSearchQuery = '';
+
+  onAnalyticsSearchInput() {
+    // Trigger UI updates for filtered analytics search
+  }
+
+  get filteredCategoryAnalytics(): any[] {
+    if (!this.categoryAnalytics) return [];
+    if (!this.analyticsSearchQuery || !this.analyticsSearchQuery.trim()) {
+      return this.categoryAnalytics;
+    }
+    const q = this.analyticsSearchQuery.trim().toLowerCase();
+    return this.categoryAnalytics.filter((c: any) => {
+      const name = (c.category_name || c.name || '').toLowerCase();
+      const type = (c.category_type || c.type || '').toLowerCase();
+      return name.includes(q) || type.includes(q);
+    });
+  }
+
+  exportAnalyticsCSV() {
+    const dataToExport = this.filteredCategoryAnalytics;
+    if (!dataToExport || !dataToExport.length) return;
+    const headers = [
+      'Question Bank',
+      'Type',
+      'Questions',
+      'Users Attempted',
+      'First Attempt',
+      'Second Attempt',
+      'Total Attempts',
+      'Mistakes',
+      'Error %'
+    ];
+    const rows = dataToExport.map((c: any) => [
+      c.category_name || c.name || '',
+      this.formatCategoryType(c.category_type || c.type),
+      c.total_questions || c.questions_count || 0,
+      c.no_of_students || c.users_attempted || 0,
+      c.first_attempt_count || 0,
+      c.second_attempt_count || 0,
+      c.total_attempts || 0,
+      c.wrong_answers || c.mistakes || c.wrong_count || 0,
+      `${c.error_percentage || c.error_pct || 0}%`
+    ]);
+    const csv = [
+      headers.join(','),
+      ...rows.map((r) => r.map((v: any) => `"${String(v || '').replace(/"/g, '""')}"`).join(',')),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics_report_${this.selectedExam ? this.selectedExam.schedule_id || this.selectedExam.id || 'report' : 'report'}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

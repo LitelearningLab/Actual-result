@@ -824,6 +824,50 @@ def get_exam_analytics(request):
                 'error_percentage': round(error_pct, 2)
             })
 
+        # Bulk fetch Exam_Attempt for attempt sequence identification
+        if attempt_ids:
+            attempt_objs = session.query(
+                Exam_Attempt.attempt_id, Exam_Attempt.user_id, Exam_Attempt.attempt_number, Exam_Attempt.started_date
+            ).filter(
+                (Exam_Attempt.attempt_id.in_(attempt_ids)) | (Exam_Attempt.schedule_id.in_(schedule_ids))
+            ).order_by(Exam_Attempt.user_id, Exam_Attempt.started_date.asc()).all() if schedule_ids else []
+        elif schedule_ids:
+            attempt_objs = session.query(
+                Exam_Attempt.attempt_id, Exam_Attempt.user_id, Exam_Attempt.attempt_number, Exam_Attempt.started_date
+            ).filter(
+                Exam_Attempt.schedule_id.in_(schedule_ids)
+            ).order_by(Exam_Attempt.user_id, Exam_Attempt.started_date.asc()).all()
+        else:
+            attempt_objs = []
+
+        user_attempt_counter = {}
+        attempt_num_map = {}
+        att_date_map = {}
+        for att_id, u_id, att_num, s_date in attempt_objs:
+            uk = str(u_id or '').strip()
+            user_attempt_counter[uk] = user_attempt_counter.get(uk, 0) + 1
+            seq = int(att_num) if (att_num is not None and int(att_num) > 0) else user_attempt_counter[uk]
+            if att_id is not None:
+                ak = str(att_id).strip().lower()
+                attempt_num_map[ak] = seq
+                if s_date:
+                    att_date_map[ak] = s_date
+
+        # Fallback sequence map per user based on answers_db
+        user_distinct_atts = {}
+        for qid_val, uid_val, att_val, is_corr, opt_val in answers_db:
+            uk = str(uid_val or '').strip()
+            ak = str(att_val or '').strip().lower()
+            if uk and ak:
+                user_distinct_atts.setdefault(uk, set()).add(ak)
+
+        fallback_attempt_map = {}
+        for uk, att_set in user_distinct_atts.items():
+            sorted_atts = sorted(list(att_set), key=lambda x: att_date_map.get(x, x))
+            for idx, ak in enumerate(sorted_atts, start=1):
+                if ak not in attempt_num_map:
+                    fallback_attempt_map[(uk, ak)] = idx
+
         # Build category_rows in memory
         category_rows = []
         mapped_cat_ids = []
@@ -857,10 +901,19 @@ def get_exam_analytics(request):
                 cat_participants = set()
                 cat_user_q_attempts = set()
                 total_wrong_answers = 0
+                first_attempt_count = 0
+                second_attempt_count = 0
                 for cqid in cat_qids_list:
                     cat_participants.update(user_attempts_map.get(cqid, set()))
                     for uid, att in user_q_attempts_map.get(cqid, set()):
                         cat_user_q_attempts.add((uid, cqid, att))
+                        ak = str(att or '').strip().lower()
+                        uk = str(uid or '').strip()
+                        att_seq = attempt_num_map.get(ak) or fallback_attempt_map.get((uk, ak), 1)
+                        if att_seq == 1:
+                            first_attempt_count += 1
+                        else:
+                            second_attempt_count += 1
                     total_wrong_answers += len(mistakes_map.get(cqid, set()))
 
                 cat_participant_count = len(cat_participants)
@@ -871,6 +924,8 @@ def get_exam_analytics(request):
                 total_wrong_answers = 0
                 cat_participant_count = 0
                 total_correct_answers = 0
+                first_attempt_count = 0
+                second_attempt_count = 0
 
             error_percentage = (total_wrong_answers / total_attempts * 100) if total_attempts > 0 else 0
             denom = (total_attempts * cat_participant_count) if (total_attempts and cat_participant_count) else 0
@@ -895,6 +950,8 @@ def get_exam_analytics(request):
                 'total_questions': int(total_questions),
                 'no_of_students': int(cat_participant_count),
                 'total_attempts': int(total_attempts),
+                'first_attempt_count': int(first_attempt_count),
+                'second_attempt_count': int(second_attempt_count),
                 'correct_answers': int(total_correct_answers),
                 'wrong_answers': int(total_wrong_answers),
                 'error_percentage': round(error_percentage, 2),
@@ -2084,11 +2141,15 @@ def get_descriptive_ai_analysis(request):
             qid_str = str(q.question_id).strip()
 
             # Retrieve subtopic using normalized key
-            subtopic_name = ai_subtopic_map.get(qid_str) or _infer_subtopic_dynamic(q_text, category_name)
-            subtopic_name = _format_subtopic_name(subtopic_name)
+            raw_subtopic = ai_subtopic_map.get(qid_str) or _infer_subtopic_dynamic(q_text, category_name)
+            if raw_subtopic and raw_subtopic.endswith('...'):
+                raw_subtopic = raw_subtopic[:-3].rstrip()
+            full_subtopic_name = _format_subtopic_name(raw_subtopic, truncate=False)
+            subtopic_name = _format_subtopic_name(raw_subtopic, truncate=True)
 
             if subtopic_name not in subtopic_map:
                 subtopic_map[subtopic_name] = {
+                    'full_subtopic': full_subtopic_name,
                     'awarded': 0.0,
                     'possible': 0.0,
                     'q_count': 0,
@@ -2113,7 +2174,7 @@ def get_descriptive_ai_analysis(request):
                 reverse=True
             )
             top_5 = dict(sorted_map_items[:5])
-            other_data = {'awarded': 0.0, 'possible': 0.0, 'q_count': 0, 'attempts': 0}
+            other_data = {'full_subtopic': 'General Concepts', 'awarded': 0.0, 'possible': 0.0, 'q_count': 0, 'attempts': 0}
             for _, d in sorted_map_items[5:]:
                 other_data['awarded'] += d['awarded']
                 other_data['possible'] += d['possible']
@@ -2141,6 +2202,7 @@ def get_descriptive_ai_analysis(request):
 
             subtopic_list.append({
                 "subtopic": sub_name,
+                "full_subtopic": data.get('full_subtopic') or sub_name,
                 "percentage": pct,
                 "status": status,
                 "question_count": data['q_count'],
@@ -2174,14 +2236,14 @@ def get_descriptive_ai_analysis(request):
         return {"statusMessage": f"Error generating descriptive AI analysis: {str(e)}", "status": False}, 500
 
 
-def _format_subtopic_name(name: str) -> str:
+def _format_subtopic_name(name: str, truncate: bool = False) -> str:
     name = (name or "").strip()
     # Normalize internal spaces
     name = " ".join(name.split())
     if not name:
         return "Core Concepts"
     # Allow reasonable length for readable topics (up to 32 chars)
-    if len(name) > 32:
+    if truncate and len(name) > 32:
         return name[:29].rstrip() + "..."
     return name
 

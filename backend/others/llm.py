@@ -316,7 +316,7 @@ CRITICAL RULES:
 2. Categorize ALL questions into a MAXIMUM of 6 unique subtopics overall.
 3. Group multiple related questions under the exact same subtopic name. Do NOT generate a unique subtopic title per question.
 4. DO NOT use or copy placeholder examples from this prompt. Use ONLY topics reflecting the actual question content.
-5. Each Subtopic name MUST be concise (2 to 4 words) and AT MOST 20 characters.
+5. Each Subtopic name MUST be concise (2 to 4 words).
 6. Output MUST be ONLY a single valid JSON object mapping each question_id to its identified subtopic string:
 {
   "question_id_1": "Subtopic Title 1",
@@ -353,13 +353,9 @@ CRITICAL RULES:
                 formatted_result = {}
                 for qid, stitle in parsed.items():
                     stitle = str(stitle or "").strip()
-                    if len(stitle) > 20:
-                        stitle = stitle[:17].rstrip() + "..."
                     formatted_result[str(qid)] = stitle
                 return formatted_result
     except Exception as e:
         print(f"Error in generate_ai_subtopics LLM call: {e}")
 
     return {}
-
-

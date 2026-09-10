@@ -96,18 +96,17 @@ export interface UserTestRow {
       }
       .start-confirm-dialog {
         box-sizing: border-box;
-        height: 18.4rem;
-        padding: 1.35rem 1.25rem 0.9rem;
+        padding: 1.5rem 1.5rem 1.25rem;
         text-align: center;
         color: #16293d;
       }
       .dialog-icon {
-        width: 4rem;
-        height: 4rem;
-        margin: 0 auto 0.8rem;
+        width: 3.75rem;
+        height: 3.75rem;
+        margin: 0 auto 0.75rem;
         border-radius: 50%;
-        background: #f0edff;
-        color: #287cff;
+        background: #ecfdf5;
+        color: #059669;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -120,47 +119,47 @@ export interface UserTestRow {
       }
       h2 {
         margin: 0 0 0.45rem;
-        font-size: 1.6rem;
+        font-size: 1.45rem;
         font-weight: 700;
         line-height: 1.25;
+        color: #0f172a;
       }
       p {
         margin: 0;
-        color: #657180;
+        color: #64748b;
       }
       .dialog-message {
-        font-size: 1.15rem;
+        font-size: 1.05rem;
       }
       .dialog-warning {
-        margin-top: 0.3rem;
-        font-size: 0.95rem;
+        margin-top: 0.5rem;
+        font-size: 0.925rem;
         line-height: 1.45;
+        color: #d97706;
+        font-weight: 600;
       }
       .dialog-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 0.9rem;
-        margin-top: 1rem;
+        margin-top: 1.25rem;
       }
       .dialog-actions button {
-        height: 2.85rem;
-        border-radius: 0.7rem;
-        font-size: 1rem;
+        height: 2.75rem;
+        border-radius: 0.6rem;
+        font-size: 0.95rem;
         font-weight: 700;
-        letter-spacing: 0.08em;
       }
       .cancel-button {
-        border: 0.0625rem solid #dfe4ea;
-        color: #354252;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        background: #ffffff;
       }
       .start-button {
-        background: #287cff;
-        color: #fff;
+        background: #2563eb;
+        color: #ffffff;
       }
       @media (max-width: 30rem) {
-        .start-confirm-dialog {
-          height: auto;
-        }
         .dialog-actions {
           grid-template-columns: 1fr;
         }
