@@ -308,14 +308,16 @@ def generate_ai_subtopics(api_client, questions_list, category_name=""):
     if not questions_list:
         return {}
 
-    system_message = """You are an expert educational curriculum AI taxonomy classifier.
-Given a list of questions from an assessment/question bank and a Category Name, categorize each question under an appropriate, concise Subtopic title.
+    system_message = """You are an expert educational curriculum taxonomy classifier.
+Given a list of questions from an assessment/question bank and a Category Name, analyze the subject domain and categorize each question under an appropriate, concise Subtopic title.
 
-Rules:
-1. Each Subtopic name MUST be concise (2 to 4 words) and AT MOST 20 characters (e.g., "Front Desk", "Room Status", "Night Audit", "Memory Mgmt", "Control Flow").
-2. DO NOT hardcode any subject rules. Dynamically analyze the semantic meaning of each question text across ANY subject domain (Hospitality, Software, Medical, Business, Science, etc.).
-3. Questions covering similar concepts MUST be assigned the exact same Subtopic name.
-4. Output MUST be ONLY a single valid JSON object mapping each question_id to its identified subtopic string:
+CRITICAL RULES:
+1. Subtopic titles MUST be strictly derived from the actual subject matter and domain of the provided questions and category name (e.g., for Java Programming: "Multithreading", "OOP Concepts", "JVM Architecture", "Exception Handling"; for Hospitality: "Front Desk", "Housekeeping", etc.).
+2. Categorize ALL questions into a MAXIMUM of 6 unique subtopics overall.
+3. Group multiple related questions under the exact same subtopic name. Do NOT generate a unique subtopic title per question.
+4. DO NOT use or copy placeholder examples from this prompt. Use ONLY topics reflecting the actual question content.
+5. Each Subtopic name MUST be concise (2 to 4 words) and AT MOST 20 characters.
+6. Output MUST be ONLY a single valid JSON object mapping each question_id to its identified subtopic string:
 {
   "question_id_1": "Subtopic Title 1",
   "question_id_2": "Subtopic Title 2"

@@ -1950,72 +1950,74 @@ def get_descriptive_ai_analysis(request):
                         if qid:
                             target_qids.add(str(qid))
 
-        # Fallback: if category_id questions not directly mapped, filter exam questions by category_id if possible
-        if not target_qids and exam_id:
-            eqm_q = session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == exam_id)
-            if category_id:
-                eqm_q = eqm_q.filter(
-                    (ExamQuestionMapping.category_id == category_id) |
-                    (func.cast(ExamQuestionMapping.category_id, String) == str_cat_id)
-                )
-            eqm_rows = eqm_q.all()
-            for (qid,) in eqm_rows:
-                if qid:
-                    target_qids.add(str(qid))
+        # Fallback: if category_id questions not directly mapped, filter exam questions by exam_id or schedule_id
+        if not target_qids:
+            if exam_id:
+                eqm_rows = session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == exam_id).all()
+                for (qid,) in eqm_rows:
+                    if qid:
+                        target_qids.add(str(qid))
+            if schedule_ids:
+                ans_qids = session.query(Answer.question_id).filter(
+                    (Answer.schedule_id.in_(schedule_ids)) |
+                    (func.cast(Answer.schedule_id, String).in_([str(s).strip() for s in schedule_ids]))
+                ).distinct().all()
+                for (qid,) in ans_qids:
+                    if qid:
+                        target_qids.add(str(qid))
 
         q_objs = []
         if target_qids:
-            q_objs = session.query(Question).filter(Question.question_id.in_(list(target_qids))).all()
+            str_target_qids = [str(q).strip() for q in target_qids if q]
+            q_objs = session.query(Question).filter(
+                (Question.question_id.in_(list(target_qids))) |
+                (func.cast(Question.question_id, String).in_(str_target_qids))
+            ).all()
 
-        question_ids = [str(q.question_id) for q in q_objs if q and q.question_id]
+        question_ids = [str(q.question_id).strip() for q in q_objs if q and q.question_id]
+        normalized_qids = {q.lower() for q in question_ids}
 
         # 2. Fetch student answers for these questions strictly within the schedule/attempt context
         answers_db = []
-        if question_ids:
-            str_qids = [str(q).strip() for q in question_ids]
-            str_sched_ids = [str(s).strip() for s in schedule_ids] if schedule_ids else []
-            str_att_ids = [str(a).strip() for a in attempt_ids] if attempt_ids else []
+        str_sched_ids = [str(s).strip() for s in schedule_ids] if schedule_ids else []
+        str_att_ids = [str(a).strip() for a in attempt_ids] if attempt_ids else []
 
-            qid_filter = or_(
-                Answer.question_id.in_(question_ids),
-                func.cast(Answer.question_id, String).in_(str_qids)
-            )
+        context_conds = []
+        if attempt_ids:
+            context_conds.append(Answer.attempt_id.in_(attempt_ids))
+            context_conds.append(func.cast(Answer.attempt_id, String).in_(str_att_ids))
+        if schedule_ids:
+            context_conds.append(Answer.schedule_id.in_(schedule_ids))
+            context_conds.append(func.cast(Answer.schedule_id, String).in_(str_sched_ids))
 
-            if mode == 'daterange':
-                dr_conds = []
-                if attempt_ids:
-                    dr_conds.append(Answer.attempt_id.in_(attempt_ids))
-                    dr_conds.append(func.cast(Answer.attempt_id, String).in_(str_att_ids))
-                if schedule_ids:
-                    dr_conds.append(Answer.schedule_id.in_(schedule_ids))
-                    dr_conds.append(func.cast(Answer.schedule_id, String).in_(str_sched_ids))
-                if ctx.get('start_date') and ctx.get('end_date'):
-                    dr_conds.append(
-                        and_(
-                            Answer.created_date >= ctx['start_date'],
-                            Answer.created_date <= ctx['end_date']
-                        )
-                    )
-
-                if dr_conds:
-                    answers_db = session.query(Answer).filter(
-                        or_(*dr_conds),
-                        qid_filter
-                    ).all()
+        if context_conds:
+            if mode == 'daterange' and ctx.get('start_date') and ctx.get('end_date'):
+                raw_answers = session.query(Answer).filter(
+                    or_(*context_conds),
+                    Answer.created_date >= ctx['start_date'],
+                    Answer.created_date <= ctx['end_date']
+                ).all()
             else:
-                context_conds = []
-                if attempt_ids:
-                    context_conds.append(Answer.attempt_id.in_(attempt_ids))
-                    context_conds.append(func.cast(Answer.attempt_id, String).in_(str_att_ids))
-                if schedule_ids:
-                    context_conds.append(Answer.schedule_id.in_(schedule_ids))
-                    context_conds.append(func.cast(Answer.schedule_id, String).in_(str_sched_ids))
+                raw_answers = session.query(Answer).filter(
+                    or_(*context_conds)
+                ).all()
 
-                if context_conds:
-                    answers_db = session.query(Answer).filter(
-                        or_(*context_conds),
-                        qid_filter
-                    ).all()
+            # Filter answers by question_ids using robust string comparison
+            if normalized_qids:
+                answers_db = [
+                    ans for ans in raw_answers
+                    if ans.question_id and str(ans.question_id).strip().lower() in normalized_qids
+                ]
+            else:
+                answers_db = raw_answers
+
+        # If q_objs was initially empty but we found answers, derive q_objs from answer question IDs
+        if not q_objs and answers_db:
+            ans_qids = list({str(ans.question_id).strip() for ans in answers_db if ans.question_id})
+            q_objs = session.query(Question).filter(
+                (Question.question_id.in_(ans_qids)) |
+                (func.cast(Question.question_id, String).in_(ans_qids))
+            ).all()
 
         total_ans = len(answers_db)
 
@@ -2103,6 +2105,24 @@ def get_descriptive_ai_analysis(request):
                 subtopic_map[subtopic_name]['possible'] += max_m
                 subtopic_map[subtopic_name]['attempts'] += 1
 
+        # If more than 6 subtopics are generated, consolidate the excess into top 5 + 1 aggregated subtopic
+        if len(subtopic_map) > 6:
+            sorted_map_items = sorted(
+                subtopic_map.items(),
+                key=lambda x: (x[1]['attempts'], x[1]['q_count']),
+                reverse=True
+            )
+            top_5 = dict(sorted_map_items[:5])
+            other_data = {'awarded': 0.0, 'possible': 0.0, 'q_count': 0, 'attempts': 0}
+            for _, d in sorted_map_items[5:]:
+                other_data['awarded'] += d['awarded']
+                other_data['possible'] += d['possible']
+                other_data['q_count'] += d['q_count']
+                other_data['attempts'] += d['attempts']
+            if other_data['q_count'] > 0:
+                top_5['General Concepts'] = other_data
+            subtopic_map = top_5
+
         subtopic_list = []
         for sub_name, data in subtopic_map.items():
             if data['possible'] > 0 and data['attempts'] > 0:
@@ -2128,6 +2148,7 @@ def get_descriptive_ai_analysis(request):
             })
 
         subtopic_list.sort(key=lambda s: (s['attempts_count'] > 0, s['percentage']), reverse=True)
+        subtopic_list = subtopic_list[:6]
 
         return {
             "statusMessage": "Descriptive AI Analysis generated",

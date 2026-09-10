@@ -232,8 +232,14 @@
                                 <div class="applied-filters" *ngIf="appliedQuestionBankFilters.length">
                                     <span class="applied-filters-label"><mat-icon>filter_alt</mat-icon> Active
                                         filters</span>
-                                    <span class="applied-filter-chip"
-                                        *ngFor="let filter of appliedQuestionBankFilters">{{ filter }}</span>
+                                    <span class="applied-filter-chip" *ngFor="let filter of appliedQuestionBankFilters">
+                                        <ng-container *ngIf="filter.includes(':')">
+                                            <strong class="filter-chip-key">{{ filter.split(':')[0] }}:</strong>{{ filter.substring(filter.indexOf(':') + 1) }}
+                                        </ng-container>
+                                        <ng-container *ngIf="!filter.includes(':')">
+                                            {{ filter }}
+                                        </ng-container>
+                                    </span>
                                     <button type="button" class="clear-all-btn" (click)="onReset()">
                                         <mat-icon>close</mat-icon> Clear all
                                     </button>
@@ -395,7 +401,7 @@
 
                                     <div class="col total-questions-col">
                                         <mat-form-field appearance="outline" class="full">
-                                            <mat-label>No of Questions</mat-label>
+                                            <mat-label>No of Questions Available in Question Bank</mat-label>
                                             <input matInput [value]="selectedQuestionBankQuestionCount || ''"
                                                 readonly />
                                         </mat-form-field>
@@ -416,7 +422,7 @@
                                     <div class="col checkbox-col">
                                         <mat-checkbox [(ngModel)]="newCategory.randomize_questions"
                                             (ngModelChange)="onNewCategoryRandomizeChange($event)"
-                                            [disabled]="readOnly">Alloted questions randomly to users</mat-checkbox>
+                                            [disabled]="readOnly">Randomly assign questions to user</mat-checkbox>
                                     </div>
                                     <div class="col actions-col">
                                         <button mat-flat-button color="primary" aria-label="Add category"
@@ -429,16 +435,15 @@
                                 <div class="question-count-error" *ngIf="questionCountError"
                                     [class.warning-msg]="questionCountError.includes('Random selection has no effect')">
                                     {{ questionCountError }}</div>
-                                <div class="muted question-mode-hint" *ngIf="selectedCategory">
-                                    <span *ngIf="newCategory.randomize_questions">Each student gets a freshly
-                                        randomized
-                                        set of {{ newCategory.questions || 0 }} question(s) when they start the
-                                        test.</span>
-                                    <span *ngIf="!newCategory.randomize_questions">A fixed set of {{
-                                        newCategory.questions || 0 }} question(s) are randomly chosen once and given
-                                        to
-                                        every student. Optionally hand-pick specific questions below.</span>
+                                <div class="question-mode-hint" *ngIf="selectedCategory" style="margin-top: 0.75rem;">
+                                    <span *ngIf="!newCategory?.randomize_questions" class="handpick-chip handpick-chip--fixed">
+                                        <strong>Fixed:</strong> A fixed set of <strong>{{ newCategory.questions || 0 }}</strong> question(s) are randomly chosen once and given to every student.
+                                    </span>
+                                    <span *ngIf="newCategory?.randomize_questions" class="handpick-chip handpick-chip--randomized">
+                                        <strong>Randomized:</strong> Each student gets a freshly randomized set of <strong>{{ newCategory.questions || 0 }}</strong> question(s) when they start the test.
+                                    </span>
                                 </div>
+
 
                                 <div *ngIf="model.categories?.length">
                                     <div class="category-list">
@@ -538,6 +543,7 @@
                                         (change)="toggleSelectAllQuestions($event.checked)">Select All
                                         ({{questionsForCategory.length}})</mat-checkbox><span
                                         class="question-count question-count--selected"><span>Selected</span><strong>{{selectedQuestionIds.length}}</strong></span>
+                                     <span class="question-handpick-chip" *ngIf="!newCategory?.randomize_questions">Optionally hand-pick specific questions below.</span>
                                 </div>
                                 <div class="question-list">
                                     <mat-list *ngIf="questionsForCategory.length">

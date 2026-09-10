@@ -1283,14 +1283,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   subtopicPerformanceList: any[] = [];
 
   get isDescriptiveCategoryActive(): boolean {
-    const t = (this.selectedCategoryType || '').toLowerCase();
-    return (
-      t === 'descriptive' ||
-      t === 'subjective' ||
-      t === 'essay' ||
-      t === 'description' ||
-      t.includes('descript')
-    );
+    return true;
   }
 
   _activeCategoryId: string | null = null;
@@ -1363,7 +1356,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.descriptiveAiLoading = false;
         if (res && res.status && res.data) {
           this.descriptiveQualitySummary = res.data.answer_quality_analysis || null;
-          this.subtopicPerformanceList = (res.data.subtopic_performance || []).map((item: any) => ({
+          this.subtopicPerformanceList = (res.data.subtopic_performance || []).slice(0, 6).map((item: any) => ({
             ...item,
             fullSubtopic: item.subtopic,
             subtopic: item.subtopic
@@ -3265,6 +3258,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.questionCurrentPage = 1;
           if (this._pendingCategoryFilter) {
             const cid = String(this._pendingCategoryFilter);
+            this._activeCategoryId = cid;
+            const matchedCat = (this.categoryAnalytics || []).find((c: any) => String(c.category_id || c.id || c._id || '') === cid);
+            if (matchedCat) {
+              this.selectedCategoryType = String(matchedCat.category_type || matchedCat.type || matchedCat.question_type || '').toLowerCase();
+              this.selectedCategoryFilterName = matchedCat.category_name || matchedCat.name || 'Selected Category';
+            }
             this.filteredQuestionSummary = (this.questionSummary || [])
               .filter((q: any) => this._getQuestionCategoryId(q) === cid)
               .map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
@@ -3276,14 +3275,25 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             } catch (e) {}
           } else if (this._activeCategoryId) {
             const cid = String(this._activeCategoryId);
+            const matchedCat = (this.categoryAnalytics || []).find((c: any) => String(c.category_id || c.id || c._id || '') === cid);
+            if (matchedCat) {
+              this.selectedCategoryType = String(matchedCat.category_type || matchedCat.type || matchedCat.question_type || '').toLowerCase();
+            }
             this.filteredQuestionSummary = (this.questionSummary || [])
               .filter((q: any) => this._getQuestionCategoryId(q) === cid)
               .map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
+          } else if (this.categoryAnalytics && this.categoryAnalytics.length) {
+            const firstCat = this.categoryAnalytics[0];
+            const cid = String(firstCat.category_id || firstCat.id || firstCat._id || '');
+            this._activeCategoryId = cid;
+            this.selectedCategoryType = String(firstCat.category_type || firstCat.type || firstCat.question_type || '').toLowerCase();
+            this.selectedCategoryFilterName = firstCat.category_name || firstCat.name || 'Selected Category';
+            this.filteredQuestionSummary = (this.questionSummary || []).map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
           } else {
-            this.filteredQuestionSummary = [];
+            this.filteredQuestionSummary = (this.questionSummary || []).map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
           }
 
-          if (this.isDescriptiveCategoryActive && this._activeCategoryId) {
+          if (this._activeCategoryId) {
             this.loadDescriptiveAiAnalysis(this._activeCategoryId);
           }
         } catch (e) {
