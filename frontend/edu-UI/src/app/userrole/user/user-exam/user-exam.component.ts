@@ -48,11 +48,13 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   showConfirm = false;
   isSubmitted = false;
 
-  // Voice input properties
+  // Voice input & scan text properties
   recognition: any = null;
   recordingQuestionId: string | number | null = null;
   speechSupported = false;
   baseAnswerBeforeRecording = '';
+  enableMicrophone = true;
+  enableScanText = true;
 
   isAnswered(q: any, i: number): boolean {
     if (!q) return false;
@@ -131,7 +133,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       title: 'Leave Test?',
       message: 'Are you sure you want to leave the test?\n\nLeaving will immediately complete and submit your test with the answers you have saved so far. Unanswered questions will remain unanswered.',
       confirmText: 'Leave',
-      cancelText: 'Stay in Test'
+      cancelText: 'Cancel'
     }).pipe(
       switchMap(ok => {
         if (!ok) return of(false);
@@ -149,7 +151,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       title: 'Leave Test?',
       message: 'Are you sure you want to leave the test?\n\nLeaving will immediately complete and submit your test with the answers you have saved so far. Unanswered questions will remain unanswered.',
       confirmText: 'Leave',
-      cancelText: 'Stay in Test'
+      cancelText: 'Cancel'
     }).subscribe(ok => {
       if (ok) {
         this.submit();
@@ -162,7 +164,9 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     if (SpeechRecognition) {
       this.speechSupported = true;
       this.recognition = new SpeechRecognition();
-      this.recognition.continuous = true;
+      
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      this.recognition.continuous = !isMobile;
       this.recognition.interimResults = true;
       this.recognition.lang = 'en-US';
 
@@ -193,19 +197,33 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         console.warn('Speech recognition error:', event.error);
         this.ngZone.run(() => {
           if (event.error === 'no-speech') {
-            return; // Ignore silence/pause
+            return;
           }
-          this.recordingQuestionId = null;
-          if (event.error === 'not-allowed') {
-            notify('Microphone access denied. Please allow microphone access to use voice input.', 'error');
+          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            notify('Microphone access denied. Please allow microphone access in your browser settings.', 'error');
+            this.recordingQuestionId = null;
+          } else if (event.error === 'network') {
+            notify('Voice input error: Network connection required for speech recognition.', 'error');
+            this.recordingQuestionId = null;
           } else if (event.error !== 'aborted') {
             notify('Voice input error: ' + event.error, 'error');
+            this.recordingQuestionId = null;
           }
         });
       };
 
       this.recognition.onend = () => {
         this.ngZone.run(() => {
+          // If still recording on mobile (where continuous=false), restart automatically
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          if (isMobile && this.recordingQuestionId !== null && !this.testStopped) {
+            this.baseAnswerBeforeRecording = (this.answers[this.recordingQuestionId] || '').toString();
+            try {
+              this.recognition.start();
+              return;
+            } catch (e) {}
+          }
+
           if (this.recordingQuestionId !== null) {
             const currentAnswer = this.answers[this.recordingQuestionId];
             if (currentAnswer && typeof currentAnswer === 'string') {
@@ -222,43 +240,55 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggleVoiceInput(questionId: string | number) {
+  async toggleVoiceInput(questionId: string | number) {
     if (this.testStopped || this.submitting || this.isSubmitted) return;
+    if (!this.enableMicrophone) {
+      notify('Microphone input is disabled by the administrator for this test.', 'error');
+      return;
+    }
     if (!this.speechSupported) {
-      notify('Voice input is not supported in your browser. Please use Chrome or Edge.', 'error');
+      notify('Voice input is not supported in your browser. Please use Google Chrome or Edge.', 'error');
       return;
     }
 
     if (this.recordingQuestionId === questionId) {
       // Stop recording
+      this.recordingQuestionId = null;
       try {
         this.recognition.stop();
       } catch (e) {}
-      if (this.recordingQuestionId !== null) {
-        const currentAnswer = this.answers[this.recordingQuestionId];
-        if (currentAnswer && typeof currentAnswer === 'string') {
-          this.answers[this.recordingQuestionId] = currentAnswer.trim();
-        }
-        this.persistExamState();
-        this.scheduleAutosave();
+      const currentAnswer = this.answers[questionId];
+      if (currentAnswer && typeof currentAnswer === 'string') {
+        this.answers[questionId] = currentAnswer.trim();
       }
-      this.recordingQuestionId = null;
+      this.persistExamState();
+      this.scheduleAutosave();
     } else {
       // Stop any existing recording first
       if (this.recordingQuestionId !== null) {
         try { this.recognition.stop(); } catch(e) {}
       }
-      // Start new recording
+
+      // Request microphone permission explicitly on mobile if mediaDevices is available
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(track => track.stop());
+        } catch (err: any) {
+          notify('Microphone permission denied. Please allow microphone access in your browser settings.', 'error');
+          return;
+        }
+      }
+
       this.recordingQuestionId = questionId;
       this.baseAnswerBeforeRecording = (this.answers[questionId] || '').toString();
       try {
         this.recognition.start();
       } catch (e) {
-        // Recognition might already be running
         try { this.recognition.stop(); } catch(err){}
         setTimeout(() => {
           try { this.recognition.start(); } catch(err){}
-        }, 100);
+        }, 150);
       }
     }
   }
@@ -374,6 +404,10 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       this.exam.remaining_seconds = this.remaining;
       this.exam.test_end_time = examDetail.test_end_time;
       this.exam.test_start_time = examDetail.test_start_time;
+      this.exam.enable_microphone = this.enableMicrophone;
+      this.exam.enable_scan_text = this.enableScanText;
+      examDetail.enable_microphone = this.enableMicrophone;
+      examDetail.enable_scan_text = this.enableScanText;
 
       sessionStorage.setItem('launched_exam', JSON.stringify(this.exam));
       if (this.attempt_id) {
@@ -411,9 +445,15 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       const wrapper = this.exam?.data ? this.exam.data : this.exam;
       const examDetail = wrapper?.exam_detail || wrapper || {};
       this.schedule_id = this.exam.schedule_id || examDetail?.schedule_id || wrapper?.schedule_id || this.exam.id || '';
-      this.examTitle = this.exam.title || this.exam.name || examDetail?.title || wrapper?.title || '';
+      this.examTitle = examDetail?.title || wrapper?.title || this.exam.title || this.exam.name || '';
       this.examId = this.exam.exam_id || examDetail?.exam_id || wrapper?.exam_id || this.exam.id || '';
       this.attempt_id = this.exam.attempt_id || examDetail?.attempt_id || wrapper?.attempt_id || '';
+      
+      const micVal = wrapper?.enable_microphone ?? examDetail?.enable_microphone ?? this.exam?.enable_microphone ?? wrapper?.enableMicrophone ?? examDetail?.enableMicrophone ?? this.exam?.enableMicrophone;
+      this.enableMicrophone = micVal !== undefined && micVal !== null ? (micVal === true || micVal === 1 || String(micVal).toLowerCase() === 'true') : true;
+
+      const scanVal = wrapper?.enable_scan_text ?? examDetail?.enable_scan_text ?? this.exam?.enable_scan_text ?? wrapper?.enableScanText ?? examDetail?.enableScanText ?? this.exam?.enableScanText;
+      this.enableScanText = scanVal !== undefined && scanVal !== null ? (scanVal === true || scanVal === 1 || String(scanVal).toLowerCase() === 'true') : true;
       const rawQs = Array.isArray(wrapper?.questions) ? wrapper.questions : (Array.isArray(this.exam.questions) ? this.exam.questions : []);
       this.questions = rawQs.map((q: any) => ({
         id: q.question_id || q.id,
@@ -677,14 +717,16 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
           document.querySelector('.exam-runner-fullscreen') ||
           document.querySelector('.public-layout') ||
           document.querySelector('.app-content');
+        const isMobile = window.innerWidth <= 768;
+        const stickyOffset = isMobile ? 160 : 100;
         if (scrollContainer) {
-          const stickyOffset = 180;
           const containerRect = scrollContainer.getBoundingClientRect();
           const elementRect = el.getBoundingClientRect();
           const scrollTop = scrollContainer.scrollTop + elementRect.top - containerRect.top - stickyOffset;
-          scrollContainer.scrollTo({ top: scrollTop, behavior: 'smooth' });
+          scrollContainer.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
         } else {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const y = el.getBoundingClientRect().top + window.pageYOffset - stickyOffset;
+          window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
         }
       }
       this.currentIndex = index;
@@ -703,10 +745,37 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     this.scrollToQuestion(this.currentIndex);
   }
 
+  getDisplayTestTitle(): string {
+    const raw = this.examTitle || this.exam?.title || this.exam?.name || '';
+    if (!raw) return '';
+    if (raw.toLowerCase().startsWith('test scheduled name:')) {
+      return raw;
+    }
+    return `Test Scheduled Name: ${raw}`;
+  }
+
   openConfirm() {
     if (this.testStopped) return;
-    this.confirmService.confirm({ title: 'Submit Test', message: 'Are you sure you want to submit the test now?', confirmText: 'Submit', cancelText: 'Cancel' }).subscribe(ok => {
-      if (!ok) return; this.submit();
+    const total = this.questions.length;
+    const answered = this.answeredCount;
+    const unanswered = total - answered;
+
+    let message = '';
+    if (unanswered > 0) {
+      message = `You have answered ${answered} of ${total} questions and left ${unanswered} unanswered.\n\nAre you sure you want to submit the test now?`;
+    } else {
+      message = `You have answered all ${total} questions. Are you sure you want to submit the test?`;
+    }
+
+    this.confirmService.confirm({
+      title: 'Submit Test',
+      message: message,
+      confirmText: 'Submit',
+      cancelText: 'Cancel'
+    }).subscribe(ok => {
+      if (ok) {
+        this.submit();
+      }
     });
   }
 

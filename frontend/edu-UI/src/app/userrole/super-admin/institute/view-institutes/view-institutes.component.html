@@ -346,12 +346,13 @@
   <!-- ── Data Table Card ── -->
   <div class="list-card">
     <div class="list-wrapper">
-      <table
-        mat-table
-        [dataSource]="dataSource"
-        class="mat-elevation-z1 compact premium-table"
-        matSort
-      >
+      <div class="table-responsive">
+        <table
+          mat-table
+          [dataSource]="dataSource"
+          class="mat-elevation-z1 compact premium-table"
+          matSort
+        >
         <colgroup>
           <col class="col-sno" />
           <col class="col-name" />
@@ -507,6 +508,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
 
       <mat-paginator
         [pageSizeOptions]="[25, 50, 100]"

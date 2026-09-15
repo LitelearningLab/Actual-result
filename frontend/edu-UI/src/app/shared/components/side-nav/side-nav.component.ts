@@ -9,6 +9,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { DirectivesModule } from 'src/app/shared/directives/directives.module';
 import { IconModule } from '../../icons/icon.module';
 import { APP_VERSION } from '../../../../environments/version';
+import { SidenavService } from '../../services/sidenav.service';
 
 @Component({
   selector: 'app-side-nav',
@@ -17,34 +18,41 @@ import { APP_VERSION } from '../../../../environments/version';
   templateUrl: './side-nav.component.html',
   styleUrls: ['./side-nav.component.scss']
 })
-// export class SideNavComponent { }
 export class SideNavComponent implements OnInit, OnDestroy {
   public appVersion = APP_VERSION;
   @HostBinding('class.collapsed') get hostCollapsed() { return this.collapsed }
-  // class bindings are handled in the template; no HostBinding needed
   isLogin = false;
   userRole: string | null = null;
   userName = sessionStorage.getItem('username') || '';
   userInstitute: string | null = sessionStorage.getItem('userInstitute') || '';
   menus: Array<{ label: string, path: string, icon?: string }> = [];
   collapsed = false;
-  // track last clicked menu label so it remains highlighted until another side-nav item is clicked
+  isMobileOpen = false;
   selectedMenu: string | null = null;
   private routerSubscription: Subscription;
   private authSubscription?: Subscription;
   private userSubscription?: Subscription;
+  private mobileSub?: Subscription;
+  private collapseSub?: Subscription;
+
   constructor(
     public router: Router,
     private authService: AuthService,
-    //     private _snackBar: MatSnackBar,
-    //     public dialog: MatDialog
+    private sidenavService: SidenavService
   ) {
-    // Check login status initially
-    // Subscribe to AuthService so UI responds immediately to login/logout
+    this.mobileSub = this.sidenavService.isMobileOpen$.subscribe(open => {
+      this.isMobileOpen = open;
+    });
+
+    this.collapseSub = this.sidenavService.isCollapsed$.subscribe(collapsed => {
+      this.collapsed = collapsed;
+    });
+
     this.authSubscription = this.authService.isLoggedIn$.subscribe(v => {
       this.isLogin = !!v;
       this.setupMenus();
     });
+
     this.userSubscription = this.authService.user$.subscribe(u => {
       if (u) {
         this.userRole = u.role || this.userRole;
@@ -57,14 +65,12 @@ export class SideNavComponent implements OnInit, OnDestroy {
       this.setupMenus();
     });
 
-    // Subscribe to router events to check login status after navigation
     this.routerSubscription = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe((event) => {
-        // keep previous route-change based checks
         this.setupMenus();
-        // Update selectedMenu based on current URL
         this.updateSelectedMenuFromUrl((event as NavigationEnd).urlAfterRedirects || this.router.url);
+        this.sidenavService.closeMobile();
       });
   }
 
@@ -108,13 +114,21 @@ export class SideNavComponent implements OnInit, OnDestroy {
 
   onMenuClick(menu: { label: string, path: string, icon?: string }){
     try{ this.selectedMenu = menu?.label || null; }catch(e){ this.selectedMenu = null; }
+    this.closeMobile();
+  }
+
+  closeMobile(): void {
+    this.sidenavService.closeMobile();
   }
 
   permissionNameForMenu(label: string): string {
     return label;
   }
 
-  toggleCollapse() { this.collapsed = !this.collapsed; this.updateParentSidenavClass(); }
+  toggleCollapse(): void {
+    this.sidenavService.toggleCollapse();
+    this.updateParentSidenavClass();
+  }
   
   private updateParentSidenavClass() {
     try {
@@ -182,5 +196,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
     if (this.routerSubscription) this.routerSubscription.unsubscribe();
     if (this.authSubscription) this.authSubscription.unsubscribe();
     if (this.userSubscription) this.userSubscription.unsubscribe();
+    if (this.mobileSub) this.mobileSub.unsubscribe();
+    if (this.collapseSub) this.collapseSub.unsubscribe();
   }
 }

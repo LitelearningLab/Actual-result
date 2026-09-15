@@ -12,6 +12,7 @@ import { API_BASE } from 'src/app/shared/api.config';
 import { APP_VERSION } from '../../../../environments/version';
 import { PageMetaService } from '../../services/page-meta.service';
 import { GlobalInstituteContextService } from '../../services/global-institute-context.service';
+import { SidenavService } from '../../services/sidenav.service';
 
 @Component({
   selector: 'app-navbar-main',
@@ -47,11 +48,24 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
   private pageMetaSubscription?: Subscription;
   private globalInstituteSubscription?: Subscription;
 
-  username = sessionStorage.getItem('username') || 'Guest'; // Default to 'Guest' if username is not set
-  userRole = sessionStorage.getItem('userRole') || 'unknown user role'; // Default to 'unknown user role' if not set
+  username = sessionStorage.getItem('username') || 'Guest';
+  userRole = sessionStorage.getItem('userRole') || 'unknown user role';
   displayName = this.getStoredDisplayName();
   displayInstitute = sessionStorage.getItem('institute') || '';
   instituteDisplayName = this.getStoredInstituteName();
+  get isAdminUser(): boolean {
+    let sessionUserRole = '';
+    try {
+      const rawUser = sessionStorage.getItem('user');
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        sessionUserRole = u?.role || u?.user_role || '';
+      }
+    } catch (e) { /* ignore */ }
+    const role = String(this.userObj?.user_role || this.userObj?.role || sessionUserRole || this.userRole || sessionStorage.getItem('userRole') || '').toLowerCase().trim();
+    return ['admin', 'super_admin', 'superadmin', 'super-admin'].some(r => role === r || role.includes(r));
+  }
+
   userObj: any = null;
   initials = this.username ? this.username.split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase() : 'G';
 
@@ -62,14 +76,14 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     private _snackBar: MatSnackBar,
     public dialog: MatDialog,
     private http: HttpClient,
-    private globalInstituteContext: GlobalInstituteContextService
+    private globalInstituteContext: GlobalInstituteContextService,
+    private sidenavService: SidenavService
   ) {
-    // subscribe to page meta service for dynamic module title/subtitle
     this.pageMetaSubscription = this.pageMeta.getMetaObservable().subscribe(m => {
       this.moduleName = m.title || '';
       this.moduleData = m.subtitle || '';
     });
-    // subscribe to auth state so navbar updates immediately on login/logout
+
     this.authSubscription = this.authService.isLoggedIn$.subscribe(v => this.isLogin = !!v);
     this.userSubscription = this.authService.user$.subscribe(u => {
       if (u) {
@@ -97,6 +111,10 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
       .subscribe(() => {
         this.closeUserPanel();
       });
+  }
+
+  toggleMobileNav(): void {
+    this.sidenavService.toggleMobile();
   }
 
   ngOnInit(): void { }

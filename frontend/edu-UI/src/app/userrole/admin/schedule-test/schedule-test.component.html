@@ -353,18 +353,22 @@
                 <div class="review-settings-panel review-content-panel">
                   <h3>Review Content</h3>
                   <div class="review-content-options">
-                    <mat-checkbox [(ngModel)]="model.showScore" name="showScore" [disabled]="readOnly">Show
-                      Score</mat-checkbox>
-                    <mat-checkbox [(ngModel)]="model.showCorrectAnswers" name="showCorrectAnswers"
-                      [disabled]="readOnly">Show Correct Answers</mat-checkbox>
-                    <mat-checkbox [(ngModel)]="model.showStudentAnswers" name="showStudentAnswers"
-                      [disabled]="readOnly">Show Student Answers</mat-checkbox>
-                    <mat-checkbox [(ngModel)]="model.showExplanations" name="showExplanations"
-                      [disabled]="readOnly">Show Explanations</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.showScore" name="showScore" [disabled]="readOnly">Show Score</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.showCorrectAnswers" name="showCorrectAnswers" [disabled]="readOnly">Show Correct Answers</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.showStudentAnswers" name="showStudentAnswers" [disabled]="readOnly">Show Student Answers</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.showExplanations" name="showExplanations" [disabled]="readOnly">Show Explanations</mat-checkbox>
                   </div>
                   <div class="review-preview" role="status" aria-live="polite">
                     <mat-icon>info</mat-icon>
                     <span>{{ reviewPreview }}</span>
+                  </div>
+                </div>
+
+                <div class="review-settings-panel feature-controls-panel" style="margin-top: 1.25rem;">
+                  <h3>Test Feature Controls</h3>
+                  <div class="review-content-options">
+                    <mat-checkbox [(ngModel)]="model.enableMicrophone" name="enableMicrophone" [disabled]="readOnly">Enable Microphone</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.enableScanText" name="enableScanText" [disabled]="readOnly">Enable Scan Text from Photo</mat-checkbox>
                   </div>
                 </div>
               </div>

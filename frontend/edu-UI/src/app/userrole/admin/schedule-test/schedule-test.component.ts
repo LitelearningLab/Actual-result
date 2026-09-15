@@ -321,6 +321,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     showCorrectAnswers: true,
     showStudentAnswers: true,
     showExplanations: true,
+    enableMicrophone: true,
+    enableScanText: true,
     // initialize categories so UI can bind reliably
     categories: [] as Array<{ name: string; questions: number }>,
   };
@@ -4433,6 +4435,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       show_correct_answers: boolean;
       show_student_answers: boolean;
       show_explanations: boolean;
+      enable_microphone: boolean;
+      enable_scan_text: boolean;
       timezone?: string;
       schedule_id?: any;
       updated_by?: any;
@@ -4468,6 +4472,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       show_correct_answers: !!this.model.showCorrectAnswers,
       show_student_answers: !!this.model.showStudentAnswers,
       show_explanations: !!this.model.showExplanations,
+      enable_microphone: !!this.model.enableMicrophone,
+      enable_scan_text: !!this.model.enableScanText,
     };
 
     // If editing an existing schedule, call update endpoint, otherwise create
@@ -4895,6 +4901,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       ['showCorrectAnswers', 'show_correct_answers', 'showCorrectAnswers'],
       ['showStudentAnswers', 'show_student_answers', 'showStudentAnswers'],
       ['showExplanations', 'show_explanations', 'showExplanations'],
+      ['enableMicrophone', 'enable_microphone', 'enableMicrophone'],
+      ['enableScanText', 'enable_scan_text', 'enableScanText'],
     ];
     contentFields.forEach(([modelField, apiField, alternateField]) => {
       const fieldValue =

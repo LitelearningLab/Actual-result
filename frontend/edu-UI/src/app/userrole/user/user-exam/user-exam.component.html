@@ -2,94 +2,88 @@
   <p *ngIf="!exam" class="muted">No exam loaded. Please launch a test first.</p>
   
   <ng-container *ngIf="exam">
-    <!-- Sticky Header -->
-    <header class="header">
-      <div class="header-left">
-        <h1 class="title">{{ examTitle || exam.title || exam.name }}</h1>
-        <div class="header-meta">
-          <span class="meta-item" *ngIf="exam.category"><mat-icon>category</mat-icon>{{ exam.category }}</span>
-          <span class="meta-item"><mat-icon>help_outline</mat-icon>{{ questions.length }} Questions</span>
-        </div>
-      </div>
-      <div class="header-right">
-        <div class="timer-block" [class.warning]="remaining <= 300" [class.danger]="remaining <= 60" role="timer" [attr.aria-label]="'Time remaining: ' + formatTime(remaining)">
-          <mat-icon class="timer-icon">schedule</mat-icon>
-          <div class="timer-content">
-            <span class="timer-label">Time Left</span>
-            <span class="timer-value">{{ formatTime(remaining) }}</span>
+    <!-- Unified Sticky Top Section (Header + Navigation Bar) -->
+    <div class="sticky-top-section">
+      <!-- Header -->
+      <header class="header">
+        <!-- Single Top Row: Title (Left) + Stats (Center) + Timer (Right) -->
+        <div class="header-top-row">
+          <!-- Left: Title -->
+          <div class="header-left">
+            <h1 class="title">{{ getDisplayTestTitle() }}</h1>
           </div>
-          <span *ngIf="remaining <= 300" class="timer-alert" aria-hidden="true">!</span>
-        </div>
-        <button type="button" class="btn btn-exit" (click)="promptLeaveTest()" [disabled]="submitting || testStopped">
-          <mat-icon>logout</mat-icon>
-          <span>Leave</span>
-        </button>
-        <button type="button" class="btn btn-submit" (click)="openConfirm()" [disabled]="submitting || testStopped" [attr.aria-busy]="submitting">
-          <mat-icon>send</mat-icon>
-          <span>{{ submitting ? 'Submitting...' : 'Submit' }}</span>
-        </button>
-      </div>
-    </header>
+          
+          <!-- Center: Answer Status Stats -->
+          <div class="progress-stats">
+            <div class="stat-item answered">
+              <mat-icon>check_circle</mat-icon>
+              <span class="stat-value">{{ answeredCount }}</span>
+              <span class="stat-label">Answered</span>
+            </div>
+            <div class="stat-item unanswered">
+              <mat-icon>radio_button_unchecked</mat-icon>
+              <span class="stat-value">{{ questions.length - answeredCount }}</span>
+              <span class="stat-label">Remaining</span>
+            </div>
+            <div class="stat-item progress-pct">
+              <mat-icon>pie_chart</mat-icon>
+              <span class="stat-value">{{ progressPercent | number:'1.0-0' }}%</span>
+              <span class="stat-label">Complete</span>
+            </div>
+          </div>
 
-    <!-- Progress Section -->
-    <section class="progress-section" aria-label="Test progress">
-      <div class="progress-stats">
-        <div class="stat-item answered">
-          <mat-icon>check_circle</mat-icon>
-          <span class="stat-value">{{ answeredCount }}</span>
-          <span class="stat-label">Answered</span>
+          <!-- Right: Time Left Only -->
+          <div class="header-right">
+            <div class="timer-block" [class.warning]="remaining <= 300" [class.danger]="remaining <= 60" role="timer" [attr.aria-label]="'Time remaining: ' + formatTime(remaining)">
+              <mat-icon class="timer-icon">schedule</mat-icon>
+              <span class="timer-text">TIME LEFT <strong class="timer-value">{{ formatTime(remaining) }}</strong></span>
+              <span *ngIf="remaining <= 300" class="timer-alert" aria-hidden="true">!</span>
+            </div>
+          </div>
         </div>
-        <div class="stat-item unanswered">
-          <mat-icon>radio_button_unchecked</mat-icon>
-          <span class="stat-value">{{ questions.length - answeredCount }}</span>
-          <span class="stat-label">Remaining</span>
-        </div>
-        <div class="stat-item progress-pct">
-          <mat-icon>pie_chart</mat-icon>
-          <span class="stat-value">{{ progressPercent | number:'1.0-0' }}%</span>
-          <span class="stat-label">Complete</span>
-        </div>
-      </div>
-      <div class="progress-bar-outer" role="progressbar" [attr.aria-valuenow]="progressPercent" aria-valuemin="0" aria-valuemax="100" title="Test progress">
-        <div class="progress-bar-inner" [style.width.%]="progressPercent"></div>
-      </div>
-    </section>
 
-    <!-- Navigation Row -->
-    <nav class="nav-row" aria-label="Question navigation">
-      <div class="nav-card horizontal">
-        <div class="nav-hint">
-          <mat-icon>touch_app</mat-icon>
-          <span>Jump to question</span>
+        <!-- Bottom Row: Progress Bar -->
+        <div class="progress-bar-outer" role="progressbar" [attr.aria-valuenow]="progressPercent" aria-valuemin="0" aria-valuemax="100" title="Test progress">
+          <div class="progress-bar-inner" [style.width.%]="progressPercent"></div>
         </div>
-        <div class="nav-controls">
-          <button type="button" class="btn-nav" (click)="prevQuestion()" [disabled]="currentIndex === 0" aria-label="Previous question">
-            <mat-icon>chevron_left</mat-icon>
-          </button>
+      </header>
+
+      <!-- Navigation Row -->
+      <nav class="nav-row" aria-label="Question navigation">
+        <div class="nav-card horizontal">
+          <div class="nav-hint">
+            <mat-icon>touch_app</mat-icon>
+            <span>Jump to question</span>
+          </div>
+          <div class="nav-controls">
+            <button type="button" class="btn-nav" (click)="prevQuestion()" [disabled]="currentIndex === 0" aria-label="Previous question">
+              <mat-icon>chevron_left</mat-icon>
+            </button>
+          </div>
+          <div class="nav-list nav-grid" role="tablist" aria-label="Question numbers">
+            <button *ngFor="let q of questions; let i = index" type="button" class="nav-item" role="tab"
+              (click)="scrollToQuestion(i)" 
+              [attr.aria-label]="'Question ' + (i+1) + (isAnswered(q, i) ? ', answered' : ', not answered')"
+              [attr.aria-selected]="currentIndex === i"
+              [class.answered]="isAnswered(q, i)" 
+              [class.active]="currentIndex === i">
+              <span class="nav-num">{{ i+1 }}</span>
+              <mat-icon class="nav-check" *ngIf="isAnswered(q, i)">check</mat-icon>
+            </button>
+          </div>
+          <div class="nav-controls">
+            <button type="button" class="btn-nav" (click)="nextQuestion()" [disabled]="currentIndex === questions.length - 1" aria-label="Next question">
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+          </div>
+          <div class="nav-position">
+            <span class="current">{{ currentIndex + 1 }}</span>
+            <span class="separator">/</span>
+            <span class="total">{{ questions.length }}</span>
+          </div>
         </div>
-        <div class="nav-list nav-grid" role="tablist" aria-label="Question numbers">
-          <button *ngFor="let q of questions; let i = index" type="button" class="nav-item" role="tab"
-            (click)="scrollToQuestion(i)" 
-            [attr.aria-label]="'Question ' + (i+1) + (isAnswered(q, i) ? ', answered' : ', not answered')"
-            [attr.aria-selected]="currentIndex === i"
-            [class.answered]="isAnswered(q, i)" 
-            [class.active]="currentIndex === i">
-            <span class="nav-num">{{ i+1 }}</span>
-            <mat-icon class="nav-check" *ngIf="isAnswered(q, i)">check</mat-icon>
-          </button>
-        </div>
-        <div class="nav-controls">
-          <button type="button" class="btn-nav" (click)="nextQuestion()" [disabled]="currentIndex === questions.length - 1" aria-label="Next question">
-            <mat-icon>chevron_right</mat-icon>
-          </button>
-        </div>
-        <div class="nav-position">
-          <span class="current">{{ currentIndex + 1 }}</span>
-          <span class="separator">/</span>
-          <span class="total">{{ questions.length }}</span>
-        </div>
-      </div>
-    </nav>
+      </nav>
+    </div>
 
     <!-- Questions -->
     <div class="questions">
@@ -165,7 +159,7 @@
             </div>
             <div class="textarea-footer">
               <div class="input-actions-group">
-                <div class="voice-controls" *ngIf="speechSupported">
+                <div class="voice-controls" *ngIf="enableMicrophone && speechSupported">
                   <button type="button" class="voice-action-btn" [disabled]="testStopped || submitting || isSubmitted || isExtracting(q.id || i)"
                     (click)="toggleVoiceInput(q.id || i)" 
                     [class.recording]="isRecording(q.id || i)"
@@ -182,7 +176,7 @@
                   <span *ngIf="!isRecording(q.id || i)" class="voice-hint-text">Click to speak your answer</span>
                 </div>
 
-                <div class="upload-controls">
+                <div class="upload-controls" *ngIf="enableScanText">
                   <input type="file" #imageInput [id]="'file-input-' + i" accept="image/*" style="display:none;" (change)="onImageSelected($event, q.id || i)" />
                   <button type="button" class="upload-action-btn" [disabled]="testStopped || submitting || isSubmitted || isExtracting(q.id || i)"
                     (click)="imageInput.click()"
@@ -207,6 +201,21 @@
         </article>
       </section>
     </div>
+
+    <!-- Test Footer with Submit Button -->
+    <footer class="exam-footer">
+      <div class="footer-content">
+        <div class="footer-left">
+          <span class="footer-info-text">Finished answering? Click Submit to finalize your test.</span>
+        </div>
+        <div class="footer-right">
+          <button type="button" class="btn btn-submit-footer" (click)="openConfirm()" [disabled]="submitting || testStopped" [attr.aria-busy]="submitting" aria-label="Submit test" title="Submit test">
+            <mat-icon>send</mat-icon>
+            <span>{{ submitting ? 'Submitting...' : 'Submit Test' }}</span>
+          </button>
+        </div>
+      </div>
+    </footer>
 
     <!-- Floating Quick Actions -->
     <div class="floating-actions">

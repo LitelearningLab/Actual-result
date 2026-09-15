@@ -2,6 +2,16 @@
   <div class="navbar-inner">
     <!-- Left: Module title & breadcrumb -->
     <div class="navbar-left">
+      <button *ngIf="isLogin"
+        mat-icon-button
+        type="button"
+        aria-label="Toggle navigation menu"
+        class="navbar-icon-btn mobile-menu-btn"
+        (click)="toggleMobileNav()"
+        title="Toggle side menu">
+        <mat-icon fontSet="material-icons-outlined" class="navbar-icon">menu</mat-icon>
+      </button>
+
       <div class="app-title">
         <div class="title">{{ moduleName }}</div>
         <!-- <div class="subtitle" *ngIf="moduleData">{{ moduleData }}</div> -->
@@ -28,8 +38,8 @@
         aria-label="Open user menu"
         class="navbar-icon-btn user-menu-btn"
         (click)="openUserPanel($event)"
-        title="Menu">
-        <mat-icon fontSet="material-icons-outlined" class="navbar-icon">menu</mat-icon>
+        title="User Profile Menu">
+        <mat-icon fontSet="material-icons-outlined" class="navbar-icon">person</mat-icon>
       </button>
     </div>
   </div>
@@ -47,7 +57,7 @@
     </div>
   </div>
   <nav class="user-panel-menu" aria-label="User menu options">
-    <button type="button" class="user-panel-item" (click)="openSettings()">
+    <button *ngIf="isAdminUser" type="button" class="user-panel-item" (click)="openSettings()">
       <mat-icon fontSet="material-icons-outlined">settings</mat-icon>
       <span>Settings</span>
     </button>
@@ -56,10 +66,6 @@
       <span>Logout</span>
     </button>
   </nav>
-  <div class="user-panel-footer">
-    <span>v{{ appVersion }}</span>
-    <span>&copy; 2026 Profluent Labs</span>
-  </div>
 </aside>
 <!-- Logout confirmation dialog template -->
 <ng-template #logoutConfirmationDialog>

@@ -6,8 +6,6 @@ import { first } from 'rxjs/operators';
 import { API_BASE } from '../api.config';
 import { ConfirmDialogComponent } from '../components/confirm-dialog/confirm-dialog.component';
 
-// const API_BASE = (window as any)['API_BASE'] || '';
-
 @Injectable({ providedIn: 'root' })
 export class SessionService {
   private readonly idleTimeoutMs = 10 * 60 * 1000;
@@ -17,7 +15,13 @@ export class SessionService {
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private promptOpen = false;
   private refreshInProgress = false;
-  constructor(private dialog: MatDialog, private http: HttpClient, private router: Router, private ngZone: NgZone) {}
+
+  constructor(
+    private dialog: MatDialog,
+    private http: HttpClient,
+    private router: Router,
+    private ngZone: NgZone
+  ) {}
 
   startListening() {
     if (this.listening) return;
@@ -29,12 +33,7 @@ export class SessionService {
 
     window.addEventListener('sessionExpired', (ev: any) => {
       const msg = ev && ev.detail && ev.detail.message ? ev.detail.message : 'Your session has expired';
-      if (this.hasBeenIdleForTenMinutes()) {
-        this.ngZone.run(() => this.promptExtendOrLogout(msg));
-      } else {
-        // Active users should not be interrupted just because the current JWT expired.
-        this.tryRefreshToken();
-      }
+      this.ngZone.run(() => this.promptExtendOrLogout(msg));
     });
 
     this.scheduleIdleCheck();
@@ -66,41 +65,41 @@ export class SessionService {
   }
 
   private tryRefreshToken() {
-     if (this.refreshInProgress || !this.hasLoggedInSession()) return;
-     this.refreshInProgress = true;
-     const raw = sessionStorage.getItem('user');
-     let userId = null;
-     if (raw) {
-     try { userId = JSON.parse(raw).user_id || JSON.parse(raw).userId || null; } catch(e) { userId = null; }
-     }
-     const url = `${API_BASE}/refresh-token`;
-     const payload: any = {};
-     if (userId) payload.user_id = userId;
-        this.http.post<any>(url, payload).pipe(first()).subscribe({ next: (res) => {
-      // Expecting { token, user } on success
-      try {
-        if (res && res.token) {
-        sessionStorage.setItem('token', res.token);
-        }
-        if (res && res.user) {
-        sessionStorage.setItem('user', JSON.stringify(res.user));
-        }
-      } catch (e) {}
-      // Close any session-expired dialogs now that token was refreshed
-      try { this.dialog.closeAll(); } catch (e) {}
-      }, error: (err) => {
+    if (this.refreshInProgress || !this.hasLoggedInSession()) return;
+    this.refreshInProgress = true;
+    const raw = sessionStorage.getItem('user');
+    let userId = null;
+    if (raw) {
+      try { userId = JSON.parse(raw).user_id || JSON.parse(raw).userId || null; } catch(e) { userId = null; }
+    }
+    const url = `${API_BASE}/refresh-token`;
+    const payload: any = {};
+    if (userId) payload.user_id = userId;
+
+    this.http.post<any>(url, payload).pipe(first()).subscribe({
+      next: (res) => {
+        try {
+          if (res && res.token) {
+            sessionStorage.setItem('token', res.token);
+          }
+          if (res && res.user) {
+            sessionStorage.setItem('user', JSON.stringify(res.user));
+          }
+        } catch (e) {}
+        try { this.dialog.closeAll(); } catch (e) {}
+      },
+      error: (err) => {
         this.refreshInProgress = false;
-        // Only an explicit authentication rejection proves the session is no
-        // longer valid. Keep browser state during outages and network errors.
         if (err && (err.status === 401 || err.status === 403)) {
-          try { this.dialog.closeAll(); } catch (e) {}
-          this.doLogout();
+          this.ngZone.run(() => this.promptExtendOrLogout('Your session token has expired.'));
         } else {
-          console.warn('Unable to refresh the session; keeping the existing login state.', err);
+          console.warn('Unable to refresh the session; keeping existing login state.', err);
         }
-      }, complete: () => {
+      },
+      complete: () => {
         this.refreshInProgress = false;
-      } });
+      }
+    });
   }
 
   private recordActivity(): void {
@@ -120,7 +119,7 @@ export class SessionService {
         return;
       }
 
-      // The warning is exclusively an inactivity warning after 10 uninterrupted minutes.
+      // Inactivity warning after 10 uninterrupted minutes
       this.ngZone.run(() => this.promptExtendOrLogout('Your session has expired due to inactivity.'));
     }, remainingMs);
   }
@@ -138,7 +137,6 @@ export class SessionService {
   }
 
   private doLogout() {
-    // Attempt to notify backend about logout. If it fails (e.g. expired token), still clear client state.
     try {
       const raw = sessionStorage.getItem('user');
       let userId = null;
@@ -148,14 +146,13 @@ export class SessionService {
       const url = `${API_BASE}/logout`;
       const payload: any = {};
       if (userId) payload.user_id = userId;
-      this.http.post<any>(url, payload).pipe(first()).subscribe({ next: () => {
-        // ignore server response
-      }, error: () => {
-        // ignore errors; we'll still clear client-side session
-      }, complete: () => {
-        this.clearAndRedirect();
-      }});
-      // Safety: if the POST hangs, ensure we still clear after a short timeout
+      this.http.post<any>(url, payload).pipe(first()).subscribe({
+        next: () => {},
+        error: () => {},
+        complete: () => {
+          this.clearAndRedirect();
+        }
+      });
       setTimeout(() => this.clearAndRedirect(), 3000);
     } catch (e) {
       this.clearAndRedirect();
@@ -181,6 +178,10 @@ export class SessionService {
       sessionStorage.removeItem('last_submission');
       sessionStorage.removeItem('review_questions');
     } catch (e) {}
-    try { this.router.navigate(['/login']); } catch (e) { try { window.location.href = '/login'; } catch (e) {} }
+    try {
+      this.router.navigate(['/login']);
+    } catch (e) {
+      try { window.location.href = '/login'; } catch (e) {}
+    }
   }
 }

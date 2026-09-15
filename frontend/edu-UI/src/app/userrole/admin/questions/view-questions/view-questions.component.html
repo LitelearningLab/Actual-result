@@ -577,12 +577,13 @@
         </div>
         <div class="spacer"></div>
       </div>
-      <table
-        mat-table
-        [dataSource]="dataSource"
-        class="mat-elevation-z1 compact premium-table"
-        matSort
-      >
+      <div class="table-responsive">
+        <table
+          mat-table
+          [dataSource]="dataSource"
+          class="mat-elevation-z1 compact premium-table"
+          matSort
+        >
         <colgroup>
           <col style="width: 40px" />
           <!-- Selection Column -->
@@ -702,6 +703,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
       <mat-paginator
         [pageSizeOptions]="[25, 50, 100]"
         showFirstLastButtons

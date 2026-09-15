@@ -147,6 +147,12 @@ def _review_settings(data, defaults=None):
         "show_explanations": _as_bool(
             data.get("show_explanations"), defaults.get("show_explanations", True)
         ),
+        "enable_microphone": _as_bool(
+            data.get("enable_microphone"), defaults.get("enable_microphone", True)
+        ),
+        "enable_scan_text": _as_bool(
+            data.get("enable_scan_text"), defaults.get("enable_scan_text", True)
+        ),
     }
 
 
@@ -256,6 +262,8 @@ def add_exam_schedule(request):
             show_correct_answers=review_settings["show_correct_answers"],
             show_student_answers=review_settings["show_student_answers"],
             show_explanations=review_settings["show_explanations"],
+            enable_microphone=review_settings["enable_microphone"],
+            enable_scan_text=review_settings["enable_scan_text"],
             duration_mins=duration_mins,
             total_questions=total_questions,
             created_by=created_by,
@@ -445,6 +453,8 @@ def update_exam_schedule(request):
             "show_correct_answers",
             "show_student_answers",
             "show_explanations",
+            "enable_microphone",
+            "enable_scan_text",
         }
         if review_keys.intersection(data):
             try:
@@ -459,6 +469,8 @@ def update_exam_schedule(request):
                         "show_correct_answers": sched.show_correct_answers,
                         "show_student_answers": sched.show_student_answers,
                         "show_explanations": sched.show_explanations,
+                        "enable_microphone": sched.enable_microphone if hasattr(sched, "enable_microphone") else True,
+                        "enable_scan_text": sched.enable_scan_text if hasattr(sched, "enable_scan_text") else True,
                     },
                 )
             except ValueError as error:
@@ -473,6 +485,8 @@ def update_exam_schedule(request):
             sched.show_correct_answers = settings["show_correct_answers"]
             sched.show_student_answers = settings["show_student_answers"]
             sched.show_explanations = settings["show_explanations"]
+            sched.enable_microphone = settings["enable_microphone"]
+            sched.enable_scan_text = settings["enable_scan_text"]
 
             access_just_enabled = (
                 sched.review_mode in ("manual", "no_review")
@@ -932,6 +946,16 @@ def get_exam_schedule_details(request):
                         True
                         if schedule.show_explanations is None
                         else bool(schedule.show_explanations)
+                    ),
+                    "enable_microphone": (
+                        True
+                        if getattr(schedule, "enable_microphone", None) is None
+                        else bool(schedule.enable_microphone)
+                    ),
+                    "enable_scan_text": (
+                        True
+                        if getattr(schedule, "enable_scan_text", None) is None
+                        else bool(schedule.enable_scan_text)
                     ),
                     "has_attendance": has_attendance,
                     # Count distinct students so retakes do not inflate the unpublish warning.

@@ -1,354 +1,516 @@
 <div class="page user-exam">
-   <div class="toolbar">
-      <!-- <div class="title"> -->
-      <!-- <h2>Your Tests</h2>
-         <p class="muted">Tests available for your institute</p> -->
-      <div class="search">
-         <mat-form-field appearance="outline" class="search-field">
-            <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
-            <input matInput placeholder="Title" [(ngModel)]="search" (ngModelChange)="applyFilter()"
-               aria-label="Search institutes" />
-            <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter()"
-               aria-label="Clear search">
-               <mat-icon>close</mat-icon>
+   <div class="sticky-header-container">
+      <div class="toolbar">
+         <!-- Mobile: single compact row with Search + Filter icon + Refresh icon -->
+         <div class="mobile-search-row">
+            <mat-form-field appearance="outline" class="search-field mobile-search-field">
+               <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
+               <input matInput placeholder="Search by test name..." [(ngModel)]="search" (ngModelChange)="applyFilter()"
+                  aria-label="Search tests" />
+               <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter()"
+                  aria-label="Clear search">
+                  <mat-icon>close</mat-icon>
+               </button>
+            </mat-form-field>
+            <button type="button" class="mobile-action-icon" (click)="toggleFilters($event)" title="Filters" aria-label="Filters">
+               <mat-icon>tune</mat-icon>
             </button>
-         </mat-form-field>
-      </div>
-      <!-- </div> -->
-      <div class="controls">
-         <button mat-flat-button (click)="loadExams()" class="button-one">
-            <mat-icon svgIcon="refresh"></mat-icon>
-            <span>Refresh</span>
-         </button>
+            <button type="button" class="mobile-action-icon" (click)="loadExams()" title="Refresh" aria-label="Refresh tests">
+               <mat-icon>refresh</mat-icon>
+            </button>
+         </div>
 
-         <div class="action-row">
-            <button mat-flat-button type="button" class="button-one" (click)="toggleFilters($event)">
-               <mat-icon svgIcon="filter"></mat-icon>
-               <span>Filter Tests</span>
+         <!-- Desktop: original search + controls layout -->
+         <div class="search desktop-search">
+            <mat-form-field appearance="outline" class="search-field">
+               <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
+               <input matInput placeholder="Search by test name..." [(ngModel)]="search" (ngModelChange)="applyFilter()"
+                  aria-label="Search tests" />
+               <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter()"
+                  aria-label="Clear search">
+                  <mat-icon>close</mat-icon>
+               </button>
+            </mat-form-field>
+         </div>
+
+         <div class="controls">
+            <button mat-flat-button type="button" class="button-one btn-filter-tests" (click)="toggleFilters($event)">
+               <mat-icon>tune</mat-icon>
+               <span>Filters</span>
+            </button>
+
+            <button type="button" class="btn-refresh-icon-circle" (click)="loadExams()" title="Refresh tests" aria-label="Refresh tests">
+               <mat-icon>refresh</mat-icon>
             </button>
          </div>
       </div>
-   </div>
 
-   <div class="filters-panel card" *ngIf="filtersOpen" (click)="$event.stopPropagation()">
-      <div class="filters-header">
-         <div class="filters-title"><mat-icon>tune</mat-icon><strong>Filters</strong></div><span
-            class="filters-header-mark" aria-hidden="true"></span>
+      <div class="filters-panel card" *ngIf="filtersOpen" (click)="$event.stopPropagation()">
+         <div class="filters-header">
+            <div class="filters-title"><mat-icon>tune</mat-icon><strong>Filters</strong></div><span
+               class="filters-header-mark" aria-hidden="true"></span>
+         </div>
+         <div class="filter-row">
+            <mat-form-field appearance="outline">
+               <mat-label>Schedule Name</mat-label>
+               <mat-select [(ngModel)]="filterScheduleName" placeholder="Select Schedule Name">
+                  <mat-option value="">All</mat-option>
+                  <mat-option *ngFor="let name of availableScheduleNames" [value]="name">{{ name }}</mat-option>
+               </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="date-range-field" (click)="openCreatedDateRangePicker()" style="cursor: pointer">
+               <mat-label>Created Date</mat-label>
+               <input matInput readonly [value]="getCreatedDateRangeDisplay()" placeholder="Select date range" style="cursor: pointer" />
+               <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
+            </mat-form-field>
+         </div>
+         <div class="filter-actions"><button mat-flat-button class="filter-reset-btn" (click)="resetFilters()"><mat-icon
+                  svgIcon="reset_settings"></mat-icon>Reset</button><button mat-flat-button class="filter-apply-btn"
+               (click)="applyFilter(); filtersOpen = false"><mat-icon svgIcon="apply"></mat-icon>Apply</button></div>
       </div>
-      <div class="filter-row">
-         <mat-form-field appearance="outline">
-            <mat-label>Schedule Name</mat-label>
-            <mat-select [(ngModel)]="filterScheduleName" placeholder="Select Schedule Name">
-               <mat-option value="">All</mat-option>
-               <mat-option *ngFor="let name of availableScheduleNames" [value]="name">{{ name }}</mat-option>
-            </mat-select>
-         </mat-form-field>
-         <mat-form-field appearance="outline" class="date-range-field" (click)="openCreatedDateRangePicker()" style="cursor: pointer">
-            <mat-label>Created Date</mat-label>
-            <input matInput readonly [value]="getCreatedDateRangeDisplay()" placeholder="Select date range" style="cursor: pointer" />
-            <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
-         </mat-form-field>
+
+      <!-- Segmented Tabs Control Bar -->
+      <div class="segmented-tabs-container">
+         <button
+            type="button"
+            class="segment-tab-btn"
+            [class.active]="selectedTabIndex === 0"
+            (click)="selectTab(0)">
+            <span>Active</span>
+            <span class="tab-badge">{{ activeSource.data.length }}</span>
+         </button>
+
+         <button
+            type="button"
+            class="segment-tab-btn"
+            [class.active]="selectedTabIndex === 1"
+            (click)="selectTab(1)">
+            <span>Completed</span>
+            <span class="tab-badge">{{ completeSource.data.length }}</span>
+         </button>
       </div>
-      <div class="filter-actions"><button mat-flat-button class="filter-reset-btn" (click)="resetFilters()"><mat-icon
-               svgIcon="reset_settings"></mat-icon>Reset</button><button mat-flat-button class="filter-apply-btn"
-            (click)="applyFilter(); filtersOpen = false"><mat-icon svgIcon="apply"></mat-icon>Apply</button></div>
    </div>
 
    <div class="list-card">
       <div class="list-wrapper">
-         <mat-tab-group class="exam-tabs" [(selectedIndex)]="selectedTabIndex" (selectedIndexChange)="applyFilter()">
-            <mat-tab [label]="'Active (' + activeSource.data.length + ')'">
-               <div class="tab-table">
-                  <div class="table-responsive">
-                     <table mat-table [dataSource]="activeSource" class="mat-elevation-z1 compact premium-table" matSort>
+         <!-- Active Tab Table -->
+         <div class="tab-table" *ngIf="selectedTabIndex === 0">
+            <div class="table-responsive">
+               <table mat-table [dataSource]="activeSource" class="mat-elevation-z1 compact premium-table" matSort>
 
-                        <ng-container matColumnDef="sno">
-                           <th mat-header-cell *matHeaderCellDef>S.No</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              {{ getSNo(activeSource, row) }}
-                           </td>
-                        </ng-container>
+                  <ng-container matColumnDef="sno">
+                     <th mat-header-cell *matHeaderCellDef>S.No</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        {{ getSNo(activeSource, row) }}
+                     </td>
+                  </ng-container>
 
-                        <ng-container matColumnDef="title">
-                           <th mat-header-cell *matHeaderCellDef mat-sort-header>Title ( Test schedule date and time )</th>
-                           <td mat-cell *matCellDef="let row" class="cell-primary">
-                              <div class="attempt-cell-stack">
-                                 <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
-                                    <div class="attempt-title-block">
-                                       <span *ngIf="idx === 0" class="exam-name">{{ row.title }}</span>
-                                       <span *ngIf="idx > 0" class="attempt-number-title">Attempt {{ item.attemptNumber }}</span>
-                                       <div *ngIf="item.scheduleRange" class="schedule-range-inline">
-                                          <span class="schedule-time schedule-time--start">{{ item.scheduleRange.split(' - ')[0] }}</span>
-                                          <span class="schedule-separator">–</span>
-                                          <span class="schedule-time schedule-time--end">{{ item.scheduleRange.split(' - ')[1] || '—' }}</span>
-                                       </div>
-                                       <div *ngIf="item.isInProgress" class="active-attempt-live-stats">
-                                          <span class="active-stat-badge active-stat-time">
-                                             <mat-icon class="stat-icon">timer</mat-icon>
-                                             <span class="stat-label">Time Remaining:</span>
-                                             <strong class="stat-val">{{ formatSeconds(item.remainingSeconds) }}</strong>
-                                          </span>
-                                          <span class="active-stat-badge active-stat-answered">
-                                             <mat-icon class="stat-icon">task_alt</mat-icon>
-                                             <span class="stat-label">Answered:</span>
-                                             <strong class="stat-val">{{ item.answeredCount }} / {{ item.totalQuestions || row.total_questions || 0 }}</strong>
-                                          </span>
-                                       </div>
-                                    </div>
+                  <ng-container matColumnDef="title">
+                     <th mat-header-cell *matHeaderCellDef mat-sort-header>Title ( Test schedule date and time )</th>
+                     <td mat-cell *matCellDef="let row" class="cell-primary">
+                        <div class="attempt-cell-stack">
+                           <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
+                              <div class="attempt-title-block">
+                                 <span *ngIf="idx === 0" class="exam-name">{{ row.title }}</span>
+                                 <span *ngIf="idx > 0" class="attempt-number-title">Attempt {{ item.attemptNumber }}</span>
+                                 <div *ngIf="item.scheduleRange" class="schedule-range-inline">
+                                    <span class="schedule-time schedule-time--start">{{ item.scheduleRange.split(' - ')[0] }}</span>
+                                    <span class="schedule-separator">–</span>
+                                    <span class="schedule-time schedule-time--end">{{ item.scheduleRange.split(' - ')[1] || '—' }}</span>
                                  </div>
-                              </div>
-                           </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="duration">
-                           <th mat-header-cell *matHeaderCellDef>Duration</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              <span class="duration-chip">{{ row.duration_mins || '—' }} min</span>
-                           </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="questions">
-                           <th mat-header-cell *matHeaderCellDef>Questions</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">{{ row.total_questions || 0 }}</td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="pass_mark">
-                           <th mat-header-cell *matHeaderCellDef>Pass %</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">{{ row.pass_mark || 0 }}%</td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="number_of_attempts">
-                           <th mat-header-cell *matHeaderCellDef>Attempts</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              <div class="attempt-cell-stack">
-                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
-                                    <div class="attempts-cell">
-                                       <div class="attempts-used-text">{{ item.attemptsUsedDisplay }}</div>
-                                    </div>
-                                 </div>
-                              </div>
-                           </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="status">
-                           <th mat-header-cell *matHeaderCellDef>Status</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              <div class="attempt-cell-stack">
-                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
-                                    <div class="status-pill" [ngClass]="{
-                                       'status-pill--active': item.statusType === 'PASS' || item.statusType === 'ACTIVE',
-                                       'status-pill--fail': item.statusType === 'FAIL',
-                                       'status-pill--upcoming': item.statusType === 'UPCOMING'
-                                    }">
-                                       <span class="status-dot-sm"></span>{{ item.statusType }}
-                                    </div>
-                                 </div>
-                              </div>
-                           </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="actions">
-                           <th mat-header-cell *matHeaderCellDef>Actions</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              <div class="attempt-cell-stack">
-                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
-                                    <div class="exam-actions">
-                                       <button *ngIf="item.canContinue" mat-flat-button class="continue-btn" (click)="continueTest(row, item.attemptObj, $event)">
-                                          <mat-icon>play_circle</mat-icon> Continue Test
-                                       </button>
-                                       <button *ngIf="item.showReviewBtn" mat-flat-button class="review-btn" [disabled]="!item.canReview" (click)="viewAttemptReview(row, item.attemptObj, $event)">
-                                          <mat-icon>rule</mat-icon> Review
-                                       </button>
-                                       <button *ngIf="item.canStart" mat-flat-button class="launch-btn" (click)="confirmStartTest(row, $event)">
-                                          <mat-icon>rocket_launch</mat-icon> Start
-                                       </button>
-                                       <span *ngIf="!item.canContinue && !item.showReviewBtn && !item.canStart && isUpcomingTest(row.type)" class="upcoming-label">Scheduled</span>
-                                    </div>
-                                 </div>
-                              </div>
-                           </td>
-                        </ng-container>
-
-                        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                        <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row"></tr>
-                     </table>
-                  </div>
-                  <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons
-                     class="custom-paginator"></mat-paginator>
-               </div>
-            </mat-tab>
-
-            <mat-tab [label]="'Completed (' + completeSource.data.length + ')'">
-               <div class="tab-table">
-                  <div class="table-responsive">
-                     <table mat-table [dataSource]="completeSource" class="mat-elevation-z1 compact premium-table" matSort>
-
-                        <ng-container matColumnDef="sno">
-                           <th mat-header-cell *matHeaderCellDef>S.No</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              {{ getSNo(completeSource, row) }}
-                           </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="title">
-                           <th mat-header-cell *matHeaderCellDef mat-sort-header>Title ( Taken date and time ) </th>
-                           <td mat-cell *matCellDef="let row" class="cell-primary">
-                              <div class="attempt-cell-stack">
-                                 <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
-                                    <div class="attempt-title-block">
-                                       <span *ngIf="idx === 0" class="exam-name">{{ row.title }}</span>
-                                       <span *ngIf="idx > 0" class="attempt-number-title">Attempt {{ item.attemptNumber }}</span>
-                                       <div *ngIf="item.scheduleRange" class="schedule-range-inline">
-                                          <span class="schedule-time schedule-time--start">{{ item.scheduleRange.split(' - ')[0] }}</span>
-                                          <span class="schedule-separator">–</span>
-                                          <span class="schedule-time schedule-time--end">{{ item.scheduleRange.split(' - ')[1] || '—' }}</span>
-                                       </div>
-                                    </div>
-                                 </div>
-                              </div>
-                           </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="duration">
-                           <th mat-header-cell *matHeaderCellDef>Duration</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              <span class="duration-chip">{{ row.duration_mins || '—' }} min</span>
-                           </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="questions">
-                           <th mat-header-cell *matHeaderCellDef>Questions</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">{{ row.total_questions || 0 }}</td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="pass_mark">
-                           <th mat-header-cell *matHeaderCellDef>Score</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              <div class="attempt-cell-stack">
-                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
-                                    <span class="score-value" [class.score-fail]="item.statusType === 'FAIL'" [class.score-pass]="item.statusType === 'PASS'">
-                                       {{ item.scoreDisplay }}
+                                 <div *ngIf="item.isInProgress" class="active-attempt-live-stats">
+                                    <span class="active-stat-badge active-stat-time">
+                                       <mat-icon class="stat-icon">timer</mat-icon>
+                                       <span class="stat-label">Time Remaining:</span>
+                                       <strong class="stat-val">{{ formatSeconds(item.remainingSeconds) }}</strong>
+                                    </span>
+                                    <span class="active-stat-badge active-stat-answered">
+                                       <mat-icon class="stat-icon">task_alt</mat-icon>
+                                       <span class="stat-label">Answered:</span>
+                                       <strong class="stat-val">{{ item.answeredCount }} / {{ item.totalQuestions || row.total_questions || 0 }}</strong>
                                     </span>
                                  </div>
                               </div>
-                           </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="number_of_attempts">
-                           <th mat-header-cell *matHeaderCellDef>Attempts</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              <div class="attempt-cell-stack">
-                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
-                                    <div class="attempts-cell">
-                                       <div class="attempts-used-text">{{ item.attemptsUsedDisplay }}</div>
-                                    </div>
-                                 </div>
-                              </div>
-                           </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="status">
-                           <th mat-header-cell *matHeaderCellDef>Status</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              <div class="attempt-cell-stack">
-                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
-                                    <div class="status-pill" [ngClass]="{
-                                       'status-pill--active': item.statusType === 'PASS' || item.statusType === 'ACTIVE',
-                                       'status-pill--fail': item.statusType === 'FAIL',
-                                       'status-pill--upcoming': item.statusType === 'UPCOMING'
-                                    }">
-                                       <span class="status-dot-sm"></span>{{ item.statusType }}
-                                    </div>
-                                 </div>
-                              </div>
-                           </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="actions">
-                           <th mat-header-cell *matHeaderCellDef>Actions</th>
-                           <td mat-cell *matCellDef="let row" class="cell-center">
-                              <div class="attempt-cell-stack">
-                                 <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
-                                    <div class="exam-actions">
-                                       <button *ngIf="item.showReviewBtn" mat-flat-button class="review-btn" [disabled]="!item.canReview" (click)="viewAttemptReview(row, item.attemptObj, $event)">
-                                          <mat-icon>rule</mat-icon> Review
-                                       </button>
-                                       <button *ngIf="item.canStart" mat-flat-button class="launch-btn" (click)="confirmStartTest(row, $event)">
-                                          <mat-icon>rocket_launch</mat-icon> Start
-                                       </button>
-                                    </div>
-                                 </div>
-                              </div>
-                           </td>
-                        </ng-container>
-
-                        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                        <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row"></tr>
-                     </table>
-                  </div>
-                  <mat-paginator [pageSizeOptions]="[25,50,100]" showFirstLastButtons
-                     class="custom-paginator"></mat-paginator>
-               </div>
-            </mat-tab>
-         </mat-tab-group>
-
-         <div *ngIf="loading && (!exams || exams.length === 0)" class="muted">Loading exams...</div>
-         <div *ngIf="!loading && (!exams || exams.length === 0)" class="muted">No exams available.</div>
-      </div>
-      <!-- mobile card list (shown only <960px via CSS) -->
-      <div class="exam-cards">
-         <div *ngFor="let exam of exams" class="exam-card">
-            <div class="meta">
-               <div class="exam-card-left">
-                  <!-- <div class="exam-card-avatar">{{ (exam.title || '?').charAt(0).toUpperCase() }}</div> -->
-                  <div>
-                     <div class="title">{{exam.title}}</div>
-                     <div *ngIf="exam.scheduleTest; else noMobileSchedule"
-                        class="schedule-range schedule-range--mobile">
-                        <div class="schedule-time schedule-time--start">{{ exam.scheduleTest.split(' - ')[0] }}</div>
-                        <div class="schedule-separator" aria-hidden="true"></div>
-                        <div class="schedule-time schedule-time--end">{{ exam.scheduleTest.split(' - ')[1] || '—' }}
+                           </div>
                         </div>
-                     </div>
-                     <ng-template #noMobileSchedule>
-                        <div class="muted small">—</div>
-                     </ng-template>
-                  </div>
-               </div>
-               <div class="pill">{{ exam.total_questions || 0 }} Q</div>
+                     </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="duration">
+                     <th mat-header-cell *matHeaderCellDef>Duration</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        <span class="duration-chip">{{ row.duration_mins || '—' }} min</span>
+                     </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="questions">
+                     <th mat-header-cell *matHeaderCellDef>Questions</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">{{ row.total_questions || 0 }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="pass_mark">
+                     <th mat-header-cell *matHeaderCellDef>Pass %</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">{{ row.pass_mark || 0 }}%</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="number_of_attempts">
+                     <th mat-header-cell *matHeaderCellDef>Attempts</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        <div class="attempt-cell-stack">
+                           <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
+                              <div class="attempts-cell">
+                                 <div class="attempts-used-text">{{ item.attemptsUsedDisplay }}</div>
+                              </div>
+                           </div>
+                        </div>
+                     </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="status">
+                     <th mat-header-cell *matHeaderCellDef>Status</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        <div class="attempt-cell-stack">
+                           <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
+                              <div class="status-pill" [ngClass]="{
+                                 'status-pill--active': item.statusType === 'PASS' || item.statusType === 'ACTIVE',
+                                 'status-pill--fail': item.statusType === 'FAIL',
+                                 'status-pill--upcoming': item.statusType === 'UPCOMING'
+                              }">
+                                 <span class="status-dot-sm"></span>{{ item.statusType }}
+                              </div>
+                           </div>
+                        </div>
+                     </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="actions">
+                     <th mat-header-cell *matHeaderCellDef>Actions</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        <div class="attempt-cell-stack">
+                           <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
+                              <div class="exam-actions">
+                                 <button *ngIf="item.canContinue" mat-flat-button class="continue-btn" (click)="continueTest(row, item.attemptObj, $event)">
+                                    <mat-icon>play_circle</mat-icon> Continue Test
+                                 </button>
+                                 <button *ngIf="item.showReviewBtn" mat-flat-button class="review-btn" [disabled]="!item.canReview" (click)="viewAttemptReview(row, item.attemptObj, $event)">
+                                    <mat-icon>rule</mat-icon> Review
+                                 </button>
+                                 <button *ngIf="item.canStart" mat-flat-button class="launch-btn" (click)="confirmStartTest(row, $event)">
+                                    <mat-icon>rocket_launch</mat-icon> Start
+                                 </button>
+                                 <span *ngIf="!item.canContinue && !item.showReviewBtn && !item.canStart && isUpcomingTest(row.type)" class="upcoming-label">Scheduled</span>
+                              </div>
+                           </div>
+                        </div>
+                     </td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                  <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row"></tr>
+               </table>
             </div>
-            <div class="body muted">
-               <div>Duration: {{ exam.duration_mins || '—' }} mins</div>
-               <!-- <div>Pass mark: {{ exam.pass_mark || 0 }}</div> -->
+            <mat-paginator *ngIf="!loading" [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+         </div>
+
+         <!-- Completed Tab Table -->
+         <div class="tab-table" *ngIf="selectedTabIndex === 1">
+            <div class="table-responsive">
+               <table mat-table [dataSource]="completeSource" class="mat-elevation-z1 compact premium-table" matSort>
+
+                  <ng-container matColumnDef="sno">
+                     <th mat-header-cell *matHeaderCellDef>S.No</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        {{ getSNo(completeSource, row) }}
+                     </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="title">
+                     <th mat-header-cell *matHeaderCellDef mat-sort-header>Title ( Taken date and time ) </th>
+                     <td mat-cell *matCellDef="let row" class="cell-primary">
+                        <div class="attempt-cell-stack">
+                           <div class="attempt-cell-item" *ngFor="let item of getAttemptRows(row); let idx = index; trackBy: trackByAttempt" [class.attempt-cell-item--border]="idx > 0">
+                              <div class="attempt-title-block">
+                                 <span *ngIf="idx === 0" class="exam-name">{{ row.title }}</span>
+                                 <span *ngIf="idx > 0" class="attempt-number-title">Attempt {{ item.attemptNumber }}</span>
+                                 <div *ngIf="item.scheduleRange" class="schedule-range-inline">
+                                    <span class="schedule-time schedule-time--start">{{ item.scheduleRange.split(' - ')[0] }}</span>
+                                    <span class="schedule-separator">–</span>
+                                    <span class="schedule-time schedule-time--end">{{ item.scheduleRange.split(' - ')[1] || '—' }}</span>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="duration">
+                     <th mat-header-cell *matHeaderCellDef>Duration</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        <span class="duration-chip">{{ row.duration_mins || '—' }} min</span>
+                     </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="questions">
+                     <th mat-header-cell *matHeaderCellDef>Questions</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">{{ row.total_questions || 0 }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="pass_mark">
+                     <th mat-header-cell *matHeaderCellDef>Score</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        <div class="attempt-cell-stack">
+                           <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
+                              <span class="score-value" [class.score-fail]="item.statusType === 'FAIL'" [class.score-pass]="item.statusType === 'PASS'">
+                                 {{ item.scoreDisplay }}
+                              </span>
+                           </div>
+                        </div>
+                     </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="number_of_attempts">
+                     <th mat-header-cell *matHeaderCellDef>Attempts</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        <div class="attempt-cell-stack">
+                           <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
+                              <div class="attempts-cell">
+                                 <div class="attempts-used-text">{{ item.attemptsUsedDisplay }}</div>
+                              </div>
+                           </div>
+                        </div>
+                     </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="status">
+                     <th mat-header-cell *matHeaderCellDef>Status</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        <div class="attempt-cell-stack">
+                           <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
+                              <div class="status-pill" [ngClass]="{
+                                 'status-pill--active': item.statusType === 'PASS' || item.statusType === 'ACTIVE',
+                                 'status-pill--fail': item.statusType === 'FAIL',
+                                 'status-pill--upcoming': item.statusType === 'UPCOMING'
+                              }">
+                                 <span class="status-dot-sm"></span>{{ item.statusType }}
+                              </div>
+                           </div>
+                        </div>
+                     </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="actions">
+                     <th mat-header-cell *matHeaderCellDef>Actions</th>
+                     <td mat-cell *matCellDef="let row" class="cell-center">
+                        <div class="attempt-cell-stack">
+                           <div class="attempt-cell-item attempt-cell-item--center" *ngFor="let item of getAttemptRows(row); let idx = index" [class.attempt-cell-item--border]="idx > 0">
+                              <div class="exam-actions">
+                                 <button *ngIf="item.showReviewBtn" mat-flat-button class="review-btn" [disabled]="!item.canReview" (click)="viewAttemptReview(row, item.attemptObj, $event)">
+                                    <mat-icon>rule</mat-icon> Review
+                                 </button>
+                                 <button *ngIf="item.canStart" mat-flat-button class="launch-btn" (click)="confirmStartTest(row, $event)">
+                                    <mat-icon>rocket_launch</mat-icon> Start
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                     </td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                  <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row"></tr>
+               </table>
             </div>
-            <div class="actions">
-               <button *ngIf="exam.has_in_progress" mat-flat-button class="continue-btn"
-                  (click)="continueTest(exam, null, $event)"><mat-icon>play_circle</mat-icon> Continue Test</button>
-               <button *ngIf="!exam.has_in_progress && (((exam.type || '') | lowercase) === 'active')" mat-button color="primary"
-                  (click)="confirmStartTest(exam)">Launch</button>
+            <mat-paginator *ngIf="!loading" [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+         </div>
+
+         <div *ngIf="loading && (!exams || exams.length === 0)" class="professional-loader-container" style="padding: 3rem 1rem;">
+            <div class="loader-spinner-ring"></div>
+            <div class="loader-text-group">
+               <h5 class="loader-main-text">Loading Assessments</h5>
+               <p class="loader-sub-text">Fetching your active & completed tests...</p>
             </div>
          </div>
+         <div *ngIf="!loading && (!exams || exams.length === 0)" class="muted">No exams available.</div>
       </div>
 
+      <!-- mobile card list (shown <=992px via CSS) -->
+      <div class="exam-cards">
+
+
+         <div *ngFor="let exam of mobileCardsData" class="mobile-exam-card">
+            <!-- ACTIVE TEST CARD FORMAT -->
+            <ng-container *ngIf="selectedTabIndex === 0">
+               <div class="card-active-header-badge">
+                  <span class="pulse-active-dot"></span> ACTIVE
+               </div>
+
+               <div class="card-main-title">
+                  <h3 class="exam-title-text">{{ exam.title }}</h3>
+               </div>
+
+               <!-- 3 Column Stat Grid -->
+               <div class="card-three-col-stats">
+                  <div class="stat-col">
+                     <span class="col-icon">⏱</span>
+                     <span class="col-val">{{ exam.duration_mins || '—' }} min</span>
+                     <span class="col-lbl">Duration</span>
+                  </div>
+                  <div class="stat-col">
+                     <span class="col-icon">❓</span>
+                     <span class="col-val">{{ exam.total_questions || 0 }} Q</span>
+                     <span class="col-lbl">Questions</span>
+                  </div>
+                  <div class="stat-col" *ngIf="exam.pass_mark != null">
+                     <span class="col-icon">✓</span>
+                     <span class="col-val">{{ exam.pass_mark || 0 }}%</span>
+                     <span class="col-lbl">Pass Mark</span>
+                  </div>
+               </div>
+
+               <div class="card-horizontal-line"></div>
+
+               <!-- Active Attempts Container -->
+               <div class="mobile-attempts-container">
+                  <div 
+                     *ngFor="let item of getAttemptRows(exam); let idx = index; trackBy: trackByAttempt" 
+                     class="mobile-attempt-block" 
+                     [class.mobile-attempt-block--divider]="idx > 0">
+                     
+                     <div class="attempt-block-header">
+                        <span class="attempt-number-badge" *ngIf="getAttemptRows(exam).length > 1 || item.attemptNumber > 1">
+                           Attempt {{ item.attemptNumber }}
+                        </span>
+                        
+                        <div *ngIf="item.scheduleRange" class="schedule-range-inline">
+                           <span class="schedule-time schedule-time--start">{{ item.scheduleRange.split(' - ')[0] }}</span>
+                           <span class="schedule-separator">–</span>
+                           <span class="schedule-time schedule-time--end">{{ item.scheduleRange.split(' - ')[1] || '—' }}</span>
+                        </div>
+                     </div>
+
+                     <div class="card-cta-row full-width-cta">
+                        <button *ngIf="item.canStart" mat-flat-button class="btn-mobile-start btn-full-width" (click)="confirmStartTest(exam, $event)">
+                           🚀 Start Assessment
+                        </button>
+                        <button *ngIf="item.canContinue" mat-flat-button class="btn-mobile-continue btn-full-width" (click)="continueTest(exam, item.attemptObj, $event)">
+                           <mat-icon>play_circle</mat-icon> ▶ Continue Assessment
+                        </button>
+                        <button *ngIf="item.showReviewBtn" mat-flat-button class="btn-mobile-review btn-full-width" [disabled]="!item.canReview" (click)="viewAttemptReview(exam, item.attemptObj, $event)">
+                           <mat-icon>rule</mat-icon> Review
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            </ng-container>
+
+            <!-- COMPLETED TEST CARD FORMAT -->
+            <ng-container *ngIf="selectedTabIndex === 1">
+               <div class="card-main-title">
+                  <h3 class="exam-title-text">{{ exam.title }}</h3>
+               </div>
+
+               <!-- 3 Column Stat Grid -->
+               <div class="card-three-col-stats">
+                  <div class="stat-col">
+                     <span class="col-icon">⏱</span>
+                     <span class="col-val">{{ exam.duration_mins || '—' }} min</span>
+                     <span class="col-lbl">Duration</span>
+                  </div>
+                  <div class="stat-col">
+                     <span class="col-icon">❓</span>
+                     <span class="col-val">{{ exam.total_questions || 0 }} Q</span>
+                     <span class="col-lbl">Questions</span>
+                  </div>
+                  <div class="stat-col" *ngIf="exam.pass_mark != null">
+                     <span class="col-icon">✓</span>
+                     <span class="col-val">{{ exam.pass_mark || 0 }}%</span>
+                     <span class="col-lbl">Pass Mark</span>
+                  </div>
+               </div>
+
+               <!-- Stacked Attempts Container for Completed Test -->
+               <div class="mobile-attempts-container">
+                  <div 
+                     *ngFor="let item of getAttemptRows(exam); let idx = index; trackBy: trackByAttempt" 
+                     class="mobile-attempt-block" 
+                     [class.mobile-attempt-block--divider]="idx > 0">
+                     
+                     <div class="card-horizontal-line" *ngIf="idx > 0"></div>
+
+                     <div class="attempt-block-header">
+                        <span class="attempt-number-badge" *ngIf="getAttemptRows(exam).length > 1 || item.attemptNumber > 1">
+                           Attempt {{ item.attemptNumber }}
+                        </span>
+                        
+                        <div *ngIf="item.scheduleRange" class="schedule-range-inline">
+                           <span class="schedule-time schedule-time--start">{{ item.scheduleRange.split(' - ')[0] }}</span>
+                           <span class="schedule-separator">–</span>
+                           <span class="schedule-time schedule-time--end">{{ item.scheduleRange.split(' - ')[1] || '—' }}</span>
+                        </div>
+                     </div>
+
+                     <!-- Score and Status Result Block -->
+                     <div class="completed-result-block">
+                        <div class="result-score-wrap">
+                           <span class="score-label-sub">Score</span>
+                           <span class="score-main-value" [class.score-pass]="item.statusType === 'PASS'" [class.score-fail]="item.statusType === 'FAIL'">
+                              {{ item.scoreDisplay }}
+                           </span>
+                        </div>
+
+                        <div class="status-pill" [ngClass]="{
+                           'status-pill--active': item.statusType === 'PASS',
+                           'status-pill--fail': item.statusType === 'FAIL'
+                        }">
+                           <span class="status-dot-sm"></span>{{ item.statusType === 'PASS' ? 'PASS' : 'FAIL' }}
+                        </div>
+                     </div>
+
+                     <!-- CTA Action Button -->
+                     <div class="card-cta-row full-width-cta">
+                        <button *ngIf="item.showReviewBtn" mat-flat-button class="btn-mobile-review btn-full-width" [disabled]="!item.canReview" (click)="viewAttemptReview(exam, item.attemptObj, $event)">
+                           <mat-icon>rule</mat-icon> Review
+                        </button>
+                        <button *ngIf="item.canStart" mat-flat-button class="btn-mobile-start btn-full-width" (click)="confirmStartTest(exam, $event)">
+                           🚀 Start Assessment
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            </ng-container>
+         </div>
+
+         <div *ngIf="loading && (!mobileCardsData || mobileCardsData.length === 0)" class="professional-loader-container" style="padding: 3rem 1rem;">
+            <div class="loader-spinner-ring"></div>
+            <div class="loader-text-group">
+               <h5 class="loader-main-text">Loading Assessments</h5>
+               <p class="loader-sub-text">Fetching your active & completed tests...</p>
+            </div>
+         </div>
+         <div *ngIf="!loading && (!mobileCardsData || mobileCardsData.length === 0)" class="no-tests-mobile">
+            <mat-icon class="empty-icon">find_in_page</mat-icon>
+            <p>No tests available in this tab.</p>
+         </div>
+      </div>
    </div>
    <!-- Review modal -->
    <div class="review-backdrop" *ngIf="reviewOpen">
       <div class="review-panel">
          <div class="review-header">
-            <div class="review-header-left">
-               <!-- <div class="review-avatar">
-                  {{ (selectedReviewTitle || '?').charAt(0).toUpperCase() }}
-               </div> -->
-               <div class="review-header-text">
-                  <h3>Test Review</h3>
-                  <h1 class="review-exam-title">{{ selectedReviewTitle }}</h1>
-               </div>
-            </div>
-            <button type="button" mat-icon-button class="review-close-btn" aria-label="Close test review" title="Close"
-               (click)="closeReview()">
-               <mat-icon aria-hidden="true">close</mat-icon>
-            </button>
-         </div>
+             <div class="review-header-content">
+                <div class="review-small-label">
+                   <span class="label-icon">📊</span>
+                   <span>TEST REVIEW</span>
+                </div>
+                <h1 class="review-exam-title">
+                   {{ selectedReviewTitle }}<span *ngIf="selectedReviewDate"> - {{ selectedReviewDate }}</span>
+                </h1>
+             </div>
+             <button type="button" mat-icon-button class="review-close-btn" aria-label="Close test review" title="Close"
+                (click)="closeReview()">
+                <mat-icon aria-hidden="true">close</mat-icon>
+             </button>
+          </div>
 
           <div *ngIf="reviewLoading" class="professional-loader-container">
              <div class="loader-spinner-ring"></div>
@@ -361,13 +523,13 @@
          <mat-tab-group *ngIf="!reviewLoading && reviewAttempts.length" [(selectedIndex)]="reviewSelectedAttempt">
             <mat-tab *ngFor="let a of reviewAttempts; let i = index" [label]="'Attempt ' + a.attempt_number">
                <div class="review-list">
-                  <div class="attempt-meta">
+                  <!-- Desktop Attempt Meta -->
+                  <div class="attempt-meta attempt-meta-desktop">
                      <div class="meta-row primary-row">
                         <div class="meta-item score-item">
                            <strong>Score</strong>
                            <span class="value">{{ a.score || 0 }} / {{ a.total_marks || 0 }}</span>
                         </div>
-                        <!-- percentage -->
                         <div class="meta-item passmark-item" *ngIf="a.percentage">
                            <strong>Percentage</strong>
                            <span class="value">{{ (a.percentage || 0) | number:'1.2-2' }} %</span>
@@ -398,6 +560,60 @@
                            <strong>Submitted</strong>
                            <span class="value">{{ a.submitted_date | date:'EEE, dd MMM yyyy HH:mm' }}</span>
                         </div>
+                     </div>
+                  </div>
+
+                  <!-- Mobile / Tablet Compact Meta Grid -->
+                  <div class="attempt-meta-grid attempt-meta-mobile">
+                     <!-- Status Card -->
+                     <div class="compact-meta-card status-card">
+                        <span class="card-label">Status</span>
+                        <span class="card-value status-pill" [ngClass]="{
+                              'status-evaluated': (a.status | lowercase) === 'evaluated',
+                              'status-in-progress': (a.status | lowercase) === 'in_progress' || (a.status | lowercase) === 'in progress',
+                              'status-failed': (a.status | lowercase) === 'failed'
+                           }">
+                           <span class="status-dot">●</span>
+                           {{ a.status || 'N/A' | uppercase }}
+                        </span>
+                     </div>
+
+                     <!-- Result Card -->
+                     <div class="compact-meta-card result-card" *ngIf="a.result">
+                        <span class="card-label">Result</span>
+                        <span class="card-value result-pill" [ngClass]="{
+                              'result-pass': (a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass',
+                              'result-fail': (a.result | lowercase) === 'failed' || (a.result | lowercase) === 'fail'
+                           }">
+                           <span class="result-dot">●</span>
+                           {{ ((a.result | lowercase) === 'failed' || (a.result | lowercase) === 'fail') ? 'FAIL' : (((a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass') ? 'PASS' : (a.result | uppercase)) }}
+                        </span>
+                     </div>
+
+                     <!-- Time Taken Card -->
+                     <div class="compact-meta-card time-card" *ngIf="a.time_taken">
+                        <span class="card-label">Time Taken</span>
+                        <span class="card-value font-mono">{{ (a.time_taken || '').split('.')[0] }}</span>
+                     </div>
+
+                     <!-- Score Card -->
+                     <div class="compact-meta-card score-card" *ngIf="a.score != null || a.total_marks != null">
+                        <span class="card-label">Score</span>
+                        <span class="card-value score-text">
+                           {{ a.score || 0 }} <span class="total-sep">/ {{ a.total_marks || 0 }}</span>
+                        </span>
+                     </div>
+
+                     <!-- Started Card -->
+                     <div class="compact-meta-card date-card" *ngIf="a.started_date">
+                        <span class="card-label">Started</span>
+                        <span class="card-value date-text">{{ a.started_date | date:'EEE, dd MMM yyyy • HH:mm' }}</span>
+                     </div>
+
+                     <!-- Submitted Card -->
+                     <div class="compact-meta-card date-card" *ngIf="a.submitted_date">
+                        <span class="card-label">Submitted</span>
+                        <span class="card-value date-text">{{ a.submitted_date | date:'EEE, dd MMM yyyy • HH:mm' }}</span>
                      </div>
                   </div>
                   <div class="questions-list">

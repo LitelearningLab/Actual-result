@@ -93,12 +93,15 @@ export interface UserTestRow {
     `
       :host {
         display: block;
+        border-radius: 1.25rem;
+        overflow: hidden;
       }
       .start-confirm-dialog {
         box-sizing: border-box;
-        padding: 1.5rem 1.5rem 1.25rem;
+        padding: 1.75rem 1.5rem 1.25rem;
         text-align: center;
         color: #16293d;
+        border-radius: 1.25rem;
       }
       .dialog-icon {
         width: 3.75rem;
@@ -192,12 +195,15 @@ export class ConfirmStartTestDialogComponent {}
     `
       :host {
         display: block;
+        border-radius: 1.25rem;
+        overflow: hidden;
       }
       .instant-review-dialog {
         box-sizing: border-box;
-        padding: 1.5rem;
+        padding: 1.75rem 1.5rem 1.25rem;
         text-align: center;
         color: #16293d;
+        border-radius: 1.25rem;
       }
       .dialog-icon {
         width: 4rem;
@@ -447,6 +453,93 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Expandable row state & methods
   expandedRows: Set<string> = new Set<string>();
+
+  selectTab(index: number): void {
+    this.selectedTabIndex = index;
+    this.applyFilter();
+  }
+
+  get mobileCardsData(): UserTestRow[] {
+    const src = this.selectedTabIndex === 0 ? this.activeSource : this.completeSource;
+    if (!src) return [];
+    return src.filteredData && src.filteredData.length >= 0 ? src.filteredData : src.data || [];
+  }
+
+  getScheduleDisplay(exam: UserTestRow): string {
+    if (exam.scheduleTest) return exam.scheduleTest;
+    if (exam.start_time && exam.end_time) {
+      return `${exam.start_time} - ${exam.end_time}`;
+    }
+    return '';
+  }
+
+  getMobileStatusClass(exam: UserTestRow): string {
+    const attempts = this.getAttemptRows(exam);
+    if (attempts && attempts.length > 0) {
+      const type = (attempts[0].statusType || '').toUpperCase();
+      if (type === 'PASS') return 'status-pill--pass';
+      if (type === 'ACTIVE') return 'status-pill--active';
+      if (type === 'FAIL') return 'status-pill--fail';
+      if (type === 'UPCOMING' || type === 'SCHEDULED') return 'status-pill--upcoming';
+    }
+    return exam.completed_by_user
+      ? (this.isPass(exam) ? 'status-pill--pass' : 'status-pill--fail')
+      : 'status-pill--active';
+  }
+
+  getMobileStatusText(exam: UserTestRow): string {
+    const attempts = this.getAttemptRows(exam);
+    if (attempts && attempts.length > 0) {
+      return attempts[0].statusType || 'ACTIVE';
+    }
+    return exam.completed_by_user ? (this.isPass(exam) ? 'PASS' : 'FAIL') : 'ACTIVE';
+  }
+
+  getMobileScoreDisplay(exam: UserTestRow): string {
+    const attempts = this.getAttemptRows(exam);
+    if (attempts && attempts.length > 0) {
+      return attempts[0].scoreDisplay || '—';
+    }
+    if (exam.user_percentage != null) return Number(exam.user_percentage).toFixed(2) + '%';
+    return '—';
+  }
+
+  isMobileScorePass(exam: UserTestRow): boolean {
+    const attempts = this.getAttemptRows(exam);
+    if (attempts && attempts.length > 0) {
+      return attempts[0].statusType === 'PASS';
+    }
+    return this.isPass(exam);
+  }
+
+  getCleanExamTitle(exam: UserTestRow): string {
+    const raw = exam?.title || '';
+    if (!raw) return 'Assessment';
+    const idx = raw.search(/\s*-\s*\d{2}\/\d{2}\/\d{4}/);
+    if (idx > 0) {
+      return raw.substring(0, idx).trim();
+    }
+    return raw;
+  }
+
+  getCleanExamDate(exam: UserTestRow): string {
+    let dateStr = '';
+    if (exam.start_time) {
+      dateStr = this.formatAttemptDate(exam.start_time, false);
+    } else if (exam.scheduleTest) {
+      const parts = exam.scheduleTest.split(' - ');
+      dateStr = parts[0] || exam.scheduleTest;
+    } else {
+      const raw = exam?.title || '';
+      const match = raw.match(/\d{2}\/\d{2}\/\d{4}\s*(\d{2}:\d{2})?/);
+      if (match) dateStr = match[0];
+    }
+    if (!dateStr) return '';
+    if (dateStr.toLowerCase().includes('scheduled') || dateStr.toLowerCase().includes('taken')) {
+      return dateStr;
+    }
+    return `Scheduled ${dateStr}`;
+  }
 
   hasMultipleAttempts(row: UserTestRow): boolean {
     const maxAtt = row.number_of_attempts || 0;
@@ -955,6 +1048,28 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  get selectedReviewDate(): string {
+    try {
+      if (this.currentReviewRow) {
+        const d = this.getCleanExamDate(this.currentReviewRow);
+        if (d) return d.replace(/^Scheduled\s*/i, '');
+      }
+      if (!this.reviewAttempts || !this.reviewAttempts.length) return '';
+      const idx = Number(this.reviewSelectedAttempt) || 0;
+      const att = this.reviewAttempts[idx];
+      if (att && att.started_date) {
+        const dateObj = new Date(att.started_date);
+        if (!isNaN(dateObj.getTime())) {
+          const pad = (n: number) => String(n).padStart(2, '0');
+          return `${pad(dateObj.getDate())}/${pad(dateObj.getMonth() + 1)}/${dateObj.getFullYear()} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
+        }
+      }
+      return '';
+    } catch (e) {
+      return '';
+    }
+  }
+
   private currentReviewRow: UserTestRow | null = null;
   private currentReviewAttemptNo: number | null = null;
 
@@ -1357,7 +1472,6 @@ formatSeconds(sec: number | null | undefined): string {
     // Skip a polling cycle while another exam-list request is still active.
     if (this.isFetchingExams) return;
     if (showLoader) {
-      this.loader.show();
       this.loading = true;
     }
     this.isFetchingExams = true;
@@ -1565,7 +1679,7 @@ formatSeconds(sec: number | null | undefined): string {
           configureSorting(this.activeSource);
           configureSorting(this.completeSource);
         } catch (e) {}
-        if (showLoader) this.loader.hide();
+        this.loading = false;
       },
       error: (err) => {
         console.warn('Failed to load tests', err);
@@ -1574,7 +1688,6 @@ formatSeconds(sec: number | null | undefined): string {
         if (showLoader) {
           this.loading = false;
           this.exams = [];
-          this.loader.hide();
         }
       },
     });
@@ -1763,7 +1876,16 @@ formatSeconds(sec: number | null | undefined): string {
       next: (res) => {
         // store the returned exam payload (questions etc) in sessionStorage for the user-exam page
         try {
-          sessionStorage.setItem('launched_exam', JSON.stringify(res?.data || res));
+          const payload = res?.data || res;
+          const schedTitle = ex?.title || ex?.scheduleTest || '';
+          if (payload && schedTitle) {
+            if (payload.exam_detail && !payload.exam_detail.title) {
+              payload.exam_detail.title = schedTitle;
+            } else if (!payload.title) {
+              payload.title = schedTitle;
+            }
+          }
+          sessionStorage.setItem('launched_exam', JSON.stringify(payload));
         } catch (e) {}
         this.loader.hide();
         // navigate to user exam page

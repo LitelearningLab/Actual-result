@@ -989,6 +989,8 @@ def get_user_exam_details(request):
                     ExamSchedule.created_date,
                     ExamSchedule.updated_by,
                     ExamSchedule.updated_date,
+                    ExamSchedule.enable_microphone,
+                    ExamSchedule.enable_scan_text,
                 )
             )
             .join(Exam, ExamSchedule.exam_id == Exam.exam_id)
@@ -1402,6 +1404,8 @@ def get_user_exam_details(request):
                     ),
                     "updated_by": getattr(schedule_obj, "updated_by", None),
                     "updated_date": getattr(schedule_obj, "updated_date", None),
+                    "enable_microphone": True if getattr(schedule_obj, "enable_microphone", None) is None else bool(schedule_obj.enable_microphone),
+                    "enable_scan_text": True if getattr(schedule_obj, "enable_scan_text", None) is None else bool(schedule_obj.enable_scan_text),
                     "type": type,
                 }
             )
@@ -1728,10 +1732,19 @@ def launch_exam_details(schedule_id, user_id):
                 if not isinstance(saved_answers[qid], list):
                     saved_answers[qid] = [saved_answers[qid]]
 
+        enable_mic = bool(exam_schedule.enable_microphone) if (exam_schedule and hasattr(exam_schedule, "enable_microphone") and exam_schedule.enable_microphone is not None) else True
+        enable_scan = bool(exam_schedule.enable_scan_text) if (exam_schedule and hasattr(exam_schedule, "enable_scan_text") and exam_schedule.enable_scan_text is not None) else True
+
+        schedule_title = (
+            exam_schedule.title
+            if (exam_schedule and hasattr(exam_schedule, "title") and exam_schedule.title and str(exam_schedule.title).strip())
+            else None
+        )
+
         exam_detail = {
             "exam_id": exam_data.exam_id,
             "schedule_id": schedule_id,
-            "title": exam_data.title,
+            "title": schedule_title or (exam_data.title if exam_data else ""),
             "attempt_id": current_attempt.attempt_id,
             "duration_mins": duration_mins,
             "total_questions": exam_data.total_questions,
@@ -1742,6 +1755,8 @@ def launch_exam_details(schedule_id, user_id):
             ),
             "remaining_seconds": remaining_seconds,
             "saved_answers": saved_answers,
+            "enable_microphone": enable_mic,
+            "enable_scan_text": enable_scan,
         }
 
         # get all the Questions and options for exam id
@@ -1769,7 +1784,13 @@ def launch_exam_details(schedule_id, user_id):
         json_data = {
             "statusMessage": "Exam details retrieved successfully",
             "status": True,
-            "data": {"exam_detail": exam_detail, "questions": question_list},
+            "data": {
+                "title": schedule_title or (exam_data.title if exam_data else ""),
+                "exam_detail": exam_detail,
+                "questions": question_list,
+                "enable_microphone": enable_mic,
+                "enable_scan_text": enable_scan,
+            },
         }
         return json_data, 200
     except Exception as e:

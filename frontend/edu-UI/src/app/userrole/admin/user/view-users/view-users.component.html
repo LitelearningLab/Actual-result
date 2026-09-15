@@ -535,117 +535,119 @@
     </ng-template>
 
     <div class="list-wrapper">
-      <table
-        mat-table
-        [dataSource]="dataSource"
-        class="mat-elevation-z1 compact premium-table"
-        matSort
-      >
-        <!-- S.No Column -->
-        <ng-container matColumnDef="sno">
-          <th mat-header-cell *matHeaderCellDef>S.No</th>
-          <td mat-cell *matCellDef="let u; let i = index">
-            {{ pageIndex * pageSize + i + 1 }}
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
-          <td mat-cell *matCellDef="let u" class="cell-primary">
-            <div class="user-cell">
-              <div class="user-avatar">{{ (u.name || '?').charAt(0).toUpperCase() }}</div>
-              <div class="user-info">
-                <span class="user-name">{{ u.name }}</span>
-                <span class="user-email" *ngIf="u.email">{{ u.email }}</span>
-              </div>
-            </div>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="institute">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Institute</th>
-          <td mat-cell *matCellDef="let u">{{ u.institute }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="role">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Role</th>
-          <td mat-cell *matCellDef="let u">
-            <span class="role-badge">{{ u.role }}</span>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="department">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Department</th>
-          <td mat-cell *matCellDef="let u">{{ u.department || '—' }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="team">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Team</th>
-          <td mat-cell *matCellDef="let u">{{ u.team || '—' }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="active">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Active</th>
-          <td mat-cell *matCellDef="let u">
-            <button
-              type="button"
-              role="switch"
-              [attr.aria-checked]="u.active ? 'true' : 'false'"
-              [attr.data-state]="u.active ? 'checked' : 'unchecked'"
-              (click)="toggleActive(u)"
-              class="custom-toggle peer inline-flex"
-            >
-              <span
-                class="toggle-thumb"
-                [attr.data-state]="u.active ? 'checked' : 'unchecked'"
-              ></span>
-            </button>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef>Actions</th>
-          <td mat-cell *matCellDef="let u">
-            <div class="actions-inline">
-              <button
-                *hasAccess="'Users'; hasAccessAction: 'view'"
-                mat-icon-button
-                color="primary"
-                (click)="viewDetails(u)"
-                title="View details"
-              >
-                <mat-icon svgIcon="view"></mat-icon>
-              </button>
-              <button
-                *hasAccess="'Users'; hasAccessAction: 'delete'"
-                mat-icon-button
-                color="warn"
-                (click)="deleteUser(u)"
-                title="Delete"
-                class="delete-btn"
-              >
-                <mat-icon svgIcon="delete"></mat-icon>
-              </button>
-            </div>
-          </td>
-        </ng-container>
-
-        <thead>
-          <tr mat-header-row *matHeaderRowDef="columns"></tr>
-        </thead>
-        <tbody>
-          <tr mat-row *matRowDef="let row; columns: columns"></tr>
-          <tr class="mat-row" *matNoDataRow>
-            <td class="mat-cell no-data-cell" [attr.colspan]="columns.length">
-              {{
-                hasAppliedFilters
-                  ? 'No users found for the selected filters.'
-                  : 'Apply filters to view users.'
-              }}
+      <div class="table-responsive">
+        <table
+          mat-table
+          [dataSource]="dataSource"
+          class="mat-elevation-z1 compact premium-table"
+          matSort
+        >
+          <!-- S.No Column -->
+          <ng-container matColumnDef="sno">
+            <th mat-header-cell *matHeaderCellDef>S.No</th>
+            <td mat-cell *matCellDef="let u; let i = index">
+              {{ pageIndex * pageSize + i + 1 }}
             </td>
-          </tr>
-        </tbody>
-      </table>
+          </ng-container>
+
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
+            <td mat-cell *matCellDef="let u" class="cell-primary">
+              <div class="user-cell">
+                <div class="user-avatar">{{ (u.name || '?').charAt(0).toUpperCase() }}</div>
+                <div class="user-info">
+                  <span class="user-name">{{ u.name }}</span>
+                  <span class="user-email" *ngIf="u.email">{{ u.email }}</span>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="institute">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Institute</th>
+            <td mat-cell *matCellDef="let u">{{ u.institute }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="role">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Role</th>
+            <td mat-cell *matCellDef="let u">
+              <span class="role-badge">{{ u.role }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="department">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Department</th>
+            <td mat-cell *matCellDef="let u">{{ u.department || '—' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="team">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Team</th>
+            <td mat-cell *matCellDef="let u">{{ u.team || '—' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="active">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Active</th>
+            <td mat-cell *matCellDef="let u">
+              <button
+                type="button"
+                role="switch"
+                [attr.aria-checked]="u.active ? 'true' : 'false'"
+                [attr.data-state]="u.active ? 'checked' : 'unchecked'"
+                (click)="toggleActive(u)"
+                class="custom-toggle peer inline-flex"
+              >
+                <span
+                  class="toggle-thumb"
+                  [attr.data-state]="u.active ? 'checked' : 'unchecked'"
+                ></span>
+              </button>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <td mat-cell *matCellDef="let u">
+              <div class="actions-inline">
+                <button
+                  *hasAccess="'Users'; hasAccessAction: 'view'"
+                  mat-icon-button
+                  color="primary"
+                  (click)="viewDetails(u)"
+                  title="View details"
+                >
+                  <mat-icon svgIcon="view"></mat-icon>
+                </button>
+                <button
+                  *hasAccess="'Users'; hasAccessAction: 'delete'"
+                  mat-icon-button
+                  color="warn"
+                  (click)="deleteUser(u)"
+                  title="Delete"
+                  class="delete-btn"
+                >
+                  <mat-icon svgIcon="delete"></mat-icon>
+                </button>
+              </div>
+            </td>
+          </ng-container>
+
+          <thead>
+            <tr mat-header-row *matHeaderRowDef="columns"></tr>
+          </thead>
+          <tbody>
+            <tr mat-row *matRowDef="let row; columns: columns"></tr>
+            <tr class="mat-row" *matNoDataRow>
+              <td class="mat-cell no-data-cell" [attr.colspan]="columns.length">
+                {{
+                  hasAppliedFilters
+                    ? 'No users found for the selected filters.'
+                    : 'Apply filters to view users.'
+                }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <mat-paginator
         [length]="totalCount"
         [pageSize]="pageSize"

@@ -888,15 +888,24 @@ app = Flask(__name__)
 ALLOWED_ORIGINS = {
     "http://localhost:4200",
     "http://127.0.0.1:4200",
-    "http://192.168.1.5:4200",
     "http://34.100.213.250:4200",
 }
+
+def is_allowed_origin(origin):
+    if not origin:
+        return False
+    if origin in ALLOWED_ORIGINS:
+        return True
+    # Allow local LAN/Wi-Fi IPs (192.168.x.x, 10.x.x.x, 172.x.x.x)
+    if origin.startswith("http://192.168.") or origin.startswith("http://10.") or origin.startswith("http://172."):
+        return True
+    return False
 
 CORS(
     app,
     resources={
         r"/edu/api/*": {
-            "origins": list(ALLOWED_ORIGINS),
+            "origins": r"http://(localhost|127\.0\.0\.1|34\.100\.213\.250|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.\d+\.\d+\.\d+):4200",
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization", "X-Institute-Id", "X-Global-Institute-Id", "X-Skip-Institute-Context"],
         }
@@ -912,7 +921,7 @@ def add_local_cors_headers(response):
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
     origin = request.headers.get("Origin")
-    if origin in ALLOWED_ORIGINS:
+    if is_allowed_origin(origin):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Institute-Id, X-Global-Institute-Id, X-Skip-Institute-Context"
