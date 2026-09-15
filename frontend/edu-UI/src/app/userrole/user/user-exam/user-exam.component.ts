@@ -718,7 +718,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
           document.querySelector('.public-layout') ||
           document.querySelector('.app-content');
         const isMobile = window.innerWidth <= 768;
-        const stickyOffset = isMobile ? 160 : 100;
+        const stickyOffset = isMobile ? 120 : 100;
         if (scrollContainer) {
           const containerRect = scrollContainer.getBoundingClientRect();
           const elementRect = el.getBoundingClientRect();

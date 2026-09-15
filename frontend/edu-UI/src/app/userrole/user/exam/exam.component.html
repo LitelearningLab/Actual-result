@@ -818,7 +818,7 @@
                               </div>
                            </div>
                         </div>
-                        <div *ngIf="(q.question_type || '') === 'descriptive'" class="desc-student">
+                        <div *ngIf="(q.question_type || '') === 'descriptive'" class="desc-student" [class.desc-student--full]="(q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) >= (q.question_marks || 0)">
                            <div class="student-label">Student's Answer</div>
                            <div class="answer-text">{{ (q.selected_option || []).join(' ') || '-' }}</div>
                         </div>

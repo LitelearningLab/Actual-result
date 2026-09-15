@@ -2,17 +2,17 @@
   <p *ngIf="!exam" class="muted">No exam loaded. Please launch a test first.</p>
   
   <ng-container *ngIf="exam">
-    <!-- Unified Sticky Top Section (Header + Navigation Bar) -->
+    <!-- Non-Sticky Title Bar -->
+    <div class="exam-title-bar">
+      <h1 class="title">{{ getDisplayTestTitle() }}</h1>
+    </div>
+
+    <!-- Sticky Top Section (Stats + Timer + Progress + Navigation Bar) -->
     <div class="sticky-top-section">
       <!-- Header -->
       <header class="header">
-        <!-- Single Top Row: Title (Left) + Stats (Center) + Timer (Right) -->
+        <!-- Top Row: Stats (Left) + Timer (Right) -->
         <div class="header-top-row">
-          <!-- Left: Title -->
-          <div class="header-left">
-            <h1 class="title">{{ getDisplayTestTitle() }}</h1>
-          </div>
-          
           <!-- Center: Answer Status Stats -->
           <div class="progress-stats">
             <div class="stat-item answered">

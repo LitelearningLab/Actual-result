@@ -1907,7 +1907,7 @@
                   <!-- Descriptive answer details -->
                   <div *ngIf="(q.question_type || q.type) === 'descriptive'" class="q-descriptive">
                     <div class="descriptive-answers">
-                      <div class="desc-student">
+                      <div class="desc-student" [class.desc-student--full]="(q.marks_awarded || q.marks || 0) > 0 && (q.marks_awarded || q.marks || 0) >= (q.question_marks || q.total_marks || 0)">
                         <div class="student-label">Student's Answer</div>
                         <div class="answer-text">
                           {{ (q.selected_option || []).join(' ') || 'No answer provided' }}
