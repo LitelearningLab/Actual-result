@@ -1761,6 +1761,8 @@ def launch_exam_details(schedule_id, user_id):
 
         # get all the Questions and options for exam id
         question_list = []
+        rng = random.Random(str(current_attempt.attempt_id))
+
         for question in questions:
             options = (
                 session.query(Option).filter_by(question_id=question.question_id).all()
@@ -1768,6 +1770,9 @@ def launch_exam_details(schedule_id, user_id):
             option_list = [
                 {"id": opt.options_id, "text": opt.option_text} for opt in options
             ]
+            if question.question_type in ["choose", "multi"] and option_list:
+                rng.shuffle(option_list)
+
             question_list.append(
                 {
                     "question_id": question.question_id,
@@ -1780,6 +1785,8 @@ def launch_exam_details(schedule_id, user_id):
                     ),
                 }
             )
+
+        rng.shuffle(question_list)
 
         json_data = {
             "statusMessage": "Exam details retrieved successfully",
