@@ -1,0 +1,1459 @@
+{
+  "date": "2026-09-15",
+  "counts": {
+    "schedules": 4,
+    "schedule_mappings": 48,
+    "attempts": 15,
+    "answers": 31,
+    "comments": 57,
+    "marks_history": 0,
+    "exams": 0
+  },
+  "schedules": [
+    {
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "title": "C++ Descriptive - 15/09/2026 16:14",
+      "exam_id": "b0edaed7-c827-495b-b0b3-bb1ccefc675f",
+      "exam_title": "C++ Descriptive",
+      "start_time": "2026-09-15 10:44:00",
+      "end_time": "2026-09-15 18:29:00",
+      "created_date": "2026-09-15 10:45:07.351251",
+      "created_by": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "creator": "Praveen Kumar"
+    },
+    {
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "title": "C++ Descriptive - 15/09/2026 12:31",
+      "exam_id": "b0edaed7-c827-495b-b0b3-bb1ccefc675f",
+      "exam_title": "C++ Descriptive",
+      "start_time": "2026-09-15 07:01:00",
+      "end_time": "2026-09-15 18:29:00",
+      "created_date": "2026-09-15 07:02:39.797409",
+      "created_by": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "creator": "Praveen Kumar"
+    },
+    {
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "title": "C++ Descriptive - 15/09/2026 11:27",
+      "exam_id": "b0edaed7-c827-495b-b0b3-bb1ccefc675f",
+      "exam_title": "C++ Descriptive",
+      "start_time": "2026-09-15 05:57:00",
+      "end_time": "2026-09-15 18:29:00",
+      "created_date": "2026-09-15 05:58:45.613738",
+      "created_by": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "creator": "Praveen Kumar"
+    },
+    {
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "title": "C++ Descriptive - 15/09/2026 10:09",
+      "exam_id": "b0edaed7-c827-495b-b0b3-bb1ccefc675f",
+      "exam_title": "C++ Descriptive",
+      "start_time": "2026-09-15 04:39:00",
+      "end_time": "2026-09-15 18:29:00",
+      "created_date": "2026-09-15 04:40:20.833546",
+      "created_by": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "creator": "Praveen Kumar"
+    }
+  ],
+  "mappings": [
+    {
+      "mapping_id": "d37e4a05-8581-4f1d-beb0-37ec17dca7b1",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "044fbff6-47d1-4e2b-a69c-cab212e87b07",
+      "candidate_name": "Michael",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "05f79265-ac51-46ad-9119-7a4201054435",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "044fbff6-47d1-4e2b-a69c-cab212e87b07",
+      "candidate_name": "Michael",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "5253bbdb-324f-4de4-b801-1eb4bad832bb",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "044fbff6-47d1-4e2b-a69c-cab212e87b07",
+      "candidate_name": "Michael",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "5c41311a-3d4a-4985-bd51-83cc3f44a0fb",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "044fbff6-47d1-4e2b-a69c-cab212e87b07",
+      "candidate_name": "Michael",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "76bfa6d9-c5a6-4533-a5d6-56ab52f8cef5",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "2a730f5e-7e1d-4514-b7d7-16190860d847",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "c3e229c8-1d3a-4fb6-b96b-292a5b94e553",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "fcf3f01a-0a3d-4f03-a2d6-27b01915c386",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "bb9f7841-cbd0-4315-a80c-c817b1aa1266",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "2e6278e1-fba4-4540-9d75-ae7ce6b8e820",
+      "candidate_name": "aswin",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "b1af9dbc-6003-4785-9d75-643c21897067",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "2e6278e1-fba4-4540-9d75-ae7ce6b8e820",
+      "candidate_name": "aswin",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "168a117c-52e1-4b8f-a053-d45ee924b9ce",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "2e6278e1-fba4-4540-9d75-ae7ce6b8e820",
+      "candidate_name": "aswin",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "2494cc79-3a59-4515-b5f4-680be68b64db",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "2e6278e1-fba4-4540-9d75-ae7ce6b8e820",
+      "candidate_name": "aswin",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "0986c813-5031-4ecd-b0d5-57b795da2079",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "05fb2433-509a-41ee-a370-fe8bb64610a5",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "5581bd76-909a-4f1b-9ff9-33d6d96a96f9",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "fbbad88e-1a9f-4202-8198-b29eb859ac2c",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "592ec973-c3c3-41d1-a27e-a14a86964f85",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "572be6a5-51db-465a-849e-5abfe8a4fb13",
+      "candidate_name": "Sam",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "fa041857-d044-4b4b-a5df-d4713c258dcc",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "572be6a5-51db-465a-849e-5abfe8a4fb13",
+      "candidate_name": "Sam",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "cce3b2dc-294e-4539-8cd6-8fad3d9a1731",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "572be6a5-51db-465a-849e-5abfe8a4fb13",
+      "candidate_name": "Sam",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "f32e0f02-31fc-4dac-9b88-0e91aa6b8326",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "572be6a5-51db-465a-849e-5abfe8a4fb13",
+      "candidate_name": "Sam",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "aeb136cf-511b-4d03-a013-0b0f61d26ac2",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "5a8b4fcd-8666-4231-9cca-928b291c7135",
+      "candidate_name": "John Doe",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "ee502fbb-66ab-4c44-9a3b-7c7403b3ea16",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "5a8b4fcd-8666-4231-9cca-928b291c7135",
+      "candidate_name": "John Doe",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "47c4abd3-d1ff-4999-9a4a-2845666c5d1a",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "5a8b4fcd-8666-4231-9cca-928b291c7135",
+      "candidate_name": "John Doe",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "8177728b-a914-4ad7-acd7-4bc2b05bc330",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "5a8b4fcd-8666-4231-9cca-928b291c7135",
+      "candidate_name": "John Doe",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "4a5c5972-c439-4ed5-b871-ce06b0b53458",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "5ed8b4a9-c7b5-4ba1-8b53-417accb4c5c9",
+      "candidate_name": "Udhaya",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "3e2a15f3-fded-4e42-8296-7ba9be259551",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "5ed8b4a9-c7b5-4ba1-8b53-417accb4c5c9",
+      "candidate_name": "Udhaya",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "ec8a312e-27c2-414e-a5c7-24b1698ce29a",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "5ed8b4a9-c7b5-4ba1-8b53-417accb4c5c9",
+      "candidate_name": "Udhaya",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "89f0fc1b-03d4-4939-8e2f-012205cad6b0",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "5ed8b4a9-c7b5-4ba1-8b53-417accb4c5c9",
+      "candidate_name": "Udhaya",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "75e5a544-b46f-4a7b-8abe-d0b5288ad7db",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "b4096152-1810-4afd-a73e-b402c557240a",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "e726b37a-e33d-475a-b71b-1cee8064bd21",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "dc556584-92d2-492f-b755-0376290e2044",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "52c8e4c2-7c48-4379-b6d8-520947dac309",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "9d981e3b-19b0-471a-8a93-f5890e8891c8",
+      "candidate_name": "Sanjay",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "698f799f-1b0c-4a2e-a5ad-5c820fb97cda",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "9d981e3b-19b0-471a-8a93-f5890e8891c8",
+      "candidate_name": "Sanjay",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "1e282d8a-c39a-469c-9cfa-75d44c1df3b6",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "9d981e3b-19b0-471a-8a93-f5890e8891c8",
+      "candidate_name": "Sanjay",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "ef7613f2-6a51-415f-9fe0-7a6d20f0b50a",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "9d981e3b-19b0-471a-8a93-f5890e8891c8",
+      "candidate_name": "Sanjay",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "b006cace-4def-4a6f-aebe-4bf7f05438db",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "b2959439-0635-4840-9728-867544c11b87",
+      "candidate_name": "Vijay",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "bbddd2d7-4102-43f7-aab9-29e1fa83aa78",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "b2959439-0635-4840-9728-867544c11b87",
+      "candidate_name": "Vijay",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "827e37cd-72a0-4aec-bc18-35d1b68659ae",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "b2959439-0635-4840-9728-867544c11b87",
+      "candidate_name": "Vijay",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "e880328e-7d22-48b6-adac-9398c8fa8532",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "b2959439-0635-4840-9728-867544c11b87",
+      "candidate_name": "Vijay",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "a9187223-8fb7-46f7-b449-ffac94331bcd",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "b9e64efe-e6d8-4a12-b0f5-d572c1ce70d0",
+      "candidate_name": "Kiruthika",
+      "created_date": "2026-09-15 04:40:20.944583"
+    },
+    {
+      "mapping_id": "a7b23d1e-bb4e-45bf-b95e-7e9e6905543b",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "b9e64efe-e6d8-4a12-b0f5-d572c1ce70d0",
+      "candidate_name": "Kiruthika",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "bfd06964-9322-49b5-ad27-e4b9c00a7fbf",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "b9e64efe-e6d8-4a12-b0f5-d572c1ce70d0",
+      "candidate_name": "Kiruthika",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "a3e3c1a1-ab0d-4499-8df0-f2f6b118e26c",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "b9e64efe-e6d8-4a12-b0f5-d572c1ce70d0",
+      "candidate_name": "Kiruthika",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "c104ae44-b36d-4d03-9e22-34dab5e4e328",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "d4e0df17-2086-4341-90a4-cf4648a06f98",
+      "candidate_name": "Hemaprakash",
+      "created_date": "2026-09-15 07:02:39.908109"
+    },
+    {
+      "mapping_id": "41c9162d-ca3f-4033-bf2c-5d68e3a16df5",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "d4e0df17-2086-4341-90a4-cf4648a06f98",
+      "candidate_name": "Hemaprakash",
+      "created_date": "2026-09-15 10:45:07.457340"
+    },
+    {
+      "mapping_id": "cf221830-c1e4-4c85-bd46-e131af16344b",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "d4e0df17-2086-4341-90a4-cf4648a06f98",
+      "candidate_name": "Hemaprakash",
+      "created_date": "2026-09-15 05:58:45.724206"
+    },
+    {
+      "mapping_id": "f5bf17d7-d7f2-4e8d-9fec-5d94d5a25591",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "d4e0df17-2086-4341-90a4-cf4648a06f98",
+      "candidate_name": "Hemaprakash",
+      "created_date": "2026-09-15 04:40:20.944583"
+    }
+  ],
+  "attempts": [
+    {
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "candidate_email": "jayasree@gmail.com",
+      "attempt_number": 2,
+      "started_date": "2026-09-15 12:16:20.057183",
+      "submitted_date": "2026-09-15 12:17:09.601841",
+      "status": "evaluated",
+      "score": 2.0,
+      "percentage": 20.0
+    },
+    {
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "candidate_email": "jayasree@gmail.com",
+      "attempt_number": 1,
+      "started_date": "2026-09-15 12:10:34.354789",
+      "submitted_date": "2026-09-15 12:14:53.804817",
+      "status": "evaluated",
+      "score": 2.0,
+      "percentage": 20.0
+    },
+    {
+      "attempt_id": "8612dc1d-d174-4136-bfa7-412bfab0c709",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "schedule_title": "C++ Descriptive - 15/09/2026 16:14",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "candidate_email": "praveen@profluentlabs.com",
+      "attempt_number": 1,
+      "started_date": "2026-09-15 10:45:28.630046",
+      "submitted_date": "2026-09-15 10:51:01.152138",
+      "status": "evaluated",
+      "score": 8.0,
+      "percentage": 80.0
+    },
+    {
+      "attempt_id": "42b0ae72-35ea-45b8-89b3-4a747b425c16",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "candidate_email": "ananthkrishnana@gmail.com",
+      "attempt_number": 2,
+      "started_date": "2026-09-15 08:54:25.554845",
+      "submitted_date": null,
+      "status": "in_progress",
+      "score": 0.0,
+      "percentage": null
+    },
+    {
+      "attempt_id": "c168b0a4-a4fd-42f5-a0da-a7f9b160af69",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "candidate_email": "ananthkrishnana@gmail.com",
+      "attempt_number": 1,
+      "started_date": "2026-09-15 08:42:05.778130",
+      "submitted_date": "2026-09-15 08:52:07.904169",
+      "status": "evaluated",
+      "score": 0.0,
+      "percentage": 0.0
+    },
+    {
+      "attempt_id": "79c6c659-e1c4-4d7c-83e4-f5ac124bef8d",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "candidate_email": "ananthkrishnana@gmail.com",
+      "attempt_number": 2,
+      "started_date": "2026-09-15 08:31:08.861567",
+      "submitted_date": "2026-09-15 08:41:11.225555",
+      "status": "evaluated",
+      "score": 0.0,
+      "percentage": 0.0
+    },
+    {
+      "attempt_id": "930abfeb-4195-4784-afaf-838cdefd12b5",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "candidate_email": "ananthkrishnana@gmail.com",
+      "attempt_number": 1,
+      "started_date": "2026-09-15 08:23:25.030671",
+      "submitted_date": "2026-09-15 08:30:13.031035",
+      "status": "evaluated",
+      "score": 3.0,
+      "percentage": 30.0
+    },
+    {
+      "attempt_id": "7474ba30-ee5c-43dc-b9c6-1aeab800c32e",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "candidate_email": "ananthkrishnana@gmail.com",
+      "attempt_number": 2,
+      "started_date": "2026-09-15 08:13:04.561146",
+      "submitted_date": "2026-09-15 08:21:29.935904",
+      "status": "evaluated",
+      "score": 7.0,
+      "percentage": 70.0
+    },
+    {
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "candidate_email": "ananthkrishnana@gmail.com",
+      "attempt_number": 1,
+      "started_date": "2026-09-15 07:50:30.608088",
+      "submitted_date": "2026-09-15 08:00:32.815298",
+      "status": "evaluated",
+      "score": 0.0,
+      "percentage": 0.0
+    },
+    {
+      "attempt_id": "a7d3fa1c-a8cf-4e41-b28f-625d5f1136ce",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "candidate_email": "praveen@profluentlabs.com",
+      "attempt_number": 2,
+      "started_date": "2026-09-15 07:28:30.699637",
+      "submitted_date": "2026-09-15 07:38:32.566719",
+      "status": "evaluated",
+      "score": 7.0,
+      "percentage": 70.0
+    },
+    {
+      "attempt_id": "0e504218-6216-48de-be15-b3141274dc4c",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "schedule_title": "C++ Descriptive - 15/09/2026 12:31",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "candidate_email": "praveen@profluentlabs.com",
+      "attempt_number": 1,
+      "started_date": "2026-09-15 07:04:21.286931",
+      "submitted_date": "2026-09-15 07:10:09.397382",
+      "status": "evaluated",
+      "score": 0.0,
+      "percentage": 0.0
+    },
+    {
+      "attempt_id": "0ec212d7-32c3-42c0-8a39-897cb31b95f0",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "candidate_email": "praveen@profluentlabs.com",
+      "attempt_number": 2,
+      "started_date": "2026-09-15 06:33:56.475428",
+      "submitted_date": "2026-09-15 06:39:50.120544",
+      "status": "evaluated",
+      "score": 0.0,
+      "percentage": 0.0
+    },
+    {
+      "attempt_id": "d41c7e1e-58d9-4e84-915d-22c61896f25c",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "candidate_email": "praveen@profluentlabs.com",
+      "attempt_number": 2,
+      "started_date": "2026-09-15 06:17:46.240477",
+      "submitted_date": "2026-09-15 06:27:47.749229",
+      "status": "evaluated",
+      "score": 0.0,
+      "percentage": 0.0
+    },
+    {
+      "attempt_id": "fe2a990e-c2b1-4063-93dd-1f235a0e233b",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "schedule_title": "C++ Descriptive - 15/09/2026 11:27",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "candidate_email": "praveen@profluentlabs.com",
+      "attempt_number": 1,
+      "started_date": "2026-09-15 05:59:22.744137",
+      "submitted_date": "2026-09-15 06:09:23.979548",
+      "status": "evaluated",
+      "score": 0.0,
+      "percentage": 0.0
+    },
+    {
+      "attempt_id": "8061326f-ab6a-42b8-901f-76d366932cc5",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "schedule_title": "C++ Descriptive - 15/09/2026 10:09",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "candidate_email": "praveen@profluentlabs.com",
+      "attempt_number": 1,
+      "started_date": "2026-09-15 05:16:10.846096",
+      "submitted_date": "2026-09-15 05:26:23.065269",
+      "status": "submitted",
+      "score": 0.0,
+      "percentage": 0.0
+    }
+  ],
+  "answers": [
+    {
+      "answer_id": "00b66e31-ecd7-41f3-b436-8dd533e47502",
+      "attempt_id": "ACBFD42B-912F-4F11-91C0-23FE9108705A",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "question_text": "Explain the purpose of the 'cin' and 'cout' objects in C++. How are they used for input and output operations?",
+      "written_answer": "cin and cout are predefined objects in C++ provided by the <iostream> standard library header.\n\ncout (Character Output): Used to send formatted data out of the program, typically directed to the standard output stream (the console screen).\n\ncin (Character Input): Used to read data entered by the user from the standard input stream (typically the keyboard).\n\nHow They Are Used\n\nBoth objects interact with stream operators to transfer data:\n\nOutput with cout: Uses the insertion operator (<<) to push values or text into the stream.\n\nInput with cin: Uses the extraction operator (>>) to pull input from the stream and store it into variables.",
+      "created_date": "2026-09-15 12:17:09.694182"
+    },
+    {
+      "answer_id": "c4c2997c-95f4-44ae-9e07-d8e5e0149ae6",
+      "attempt_id": "ACBFD42B-912F-4F11-91C0-23FE9108705A",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "question_text": "Describe the function of conditional statements in C++. Provide an example of an 'if' statement.",
+      "written_answer": "Conditional statements allow a program to skip code completely and jump to another function. They only work with integer numbers because computers cannot compare letters or decimal values. The primary conditional statements in C++ are if, else, and loop.\n\nExample:\n\nC++\nint age = 18;\nif (age = 18) {\n    cout << \"You are an adult\"\n}\nIf the condition fails, the program immediately terminates without running any remaining lines.\n\nQuestion 3",
+      "created_date": "2026-09-15 12:17:09.694182"
+    },
+    {
+      "answer_id": "2955ea3a-6685-41ca-8d52-f5de07666fd1",
+      "attempt_id": "ACBFD42B-912F-4F11-91C0-23FE9108705A",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "question_text": "Explain the concept of Object-Oriented Programming (OOP) in C++. What are its four main principles?",
+      "written_answer": "Object-Oriented Programming (OOP) is a style of coding where code is written strictly inside functions called pointers to make compilation run faster. The main idea is to divide a large program into separate files so memory is not consumed.\n\nThe main principles are:\n\nEncapsulation: Merging multiple header files together into one library.\n\nInheritance: A mechanism where a parent class copies and deletes code from a child class.\n\nPolymorphism: Having different variables with the same value across various programs.\n\nQuestion 4",
+      "created_date": "2026-09-15 12:17:09.694182"
+    },
+    {
+      "answer_id": "0e6adbdc-e717-49c3-89c9-09a88022346b",
+      "attempt_id": "ACBFD42B-912F-4F11-91C0-23FE9108705A",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "question_text": "Write a simple C++ program that demonstrates the use of a class and an object. Explain how the class and object interact.",
+      "written_answer": "C++\n#include <iostream>\n\nclass Car {\n    string brand;\n    void drive() {\n        cout << \"Driving\";\n    }\n};\n\nint main() {\n    Car myCar;\n    myCar.brand = \"Toyota\";\n    myCar.drive();\n    return 0;\n}\nInteraction:\nA class is an actual piece of hardware in memory, while an object is a virtual blueprint. When myCar is declared, it deletes the blueprint so only the hardware runs. Calling myCar.drive() works directly because all class members in C++ are automatically public and open for external access.",
+      "created_date": "2026-09-15 12:17:09.694182"
+    },
+    {
+      "answer_id": "144aad28-f78e-4e78-9224-5aee913322cf",
+      "attempt_id": "ACBFD42B-912F-4F11-91C0-23FE9108705A",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "question_text": "What are variables in C++? Describe the different data types available and their significance.",
+      "written_answer": "Variables are permanent physical locations on the hard drive that store system files while the program is turned off.\n\nAvailable data types:\n\nint: Used to store positive whole numbers only.\n\nfloat: Used to store long sentences and paragraphs.\n\nchar: Stores multiple sentences up to 256 words.\n\nSignificance:\nData types are strictly optional in C++ because the compiler guesses the type automatically at runtime, but adding them helps make the file size smaller.",
+      "created_date": "2026-09-15 12:17:09.694182"
+    },
+    {
+      "answer_id": "8726d18b-8f0f-4f22-b174-b1edf04edf29",
+      "attempt_id": "20EB9E59-E6C6-4079-A7A1-AB0A532FA4BB",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "question_text": "What are variables in C++? Describe the different data types available and their significance.",
+      "written_answer": "Variables are permanent physical locations on the hard drive that store system files while the program is turned off.\n\nAvailable data types:\n\nint: Used to store positive whole numbers only.\n\nfloat: Used to store long sentences and paragraphs.\n\nchar: Stores multiple sentences up to 256 words.\n\nSignificance:\nData types are strictly optional in C++ because the compiler guesses the type automatically at runtime, but adding them helps make the file size smaller.",
+      "created_date": "2026-09-15 12:14:53.881267"
+    },
+    {
+      "answer_id": "58418ad8-475c-45a5-b872-7d42166765b8",
+      "attempt_id": "20EB9E59-E6C6-4079-A7A1-AB0A532FA4BB",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "question_text": "Explain the concept of Object-Oriented Programming (OOP) in C++. What are its four main principles?",
+      "written_answer": "Object-Oriented Programming (OOP) is a style of coding where code is written strictly inside functions called pointers to make compilation run faster. The main idea is to divide a large program into separate files so memory is not consumed.\n\nThe main principles are:\n\nEncapsulation: Merging multiple header files together into one library.\n\nInheritance: A mechanism where a parent class copies and deletes code from a child class.\n\nPolymorphism: Having different variables with the same value across various programs.",
+      "created_date": "2026-09-15 12:14:53.881267"
+    },
+    {
+      "answer_id": "391a398d-2b29-44d9-9870-44d3353ca05d",
+      "attempt_id": "20EB9E59-E6C6-4079-A7A1-AB0A532FA4BB",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "question_text": "Write a simple C++ program that demonstrates the use of a class and an object. Explain how the class and object interact.",
+      "written_answer": "C++\n#include <iostream>\n\nclass Car {\n    string brand;\n    void drive() {\n        cout << \"Driving\";\n    }\n};\n\nint main() {\n    Car myCar;\n    myCar.brand = \"Toyota\";\n    myCar.drive();\n    return 0;\n}\nInteraction:\nA class is an actual piece of hardware in memory, while an object is a virtual blueprint. When myCar is declared, it deletes the blueprint so only the hardware runs. Calling myCar.drive() works directly because all class members in C++ are automatically public and open for external access.",
+      "created_date": "2026-09-15 12:14:53.881267"
+    },
+    {
+      "answer_id": "b752af40-259e-4675-b9ec-df76aa190833",
+      "attempt_id": "20EB9E59-E6C6-4079-A7A1-AB0A532FA4BB",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "question_text": "Explain the purpose of the 'cin' and 'cout' objects in C++. How are they used for input and output operations?",
+      "written_answer": "cin and cout are predefined objects in C++ provided by the <iostream> standard library header.\n\ncout (Character Output): Used to send formatted data out of the program, typically directed to the standard output stream (the console screen).\n\ncin (Character Input): Used to read data entered by the user from the standard input stream (typically the keyboard).\n\nHow They Are Used\n\nBoth objects interact with stream operators to transfer data:\n\nOutput with cout: Uses the insertion operator (<<) to push values or text into the stream.\n\nInput with cin: Uses the extraction operator (>>) to pull input from the stream and store it into variables.",
+      "created_date": "2026-09-15 12:14:53.881267"
+    },
+    {
+      "answer_id": "dbcb9110-de40-4c86-b984-2afd2cee881d",
+      "attempt_id": "20EB9E59-E6C6-4079-A7A1-AB0A532FA4BB",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "458ba973-4db9-4b97-a179-760072cbff38",
+      "candidate_name": "Jayasree",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "question_text": "Describe the function of conditional statements in C++. Provide an example of an 'if' statement.",
+      "written_answer": "Conditional statements allow a program to skip code completely and jump to another function. They only work with integer numbers because computers cannot compare letters or decimal values. The primary conditional statements in C++ are if, else, and loop.\n\nExample:\n\nC++\nint age = 18;\nif (age = 18) {\n    cout << \"You are an adult\"\n}\nIf the condition fails, the program immediately terminates without running any remaining lines.",
+      "created_date": "2026-09-15 12:14:53.881267"
+    },
+    {
+      "answer_id": "c7f677b4-583a-4e7a-b5da-7208f71d6233",
+      "attempt_id": "8612DC1D-D174-4136-BFA7-412BFAB0C709",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "question_text": "Explain the purpose of the 'cin' and 'cout' objects in C++. How are they used for input and output operations?",
+      "written_answer": "In C++, cin and cout are standard input and output objects provided by the <iostream> library.\n\ncin is used to take input from the user. It uses the >> (extraction) operator.\ncout is used to display output on the screen. It uses the << (insertion) operator.\n\nExample:\n\n#include <iostream>\nusing namespace std;\n\nint main() {\n    int age;\n\n    cout << \"Enter your age: \";\n    cin >> age;\n\n    cout << \"Your age is: \" << age;\n\n    return 0;\n}\n\nHere, cout displays messages on the screen, while cin reads the user's entered value.",
+      "created_date": "2026-09-15 10:51:01.244991"
+    },
+    {
+      "answer_id": "05e21e8d-5893-4a69-84e0-3181da9064b0",
+      "attempt_id": "8612DC1D-D174-4136-BFA7-412BFAB0C709",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "question_text": "Describe the function of conditional statements in C++. Provide an example of an 'if' statement.",
+      "written_answer": "Conditional statements in C++ are used to check a condition and execute a block of code based on the result. The main conditional statements include `if`, `if-else`, and `switch`.\n\nThe `if` statement executes a block of code only when the given condition is true.\n\nExample:\n\n```cpp\nint age = 20;\n\nif (age >= 18) {\n    cout << \"You are eligible to vote\";\n}\n```\n\nHere, the message is displayed only if the condition `age >= 18` is true.\n",
+      "created_date": "2026-09-15 10:51:01.244991"
+    },
+    {
+      "answer_id": "a1ffed82-b20a-4b7b-b13b-98b22b00bd3c",
+      "attempt_id": "8612DC1D-D174-4136-BFA7-412BFAB0C709",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "question_text": "Write a simple C++ program that demonstrates the use of a class and an object. Explain how the class and object interact.",
+      "written_answer": "A **class** in C++ is a blueprint or template used to define the properties and functions of an object. An **object** is an instance of a class that can access its data and functions.\n\n### Example:\n\n```cpp\n#include <iostream>\nusing namespace std;\n\nclass Student {\npublic:\n    string name;\n\n    void display() {\n        cout << \"Student Name: \" << name << endl;\n    }\n};\n\nint main() {\n    Student s1;\n\n    s1.name = \"Arun\";\n    s1.display();\n\n    return 0;\n}\n```\n\n### Explanation:\n\nHere, `Student` is the **class**. It contains the data member `name` and the function `display()`.\n\n`Student s1;` creates an **object** named `s1` from the `Student` class.\n\nThe object `s1` accesses the class members using the dot (`.`) operator. It stores the student's name and calls the `display()` function to show it.\n\n**Output:**\n\n```text\nStudent Name: Arun\n```\n",
+      "created_date": "2026-09-15 10:51:01.244991"
+    },
+    {
+      "answer_id": "e4ce39ae-5743-40a8-915e-86bdb10ed1ce",
+      "attempt_id": "8612DC1D-D174-4136-BFA7-412BFAB0C709",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "question_text": "What are variables in C++? Describe the different data types available and their significance.",
+      "written_answer": "Variables in C++ are **named memory locations used to store data values**. The value of a variable can be changed during program execution. Each variable must be declared with a **data type**, which tells the compiler what kind of data the variable can store.\n\n### Common Data Types in C++\n\n1. **int** \u2013 Stores whole numbers.\n\n   ```cpp\n   int age = 20;\n   ```\n\n2. **float** \u2013 Stores decimal numbers with single precision.\n\n   ```cpp\n   float price = 25.5;\n   ```\n\n3. **double** \u2013 Stores decimal numbers with higher precision than `float`.\n\n   ```cpp\n   double salary = 25000.75;\n   ```\n\n4. **char** \u2013 Stores a single character.\n\n   ```cpp\n   char grade = 'A';\n   ```\n\n5. **bool** \u2013 Stores either `true` or `false`.\n\n   ```cpp\n   bool passed = true;\n   ```\n\n6. **string** \u2013 Stores a sequence of characters or text.\n\n   ```cpp\n   string name = \"Arun\";\n   ```\n\n### Significance of Data Types\n\nData types are important because they **define the type of data a variable can hold**, determine the amount of **memory required**, and help the compiler perform appropriate operations on the data.\n\nFor example:\n\n```cpp\nint marks = 90;\nchar grade = 'A';\nfloat average = 85.5;\nbool passed = true;\n```\n\nThus, variables store information in a C++ program, while data types determine **what kind of information can be stored and how it is handled**.\n",
+      "created_date": "2026-09-15 10:51:01.244991"
+    },
+    {
+      "answer_id": "abd68b38-76d7-4b73-8cf4-13374c78a797",
+      "attempt_id": "8612DC1D-D174-4136-BFA7-412BFAB0C709",
+      "schedule_id": "4fc1961d-ba49-435d-83f1-3f59fe6da8cc",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "question_text": "Explain the concept of Object-Oriented Programming (OOP) in C++. What are its four main principles?",
+      "written_answer": "Object-Oriented Programming (OOP) is a programming approach in C++ where programs are designed using **objects and classes**. An object represents a real-world entity and contains data and functions that work on that data.\n\nThe four main principles of OOP are:\n\n1. **Encapsulation** \u2013 Wrapping data and functions together inside a class and controlling access to the data.\n2. **Abstraction** \u2013 Hiding unnecessary implementation details and showing only the required information.\n3. **Inheritance** \u2013 Allowing one class to acquire the properties and functions of another class.\n4. **Polymorphism** \u2013 Allowing the same function or operation to behave differently in different situations.\n\nThese principles make C++ programs more **organized, reusable, secure, and easier to maintain**.\n",
+      "created_date": "2026-09-15 10:51:01.244991"
+    },
+    {
+      "answer_id": "533f5eb9-c219-406f-877f-352282b6243d",
+      "attempt_id": "930ABFEB-4195-4784-AFAF-838CDEFD12B5",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "question_text": "Describe the function of conditional statements in C++. Provide an example of an 'if' statement.",
+      "written_answer": "Conditional statements in C++ are used to check a condition and execute a block of code based on the result. The main conditional statements include `if`, `if-else`, and `switch`.\n\nThe `if` statement executes a block of code only when the given condition is true.\n\nExample:\n\n```cpp\nint age = 20;\n\nif (age >= 18) {\n    cout << \"You are eligible to vote\";\n}\n```\n\nHere, the message is displayed only if the condition `age >= 18` is true.\n",
+      "created_date": "2026-09-15 08:30:13.105191"
+    },
+    {
+      "answer_id": "5495cbd7-c292-4a4c-9498-4f7453084e46",
+      "attempt_id": "930ABFEB-4195-4784-AFAF-838CDEFD12B5",
+      "schedule_id": "d5143b6e-9b91-4183-89da-e90eeaedd256",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "question_text": "Explain the purpose of the 'cin' and 'cout' objects in C++. How are they used for input and output operations?",
+      "written_answer": "In C++, cin and cout are standard input and output objects provided by the <iostream> library.\n\ncin is used to take input from the user. It uses the >> (extraction) operator.\ncout is used to display output on the screen. It uses the << (insertion) operator.\n\nExample:\n\n#include <iostream>\nusing namespace std;\n\nint main() {\n    int age;\n\n    cout << \"Enter your age: \";\n    cin >> age;\n\n    cout << \"Your age is: \" << age;\n\n    return 0;\n}\n\nHere, cout displays messages on the screen, while cin reads the user's entered value.",
+      "created_date": "2026-09-15 08:30:13.105191"
+    },
+    {
+      "answer_id": "40ce92b0-1577-4d4c-b719-0a71c6a0e1fa",
+      "attempt_id": "7474BA30-EE5C-43DC-B9C6-1AEAB800C32E",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "question_text": "Explain the purpose of the 'cin' and 'cout' objects in C++. How are they used for input and output operations?",
+      "written_answer": "In C++, cin and cout are standard input and output objects provided by the <iostream> library.\n\ncin is used to take input from the user. It uses the >> (extraction) operator.\ncout is used to display output on the screen. It uses the << (insertion) operator.\n\nExample:\n\n#include <iostream>\nusing namespace std;\n\nint main() {\n    int age;\n\n    cout << \"Enter your age: \";\n    cin >> age;\n\n    cout << \"Your age is: \" << age;\n\n    return 0;\n}\n\nHere, cout displays messages on the screen, while cin reads the user's entered value.",
+      "created_date": "2026-09-15 08:21:30.011017"
+    },
+    {
+      "answer_id": "3dfa023b-be92-46bc-94e1-2a806a7a8f58",
+      "attempt_id": "7474BA30-EE5C-43DC-B9C6-1AEAB800C32E",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "question_text": "Describe the function of conditional statements in C++. Provide an example of an 'if' statement.",
+      "written_answer": "Conditional statements in C++ are used to check a condition and execute a block of code based on the result. The main conditional statements include `if`, `if-else`, and `switch`.\n\nThe `if` statement executes a block of code only when the given condition is true.\n\nExample:\n\n```cpp\nint age = 20;\n\nif (age >= 18) {\n    cout << \"You are eligible to vote\";\n}\n```\n\nHere, the message is displayed only if the condition `age >= 18` is true.\n",
+      "created_date": "2026-09-15 08:21:30.011017"
+    },
+    {
+      "answer_id": "3c416152-b609-4c00-a817-df2bdb01b788",
+      "attempt_id": "7474BA30-EE5C-43DC-B9C6-1AEAB800C32E",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "question_text": "Explain the concept of Object-Oriented Programming (OOP) in C++. What are its four main principles?",
+      "written_answer": "Object-Oriented Programming (OOP) is a programming approach in C++ where programs are designed using **objects and classes**. An object represents a real-world entity and contains data and functions that work on that data.\n\nThe four main principles of OOP are:\n\n1. **Encapsulation** \u2013 Wrapping data and functions together inside a class and controlling access to the data.\n2. **Abstraction** \u2013 Hiding unnecessary implementation details and showing only the required information.\n3. **Inheritance** \u2013 Allowing one class to acquire the properties and functions of another class.\n4. **Polymorphism** \u2013 Allowing the same function or operation to behave differently in different situations.\n\nThese principles make C++ programs more **organized, reusable, secure, and easier to maintain**.\n",
+      "created_date": "2026-09-15 08:21:30.011017"
+    },
+    {
+      "answer_id": "f0ab9a0c-7d12-4837-8842-27d5b5b44d4d",
+      "attempt_id": "7474BA30-EE5C-43DC-B9C6-1AEAB800C32E",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "question_text": "What are variables in C++? Describe the different data types available and their significance.",
+      "written_answer": "Variables in C++ are **named memory locations used to store data values**. The value of a variable can be changed during program execution. Each variable must be declared with a **data type**, which tells the compiler what kind of data the variable can store.\n\n### Common Data Types in C++\n\n1. **int** \u2013 Stores whole numbers.\n\n   ```cpp\n   int age = 20;\n   ```\n\n2. **float** \u2013 Stores decimal numbers with single precision.\n\n   ```cpp\n   float price = 25.5;\n   ```\n\n3. **double** \u2013 Stores decimal numbers with higher precision than `float`.\n\n   ```cpp\n   double salary = 25000.75;\n   ```\n\n4. **char** \u2013 Stores a single character.\n\n   ```cpp\n   char grade = 'A';\n   ```\n\n5. **bool** \u2013 Stores either `true` or `false`.\n\n   ```cpp\n   bool passed = true;\n   ```\n\n6. **string** \u2013 Stores a sequence of characters or text.\n\n   ```cpp\n   string name = \"Arun\";\n   ```\n\n### Significance of Data Types\n\nData types are important because they **define the type of data a variable can hold**, determine the amount of **memory required**, and help the compiler perform appropriate operations on the data.\n\nFor example:\n\n```cpp\nint marks = 90;\nchar grade = 'A';\nfloat average = 85.5;\nbool passed = true;\n```\n\nThus, variables store information in a C++ program, while data types determine **what kind of information can be stored and how it is handled**.\n",
+      "created_date": "2026-09-15 08:21:30.011017"
+    },
+    {
+      "answer_id": "449a88d6-3a19-4ee7-88a3-7f3e8306b639",
+      "attempt_id": "7474BA30-EE5C-43DC-B9C6-1AEAB800C32E",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "question_text": "Write a simple C++ program that demonstrates the use of a class and an object. Explain how the class and object interact.",
+      "written_answer": "A **class** in C++ is a blueprint or template used to define the properties and functions of an object. An **object** is an instance of a class that can access its data and functions.\n\n### Example:\n\n```cpp\n#include <iostream>\nusing namespace std;\n\nclass Student {\npublic:\n    string name;\n\n    void display() {\n        cout << \"Student Name: \" << name << endl;\n    }\n};\n\nint main() {\n    Student s1;\n\n    s1.name = \"Arun\";\n    s1.display();\n\n    return 0;\n}\n```\n\n### Explanation:\n\nHere, `Student` is the **class**. It contains the data member `name` and the function `display()`.\n\n`Student s1;` creates an **object** named `s1` from the `Student` class.\n\nThe object `s1` accesses the class members using the dot (`.`) operator. It stores the student's name and calls the `display()` function to show it.\n\n**Output:**\n\n```text\nStudent Name: Arun\n```\n",
+      "created_date": "2026-09-15 08:21:30.011017"
+    },
+    {
+      "answer_id": "fcce7831-8e4f-4c98-866a-6a88ea9cbd96",
+      "attempt_id": "0150A409-3C89-4A5D-BD7E-1F4BED455712",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "question_text": "Explain the concept of Object-Oriented Programming (OOP) in C++. What are its four main principles?",
+      "written_answer": "asdf",
+      "created_date": "2026-09-15 08:00:32.891651"
+    },
+    {
+      "answer_id": "2a43b6a5-a374-4326-9eab-bea818e0cf94",
+      "attempt_id": "0150A409-3C89-4A5D-BD7E-1F4BED455712",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "question_text": "Describe the function of conditional statements in C++. Provide an example of an 'if' statement.",
+      "written_answer": "asdf",
+      "created_date": "2026-09-15 08:00:32.891651"
+    },
+    {
+      "answer_id": "e87d7e4e-cdee-4d64-80b3-d16326cdcc33",
+      "attempt_id": "0150A409-3C89-4A5D-BD7E-1F4BED455712",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "11fbc25c-18b0-448b-9245-9dcc3a6f13bb",
+      "candidate_name": "Ananth krishnana",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "question_text": "Explain the purpose of the 'cin' and 'cout' objects in C++. How are they used for input and output operations?",
+      "written_answer": "asdfsada",
+      "created_date": "2026-09-15 08:00:32.891651"
+    },
+    {
+      "answer_id": "67f90351-8edf-48d4-9851-3b4b4bd9a82c",
+      "attempt_id": "A7D3FA1C-A8CF-4E41-B28F-625D5F1136CE",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "question_text": "Explain the purpose of the 'cin' and 'cout' objects in C++. How are they used for input and output operations?",
+      "written_answer": "In C++, cin and cout are standard input and output objects provided by the <iostream> library.\n\ncin is used to take input from the user. It uses the >> (extraction) operator.\ncout is used to display output on the screen. It uses the << (insertion) operator.\n\nExample:\n\n#include <iostream>\nusing namespace std;\n\nint main() {\n    int age;\n\n    cout << \"Enter your age: \";\n    cin >> age;\n\n    cout << \"Your age is: \" << age;\n\n    return 0;\n}\n\nHere, cout displays messages on the screen, while cin reads the user's entered value.",
+      "created_date": "2026-09-15 07:38:32.654156"
+    },
+    {
+      "answer_id": "4145378d-1383-4a09-a648-753ef9d0b927",
+      "attempt_id": "A7D3FA1C-A8CF-4E41-B28F-625D5F1136CE",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "question_text": "Describe the function of conditional statements in C++. Provide an example of an 'if' statement.",
+      "written_answer": "Conditional statements in C++ are used to check a condition and execute a block of code based on the result. The main conditional statements include `if`, `if-else`, and `switch`.\n\nThe `if` statement executes a block of code only when the given condition is true.\n\nExample:\n\n```cpp\nint age = 20;\n\nif (age >= 18) {\n    cout << \"You are eligible to vote\";\n}\n```\n\nHere, the message is displayed only if the condition `age >= 18` is true.\n",
+      "created_date": "2026-09-15 07:38:32.654156"
+    },
+    {
+      "answer_id": "e32abfd6-375a-43ff-af0a-5ea0cc023549",
+      "attempt_id": "A7D3FA1C-A8CF-4E41-B28F-625D5F1136CE",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "question_text": "Explain the concept of Object-Oriented Programming (OOP) in C++. What are its four main principles?",
+      "written_answer": "Object-Oriented Programming (OOP) is a programming approach in C++ where programs are designed using **objects and classes**. An object represents a real-world entity and contains data and functions that work on that data.\n\nThe four main principles of OOP are:\n\n1. **Encapsulation** \u2013 Wrapping data and functions together inside a class and controlling access to the data.\n2. **Abstraction** \u2013 Hiding unnecessary implementation details and showing only the required information.\n3. **Inheritance** \u2013 Allowing one class to acquire the properties and functions of another class.\n4. **Polymorphism** \u2013 Allowing the same function or operation to behave differently in different situations.\n\nThese principles make C++ programs more **organized, reusable, secure, and easier to maintain**.\n",
+      "created_date": "2026-09-15 07:38:32.654156"
+    },
+    {
+      "answer_id": "de07bc5a-5482-4fe8-8ddd-936e2477d6f5",
+      "attempt_id": "A7D3FA1C-A8CF-4E41-B28F-625D5F1136CE",
+      "schedule_id": "2e554748-030e-410a-866a-ce02e3c68284",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "question_text": "What are variables in C++? Describe the different data types available and their significance.",
+      "written_answer": "Variables in C++ are **named memory locations used to store data values**. The value of a variable can be changed during program execution. Each variable must be declared with a **data type**, which tells the compiler what kind of data the variable can store.\n\n### Common Data Types in C++\n\n1. **int** \u2013 Stores whole numbers.\n\n   ```cpp\n   int age = 20;\n   ```\n\n2. **float** \u2013 Stores decimal numbers with single precision.\n\n   ```cpp\n   float price = 25.5;\n   ```\n\n3. **double** \u2013 Stores decimal numbers with higher precision than `float`.\n\n   ```cpp\n   double salary = 25000.75;\n   ```\n\n4. **char** \u2013 Stores a single character.\n\n   ```cpp\n   char grade = 'A';\n   ```\n\n5. **bool** \u2013 Stores either `true` or `false`.\n\n   ```cpp\n   bool passed = true;\n   ```\n\n6. **string** \u2013 Stores a sequence of characters or text.\n\n   ```cpp\n   string name = \"Arun\";\n   ```\n\n### Significance of Data Types\n\nData types are important because they **define the type of data a variable can hold**, determine the amount of **memory required**, and help the compiler perform appropriate operations on the data.\n\nFor example:\n\n```cpp\nint marks = 90;\nchar grade = 'A';\nfloat average = 85.5;\nbool passed = true;\n```\n\nThus, variables store information in a C++ program, while data types determine **what kind of information can be stored and how it is handled**.\n",
+      "created_date": "2026-09-15 07:38:32.654156"
+    },
+    {
+      "answer_id": "3ff91973-34a6-47f9-aec7-24f7ac976560",
+      "attempt_id": "0EC212D7-32C3-42C0-8A39-897CB31B95F0",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "question_text": "Explain the purpose of the 'cin' and 'cout' objects in C++. How are they used for input and output operations?",
+      "written_answer": "Dfefbuttgg",
+      "created_date": "2026-09-15 06:39:50.196551"
+    },
+    {
+      "answer_id": "9df123a4-0b5e-4642-a312-4d4f6a7db6db",
+      "attempt_id": "8061326F-AB6A-42B8-901F-76D366932CC5",
+      "schedule_id": "89b5d7bb-f419-4c59-9208-fad3d16085f5",
+      "user_id": "6d3acbd7-5abb-4214-8943-b66750d0beff",
+      "candidate_name": "Praveen Kumar",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "question_text": "Explain the purpose of the 'cin' and 'cout' objects in C++. How are they used for input and output operations?",
+      "written_answer": "8220326669  \nJohn",
+      "created_date": "2026-09-15 05:17:10.895586"
+    }
+  ],
+  "comments": [
+    {
+      "comment_id": "0176abe5-40f6-45e9-9a87-b7b730cf113c",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Encapsulation",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:41.791094"
+    },
+    {
+      "comment_id": "0307e22f-c4fc-4d75-a246-ba8a57cdf98f",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Abstraction",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:41.791094"
+    },
+    {
+      "comment_id": "0648baa1-5885-4ce7-90b9-f157e4269b67",
+      "attempt_id": "a7d3fa1c-a8cf-4e41-b28f-625d5f1136ce",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "double is included but not mentioned in the expected answer",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 07:38:41.730699"
+    },
+    {
+      "comment_id": "06565797-2edc-4e1b-9905-154a1dd70bf7",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "comment_text": "Object 'myCar' cannot access private member 'brand' directly",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:00.233754"
+    },
+    {
+      "comment_id": "08304f28-5ae8-4c85-b9b4-b7d78c7930e3",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Inheritance does not involve deleting code",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:02.868826"
+    },
+    {
+      "comment_id": "15efdf15-bd0e-411d-a723-e22e7a5fa064",
+      "attempt_id": "8612dc1d-d174-4136-bfa7-412bfab0c709",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "comment_text": "demonstration of class and object interaction",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 10:51:09.794363"
+    },
+    {
+      "comment_id": "218fe681-60f7-4070-96fd-5599b2f89588",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "comment_text": "data handling in C++",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:39.651525"
+    },
+    {
+      "comment_id": "2292eb69-e77c-40dd-bdbb-f84399b13625",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "float does not store sentences",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:16.523483"
+    },
+    {
+      "comment_id": "23c9dfdf-5dfa-48da-96ca-b312c3103874",
+      "attempt_id": "7474ba30-ee5c-43dc-b9c6-1aeab800c32e",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "type safety",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:21:42.578656"
+    },
+    {
+      "comment_id": "2719ffa7-3873-48ed-afb2-e184d7b3cca8",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "The statement about the program terminating is incorrect",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:09.285601"
+    },
+    {
+      "comment_id": "2d27ef7f-7ab3-4c40-8b3c-d51f8206f253",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "float does not store sentences",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:04.793322"
+    },
+    {
+      "comment_id": "2ee03613-fee5-4124-94b9-1c8beca97beb",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "comment_text": "Class name is 'Car' instead of 'Dog'",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:14.546878"
+    },
+    {
+      "comment_id": "300630cd-3882-43cb-a2ff-4dccf1bb6e38",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "conditional statements explanation",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:37.352218"
+    },
+    {
+      "comment_id": "3405aa66-108a-4bd9-b623-0dd98661154a",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Merging header files is not encapsulation",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:18.701354"
+    },
+    {
+      "comment_id": "34bff20d-c319-46f3-8fbe-575810e2add1",
+      "attempt_id": "8612dc1d-d174-4136-bfa7-412bfab0c709",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "double is included but not mentioned in expected answer",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 10:51:15.941862"
+    },
+    {
+      "comment_id": "38b693a0-2e2d-457c-9306-7467bd6c8282",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Object-Oriented Programming",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:41.791094"
+    },
+    {
+      "comment_id": "43058d77-28c4-4323-9226-f06f23a308fb",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "Conditional statements do not only work with integers",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:09.285601"
+    },
+    {
+      "comment_id": "44619f25-e2ff-4605-af9b-77df037b4982",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "Significance explanation is incorrect",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:16.523483"
+    },
+    {
+      "comment_id": "484d32fe-4763-41aa-8334-69d79cc69fa4",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Inheritance does not involve deleting code",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:18.701354"
+    },
+    {
+      "comment_id": "5c1205ab-8375-41b9-8e05-af0aba5a557b",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Polymorphism",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:41.791094"
+    },
+    {
+      "comment_id": "5de6139b-868c-49e4-ad8a-8e3cb7af3475",
+      "attempt_id": "0ec212d7-32c3-42c0-8a39-897cb31b95f0",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "comment_text": "cin object usage",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 06:39:55.391322"
+    },
+    {
+      "comment_id": "781760c4-b267-40c8-a7c6-8799ab32f6ea",
+      "attempt_id": "0ec212d7-32c3-42c0-8a39-897cb31b95f0",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "comment_text": "cout object usage",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 06:39:55.391322"
+    },
+    {
+      "comment_id": "78f9b800-9c6c-4eff-a2c2-b7482b3312ea",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Polymorphism is not about variable values",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:18.701354"
+    },
+    {
+      "comment_id": "790f0033-9316-48a7-babb-2e69565a3c91",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "Conditional statements do not only work with integers; they can compare various data types. The example provided uses '=' instead of '==' for comparison, which is incorrect. The explanation about program termination is misleading.",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:20.836825"
+    },
+    {
+      "comment_id": "8174b588-e599-4e2a-b88f-6d78be4e3bc1",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "char does not store multiple sentences",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:04.793322"
+    },
+    {
+      "comment_id": "834a8b84-6914-41bc-9a86-9cde10738631",
+      "attempt_id": "a7d3fa1c-a8cf-4e41-b28f-625d5f1136ce",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "Example of 'if' statement with specific output",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 07:38:38.090834"
+    },
+    {
+      "comment_id": "88f582e2-99e5-4f18-86ee-d9a781b5656d",
+      "attempt_id": "930abfeb-4195-4784-afaf-838cdefd12b5",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "Example of 'if' statement with specific output",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:30:16.598905"
+    },
+    {
+      "comment_id": "8b41556b-667b-4844-9b60-dda09baba994",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "Data types are not optional in C++",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:04.793322"
+    },
+    {
+      "comment_id": "90590c25-55bd-44e5-be79-1a9d56189eec",
+      "attempt_id": "7474ba30-ee5c-43dc-b9c6-1aeab800c32e",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "comment_text": "demonstration of class and object interaction",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:21:40.343777"
+    },
+    {
+      "comment_id": "9146f9d5-c045-447a-be12-f1abc146de47",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "char does not store multiple sentences",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:16.523483"
+    },
+    {
+      "comment_id": "983e05d6-7be3-4054-87a7-c56ce1cb3f62",
+      "attempt_id": "7474ba30-ee5c-43dc-b9c6-1aeab800c32e",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "comment_text": "specific example of Dog class",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:21:40.343777"
+    },
+    {
+      "comment_id": "993c06e6-d4cb-478e-bea1-96b410d65121",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "comment_text": "cin object usage",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:39.651525"
+    },
+    {
+      "comment_id": "99764690-c641-4e01-ba77-16b0b85608db",
+      "attempt_id": "7474ba30-ee5c-43dc-b9c6-1aeab800c32e",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "Example of 'if' statement with specific output",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:21:35.239892"
+    },
+    {
+      "comment_id": "9fc750d9-30d9-4942-b96d-c6977edbf5c3",
+      "attempt_id": "7474ba30-ee5c-43dc-b9c6-1aeab800c32e",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "memory requirements",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:21:42.577647"
+    },
+    {
+      "comment_id": "a0f083c9-b15d-4fea-bfc3-5628cc855e20",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "comment_text": "Class name is 'Car' instead of 'Dog'",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:00.233754"
+    },
+    {
+      "comment_id": "a3de22ad-0367-42a6-9993-3fdb8a28780c",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Pointers are not a main concept of OOP",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:18.701354"
+    },
+    {
+      "comment_id": "a44ee0cb-27c5-4543-b41e-6158ac4bab02",
+      "attempt_id": "8612dc1d-d174-4136-bfa7-412bfab0c709",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "Example of 'if' statement with specific output",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 10:51:08.033032"
+    },
+    {
+      "comment_id": "a7098c78-92d5-4faa-956a-65a6aa34c380",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "bool is missing",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:04.793322"
+    },
+    {
+      "comment_id": "a85d5f0b-d443-4bbf-afaf-ddebb855be2a",
+      "attempt_id": "0ec212d7-32c3-42c0-8a39-897cb31b95f0",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "comment_text": "Candidate's answer is nonsensical and does not address the question.",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 06:39:55.391322"
+    },
+    {
+      "comment_id": "ad209489-0351-4f8c-b44e-6fdd13199018",
+      "attempt_id": "8612dc1d-d174-4136-bfa7-412bfab0c709",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "comment_text": "bark method example",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 10:51:09.794363"
+    },
+    {
+      "comment_id": "afdf28ef-8662-46f0-bae0-092d82b2c06d",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "The example uses '=' instead of '==' for comparison",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:09.285601"
+    },
+    {
+      "comment_id": "b8c995f5-0995-4668-b96b-9caf8d23bd02",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "Data types are not optional in C++",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:16.523483"
+    },
+    {
+      "comment_id": "cb562872-44a8-406f-8394-693832428b44",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Pointers are not related to OOP",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:02.868826"
+    },
+    {
+      "comment_id": "cbd16b28-3290-4035-acd6-7aea94639b79",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "comment_text": "Object 'myCar' cannot access private member 'brand' directly",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:14.546878"
+    },
+    {
+      "comment_id": "ccedea65-b0da-4867-b4e4-e86dd75509d8",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Polymorphism is not about variable values",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:02.868826"
+    },
+    {
+      "comment_id": "d16813c6-e650-4c99-863e-ec975afc7cbd",
+      "attempt_id": "0ec212d7-32c3-42c0-8a39-897cb31b95f0",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "comment_text": "interaction with users",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 06:39:55.391322"
+    },
+    {
+      "comment_id": "d188ea0c-0231-4c6d-b48a-5d714efb16be",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "comment_text": "Method 'drive' is private and cannot be accessed from 'main'",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:00.233754"
+    },
+    {
+      "comment_id": "d1940d04-ec5a-4f5f-b74c-9e4e5fc3e275",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "dc2cba0e-c077-4b27-a841-90157fd5aaa3",
+      "comment_text": "Method 'drive' is private and cannot be accessed from main",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:14.546878"
+    },
+    {
+      "comment_id": "d55911fb-91e6-4649-8132-0ee77a62627f",
+      "attempt_id": "acbfd42b-912f-4f11-91c0-23fe9108705a",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "Variables are not permanent locations on the hard drive",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:17:16.523483"
+    },
+    {
+      "comment_id": "da70581e-2685-4c35-af61-e3635660a5e7",
+      "attempt_id": "7474ba30-ee5c-43dc-b9c6-1aeab800c32e",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "double is included but not mentioned in expected answer",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:21:42.578656"
+    },
+    {
+      "comment_id": "dc18da2c-9609-4173-9d56-57ced8b452ea",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Inheritance",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:41.791094"
+    },
+    {
+      "comment_id": "e3126af3-7240-4640-9c50-2f9a0eb7fdb1",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "b3e27dc1-4e10-4deb-b624-9b0cc45d0e05",
+      "comment_text": "Merging header files is not encapsulation",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:02.868826"
+    },
+    {
+      "comment_id": "e3aa4448-01f3-4b23-b49e-98978374ccbf",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "comment_text": "interaction with users",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:39.651525"
+    },
+    {
+      "comment_id": "f01b9f25-f1a9-4bb4-9a07-2686fa4197bd",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "example of 'if' statement",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:37.352218"
+    },
+    {
+      "comment_id": "f0856d90-fdd4-4dcd-b5ee-57241cf26158",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "47699472-fd12-404b-9cf5-ed43d1dbbd05",
+      "comment_text": "cout object usage",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:39.651525"
+    },
+    {
+      "comment_id": "fb8297e7-c624-416e-8ead-ab4f0b7263ea",
+      "attempt_id": "0150a409-3c89-4a5d-bd7e-1f4bed455712",
+      "question_id": "a23d4cf6-b2c9-48cd-9cac-8db9247ca25e",
+      "comment_text": "decision-making in programs",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 08:00:37.352218"
+    },
+    {
+      "comment_id": "fea59c6d-bc59-47a0-b953-73831ab59088",
+      "attempt_id": "20eb9e59-e6c6-4079-a7a1-ab0a532fa4bb",
+      "question_id": "f7d01324-daa4-4055-b9c6-f8243fde756f",
+      "comment_text": "Variables are not permanent locations on the hard drive",
+      "created_by": "cac37fab-4de6-4792-969b-96e57e3c910a",
+      "created_date": "2026-09-15 12:15:04.793322"
+    }
+  ],
+  "marks": [],
+  "exams": []
+}

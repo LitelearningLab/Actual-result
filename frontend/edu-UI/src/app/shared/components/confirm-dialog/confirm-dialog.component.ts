@@ -39,7 +39,13 @@ export interface ConfirmDialogData {
                flex-direction: column;
                align-items: center;
                text-align: center;
-               padding: 1.5rem 1rem 1rem;
+               padding: 1.75rem 1.25rem 1.25rem;
+               background: var(--bg-1, #ffffff);
+               border-radius: 1.25rem;
+               box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+               border: 1px solid var(--theme-3-border, #e2e8f0);
+               width: 100%;
+               box-sizing: border-box;
           }
           .dialog-icon {
                width: 3.5rem;
@@ -103,6 +109,16 @@ export interface ConfirmDialogData {
           .confirm-btn:hover {
                box-shadow: 0 4px 16px rgba(99,102,241,0.35);
                transform: translateY(-1px);
+          }
+          @media (max-width: 480px) {
+               .dialog-actions {
+                    flex-direction: column-reverse;
+                    gap: 0.625rem;
+               }
+               .cancel-btn, .confirm-btn {
+                    width: 100%;
+                    min-height: 44px;
+               }
           }
      `]
 })

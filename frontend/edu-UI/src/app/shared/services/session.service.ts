@@ -33,10 +33,34 @@ export class SessionService {
 
     window.addEventListener('sessionExpired', (ev: any) => {
       const msg = ev && ev.detail && ev.detail.message ? ev.detail.message : 'Your session has expired';
-      this.ngZone.run(() => this.promptExtendOrLogout(msg));
+      if (/another device|not active|unauthorized/i.test(msg)) {
+        this.ngZone.run(() => this.promptSingleDeviceLogout('Your account was logged in from another device. Please log in again if needed.'));
+      } else {
+        this.ngZone.run(() => this.promptExtendOrLogout(msg));
+      }
     });
 
     this.scheduleIdleCheck();
+  }
+
+  private promptSingleDeviceLogout(message: string) {
+    if (this.promptOpen || !this.hasLoggedInSession()) return;
+    this.promptOpen = true;
+
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Logged Out',
+        message: message,
+        confirmText: 'OK',
+        cancelText: ''
+      },
+      disableClose: true
+    });
+
+    ref.afterClosed().pipe(first()).subscribe(() => {
+      this.promptOpen = false;
+      this.clearAndRedirect();
+    });
   }
 
   private promptExtendOrLogout(message: string) {

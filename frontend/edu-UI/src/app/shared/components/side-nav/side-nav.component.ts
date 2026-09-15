@@ -118,7 +118,56 @@ export class SideNavComponent implements OnInit, OnDestroy {
   }
 
   closeMobile(): void {
+    this.isSwiping = false;
+    this.touchDeltaX = 0;
     this.sidenavService.closeMobile();
+  }
+
+  // ── Swipe-left gesture handler for mobile drawer ──
+  private touchStartX = 0;
+  private touchStartY = 0;
+  private currentTouchX = 0;
+  public touchDeltaX = 0;
+  public isSwiping = false;
+
+  get drawerTransform(): string | null {
+    if (this.isMobileOpen && this.isSwiping && this.touchDeltaX < 0) {
+      return `translateX(${this.touchDeltaX}px)`;
+    }
+    return null;
+  }
+
+  onTouchStart(event: TouchEvent): void {
+    if (!this.isMobileOpen) return;
+    const touch = event.touches[0];
+    this.touchStartX = touch.clientX;
+    this.touchStartY = touch.clientY;
+    this.currentTouchX = touch.clientX;
+    this.touchDeltaX = 0;
+    this.isSwiping = false;
+  }
+
+  onTouchMove(event: TouchEvent): void {
+    if (!this.isMobileOpen) return;
+    const touch = event.touches[0];
+    this.currentTouchX = touch.clientX;
+    const deltaX = this.currentTouchX - this.touchStartX;
+    const deltaY = touch.clientY - this.touchStartY;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY) && deltaX < 0) {
+      this.isSwiping = true;
+      this.touchDeltaX = deltaX;
+    }
+  }
+
+  onTouchEnd(event: TouchEvent): void {
+    if (!this.isMobileOpen) return;
+    if (this.isSwiping && this.touchDeltaX < -40) {
+      this.closeMobile();
+    } else {
+      this.isSwiping = false;
+      this.touchDeltaX = 0;
+    }
   }
 
   permissionNameForMenu(label: string): string {

@@ -49,14 +49,12 @@ export class AuthInterceptor implements HttpInterceptor {
           const body = event && event.body ? event.body : null;
           if (body && (body.status === false || body.status === 'false')) {
             const msg = body.statusMessage || body.message || body.error || '';
-          if (msg && /expire/i.test(msg)) {
-            console.debug('[AuthInterceptor] detected expired token in 200 response:', msg);
-            try {
-              // Dispatch a sessionExpired event so the application can decide
-              // whether to try a refresh/extend or to logout the user.
-              window.dispatchEvent(new CustomEvent('sessionExpired', { detail: { message: msg || 'Session expired' } }));
-            } catch (e) {}
-          }
+            if (msg && /expire|not active|unauthorized/i.test(msg)) {
+              console.debug('[AuthInterceptor] detected session invalidation in 200 response:', msg);
+              try {
+                window.dispatchEvent(new CustomEvent('sessionExpired', { detail: { message: msg || 'Session expired' } }));
+              } catch (e) {}
+            }
           }
         } catch (e) {}
       }),
@@ -66,12 +64,10 @@ export class AuthInterceptor implements HttpInterceptor {
           const body = err && err.error ? err.error : err;
           const message = body && (body.statusMessage || body.message || body.error);
 
-          // If token expired or invalid, clear session and redirect to login
-          if (status === 401 || (message && /expire/i.test(message))) {
+          // If token expired, invalid, or revoked due to another device login
+          if (status === 401 || (message && /expire|not active|unauthorized/i.test(message))) {
             try {
-              // Notify the app that session expired - the app can then
-              // prompt the user to extend the session or logout.
-              window.dispatchEvent(new CustomEvent('sessionExpired', { detail: { message: message || 'Unauthorized - session expired' } }));
+              window.dispatchEvent(new CustomEvent('sessionExpired', { detail: { message: message || 'Session is no longer active' } }));
             } catch (e) {}
           }
           else {

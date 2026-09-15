@@ -82,10 +82,13 @@ export interface UserTestRow {
       </div>
       <h2>Start Test</h2>
       <p class="dialog-message">Are you sure you want to start this test?</p>
-      <p class="dialog-warning">Once you start, the test timer will begin and cannot be paused.</p>
+      <div class="dialog-warning">
+        <mat-icon class="warning-icon">info</mat-icon>
+        <span>Once you start, the test timer will begin and cannot be paused.</span>
+      </div>
       <div class="dialog-actions">
-        <button mat-button class="cancel-button" [mat-dialog-close]="false">Cancel</button>
         <button mat-flat-button class="start-button" [mat-dialog-close]="true">Start Test</button>
+        <button mat-button class="cancel-button" [mat-dialog-close]="false">Cancel</button>
       </div>
     </div>
   `,
@@ -95,18 +98,25 @@ export interface UserTestRow {
         display: block;
         border-radius: 1.25rem;
         overflow: hidden;
+        background: #ffffff;
       }
       .start-confirm-dialog {
         box-sizing: border-box;
-        padding: 1.75rem 1.5rem 1.25rem;
+        padding: 1.75rem 1.5rem 1.5rem;
         text-align: center;
-        color: #16293d;
+        background: #ffffff;
+        color: #0f172a;
         border-radius: 1.25rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
       .dialog-icon {
         width: 3.75rem;
         height: 3.75rem;
-        margin: 0 auto 0.75rem;
+        margin: 0 auto 0.875rem;
         border-radius: 50%;
         background: #ecfdf5;
         color: #059669;
@@ -121,50 +131,81 @@ export interface UserTestRow {
         line-height: 2rem;
       }
       h2 {
-        margin: 0 0 0.45rem;
-        font-size: 1.45rem;
+        margin: 0 0 0.5rem;
+        font-size: 1.35rem;
         font-weight: 700;
         line-height: 1.25;
-        color: #0f172a;
-      }
-      p {
-        margin: 0;
-        color: #64748b;
+        color: #0f172a !important;
       }
       .dialog-message {
-        font-size: 1.05rem;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: #334155 !important;
+        margin: 0 0 0.75rem;
+        line-height: 1.5;
       }
       .dialog-warning {
-        margin-top: 0.5rem;
-        font-size: 0.925rem;
-        line-height: 1.45;
-        color: #d97706;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        background: #fffbe6;
+        border: 1px solid #fef08a;
+        border-radius: 0.625rem;
+        padding: 0.75rem 0.875rem;
+        text-align: left;
+        margin-top: 0.25rem;
+        color: #b45309 !important;
+        font-size: 0.84rem;
         font-weight: 600;
+        line-height: 1.45;
+      }
+      .dialog-warning .warning-icon {
+        font-size: 1.125rem;
+        width: 1.125rem;
+        height: 1.125rem;
+        color: #d97706;
+        flex-shrink: 0;
+        margin-top: 1px;
       }
       .dialog-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.9rem;
-        margin-top: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+        margin-top: 1.5rem;
+        width: 100%;
       }
       .dialog-actions button {
         height: 2.75rem;
-        border-radius: 0.6rem;
+        min-height: 44px;
+        width: 100%;
+        border-radius: 0.625rem;
         font-size: 0.95rem;
         font-weight: 700;
-      }
-      .cancel-button {
-        border: 1px solid #cbd5e1;
-        color: #334155;
-        background: #ffffff;
+        cursor: pointer;
       }
       .start-button {
-        background: #2563eb;
-        color: #ffffff;
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
       }
-      @media (max-width: 30rem) {
+      .start-button:hover {
+        background: #1d4ed8 !important;
+      }
+      .cancel-button {
+        border: 1px solid #cbd5e1 !important;
+        color: #334155 !important;
+        background: #ffffff !important;
+      }
+      .cancel-button:hover {
+        background: #f8fafc !important;
+      }
+      @media (min-width: 480px) {
         .dialog-actions {
-          grid-template-columns: 1fr;
+          flex-direction: row-reverse;
+        }
+        .dialog-actions button {
+          flex: 1;
         }
       }
     `,
@@ -178,16 +219,22 @@ export class ConfirmStartTestDialogComponent {}
   imports: [MatDialogModule, MatButtonModule, MatIconModule],
   template: `
     <div class="instant-review-dialog">
-      <div class="dialog-icon" aria-hidden="true"><mat-icon>visibility</mat-icon></div>
+      <div class="dialog-icon" aria-hidden="true">
+        <mat-icon>visibility</mat-icon>
+      </div>
       <h2>One-time Instant Review</h2>
-      <p>This test uses Instant Review.</p>
-      <p class="dialog-warning">
-        You can view this review only once. After you close it, the Review button will no longer be
-        available.
-      </p>
+      <p class="dialog-message">This test uses Instant Review.</p>
+      <div class="dialog-warning">
+        <mat-icon class="warning-icon">warning_amber</mat-icon>
+        <span>You can view this review only once. After you close it, the Review button will no longer be available.</span>
+      </div>
       <div class="dialog-actions">
-        <button mat-button class="cancel-button" [mat-dialog-close]="false">Cancel</button>
-        <button mat-flat-button class="review-button" [mat-dialog-close]="true">View Review</button>
+        <button mat-flat-button class="review-button" [mat-dialog-close]="true">
+          View Review
+        </button>
+        <button mat-button class="cancel-button" [mat-dialog-close]="false">
+          Cancel
+        </button>
       </div>
     </div>
   `,
@@ -197,21 +244,28 @@ export class ConfirmStartTestDialogComponent {}
         display: block;
         border-radius: 1.25rem;
         overflow: hidden;
+        background: #ffffff;
       }
       .instant-review-dialog {
         box-sizing: border-box;
-        padding: 1.75rem 1.5rem 1.25rem;
+        padding: 1.75rem 1.5rem 1.5rem;
         text-align: center;
-        color: #16293d;
+        background: #ffffff;
+        color: #0f172a;
         border-radius: 1.25rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
       .dialog-icon {
-        width: 4rem;
-        height: 4rem;
-        margin: 0 auto 0.8rem;
+        width: 3.75rem;
+        height: 3.75rem;
+        margin: 0 auto 0.875rem;
         border-radius: 50%;
-        background: #e8fff7;
-        color: #0b9f70;
+        background: #ecfdf5;
+        color: #059669;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -223,43 +277,82 @@ export class ConfirmStartTestDialogComponent {}
         line-height: 2rem;
       }
       h2 {
-        margin: 0 0 0.55rem;
-        font-size: 1.5rem;
+        margin: 0 0 0.5rem;
+        font-size: 1.35rem;
         font-weight: 700;
+        line-height: 1.25;
+        color: #0f172a !important;
       }
-      p {
-        margin: 0;
-        color: #657180;
-        font-size: 1rem;
+      .dialog-message {
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: #334155 !important;
+        margin: 0 0 0.75rem;
         line-height: 1.5;
       }
       .dialog-warning {
-        margin-top: 0.45rem;
-        color: #9b5b00;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        background: #fffbe6;
+        border: 1px solid #fef08a;
+        border-radius: 0.625rem;
+        padding: 0.75rem 0.875rem;
+        text-align: left;
+        margin-top: 0.25rem;
+        color: #b45309 !important;
+        font-size: 0.84rem;
         font-weight: 600;
+        line-height: 1.45;
+      }
+      .dialog-warning .warning-icon {
+        font-size: 1.125rem;
+        width: 1.125rem;
+        height: 1.125rem;
+        color: #d97706;
+        flex-shrink: 0;
+        margin-top: 1px;
       }
       .dialog-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.9rem;
-        margin-top: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+        margin-top: 1.5rem;
+        width: 100%;
       }
       .dialog-actions button {
-        height: 2.85rem;
-        border-radius: 0.7rem;
+        height: 2.75rem;
+        min-height: 44px;
+        width: 100%;
+        border-radius: 0.625rem;
+        font-size: 0.95rem;
         font-weight: 700;
-      }
-      .cancel-button {
-        border: 0.0625rem solid #dfe4ea;
-        color: #354252;
+        cursor: pointer;
       }
       .review-button {
-        background: #20dca3;
-        color: #073c2d;
+        background: #059669 !important;
+        color: #ffffff !important;
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
       }
-      @media (max-width: 30rem) {
+      .review-button:hover {
+        background: #047857 !important;
+      }
+      .cancel-button {
+        border: 1px solid #cbd5e1 !important;
+        color: #334155 !important;
+        background: #ffffff !important;
+      }
+      .cancel-button:hover {
+        background: #f8fafc !important;
+        color: #1e293b !important;
+      }
+      @media (min-width: 480px) {
         .dialog-actions {
-          grid-template-columns: 1fr;
+          flex-direction: row-reverse;
+        }
+        .dialog-actions button {
+          flex: 1;
         }
       }
     `,

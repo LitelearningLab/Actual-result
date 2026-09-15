@@ -1361,7 +1361,7 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 :host ::ng-deep .premium-table th.mat-header-cell,
 :host ::ng-deep .premium-table th.mat-mdc-header-cell,
 .premium-table th.mat-header-cell,
-.premium-table th.mat-mdc-header-cell { position: sticky !important; top: 0 !important; z-index: 10 !important; background: var(--table-header-bg, #1e293b) !important; font-weight: 700; font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--table-header-text, #ffffff) !important; padding: 0.5rem 0.75rem; border-bottom: 0.125rem solid #e2e8f0; white-space: nowrap; }
+.premium-table th.mat-mdc-header-cell { position: sticky; top: 0; z-index: 2; background: var(--table-header-bg, #1e293b) !important; font-weight: 700; font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--table-header-text, #ffffff) !important; padding: 0.5rem 0.75rem; border-bottom: 0.125rem solid #e2e8f0; white-space: nowrap; }
 .premium-table th.mat-header-cell:first-child,
 .premium-table th.mat-mdc-header-cell:first-child { border-left: 0.1875rem solid var(--button-1); }
 .premium-table td.mat-cell,

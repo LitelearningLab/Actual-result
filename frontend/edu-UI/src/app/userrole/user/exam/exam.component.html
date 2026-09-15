@@ -5,7 +5,7 @@
          <div class="mobile-search-row">
             <mat-form-field appearance="outline" class="search-field mobile-search-field">
                <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
-               <input matInput placeholder="Search by test name..." [(ngModel)]="search" (ngModelChange)="applyFilter()"
+               <input matInput placeholder="Search test" [(ngModel)]="search" (ngModelChange)="applyFilter()"
                   aria-label="Search tests" />
                <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter()"
                   aria-label="Clear search">
@@ -24,7 +24,7 @@
          <div class="search desktop-search">
             <mat-form-field appearance="outline" class="search-field">
                <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
-               <input matInput placeholder="Search by test name..." [(ngModel)]="search" (ngModelChange)="applyFilter()"
+               <input matInput placeholder="Search test" [(ngModel)]="search" (ngModelChange)="applyFilter()"
                   aria-label="Search tests" />
                <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter()"
                   aria-label="Clear search">
@@ -95,7 +95,7 @@
       <div class="list-wrapper">
          <!-- Active Tab Table -->
          <div class="tab-table" *ngIf="selectedTabIndex === 0">
-            <div class="table-responsive">
+            <div class="table-responsive" *ngIf="!loading">
                <table mat-table [dataSource]="activeSource" class="mat-elevation-z1 compact premium-table" matSort>
 
                   <ng-container matColumnDef="sno">
@@ -207,6 +207,15 @@
 
                   <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
                   <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row"></tr>
+
+                  <tr class="mat-row empty-data-row" *matNoDataRow>
+                     <td class="mat-cell empty-data-cell" [attr.colspan]="displayedColumns.length">
+                        <div class="no-tests-table-empty">
+                           <mat-icon class="empty-icon">find_in_page</mat-icon>
+                           <p>No tests available in this tab.</p>
+                        </div>
+                     </td>
+                  </tr>
                </table>
             </div>
             <mat-paginator *ngIf="!loading" [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
@@ -214,7 +223,7 @@
 
          <!-- Completed Tab Table -->
          <div class="tab-table" *ngIf="selectedTabIndex === 1">
-            <div class="table-responsive">
+            <div class="table-responsive" *ngIf="!loading">
                <table mat-table [dataSource]="completeSource" class="mat-elevation-z1 compact premium-table" matSort>
 
                   <ng-container matColumnDef="sno">
@@ -318,6 +327,15 @@
 
                   <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
                   <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row"></tr>
+
+                  <tr class="mat-row empty-data-row" *matNoDataRow>
+                     <td class="mat-cell empty-data-cell" [attr.colspan]="displayedColumns.length">
+                        <div class="no-tests-table-empty">
+                           <mat-icon class="empty-icon">find_in_page</mat-icon>
+                           <p>No tests available in this tab.</p>
+                        </div>
+                     </td>
+                  </tr>
                </table>
             </div>
             <mat-paginator *ngIf="!loading" [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
@@ -330,7 +348,6 @@
                <p class="loader-sub-text">Fetching your active & completed tests...</p>
             </div>
          </div>
-         <div *ngIf="!loading && (!exams || exams.length === 0)" class="muted">No exams available.</div>
       </div>
 
       <!-- mobile card list (shown <=992px via CSS) -->

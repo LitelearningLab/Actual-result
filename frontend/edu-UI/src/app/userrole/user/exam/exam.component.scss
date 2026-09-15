@@ -135,10 +135,10 @@ $shadow-panel: 0 1.5rem 3.75rem rgba(5,18,40,0.22), 0 0.375rem 1rem rgba(5,18,40
 }
 
 // ── List card + tabs ──
-.list-card { background: #fff; border: 0.0625rem solid #e2e8f0; border-radius: $radius; box-shadow: $shadow-md; overflow: hidden; }
-.list-wrapper { overflow: visible; }
-.tab-table { display: flex; flex-direction: column; width: 100%; }
-.table-responsive { width: 100%; max-height: 65vh; overflow: auto; }
+.list-card { background: #fff; border: 0.0625rem solid #e2e8f0; border-radius: $radius; box-shadow: $shadow-md; overflow: hidden; position: relative; }
+.list-wrapper { overflow: hidden; position: relative; }
+.tab-table { display: flex; flex-direction: column; width: 100%; position: relative; }
+.table-responsive { width: 100%; max-height: 65vh; overflow: auto; position: relative; }
 
 // ── Tab styling (::ng-deep) ──
 :host ::ng-deep .exam-tabs {
@@ -585,6 +585,36 @@ tr.exam-detail-row {
 
 .launch-badge { display: inline-block; padding: 0.1875rem 0.625rem; border-radius: 1rem; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; background: var(--green-bg); color: var(--green-text); border: 0.0625rem solid var(--bgreen-border); }
 .custom-paginator { border-top: 0.0625rem solid #e2e8f0; width: 100%; flex-shrink: 0; box-sizing: border-box; }
+
+.no-tests-table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: #64748b;
+
+  .empty-icon {
+    font-size: 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    margin: 0;
+    color: #475569;
+  }
+}
+
+.empty-data-cell {
+  text-align: center !important;
+  padding: 0 !important;
+}
 
 // ── Mobile exam cards ──
 .exam-cards { display: none; }

@@ -257,6 +257,16 @@ class JWTValidator:
                 token = token.decode('utf-8')
 
             try:
+                # Single device active session enforcement: clear any existing session tokens for this user
+                session.query(AppSession).filter(
+                    or_(AppSession.user_id == uid_str, AppSession.user_id == user.user_id)
+                ).delete(synchronize_session=False)
+                session.commit()
+            except Exception as del_err:
+                print(f"[Auth] Warning clearing previous session records: {del_err}", flush=True)
+                session.rollback()
+
+            try:
                 session_data = AppSession(user_id=uid_str, token=token)
                 session.add(session_data)
                 session.commit()

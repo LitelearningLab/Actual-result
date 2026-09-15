@@ -506,7 +506,7 @@ $table-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 .premium-table th.mat-header-cell,
 .premium-table th.mat-mdc-header-cell,
 .premium-table .mat-mdc-header-cell,
-.premium-table .mat-header-cell { background: linear-gradient(135deg, var(--table-header-bg) 0%, #334155 100%) !important; color: var(--table-header-text) !important; font-weight: 600 !important; font-size: 0.75rem !important; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.875rem 1rem !important; border-bottom: none !important; position: sticky !important; top: 0 !important; z-index: 60 !important; white-space: nowrap; }
+.premium-table .mat-header-cell { background: linear-gradient(135deg, var(--table-header-bg) 0%, #334155 100%) !important; color: var(--table-header-text) !important; font-weight: 600 !important; font-size: 0.75rem !important; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.875rem 1rem !important; border-bottom: none !important; position: sticky; top: 0; z-index: 2; white-space: nowrap; }
 .premium-table th.mat-header-cell:first-child,
 .premium-table th.mat-mdc-header-cell:first-child,
 .premium-table .mat-mdc-header-cell:first-child { border-radius: 0.625rem 0 0 0; }
@@ -516,7 +516,7 @@ $table-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 .premium-table .mat-sort-header-arrow { color: var(--table-header-icon) !important; }
 
 // Table responsive wrapper — use around any <table class="premium-table">
-.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive { width: 100%; overflow: auto; position: relative; -webkit-overflow-scrolling: touch; }
 
 .premium-table tbody tr.mat-row,
 .premium-table tbody tr.mat-mdc-row { background: var(--table-row-bg) !important; position: relative; }
@@ -1125,6 +1125,39 @@ button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon {
     height: 1.125rem;
     animation: spin-inline 1s linear infinite;
   }
+}
+
+// ── Mobile Sidenav Background Scroll Lock ──
+body.mobile-nav-open {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
+// ── Angular Material Dialog Clean Mobile Styling ──
+.cdk-overlay-backdrop.cdk-overlay-backdrop-showing {
+  background: rgba(15, 23, 42, 0.65) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.cdk-overlay-pane:has(.logout-modal-wrap),
+.cdk-overlay-pane:has(.logout-card),
+.cdk-overlay-pane:has(.dialog-container),
+.cdk-overlay-pane:has(app-confirm-dialog),
+.cdk-overlay-pane:has(app-confirm-start-test-dialog),
+.cdk-overlay-pane:has(app-confirm-instant-review-dialog),
+.cdk-overlay-pane:has(.instant-review-dialog),
+.cdk-overlay-pane:has(.start-confirm-dialog) {
+  max-width: min(400px, 92vw) !important;
+  width: 92vw !important;
+}
+
+.cdk-overlay-pane .mat-mdc-dialog-container .mdc-dialog__surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
 }
 
 

@@ -15,6 +15,18 @@ export class SidenavService {
     return this.isMobileOpenSubject.value;
   }
 
+  constructor() {
+    this.isMobileOpen$.subscribe(open => {
+      try {
+        if (open) {
+          document.body.classList.add('mobile-nav-open');
+        } else {
+          document.body.classList.remove('mobile-nav-open');
+        }
+      } catch (e) { /* SSR or test guard */ }
+    });
+  }
+
   get isCollapsed(): boolean {
     return this.isCollapsedSubject.value;
   }

@@ -1,4 +1,4 @@
-<div class="mobile-nav-backdrop" *ngIf="isMobileOpen" (click)="closeMobile()" aria-hidden="true"></div>
+<div class="mobile-nav-backdrop" *ngIf="isMobileOpen" (click)="closeMobile()" (touchstart)="closeMobile()" aria-hidden="true"></div>
 
 <aside
   class="app-side-nav"
@@ -7,6 +7,10 @@
   *ngIf="isLogin"
   role="navigation"
   aria-label="Main navigation"
+  (touchstart)="onTouchStart($event)"
+  (touchmove)="onTouchMove($event)"
+  (touchend)="onTouchEnd($event)"
+  [style.transform]="drawerTransform"
 >
   <!-- Top -->
   <div class="side-top">
@@ -40,11 +44,12 @@
       <mat-icon class="collapse-icon">{{ collapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
     </button>
     <button
-      class="collapse-toggle mobile-close-btn"
+      type="button"
+      class="mobile-close-btn"
       (click)="closeMobile()"
       aria-label="Close menu"
     >
-      <mat-icon class="collapse-icon">chevron_left</mat-icon>
+      <mat-icon class="close-icon">close</mat-icon>
     </button>
   </div>
 
