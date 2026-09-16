@@ -137,13 +137,15 @@ class JWTValidator:
         )
         return pem
 
-    def validate_jwt(self, token):
+    def validate_jwt(self, token, ignore_expiration=False):
         try:
             options = {}
             if not self.audience:
                 options["verify_aud"] = False
             if not self.issuer:
                 options["verify_iss"] = False
+            if ignore_expiration:
+                options["verify_exp"] = False
             if not self.jwt_secret:
                 public_keys = self.get_public_keys()
                 unverified_header = jwt.get_unverified_header(token)
@@ -313,7 +315,7 @@ class JWTValidator:
             if not auth_header.startswith("Bearer "):
                 return {"status": False, "statusMessage": "Authorization header is missing"}, 401
             token = auth_header.split(" ", 1)[1]
-            decoded = self.validate_jwt(token)
+            decoded = self.validate_jwt(token, ignore_expiration=True)
 
             db = SQLiteDB()
             session = db.connect()

@@ -59,7 +59,7 @@
                </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline" class="date-range-field" (click)="openCreatedDateRangePicker()" style="cursor: pointer">
-               <mat-label>Created Date</mat-label>
+               <mat-label>{{ getDateFilterLabel() }}</mat-label>
                <input matInput readonly [value]="getCreatedDateRangeDisplay()" placeholder="Select date range" style="cursor: pointer" />
                <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
             </mat-form-field>

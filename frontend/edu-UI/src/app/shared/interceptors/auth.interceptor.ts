@@ -11,7 +11,7 @@ export class AuthInterceptor implements HttpInterceptor {
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     // endpoints that should not receive Authorization header or be auto-redirected
-    const skipAuthPaths = ['/login', '/public'];
+    const skipAuthPaths = ['/login', '/public', '/refresh-token'];
     const skipInstituteContextHeader = 'X-Skip-Institute-Context';
     const skipInstituteContextPaths = ['/superadmin-dashboard'];
 
@@ -45,6 +45,8 @@ export class AuthInterceptor implements HttpInterceptor {
     return next.handle(req).pipe(
       tap((event: any) => {
         try {
+          const url = req.url || '';
+          if (skipAuthPaths.some(p => url.includes(p))) return;
           // some APIs return 200 with { status: false, statusMessage: 'Signature has expired' }
           const body = event && event.body ? event.body : null;
           if (body && (body.status === false || body.status === 'false')) {
@@ -60,6 +62,10 @@ export class AuthInterceptor implements HttpInterceptor {
       }),
       catchError((err: any) => {
         try {
+          const url = req.url || '';
+          if (skipAuthPaths.some(p => url.includes(p))) {
+            return throwError(() => err);
+          }
           const status = err && (err.status || err.statusCode);
           const body = err && err.error ? err.error : err;
           const message = body && (body.statusMessage || body.message || body.error);

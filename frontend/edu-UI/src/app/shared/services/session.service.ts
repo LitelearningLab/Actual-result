@@ -115,7 +115,10 @@ export class SessionService {
       error: (err) => {
         this.refreshInProgress = false;
         if (err && (err.status === 401 || err.status === 403)) {
-          this.ngZone.run(() => this.promptExtendOrLogout('Your session token has expired.'));
+          const msg = err.error && (err.error.statusMessage || err.error.message) 
+            ? err.error.statusMessage || err.error.message 
+            : 'Your session could not be renewed. Please log in again.';
+          this.ngZone.run(() => this.promptSingleDeviceLogout(msg));
         } else {
           console.warn('Unable to refresh the session; keeping existing login state.', err);
         }

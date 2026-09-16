@@ -75,6 +75,24 @@ def get_exam_total_marks(session, exam_id=None, schedule_id=None, attempt_id=Non
         return float(exam.total_questions), question_ids
     return float(len(question_ids)), question_ids
 
+def calculate_attempt_score(session, attempt_id):
+    """
+    Idempotently calculates total obtained marks for an attempt based on the latest answer
+    for each unique question_id. Returns (total_score, latest_answers_by_qid, all_answers).
+    """
+    all_answers = session.query(Answer).filter(Answer.attempt_id == attempt_id).all()
+    latest_answers_by_qid = {}
+    for ans in all_answers:
+        if ans.question_id not in latest_answers_by_qid:
+            latest_answers_by_qid[ans.question_id] = ans
+        else:
+            existing = latest_answers_by_qid[ans.question_id]
+            if ans.created_date and (not existing.created_date or ans.created_date > existing.created_date):
+                latest_answers_by_qid[ans.question_id] = ans
+
+    total_score = sum(float(ans.marks_awarded or 0) for ans in latest_answers_by_qid.values()) if latest_answers_by_qid else 0.0
+    return total_score, latest_answers_by_qid, all_answers
+
 def is_review_eligible_attempt(attempt):
     """Only finalized attempts can participate in student review flows."""
     return getattr(attempt, 'status', None) in ('submitted', 'evaluated')
@@ -237,6 +255,19 @@ def review_user_exam(request, current_user=None):
 
         attempt_reviews = []
         for attempt in review_attempts:
+            # get question answers and aggregate calculated score per question
+            calc_score, latest_answers_by_qid, all_answers = calculate_attempt_score(session, attempt.attempt_id)
+            all_answers_validated = all(getattr(ans, 'is_validated', 0) == 1 for ans in latest_answers_by_qid.values()) if latest_answers_by_qid else False
+
+            db_needs_update = False
+            if attempt.score is None or abs((attempt.score or 0.0) - calc_score) > 0.001:
+                attempt.score = calc_score
+                db_needs_update = True
+
+            if all_answers_validated and attempt.status != 'evaluated':
+                attempt.status = 'evaluated'
+                db_needs_update = True
+
             review_data = {}
             review_data["attempt_id"] = attempt.attempt_id
             review_data["attempt_number"] = attempt.attempt_number
@@ -270,26 +301,18 @@ def review_user_exam(request, current_user=None):
 
             # Sync attempt in DB if out of sync
             if correct_pct is not None and (attempt.percentage is None or abs((attempt.percentage or 0) - correct_pct) > 0.05 or attempt.feedback != correct_result):
+                attempt.percentage = correct_pct
+                attempt.feedback = correct_result
+                db_needs_update = True
+
+            if db_needs_update:
                 try:
-                    attempt.percentage = correct_pct
-                    attempt.feedback = correct_result
                     session.add(attempt)
                     session.commit()
                 except Exception:
-                    pass
+                    session.rollback()
 
             review_data["review"] = []
-            
-            # get question, selected option, and correct answer
-            all_answers = session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id).all()
-            latest_answers_by_qid = {}
-            for ans in all_answers:
-                if ans.question_id not in latest_answers_by_qid:
-                    latest_answers_by_qid[ans.question_id] = ans
-                else:
-                    existing = latest_answers_by_qid[ans.question_id]
-                    if ans.created_date and (not existing.created_date or ans.created_date > existing.created_date):
-                        latest_answers_by_qid[ans.question_id] = ans
 
             # If all_qids is empty (fallback), use whatever is in latest_answers_by_qid
             display_qids = all_qids if all_qids else list(latest_answers_by_qid.keys())
@@ -636,7 +659,7 @@ def validate_answers(attempt_id):
     try:
         attempt = session.query(Exam_Attempt).filter_by(attempt_id=attempt_id).first()
         if attempt:
-            total_score = session.query(Answer).filter_by(attempt_id=attempt_id).with_entities(func.sum(Answer.marks_awarded)).scalar() or 0
+            total_score, latest_answers_by_qid, _ = calculate_attempt_score(session, attempt_id)
             attempt.score = total_score
             sched = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first()
             exam_id = sched.exam_id if sched else None
@@ -652,7 +675,9 @@ def validate_answers(attempt_id):
             else:
                 attempt.feedback = 'Failed'
             attempt.percentage = round((total_score / total_possible_marks * 100), 2) if total_possible_marks > 0 else 0
-            attempt.status = 'evaluated'
+            all_answers_validated = all(getattr(ans, 'is_validated', 0) == 1 for ans in latest_answers_by_qid.values()) if latest_answers_by_qid else False
+            if all_answers_validated and evaluation_failures == 0:
+                attempt.status = 'evaluated'
             session.add(attempt)
             session.commit()
     except Exception as e:
@@ -912,7 +937,7 @@ def update_descriptive_marks(request, current_user=None):
         # Update exam attempt score
         attempt = session.query(Exam_Attempt).filter_by(attempt_id=answer_record.attempt_id).first()
         if attempt:
-            total_score = session.query(Answer).filter_by(attempt_id=answer_record.attempt_id).with_entities(func.sum(Answer.marks_awarded)).scalar() or 0
+            total_score, latest_answers_by_qid, _ = calculate_attempt_score(session, answer_record.attempt_id)
             attempt.score = total_score
             sched = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first()
             exam_id = sched.exam_id if sched else None
@@ -928,6 +953,9 @@ def update_descriptive_marks(request, current_user=None):
             else:
                 attempt.feedback = 'Failed'
             attempt.percentage = round((total_score / total_possible_marks * 100), 2) if total_possible_marks > 0 else 0
+            all_validated = all(getattr(ans, 'is_validated', 0) == 1 for ans in latest_answers_by_qid.values()) if latest_answers_by_qid else False
+            if all_validated and attempt.status != 'evaluated':
+                attempt.status = 'evaluated'
             session.add(attempt)
             session.commit()
             print(f"[update_descriptive_marks] Successfully updated DB: answer_id={answer_record.answer_id} -> new_marks={marks_awarded}, new_attempt_score={attempt.score}, pct={attempt.percentage}")

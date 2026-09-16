@@ -1030,6 +1030,78 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.applyFilter();
   }
 
+  parseDateToTimestamp(v: any): number | null {
+    if (v === null || v === undefined || v === '') return null;
+    if (typeof v === 'number') return v > 1e12 ? v : v * 1000;
+    const str = String(v).trim();
+    if (!str) return null;
+    if (/^\d+$/.test(str)) {
+      const n = Number(str);
+      return n > 1e12 ? n : n * 1000;
+    }
+    const dt = new Date(str);
+    if (!isNaN(dt.getTime())) return dt.getTime();
+
+    const parts = str.split(' ');
+    if (parts.length >= 1) {
+      const dateParts = parts[0].includes('-') ? parts[0].split('-') : parts[0].split('/');
+      if (dateParts.length === 3) {
+        const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+        let monthIndex = -1;
+        if (isNaN(Number(dateParts[1]))) {
+          monthIndex = months.indexOf(dateParts[1].toLowerCase());
+        } else {
+          monthIndex = Number(dateParts[1]) - 1;
+        }
+        if (monthIndex >= 0 && monthIndex < 12) {
+          const timeParts = parts[1] ? parts[1].split(':') : [0, 0];
+          const day = Number(dateParts[0]);
+          const year = Number(dateParts[2]);
+          const d = new Date(year, monthIndex, day, Number(timeParts[0] || 0), Number(timeParts[1] || 0));
+          if (!isNaN(d.getTime())) return d.getTime();
+        }
+      }
+    }
+    return null;
+  }
+
+  getDateFilterLabel(): string {
+    return this.selectedTabIndex === 0 ? 'Test Assigned Date' : 'Test Attended Date';
+  }
+
+  getItemDateForFilter(row: UserTestRow): number | null {
+    const isCompletedTab = this.selectedTabIndex === 1;
+
+    if (isCompletedTab) {
+      // Completed Tab: Test Attended Date (check attempt history dates first)
+      if (row.attempts_history && row.attempts_history.length > 0) {
+        for (let i = row.attempts_history.length - 1; i >= 0; i--) {
+          const att = row.attempts_history[i];
+          const attDate = att.submitted_date || att.started_date || att.created_date;
+          const ts = this.parseDateToTimestamp(attDate);
+          if (ts !== null) return ts;
+        }
+      }
+      const endTs = this.parseDateToTimestamp(row.end_time);
+      if (endTs !== null) return endTs;
+      const startTs = this.parseDateToTimestamp(row.start_time);
+      if (startTs !== null) return startTs;
+      const createdTs = this.parseDateToTimestamp(row.created_date);
+      if (createdTs !== null) return createdTs;
+      return null;
+    } else {
+      // Active Tab: Test Assigned Date
+      if (row.schedule_sort_time && !isNaN(row.schedule_sort_time) && row.schedule_sort_time > 0) {
+        return row.schedule_sort_time;
+      }
+      const startTs = this.parseDateToTimestamp(row.start_time);
+      if (startTs !== null) return startTs;
+      const createdTs = this.parseDateToTimestamp(row.created_date);
+      if (createdTs !== null) return createdTs;
+      return null;
+    }
+  }
+
   get availableScheduleNames(): string[] {
     const baseList: UserTestRow[] =
       this.selectedTabIndex === 0 ? this.activeSource?.data || [] : this.completeSource?.data || [];
@@ -1042,9 +1114,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       : null;
 
     const filtered = baseList.filter((row) => {
-      const createdTime = row.created_date ? new Date(row.created_date).getTime() : NaN;
-      const byAfter = afterTime === null || (!isNaN(createdTime) && createdTime >= afterTime);
-      const byBefore = beforeTime === null || (!isNaN(createdTime) && createdTime <= beforeTime);
+      const targetTime = this.getItemDateForFilter(row);
+      const byAfter = afterTime === null || (targetTime !== null && targetTime >= afterTime);
+      const byBefore = beforeTime === null || (targetTime !== null && targetTime <= beforeTime);
       return byAfter && byBefore;
     });
 
@@ -2020,7 +2092,7 @@ formatSeconds(sec: number | null | undefined): string {
       const byScheduleName =
         !this.filterScheduleName ||
         (row.title || '').toLowerCase().includes(this.filterScheduleName.trim().toLowerCase());
-      const createdTime = row.created_date ? new Date(row.created_date).getTime() : NaN;
+      const targetTime = this.getItemDateForFilter(row);
       const afterTime = this.filterCreatedAfter
         ? new Date(this.filterCreatedAfter).setHours(0, 0, 0, 0)
         : null;
@@ -2028,9 +2100,9 @@ formatSeconds(sec: number | null | undefined): string {
         ? new Date(this.filterCreatedBefore).setHours(23, 59, 59, 999)
         : null;
       const byCreatedAfter =
-        afterTime === null || (!isNaN(createdTime) && createdTime >= afterTime);
+        afterTime === null || (targetTime !== null && targetTime >= afterTime);
       const byCreatedBefore =
-        beforeTime === null || (!isNaN(createdTime) && createdTime <= beforeTime);
+        beforeTime === null || (targetTime !== null && targetTime <= beforeTime);
       return (
         byText && byPublished && byInstitute && byScheduleName && byCreatedAfter && byCreatedBefore
       );
