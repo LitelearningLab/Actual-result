@@ -191,6 +191,7 @@ $ease: cubic-bezier(0.4, 0, 0.2, 1); $ease-bounce: cubic-bezier(0.34, 1.56, 0.64
 .type-badge.multi { background:rgba(168,85,247,0.1); color:#9333ea; }
 .type-badge.fill { background:rgba(245,158,11,0.1); color:#b45309; }
 .type-badge.desc { background:rgba(34,197,94,0.1); color:#16a34a; }
+.marks-badge { display:inline-flex; align-items:center; padding:0.25rem 0.5rem; border-radius:62.5rem; font:600 0.6875rem/1 inherit; background:rgba(14,165,233,0.1); color:#0284c7; border:0.0625rem solid rgba(14,165,233,0.25); white-space:nowrap; letter-spacing:0.02em; }
 .q-status { display:flex; align-items:center; gap:0.25rem; font:500 0.75rem/1 inherit; color:#16a34a; }
 .q-status .status-icon { font-size:1rem; width:1rem; height:1rem; }
 .q-text { margin-bottom:1rem; font:400 0.9375rem/1.6 inherit; color:var(--theme-3-text-1); }
@@ -600,6 +601,13 @@ $ease: cubic-bezier(0.4, 0, 0.2, 1); $ease-bounce: cubic-bezier(0.34, 1.56, 0.64
     border-radius: 999px;
     font-weight: 600;
     &.mcq, &.multi { background: #f3e8ff; color: #7c3aed; }
+  }
+
+  .marks-badge {
+    padding: 0.2rem 0.45rem;
+    font-size: 0.65rem;
+    border-radius: 999px;
+    font-weight: 600;
   }
 
   .q-status {

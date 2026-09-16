@@ -467,7 +467,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
             text: o.text || o.option_text || o.id || o.options_id || ''
           };
         }),
-        marks: q.marks || q.points || 0
+        marks: q.marks !== undefined && q.marks !== null ? Number(q.marks) : (q.points !== undefined && q.points !== null ? Number(q.points) : 1)
       }));
 
       // 1. Restore saved answers from all available storage levels

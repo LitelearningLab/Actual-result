@@ -1126,6 +1126,7 @@ def launch_exam_details(exam_id, user_id):
                     "question_id": question.question_id,
                     "question_text": question.question_text,
                     "question_type": question.question_type,
+                    "marks": question.marks if question.marks is not None else 1,
                     "options": (
                         option_list
                         if question.question_type in ["choose", "multi"]

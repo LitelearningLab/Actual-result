@@ -1,5 +1,6 @@
 import datetime
 import uuid
+import random
 # pyrefly: ignore [missing-import]
 from sqlalchemy import func
 from db.db import SQLiteDB
@@ -83,12 +84,13 @@ def calculate_attempt_score(session, attempt_id):
     all_answers = session.query(Answer).filter(Answer.attempt_id == attempt_id).all()
     latest_answers_by_qid = {}
     for ans in all_answers:
-        if ans.question_id not in latest_answers_by_qid:
-            latest_answers_by_qid[ans.question_id] = ans
+        qid_key = str(ans.question_id) if ans.question_id is not None else ""
+        if qid_key not in latest_answers_by_qid:
+            latest_answers_by_qid[qid_key] = ans
         else:
-            existing = latest_answers_by_qid[ans.question_id]
+            existing = latest_answers_by_qid[qid_key]
             if ans.created_date and (not existing.created_date or ans.created_date > existing.created_date):
-                latest_answers_by_qid[ans.question_id] = ans
+                latest_answers_by_qid[qid_key] = ans
 
     total_score = sum(float(ans.marks_awarded or 0) for ans in latest_answers_by_qid.values()) if latest_answers_by_qid else 0.0
     return total_score, latest_answers_by_qid, all_answers
@@ -315,13 +317,28 @@ def review_user_exam(request, current_user=None):
             review_data["review"] = []
 
             # If all_qids is empty (fallback), use whatever is in latest_answers_by_qid
-            display_qids = all_qids if all_qids else list(latest_answers_by_qid.keys())
+            display_qids = [str(q) for q in (all_qids if all_qids else list(latest_answers_by_qid.keys())) if q]
 
-            for qid in display_qids:
-                question = session.query(Question).filter(Question.question_id == qid).first()
+            rng = random.Random(str(attempt.attempt_id)) if attempt and getattr(attempt, 'attempt_id', None) else None
+            questions_for_attempt = session.query(Question).filter(Question.question_id.in_(display_qids)).all() if display_qids else []
+            fetched_qids = {str(q.question_id) for q in questions_for_attempt if getattr(q, 'question_id', None)}
+            all_questions_ordered = list(questions_for_attempt)
+            for missing_id in display_qids:
+                if str(missing_id) not in fetched_qids:
+                    missing_q = session.query(Question).filter(Question.question_id == missing_id).first()
+                    if missing_q:
+                        all_questions_ordered.append(missing_q)
+                        fetched_qids.add(str(missing_q.question_id))
+
+            for question in all_questions_ordered:
+                qid = str(question.question_id) if question and getattr(question, 'question_id', None) else ""
                 question_type = question.question_type if question else ""
                 question_marks = question.marks if question and question.marks is not None else 1
                 options_list = session.query(Option).filter(Option.question_id == qid, Option.active_status == 1).all()
+
+                if rng and question_type in ["choose", "multi"] and options_list:
+                    opt_list_copy = [{"id": opt.options_id, "text": opt.option_text} for opt in options_list]
+                    rng.shuffle(opt_list_copy)
 
                 if qid in latest_answers_by_qid:
                     question_answer = latest_answers_by_qid[qid]
@@ -491,6 +508,9 @@ def review_user_exam(request, current_user=None):
                         "evaluation_status": "not_attempted" if show_explanations else None,
                         "evaluation_error": None
                     })
+
+            if rng and review_data["review"]:
+                rng.shuffle(review_data["review"])
 
             attempt_reviews.append(review_data)
 

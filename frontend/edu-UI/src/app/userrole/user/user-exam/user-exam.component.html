@@ -107,6 +107,9 @@
                    q.type === 'multi' || q.type === 'Multi' ? 'Multiple Choice' : 
                    q.type === 'fill' || q.type === 'Fill' ? 'Fill Blank' : 'Long Answer' }}
               </span>
+              <span class="marks-badge" *ngIf="q.marks != null">
+                {{ q.marks }} {{ q.marks === 1 ? 'Mark' : 'Marks' }}
+              </span>
             </div>
             <div class="q-status" *ngIf="isAnswered(q, i)">
               <mat-icon class="status-icon">check_circle</mat-icon>

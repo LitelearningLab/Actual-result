@@ -46,6 +46,10 @@ export class SessionService {
   private promptSingleDeviceLogout(message: string) {
     if (this.promptOpen || !this.hasLoggedInSession()) return;
     this.promptOpen = true;
+    try {
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+    } catch (e) {}
 
     const ref = this.dialog.open(ConfirmDialogComponent, {
       data: {
