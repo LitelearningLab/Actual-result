@@ -1182,9 +1182,9 @@ def submit_exam_answers(data):
             session.close()
             return {
                 "statusMessage": "Exam attempt has already been submitted",
-                "status": False,
-                "errorCode": "ALREADY_SUBMITTED",
-            }, 400
+                "status": True,
+                "alreadySubmitted": True,
+            }, 200
         if exam_attempt.status != "in_progress":
             session.close()
             return {
@@ -1242,7 +1242,10 @@ def submit_exam_answers(data):
 
         session.commit()
         session.close()
-        validate_answers(attempt_id)
+        try:
+            validate_answers(attempt_id)
+        except Exception as eval_err:
+            print(f"AI evaluation warning for attempt {attempt_id}: {eval_err}")
         json_data = {
             "statusMessage": "Exam answers submitted successfully",
             "status": True,

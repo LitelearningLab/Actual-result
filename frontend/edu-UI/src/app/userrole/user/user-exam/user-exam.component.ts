@@ -846,6 +846,10 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         try { this.loader.hide(); } catch (e) {}
         if (err?.status === 409 && err?.error?.errorCode === 'EXAM_UNPUBLISHED') {
           this.stopActiveTest();
+        } else if (err?.error?.errorCode === 'ALREADY_SUBMITTED' || (err?.status === 400 && String(err?.error?.statusMessage || '').toLowerCase().includes('already submitted'))) {
+          this.handleSuccessfulSubmit(err?.error || {});
+          this.ngZone.run(() => this.router.navigate(['/user/exam']));
+          return of(err?.error || {});
         } else {
           this.startTimer();
           this.startStatusPolling();

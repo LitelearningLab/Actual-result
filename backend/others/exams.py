@@ -1069,7 +1069,10 @@ def get_user_exam_details(request):
                 session, schedule_obj, attempts, current_time
             )
             for finalized_id in finalized_ids:
-                validate_answers(finalized_id)
+                try:
+                    validate_answers(finalized_id)
+                except Exception as eval_err:
+                    print(f"AI evaluation warning for attempt {finalized_id}: {eval_err}")
 
             # Re-read attempts after finalization
             submitted_attempts = [
@@ -1650,7 +1653,10 @@ def launch_exam_details(schedule_id, user_id):
             )
             if finalized_ids:
                 for fid in finalized_ids:
-                    validate_answers(fid)
+                    try:
+                        validate_answers(fid)
+                    except Exception as eval_err:
+                        print(f"AI evaluation warning for attempt {fid}: {eval_err}")
             else:
                 current_attempt = existing_attempt
                 # Fetch existing saved answers for this attempt
@@ -1850,7 +1856,10 @@ def get_active_exam_status(attempt_id, user_id, remaining_seconds=None):
             session, exam_schedule, [exam_attempt]
         )
         for finalized_id in finalized_ids:
-            validate_answers(finalized_id)
+            try:
+                validate_answers(finalized_id)
+            except Exception as eval_err:
+                print(f"AI evaluation warning for attempt {finalized_id}: {eval_err}")
 
         return {
             "statusMessage": "Exam status retrieved successfully",
@@ -1937,9 +1946,9 @@ def submit_exam_answers(data, authenticated_user_id=None):
             session.close()
             return {
                 "statusMessage": "Exam attempt has already been submitted",
-                "status": False,
-                "errorCode": "ALREADY_SUBMITTED",
-            }, 400
+                "status": True,
+                "alreadySubmitted": True,
+            }, 200
 
         if exam_attempt.status != "in_progress":
             session.close()
@@ -1979,7 +1988,10 @@ def submit_exam_answers(data, authenticated_user_id=None):
         exam_attempt.status = "submitted"
         session.commit()
         session.close()
-        validate_answers(attempt_id)
+        try:
+            validate_answers(attempt_id)
+        except Exception as eval_err:
+            print(f"AI evaluation warning for attempt {attempt_id}: {eval_err}")
         json_data = {
             "statusMessage": "Exam answers submitted successfully",
             "status": True,

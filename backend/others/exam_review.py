@@ -186,7 +186,10 @@ def review_user_exam(request, current_user=None):
 
         finalized_ids = finalize_expired_attempts(session, exam_schedule, attempts)
         for finalized_id in finalized_ids:
-            validate_answers(finalized_id)
+            try:
+                validate_answers(finalized_id)
+            except Exception as eval_err:
+                print(f"AI evaluation warning during review for attempt {finalized_id}: {eval_err}")
         completed_attempts = [attempt for attempt in attempts if is_review_eligible_attempt(attempt)]
         completed_attempts.sort(key=lambda attempt: attempt.attempt_number or 0)
         review_mode = exam_schedule.review_mode or ('instant' if exam_schedule.user_review == 1 else 'no_review')

@@ -73,7 +73,11 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         1. Output exactly the JSON object described in the user instructions and nothing else.
         2. Score each topic as an integer in range 0-100 using coverage, correctness, and completeness.
         3. For lists (missing, incomplete, incorrect) return either "None" or a comma-separated string of short phrases (no internal commas if possible).
-        4. Keep `feedback` short (1-2 sentences) and constructive.
+        4. The `feedback` must be clear and easy for a student to understand. It must briefly explain:
+            - what the student answered correctly,
+            - what important point or points are missing or incorrect,
+            - and what the student should add or improve.
+            Use simple educational language. Do not use vague statements such as "expand on the benefits" or "needs more detail" without saying what detail is needed. Keep feedback to 2-3 short sentences.
         5. If you cannot evaluate or parse the candidate answer, return score 0 and put diagnostic text in `feedback`.
         6. Do not ask questions or include explanations outside the JSON object.
         7. Include an integer field `ai_confidence` in the JSON output (0-100) representing the model's confidence in this evaluation. If you cannot determine a confidence, return 0.
@@ -86,6 +90,7 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         **Candidate's Answer:** {student_answer}
         
         please evaluate and award a score between 0 and {question_mark} (maximum allowed marks is {question_mark}). For each point candidate answer available in the expected answer key points mention as "Available" and for missing points mention as "Missing" and for partial answer points mention as "Partial", and correct answer points mention as "Complete" and provide the short report only for the missing part in partially answered points, and for incorrect point highlight what is incorrect based on the expected answer.
+                The feedback must be based only on the actual evaluation above. Clearly tell the student what they did well and specifically identify the missing or incorrect points. Give a practical suggestion for improving the answer. Do not give generic feedback.
                     Don't need a summary in the output. Also not required to mention the expected answer in the output.
         
         Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
@@ -94,7 +99,7 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         "missing": "<pipe-separated list of Crisp phrase on what is missed or 'None'>",
         "incomplete": "<pipe-separated list of Crisp explanation on which part is incomplete or 'None'>",
         "incorrect": "<pipe-separated list of Crisp explanation on what is incorrect and why or 'None'>",
-        "feedback": "<brief constructive feedback>",
+        "feedback": "<clear student-friendly feedback explaining what was correct, what was missing or incorrect, and exactly what should be improved>",
         "ai_confidence": <integer between 0-100>
         }}
         
@@ -198,7 +203,19 @@ Categorize all provided student responses into the following two major categorie
    - If ALL submitted answers are off-topic/irrelevant, "clusters" under "relevant_but_incorrect" MUST be an empty array [].
 
 Pedagogical Synthesis:
-- "diagnostic_summary": A concise executive diagnostic summary highlighting the core patterns of student misunderstandings and conceptual gaps.
+- "diagnostic_summary": A short and clear summary of the main problems found in the student answers.
+
+Diagnostic Summary Requirements:
+- Write in very simple English.
+- Make it easy for a student, teacher, or layman to understand.
+- Clearly state what the students got wrong and what the correct concept should be.
+- Use specific details from the actual student answers.
+- Do not use vague statements such as "lack of clarity", "conceptual gaps", "incomplete understanding", or "students display a misunderstanding" without explaining the exact problem.
+- Keep the diagnostic summary to a maximum of 4–5 short lines.
+- Focus only on the main problem found in the answers.
+- Do not include recommendations or solutions in the diagnostic summary.
+- Do not invent problems that are not present in the student answers.
+
 - "recommendations": Concrete, actionable pedagogical recommendations for educators to reinforce these weak areas.
 
 Crucial Rules:
