@@ -408,6 +408,11 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
   search = '';
   filterPublished: string = '';
   filtersOpen = false;
+  isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  isDraggingSheet = false;
+  sheetDragOffsetY = 0;
+  dragStartY = 0;
+  isClosingSheet = false;
   isSuperAdmin = false;
   institutes: Array<{ name: string; institute_id: string }> = [];
   filterInstitute = '';
@@ -1160,14 +1165,79 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
     return '';
   }
 
-  toggleFilters(event: MouseEvent): void {
-    event.stopPropagation();
-    this.filtersOpen = !this.filtersOpen;
+  @HostListener('window:resize')
+  checkMobileScreen(): void {
+    if (typeof window !== 'undefined') {
+      this.isMobile = window.innerWidth < 768;
+    }
+  }
+
+  toggleFilters(event?: MouseEvent | TouchEvent): void {
+    if (event) event.stopPropagation();
+    if (this.filtersOpen) {
+      this.closeFiltersOnOutsideClick();
+    } else {
+      this.filtersOpen = true;
+      this.isClosingSheet = false;
+      this.sheetDragOffsetY = 0;
+    }
   }
 
   @HostListener('document:click')
   closeFiltersOnOutsideClick(): void {
-    if (this.filtersOpen) this.filtersOpen = false;
+    if (!this.filtersOpen) return;
+    if (this.isMobile) {
+      this.isClosingSheet = true;
+      setTimeout(() => {
+        this.filtersOpen = false;
+        this.isClosingSheet = false;
+        this.sheetDragOffsetY = 0;
+      }, 230);
+    } else {
+      this.filtersOpen = false;
+      this.sheetDragOffsetY = 0;
+    }
+  }
+
+  onDragStart(event: PointerEvent | TouchEvent): void {
+    if (!this.isMobile) return;
+    this.isDraggingSheet = true;
+    const clientY = 'touches' in event ? event.touches[0].clientY : (event as PointerEvent).clientY;
+    this.dragStartY = clientY;
+  }
+
+  @HostListener('window:pointermove', ['$event'])
+  @HostListener('window:touchmove', ['$event'])
+  onDragMove(event: PointerEvent | TouchEvent): void {
+    if (!this.isDraggingSheet) return;
+    const clientY = 'touches' in event ? event.touches[0].clientY : (event as PointerEvent).clientY;
+    const deltaY = clientY - this.dragStartY;
+    if (deltaY > 0) {
+      this.sheetDragOffsetY = deltaY;
+    } else {
+      this.sheetDragOffsetY = deltaY * 0.2;
+    }
+  }
+
+  @HostListener('window:pointerup')
+  @HostListener('window:touchend')
+  onDragEnd(): void {
+    if (!this.isDraggingSheet) return;
+    this.isDraggingSheet = false;
+    if (this.sheetDragOffsetY > 90) {
+      this.closeFiltersOnOutsideClick();
+    } else {
+      this.sheetDragOffsetY = 0;
+    }
+  }
+
+  getPanelTransform(): string | null {
+    if (!this.isMobile) return null;
+    if (this.isClosingSheet) return 'translateY(100%)';
+    if (this.sheetDragOffsetY !== 0) {
+      return `translateY(${this.sheetDragOffsetY}px)`;
+    }
+    return null;
   }
 
   // Review modal state

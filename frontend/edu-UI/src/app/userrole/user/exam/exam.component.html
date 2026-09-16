@@ -45,10 +45,20 @@
          </div>
       </div>
 
-      <div class="filters-panel card" *ngIf="filtersOpen" (click)="$event.stopPropagation()">
+      <!-- Mobile Backdrop -->
+      <div class="filters-backdrop" *ngIf="filtersOpen" (click)="closeFiltersOnOutsideClick()"></div>
+
+      <div class="filters-panel card" [class.mobile-sheet]="isMobile" [class.closing]="isClosingSheet" [style.transform]="getPanelTransform()" *ngIf="filtersOpen" (click)="$event.stopPropagation()">
+         <!-- Mobile Drag Handle Bar -->
+         <div class="drag-handle-bar" (pointerdown)="onDragStart($event)" (touchstart)="onDragStart($event)">
+            <div class="drag-handle"></div>
+         </div>
+
          <div class="filters-header">
-            <div class="filters-title"><mat-icon>tune</mat-icon><strong>Filters</strong></div><span
-               class="filters-header-mark" aria-hidden="true"></span>
+            <div class="filters-title"><mat-icon>tune</mat-icon><strong>Filters</strong></div>
+            <button type="button" class="close-sheet-btn" (click)="closeFiltersOnOutsideClick()" title="Close filters" aria-label="Close filters">
+               <mat-icon>close</mat-icon>
+            </button>
          </div>
          <div class="filter-row">
             <mat-form-field appearance="outline">
@@ -66,7 +76,7 @@
          </div>
          <div class="filter-actions"><button mat-flat-button class="filter-reset-btn" (click)="resetFilters()"><mat-icon
                   svgIcon="reset_settings"></mat-icon>Reset</button><button mat-flat-button class="filter-apply-btn"
-               (click)="applyFilter(); filtersOpen = false"><mat-icon svgIcon="apply"></mat-icon>Apply</button></div>
+               (click)="applyFilter(); closeFiltersOnOutsideClick()"><mat-icon svgIcon="apply"></mat-icon>Apply</button></div>
       </div>
 
       <!-- Segmented Tabs Control Bar -->
