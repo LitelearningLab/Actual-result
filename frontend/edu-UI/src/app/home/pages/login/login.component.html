@@ -180,27 +180,6 @@
         </div>
       </ng-container>
 
-      <!-- Case 2: User A Closed Tab / Crashed (COUNTDOWN TIMER) -->
-      <ng-container *ngIf="lockType === 'tab_closed'">
-        <div class="modal-icon-badge locked-icon">
-          <mat-icon fontSet="material-icons-outlined">warning_amber</mat-icon>
-        </div>
-        <h3 class="modal-dialog-title">Account Temporarily Locked</h3>
-        <p class="modal-dialog-message">
-          The previous session was closed without logging out.<br /><br />
-          You can sign in after:
-        </p>
-        <div class="modal-countdown-timer">
-          <span class="timer-display">{{ formattedCountdown }}</span>
-        </div>
-        <p class="modal-dialog-subtext">Please wait until the session expires.</p>
-        <div class="modal-dialog-actions">
-          <button mat-flat-button color="primary" class="modal-ok-btn" (click)="closeLockoutModal()">
-            OK
-          </button>
-        </div>
-      </ng-container>
-
     </div>
   </div>
 

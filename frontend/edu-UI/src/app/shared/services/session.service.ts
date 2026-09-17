@@ -108,6 +108,7 @@ export class SessionService {
       next: (res) => {
         try {
           if (res && res.token) {
+            console.debug('[SessionService] Token refreshed successfully. Updated sessionStorage token:', res.token.substring(0, 8) + '...');
             sessionStorage.setItem('token', res.token);
           }
           if (res && res.user) {

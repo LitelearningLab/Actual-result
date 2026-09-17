@@ -16,5 +16,5 @@ const LIVE_API_BASE = 'http://34.100.213.250:5001/edu/api';
 // false = frontend uses the live backend
 const USE_LOCAL_BACKEND = true;
 
-export const API_BASE = frontendIsLocal && USE_LOCAL_BACKEND ? LOCAL_API_BASE : LIVE_API_BASE;
+export const API_BASE = USE_LOCAL_BACKEND ? LOCAL_API_BASE : LIVE_API_BASE;
 

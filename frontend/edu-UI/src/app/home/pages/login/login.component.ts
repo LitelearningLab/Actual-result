@@ -39,10 +39,7 @@ export class LoginComponent implements OnDestroy {
   isAccountLocked = false;
   isActiveSessionWarning = false;
   lockType = '';
-  lockoutRemainingSeconds = 0;
-  formattedCountdown = '00:00';
   lockoutMessage = '';
-  private lockoutTimer: any = null;
 
   constructor(private fb: FormBuilder, private auth: AuthService, private router: Router, private notify: NotificationService, private loader: LoaderService) {
     this.loginForm = this.fb.group({
@@ -61,28 +58,7 @@ export class LoginComponent implements OnDestroy {
     this.stopLockoutCountdown();
   }
 
-  startLockoutCountdown(seconds: number, message?: string): void {
-    this.stopLockoutCountdown();
-    this.showLockoutModal = true;
-    this.isAccountLocked = true;
-    this.isActiveSessionWarning = false;
-    this.lockType = 'tab_closed';
-    this.lockoutRemainingSeconds = seconds;
-    this.lockoutMessage = message || 'The previous session was closed without logging out.';
-    this.updateFormattedCountdown();
-
-    this.lockoutTimer = setInterval(() => {
-      this.lockoutRemainingSeconds--;
-      if (this.lockoutRemainingSeconds <= 0) {
-        this.closeLockoutModal();
-      } else {
-        this.updateFormattedCountdown();
-      }
-    }, 1000);
-  }
-
   showActiveSessionWarning(message?: string): void {
-    this.stopLockoutCountdown();
     this.showLockoutModal = true;
     this.isActiveSessionWarning = true;
     this.isAccountLocked = false;
@@ -91,23 +67,10 @@ export class LoginComponent implements OnDestroy {
   }
 
   stopLockoutCountdown(): void {
-    if (this.lockoutTimer) {
-      clearInterval(this.lockoutTimer);
-      this.lockoutTimer = null;
-    }
+    this.showLockoutModal = false;
     this.isAccountLocked = false;
     this.isActiveSessionWarning = false;
     this.lockType = '';
-    this.lockoutRemainingSeconds = 0;
-    this.formattedCountdown = '00:00';
-  }
-
-  private updateFormattedCountdown(): void {
-    const mins = Math.floor(Math.max(0, this.lockoutRemainingSeconds) / 60);
-    const secs = Math.max(0, this.lockoutRemainingSeconds) % 60;
-    const mm = mins < 10 ? `0${mins}` : `${mins}`;
-    const ss = secs < 10 ? `0${secs}` : `${secs}`;
-    this.formattedCountdown = `${mm}:${ss}`;
   }
 
   onSubmit(): void {
@@ -133,13 +96,15 @@ export class LoginComponent implements OnDestroy {
         }
       } else {
         this.loader.hide();
-        if (result.lockType === 'active_session') {
-          this.showActiveSessionWarning(result.statusMessage);
-        } else if (result.lockType === 'tab_closed' || (result.remainingSeconds && result.remainingSeconds > 0)) {
-          this.startLockoutCountdown(result.remainingSeconds || 90, result.statusMessage);
+        const lockType = result.lockType || (result as any).lock_type;
+        const isLocked = result.isLocked || (result as any).is_locked;
+        const msg = result.statusMessage || (result as any).status_Message || (result as any).message;
+
+        if (lockType === 'active_session' || isLocked) {
+          this.showActiveSessionWarning(msg);
         } else {
           this.stopLockoutCountdown();
-          this.notify.error(result.statusMessage || 'Login failed. Please check your credentials.');
+          this.notify.error(msg || 'Login failed. Please check your credentials.');
         }
       }
     });

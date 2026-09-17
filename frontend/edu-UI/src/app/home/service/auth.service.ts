@@ -12,7 +12,7 @@ export interface LoginResponse {
   token?: string;
   user?: any;
   is_locked?: boolean;
-  lock_type?: 'active_session' | 'tab_closed' | string;
+  lock_type?: 'active_session' | string;
   remaining_seconds?: number;
 }
 
@@ -21,7 +21,7 @@ export interface LoginResult {
   remainingSeconds?: number;
   statusMessage?: string;
   isLocked?: boolean;
-  lockType?: 'active_session' | 'tab_closed' | string;
+  lockType?: 'active_session' | string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -40,38 +40,103 @@ export class AuthService {
   get currentUserValue() { return this._user.value; }
 
   private heartbeatTimer: any = null;
+  private visibilityListener: (() => void) | null = null;
+  private unloadListener: (() => void) | null = null;
 
   constructor(
     private http: HttpClient, 
     private pageAccess: PageAccessService,
     private instituteContext: GlobalInstituteContextService
   ) {
+    this.setupUnloadListener();
     this.restoreSession();
+  }
+
+  private setupUnloadListener(): void {
+    if (this.unloadListener || typeof window === 'undefined') return;
+
+    this.unloadListener = () => {
+      let token: string | null = null;
+      try { token = sessionStorage.getItem('token'); } catch (e) {}
+      if (token) {
+        const url = `${API_BASE}/logout?token=${encodeURIComponent(token)}`;
+        try {
+          if (navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify({ token })], { type: 'application/json' });
+            navigator.sendBeacon(url, blob);
+          } else {
+            fetch(url, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              keepalive: true
+            }).catch(() => {});
+          }
+        } catch (e) {}
+      }
+    };
+
+    window.addEventListener('pagehide', this.unloadListener);
+    window.addEventListener('beforeunload', this.unloadListener);
+  }
+
+  sendHeartbeatPing(): void {
+    let token: string | null = null;
+    try { token = sessionStorage.getItem('token'); } catch (e) {}
+
+    if (!token) {
+      console.debug('[HEARTBEAT] No token');
+      this.stopHeartbeat();
+      return;
+    }
+
+    console.debug('[HEARTBEAT] Sending token:', token.substring(0, 12));
+
+    this.http.post<any>(`${API_BASE}/session/heartbeat`, {}).subscribe({
+      next: (resp) => {
+        console.debug('[HEARTBEAT] SUCCESS:', resp);
+      },
+      error: (err) => {
+        console.error('[HEARTBEAT] FAILED', {
+          status: err?.status,
+          error: err?.error,
+          token: token?.substring(0, 12)
+        });
+        if (err?.status === 401) {
+          console.error('[HEARTBEAT] SERVER SAYS THIS SESSION IS INVALID');
+          this.clearLocalSession();
+        }
+      }
+    });
   }
 
   startHeartbeat(): void {
     this.stopHeartbeat();
+    this.sendHeartbeatPing();
     this.heartbeatTimer = setInterval(() => {
-      let token: string | null = null;
-      try { token = sessionStorage.getItem('token'); } catch (e) {}
-      if (!token || !this.isLoggedIn) {
-        this.stopHeartbeat();
-        return;
-      }
-      this.http.post<any>(`${API_BASE}/session/heartbeat`, {}).subscribe({
-        error: (err) => {
-          if (err?.status === 401) {
-            this.clearLocalSession();
-          }
-        }
-      });
+      this.sendHeartbeatPing();
     }, 25000);
+
+    if (!this.visibilityListener && typeof document !== 'undefined') {
+      this.visibilityListener = () => {
+        if (document.visibilityState === 'visible') {
+          this.sendHeartbeatPing();
+        }
+      };
+      document.addEventListener('visibilitychange', this.visibilityListener);
+    }
   }
 
   stopHeartbeat(): void {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+    if (this.visibilityListener && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityListener);
+      this.visibilityListener = null;
     }
   }
 
@@ -120,7 +185,6 @@ export class AuthService {
       const ok = resp?.status === true && typeof resp.token === 'string' && resp.token.length > 0 && !!resp.user;
       if (ok) {
         try {
-            this.clearLocalSession();
             this._logged.next(true);
 
             if (resp.token) sessionStorage.setItem('token', resp.token);
@@ -166,15 +230,34 @@ export class AuthService {
         };
       }
     } catch (err: any) {
+      let errResp = err?.error || err;
+      if (typeof errResp === 'string') {
+        try { errResp = JSON.parse(errResp); } catch(e){}
+      }
+      const lockType = errResp?.lock_type || errResp?.lockType || (errResp?.is_locked ? 'active_session' : undefined);
+      const isLocked = errResp?.is_locked ?? errResp?.isLocked ?? (lockType ? true : false);
+      const remainingSeconds = errResp?.remaining_seconds ?? errResp?.remainingSeconds ?? 0;
+      const statusMessage = errResp?.statusMessage || errResp?.message || (typeof errResp === 'string' ? errResp : 'Login failed. Please check your credentials.');
+
+      // 409 means another session is active. Do NOT clear an existing local session.
+      if (err?.status === 409 && isLocked) {
+        return {
+          ok: false,
+          remainingSeconds: remainingSeconds,
+          isLocked: true,
+          lockType: lockType,
+          statusMessage: statusMessage
+        };
+      }
+
       this._logged.next(false);
       this._user.next(null);
-      const errResp = err?.error || {};
       return {
         ok: false,
-        remainingSeconds: errResp?.remaining_seconds,
-        isLocked: errResp?.is_locked,
-        lockType: errResp?.lock_type,
-        statusMessage: errResp?.statusMessage || 'Login failed. Please check your credentials.'
+        remainingSeconds: remainingSeconds,
+        isLocked: isLocked,
+        lockType: lockType,
+        statusMessage: statusMessage
       };
     }
   }

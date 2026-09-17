@@ -7,12 +7,15 @@ import jwt
 import requests
 import base64
 import rsa
+import threading
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from passlib.hash import argon2
 import pandas as pd
 
 from db.db import SQLiteDB
+
+login_session_lock = threading.Lock()
 
 def get_user_country_details(session, user):
     """
@@ -171,6 +174,15 @@ class JWTValidator:
 
     def token_validation(self, request):
         auth_header = request.headers.get("Authorization")
+        if not auth_header and request.args.get("token"):
+            auth_header = f"Bearer {request.args.get('token')}"
+        if not auth_header and request.is_json:
+            try:
+                body_data = request.get_json(silent=True) or {}
+                if body_data.get("token"):
+                    auth_header = f"Bearer {body_data.get('token')}"
+            except Exception:
+                pass
 
         if auth_header is None:
             return "Authorization header is missing"
@@ -188,10 +200,12 @@ class JWTValidator:
             try:
                 active_session = session.query(AppSession).filter_by(token=token).first()
                 if not active_session:
+                    print(f"[Auth.token_validation] SESSION NOT FOUND token={token[:12]}...", flush=True)
                     return "Session is not active"
+                print(f"[Auth.token_validation] SESSION VALID id={active_session.id} user_id={active_session.user_id} token={token[:12]}...", flush=True)
+                return "Access granted"
             finally:
                 session.close()
-            return "Access granted"
         except Exception as e:
             return str(e)
 
@@ -254,40 +268,34 @@ class JWTValidator:
                 if not institute:
                     institute = session.query(Institute).filter_by(institute_id=user.institute_id).first()
 
-            token = self.generate_jwt(user.email)
-            if isinstance(token, bytes):
-                token = token.decode('utf-8')
-
-            try:
-                # Concurrent login & Heartbeat lock enforcement
-                HEARTBEAT_TIMEOUT_SECONDS = 90
+            with login_session_lock:
+                # Concurrent login enforcement (active session within 35s)
                 ACTIVE_WORKING_THRESHOLD_SECONDS = 35
 
+                uid_str_lower = uid_str.lower()
                 existing_sessions = session.query(AppSession).filter(
-                    or_(AppSession.user_id == uid_str, AppSession.user_id == user.user_id)
+                    func.lower(AppSession.user_id) == uid_str_lower
                 ).all()
 
                 now_utc = datetime.datetime.utcnow()
                 active_working_found = False
-                tab_closed_found = False
-                max_remaining_seconds = 0
+                stale_sessions_to_delete = []
+
+                print(f"[Auth.login] User: {user.email} (UID: {uid_str}) | Existing sessions count: {len(existing_sessions)}", flush=True)
 
                 for s in existing_sessions:
                     last_hb = getattr(s, 'last_heartbeat', None) or getattr(s, 'created_date', None) or now_utc
                     elapsed = (now_utc - last_hb).total_seconds()
+                    token_mask = (s.token[:8] + "...") if getattr(s, 'token', None) else "N/A"
+                    print(f"[Auth.login] Existing Session ID={s.id} | Token={token_mask} | last_hb={last_hb} | now_utc={now_utc} | elapsed={elapsed:.2f}s", flush=True)
                     if elapsed <= ACTIVE_WORKING_THRESHOLD_SECONDS:
                         active_working_found = True
-                    elif elapsed < HEARTBEAT_TIMEOUT_SECONDS:
-                        rem = int(HEARTBEAT_TIMEOUT_SECONDS - elapsed)
-                        if rem > max_remaining_seconds:
-                            max_remaining_seconds = rem
-                        tab_closed_found = True
+                        print(f"[Auth.login] ACTIVE WORKING SESSION DETECTED (ID={s.id}, elapsed={elapsed:.2f}s <= 35s). Login will be blocked with 409 active_session.", flush=True)
                     else:
-                        # Session heartbeat timed out, clear stale session
-                        session.delete(s)
+                        stale_sessions_to_delete.append(s)
 
                 if active_working_found:
-                    session.commit()
+                    print(f"[Auth.login] REJECTING LOGIN (409 active_session) for user={user.email}. Preserving existing PC session.", flush=True)
                     return {
                         "status": False,
                         "is_locked": True,
@@ -296,33 +304,24 @@ class JWTValidator:
                         "statusMessage": "This account is already active on another device. Please log out from the other device before signing in here."
                     }, 409
 
-                if tab_closed_found and max_remaining_seconds > 0:
-                    session.commit()
-                    return {
-                        "status": False,
-                        "is_locked": True,
-                        "lock_type": "tab_closed",
-                        "remaining_seconds": max_remaining_seconds,
-                        "statusMessage": "The previous session was closed without logging out."
-                    }, 409
-
-                # Clear remaining expired sessions if any before inserting new session
-                session.query(AppSession).filter(
-                    or_(AppSession.user_id == uid_str, AppSession.user_id == user.user_id)
-                ).delete(synchronize_session=False)
+                # Clear stale sessions (elapsed > 35s) immediately upon new login
+                for s in stale_sessions_to_delete:
+                    last_hb = getattr(s, 'last_heartbeat', None) or getattr(s, 'created_date', None) or now_utc
+                    elapsed = (now_utc - last_hb).total_seconds()
+                    print(f"[Auth.login] Deleting stale session ID={s.id} (elapsed={elapsed:.2f}s > 35s)", flush=True)
+                    session.delete(s)
                 session.commit()
-            except Exception as del_err:
-                print(f"[Auth] Warning checking/clearing session records: {del_err}", flush=True)
-                session.rollback()
 
-            try:
+                # Generate JWT token ONLY NOW after locks pass
+                token = self.generate_jwt(user.email)
+                if isinstance(token, bytes):
+                    token = token.decode('utf-8')
+
                 now_hb = datetime.datetime.utcnow()
                 session_data = AppSession(user_id=uid_str, token=token, created_date=now_hb, last_heartbeat=now_hb)
                 session.add(session_data)
                 session.commit()
-            except Exception as se_err:
-                print(f"[Auth] Warning saving session record: {se_err}", flush=True)
-                session.rollback()
+                print(f"[Auth.login] New session created ID={session_data.id} | Token={token[:8]}... | user={user.email}", flush=True)
 
             country_info = get_user_country_details(session, user)
 
@@ -372,6 +371,7 @@ class JWTValidator:
 
             session_row = session.query(AppSession).filter_by(token=token).first()
             if not session_row:
+                print(f"[Auth.refresh_token] Session NOT found for token={token[:8]}...", flush=True)
                 return {"status": False, "statusMessage": "Session not found"}, 401
 
             user = session.query(User).filter_by(user_id=session_row.user_id).first()
@@ -383,8 +383,10 @@ class JWTValidator:
             new_token = self.generate_jwt(user.email)
             if isinstance(new_token, bytes):
                 new_token = new_token.decode('utf-8')
+            print(f"[Auth.refresh_token] Refreshing token for user={user.email} | OldToken={token[:8]}... | NewToken={new_token[:8]}...", flush=True)
             session_row.token = new_token
             session_row.expires_at = None
+            session_row.last_heartbeat = datetime.datetime.utcnow()
             session.commit()
 
             institute = None
@@ -423,10 +425,21 @@ class JWTValidator:
     def logout(self, request):
         session = None
         try:
+            token = None
             auth_header = request.headers.get("Authorization", "")
-            if not auth_header.startswith("Bearer "):
-                return {"status": False, "message": "Authorization header is missing"}, 401
-            token = auth_header.split(" ", 1)[1]
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ", 1)[1]
+            if not token and request.args.get("token"):
+                token = request.args.get("token")
+            if not token and request.is_json:
+                try:
+                    data = request.get_json(silent=True) or {}
+                    token = data.get("token")
+                except Exception:
+                    pass
+
+            if not token:
+                return {"status": False, "message": "Authorization header or token is missing"}, 401
             self.validate_jwt(token)
 
             db = SQLiteDB()
@@ -436,6 +449,7 @@ class JWTValidator:
 
             session_data = session.query(AppSession).filter_by(token=token).first()
             if session_data:
+                print(f"[Auth.logout] Deleting session ID={session_data.id} for user_id={session_data.user_id}", flush=True)
                 session.delete(session_data)
                 session.commit()
             return {"status": True, "message": "Logout successful"}, 200
@@ -463,14 +477,19 @@ class JWTValidator:
 
             session_data = session.query(AppSession).filter_by(token=token).first()
             if not session_data:
+                print(f"[Auth.heartbeat] Session NOT active in DB for token={token[:8]}...", flush=True)
                 return {"status": False, "statusMessage": "Session is not active"}, 401
 
+            prev_hb = session_data.last_heartbeat
             session_data.last_heartbeat = datetime.datetime.utcnow()
             session.commit()
+            print(f"[Auth.heartbeat] Heartbeat updated for Session ID={session_data.id} | user_id={session_data.user_id} | prev_hb={prev_hb} | new_hb={session_data.last_heartbeat}", flush=True)
             return {"status": True, "statusMessage": "Heartbeat updated"}, 200
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
+            print(f"[Auth.heartbeat] JWT validation failed for token={token[:8] if 'token' in locals() else 'N/A'}: {e}", flush=True)
             return {"status": False, "statusMessage": str(e) or "Invalid or expired token"}, 401
         except Exception as e:
+            print(f"[Auth.heartbeat] Error: {e}", flush=True)
             return {"status": False, "statusMessage": str(e)}, 500
         finally:
             if session:

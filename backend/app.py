@@ -800,9 +800,14 @@ def refresh_token_route():
 @edu_blueprint.route('/session/validate', methods=['GET'])
 @jwt_required
 def validate_session_route():
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.split(" ", 1)[1] if auth_header.startswith("Bearer ") else ""
+    print(f"[Auth.validate] Authorization token received: {token[:12]}...", flush=True)
     user = get_current_user_from_request()
     if not user:
+        print(f"[Auth.validate] User not resolved for token={token[:12]}...", flush=True)
         return jsonify({"status": False, "statusMessage": "Invalid session"}), 401
+    print(f"[Auth.validate] Session valid for user_id={user.user_id}, email={user.email}", flush=True)
     
     db = SQLiteDB()
     session = db.connect()
