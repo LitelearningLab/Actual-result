@@ -34,14 +34,16 @@
          </div>
 
          <div class="controls">
-            <button mat-flat-button type="button" class="button-one btn-filter-tests" (click)="toggleFilters($event)">
-               <mat-icon>tune</mat-icon>
-               <span>Filters</span>
-            </button>
-
-            <button type="button" class="btn-refresh-icon-circle" (click)="loadExams()" title="Refresh tests" aria-label="Refresh tests">
-               <mat-icon>refresh</mat-icon>
-            </button>
+            <div class="action-row">
+               <button #filtersBtn mat-flat-button type="button" (click)="toggleFilters($event)" class="button-one" title="Filter Tests" aria-label="Filter Tests">
+                  <mat-icon svgIcon="filter"></mat-icon>
+                  <span>Filter Tests</span>
+               </button>
+               <button mat-flat-button color="primary" type="button" (click)="loadExams()" class="button-one" title="Refresh filtered results" aria-label="Refresh tests">
+                  <mat-icon svgIcon="refresh"></mat-icon>
+                  <span>Refresh</span>
+               </button>
+            </div>
          </div>
       </div>
 

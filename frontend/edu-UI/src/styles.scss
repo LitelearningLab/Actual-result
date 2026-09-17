@@ -886,9 +886,9 @@ button.refresh-btn.mat-mdc-icon-button:hover mat-icon {
   transform: rotate(90deg) !important;
 }
 
-button.refresh-action-btn,
-button.button-one:has(mat-icon[svgIcon="refresh"]),
-button[mat-flat-button]:has(mat-icon[svgIcon="refresh"]),
+button.refresh-action-btn:not([color="primary"]):not(.btn-primary-action),
+button.button-one:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]),
+button[mat-flat-button]:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]),
 button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]) {
   display: inline-flex !important;
   align-items: center !important;
@@ -907,9 +907,9 @@ button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]) {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease !important;
 }
 
-button.refresh-action-btn:hover,
-button.button-one:has(mat-icon[svgIcon="refresh"]):hover,
-button[mat-flat-button]:has(mat-icon[svgIcon="refresh"]):hover,
+button.refresh-action-btn:not([color="primary"]):not(.btn-primary-action):hover,
+button.button-one:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]):hover,
+button[mat-flat-button]:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]):hover,
 button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover {
   background: #ffffff !important;
   border-color: #cbd5e1 !important;
@@ -918,9 +918,9 @@ button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover {
   transform: translateY(-1px) !important;
 }
 
-button.refresh-action-btn mat-icon,
-button.button-one:has(mat-icon[svgIcon="refresh"]) mat-icon,
-button[mat-flat-button]:has(mat-icon[svgIcon="refresh"]) mat-icon,
+button.refresh-action-btn:not([color="primary"]):not(.btn-primary-action) mat-icon,
+button.button-one:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]) mat-icon,
+button[mat-flat-button]:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]) mat-icon,
 button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]) mat-icon {
   width: 1.25rem !important;
   height: 1.25rem !important;
@@ -928,12 +928,27 @@ button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]) mat-icon {
   transition: color 0.2s ease, transform 0.25s ease !important;
 }
 
-button.refresh-action-btn:hover mat-icon,
-button.button-one:has(mat-icon[svgIcon="refresh"]):hover mat-icon,
-button[mat-flat-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon,
+button.refresh-action-btn:not([color="primary"]):not(.btn-primary-action):hover mat-icon,
+button.button-one:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]):hover mat-icon,
+button[mat-flat-button]:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]):hover mat-icon,
 button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon {
   color: #475569 !important;
   transform: rotate(90deg) !important;
+}
+
+/* Primary blue action-row buttons icon styling */
+.toolbar .controls .action-row button mat-icon,
+button.button-one[color="primary"] mat-icon,
+button[mat-flat-button][color="primary"] mat-icon {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+}
+
+.toolbar .controls .action-row button:hover mat-icon,
+button.button-one[color="primary"]:hover mat-icon,
+button[mat-flat-button][color="primary"]:hover mat-icon {
+  color: #ffffff !important;
+  fill: #ffffff !important;
 }
 
 /* -------------------------------------
