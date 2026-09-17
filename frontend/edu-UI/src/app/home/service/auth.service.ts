@@ -41,45 +41,13 @@ export class AuthService {
 
   private heartbeatTimer: any = null;
   private visibilityListener: (() => void) | null = null;
-  private unloadListener: (() => void) | null = null;
 
   constructor(
     private http: HttpClient, 
     private pageAccess: PageAccessService,
     private instituteContext: GlobalInstituteContextService
   ) {
-    this.setupUnloadListener();
     this.restoreSession();
-  }
-
-  private setupUnloadListener(): void {
-    if (this.unloadListener || typeof window === 'undefined') return;
-
-    this.unloadListener = () => {
-      let token: string | null = null;
-      try { token = sessionStorage.getItem('token'); } catch (e) {}
-      if (token) {
-        const url = `${API_BASE}/logout?token=${encodeURIComponent(token)}`;
-        try {
-          if (navigator.sendBeacon) {
-            const blob = new Blob([JSON.stringify({ token })], { type: 'application/json' });
-            navigator.sendBeacon(url, blob);
-          } else {
-            fetch(url, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              keepalive: true
-            }).catch(() => {});
-          }
-        } catch (e) {}
-      }
-    };
-
-    window.addEventListener('pagehide', this.unloadListener);
-    window.addEventListener('beforeunload', this.unloadListener);
   }
 
   sendHeartbeatPing(): void {
