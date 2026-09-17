@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { AuthService } from '../../service/auth.service';
+import { AuthService, LoginResult } from '../../service/auth.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { APP_VERSION } from '../../../../environments/version';
@@ -24,16 +24,25 @@ import { APP_VERSION } from '../../../../environments/version';
     MatInputModule,
     MatIconModule,
     MatDialogModule,
-    MatButtonModule
-    ,MatCheckboxModule
+    MatButtonModule,
+    MatCheckboxModule
   ],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss']
 })
-export class LoginComponent {
+export class LoginComponent implements OnDestroy {
   appVersion = APP_VERSION;
   loginForm: FormGroup;
   hide = true;
+
+  showLockoutModal = false;
+  isAccountLocked = false;
+  isActiveSessionWarning = false;
+  lockType = '';
+  lockoutRemainingSeconds = 0;
+  formattedCountdown = '00:00';
+  lockoutMessage = '';
+  private lockoutTimer: any = null;
 
   constructor(private fb: FormBuilder, private auth: AuthService, private router: Router, private notify: NotificationService, private loader: LoaderService) {
     this.loginForm = this.fb.group({
@@ -43,20 +52,75 @@ export class LoginComponent {
     });
   }
 
+  ngOnDestroy(): void {
+    this.stopLockoutCountdown();
+  }
+
+  closeLockoutModal(): void {
+    this.showLockoutModal = false;
+    this.stopLockoutCountdown();
+  }
+
+  startLockoutCountdown(seconds: number, message?: string): void {
+    this.stopLockoutCountdown();
+    this.showLockoutModal = true;
+    this.isAccountLocked = true;
+    this.isActiveSessionWarning = false;
+    this.lockType = 'tab_closed';
+    this.lockoutRemainingSeconds = seconds;
+    this.lockoutMessage = message || 'The previous session was closed without logging out.';
+    this.updateFormattedCountdown();
+
+    this.lockoutTimer = setInterval(() => {
+      this.lockoutRemainingSeconds--;
+      if (this.lockoutRemainingSeconds <= 0) {
+        this.closeLockoutModal();
+      } else {
+        this.updateFormattedCountdown();
+      }
+    }, 1000);
+  }
+
+  showActiveSessionWarning(message?: string): void {
+    this.stopLockoutCountdown();
+    this.showLockoutModal = true;
+    this.isActiveSessionWarning = true;
+    this.isAccountLocked = false;
+    this.lockType = 'active_session';
+    this.lockoutMessage = message || 'This account is already active on another device. Please log out from the other device before signing in here.';
+  }
+
+  stopLockoutCountdown(): void {
+    if (this.lockoutTimer) {
+      clearInterval(this.lockoutTimer);
+      this.lockoutTimer = null;
+    }
+    this.isAccountLocked = false;
+    this.isActiveSessionWarning = false;
+    this.lockType = '';
+    this.lockoutRemainingSeconds = 0;
+    this.formattedCountdown = '00:00';
+  }
+
+  private updateFormattedCountdown(): void {
+    const mins = Math.floor(Math.max(0, this.lockoutRemainingSeconds) / 60);
+    const secs = Math.max(0, this.lockoutRemainingSeconds) % 60;
+    const mm = mins < 10 ? `0${mins}` : `${mins}`;
+    const ss = secs < 10 ? `0${secs}` : `${secs}`;
+    this.formattedCountdown = `${mm}:${ss}`;
+  }
+
   onSubmit(): void {
     if (this.loginForm.invalid) {
       this.loginForm.markAllAsTouched();
       return;
     }
     const { username, password } = this.loginForm.value;
-    // call AuthService which posts to the backend
     this.loader.show();
-    this.auth.login(username, password).then((ok) => {
+    this.auth.login(username, password).then((result: LoginResult) => {
       this.loader.hide();
-      console.debug('[LoginComponent] login resolved', ok);
-      if (ok) {
-        try { console.debug('[LoginComponent] sessionStorage user after login', sessionStorage.getItem('user')); } catch(e) {}
-        // route based on role if available
+      if (result.ok) {
+        this.stopLockoutCountdown();
         let role = '';
         try{ const raw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile'); const u = raw ? JSON.parse(raw) : null; role = u?.role || sessionStorage.getItem('userRole') || ''; }catch(e){}
         role = (role || '').toLowerCase();
@@ -69,7 +133,14 @@ export class LoginComponent {
         }
       } else {
         this.loader.hide();
-        this.notify.error('Login failed. Please check your credentials.');
+        if (result.lockType === 'active_session') {
+          this.showActiveSessionWarning(result.statusMessage);
+        } else if (result.lockType === 'tab_closed' || (result.remainingSeconds && result.remainingSeconds > 0)) {
+          this.startLockoutCountdown(result.remainingSeconds || 90, result.statusMessage);
+        } else {
+          this.stopLockoutCountdown();
+          this.notify.error(result.statusMessage || 'Login failed. Please check your credentials.');
+        }
       }
     });
   }

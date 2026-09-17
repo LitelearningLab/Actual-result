@@ -259,17 +259,65 @@ class JWTValidator:
                 token = token.decode('utf-8')
 
             try:
-                # Single device active session enforcement: clear any existing session tokens for this user
+                # Concurrent login & Heartbeat lock enforcement
+                HEARTBEAT_TIMEOUT_SECONDS = 90
+                ACTIVE_WORKING_THRESHOLD_SECONDS = 35
+
+                existing_sessions = session.query(AppSession).filter(
+                    or_(AppSession.user_id == uid_str, AppSession.user_id == user.user_id)
+                ).all()
+
+                now_utc = datetime.datetime.utcnow()
+                active_working_found = False
+                tab_closed_found = False
+                max_remaining_seconds = 0
+
+                for s in existing_sessions:
+                    last_hb = getattr(s, 'last_heartbeat', None) or getattr(s, 'created_date', None) or now_utc
+                    elapsed = (now_utc - last_hb).total_seconds()
+                    if elapsed <= ACTIVE_WORKING_THRESHOLD_SECONDS:
+                        active_working_found = True
+                    elif elapsed < HEARTBEAT_TIMEOUT_SECONDS:
+                        rem = int(HEARTBEAT_TIMEOUT_SECONDS - elapsed)
+                        if rem > max_remaining_seconds:
+                            max_remaining_seconds = rem
+                        tab_closed_found = True
+                    else:
+                        # Session heartbeat timed out, clear stale session
+                        session.delete(s)
+
+                if active_working_found:
+                    session.commit()
+                    return {
+                        "status": False,
+                        "is_locked": True,
+                        "lock_type": "active_session",
+                        "remaining_seconds": 0,
+                        "statusMessage": "This account is already active on another device. Please log out from the other device before signing in here."
+                    }, 409
+
+                if tab_closed_found and max_remaining_seconds > 0:
+                    session.commit()
+                    return {
+                        "status": False,
+                        "is_locked": True,
+                        "lock_type": "tab_closed",
+                        "remaining_seconds": max_remaining_seconds,
+                        "statusMessage": "The previous session was closed without logging out."
+                    }, 409
+
+                # Clear remaining expired sessions if any before inserting new session
                 session.query(AppSession).filter(
                     or_(AppSession.user_id == uid_str, AppSession.user_id == user.user_id)
                 ).delete(synchronize_session=False)
                 session.commit()
             except Exception as del_err:
-                print(f"[Auth] Warning clearing previous session records: {del_err}", flush=True)
+                print(f"[Auth] Warning checking/clearing session records: {del_err}", flush=True)
                 session.rollback()
 
             try:
-                session_data = AppSession(user_id=uid_str, token=token)
+                now_hb = datetime.datetime.utcnow()
+                session_data = AppSession(user_id=uid_str, token=token, created_date=now_hb, last_heartbeat=now_hb)
                 session.add(session_data)
                 session.commit()
             except Exception as se_err:
@@ -398,3 +446,33 @@ class JWTValidator:
         finally:
             if session:
                 session.close()
+
+    def heartbeat(self, request):
+        session = None
+        try:
+            auth_header = request.headers.get("Authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return {"status": False, "statusMessage": "Authorization header is missing"}, 401
+            token = auth_header.split(" ", 1)[1]
+            self.validate_jwt(token)
+
+            db = SQLiteDB()
+            session = db.connect()
+            if not session:
+                return {"status": False, "statusMessage": "Database connection failed"}, 500
+
+            session_data = session.query(AppSession).filter_by(token=token).first()
+            if not session_data:
+                return {"status": False, "statusMessage": "Session is not active"}, 401
+
+            session_data.last_heartbeat = datetime.datetime.utcnow()
+            session.commit()
+            return {"status": True, "statusMessage": "Heartbeat updated"}, 200
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
+            return {"status": False, "statusMessage": str(e) or "Invalid or expired token"}, 401
+        except Exception as e:
+            return {"status": False, "statusMessage": str(e)}, 500
+        finally:
+            if session:
+                session.close()
+

@@ -212,6 +212,7 @@ class AppSession(Base):
      token = Column(String, nullable=False)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
      expires_at = Column(DateTime)
+     last_heartbeat = Column(DateTime, default=datetime.datetime.utcnow)
 
      user = relationship("User", back_populates="sessions")
 

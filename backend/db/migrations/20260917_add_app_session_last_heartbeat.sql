@@ -1,0 +1,8 @@
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'App_Session' AND COLUMN_NAME = 'last_heartbeat'
+)
+BEGIN
+    ALTER TABLE App_Session ADD last_heartbeat DATETIME NULL;
+END
+GO

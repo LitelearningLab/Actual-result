@@ -59,6 +59,7 @@ GLOBAL_SCOPE_EXCLUDED_PATHS = (
     '/edu/api/login',
     '/edu/api/refresh-token',
     '/edu/api/logout',
+    '/edu/api/session/heartbeat',
     '/edu/api/public',
     '/edu/api/superadmin-dashboard',
 )
@@ -840,6 +841,13 @@ def logout():
     jwt_validator = JWTValidator(jwt_secret)
     logout_status, status_code = jwt_validator.logout(request)
     return jsonify(logout_status), status_code
+
+@edu_blueprint.route('/session/heartbeat', methods=['POST'])
+@jwt_required
+def heartbeat_route():
+    jwt_validator = JWTValidator(jwt_secret)
+    hb_status, status_code = jwt_validator.heartbeat(request)
+    return jsonify(hb_status), status_code
 
 # ─────────────────────────────────────────────────────────────
 # Demo Request Endpoints (Public - No JWT required for submit)

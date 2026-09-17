@@ -9212,6 +9212,33 @@ input[class^=ag-][type=range]:disabled {
   --border-dark-1: rgba(15, 1, 1, 0.856);
   --border-dark-2: rgba(15, 1, 1, 0.656);
   --border-dark-3: rgba(15, 1, 1, 0.256);
+  /* =========================================================
+     GLOBAL RESPONSIVE DESIGN TOKENS  (Desktop defaults)
+     ========================================================= */
+  /* ---------- Layout ---------- */
+  --page-padding: 1.5rem;
+  --section-gap: 1.25rem;
+  --card-padding: 1.25rem;
+  --grid-gap: 1rem;
+  /* ---------- Typography ---------- */
+  --font-body: 1rem;
+  --font-small: 0.875rem;
+  --font-title: 1.4rem;
+  --font-heading: 1.15rem;
+  /* ---------- Controls ---------- */
+  --control-height: 2.75rem;
+  --button-height: 2.75rem;
+  --button-padding-x: 1rem;
+  /* ---------- Table ---------- */
+  --table-font-size: 0.8125rem;
+  --table-header-font-size: 0.75rem;
+  --table-cell-padding-x: 1rem;
+  --table-cell-padding-y: 0.75rem;
+  /* ---------- Modal ---------- */
+  --modal-padding-x: 1.5rem;
+  --modal-padding-y: 1.25rem;
+  /* ---------- Form ---------- */
+  --form-grid-columns: repeat(2, minmax(0, 1fr));
 }
 
 html {
@@ -9311,11 +9338,12 @@ html, body {
   align-items: center !important;
   justify-content: center !important;
   align-self: center !important;
+  padding-right: 0px !important;
 }
 
 .mat-mdc-form-field mat-icon[matPrefix] {
   color: var(--theme-3-icon-1);
-  margin-right: 0.5rem;
+  margin-right: 0.15rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -9346,11 +9374,23 @@ html, body {
 }
 
 .toolbar {
-  padding: 0.5rem;
+  padding: 0 0 0.875rem 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--grid-gap);
+  flex-wrap: wrap;
+}
+
+.page > .toolbar {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  width: 100% !important;
 }
 
 .toolbar .search {
@@ -9364,6 +9404,7 @@ html, body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  margin: 0;
 }
 
 .toolbar .search::before {
@@ -9410,11 +9451,17 @@ html, body {
 
 .toolbar .search .search-field .mat-mdc-form-field-flex {
   height: 2.75rem;
-  padding: 0 0.875rem;
+  padding: 0 0.75rem;
+}
+
+.toolbar .search .search-field .mat-mdc-form-field-icon-prefix {
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .toolbar .search .search-field .mat-mdc-form-field-infix {
   padding: 0.5rem 0;
+  padding-left: 0 !important;
   min-height: unset;
 }
 
@@ -9423,6 +9470,7 @@ html, body {
   font-weight: 500;
   color: var(--theme-3-text-1);
   letter-spacing: -0.01em;
+  padding-left: 0 !important;
 }
 
 .toolbar .search .search-field input::placeholder {
@@ -9432,7 +9480,8 @@ html, body {
 
 .toolbar .search mat-icon[matPrefix] {
   color: var(--theme-3-icon-1);
-  margin-right: 0.625rem;
+  margin-right: 0.125rem;
+  margin-left: 0;
   font-size: 1.25rem;
   width: 1.25rem;
   height: 1.25rem;
@@ -9515,6 +9564,8 @@ html, body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  margin-left: auto;
+  margin-right: 0;
 }
 
 .toolbar .action-row {
@@ -9527,7 +9578,7 @@ html, body {
   background: var(--button-2) !important;
   color: var(--button-text-2) !important;
   border-radius: 0.75rem;
-  height: 2.75rem;
+  height: var(--button-height);
   border: 2px solid var(--border-1);
   box-shadow: 0px 10px 15px -3px rgba(126, 129, 131, 0.86);
 }
@@ -9541,7 +9592,7 @@ html, body {
   background: var(--button-1) !important;
   color: var(--button-text-1) !important;
   border-radius: 0.75rem;
-  height: 2.75rem;
+  height: var(--button-height);
   border: 2px solid var(--border-1);
 }
 
@@ -9555,9 +9606,9 @@ html, body {
   align-items: center !important;
   justify-content: center !important;
   gap: 0.5rem !important;
-  height: 2.75rem !important;
+  height: var(--button-height) !important;
   min-width: 0;
-  padding: 0 1rem !important;
+  padding: 0 var(--button-padding-x) !important;
   border-radius: 0.75rem !important;
   border: 2px solid var(--border-1) !important;
   background: var(--button-1) !important;
@@ -10143,9 +10194,9 @@ html, body {
   text-transform: uppercase;
   padding: 0.875rem 1rem !important;
   border-bottom: none !important;
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 60 !important;
+  position: sticky;
+  top: 0;
+  z-index: 2;
   white-space: nowrap;
 }
 
@@ -10163,6 +10214,13 @@ html, body {
 
 .premium-table .mat-sort-header-arrow {
   color: var(--table-header-icon) !important;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow: auto;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
 }
 
 .premium-table tbody tr.mat-row,
@@ -10183,8 +10241,8 @@ html, body {
 
 .premium-table td.mat-cell,
 .premium-table td.mat-mdc-cell {
-  padding: 0.75rem 1rem !important;
-  font-size: 0.8125rem;
+  padding: var(--table-cell-padding-y) var(--table-cell-padding-x) !important;
+  font-size: var(--table-font-size);
   color: var(--theme-3-text-2);
   border-bottom: 1px solid var(--table-row-border) !important;
   vertical-align: middle;
@@ -10524,7 +10582,7 @@ th.mat-column-description .mat-sort-header-container {
   overflow: visible !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 0.5rem;
+  padding: var(--card-padding);
   --mdc-outlined-text-field-outline-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -10534,8 +10592,9 @@ th.mat-column-description .mat-sort-header-container {
 }
 
 .list-wrapper {
-  overflow: visible !important;
-  max-height: none !important;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   background-color: var(--bg-1);
   box-shadow: 0 0.875rem 2.625rem rgba(1, 39, 46, 0.08);
   border-radius: 0.5rem;
@@ -10676,7 +10735,7 @@ button[matStepperNext].next-btn mat-icon {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  padding: var(--modal-padding-y) var(--modal-padding-x);
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   border-bottom: 1px solid #e2e8f0;
   flex-shrink: 0;
@@ -10745,7 +10804,7 @@ button[matStepperNext].next-btn mat-icon {
 
 .modal-body {
   flex: 1;
-  padding: 1.25rem 1.5rem;
+  padding: var(--modal-padding-y) var(--modal-padding-x);
   overflow-y: auto;
   min-height: 15rem;
   max-height: calc(85vh - 10rem);
@@ -10774,7 +10833,7 @@ button[matStepperNext].next-btn mat-icon {
   justify-content: flex-end;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem 1.5rem;
+  padding: var(--modal-padding-y) var(--modal-padding-x);
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   border-top: 1px solid #e2e8f0;
   flex-shrink: 0;
@@ -10994,14 +11053,72 @@ button[matStepperNext].next-btn mat-icon {
   border-color: var(--button-1) !important;
 }
 
-@media (max-width: 720px) {
-  .premium-table td.mat-cell {
-    padding: 0.5rem 0.625rem;
-  }
-  .premium-table thead th.mat-header-cell, .premium-table thead th.mat-mdc-header-cell {
-    font-size: var(--font-size-sm);
+@media (max-width: 62rem) {
+  :root {
+    --page-padding: 1.25rem;
+    --section-gap: 1rem;
+    --card-padding: 1rem;
+    --grid-gap: 0.875rem;
+    --font-title: 1.3rem;
+    --font-heading: 1.1rem;
+    --button-padding-x: 0.875rem;
+    --table-cell-padding-x: 0.75rem;
+    --table-cell-padding-y: 0.625rem;
+    --modal-padding-x: 1.25rem;
+    --modal-padding-y: 1rem;
   }
 }
+@media (max-width: 48rem) {
+  :root {
+    --page-padding: 1rem;
+    --section-gap: 0.875rem;
+    --card-padding: 0.875rem;
+    --grid-gap: 0.75rem;
+    --font-body: 0.9375rem;
+    --font-small: 0.8125rem;
+    --font-title: 1.2rem;
+    --font-heading: 1rem;
+    --control-height: 2.5rem;
+    --button-height: 2.5rem;
+    --button-padding-x: 0.75rem;
+    --table-font-size: 0.75rem;
+    --table-header-font-size: 0.6875rem;
+    --table-cell-padding-x: 0.625rem;
+    --table-cell-padding-y: 0.5rem;
+    --modal-padding-x: 1rem;
+    --modal-padding-y: 1rem;
+    --form-grid-columns: 1fr;
+  }
+  .toolbar {
+    align-items: stretch;
+  }
+  .toolbar .search {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+  .toolbar .controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+@media (max-width: 30rem) {
+  :root {
+    --page-padding: 0.75rem;
+    --section-gap: 0.75rem;
+    --card-padding: 0.75rem;
+    --grid-gap: 0.625rem;
+    --font-title: 1.1rem;
+    --button-padding-x: 0.625rem;
+    --modal-padding-x: 0.75rem;
+    --modal-padding-y: 0.75rem;
+  }
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: var(--form-grid-columns);
+  gap: var(--grid-gap);
+}
+
 body.global-institute-active .local-institute-field {
   display: none !important;
 }
@@ -11043,9 +11160,9 @@ button.refresh-btn.mat-mdc-icon-button:hover mat-icon {
   transform: rotate(90deg) !important;
 }
 
-button.refresh-action-btn,
-button.button-one:has(mat-icon[svgIcon=refresh]),
-button[mat-flat-button]:has(mat-icon[svgIcon=refresh]),
+button.refresh-action-btn:not([color=primary]):not(.btn-primary-action),
+button.button-one:not(.action-row button):not([color=primary]):has(mat-icon[svgIcon=refresh]),
+button[mat-flat-button]:not(.action-row button):not([color=primary]):has(mat-icon[svgIcon=refresh]),
 button[mat-stroked-button]:has(mat-icon[svgIcon=refresh]) {
   display: inline-flex !important;
   align-items: center !important;
@@ -11064,9 +11181,9 @@ button[mat-stroked-button]:has(mat-icon[svgIcon=refresh]) {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease, color 0.2s ease !important;
 }
 
-button.refresh-action-btn:hover,
-button.button-one:has(mat-icon[svgIcon=refresh]):hover,
-button[mat-flat-button]:has(mat-icon[svgIcon=refresh]):hover,
+button.refresh-action-btn:not([color=primary]):not(.btn-primary-action):hover,
+button.button-one:not(.action-row button):not([color=primary]):has(mat-icon[svgIcon=refresh]):hover,
+button[mat-flat-button]:not(.action-row button):not([color=primary]):has(mat-icon[svgIcon=refresh]):hover,
 button[mat-stroked-button]:has(mat-icon[svgIcon=refresh]):hover {
   background: #ffffff !important;
   border-color: #cbd5e1 !important;
@@ -11075,9 +11192,9 @@ button[mat-stroked-button]:has(mat-icon[svgIcon=refresh]):hover {
   transform: translateY(-1px) !important;
 }
 
-button.refresh-action-btn mat-icon,
-button.button-one:has(mat-icon[svgIcon=refresh]) mat-icon,
-button[mat-flat-button]:has(mat-icon[svgIcon=refresh]) mat-icon,
+button.refresh-action-btn:not([color=primary]):not(.btn-primary-action) mat-icon,
+button.button-one:not(.action-row button):not([color=primary]):has(mat-icon[svgIcon=refresh]) mat-icon,
+button[mat-flat-button]:not(.action-row button):not([color=primary]):has(mat-icon[svgIcon=refresh]) mat-icon,
 button[mat-stroked-button]:has(mat-icon[svgIcon=refresh]) mat-icon {
   width: 1.25rem !important;
   height: 1.25rem !important;
@@ -11085,12 +11202,27 @@ button[mat-stroked-button]:has(mat-icon[svgIcon=refresh]) mat-icon {
   transition: color 0.2s ease, transform 0.25s ease !important;
 }
 
-button.refresh-action-btn:hover mat-icon,
-button.button-one:has(mat-icon[svgIcon=refresh]):hover mat-icon,
-button[mat-flat-button]:has(mat-icon[svgIcon=refresh]):hover mat-icon,
+button.refresh-action-btn:not([color=primary]):not(.btn-primary-action):hover mat-icon,
+button.button-one:not(.action-row button):not([color=primary]):has(mat-icon[svgIcon=refresh]):hover mat-icon,
+button[mat-flat-button]:not(.action-row button):not([color=primary]):has(mat-icon[svgIcon=refresh]):hover mat-icon,
 button[mat-stroked-button]:has(mat-icon[svgIcon=refresh]):hover mat-icon {
   color: #475569 !important;
   transform: rotate(90deg) !important;
+}
+
+/* Primary blue action-row buttons icon styling */
+.toolbar .controls .action-row button mat-icon,
+button.button-one[color=primary] mat-icon,
+button[mat-flat-button][color=primary] mat-icon {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+}
+
+.toolbar .controls .action-row button:hover mat-icon,
+button.button-one[color=primary]:hover mat-icon,
+button[mat-flat-button][color=primary]:hover mat-icon {
+  color: #ffffff !important;
+  fill: #ffffff !important;
 }
 
 /* -------------------------------------
@@ -11279,6 +11411,36 @@ button[mat-stroked-button]:has(mat-icon[svgIcon=refresh]):hover mat-icon {
   width: 1.125rem;
   height: 1.125rem;
   animation: spin-inline 1s linear infinite;
+}
+
+body.mobile-nav-open {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
+.cdk-overlay-backdrop.cdk-overlay-backdrop-showing {
+  background: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.cdk-overlay-pane:has(.logout-modal-wrap),
+.cdk-overlay-pane:has(.logout-card),
+.cdk-overlay-pane:has(.dialog-container),
+.cdk-overlay-pane:has(app-confirm-dialog),
+.cdk-overlay-pane:has(app-confirm-start-test-dialog),
+.cdk-overlay-pane:has(app-confirm-instant-review-dialog),
+.cdk-overlay-pane:has(.instant-review-dialog),
+.cdk-overlay-pane:has(.start-confirm-dialog) {
+  max-width: min(400px, 92vw) !important;
+  width: 92vw !important;
+}
+
+.cdk-overlay-pane .mat-mdc-dialog-container .mdc-dialog__surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
 }
 
 /*# sourceMappingURL=styles.css.map*/
