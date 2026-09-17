@@ -6,18 +6,11 @@ import { API_BASE } from 'src/app/shared/api.config';
 import { PageAccessService } from 'src/app/shared/services/page-access.service';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 
-export interface LoginResult {
-  success: boolean;
-  alreadyLoggedIn?: boolean;
-  message?: string;
-}
-
 interface LoginResponse {
   status?: boolean | string;
   statusMessage?: string;
   token?: string;
   user?: any;
-  alreadyLoggedIn?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -80,8 +73,8 @@ export class AuthService {
     });
   }
 
-  async login(identifier: string, password: string): Promise<LoginResult> {
-    const url = `${API_BASE}/login`;
+  async login(identifier: string, password: string): Promise<boolean> {
+  const url = `${API_BASE}/login`;
     try {
       const resp = await firstValueFrom(this.http.post<LoginResponse>(url, { identifier, email: identifier, password }));
       // treat presence of token or status true/success as success
@@ -131,27 +124,14 @@ export class AuthService {
         } catch (e) {
           // ignore storage errors
         }
-        return { success: true };
       } else {
         this._logged.next(false);
-        const alreadyLoggedIn = resp?.alreadyLoggedIn || /already being used|already active|logged in from another/i.test(resp?.statusMessage || '');
-        return {
-          success: false,
-          alreadyLoggedIn: !!alreadyLoggedIn,
-          message: resp?.statusMessage || 'Login failed. Please check your credentials.'
-        };
       }
-    } catch (err: any) {
+      return ok;
+    } catch (err) {
       this._logged.next(false);
       this._user.next(null);
-      const errorObj = err?.error || {};
-      const alreadyLoggedIn = errorObj.alreadyLoggedIn || err?.status === 409 || /already being used|already active|logged in from another/i.test(errorObj.statusMessage || errorObj.message || '');
-      const msg = errorObj.statusMessage || errorObj.message || 'Login failed. Please check your credentials.';
-      return {
-        success: false,
-        alreadyLoggedIn: !!alreadyLoggedIn,
-        message: msg
-      };
+      return false;
     }
   }
 

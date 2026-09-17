@@ -5,13 +5,12 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { AuthService } from '../../service/auth.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
-import { ConfirmDialogComponent } from 'src/app/shared/components/confirm-dialog/confirm-dialog.component';
 import { APP_VERSION } from '../../../../environments/version';
 
 @Component({
@@ -25,8 +24,8 @@ import { APP_VERSION } from '../../../../environments/version';
     MatInputModule,
     MatIconModule,
     MatDialogModule,
-    MatButtonModule,
-    MatCheckboxModule
+    MatButtonModule
+    ,MatCheckboxModule
   ],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss']
@@ -36,14 +35,7 @@ export class LoginComponent {
   loginForm: FormGroup;
   hide = true;
 
-  constructor(
-    private fb: FormBuilder, 
-    private auth: AuthService, 
-    private router: Router, 
-    private notify: NotificationService, 
-    private loader: LoaderService,
-    private dialog: MatDialog
-  ) {
+  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router, private notify: NotificationService, private loader: LoaderService) {
     this.loginForm = this.fb.group({
       username: ['', Validators.required],
       password: ['', [Validators.required, Validators.minLength(8)]],
@@ -59,10 +51,10 @@ export class LoginComponent {
     const { username, password } = this.loginForm.value;
     // call AuthService which posts to the backend
     this.loader.show();
-    this.auth.login(username, password).then((res) => {
+    this.auth.login(username, password).then((ok) => {
       this.loader.hide();
-      console.debug('[LoginComponent] login resolved', res);
-      if (res && res.success) {
+      console.debug('[LoginComponent] login resolved', ok);
+      if (ok) {
         try { console.debug('[LoginComponent] sessionStorage user after login', sessionStorage.getItem('user')); } catch(e) {}
         // route based on role if available
         let role = '';
@@ -76,20 +68,8 @@ export class LoginComponent {
           this.router.navigate(['/user-dashboard']);
         }
       } else {
-        if (res && res.alreadyLoggedIn) {
-          const msg = res.message || 'This account is already being used on another device or session. Please log out from the existing session before logging in again.';
-          this.dialog.open(ConfirmDialogComponent, {
-            data: {
-              title: 'Account Already Active',
-              message: msg,
-              confirmText: 'OK',
-              cancelText: ''
-            },
-            disableClose: true
-          });
-        } else {
-          this.notify.error(res?.message || 'Login failed. Please check your credentials.');
-        }
+        this.loader.hide();
+        this.notify.error('Login failed. Please check your credentials.');
       }
     });
   }
@@ -99,4 +79,3 @@ export class LoginComponent {
     this.router.navigate(['/login']);
   }
 }
-

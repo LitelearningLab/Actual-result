@@ -254,51 +254,22 @@ class JWTValidator:
                 if not institute:
                     institute = session.query(Institute).filter_by(institute_id=user.institute_id).first()
 
-            now_utc = datetime.datetime.utcnow()
-
-            # Active session enforcement: check if an active non-expired session already exists for this user
-            existing_sessions = session.query(AppSession).filter(
-                or_(AppSession.user_id == uid_str, AppSession.user_id == user.user_id)
-            ).all()
-
-            active_valid_session = None
-            for s in existing_sessions:
-                # 1. Check database expires_at column if set
-                if s.expires_at and s.expires_at < now_utc:
-                    try:
-                        session.delete(s)
-                        session.commit()
-                    except Exception:
-                        session.rollback()
-                    continue
-
-                # 2. Validate JWT signature and expiration claim
-                try:
-                    self.validate_jwt(s.token)
-                    active_valid_session = s
-                    break
-                except Exception:
-                    # JWT is invalid or expired - delete stale session
-                    try:
-                        session.delete(s)
-                        session.commit()
-                    except Exception:
-                        session.rollback()
-
-            if active_valid_session:
-                return {
-                    "statusMessage": "This account is already being used on another device or session. Please log out from the existing session before logging in again.",
-                    "status": False,
-                    "alreadyLoggedIn": True
-                }, 409
-
             token = self.generate_jwt(user.email)
             if isinstance(token, bytes):
                 token = token.decode('utf-8')
 
-            expires_at = now_utc + datetime.timedelta(seconds=28800)
             try:
-                session_data = AppSession(user_id=uid_str, token=token, expires_at=expires_at)
+                # Single device active session enforcement: clear any existing session tokens for this user
+                session.query(AppSession).filter(
+                    or_(AppSession.user_id == uid_str, AppSession.user_id == user.user_id)
+                ).delete(synchronize_session=False)
+                session.commit()
+            except Exception as del_err:
+                print(f"[Auth] Warning clearing previous session records: {del_err}", flush=True)
+                session.rollback()
+
+            try:
+                session_data = AppSession(user_id=uid_str, token=token)
                 session.add(session_data)
                 session.commit()
             except Exception as se_err:
@@ -365,7 +336,7 @@ class JWTValidator:
             if isinstance(new_token, bytes):
                 new_token = new_token.decode('utf-8')
             session_row.token = new_token
-            session_row.expires_at = datetime.datetime.utcnow() + datetime.timedelta(seconds=28800)
+            session_row.expires_at = None
             session.commit()
 
             institute = None
