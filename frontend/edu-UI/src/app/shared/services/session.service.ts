@@ -74,8 +74,8 @@ export class SessionService {
     const ref = this.dialog.open(ConfirmDialogComponent, {
       data: {
         title: 'Session Expired',
-        message: message + '\nWould you like to extend your session?',
-        confirmText: 'Extend',
+        message: message + '\nWould you like to continue your session?',
+        confirmText: 'Continue',
         cancelText: 'Logout'
       },
       disableClose: true
@@ -152,8 +152,26 @@ export class SessionService {
       }
 
       // Inactivity warning after 10 uninterrupted minutes
-      this.ngZone.run(() => this.promptExtendOrLogout('Your session has expired due to inactivity.'));
+      this.ngZone.run(() => {
+        if (this.isAdminOrSuperAdmin()) {
+          this.promptSingleDeviceLogout('Your session has expired due to inactivity. Please log in again.');
+        } else {
+          this.promptExtendOrLogout('Your session has expired due to inactivity.');
+        }
+      });
     }, remainingMs);
+  }
+
+  private isAdminOrSuperAdmin(): boolean {
+    try {
+      const raw = sessionStorage.getItem('user');
+      if (!raw) return false;
+      const user = JSON.parse(raw);
+      const role = String(user.role || user.user_role || '').toLowerCase();
+      return ['admin', 'super_admin', 'superadmin', 'super-admin'].includes(role);
+    } catch (e) {
+      return false;
+    }
   }
 
   private hasBeenIdleForTenMinutes(): boolean {
