@@ -33,7 +33,7 @@ export class SessionService {
 
     window.addEventListener('sessionExpired', (ev: any) => {
       const msg = ev && ev.detail && ev.detail.message ? ev.detail.message : 'Your session has expired';
-      if (/another device|not active|unauthorized/i.test(msg)) {
+      if (/another device|logged in from another|active on another/i.test(msg)) {
         this.ngZone.run(() => this.promptSingleDeviceLogout('Your account was logged in from another device. Please log in again if needed.'));
       } else {
         this.ngZone.run(() => this.promptExtendOrLogout(msg));
