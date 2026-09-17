@@ -151,13 +151,12 @@ export class SessionService {
         return;
       }
 
-      // Inactivity warning after 10 uninterrupted minutes
+      // Do nothing when idle for Admin and Super Admin
+      if (this.isAdminOrSuperAdmin()) return;
+
+      // Inactivity warning for regular users after 10 uninterrupted minutes
       this.ngZone.run(() => {
-        if (this.isAdminOrSuperAdmin()) {
-          this.promptSingleDeviceLogout('Your session has expired due to inactivity. Please log in again.');
-        } else {
-          this.promptExtendOrLogout('Your session has expired due to inactivity.');
-        }
+        this.promptExtendOrLogout('Your session has expired due to inactivity.');
       });
     }, remainingMs);
   }
