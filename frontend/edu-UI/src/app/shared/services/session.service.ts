@@ -9,7 +9,7 @@ import { AuthService } from '../../home/service/auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class SessionService {
-  private readonly idleTimeoutMs = 30 * 60 * 1000; // 30 minutes of inactivity before warning
+  private readonly idleTimeoutMs = 15 * 60 * 1000; // 15 minutes of inactivity before warning
   private readonly adminWarningTimeoutMs = 5 * 60 * 1000; // 5-minute countdown grace period for Admin
   private readonly activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
   private listening = false;
@@ -221,7 +221,7 @@ export class SessionService {
     this.idleTimer = setTimeout(() => {
       this.idleTimer = null;
       if (this.isLoggingOut) return;
-      if (!this.hasBeenIdleForThirtyMinutes()) {
+      if (!this.hasBeenIdleForFifteenMinutes()) {
         this.scheduleIdleCheck();
         return;
       }
@@ -253,7 +253,7 @@ export class SessionService {
     }
   }
 
-  private hasBeenIdleForThirtyMinutes(): boolean {
+  private hasBeenIdleForFifteenMinutes(): boolean {
     return Date.now() - this.lastActivityAt >= this.idleTimeoutMs;
   }
 
