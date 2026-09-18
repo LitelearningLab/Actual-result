@@ -296,12 +296,14 @@ class JWTValidator:
 
                 if active_working_found:
                     print(f"[Auth.login] REJECTING LOGIN (409 active_session) for user={user.email}. Preserving existing PC session.", flush=True)
+                    user_role = str(getattr(user, 'user_role', '') or getattr(user, 'role', '') or '').lower()
+                    idle_mins = 30 if user_role in ['admin', 'super_admin', 'superadmin', 'super-admin'] else 15
                     return {
                         "status": False,
                         "is_locked": True,
                         "lock_type": "active_session",
                         "remaining_seconds": 0,
-                        "statusMessage": "THIS ACCOUNT IS ALREADY ACTIVE ON ANOTHER DEVICE.\n\nPlease log out from the other device before signing in here.\n\nIf a logged-in device remains inactive for 15 minutes, the application will log out automatically."
+                        "statusMessage": f"THIS ACCOUNT IS ALREADY ACTIVE ON ANOTHER DEVICE.\n\nPlease log out from the other device before signing in here.\n\nIf a logged-in device remains inactive for {idle_mins} minutes, the application will log out automatically."
                     }, 409
 
                 # Clear stale sessions (elapsed > 35s) immediately upon new login
