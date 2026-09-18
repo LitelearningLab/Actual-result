@@ -1997,17 +1997,15 @@
                         q.evaluation_status !== 'failed'
                       "
                     >
-                      <div class="review-columns">
-                        <div class="col missed">
+                      <div
+                        class="review-columns"
+                        *ngIf="getNonEmptyCategoryCount(q) > 0"
+                        [ngClass]="'cols-' + getNonEmptyCategoryCount(q)"
+                      >
+                        <div class="col missed" *ngIf="hasComments(q, 'missing')">
                           <div class="col-header">
                             <span class="dot red"></span>
                             <h4>Points Missed</h4>
-                          </div>
-                          <div
-                            class="review-empty"
-                            *ngIf="reviewComments(q, 'missing').length === 0"
-                          >
-                            No missed points.
                           </div>
                           <div *ngFor="let rc of reviewComments(q, 'missing'); let rci = index">
                             <div class="review-item">
@@ -2176,18 +2174,10 @@
                             </div>
                           </div>
                         </div>
-                        <div class="col incorrect">
+                        <div class="col incorrect" *ngIf="hasComments(q, ['incorrct', 'incorrect', 'incor'])">
                           <div class="col-header">
                             <span class="dot orange"></span>
                             <h4>Points Incorrect</h4>
-                          </div>
-                          <div
-                            class="review-empty"
-                            *ngIf="
-                              reviewComments(q, ['incorrct', 'incorrect', 'incor']).length === 0
-                            "
-                          >
-                            No incorrect points.
                           </div>
                           <div
                             *ngFor="
@@ -2364,16 +2354,10 @@
                             </div>
                           </div>
                         </div>
-                        <div class="col incomplete">
+                        <div class="col incomplete" *ngIf="hasComments(q, 'incomplete')">
                           <div class="col-header">
                             <span class="dot yellow"></span>
                             <h4>Points Incomplete</h4>
-                          </div>
-                          <div
-                            class="review-empty"
-                            *ngIf="reviewComments(q, 'incomplete').length === 0"
-                          >
-                            No incomplete points.
                           </div>
                           <div *ngFor="let rc of reviewComments(q, 'incomplete'); let rci = index">
                             <div class="review-item">
@@ -2547,6 +2531,20 @@
                               </div>
                             </div>
                           </div>
+                        </div>
+                      </div>
+                      <div class="empty-category-chips" *ngIf="getNonEmptyCategoryCount(q) < 3">
+                        <div class="choice-chip missed" *ngIf="!hasComments(q, 'missing')">
+                          <span class="dot red"></span>
+                          <span class="chip-label">No missed points</span>
+                        </div>
+                        <div class="choice-chip incorrect" *ngIf="!hasComments(q, ['incorrct', 'incorrect', 'incor'])">
+                          <span class="dot orange"></span>
+                          <span class="chip-label">No incorrect points</span>
+                        </div>
+                        <div class="choice-chip incomplete" *ngIf="!hasComments(q, 'incomplete')">
+                          <span class="dot yellow"></span>
+                          <span class="chip-label">No incomplete points</span>
                         </div>
                       </div>
                     </div>

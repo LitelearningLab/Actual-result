@@ -1659,6 +1659,18 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  hasComments(q: any, categories: string | string[]): boolean {
+    return this.reviewComments(q, categories).length > 0;
+  }
+
+  getNonEmptyCategoryCount(q: any): number {
+    let count = 0;
+    if (this.hasComments(q, 'missing')) count++;
+    if (this.hasComments(q, ['incorrct', 'incorrect', 'incor'])) count++;
+    if (this.hasComments(q, 'incomplete')) count++;
+    return count;
+  }
+
   /** Convert string to Title Case */
   toTitleCase(str: string | null | undefined): string {
     if (!str) return '';

@@ -2750,11 +2750,21 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
 
 .review-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.875rem;
 
-  @media (max-width: 768px) {
+  &.cols-1 {
     grid-template-columns: 1fr;
+  }
+  &.cols-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+  &.cols-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr !important;
   }
 
   .col {
@@ -2818,6 +2828,55 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
         text-transform: uppercase;
         color: var(--theme-3-text-2, #374151);
       }
+    }
+  }
+}
+
+.empty-category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: 0.875rem;
+  align-items: center;
+
+  .choice-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4375rem 0.875rem;
+    border-radius: 2rem;
+    font-size: 0.78125rem;
+    font-weight: 500;
+    line-height: 1;
+
+    .dot {
+      width: 0.4375rem;
+      height: 0.4375rem;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+
+      &.red { background: var(--red-text, #ef4444); }
+      &.orange { background: var(--orange-text, #f97316); }
+      &.yellow { background: var(--yellow-text, #eab308); }
+    }
+
+    &.missed {
+      background: var(--red-bg, rgba(239, 68, 68, 0.08));
+      color: var(--red-text, #b91c1c);
+      border: 0.0625rem solid var(--bred-border, rgba(239, 68, 68, 0.2));
+    }
+
+    &.incorrect {
+      background: var(--orange-bg, rgba(249, 115, 22, 0.08));
+      color: var(--orange-text, #c2410c);
+      border: 0.0625rem solid var(--borange-border, rgba(249, 115, 22, 0.2));
+    }
+
+    &.incomplete {
+      background: var(--yellow-bg, rgba(234, 179, 8, 0.08));
+      color: var(--yellow-text, #a16207);
+      border: 0.0625rem solid var(--byellow-border, rgba(234, 179, 8, 0.25));
     }
   }
 }
