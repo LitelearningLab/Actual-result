@@ -3786,25 +3786,14 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
 ::ng-deep {
   .mat-calendar-body-cell-content.highlighted-schedule-date,
   .mat-calendar-body-cell.highlighted-schedule-date > .mat-calendar-body-cell-content {
-    position: relative !important;
     background-color: #eff6ff !important;
     color: #1d4ed8 !important;
     font-weight: 700 !important;
     border-radius: 50% !important;
     border: none !important;
     box-shadow: inset 0 0 0 1.5px #3b82f6 !important;
-
-    &::after {
-      content: '' !important;
-      position: absolute !important;
-      bottom: 3px !important;
-      left: 50% !important;
-      transform: translateX(-50%) !important;
-      width: 4px !important;
-      height: 4px !important;
-      background-color: #1d4ed8 !important;
-      border-radius: 50% !important;
-    }
+    aspect-ratio: 1 / 1 !important;
+    margin: auto !important;
   }
 
   .mat-calendar-body-cell-content.mat-calendar-body-selected.highlighted-schedule-date,
@@ -3813,10 +3802,6 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
     background-color: #2563eb !important;
     color: #ffffff !important;
     box-shadow: none !important;
-
-    &::after {
-      background-color: #ffffff !important;
-    }
   }
 }
 
