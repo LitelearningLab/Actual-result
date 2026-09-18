@@ -6,13 +6,14 @@ export interface ConfirmDialogData {
   message: string;
   confirmText?: string;
   cancelText?: string;
+  countdown?: string;
 }
 
 @Component({
      selector: 'app-confirm-dialog',
      template: `
      <div class="dialog-container">
-          <div class="dialog-icon">
+          <div class="dialog-icon" [class.warning-icon]="!!data.countdown">
                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
                     <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -20,11 +21,14 @@ export interface ConfirmDialogData {
           </div>
           <h2 class="dialog-title">{{data.title || 'Confirm'}}</h2>
           <p class="dialog-message">{{data.message}}</p>
+          <div class="countdown-badge" *ngIf="data.countdown">
+               <span class="countdown-time">{{data.countdown}}</span>
+          </div>
           <div class="dialog-actions">
-               <button mat-stroked-button mat-dialog-close class="cancel-btn">
+               <button *ngIf="data.cancelText !== ''" mat-stroked-button [mat-dialog-close]="false" class="cancel-btn">
                     {{data.cancelText || 'Cancel'}}
                </button>
-               <button mat-flat-button [mat-dialog-close]="true" class="confirm-btn">
+               <button *ngIf="data.confirmText !== ''" mat-flat-button [mat-dialog-close]="true" class="confirm-btn">
                     {{data.confirmText || 'Confirm'}}
                </button>
           </div>
@@ -62,6 +66,12 @@ export interface ConfirmDialogData {
                height: 1.75rem;
                color: var(--button-1, #6366f1);
           }
+          .warning-icon {
+               background: linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(245,158,11,0.12) 100%) !important;
+          }
+          .warning-icon svg {
+               color: #dc2626 !important;
+          }
           .dialog-title {
                font-size: 1.25rem;
                font-weight: 700;
@@ -72,10 +82,26 @@ export interface ConfirmDialogData {
           .dialog-message {
                color: var(--theme-3-text-3, #64748b);
                line-height: 1.5;
-               /* Preserve intentional paragraph breaks in longer confirmations. */
                white-space: pre-line;
-               margin: 0 0 1.5rem 0;
+               margin: 0 0 1rem 0;
                font-size: 0.9375rem;
+          }
+          .countdown-badge {
+               display: flex;
+               align-items: center;
+               justify-content: center;
+               margin: 0.25rem 0 1.25rem 0;
+               padding: 0.5rem 1.5rem;
+               background: #fef2f2;
+               border: 1.5px dashed #fca5a5;
+               border-radius: 0.75rem;
+          }
+          .countdown-time {
+               font-size: 2rem;
+               font-weight: 800;
+               color: #dc2626;
+               font-family: monospace, monospace;
+               letter-spacing: 0.1em;
           }
           .dialog-actions {
                display: flex;

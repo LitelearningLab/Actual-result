@@ -1,26 +1,32 @@
 import { Injectable, NgZone } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { first } from 'rxjs/operators';
 import { API_BASE } from '../api.config';
-import { ConfirmDialogComponent } from '../components/confirm-dialog/confirm-dialog.component';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../components/confirm-dialog/confirm-dialog.component';
+import { AuthService } from '../../home/service/auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class SessionService {
-  private readonly idleTimeoutMs = 10 * 60 * 1000;
+  private readonly idleTimeoutMs = 30 * 60 * 1000; // 30 minutes of inactivity before warning
+  private readonly adminWarningTimeoutMs = 5 * 60 * 1000; // 5-minute countdown grace period for Admin
   private readonly activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
   private listening = false;
   private lastActivityAt = Date.now();
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private countdownInterval: ReturnType<typeof setInterval> | null = null;
+  private adminDialogRef: MatDialogRef<ConfirmDialogComponent> | null = null;
   private promptOpen = false;
   private refreshInProgress = false;
+  private isLoggingOut = false;
 
   constructor(
     private dialog: MatDialog,
     private http: HttpClient,
     private router: Router,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private auth: AuthService
   ) {}
 
   startListening() {
@@ -32,6 +38,7 @@ export class SessionService {
     });
 
     window.addEventListener('sessionExpired', (ev: any) => {
+      if (this.isLoggingOut || !this.hasLoggedInSession()) return;
       const msg = ev && ev.detail && ev.detail.message ? ev.detail.message : 'Your session has expired';
       if (/another device|logged in from another|active on another/i.test(msg)) {
         this.ngZone.run(() => this.promptSingleDeviceLogout('Your account was logged in from another device. Please log in again if needed.'));
@@ -44,12 +51,9 @@ export class SessionService {
   }
 
   private promptSingleDeviceLogout(message: string) {
-    if (this.promptOpen || !this.hasLoggedInSession()) return;
+    if (this.isLoggingOut || this.promptOpen || !this.hasLoggedInSession()) return;
+    this.stopAdminCountdown();
     this.promptOpen = true;
-    try {
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
-    } catch (e) {}
 
     const ref = this.dialog.open(ConfirmDialogComponent, {
       data: {
@@ -68,7 +72,8 @@ export class SessionService {
   }
 
   private promptExtendOrLogout(message: string) {
-    if (this.promptOpen || !this.hasLoggedInSession()) return;
+    if (this.isLoggingOut || this.promptOpen || !this.hasLoggedInSession()) return;
+    this.stopAdminCountdown();
     this.promptOpen = true;
 
     const ref = this.dialog.open(ConfirmDialogComponent, {
@@ -83,13 +88,82 @@ export class SessionService {
 
     ref.afterClosed().pipe(first()).subscribe((ok: boolean) => {
       this.promptOpen = false;
-      if (ok) {
-        this.recordActivity();
+      if (ok === true) {
+        this.lastActivityAt = Date.now();
         this.tryRefreshToken();
+        this.scheduleIdleCheck();
       } else {
         this.doLogout();
       }
     });
+  }
+
+  private promptAdminWarning() {
+    if (this.isLoggingOut || this.promptOpen || !this.hasLoggedInSession()) return;
+    this.promptOpen = true;
+
+    const logoutTime = Date.now() + this.adminWarningTimeoutMs;
+    const dialogData: ConfirmDialogData = {
+      title: 'Session Expiring',
+      message: 'You have been inactive. You will be logged out in:',
+      confirmText: 'Stay Logged In',
+      cancelText: 'Logout',
+      countdown: '05:00'
+    };
+
+    this.updateAdminCountdownDisplay(dialogData, logoutTime);
+
+    this.adminDialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: dialogData,
+      disableClose: true
+    });
+
+    this.countdownInterval = setInterval(() => {
+      const remainingSec = Math.ceil((logoutTime - Date.now()) / 1000);
+      if (remainingSec <= 0) {
+        this.stopAdminCountdown();
+        this.ngZone.run(() => {
+          if (this.adminDialogRef) {
+            try { this.adminDialogRef.close(false); } catch (e) {}
+          }
+          this.doLogout();
+        });
+      } else {
+        this.ngZone.run(() => {
+          this.updateAdminCountdownDisplay(dialogData, logoutTime);
+        });
+      }
+    }, 1000);
+
+    this.adminDialogRef.afterClosed().pipe(first()).subscribe((stayLoggedIn: boolean) => {
+      this.stopAdminCountdown();
+      this.adminDialogRef = null;
+      this.promptOpen = false;
+
+      if (stayLoggedIn === true) {
+        this.lastActivityAt = Date.now();
+        this.tryRefreshToken();
+        this.scheduleIdleCheck();
+      } else {
+        this.doLogout();
+      }
+    });
+  }
+
+  private updateAdminCountdownDisplay(dialogData: ConfirmDialogData, logoutTime: number): void {
+    const remainingSec = Math.max(0, Math.ceil((logoutTime - Date.now()) / 1000));
+    const minutes = Math.floor(remainingSec / 60);
+    const seconds = remainingSec % 60;
+    const mm = minutes < 10 ? '0' + minutes : '' + minutes;
+    const ss = seconds < 10 ? '0' + seconds : '' + seconds;
+    dialogData.countdown = `${mm}:${ss}`;
+  }
+
+  private stopAdminCountdown(): void {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
   }
 
   private tryRefreshToken() {
@@ -115,7 +189,6 @@ export class SessionService {
             sessionStorage.setItem('user', JSON.stringify(res.user));
           }
         } catch (e) {}
-        try { this.dialog.closeAll(); } catch (e) {}
       },
       error: (err) => {
         this.refreshInProgress = false;
@@ -135,26 +208,27 @@ export class SessionService {
   }
 
   private recordActivity(): void {
-    if (this.promptOpen) return;
+    if (this.promptOpen || this.isLoggingOut) return;
     this.lastActivityAt = Date.now();
     if (!this.idleTimer) this.scheduleIdleCheck();
   }
 
   private scheduleIdleCheck(): void {
     if (this.idleTimer) clearTimeout(this.idleTimer);
+    if (this.isLoggingOut) return;
 
     const remainingMs = Math.max(0, this.idleTimeoutMs - (Date.now() - this.lastActivityAt));
     this.idleTimer = setTimeout(() => {
       this.idleTimer = null;
-      if (!this.hasBeenIdleForTenMinutes()) {
+      if (this.isLoggingOut) return;
+      if (!this.hasBeenIdleForThirtyMinutes()) {
         this.scheduleIdleCheck();
         return;
       }
 
-      // Inactivity warning after 10 uninterrupted minutes
       this.ngZone.run(() => {
         if (this.isAdminOrSuperAdmin()) {
-          this.promptSingleDeviceLogout('Your session has expired due to inactivity. Please log in again.');
+          this.promptAdminWarning();
         } else {
           this.promptExtendOrLogout('Your session has expired due to inactivity.');
         }
@@ -165,16 +239,21 @@ export class SessionService {
   private isAdminOrSuperAdmin(): boolean {
     try {
       const raw = sessionStorage.getItem('user');
-      if (!raw) return false;
-      const user = JSON.parse(raw);
-      const role = String(user.role || user.user_role || '').toLowerCase();
+      let role = '';
+      if (raw) {
+        const user = JSON.parse(raw);
+        role = String(user.role || user.user_role || sessionStorage.getItem('userRole') || '').toLowerCase();
+      } else {
+        const u = this.auth?.currentUserValue;
+        if (u) role = String(u.role || u.user_role || '').toLowerCase();
+      }
       return ['admin', 'super_admin', 'superadmin', 'super-admin'].includes(role);
     } catch (e) {
       return false;
     }
   }
 
-  private hasBeenIdleForTenMinutes(): boolean {
+  private hasBeenIdleForThirtyMinutes(): boolean {
     return Date.now() - this.lastActivityAt >= this.idleTimeoutMs;
   }
 
@@ -187,51 +266,40 @@ export class SessionService {
   }
 
   private doLogout() {
-    try {
-      const raw = sessionStorage.getItem('user');
-      let userId = null;
-      if (raw) {
-        try { userId = JSON.parse(raw).user_id || JSON.parse(raw).userId || null; } catch(e) { userId = null; }
-      }
-      const url = `${API_BASE}/logout`;
-      const payload: any = {};
-      if (userId) payload.user_id = userId;
-      this.http.post<any>(url, payload).pipe(first()).subscribe({
-        next: () => {},
-        error: () => {},
-        complete: () => {
-          this.clearAndRedirect();
-        }
-      });
-      setTimeout(() => this.clearAndRedirect(), 3000);
-    } catch (e) {
-      this.clearAndRedirect();
-    }
+    if (this.isLoggingOut) return;
+    this.clearAndRedirect();
   }
 
   private clearAndRedirect() {
+    this.isLoggingOut = true;
+    this.stopAdminCountdown();
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.idleTimer = null;
     this.promptOpen = false;
     this.refreshInProgress = false;
+
     try {
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
-      sessionStorage.removeItem('isLogin');
-      sessionStorage.removeItem('username');
-      sessionStorage.removeItem('userRole');
-      sessionStorage.removeItem('institute');
-      sessionStorage.removeItem('institute_id');
-      sessionStorage.removeItem('user_id');
-      sessionStorage.removeItem('launched_exam');
-      sessionStorage.removeItem('test_result');
-      sessionStorage.removeItem('last_submission');
-      sessionStorage.removeItem('review_questions');
-    } catch (e) {}
-    try {
-      this.router.navigate(['/login']);
+      this.auth.logout();
     } catch (e) {
-      try { window.location.href = '/login'; } catch (e) {}
+      try {
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('isLogin');
+        sessionStorage.removeItem('userRole');
+      } catch (e) {}
     }
+
+    this.ngZone.run(() => {
+      try { this.dialog.closeAll(); } catch (e) {}
+      
+      this.router.navigate(['/login']).then(navigated => {
+        if (!navigated) {
+          window.location.href = '/login';
+        }
+      }).catch(() => {
+        window.location.href = '/login';
+      });
+    });
   }
 }
+
