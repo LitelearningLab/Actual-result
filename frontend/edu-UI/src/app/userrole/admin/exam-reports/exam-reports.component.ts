@@ -24,6 +24,7 @@ import {
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { ActivatedRoute } from '@angular/router';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import { AuthService } from 'src/app/home/service/auth.service';
 
@@ -78,7 +79,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     private confirm: ConfirmService,
     private globalContextService: GlobalInstituteContextService,
     private dialog: MatDialog,
-    private auth: AuthService
+    private auth: AuthService,
+    private route: ActivatedRoute
   ) {
     try {
       this.isSuperAdmin =
@@ -99,6 +101,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+
 
   reportsApplied = false;
   appliedFilters: any = null;
@@ -204,8 +208,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.loadUserReport(1, true);
   }
 
-  // user review panel state
+  // user review panel state & controls
   showUserReviewPanel = false;
+  isStandaloneAnswerSheet = false;
   userReviewAttempts: any[] = [];
   userReviewLoading = false;
   selectedUserName: string | null = null;
@@ -222,6 +227,160 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   searchQuery = '';
   commentEdit = false;
   updatedBy = '';
+
+  // Answer sheet search & jump controls
+  answerSheetSearchQuery = '';
+  searchNotFound = false;
+  searchNotFoundMessage = '';
+  selectedJumpQuestion = '';
+
+  onAnswerSheetSearch(): void {
+    this.searchNotFound = false;
+    this.searchNotFoundMessage = '';
+    const query = (this.answerSheetSearchQuery || '').trim();
+    if (!query) return;
+
+    const matchNum = query.match(/\d+/);
+    const targetQNo = matchNum ? matchNum[0] : query;
+
+    let found = false;
+    if (this.userReviewAttempts && this.userReviewAttempts.length) {
+      for (let attIdx = 0; attIdx < this.userReviewAttempts.length; attIdx++) {
+        const att = this.userReviewAttempts[attIdx];
+        const questions = att.review || att.questions || [];
+        const matchIdx = questions.findIndex((q: any, qi: number) => {
+          const qNo = String(q.sno || q.qno || qi + 1).trim();
+          return qNo === targetQNo || qNo === query;
+        });
+        if (matchIdx !== -1) {
+          const foundQNo = questions[matchIdx].sno || questions[matchIdx].qno || matchIdx + 1;
+          this.scrollToQuestion(attIdx, foundQNo);
+          found = true;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      this.searchNotFound = true;
+      this.searchNotFoundMessage = `Question #${query} not found`;
+      setTimeout(() => {
+        this.searchNotFound = false;
+        this.searchNotFoundMessage = '';
+      }, 4000);
+    }
+  }
+
+  clearAnswerSheetSearch(): void {
+    this.answerSheetSearchQuery = '';
+    this.searchNotFound = false;
+    this.searchNotFoundMessage = '';
+  }
+
+  jumpQuestionsCache: Array<{ displayLabel: string; value: string; attIdx: number; qNo: number | string; qi: number }> = [];
+  private lastAttemptsRef: any = null;
+
+  getAllQuestionsForJump(): Array<{ displayLabel: string; value: string; attIdx: number; qNo: number | string; qi: number }> {
+    if (!this.userReviewAttempts || !this.userReviewAttempts.length) {
+      this.jumpQuestionsCache = [];
+      this.lastAttemptsRef = null;
+      return [];
+    }
+    if (this.lastAttemptsRef === this.userReviewAttempts && this.jumpQuestionsCache.length > 0) {
+      return this.jumpQuestionsCache;
+    }
+    const list: Array<{ displayLabel: string; value: string; attIdx: number; qNo: number | string; qi: number }> = [];
+    this.userReviewAttempts.forEach((att, attIdx) => {
+      const questions = att.review || att.questions || [];
+      const attemptPrefix =
+        this.userReviewAttempts.length > 1
+          ? `Attempt ${att.attempt_number || attIdx + 1} - `
+          : '';
+      questions.forEach((q: any, qi: number) => {
+        const qNo = q.sno || q.qno || qi + 1;
+        list.push({
+          displayLabel: `${attemptPrefix}Q${qNo}`,
+          value: `${attIdx}_${qNo}`,
+          attIdx,
+          qNo,
+          qi,
+        });
+      });
+    });
+    this.lastAttemptsRef = this.userReviewAttempts;
+    this.jumpQuestionsCache = list;
+    return list;
+  }
+
+  trackByJumpValue(index: number, item: any): string {
+    return item ? item.value : index.toString();
+  }
+
+  onJumpToQuestionChange(targetValue: string): void {
+    if (!targetValue) return;
+    this.selectedJumpQuestion = targetValue;
+    const parts = targetValue.split('_');
+    if (parts.length === 2) {
+      const attIdx = parseInt(parts[0], 10);
+      const qNo = parts[1];
+      this.scrollToQuestion(attIdx, qNo);
+    }
+  }
+
+  scrollToQuestion(attIdx: number, qNo: number | string): void {
+    const elementId = `q-card-${attIdx}-${qNo}`;
+    const el = document.getElementById(elementId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.remove('highlighted-question');
+      void el.offsetWidth;
+      el.classList.add('highlighted-question');
+      setTimeout(() => {
+        el.classList.remove('highlighted-question');
+      }, 2500);
+    }
+  }
+
+  openAnswerSheetInNewTab(row?: any): void {
+    const targetRow = row || this.currentReviewRow;
+    const userId =
+      targetRow?.user_id ||
+      targetRow?.student_id ||
+      targetRow?.id ||
+      targetRow?.userId ||
+      this.currentReviewParams?.user_id ||
+      '';
+    const scheduleId = String(
+      targetRow?.schedule_id ||
+      targetRow?.scheduleId ||
+      targetRow?.scheduler_id ||
+      this.currentReviewParams?.scheduler_id ||
+      this.currentReviewParams?.schedule_id ||
+      this.selectedExam?.schedule_id ||
+      this.selectedExam?.id ||
+      this.selectedExam?.scheduleId ||
+      ''
+    );
+    const userName =
+      targetRow?.student_name ||
+      targetRow?.name ||
+      targetRow?.user_name ||
+      targetRow?.full_name ||
+      this.selectedUserName ||
+      '';
+
+    if (!userId) return;
+
+    const resVal = String(targetRow?.result || targetRow?.status || '').trim().toLowerCase();
+    if (resVal === 'no attempt' || resVal === 'no_attempt' || resVal === 'unattempted') {
+      this._snack.open('This student has not attempted the test yet.', 'Close', { duration: 4000 });
+      return;
+    }
+
+    const baseUrl = window.location.origin + window.location.pathname;
+    const newUrl = `${baseUrl}?open_sheet=true&user_id=${encodeURIComponent(String(userId))}&scheduler_id=${encodeURIComponent(String(scheduleId))}&user_name=${encodeURIComponent(userName)}`;
+    window.open(newUrl, '_blank');
+  }
 
   // placeholders for template bindings
   examCtrl = new FormControl('');
@@ -1748,13 +1907,22 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   closeUserReview() {
     this.showUserReviewPanel = false;
     this.userReviewAttempts = [];
+    this.jumpQuestionsCache = [];
+    this.lastAttemptsRef = null;
+    this.selectedJumpQuestion = '';
     this.selectedUserName = null;
     this.selectedUserScore = null;
     this.selectedUserResult = null;
     this.totalQuestions = null;
     this.totalMarks = null;
     this.currentReviewRow = null;
-    this.refreshUserReportTable();
+    if (this.isStandaloneAnswerSheet) {
+      try {
+        window.close();
+      } catch (e) {}
+    } else {
+      this.refreshUserReportTable();
+    }
   }
 
   startEditMarks(q: any) {
@@ -2828,6 +2996,35 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     try {
       this.pageMeta.setMeta('Test Reports', 'Reports for scheduled tests');
+    } catch (e) {}
+
+    try {
+      this.route.queryParams.subscribe((params) => {
+        if (
+          params['open_sheet'] === 'true' ||
+          params['answer_sheet'] === 'true' ||
+          (params['user_id'] && params['auto_open'] === 'true')
+        ) {
+          const userId = params['user_id'];
+          const scheduleId = params['scheduler_id'] || params['schedule_id'];
+          const userName = params['student_name'] || params['user_name'] || null;
+          if (userId) {
+            this.isStandaloneAnswerSheet = true;
+            if (userName) {
+              try {
+                document.title = `Answer Sheet - ${userName}`;
+              } catch (e) {}
+            }
+            const fakeRow = {
+              user_id: userId,
+              student_id: userId,
+              schedule_id: scheduleId,
+              student_name: userName,
+            };
+            this.openUserReview(fakeRow);
+          }
+        }
+      });
     } catch (e) {}
 
     const userInstId = this.getLoggedInInstituteId();
