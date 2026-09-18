@@ -2573,6 +2573,7 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
   margin: 0 !important;
   max-width: 100% !important;
   width: 100% !important;
+  overflow: visible !important;
 }
 
 .standalone-answer-sheet-page {
@@ -2584,6 +2585,7 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
   display: block;
   padding: 0;
   margin: 0;
+  overflow: visible !important;
 }
 
 .user-review-panel.standalone-panel {
@@ -2593,6 +2595,7 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
   min-height: 100vh !important;
   max-height: none !important;
   margin: 0 !important;
+  overflow: visible !important;
 }
 
 .user-review-panel.standalone-panel .card {
@@ -2601,6 +2604,7 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
   box-shadow: none !important;
   min-height: 100vh !important;
   max-height: none !important;
+  overflow: visible !important;
 }
 
 .user-review-panel.standalone-panel .panel-body {
@@ -2689,12 +2693,13 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
 
 // Sticky wrapper for Answer Sheet header & toolbar
 .as-header-sticky-wrapper {
-  position: sticky;
-  top: 0;
-  z-index: 50;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important;
   background: var(--bg-1, #ffffff);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
   flex-shrink: 0;
+  width: 100%;
 }
 
 // Answer Sheet Toolbar (Search & Jump to Question)

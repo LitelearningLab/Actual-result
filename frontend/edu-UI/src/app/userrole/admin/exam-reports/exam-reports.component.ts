@@ -1736,6 +1736,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     try {
       this.selectedUserName =
         row.student_name || row.name || row.user_name || row.full_name || null;
+      if (this.selectedUserName) {
+        try {
+          document.title = `${this.selectedUserName} - Answer Sheet`;
+        } catch (e) {}
+      }
       this.selectedUserScore = row.marks_obtained ?? row.score ?? row.marks ?? null;
       this.selectedUserResult = row.result ?? row.status ?? null;
       this.totalQuestions = row.total_questions || row.total || null;
@@ -1945,6 +1950,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.totalQuestions = null;
     this.totalMarks = null;
     this.currentReviewRow = null;
+    try {
+      document.title = 'Test Reports';
+    } catch (e) {}
     if (this.isStandaloneAnswerSheet) {
       try {
         window.close();
@@ -3043,7 +3051,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             this.isStandaloneAnswerSheet = true;
             if (userName) {
               try {
-                document.title = `Answer Sheet - ${userName}`;
+                document.title = `${userName} - Answer Sheet`;
               } catch (e) {}
             }
             const fakeRow = {
