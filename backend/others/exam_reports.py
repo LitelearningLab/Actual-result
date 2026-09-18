@@ -1957,8 +1957,52 @@ def get_descriptive_ai_analysis(request):
     exam_id = ctx.get('exam_id') if (ctx and ctx.get('status')) else None
 
     try:
+        # 1. Enforce exam scoping: find all categories and questions mapped to this exam
+        exam_cat_ids = set()
+        exam_qids = set()
+        if exam_id:
+            for (cid,) in session.query(ExamMapping.category_id).filter(
+                (ExamMapping.exam_id == exam_id) | (func.cast(ExamMapping.exam_id, String) == str(exam_id))
+            ).all():
+                if cid:
+                    exam_cat_ids.add(str(cid).strip())
+            for (qid, cid) in session.query(ExamQuestionMapping.question_id, ExamQuestionMapping.category_id).filter(
+                (ExamQuestionMapping.exam_id == exam_id) | (func.cast(ExamQuestionMapping.exam_id, String) == str(exam_id))
+            ).all():
+                if qid:
+                    exam_qids.add(str(qid).strip())
+                if cid:
+                    exam_cat_ids.add(str(cid).strip())
+
+        # If a category_id is provided but does not belong to the current exam, discard it as stale/foreign
+        if category_id and exam_cat_ids and str(category_id).strip() not in exam_cat_ids:
+            category_id = None
+
+        # Auto-discover the exam's descriptive category if category_id is not set
+        if not category_id and exam_cat_ids:
+            desc_cat = session.query(Categories).filter(
+                (Categories.category_id.in_(list(exam_cat_ids))) |
+                (func.cast(Categories.category_id, String).in_(list(exam_cat_ids))),
+                or_(
+                    Categories.name.ilike('%descriptive%'),
+                    Categories.name.ilike('%subjective%'),
+                    Categories.name.ilike('%essay%')
+                )
+            ).first()
+            if desc_cat:
+                category_id = str(desc_cat.category_id).strip()
+                category_name = desc_cat.name or category_name
+            else:
+                # If no specifically named descriptive category, check first mapped category
+                first_cat = session.query(Categories).filter(
+                    (Categories.category_id.in_(list(exam_cat_ids))) |
+                    (func.cast(Categories.category_id, String).in_(list(exam_cat_ids)))
+                ).first()
+                if first_cat:
+                    category_id = str(first_cat.category_id).strip()
+                    category_name = first_cat.name or category_name
+
         cat_obj = None
-        category_name = "Descriptive Question Bank"
         if category_id:
             cat_obj = session.query(Categories).filter(
                 (Categories.category_id == category_id) |
@@ -1967,7 +2011,7 @@ def get_descriptive_ai_analysis(request):
             if cat_obj:
                 category_name = cat_obj.name or category_name
 
-        # 1. Find all question IDs belonging strictly to this category_id
+        # 2. Find all question IDs strictly belonging to this category and scoped to the exam
         target_qids = set()
 
         if category_id:
@@ -1980,7 +2024,7 @@ def get_descriptive_ai_analysis(request):
             ).all()
             for (qid,) in qm_rows:
                 if qid:
-                    target_qids.add(str(qid))
+                    target_qids.add(str(qid).strip())
 
             # Query from ExamQuestionMapping
             eqm_rows = session.query(ExamQuestionMapping.question_id).filter(
@@ -1989,47 +2033,45 @@ def get_descriptive_ai_analysis(request):
             ).all()
             for (qid,) in eqm_rows:
                 if qid:
-                    target_qids.add(str(qid))
+                    target_qids.add(str(qid).strip())
 
-            # Query from ExamMapping - strictly scoped to this category_id
-            em_rows = session.query(ExamMapping.exam_id).filter(
-                (ExamMapping.category_id == category_id) |
-                (func.cast(ExamMapping.category_id, String) == str_cat_id)
-            ).all()
-            for (eid,) in em_rows:
-                if eid:
-                    eq_rows = session.query(ExamQuestionMapping.question_id).filter(
-                        ExamQuestionMapping.exam_id == eid,
-                        (ExamQuestionMapping.category_id == category_id) |
-                        (func.cast(ExamQuestionMapping.category_id, String) == str_cat_id)
-                    ).all()
-                    for (qid,) in eq_rows:
-                        if qid:
-                            target_qids.add(str(qid))
+        # If exam_id is known, strictly constrain target_qids to questions of this exam
+        if exam_qids:
+            if target_qids:
+                scoped_qids = target_qids.intersection(exam_qids)
+                if scoped_qids:
+                    target_qids = scoped_qids
+                else:
+                    target_qids = exam_qids
+            else:
+                target_qids = exam_qids
 
-        # Fallback: if category_id questions not directly mapped, filter exam questions by exam_id or schedule_id
-        if not target_qids:
-            if exam_id:
-                eqm_rows = session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == exam_id).all()
-                for (qid,) in eqm_rows:
-                    if qid:
-                        target_qids.add(str(qid))
-            if schedule_ids:
-                ans_qids = session.query(Answer.question_id).filter(
-                    (Answer.schedule_id.in_(schedule_ids)) |
-                    (func.cast(Answer.schedule_id, String).in_([str(s).strip() for s in schedule_ids]))
-                ).distinct().all()
-                for (qid,) in ans_qids:
-                    if qid:
-                        target_qids.add(str(qid))
+        # Fallback: if questions not directly mapped, query via schedule answers
+        if not target_qids and schedule_ids:
+            ans_qids = session.query(Answer.question_id).filter(
+                (Answer.schedule_id.in_(schedule_ids)) |
+                (func.cast(Answer.schedule_id, String).in_([str(s).strip() for s in schedule_ids]))
+            ).distinct().all()
+            for (qid,) in ans_qids:
+                if qid:
+                    target_qids.add(str(qid).strip())
 
         q_objs = []
         if target_qids:
             str_target_qids = [str(q).strip() for q in target_qids if q]
-            q_objs = session.query(Question).filter(
-                (Question.question_id.in_(list(target_qids))) |
-                (func.cast(Question.question_id, String).in_(str_target_qids))
+            # Prefer descriptive / subjective questions if mixed types exist
+            desc_questions = session.query(Question).filter(
+                ((Question.question_id.in_(list(target_qids))) |
+                 (func.cast(Question.question_id, String).in_(str_target_qids))),
+                Question.question_type.in_(['descriptive', 'subjective', 'essay', 'paragraph', 'long_answer', 'description'])
             ).all()
+            if desc_questions:
+                q_objs = desc_questions
+            else:
+                q_objs = session.query(Question).filter(
+                    (Question.question_id.in_(list(target_qids))) |
+                    (func.cast(Question.question_id, String).in_(str_target_qids))
+                ).all()
 
         question_ids = [str(q.question_id).strip() for q in q_objs if q and q.question_id]
         normalized_qids = {q.lower() for q in question_ids}

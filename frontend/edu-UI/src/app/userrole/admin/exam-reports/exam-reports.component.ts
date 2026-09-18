@@ -1063,6 +1063,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.selectedScheduleDate = null;
     this.availableSchedulesOnDate = [];
     this.selectedScheduleId = '';
+    this.resetDescriptiveAiState();
   }
 
   updateHighlightedDates() {
@@ -1132,6 +1133,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.examCtrl.setValue(schedule);
     } catch (e) {}
 
+    this.resetDescriptiveAiState();
     this.questionCurrentPage = 1;
     this.currentPage = 1;
     this.reportsApplied = true;
@@ -1153,6 +1155,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.questionSummary = [];
     this.wrongDistribution = [];
     this.userFilters.schedule_id = '';
+    this.resetDescriptiveAiState();
 
     const activeTitle =
       this.selectedTestTitle ||
@@ -1181,6 +1184,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   onDateRangeTestTitleSelect(title: string) {
     this.selectedTestTitle = title;
     this.selectedDateRangeTestTitle = title;
+    this.resetDescriptiveAiState();
   }
 
   onDateRangeApply() {
@@ -1204,6 +1208,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       start_date: startStr,
       end_date: endStr,
     };
+    this.resetDescriptiveAiState();
     this.questionCurrentPage = 1;
     this.currentPage = 1;
     this.reportsApplied = true;
@@ -1461,7 +1466,31 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   subtopicPerformanceList: any[] = [];
 
   get isDescriptiveCategoryActive(): boolean {
-    return true;
+    const descTypes = ['descriptive', 'subjective', 'essay', 'paragraph', 'long_answer', 'description'];
+    const rawType = (this.selectedCategoryType || '').toLowerCase();
+    const rawName = (this.selectedCategoryFilterName || '').toLowerCase();
+
+    // If a specific category filter is active, check its type
+    if (this._activeCategoryId || this.selectedCategoryFilterName) {
+      return descTypes.includes(rawType) || descTypes.some(t => rawName.includes(t));
+    }
+
+    // If viewing overall summary or default view, check if current exam has any descriptive category
+    return (this.categoryAnalytics || []).some((c: any) => {
+      const cType = String(c.category_type || c.type || c.question_type || '').toLowerCase();
+      const cName = String(c.category_name || c.name || '').toLowerCase();
+      return descTypes.includes(cType) || descTypes.some(t => cName.includes(t));
+    });
+  }
+
+  resetDescriptiveAiState() {
+    this.descriptiveAiLoading = false;
+    this.descriptiveQualitySummary = null;
+    this.subtopicPerformanceList = [];
+    this._activeCategoryId = null;
+    this.selectedCategoryFilterName = '';
+    this.selectedCategoryType = '';
+    this._pendingCategoryFilter = null;
   }
 
   _activeCategoryId: string | null = null;
@@ -2380,7 +2409,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.categoryAnalytics = [];
     this.questionSummary = [];
     this.wrongDistribution = [];
-
+    this.resetDescriptiveAiState();
   }
 
   resetFiltersAndReload() {
@@ -2406,6 +2435,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.highlightedDatesSet.clear();
       this.availableSchedulesOnDate = [];
       this.selectedScheduleId = '';
+      this.resetDescriptiveAiState();
       return;
     }
 
@@ -2425,6 +2455,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   onTestAutocompleteSelected(exam: any) {
     this.selectedExam = exam;
+    this.resetDescriptiveAiState();
     if (exam) {
       this.userFilters.schedule_id = String(exam.schedule_id || exam.id || exam.scheduleId || '');
     }
@@ -3543,17 +3574,24 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             : payload.wrong_answer_distribution || payload.distribution || [];
           this.loadedAnalyticsCacheKey = currentKey;
           this.questionCurrentPage = 1;
+          const descTypes = ['descriptive', 'subjective', 'essay', 'paragraph', 'long_answer', 'description'];
+
           if (this._pendingCategoryFilter) {
             const cid = String(this._pendingCategoryFilter);
-            this._activeCategoryId = cid;
             const matchedCat = (this.categoryAnalytics || []).find((c: any) => String(c.category_id || c.id || c._id || '') === cid);
             if (matchedCat) {
+              this._activeCategoryId = cid;
               this.selectedCategoryType = String(matchedCat.category_type || matchedCat.type || matchedCat.question_type || '').toLowerCase();
               this.selectedCategoryFilterName = matchedCat.category_name || matchedCat.name || 'Selected Category';
+              this.filteredQuestionSummary = (this.questionSummary || [])
+                .filter((q: any) => this._getQuestionCategoryId(q) === cid)
+                .map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
+            } else {
+              this._activeCategoryId = null;
+              this.selectedCategoryType = '';
+              this.selectedCategoryFilterName = '';
+              this.filteredQuestionSummary = (this.questionSummary || []).map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
             }
-            this.filteredQuestionSummary = (this.questionSummary || [])
-              .filter((q: any) => this._getQuestionCategoryId(q) === cid)
-              .map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
 
             this._pendingCategoryFilter = null;
             try {
@@ -3565,23 +3603,50 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             const matchedCat = (this.categoryAnalytics || []).find((c: any) => String(c.category_id || c.id || c._id || '') === cid);
             if (matchedCat) {
               this.selectedCategoryType = String(matchedCat.category_type || matchedCat.type || matchedCat.question_type || '').toLowerCase();
+              this.selectedCategoryFilterName = matchedCat.category_name || matchedCat.name || 'Selected Category';
+              this.filteredQuestionSummary = (this.questionSummary || [])
+                .filter((q: any) => this._getQuestionCategoryId(q) === cid)
+                .map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
+            } else {
+              this._activeCategoryId = null;
+              this.selectedCategoryType = '';
+              this.selectedCategoryFilterName = '';
+              this.filteredQuestionSummary = (this.questionSummary || []).map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
             }
-            this.filteredQuestionSummary = (this.questionSummary || [])
-              .filter((q: any) => this._getQuestionCategoryId(q) === cid)
-              .map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
-          } else if (this.categoryAnalytics && this.categoryAnalytics.length) {
-            const firstCat = this.categoryAnalytics[0];
-            const cid = String(firstCat.category_id || firstCat.id || firstCat._id || '');
-            this._activeCategoryId = cid;
-            this.selectedCategoryType = String(firstCat.category_type || firstCat.type || firstCat.question_type || '').toLowerCase();
-            this.selectedCategoryFilterName = firstCat.category_name || firstCat.name || 'Selected Category';
-            this.filteredQuestionSummary = (this.questionSummary || []).map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
           } else {
             this.filteredQuestionSummary = (this.questionSummary || []).map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
           }
 
+          // Trigger descriptive AI analysis if a descriptive category is active or present in this test
+          let targetDescCatId: string | null = null;
           if (this._activeCategoryId) {
-            this.loadDescriptiveAiAnalysis(this._activeCategoryId);
+            const activeCat = (this.categoryAnalytics || []).find((c: any) => String(c.category_id || c.id || c._id || '') === String(this._activeCategoryId));
+            if (activeCat) {
+              const aType = String(activeCat.category_type || activeCat.type || activeCat.question_type || '').toLowerCase();
+              const aName = String(activeCat.category_name || activeCat.name || '').toLowerCase();
+              if (descTypes.includes(aType) || descTypes.some(t => aName.includes(t))) {
+                targetDescCatId = String(this._activeCategoryId);
+              }
+            }
+          }
+
+          if (!targetDescCatId) {
+            const foundDescCat = (this.categoryAnalytics || []).find((c: any) => {
+              const cType = String(c.category_type || c.type || c.question_type || '').toLowerCase();
+              const cName = String(c.category_name || c.name || '').toLowerCase();
+              return descTypes.includes(cType) || descTypes.some(t => cName.includes(t));
+            });
+            if (foundDescCat) {
+              targetDescCatId = String(foundDescCat.category_id || foundDescCat.id || foundDescCat._id || '');
+            }
+          }
+
+          if (targetDescCatId) {
+            this.loadDescriptiveAiAnalysis(targetDescCatId);
+          } else {
+            this.descriptiveQualitySummary = null;
+            this.subtopicPerformanceList = [];
+            this.descriptiveAiLoading = false;
           }
         } catch (e) {
           console.error('[TestReports] Error parsing analytics response', e);
