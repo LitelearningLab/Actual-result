@@ -2774,25 +2774,6 @@
               </span>
             </div>
 
-            <!-- Single Column 'ANSWER' Table with Green Correct Answer Theme -->
-            <div class="desc-correct-answer-table-wrap" *ngIf="getCorrectAnswerText()">
-              <table class="desc-correct-answer-table">
-                <thead>
-                  <tr>
-                    <th class="desc-th-answer-col">ANSWER</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr class="desc-correct-answer-row">
-                    <td class="desc-td-answer-cell">
-                      <div class="desc-answer-content-wrap">
-                        <span class="desc-answer-full-text">{{ getCorrectAnswerText() }}</span>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
 
             <!-- Loading State Animation for AI Analytics -->
             <div class="wrong-summary-loading-container" *ngIf="wrongAnswerSummaryLoading">
@@ -2969,6 +2950,26 @@
                     </div>
                   </ng-container>
                 </div>
+              </div>
+
+              <!-- Single Column 'ANSWER' Table with Green Correct Answer Theme -->
+              <div class="desc-correct-answer-table-wrap" *ngIf="getCorrectAnswerText()">
+                <table class="desc-correct-answer-table">
+                  <thead>
+                    <tr>
+                      <th class="desc-th-answer-col">ANSWER</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="desc-correct-answer-row">
+                      <td class="desc-td-answer-cell">
+                        <div class="desc-answer-content-wrap">
+                          <span class="desc-answer-full-text">{{ getCorrectAnswerText() }}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
               <!-- Empty State if No Incorrect Responses -->
