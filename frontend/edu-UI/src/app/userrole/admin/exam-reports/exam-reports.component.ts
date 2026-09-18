@@ -1606,6 +1606,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     console.log('[fetchUserReview] Re-fetching review with params:', params, 'silent:', silent);
     if (!silent) {
       this.userReviewLoading = true;
+      this.loading.show();
     }
     this.http.get<any>(`${API_BASE}/review-user-exam`, { params }).subscribe({
       next: (res: any) => {
@@ -1690,6 +1691,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           }
         }
         this.userReviewLoading = false;
+        if (!silent) {
+          this.loading.hide();
+        }
         if (!this.userReviewAttempts || !this.userReviewAttempts.length) {
           if (!silent) {
             this._snack.open('No review data available for this user.', 'Close', { duration: 4000 });
@@ -1704,6 +1708,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         if (!silent) {
           this.userReviewLoading = false;
           this.userReviewAttempts = [];
+          this.loading.hide();
         }
         if (err && err.status === 0 && !silent) {
           const snack = this._snack.open(
