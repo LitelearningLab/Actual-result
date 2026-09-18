@@ -31,7 +31,8 @@ export class UnauthGuard implements CanActivate {
       } else if (role === 'admin') {
         return this.router.parseUrl('/admin-dashboard');
       }
-      return this.router.parseUrl('/user-dashboard');
+      // return this.router.parseUrl('/user-dashboard');
+      return this.router.parseUrl('/user/exam');
     }
     return true;
   }

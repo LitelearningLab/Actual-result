@@ -92,7 +92,8 @@ export class LoginComponent implements OnDestroy {
         } else if (role === 'admin') {
           this.router.navigate(['/admin-dashboard']);
         } else {
-          this.router.navigate(['/user-dashboard']);
+          // this.router.navigate(['/user-dashboard']);
+          this.router.navigate(['/user/exam']);
         }
       } else {
         this.loader.hide();

@@ -50,7 +50,8 @@ export class UserTestResultComponent implements OnInit {
   }
 
   backToDashboard(){
-    this.router.navigate(['/user-dashboard']);
+    // this.router.navigate(['/user-dashboard']);
+    this.router.navigate(['/user/exam']);
   }
 
   viewAvailableTests(){

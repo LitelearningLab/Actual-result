@@ -232,7 +232,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
 
     if (role === 'user' || role === 'candidate' || role === 'admin' || role === 'super_admin' || role === 'super-admin') {
       // Admins retain their management menus and also receive the candidate entry points.
-      this.menus.push({ label: 'User Dashboard', path: '/user-dashboard', icon: 'user' });
+      // this.menus.push({ label: 'User Dashboard', path: '/user-dashboard', icon: 'user' });
       this.menus.push({ label: 'Test inbox', path: '/user/exam', icon: 'assignment' });
     }
 
