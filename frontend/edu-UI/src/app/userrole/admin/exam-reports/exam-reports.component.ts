@@ -901,16 +901,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   onTestTitleSelect(title: string) {
     this.selectedTestTitle = title;
     this.updateHighlightedDates();
-
-    const dateStrs = Array.from(this.highlightedDatesSet).sort();
-    if (dateStrs.length > 0) {
-      const latestStr = dateStrs[dateStrs.length - 1];
-      const parts = latestStr.split('-');
-      this.selectedScheduleDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-    } else {
-      this.selectedScheduleDate = null;
-    }
-    this.updateAvailableSchedulesOnDate();
+    this.selectedScheduleDate = null;
+    this.availableSchedulesOnDate = [];
+    this.selectedScheduleId = '';
   }
 
   updateHighlightedDates() {
@@ -955,7 +948,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       if (exists) {
         this.selectedScheduleId = this.getScheduleId(exists);
       } else {
-        this.onScheduleSelect(this.availableSchedulesOnDate[0]);
+        this.selectedScheduleId = '';
       }
     } else {
       this.selectedScheduleId = '';
@@ -2118,12 +2111,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const title = selectedTest ? this.getTestTitle(selectedTest) : selectedVal;
     this.selectedTestTitle = title;
     this.selectedDateRangeTestTitle = title;
-    if (selectedTest) {
-      this.selectedExam = selectedTest;
-      try {
-        this.examCtrl.setValue(selectedTest);
-      } catch (e) {}
-    }
+    this.selectedExam = null;
+    this.selectedScheduleDate = null;
+    this.selectedScheduleId = '';
+    this.availableSchedulesOnDate = [];
+
     this.onTestTitleSelect(title);
 
     this.questionCurrentPage = 1;

@@ -19,8 +19,8 @@
         <strong>Institute:</strong> {{ selectedInstituteName }}
       </span>
 
-      <span class="applied-filter-pill" *ngIf="selectedExam">
-        <strong>Test:</strong> {{ getTestTitle(selectedExam) }}
+      <span class="applied-filter-pill" *ngIf="displayTestName">
+        <strong>Test:</strong> {{ displayTestName }}
       </span>
 
       <span class="applied-filter-pill" *ngIf="userFilters.campus_id">
