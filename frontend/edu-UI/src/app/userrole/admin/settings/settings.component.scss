@@ -1,4 +1,83 @@
-.settings-page { max-width: 760px; padding: 24px; margin: 0 auto; }
-mat-card { padding: 12px; }
-mat-card-content { padding-top: 24px; }
-mat-form-field { width: min(100%, 360px); }
+.settings-page {
+  max-width: 760px;
+  padding: 24px;
+  margin: 0 auto;
+
+  mat-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  mat-card-header {
+    mat-icon[mat-card-avatar] {
+      background: #eff6ff;
+      color: #2563eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      font-size: 24px;
+      width: 40px;
+      height: 40px;
+    }
+
+    mat-card-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    mat-card-subtitle {
+      color: #64748b;
+      font-size: 0.875rem;
+      margin-top: 4px;
+    }
+  }
+
+  mat-card-content {
+    padding-top: 24px;
+  }
+
+  mat-form-field {
+    width: min(100%, 360px);
+
+    /* Hide browser default number spinners */
+    input[type='number']::-webkit-inner-spin-button,
+    input[type='number']::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type='number'] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+      font-weight: 500;
+      font-size: 1rem;
+    }
+
+    .percent-suffix {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #64748b;
+      padding-right: 12px;
+      padding-left: 6px;
+      user-select: none;
+      display: inline-flex;
+      align-items: center;
+    }
+  }
+
+  mat-card-actions {
+    padding-top: 12px;
+  }
+}
+
+:host ::ng-deep {
+  .mat-mdc-form-field-icon-suffix,
+  .mat-form-field-suffix {
+    padding-right: 8px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
