@@ -665,13 +665,18 @@
                   <div *ngFor="let cp of selectedInstitute.campuses" class="campus-card">
                     <div class="campus-header">
                       <strong>{{ cp.name }}</strong>
-                      <span class="campus-tag" *ngIf="cp.is_primary === true || cp.isPrimary"
+                      <span class="campus-tag" *ngIf="cp.is_primary === true || cp.is_primary === 1 || cp.isPrimary === true || cp.isPrimary === 1"
                         >Primary</span
                       >
                       <span
                         class="campus-tag campus-tag--active"
-                        *ngIf="cp.active_status === true || cp.active_status"
+                        *ngIf="cp.active_status === true || cp.active_status === 1 || cp.isActive === true || cp.isActive === 1"
                         >Active</span
+                      >
+                      <span
+                        class="campus-tag campus-tag--inactive"
+                        *ngIf="cp.active_status === false || cp.active_status === 0 || cp.isActive === false || cp.isActive === 0"
+                        >Inactive</span
                       >
                     </div>
                     <div class="campus-line">{{ cp.address }}</div>

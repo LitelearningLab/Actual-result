@@ -10,6 +10,11 @@ import threading
 _institute_schema_ready = False
 _institute_schema_lock = threading.Lock()
 
+def _to_bool(val):
+    if isinstance(val, bool):
+        return val
+    return str(val or '').strip().lower() in ('1', 'true', 'yes', 'active', 'primary')
+
 
 def _ensure_institute_registration_schema(session):
     """Add missing institute columns once per backend process."""
@@ -52,10 +57,40 @@ def _ensure_institute_registration_schema(session):
         _institute_schema_ready = True
 
 
+def _extract_id(val, id_keys=('id', 'country_id', 'state_id', 'city_id', '_id')):
+    if val is None:
+        return None
+    if isinstance(val, dict):
+        for k in id_keys:
+            if k in val and val[k]:
+                s = str(val[k]).strip()
+                if s and s.lower() not in ('none', 'null', ''):
+                    return s
+        return None
+    s = str(val).strip()
+    if not s or s.lower() in ('none', 'null', '{}', 'undefined'):
+        return None
+    if s.startswith('{') and '}' in s:
+        return None
+    return s
+
+
 def _campus_city_values(session, value):
     """Store city as normalized Title Case free text (e.g., 'chennai' -> 'Chennai')."""
-    city_value = str(value or '').strip()
-    if not city_value:
+    if isinstance(value, dict):
+        city_name = (
+            value.get('city_name')
+            or value.get('City_Name')
+            or value.get('name')
+            or value.get('city')
+            or value.get('city_id')
+        )
+        city_value = str(city_name or '').strip()
+    else:
+        city_value = str(value or '').strip()
+    if not city_value or city_value.lower() in ('none', 'null', '{}', 'undefined'):
+        return None, None
+    if city_value.startswith('{') and '}' in city_value:
         return None, None
     # Capitalize first letter of each word
     return None, city_value.title()
@@ -162,13 +197,15 @@ def insert_institute(data):
         operation = "insert_locations"
         head_office_data = data.get('headOffice') or {}
         address = head_office_data.get('address', None)
-        country_id = head_office_data.get('country', None)
-        state_id = head_office_data.get('state', None)
+        country_id = _extract_id(head_office_data.get('country'))
+        state_id = _extract_id(head_office_data.get('state'))
         city_id, city_name = _campus_city_values(session, head_office_data.get('city'))
-        pin_code = head_office_data.get('pincode', None)
-        email = head_office_data.get('email', None)
-        phone = head_office_data.get('phone', None)
-        is_primary = 1
+        pin_code = str(head_office_data.get('pincode') or '').strip() or None
+        email = str(head_office_data.get('email') or '').strip() or None
+        phone = str(head_office_data.get('phone') or '').strip() or None
+        campuses_list = data.get('campuses') or []
+        has_explicit_primary = any(_to_bool(c.get('isPrimary')) for c in campuses_list)
+        is_primary = '0' if has_explicit_primary else '1'
 
         if any([address, country_id, state_id, city_name, pin_code, email, phone]):
             new_campus = InstituteCampus(
@@ -183,10 +220,10 @@ def insert_institute(data):
                 email=email,
                 phone=phone,
                 is_primary=is_primary,
+                active_status='1'
             )
             session.add(new_campus)
 
-        campuses_list = data.get('campuses') or []
         for index, campuses in enumerate(campuses_list, start=1):
             name = str(campuses.get('name') or '').strip()
             if not name:
@@ -195,14 +232,14 @@ def insert_institute(data):
                     "status": False,
                 }, 400
             address = campuses.get('address', None)
-            country_id = campuses.get('country', None)
-            state_id = campuses.get('state', None)
+            country_id = _extract_id(campuses.get('country'))
+            state_id = _extract_id(campuses.get('state'))
             city_id, city_name = _campus_city_values(session, campuses.get('city'))
-            pin_code = campuses.get('pincode', None)
-            email = campuses.get('email', None)
-            phone = campuses.get('phone', None)
-            is_primary = 1 if campuses.get('isPrimary', None) == True else 0
-            active_status = 1 if campuses.get('isActive', None) == True else 0
+            pin_code = str(campuses.get('pincode') or '').strip() or None
+            email = str(campuses.get('email') or '').strip() or None
+            phone = str(campuses.get('phone') or '').strip() or None
+            is_primary = '1' if _to_bool(campuses.get('isPrimary')) else '0'
+            active_status = '0' if campuses.get('isActive') in (False, 0, '0', 'false', 'False') else '1'
 
             new_campus = InstituteCampus(
                     institute_id=institute_id,
@@ -518,16 +555,16 @@ def update_institute(request):
                 if existing_campus:
                     existing_campus.name = campus.get('name')
                     existing_campus.address = campus.get('address')
-                    existing_campus.country_id = campus.get('country')
-                    existing_campus.state_id = campus.get('state')
+                    existing_campus.country_id = _extract_id(campus.get('country'))
+                    existing_campus.state_id = _extract_id(campus.get('state'))
                     existing_campus.city_id, existing_campus.city_name = _campus_city_values(
                         session, campus.get('city')
                     )
-                    existing_campus.pin_code = campus.get('pincode')
-                    existing_campus.email = campus.get('email')
-                    existing_campus.phone = campus.get('phone')
-                    existing_campus.is_primary = campus.get('isPrimary', False)
-                    existing_campus.active_status = campus.get('isActive', True)
+                    existing_campus.pin_code = str(campus.get('pincode') or '').strip() or None
+                    existing_campus.email = str(campus.get('email') or '').strip() or None
+                    existing_campus.phone = str(campus.get('phone') or '').strip() or None
+                    existing_campus.is_primary = '1' if _to_bool(campus.get('isPrimary')) else '0'
+                    existing_campus.active_status = '1' if _to_bool(campus.get('isActive')) else '0'
                     existing_campus.updated_by = data.get("current_user", 'system')
                     existing_campus.updated_date = datetime.utcnow()
             else:
@@ -537,15 +574,15 @@ def update_institute(request):
                     institute_id=institute_id,
                     name=campus.get('name'),
                     address=campus.get('address'),
-                    country_id=campus.get('country'),
-                    state_id=campus.get('state'),
+                    country_id=_extract_id(campus.get('country')),
+                    state_id=_extract_id(campus.get('state')),
                     city_id=city_id,
                     city_name=city_name,
-                    pin_code=campus.get('pincode'),
-                    email=campus.get('email'),
-                    phone=campus.get('phone'),
-                    is_primary=campus.get('isPrimary', False),
-                    active_status=campus.get('isActive', True),
+                    pin_code=str(campus.get('pincode') or '').strip() or None,
+                    email=str(campus.get('email') or '').strip() or None,
+                    phone=str(campus.get('phone') or '').strip() or None,
+                    is_primary='1' if _to_bool(campus.get('isPrimary')) else '0',
+                    active_status='1' if _to_bool(campus.get('isActive')) else '0',
                     created_by=data.get("current_user", 'system')
                 )
                 session.add(new_InstituteCampus)
@@ -748,8 +785,8 @@ def get_institute_details(request):
             "pin_code": campus.pin_code,
             "email": campus.email,
             "phone": campus.phone,
-            "is_primary": True if campus.is_primary == True else False,
-            "active_status": True if campus.active_status == True else False,
+            "is_primary": _to_bool(campus.is_primary),
+            "active_status": _to_bool(campus.active_status),
             })
         created_by = None
         updated_by = None

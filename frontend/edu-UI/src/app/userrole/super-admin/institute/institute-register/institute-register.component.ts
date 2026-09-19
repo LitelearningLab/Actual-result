@@ -438,8 +438,12 @@ export class InstituteRegisterComponent {
       .toString()
       .trim()
       .toLowerCase();
-    // Backend-created Head Office rows are stored as primary campuses named with the institute short name.
-    return this.isPrimaryCampus(campus) && !!shortName && campusName === shortName;
+    const instName = (institute?.name || '').toString().trim().toLowerCase();
+
+    // Backend-created Head Office rows are stored as campuses named with the institute short name, full name, or "head office".
+    if (shortName && campusName === shortName) return true;
+    if (campusName === 'head office' || (instName && campusName === instName)) return true;
+    return false;
   }
 
   onHeadOfficeCountryOpened(opened: boolean) {
@@ -843,6 +847,12 @@ export class InstituteRegisterComponent {
     this.campusSubs[cid] = sub;
   }
 
+  onPrimaryCheckboxChange(index: number, checked: boolean) {
+    this.campuses.controls.forEach((ctrl, i) => {
+      ctrl.get('isPrimary')?.setValue(i === index ? checked : false);
+    });
+  }
+
   setPrimaryCampus(index: number) {
     // ensure only one primary
     this.campuses.controls.forEach((ctrl, i) => ctrl.get('isPrimary')?.setValue(i === index));
@@ -899,8 +909,13 @@ export class InstituteRegisterComponent {
               (typeof cp.city === 'string' ? cp.city : ''),
             email: cp.email,
             phone: cp.phone,
-            isPrimary: !!cp.is_primary,
-            isActive: !!cp.active_status,
+            isPrimary: !!cp.is_primary || !!cp.isPrimary,
+            isActive:
+              cp.active_status !== undefined
+                ? cp.active_status === true || cp.active_status === 1
+                : cp.isActive !== undefined
+                ? cp.isActive === true || cp.isActive === 1
+                : true,
           });
         }
       } else if (this.campuses && this.campuses.length) {
@@ -1175,19 +1190,26 @@ export class InstituteRegisterComponent {
       const headOffice: any = base.headOffice || {};
       const hasHeadOffice = Object.values(headOffice).some((value) => !!value);
       if (hasHeadOffice) {
+        // If an explicit sub-campus is marked as primary, Head Office shouldn't also be primary
+        const hasExplicitPrimary = (payload.campuses || []).some(
+          (cp: any) => cp.isPrimary === true || cp.isPrimary === 1
+        );
         // Preserve the primary campus row that represents Head Office, otherwise the backend update deletes it.
         payload.campuses = [
           {
             campus_id: this.headOfficeCampusId,
             name: base.short_name || base.name || 'Head Office',
             address: headOffice.address || '',
-            country: headOffice.country || '',
-            state: headOffice.state || '',
-            city: headOffice.city || '',
+            country: this.resolveCountryId(headOffice.country) || '',
+            state: this.resolveStateId(headOffice.state) || '',
+            city:
+              typeof headOffice.city === 'object'
+                ? headOffice.city?.city_name || headOffice.city?.city_id || ''
+                : headOffice.city || '',
             pincode: headOffice.pincode || '',
             email: headOffice.email || '',
             phone: headOffice.phone || '',
-            isPrimary: true,
+            isPrimary: !hasExplicitPrimary,
             isActive: true,
           },
           ...payload.campuses,

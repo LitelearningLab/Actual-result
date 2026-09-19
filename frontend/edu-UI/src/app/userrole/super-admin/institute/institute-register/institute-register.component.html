@@ -510,10 +510,10 @@
 
                           <div class="field-row checkbox-row">
                             <div class="field-half">
-                              <mat-checkbox [checked]="c.get('isPrimary')?.value" (click)="$event.stopPropagation()" (change)="setPrimaryCampus(i)">Primary</mat-checkbox>
+                              <mat-checkbox [checked]="!!c.get('isPrimary')?.value" (click)="$event.stopPropagation()" (change)="onPrimaryCheckboxChange(i, $event.checked)">Primary</mat-checkbox>
                             </div>
                             <div class="field-half">
-                              <mat-checkbox [checked]="c.get('isActive')?.value" formControlName="isActive">Active</mat-checkbox>
+                              <mat-checkbox formControlName="isActive">Active</mat-checkbox>
                             </div>
                           </div>
                         </div>
