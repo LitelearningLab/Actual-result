@@ -648,14 +648,7 @@
                         <div class="q-head-row">
                            <div class="q-left">
                               <div class="q-index">{{ qi + 1 }}</div>
-                              <div class="q-body">
-                                 <div class="q-meta">
-                                    <div class="q-badge">{{ (q.question_type || '').toUpperCase() }}</div>
-                                    <div class="q-info">{{ (q.question_marks || 0) + ' Marks' }}</div>
-                                 </div>
-                                 <div class="q-text"><strong>{{ q.question_text || q.question || 'Question' }}</strong>
-                                 </div>
-                              </div>
+                              <div class="q-badge">{{ (q.question_type || '').toUpperCase() }}</div>
                            </div>
                            <div class="q-right">
                               <div class="score-chip" [ngClass]="{
@@ -667,9 +660,11 @@
                                     }}</span>
                                  <span class="score-sep">/</span>
                                  <span class="score-total">{{ q.question_marks || 0 }}</span>
-                                 <!-- <span class="score-unit">Marks</span> -->
                               </div>
                            </div>
+                        </div>
+                        <div class="q-text">
+                           <strong>{{ q.question_text || q.question || 'Question' }}</strong>
                         </div>
 
                         <div *ngIf="(q.question_type || '') === 'fill'" class="q-fill">
@@ -858,7 +853,7 @@
                               <div class="opt-body">
                                  <div class="opt-text">{{ opt && (opt.option_text || opt) }}</div>
                               </div>
-                              <div class="opt-badge">
+                              <div class="opt-badge" *ngIf="isOptionSelected(q,opt) || isOptionCorrect(opt)">
                                  <span *ngIf="isOptionSelected(q,opt)" class="badge"
                                     [ngClass]="isOptionCorrect(opt) ? 'correct' : 'your-answer'">Your Answer</span>
                                  <span *ngIf="isOptionCorrect(opt)" class="badge correct">Correct Answer</span>
