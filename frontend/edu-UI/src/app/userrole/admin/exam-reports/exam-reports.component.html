@@ -1663,10 +1663,10 @@
             <input
               type="text"
               class="as-search-input"
-              placeholder="Search question # (e.g. 5 or Q5)"
+              placeholder="Search questions (e.g. text, #, type)..."
               [(ngModel)]="answerSheetSearchQuery"
+              (input)="onAnswerSheetSearchInput()"
               (keyup.enter)="onAnswerSheetSearch()"
-              (input)="searchNotFound = false"
             />
             <button
               *ngIf="answerSheetSearchQuery"
@@ -1783,7 +1783,7 @@
                 </div>
               <div class="questions-list">
                 <div
-                  *ngFor="let q of att.review || att.questions || []; let qi = index"
+                  *ngFor="let q of getFilteredQuestions(att); let qi = index"
                   class="question-review-card"
                   [id]="'q-card-' + attIdx + '-' + (q.sno || q.qno || (qi + 1))"
                 >
@@ -2738,6 +2738,14 @@
                       </div>
                     </div>
                   </div>
+                </div>
+                <div *ngIf="getFilteredQuestions(att).length === 0" class="as-no-questions-state">
+                  <mat-icon>search_off</mat-icon>
+                  <div class="no-q-title">No matching questions</div>
+                  <div class="no-q-sub">No questions match "<strong>{{ answerSheetSearchQuery }}</strong>" in this attempt.</div>
+                  <button type="button" class="clear-search-chip-btn" (click)="clearAnswerSheetSearch()">
+                    Clear Search
+                  </button>
                 </div>
               </div>
             </div>

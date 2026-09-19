@@ -234,36 +234,115 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   searchNotFoundMessage = '';
   selectedJumpQuestion = '';
 
+  matchesAnswerSheetSearch(q: any, qi: number, query: string): boolean {
+    if (!query) return true;
+    const qClean = query.trim().toLowerCase();
+    if (!qClean) return true;
+
+    // 1. Question Number / sno / qno matching (e.g. "5", "Q5", "q5", "#5", "Question 5")
+    const qNo = q.sno || q.qno || (qi + 1);
+    const qNoStr = String(qNo).trim().toLowerCase();
+    if (
+      qNoStr === qClean ||
+      `q${qNoStr}` === qClean ||
+      `#${qNoStr}` === qClean ||
+      `q.${qNoStr}` === qClean ||
+      `question ${qNoStr}` === qClean ||
+      `question #${qNoStr}` === qClean
+    ) {
+      return true;
+    }
+    const numOnlyMatch = qClean.match(/^q?#?\s*(\d+)$/);
+    if (numOnlyMatch && numOnlyMatch[1] === qNoStr) {
+      return true;
+    }
+
+    // 2. Question Text / Title / Description
+    const qText = String(q.question_text || q.text || q.title || q.question || '').toLowerCase();
+    if (qText.includes(qClean)) {
+      return true;
+    }
+
+    // 3. Question Type (e.g. "descriptive", "choose", "multi", "fill")
+    const qType = String(q.question_type || q.type || '').toLowerCase();
+    if (qType.includes(qClean) || (qClean.includes('desc') && qType.includes('desc'))) {
+      return true;
+    }
+
+    // 4. Options Text
+    if (Array.isArray(q.options)) {
+      const hasMatchingOption = q.options.some((opt: any) => {
+        const optText = String(typeof opt === 'string' ? opt : (opt?.option_text || opt?.text || opt?.title || '')).toLowerCase();
+        return optText.includes(qClean);
+      });
+      if (hasMatchingOption) return true;
+    }
+
+    // 5. Student Selected Answer(s)
+    if (q.selected_option) {
+      const selStr = (Array.isArray(q.selected_option) ? q.selected_option.join(' ') : String(q.selected_option)).toLowerCase();
+      if (selStr.includes(qClean)) return true;
+    }
+
+    // 6. Correct Option / Model Answer
+    const correctStr = String(
+      q.correct_option ||
+      q.correct_answer ||
+      (q.options && q.options[0] && (q.options[0].option_text || q.options[0])) ||
+      ''
+    ).toLowerCase();
+    if (correctStr.includes(qClean)) return true;
+
+    // 7. AI Feedback
+    const feedbackStr = String(q.feedback || '').toLowerCase();
+    if (feedbackStr.includes(qClean)) return true;
+
+    return false;
+  }
+
+  getFilteredQuestions(att: any): any[] {
+    const questions = att?.review || att?.questions || [];
+    const query = (this.answerSheetSearchQuery || '').trim();
+    if (!query) {
+      return questions;
+    }
+    return questions.filter((q: any, qi: number) => this.matchesAnswerSheetSearch(q, qi, query));
+  }
+
+  hasAnyAnswerSheetMatches(): boolean {
+    if (!this.answerSheetSearchQuery?.trim()) return true;
+    if (!this.userReviewAttempts || !this.userReviewAttempts.length) return false;
+    return this.userReviewAttempts.some((att) => this.getFilteredQuestions(att).length > 0);
+  }
+
+  onAnswerSheetSearchInput(): void {
+    this.searchNotFound = false;
+    this.searchNotFoundMessage = '';
+  }
+
   onAnswerSheetSearch(): void {
     this.searchNotFound = false;
     this.searchNotFoundMessage = '';
     const query = (this.answerSheetSearchQuery || '').trim();
     if (!query) return;
 
-    const matchNum = query.match(/\d+/);
-    const targetQNo = matchNum ? matchNum[0] : query;
-
-    let found = false;
+    // If matching questions exist, scroll to the first matching question
     if (this.userReviewAttempts && this.userReviewAttempts.length) {
       for (let attIdx = 0; attIdx < this.userReviewAttempts.length; attIdx++) {
         const att = this.userReviewAttempts[attIdx];
-        const questions = att.review || att.questions || [];
-        const matchIdx = questions.findIndex((q: any, qi: number) => {
-          const qNo = String(q.sno || q.qno || qi + 1).trim();
-          return qNo === targetQNo || qNo === query;
-        });
-        if (matchIdx !== -1) {
-          const foundQNo = questions[matchIdx].sno || questions[matchIdx].qno || matchIdx + 1;
+        const filtered = this.getFilteredQuestions(att);
+        if (filtered.length > 0) {
+          const firstMatch = filtered[0];
+          const foundQNo = firstMatch.sno || firstMatch.qno || 1;
           this.scrollToQuestion(attIdx, foundQNo);
-          found = true;
-          break;
+          return;
         }
       }
     }
 
-    if (!found) {
+    if (!this.hasAnyAnswerSheetMatches()) {
       this.searchNotFound = true;
-      this.searchNotFoundMessage = `Question #${query} not found`;
+      this.searchNotFoundMessage = `No questions found matching "${query}"`;
       setTimeout(() => {
         this.searchNotFound = false;
         this.searchNotFoundMessage = '';
@@ -323,7 +402,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (parts.length === 2) {
       const attIdx = parseInt(parts[0], 10);
       const qNo = parts[1];
-      this.scrollToQuestion(attIdx, qNo);
+      if (this.answerSheetSearchQuery) {
+        const att = this.userReviewAttempts[attIdx];
+        const filtered = this.getFilteredQuestions(att);
+        const isVisible = filtered.some((q: any, qi: number) => String(q.sno || q.qno || qi + 1) === String(qNo));
+        if (!isVisible) {
+          this.answerSheetSearchQuery = '';
+        }
+      }
+      setTimeout(() => {
+        this.scrollToQuestion(attIdx, qNo);
+      }, 50);
     }
   }
 
@@ -1831,8 +1920,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
           this.userReviewAttempts = (attempts || []).map((a) => {
             const reviewList = a.review || a.questions || a.attempt_review || [];
-            const normalizedReview = (Array.isArray(reviewList) ? reviewList : []).map((q: any) => {
+            const normalizedReview = (Array.isArray(reviewList) ? reviewList : []).map((q: any, qi: number) => {
               try {
+                if (q.sno == null && q.qno == null) {
+                  q.sno = qi + 1;
+                }
                 q.selected_option = this._normalizeSelectedOption(
                   q.selected_option || q.selected_options || q.selected || []
                 );
@@ -1944,6 +2036,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.jumpQuestionsCache = [];
     this.lastAttemptsRef = null;
     this.selectedJumpQuestion = '';
+    this.answerSheetSearchQuery = '';
+    this.searchNotFound = false;
+    this.searchNotFoundMessage = '';
     this.selectedUserName = null;
     this.selectedUserScore = null;
     this.selectedUserResult = null;

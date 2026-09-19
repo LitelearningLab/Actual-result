@@ -2841,6 +2841,56 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
   }
 }
 
+.as-no-questions-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background: var(--bg-2, #f8fafc);
+  border: 1px dashed var(--theme-3-border, #cbd5e1);
+  border-radius: 0.75rem;
+  margin: 1rem 0;
+
+  mat-icon {
+    font-size: 2.25rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    color: var(--theme-3-text-3, #94a3b8);
+    margin-bottom: 0.5rem;
+  }
+
+  .no-q-title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--theme-3-text-1, #1e293b);
+    margin-bottom: 0.25rem;
+  }
+
+  .no-q-sub {
+    font-size: 0.8125rem;
+    color: var(--theme-3-text-2, #64748b);
+    margin-bottom: 0.75rem;
+  }
+
+  .clear-search-chip-btn {
+    background: #e0f2fe;
+    color: #0284c7;
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background: #bae6fd;
+    }
+  }
+}
+
 @keyframes qHighlightPulse {
   0% {
     box-shadow: 0 0 0 3px #0284c7, 0 4px 12px rgba(2, 132, 199, 0.25);
