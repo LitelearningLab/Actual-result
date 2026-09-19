@@ -180,6 +180,8 @@ $ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
   z-index: 1001;
   width: min(390px, 90vw);
   height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   background: var(--theme-1);
   color: var(--theme-1-text-1);
   border-left: 1px solid var(--theme-1-border, rgba(255, 255, 255, 0.08));
@@ -280,13 +282,16 @@ $ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .user-panel-body {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem 1.5rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 
   &::-webkit-scrollbar {
     width: 5px;
@@ -329,6 +334,7 @@ $ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 .profile-info-list {
   display: flex;
   flex-direction: column;
+  padding-bottom: 1.5rem;
 }
 
 .profile-info-row {
@@ -388,10 +394,13 @@ $ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
   flex-direction: column;
   gap: 0.375rem;
   padding: 0.875rem 1.25rem;
+  padding-bottom: calc(0.875rem + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--theme-1-border, rgba(255, 255, 255, 0.08));
   background: rgba(0, 0, 0, 0.12);
   margin-top: auto;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .user-panel-action-btn {
