@@ -1,3 +1,9 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
 .date-range-modal-container {
   display: flex;
   background: #ffffff;
@@ -7,9 +13,11 @@
   font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #334155;
   user-select: none;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-/* Presets Sidebar */
+/* Presets Sidebar (Desktop default) */
 .presets-sidebar {
   width: 140px;
   padding: 16px 8px;
@@ -18,6 +26,9 @@
   flex-direction: column;
   gap: 4px;
   background: #fafafa;
+  flex-shrink: 0;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 button.preset-item {
@@ -34,6 +45,7 @@ button.preset-item {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease-in-out;
+  white-space: nowrap;
 
   &:hover {
     background: #f1f5f9;
@@ -53,6 +65,8 @@ button.preset-item {
   display: flex;
   flex-direction: column;
   min-width: 320px;
+  flex: 1;
+  box-sizing: border-box;
 }
 
 /* Month Navigation */
@@ -159,7 +173,7 @@ button.day-grid-cell {
     transition: background 0.15s ease, color 0.15s ease;
   }
 
-  /* Range Highlights matching Image 1 cyan/blue theme */
+  /* Range Highlights */
   &.in-range, &.range-preview {
     background: #e0f2fe;
     color: #0369a1;
@@ -208,12 +222,15 @@ button.day-grid-cell {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .footer-inputs-group {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .date-input-pill {
@@ -228,6 +245,8 @@ button.day-grid-cell {
   text-align: center;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  min-width: 0;
+  box-sizing: border-box;
 
   &:focus {
     border-color: #0284c7;
@@ -258,6 +277,7 @@ button.day-grid-cell {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .btn-picker-clear {
@@ -310,5 +330,170 @@ button.day-grid-cell {
   &:hover {
     background: #0369a1;
     box-shadow: 0 3px 8px rgba(2, 132, 199, 0.4);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * MOBILE RESPONSIVE STYLING (<= 600px)
+ * ───────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .date-range-modal-container {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 14px;
+  }
+
+  /* Top Presets Horizontal Scrollable Bar */
+  .presets-sidebar {
+    width: 100%;
+    min-width: 0;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 10px;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    gap: 6px;
+    background: #f8fafc;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    &::-webkit-scrollbar {
+      display: none; /* Chrome/Safari */
+    }
+  }
+
+  button.preset-item {
+    flex-shrink: 0;
+    width: auto;
+    white-space: nowrap;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 20px;
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+
+    &:hover {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+
+    &.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #0284c7;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);
+    }
+  }
+
+  /* Main Calendar Panel Centered */
+  .calendar-main-panel {
+    padding: 10px 12px 14px;
+    min-width: 0;
+    width: 100%;
+    align-items: center;
+  }
+
+  .month-nav-header {
+    width: 100%;
+    max-width: 300px;
+    margin-bottom: 8px;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .month-title-text {
+    font-size: 14px;
+    min-width: 0;
+  }
+
+  .weekdays-row {
+    width: 100%;
+    max-width: 300px;
+    margin-bottom: 4px;
+  }
+
+  .weekday-cell {
+    font-size: 11px;
+    padding: 2px 0;
+  }
+
+  .days-grid-container {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  button.day-grid-cell {
+    height: 34px;
+    min-width: 0;
+
+    .day-number-label {
+      width: 32px;
+      height: 32px;
+      font-size: 12.5px;
+    }
+  }
+
+  /* Footer Bar Responsive & Centered */
+  .picker-footer-bar {
+    margin-top: 10px;
+    padding-top: 10px;
+    width: 100%;
+    max-width: 300px;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .footer-inputs-group {
+    width: 100%;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .date-input-pill {
+    width: 90px;
+    padding: 5px 6px;
+    font-size: 11.5px;
+    min-width: 0;
+  }
+
+  .range-dash {
+    font-size: 12px;
+  }
+
+  .range-days-label {
+    width: 100%;
+    text-align: center;
+    margin-left: 0;
+    margin-top: 2px;
+    font-size: 11px;
+  }
+
+  .footer-action-buttons {
+    width: 100%;
+    display: flex;
+    justify-content: stretch;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .btn-picker-clear,
+  .btn-picker-cancel,
+  .btn-picker-apply {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+    padding: 7px 8px;
+    font-size: 12.5px;
+    min-width: 0;
+    box-sizing: border-box;
   }
 }

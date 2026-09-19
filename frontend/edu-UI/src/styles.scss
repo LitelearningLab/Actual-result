@@ -1175,4 +1175,18 @@ body.mobile-nav-open {
   overflow: visible !important;
 }
 
+// ── Date Range Picker Dialog Mobile & Responsive Overlay ──
+.date-range-dialog-panel,
+.cdk-overlay-pane:has(app-date-range-picker-dialog),
+.cdk-overlay-pane:has(.date-range-modal-container) {
+  max-width: min(520px, 95vw) !important;
+  width: auto !important;
+
+  @media (max-width: 600px) {
+    max-width: 95vw !important;
+    width: 95vw !important;
+    margin: 0 auto;
+  }
+}
+
 

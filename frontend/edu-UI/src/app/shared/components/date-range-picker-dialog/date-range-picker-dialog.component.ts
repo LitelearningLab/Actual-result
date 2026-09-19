@@ -46,6 +46,10 @@ export class DateRangePickerDialogComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    if (this.dialogRef && typeof this.dialogRef.addPanelClass === 'function') {
+      this.dialogRef.addPanelClass('date-range-dialog-panel');
+    }
+
     if (this.data) {
       if (this.data.startDate) {
         this.selectedStart = this.parseDate(this.data.startDate);
