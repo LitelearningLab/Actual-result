@@ -64,7 +64,7 @@ export class LoginComponent implements OnDestroy {
     this.isAccountLocked = false;
     this.lockType = 'active_session';
     const defaultMins = 15;
-    this.lockoutMessage = message || `THIS ACCOUNT IS ALREADY ACTIVE ON ANOTHER DEVICE.\n\nPlease log out from the other device before signing in here.\n\nIf a logged-in device remains inactive for ${defaultMins} minutes, the application will log out automatically.`;
+    this.lockoutMessage = message || `Please log out from the other device before signing in here.\n\nIf a logged-in device remains inactive for ${defaultMins} minutes, the application will log out automatically.`;
   }
 
   stopLockoutCountdown(): void {

@@ -423,7 +423,7 @@ class JWTValidator:
                         "is_locked": True,
                         "lock_type": "active_session",
                         "remaining_seconds": 0,
-                        "statusMessage": f"THIS ACCOUNT IS ALREADY ACTIVE ON ANOTHER DEVICE.\n\nPlease log out from the other device before signing in here.\n\nIf a logged-in device remains inactive for {idle_mins} minutes, the application will log out automatically."
+                        "statusMessage": f"Please log out from the other device before signing in here.\n\nIf a logged-in device remains inactive for {idle_mins} minutes, the application will log out automatically."
                     }, 409
 
                 # Clear stale sessions (elapsed > 35s) immediately upon new login
