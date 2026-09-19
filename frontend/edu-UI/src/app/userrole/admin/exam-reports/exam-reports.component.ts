@@ -488,19 +488,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
   get hasAppliedFilters(): boolean {
     return (
-      this.reportsApplied &&
-      (
-        !!this.userFilters.industry ||
-        !!this.userFilters.sector ||
-        (this.isSuperAdmin && !this.isGlobalInstituteActive && !!this.selectedInstituteName) ||
-        !!this.selectedExam ||
-        !!this.selectedTestTitle ||
-        !!this.userFilters.campus_id ||
-        (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length > 0) ||
-        (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length > 0) ||
-        !!this.userFilters.active_status ||
-        !!this.userFilters.created_by_me
-      )
+      !!this.userFilters.industry ||
+      !!this.userFilters.sector ||
+      (this.isSuperAdmin && !this.isGlobalInstituteActive && !!this.selectedInstituteName) ||
+      !!this.selectedExam ||
+      !!this.selectedTestTitle ||
+      !!this.selectedDateRangeTestTitle ||
+      !!this.displayTestName ||
+      !!this.userFilters.campus_id ||
+      (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length > 0) ||
+      (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length > 0) ||
+      !!this.userFilters.active_status ||
+      !!this.userFilters.created_by_me
     );
   }
 
@@ -2457,17 +2456,43 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.departmentFilterSearch = '';
     this.teamFilterSearch = '';
 
-    if (!this.isGlobalInstituteActive) {
+    if (!this.isSuperAdmin) {
+      const userInstId = this.getLoggedInInstituteId();
+      this.selectedInstituteId = userInstId ? String(userInstId) : null;
+      this.userFilters.institute_id = userInstId ? String(userInstId) : '';
+      if (userInstId) {
+        this.selectedInstitutes = [String(userInstId)];
+      }
+      try {
+        if (this.selectedInstituteId) {
+          const found = this.institutes.find((i) => String(i.id) === String(this.selectedInstituteId));
+          this.instituteCtrl.setValue(found || null);
+        }
+      } catch (e) {}
+      try {
+        this.loadDepartmentList(this.selectedInstituteId);
+        this.loadTeamsList(this.selectedInstituteId);
+        this.loadCampusList(this.selectedInstituteId);
+      } catch (e) {}
+    } else if (this.isGlobalInstituteActive && this.globalContextService.activeInstituteId) {
+      this.selectedInstituteId = this.globalContextService.activeInstituteId;
+      this.userFilters.institute_id = this.globalContextService.activeInstituteId;
+      this.selectedInstitutes = [this.globalContextService.activeInstituteId];
+      try {
+        const found = this.institutes.find((i) => String(i.id) === String(this.selectedInstituteId));
+        this.instituteCtrl.setValue(found || null);
+      } catch (e) {}
+      try {
+        this.loadDepartmentList(this.selectedInstituteId);
+        this.loadTeamsList(this.selectedInstituteId);
+        this.loadCampusList(this.selectedInstituteId);
+      } catch (e) {}
+    } else {
       this.selectedInstituteId = null;
       this.userFilters.institute_id = '';
       try {
         this.instituteCtrl.setValue(null);
       } catch (e) {}
-    } else {
-      this.userFilters.institute_id = this.globalContextService.activeInstituteId || '';
-      if (this.globalContextService.activeInstituteId) {
-        this.selectedInstitutes = [this.globalContextService.activeInstituteId];
-      }
     }
 
     // Reset all filter controls
@@ -2485,6 +2510,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.userFilters.created_by_me = false;
     this.userFilters.joined_after = null;
     this.userFilters.joined_before = null;
+    this.selectedCountries = [];
+    this.selectedCities = [];
+    this.citySearch = '';
+    this.testNameError = false;
 
     Object.keys(this.searchQueries).forEach((k) => (this.searchQueries[k] = ''));
 
@@ -2513,6 +2542,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.questionSummary = [];
     this.wrongDistribution = [];
     this.resetDescriptiveAiState();
+
+    // Reload tests for the active institute / context
+    this.loadScheduledTest();
   }
 
   resetFiltersAndReload() {
