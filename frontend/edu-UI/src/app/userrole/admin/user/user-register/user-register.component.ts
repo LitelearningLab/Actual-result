@@ -411,10 +411,20 @@ export class AdminUserRegisterComponent implements OnInit {
 
       // show user-management only for admin role (lazy-load pages list)
       try {
-        this.showUserManagement = (val === 'admin');
+        this.showUserManagement = (val === 'admin' || val === 'super_admin');
         if (this.showUserManagement) {
-          if (!this.pagesList || this.pagesList.length === 0) this.loadPagesList();
-          this.initPermissions();
+          if (!this.pagesList || this.pagesList.length === 0) {
+            this.loadPagesList(() => {
+              if (this.isEditing && this.editingUserId) {
+                this.loadUserPageAccess(this.editingUserId);
+              }
+            });
+          } else {
+            this.initPermissions();
+            if (this.isEditing && this.editingUserId) {
+              this.loadUserPageAccess(this.editingUserId);
+            }
+          }
         } else {
           this.pagesPermissions = {};
         }
@@ -622,10 +632,19 @@ export class AdminUserRegisterComponent implements OnInit {
       try {
         this.showUserManagement = (['admin', 'super_admin'].includes(this.form.get('role')?.value));
         if (this.showUserManagement) {
-          if (!this.pagesList || this.pagesList.length === 0) this.loadPagesList();
+          if (!this.pagesList || this.pagesList.length === 0) {
+            this.loadPagesList(() => {
+              if (this.editingUserId) {
+                this.loadUserPageAccess(this.editingUserId);
+              }
+            });
+          } else if (this.editingUserId) {
+            this.loadUserPageAccess(this.editingUserId);
+          }
         }
-        this.initPermissions();
-        this.setPermissionsFromUser(u);
+        if (u.page_access || u.pages || u.user_privileges) {
+          this.setPermissionsFromUser(u);
+        }
       } catch (e) { }
     } catch (e) { /* ignore parse errors */ }
   }
@@ -657,7 +676,7 @@ export class AdminUserRegisterComponent implements OnInit {
     return map[key] || name;
   }
 
-  loadPagesList() {
+  loadPagesList(callback?: () => void) {
     this.loader.show();
     const url = `${API_BASE}/get_pages_list`;
     this.http.get<any>(url).subscribe({
@@ -665,15 +684,78 @@ export class AdminUserRegisterComponent implements OnInit {
         try {
           const data = res?.data || res?.pages || [];
           this.pagesList = (data || []).map((p: any) => ({
-            key: p.key || p.page_id || p.id || p.name,
+            key: String(p.key || p.page_id || p.id || p.name),
             name: this.getModulePageName(p.name || p.page_name || p.page || p.key)
           }));
           this.initPermissions();
+          if (callback) {
+            callback();
+          }
         } catch (e) { this.pagesList = []; }
         finally { this.loader.hide(); }
       },
       error: (err) => { console.warn('Failed to load pages list', err); this.pagesList = []; this.loader.hide(); }
     });
+  }
+
+  loadUserPageAccess(userId: string) {
+    if (!userId) return;
+    this.loader.show();
+    const url = `${API_BASE}/get-user-page-access/${userId}`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        try {
+          const accessData = res?.data || res?.page_access || res?.pages || [];
+          this.applyPermissionsData(accessData);
+        } catch (e) {
+          console.warn('Failed applying user page access', e);
+        } finally {
+          this.loader.hide();
+        }
+      },
+      error: (err) => {
+        console.warn('Failed to load user page access', err);
+        this.loader.hide();
+      }
+    });
+  }
+
+  applyPermissionsData(accessData: any) {
+    if (!accessData) return;
+    const list: any[] = Array.isArray(accessData) ? accessData : Object.values(accessData);
+    if (!this.pagesList || this.pagesList.length === 0) {
+      this.loadPagesList(() => {
+        this.applyPermissionsData(list);
+      });
+      return;
+    }
+
+    this.initPermissions();
+
+    for (const p of this.pagesList) {
+      const pKey = String(p.key).toLowerCase();
+      const pName = String(p.name).toLowerCase();
+
+      const match = list.find((it: any) => {
+        if (!it) return false;
+        const itKey = String(it.page_id || it.pageId || it.page_key || it.key || it.id || '').toLowerCase();
+        const itName = String(it.page_name || it.pageName || it.name || it.page || '').toLowerCase();
+        const itMapped = this.getModulePageName(it.page_name || it.pageName || it.name || it.page || '').toLowerCase();
+        return itKey === pKey || itName === pName || itMapped === pName;
+      });
+
+      if (match) {
+        this.pagesPermissions[p.key] = {
+          view: !!(match.can_view ?? match.canView ?? match.view),
+          add: !!(match.can_add ?? match.canAdd ?? match.add),
+          edit: !!(match.can_edit ?? match.canEdit ?? match.edit),
+          delete: !!(match.can_delete ?? match.canDelete ?? match.delete)
+        };
+      }
+    }
+
+    // Update selectAll header state
+    this.selectAll = this.pagesList.length > 0 && this.pagesList.every(p => this.isAllActionsForPage(p.key));
   }
 
   initPermissions() {
@@ -688,61 +770,60 @@ export class AdminUserRegisterComponent implements OnInit {
   // helper to set permissions from existing user object when editing
   setPermissionsFromUser(u: any) {
     try {
-      const src = u.page_access || u.pages || u.page_permissions || u.pages_list || [];
-      // support array of {page_key, view, add, edit, delete} or object map
-      if (Array.isArray(src)) {
-        src.forEach((it: any) => {
-          const key = it.page_key || it.key || it.page || it.id;
-          if (!key) return;
-          this.pagesPermissions[key] = { view: !!it.view, add: !!it.add, edit: !!it.edit, delete: !!it.delete };
-        });
-      } else if (typeof src === 'object' && src !== null) {
-        Object.keys(src).forEach(k => {
-          const it = src[k];
-          this.pagesPermissions[k] = { view: !!it.view, add: !!it.add, edit: !!it.edit, delete: !!it.delete };
-        });
+      const src = u.page_access || u.pages || u.page_permissions || u.pages_list || u.user_privileges || u.privileges || null;
+      if (src) {
+        this.applyPermissionsData(src);
       }
     } catch (e) { /* ignore */ }
   }
 
   // Toggle all pages for a specific action (column header)
   toggleAllAction(action: 'view' | 'add' | 'edit' | 'delete', checked: boolean) {
-    Object.keys(this.pagesPermissions || {}).forEach(k => { if (this.pagesPermissions[k]) this.pagesPermissions[k][action] = !!checked; });
+    if (!this.pagesList) return;
+    this.pagesList.forEach(p => {
+      if (!this.pagesPermissions[p.key]) {
+        this.pagesPermissions[p.key] = { view: false, add: false, edit: false, delete: false };
+      }
+      this.pagesPermissions[p.key][action] = !!checked;
+    });
+    this.selectAll = this.pagesList.length > 0 && this.pagesList.every(p => this.isAllActionsForPage(p.key));
   }
 
   // Toggle all actions for a single page (row-level 'All')
   toggleAllForPage(pageKey: string, checked: boolean) {
-    if (!this.pagesPermissions[pageKey]) return;
+    if (!this.pagesPermissions[pageKey]) {
+      this.pagesPermissions[pageKey] = { view: false, add: false, edit: false, delete: false };
+    }
     const keys: Array<'view' | 'add' | 'edit' | 'delete'> = ['view', 'add', 'edit', 'delete'];
     keys.forEach(a => this.pagesPermissions[pageKey][a] = !!checked);
+    this.selectAll = this.pagesList.length > 0 && this.pagesList.every(p => this.isAllActionsForPage(p.key));
   }
 
   // Toggle all permissions for all pages (header 'select all')
   toggleSelectAll(checked: boolean) {
     this.selectAll = !!checked;
-    const keys = Object.keys(this.pagesPermissions || {});
-    for (const k of keys) {
-      const p = this.pagesPermissions[k];
-      if (!p) continue;
-      p.view = this.selectAll;
-      p.add = this.selectAll;
-      p.edit = this.selectAll;
-      p.delete = this.selectAll;
+    if (!this.pagesList) return;
+    for (const p of this.pagesList) {
+      if (!this.pagesPermissions[p.key]) {
+        this.pagesPermissions[p.key] = { view: false, add: false, edit: false, delete: false };
+      }
+      this.pagesPermissions[p.key].view = this.selectAll;
+      this.pagesPermissions[p.key].add = this.selectAll;
+      this.pagesPermissions[p.key].edit = this.selectAll;
+      this.pagesPermissions[p.key].delete = this.selectAll;
     }
   }
 
   // helpers for header checkbox state
   isAllChecked(action: 'view' | 'add' | 'edit' | 'delete') {
-    const keys = Object.keys(this.pagesPermissions || {});
-    if (keys.length === 0) return false;
-    return keys.every(k => this.pagesPermissions[k] && this.pagesPermissions[k][action]);
+    if (!this.pagesList || this.pagesList.length === 0) return false;
+    return this.pagesList.every(p => this.pagesPermissions[p.key] && this.pagesPermissions[p.key][action]);
   }
 
   isIndeterminate(action: 'view' | 'add' | 'edit' | 'delete') {
-    const keys = Object.keys(this.pagesPermissions || {});
-    if (keys.length === 0) return false;
-    const some = keys.some(k => this.pagesPermissions[k] && this.pagesPermissions[k][action]);
-    const all = keys.every(k => this.pagesPermissions[k] && this.pagesPermissions[k][action]);
+    if (!this.pagesList || this.pagesList.length === 0) return false;
+    const some = this.pagesList.some(p => this.pagesPermissions[p.key] && this.pagesPermissions[p.key][action]);
+    const all = this.pagesList.every(p => this.pagesPermissions[p.key] && this.pagesPermissions[p.key][action]);
     return some && !all;
   }
 
@@ -1230,6 +1311,10 @@ export class AdminUserRegisterComponent implements OnInit {
   }
 
   submit(stepper?: any) {
+    if (this.submitting) {
+      return;
+    }
+
     if (this.isEditing) {
       const pwd = this.form.get('password')?.value;
       const cpwd = this.form.get('confirmPassword')?.value;
@@ -1242,6 +1327,7 @@ export class AdminUserRegisterComponent implements OnInit {
     }
 
     if (this.form.invalid) {
+      this.submitting = false;
       this.form.markAllAsTouched();
       this.loader.hide();
 
@@ -1904,6 +1990,7 @@ export class AdminUserRegisterComponent implements OnInit {
 
   // Confirm upload after successful validation or direct upload
   confirmUpload() {
+    if (this.bulkUploading) return;
     this.loader.show();
     if (!this.bulkFile) { this.notify.error('Please select a file to upload'); this.loader.hide(); return; }
     if (this.bulkFileError) { this.notify.error(this.bulkFileError); this.loader.hide(); return; }

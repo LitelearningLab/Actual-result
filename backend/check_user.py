@@ -20,7 +20,7 @@ def check_user(target_email):
     db = SQLiteDB()
     session = db.connect()
     if not session:
-        print("❌ Failed to connect to the database.")
+        print("[ERROR] Failed to connect to the database.")
         return
 
     try:
@@ -30,7 +30,7 @@ def check_user(target_email):
         ).all()
 
         if users:
-            print(f"✅ Found {len(users)} match(es) for '{target_email}':\n")
+            print(f"[FOUND] Found {len(users)} match(es) for '{target_email}':\n")
             for u in users:
                 institute_name = None
                 if u.institute_id:
@@ -47,20 +47,7 @@ def check_user(target_email):
                 print(f"    Is Deleted:    {u.is_deleted}")
                 print("-" * 50)
         else:
-            print(f"❌ User with email/username '{target_email}' NOT found in the database.\n")
-            
-            # Check for partial match (%praveen%)
-            search_pattern = "%praveen%"
-            partial_matches = session.query(User).filter(
-                (User.email.ilike(search_pattern)) | (User.user_name.ilike(search_pattern)) | (User.full_name.ilike(search_pattern))
-            ).all()
-            
-            if partial_matches:
-                print(f"🔍 Found {len(partial_matches)} partial match(es) for 'praveen':")
-                for u in partial_matches:
-                    print(f"  - UID: {u.user_id} | Name: {u.full_name} | Username: {u.user_name} | Email: {u.email}")
-            else:
-                print("🔍 No partial matches found for 'praveen' either.")
+            print(f"[NOT FOUND] User with email/username '{target_email}' NOT found in the database.\n")
 
     except Exception as e:
         print(f"Error querying database: {e}")
@@ -68,5 +55,5 @@ def check_user(target_email):
         db.close()
 
 if __name__ == "__main__":
-    target = sys.argv[1] if len(sys.argv) > 1 else "praveen@profluentlabs.com"
+    target = sys.argv[1] if len(sys.argv) > 1 else "bharath@gmail.com"
     check_user(target)

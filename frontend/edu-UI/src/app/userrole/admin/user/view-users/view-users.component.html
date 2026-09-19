@@ -815,8 +815,8 @@
               <div class="privileges-grid">
                 <div class="priv-col head">Page</div>
                 <div class="priv-col head"><mat-icon>visibility</mat-icon> View</div>
-                <div class="priv-col head"><mat-icon>edit</mat-icon> Edit</div>
                 <div class="priv-col head"><mat-icon>add</mat-icon> Add</div>
+                <div class="priv-col head"><mat-icon>edit</mat-icon> Edit</div>
                 <div class="priv-col head"><mat-icon>delete</mat-icon> Delete</div>
 
                 <ng-container
@@ -834,12 +834,12 @@
                     <mat-icon color="warn" *ngIf="!p.can_view">visibility_off</mat-icon>
                   </div>
                   <div class="priv-col">
-                    <mat-icon color="primary" *ngIf="p.can_edit">done</mat-icon>
-                    <mat-icon color="warn" *ngIf="!p.can_edit">block</mat-icon>
-                  </div>
-                  <div class="priv-col">
                     <mat-icon color="primary" *ngIf="p.can_add">done</mat-icon>
                     <mat-icon color="warn" *ngIf="!p.can_add">block</mat-icon>
+                  </div>
+                  <div class="priv-col">
+                    <mat-icon color="primary" *ngIf="p.can_edit">done</mat-icon>
+                    <mat-icon color="warn" *ngIf="!p.can_edit">block</mat-icon>
                   </div>
                   <div class="priv-col">
                     <mat-icon color="primary" *ngIf="p.can_delete">done</mat-icon>

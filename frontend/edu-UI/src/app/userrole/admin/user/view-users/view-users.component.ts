@@ -2546,20 +2546,42 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   // Modal / actions
   viewDetails(u: UserRow) {
     const payload: any = { ...u };
-    try {
-      payload.user_privileges =
-        u.privileges && u.privileges.length
-          ? u.privileges
-          : u.raw && u.raw.user_privileges
-            ? u.raw.user_privileges
-            : u.user_privileges || [];
-    } catch (e) {
-      payload.user_privileges = u.user_privileges || [];
-    }
-    try {
-      sessionStorage.setItem('view_user', JSON.stringify(payload));
-    } catch (e) {}
     this.selectedUser = payload;
+    const userId = u.id || (u.raw && (u.raw.user_id || u.raw.id)) || (payload && (payload.user_id || payload.id));
+    if (userId) {
+      const url = `${API_BASE}/get-user-page-access/${userId}`;
+      this.http.get<any>(url).subscribe({
+        next: (res) => {
+          const accessData = res?.data || res?.page_access || res?.pages || [];
+          const mappedPrivileges = (accessData || []).map((p: any) => ({
+            page_id: p.page_id || p.pageId || p.id,
+            page_name: this.getModulePageName(p.page_name || p.pageName || p.page || p.name),
+            can_view: !!(p.can_view ?? p.canView ?? p.view),
+            can_add: !!(p.can_add ?? p.canAdd ?? p.add),
+            can_edit: !!(p.can_edit ?? p.canEdit ?? p.edit),
+            can_delete: !!(p.can_delete ?? p.canDelete ?? p.delete),
+            raw: p,
+          }));
+          if (
+            this.selectedUser &&
+            (this.selectedUser.id === userId ||
+              this.selectedUser.user_id === userId ||
+              (this.selectedUser.raw && (this.selectedUser.raw.user_id === userId || this.selectedUser.raw.id === userId)))
+          ) {
+            this.selectedUser.privileges = mappedPrivileges;
+            this.selectedUser.user_privileges = mappedPrivileges;
+            try {
+              sessionStorage.setItem('view_user', JSON.stringify(this.selectedUser));
+            } catch (e) {}
+          }
+          u.privileges = mappedPrivileges;
+          u.user_privileges = mappedPrivileges;
+        },
+        error: (err) => {
+          console.warn('Failed to fetch user page access for view modal', err);
+        },
+      });
+    }
   }
 
   startEditUser(u: UserRow) {

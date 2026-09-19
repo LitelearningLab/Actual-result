@@ -924,15 +924,16 @@
               </div>
 
               <div class="form-actions">
-                <button mat-button matStepperPrevious type="button" class="prev-btn">
+                <button mat-button matStepperPrevious type="button" class="prev-btn" [disabled]="submitting">
                   <mat-icon>arrow_back</mat-icon>
                   <span>Back</span>
                 </button>
-                <button mat-flat-button color="primary" type="submit" class="submit-btn" (click)="submit(stepper)">
-                  <mat-icon *ngIf="!isEditing">person_add</mat-icon>
-                  <mat-icon *ngIf="isEditing">save</mat-icon>
-                  <span *ngIf="!isEditing">Register User</span>
-                  <span *ngIf="isEditing">Save Changes</span>
+                <button mat-flat-button color="primary" type="submit" class="submit-btn" [disabled]="submitting">
+                  <mat-icon *ngIf="!isEditing && !submitting">person_add</mat-icon>
+                  <mat-icon *ngIf="isEditing && !submitting">save</mat-icon>
+                  <mat-icon *ngIf="submitting">autorenew</mat-icon>
+                  <span *ngIf="!isEditing">{{ submitting ? 'Registering...' : 'Register User' }}</span>
+                  <span *ngIf="isEditing">{{ submitting ? 'Saving...' : 'Save Changes' }}</span>
                 </button>
               </div>
             </div>
