@@ -46,26 +46,119 @@
 </div>
 
 <div class="user-panel-backdrop" *ngIf="isUserPanelOpen" (click)="closeUserPanel()"></div>
-<aside class="user-side-panel" [class.open]="isUserPanelOpen" role="dialog" aria-modal="true" aria-label="User menu">
+<aside class="user-side-panel" [class.open]="isUserPanelOpen" role="dialog" aria-modal="true" aria-label="User profile">
+  <!-- Top Profile Header -->
   <div class="user-panel-header">
     <div class="user-panel-identity">
-      <div class="profile-logo-inline profile-logo-inline--panel" [title]="displayName" aria-label="Profile logo">{{ initials }}</div>
+      <div class="profile-avatar" [title]="displayName" aria-label="Profile logo">{{ initials }}</div>
       <div class="user-panel-title-block">
-        <span class="user-panel-eyebrow">Welcome</span>
-        <h2>{{ displayName }}</h2>
+        <span class="user-panel-eyebrow">WELCOME</span>
+        <h2 class="user-panel-name">{{ displayName }}</h2>
+      </div>
+    </div>
+    <button type="button" class="user-panel-close-btn" (click)="closeUserPanel()" aria-label="Close profile menu" title="Close">
+      <mat-icon fontSet="material-icons-outlined">close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Profile Information Section (Scrollable Middle) -->
+  <div class="user-panel-body">
+    <div class="profile-section-header">
+      <mat-icon fontSet="material-icons-outlined" class="profile-section-icon">person_outline</mat-icon>
+      <span class="profile-section-title">Profile Information</span>
+    </div>
+
+    <div class="profile-info-list">
+      <!-- 🏢 Institute Name -->
+      <div class="profile-info-row">
+        <div class="profile-row-icon-wrap">
+          <mat-icon fontSet="material-icons-outlined">apartment</mat-icon>
+        </div>
+        <div class="profile-row-content">
+          <span class="profile-row-label">Institute Name</span>
+          <span class="profile-row-value" [title]="userInstituteDisplay">{{ userInstituteDisplay }}</span>
+        </div>
+      </div>
+
+      <!-- ✉️ Email -->
+      <div class="profile-info-row">
+        <div class="profile-row-icon-wrap">
+          <mat-icon fontSet="material-icons-outlined">mail_outline</mat-icon>
+        </div>
+        <div class="profile-row-content">
+          <span class="profile-row-label">Email</span>
+          <span class="profile-row-value" [title]="userEmailDisplay">{{ userEmailDisplay }}</span>
+        </div>
+      </div>
+
+      <!-- 🛡️ Role -->
+      <div class="profile-info-row">
+        <div class="profile-row-icon-wrap">
+          <mat-icon fontSet="material-icons-outlined">shield</mat-icon>
+        </div>
+        <div class="profile-row-content">
+          <span class="profile-row-label">Role</span>
+          <span class="profile-row-value">{{ roleDisplay }}</span>
+        </div>
+      </div>
+
+      <!-- 👥 Team -->
+      <div class="profile-info-row">
+        <div class="profile-row-icon-wrap">
+          <mat-icon fontSet="material-icons-outlined">groups</mat-icon>
+        </div>
+        <div class="profile-row-content">
+          <span class="profile-row-label">Team</span>
+          <span class="profile-row-value" [title]="teamDisplay">{{ teamDisplay }}</span>
+        </div>
+      </div>
+
+      <!-- 🎓 Department -->
+      <div class="profile-info-row">
+        <div class="profile-row-icon-wrap">
+          <mat-icon fontSet="material-icons-outlined">school</mat-icon>
+        </div>
+        <div class="profile-row-content">
+          <span class="profile-row-label">Department</span>
+          <span class="profile-row-value" [title]="departmentDisplay">{{ departmentDisplay }}</span>
+        </div>
+      </div>
+
+      <!-- 🏫 Campus -->
+      <div class="profile-info-row">
+        <div class="profile-row-icon-wrap">
+          <mat-icon fontSet="material-icons-outlined">location_city</mat-icon>
+        </div>
+        <div class="profile-row-content">
+          <span class="profile-row-label">Campus</span>
+          <span class="profile-row-value" [title]="campusDisplay">{{ campusDisplay }}</span>
+        </div>
+      </div>
+
+      <!-- 📍 City -->
+      <div class="profile-info-row">
+        <div class="profile-row-icon-wrap">
+          <mat-icon fontSet="material-icons-outlined">place</mat-icon>
+        </div>
+        <div class="profile-row-content">
+          <span class="profile-row-label">City</span>
+          <span class="profile-row-value" [title]="cityDisplay">{{ cityDisplay }}</span>
+        </div>
       </div>
     </div>
   </div>
-  <nav class="user-panel-menu" aria-label="User menu options">
-    <button *ngIf="isAdminUser" type="button" class="user-panel-item" (click)="openSettings()">
+
+  <!-- Bottom Actions (Fixed at bottom) -->
+  <footer class="user-panel-footer" aria-label="User menu options">
+    <button *ngIf="isAdminUser" type="button" class="user-panel-action-btn" (click)="openSettings()">
       <mat-icon fontSet="material-icons-outlined">settings</mat-icon>
       <span>Settings</span>
     </button>
-    <button type="button" class="user-panel-item" (click)="confirmLogout()">
+    <button type="button" class="user-panel-action-btn" (click)="confirmLogout()">
       <mat-icon fontSet="material-icons-outlined">logout</mat-icon>
       <span>Logout</span>
     </button>
-  </nav>
+  </footer>
 </aside>
 <!-- Logout confirmation dialog template -->
 <ng-template #logoutConfirmationDialog>

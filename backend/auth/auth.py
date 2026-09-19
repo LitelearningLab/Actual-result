@@ -1,4 +1,4 @@
-from db.models import Institute, User, AppSession, Credential, Country, InstituteCampus
+from db.models import Institute, User, AppSession, Credential, Country, InstituteCampus, InstituteDepartment, InstituteTeam, City
 from sqlalchemy import or_, func
 
 import datetime
@@ -72,6 +72,126 @@ def get_user_country_details(session, user):
         print(f"[Auth] Warning resolving country details: {ce}", flush=True)
 
     return default_country
+
+
+def get_user_profile_payload(session, user):
+    """
+    Builds a complete, normalized profile dictionary for a User entity,
+    resolving institute, department, team, campus, city, country, and locale.
+    """
+    default_payload = {
+        'user_id': '',
+        'name': '',
+        'username': '',
+        'email': '',
+        'role': '',
+        'user_role': '',
+        'institute': None,
+        'institute_name': None,
+        'institute_short_name': None,
+        'institute_id': None,
+        'department': None,
+        'department_name': None,
+        'department_id': None,
+        'team': None,
+        'team_name': None,
+        'team_id': None,
+        'campus': None,
+        'campus_name': None,
+        'campus_id': None,
+        'city': None,
+        'city_name': None,
+        'city_id': None,
+        'country_id': None,
+        'country_name': None,
+        'country_code': None,
+        'locale': None
+    }
+    if not user or not session:
+        return default_payload
+
+    uid_str = str(user.user_id) if getattr(user, 'user_id', None) else ''
+    country_info = get_user_country_details(session, user)
+
+    institute_name = None
+    institute_short_name = None
+    if getattr(user, 'institute_id', None):
+        inst = session.query(Institute).filter_by(institute_id=str(user.institute_id)).first()
+        if inst:
+            institute_name = inst.name
+            institute_short_name = inst.short_name
+
+    department_name = None
+    if getattr(user, 'department_id', None):
+        dept = session.query(InstituteDepartment).filter(
+            or_(InstituteDepartment.department_id == str(user.department_id), InstituteDepartment.name == str(user.department_id), InstituteDepartment.name.ilike(str(user.department_id)))
+        ).first()
+        if dept:
+            department_name = dept.name
+        else:
+            department_name = str(user.department_id)
+
+    team_name = None
+    if getattr(user, 'team_id', None):
+        team_rec = session.query(InstituteTeam).filter(
+            or_(InstituteTeam.team_id == str(user.team_id), InstituteTeam.name == str(user.team_id), InstituteTeam.name.ilike(str(user.team_id)))
+        ).first()
+        if team_rec:
+            team_name = team_rec.name
+        else:
+            team_name = str(user.team_id)
+
+    campus_name = None
+    campus_obj = None
+    if getattr(user, 'campus_id', None):
+        campus_obj = session.query(InstituteCampus).filter(
+            or_(InstituteCampus.campus_id == str(user.campus_id), InstituteCampus.name == str(user.campus_id))
+        ).first()
+        if campus_obj:
+            campus_name = campus_obj.name
+        else:
+            campus_name = str(user.campus_id)
+
+    city_name = None
+    if getattr(user, 'city_id', None):
+        c_obj = session.query(City).filter(
+            or_(City.city_id == str(user.city_id), City.city_name == str(user.city_id))
+        ).first()
+        if c_obj:
+            city_name = c_obj.city_name
+        else:
+            city_name = str(user.city_id)
+    if not city_name and campus_obj and getattr(campus_obj, 'city_name', None):
+        city_name = campus_obj.city_name
+
+    return {
+        'user_id': uid_str,
+        'name': getattr(user, 'full_name', '') or getattr(user, 'name', '') or getattr(user, 'user_name', ''),
+        'username': getattr(user, 'user_name', '') or getattr(user, 'username', ''),
+        'email': getattr(user, 'email', ''),
+        'role': getattr(user, 'user_role', '') or getattr(user, 'role', ''),
+        'user_role': getattr(user, 'user_role', '') or getattr(user, 'role', ''),
+        'institute': institute_name,
+        'institute_name': institute_name,
+        'institute_short_name': institute_short_name,
+        'institute_id': str(user.institute_id) if getattr(user, 'institute_id', None) else None,
+        'department': department_name,
+        'department_name': department_name,
+        'department_id': str(user.department_id) if getattr(user, 'department_id', None) else None,
+        'team': team_name,
+        'team_name': team_name,
+        'team_id': str(user.team_id) if getattr(user, 'team_id', None) else None,
+        'campus': campus_name,
+        'campus_name': campus_name,
+        'campus_id': str(user.campus_id) if getattr(user, 'campus_id', None) else None,
+        'city': city_name,
+        'city_name': city_name,
+        'city_id': str(user.city_id) if getattr(user, 'city_id', None) else None,
+        'country_id': country_info.get('country_id'),
+        'country_name': country_info.get('country_name'),
+        'country_code': country_info.get('country_code'),
+        'locale': country_info.get('locale')
+    }
 
 class JWTValidator:
     def __init__(self, jwt_secret, issuer=None, audience=None):
@@ -325,24 +445,11 @@ class JWTValidator:
                 session.commit()
                 print(f"[Auth.login] New session created ID={session_data.id} | Token={token[:8]}... | user={user.email}", flush=True)
 
-            country_info = get_user_country_details(session, user)
+            user_payload = get_user_profile_payload(session, user)
 
             json_data = {
                 "statusMessage": "Login successful",
-                "user": {
-                    'user_id': uid_str,
-                    'name': user.full_name,
-                    'username': user.user_name,
-                    'email': user.email,
-                    'institute': institute.name if institute else None,
-                    'institute_short_name': institute.short_name if institute else None,
-                    'institute_id': str(user.institute_id) if user.institute_id else None,
-                    'role': user.user_role,
-                    'country_id': country_info.get('country_id'),
-                    'country_name': country_info.get('country_name'),
-                    'country_code': country_info.get('country_code'),
-                    'locale': country_info.get('locale')
-                },
+                "user": user_payload,
                 "status": True,
                 "token": token
             }
@@ -391,29 +498,13 @@ class JWTValidator:
             session_row.last_heartbeat = datetime.datetime.utcnow()
             session.commit()
 
-            institute = None
-            if user.institute_id:
-                institute = session.query(Institute).filter_by(institute_id=str(user.institute_id)).first()
-
-            country_info = get_user_country_details(session, user)
+            user_payload = get_user_profile_payload(session, user)
 
             json_data = {
                 "status": True,
                 "statusMessage": "Token refreshed",
                 "token": new_token,
-                "user": {
-                    'user_id': str(user.user_id),
-                    'name': user.full_name,
-                    'username': user.user_name,
-                    'email': user.email,
-                    'institute': institute.name if institute else None,
-                    'institute_id': str(user.institute_id) if user.institute_id else None,
-                    'role': user.user_role,
-                    'country_id': country_info.get('country_id'),
-                    'country_name': country_info.get('country_name'),
-                    'country_code': country_info.get('country_code'),
-                    'locale': country_info.get('locale')
-                }
+                "user": user_payload
             }
             return json_data, 200
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:

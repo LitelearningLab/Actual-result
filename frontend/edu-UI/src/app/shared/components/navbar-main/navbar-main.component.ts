@@ -66,8 +66,88 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     return ['admin', 'super_admin', 'superadmin', 'super-admin'].some(r => role === r || role.includes(r));
   }
 
-  userObj: any = null;
+  userObj: any = (() => {
+    try {
+      const rawUser = sessionStorage.getItem('user');
+      return rawUser ? JSON.parse(rawUser) : null;
+    } catch (e) {
+      return null;
+    }
+  })();
   initials = this.username ? this.username.split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase() : 'G';
+
+  get userInstituteDisplay(): string {
+    const inst = this.userObj?.institute_name || 
+                 this.userObj?.institute || 
+                 this.instituteDisplayName || 
+                 this.displayInstitute || 
+                 this.instituteShortName || 
+                 sessionStorage.getItem('institute') || 
+                 '—';
+    return inst && String(inst).trim() ? String(inst).trim() : '—';
+  }
+
+  get userEmailDisplay(): string {
+    const email = this.userObj?.email || sessionStorage.getItem('email') || '';
+    return email && String(email).trim() ? String(email).trim() : '—';
+  }
+
+  get roleDisplay(): string {
+    let sessionUserRole = '';
+    try {
+      const rawUser = sessionStorage.getItem('user');
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        sessionUserRole = u?.role || u?.user_role || '';
+      }
+    } catch (e) { /* ignore */ }
+    const rawRole = this.userObj?.user_role || this.userObj?.role || sessionUserRole || this.userRole || sessionStorage.getItem('userRole') || '';
+    const r = String(rawRole).toLowerCase().trim();
+    if (['super_admin', 'superadmin', 'super-admin'].some(role => r === role || r.includes('super'))) return 'Super Admin';
+    if (r === 'admin') return 'Admin';
+    if (r === 'user' || r === 'student') return 'User';
+    if (rawRole && String(rawRole).trim()) {
+      const str = String(rawRole).trim();
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+    return '—';
+  }
+
+  get teamDisplay(): string {
+    const team = this.userObj?.team_name || 
+                 this.userObj?.team || 
+                 (typeof this.userObj?.team === 'object' ? this.userObj?.team?.team_name : '') || 
+                 sessionStorage.getItem('team') || 
+                 '—';
+    return team && String(team).trim() ? String(team).trim() : '—';
+  }
+
+  get departmentDisplay(): string {
+    const dept = this.userObj?.department_name || 
+                 this.userObj?.department || 
+                 (typeof this.userObj?.department === 'object' ? this.userObj?.department?.department_name : '') || 
+                 sessionStorage.getItem('department') || 
+                 '—';
+    return dept && String(dept).trim() ? String(dept).trim() : '—';
+  }
+
+  get campusDisplay(): string {
+    const campus = this.userObj?.campus_name || 
+                   this.userObj?.campus || 
+                   (typeof this.userObj?.campus === 'object' ? this.userObj?.campus?.campus_name : '') || 
+                   sessionStorage.getItem('campus') || 
+                   '—';
+    return campus && String(campus).trim() ? String(campus).trim() : '—';
+  }
+
+  get cityDisplay(): string {
+    const city = this.userObj?.city_name || 
+                 this.userObj?.city || 
+                 (typeof this.userObj?.city === 'object' ? this.userObj?.city?.city_name : '') || 
+                 sessionStorage.getItem('city') || 
+                 '—';
+    return city && String(city).trim() ? String(city).trim() : '—';
+  }
 
   constructor(
     public router: Router,

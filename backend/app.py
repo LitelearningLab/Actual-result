@@ -2,7 +2,7 @@
 from functools import wraps
 from flask import Blueprint, Flask, request, jsonify, Response, g
 from flask_cors import CORS
-from auth.auth import JWTValidator, get_user_country_details
+from auth.auth import JWTValidator, get_user_country_details, get_user_profile_payload
 from configparser import ConfigParser
 from werkzeug.datastructures import ImmutableMultiDict
 from werkzeug.exceptions import HTTPException
@@ -811,33 +811,16 @@ def validate_session_route():
     
     db = SQLiteDB()
     session = db.connect()
-    country_info = {"country_id": None, "country_name": "United States", "country_code": "US", "locale": "en-US"}
-    institute_name = None
+    user_payload = {}
     if session:
         try:
-            country_info = get_user_country_details(session, user)
-            if user.institute_id:
-                inst = session.query(Institute).filter_by(institute_id=str(user.institute_id)).first()
-                if inst:
-                    institute_name = inst.name
+            user_payload = get_user_profile_payload(session, user)
         finally:
             session.close()
 
     return jsonify({
         "status": True,
-        "user": {
-            "user_id": str(user.user_id),
-            "name": user.full_name,
-            "username": user.user_name,
-            "email": user.email,
-            "role": user.user_role,
-            "institute": institute_name,
-            "institute_id": str(user.institute_id) if user.institute_id else None,
-            "country_id": country_info.get("country_id"),
-            "country_name": country_info.get("country_name"),
-            "country_code": country_info.get("country_code"),
-            "locale": country_info.get("locale")
-        }
+        "user": user_payload
     }), 200
 
 @edu_blueprint.route('/logout', methods=['POST'])
