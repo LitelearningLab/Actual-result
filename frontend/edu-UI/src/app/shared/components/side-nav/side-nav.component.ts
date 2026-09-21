@@ -94,7 +94,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/view-institutes': 'Institutes',
     '/institute-register': 'Institutes',
     '/admin/exam-reports': 'Test Reports',
-    '/user/exam/run': 'Test inbox',
+    '/user/exam/run': 'Test Inbox',
   };
 
   /** Updates selectedMenu by finding which menu path matches the current URL */
@@ -233,7 +233,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
     if (role === 'user' || role === 'candidate' || role === 'admin' || role === 'super_admin' || role === 'super-admin') {
       // Admins retain their management menus and also receive the candidate entry points.
       // this.menus.push({ label: 'User Dashboard', path: '/user-dashboard', icon: 'user' });
-      this.menus.push({ label: 'Test inbox', path: '/user/exam', icon: 'assignment' });
+      this.menus.push({ label: 'Test Inbox', path: '/user/exam', icon: 'assignment' });
     }
 
     // After menus are set, update selected menu based on current URL

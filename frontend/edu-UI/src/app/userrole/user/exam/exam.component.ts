@@ -1681,7 +1681,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.pageMeta.setMeta('User Tests', 'Explore and manage your tests');
+    this.pageMeta.setMeta('Test Inbox', 'Explore and manage your tests');
     // Refresh server-calculated review availability without interrupting the student UI (every 3s for instant updates).
     this.reviewRefreshTimer = setInterval(() => this.loadExams(false), 3000);
   }
