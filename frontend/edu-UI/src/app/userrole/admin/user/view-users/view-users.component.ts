@@ -153,6 +153,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   departmentFilterSearch = '';
   teamFilterSearch = '';
 
+  get isSchool(): boolean {
+    if (this.selectedIndustries && this.selectedIndustries.includes('School')) return true;
+    if (this.filters?.industry === 'School') return true;
+    if (this.selectedInstitutes && this.selectedInstitutes.length && this.institutes && this.institutes.length) {
+      const selInsts = this.institutes.filter((i: any) => this.selectedInstitutes.includes(i.institute_id || i.id));
+      if (selInsts.some((i: any) => i.industry_type === 'School' || i.industry === 'School')) return true;
+    }
+    return false;
+  }
+
   loadingInstitutes = false;
   loadingCountries = false;
   loadingCities = false;

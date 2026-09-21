@@ -129,42 +129,42 @@
                 </mat-form-field>
               </div>
 
-              <!-- Hierarchical Department & Team Section -->
+              <!-- Hierarchical Department & Team / Class & Section Section -->
               <div class="dept-teams-section">
                 <div class="dept-section-header">
                   <div>
-                    <label class="chip-label">Departments & Teams*</label>
-                    <p class="chip-subdesc">Organize your institute into departments, and add team/batch tags inside each department container.</p>
+                    <label class="chip-label">{{ orgSectionTitle }}*</label>
+                    <p class="chip-subdesc">{{ orgSectionDesc }}</p>
                   </div>
                 </div>
 
-                <!-- State 1: Initial Empty State (No Departments Added Yet) -->
+                <!-- State 1: Initial Empty State (No Classes / Departments Added Yet) -->
                 <div class="empty-dept-container" *ngIf="!departments.length">
                   <div class="empty-dept-icon-wrapper">
-                    <mat-icon>account_tree</mat-icon>
+                    <mat-icon>{{ isSchool ? 'school' : 'account_tree' }}</mat-icon>
                   </div>
-                  <div class="empty-dept-title">No departments added yet</div>
-                  <div class="empty-dept-desc">Click "+ Add Department" to create your first organizational department.</div>
+                  <div class="empty-dept-title">{{ emptyStateTitle }}</div>
+                  <div class="empty-dept-desc">{{ emptyStateDesc }}</div>
                   <button type="button" mat-stroked-button color="primary" class="empty-add-btn" (click)="openAddDepartmentModal()">
                     <mat-icon>add</mat-icon>
-                    <span>Add Department</span>
+                    <span>{{ addParentBtnLabel }}</span>
                   </button>
                 </div>
 
-                <!-- Department Cards List (Full-Width Stacked Cards) -->
+                <!-- Cards List (Full-Width Stacked Cards) -->
                 <div class="dept-cards-grid" *ngIf="departments.length">
                   <div class="dept-card" *ngFor="let dept of departments; let i = index">
                     <!-- Card Header: Title on Left, Actions on Right -->
                     <div class="dept-card-header">
                       <div class="dept-card-title-group">
-                        <mat-icon class="dept-folder-icon">folder</mat-icon>
+                        <mat-icon class="dept-folder-icon">{{ isSchool ? 'school' : 'folder' }}</mat-icon>
                         <ng-container *ngIf="!dept.isEditingName; else editDeptNameTpl">
                           <h3 class="dept-card-title">{{ dept.name }}</h3>
-                          <span class="dept-team-count-badge" [title]="dept.teams.length + ' teams'">{{ dept.teams.length }} {{ dept.teams.length === 1 ? 'team' : 'teams' }}</span>
+                          <span class="dept-team-count-badge" [title]="dept.teams.length + ' ' + (isSchool ? 'sections' : 'teams')">{{ dept.teams.length }} {{ dept.teams.length === 1 ? childItemLabel.toLowerCase() : (isSchool ? 'sections' : 'teams') }}</span>
                         </ng-container>
                         <ng-template #editDeptNameTpl>
                           <div class="dept-name-inline-edit">
-                            <input matInput type="text" [(ngModel)]="dept.editNameValue" [ngModelOptions]="{standalone: true}" (keydown.enter)="saveDepartmentName(dept)" (keydown.escape)="cancelEditDepartmentName(dept)" placeholder="Department name" class="dept-name-input" />
+                            <input matInput type="text" [(ngModel)]="dept.editNameValue" [ngModelOptions]="{standalone: true}" (keydown.enter)="saveDepartmentName(dept)" (keydown.escape)="cancelEditDepartmentName(dept)" [placeholder]="parentItemLabel + ' name'" class="dept-name-input" />
                             <button type="button" mat-icon-button color="primary" class="small-icon-btn" (click)="saveDepartmentName(dept)" title="Save">
                               <mat-icon>check</mat-icon>
                             </button>
@@ -175,27 +175,27 @@
                         </ng-template>
                       </div>
                       <div class="dept-card-actions" *ngIf="!dept.isEditingName">
-                        <button type="button" mat-icon-button class="dept-action-btn edit-btn" (click)="startEditDepartmentName(dept)" title="Edit Department Name">
+                        <button type="button" mat-icon-button class="dept-action-btn edit-btn" (click)="startEditDepartmentName(dept)" [title]="'Edit ' + parentItemLabel + ' Name'">
                           <mat-icon>edit</mat-icon>
                         </button>
-                        <button type="button" mat-icon-button class="dept-action-btn delete-btn" (click)="deleteDepartment(i)" title="Delete Department">
+                        <button type="button" mat-icon-button class="dept-action-btn delete-btn" (click)="deleteDepartment(i)" [title]="'Delete ' + parentItemLabel">
                           <mat-icon>delete_outline</mat-icon>
                         </button>
                       </div>
                     </div>
 
-                    <!-- Card Body: Teams Tag Chips & Action / Input -->
+                    <!-- Card Body: Tag Chips & Action / Input -->
                     <div class="dept-card-body">
-                      <!-- Empty Teams Hint -->
+                      <!-- Empty Hint -->
                       <div class="empty-teams-hint" *ngIf="!dept.teams.length && !dept.isAddingTeam">
-                        <span class="hint-text">No teams added yet</span>
+                        <span class="hint-text">No {{ isSchool ? 'sections' : 'teams' }} added yet</span>
                       </div>
 
-                      <!-- Removable Team Chips (Pill Tags) -->
+                      <!-- Removable Tag Chips -->
                       <div class="teams-chips-container" *ngIf="dept.teams.length">
                         <div class="team-chip" *ngFor="let team of dept.teams; let tIdx = index">
                           <span class="team-chip-label">{{ team }}</span>
-                          <button type="button" class="team-chip-remove" (click)="removeTeamFromDepartment(dept, tIdx)" title="Remove team">
+                          <button type="button" class="team-chip-remove" (click)="removeTeamFromDepartment(dept, tIdx)" [title]="'Remove ' + childItemLabel.toLowerCase()">
                             <mat-icon>close</mat-icon>
                           </button>
                         </div>
@@ -205,13 +205,13 @@
                       <div class="dept-card-actions-bar" *ngIf="!dept.isAddingTeam">
                         <button type="button" mat-stroked-button color="primary" class="add-team-stroked-btn" (click)="startAddingTeam(dept)">
                           <mat-icon>add</mat-icon>
-                          <span>Add Team</span>
+                          <span>{{ addChildBtnLabel }}</span>
                         </button>
                       </div>
 
                       <!-- Input Mode: Compact Inline Form with Save and Cancel -->
                       <div class="add-team-inline-form" *ngIf="dept.isAddingTeam">
-                        <input matInput type="text" [(ngModel)]="dept.newTeamName" [ngModelOptions]="{standalone: true}" placeholder="Enter team name (e.g., Development)" class="team-inline-input" (keydown.enter)="confirmAddTeam(dept)" (keydown.escape)="cancelAddingTeam(dept)" autofocus />
+                        <input matInput type="text" [(ngModel)]="dept.newTeamName" [ngModelOptions]="{standalone: true}" [placeholder]="childInputPlaceholder" class="team-inline-input" (keydown.enter)="confirmAddTeam(dept)" (keydown.escape)="cancelAddingTeam(dept)" autofocus />
                         <div class="add-team-buttons">
                           <button type="button" mat-flat-button color="primary" class="save-team-btn" (click)="confirmAddTeam(dept)">Save</button>
                           <button type="button" mat-stroked-button class="cancel-team-btn" (click)="cancelAddingTeam(dept)">Cancel</button>
@@ -221,27 +221,27 @@
                   </div>
                 </div>
 
-                <!-- Single Persistent + Add Department Button Below Cards List -->
+                <!-- Single Persistent Action Button Below Cards List -->
                 <div class="add-dept-bottom-bar" *ngIf="departments.length">
                   <button type="button" mat-stroked-button color="primary" class="add-dept-bottom-btn" (click)="openAddDepartmentModal()">
                     <mat-icon>add</mat-icon>
-                    <span>Add Department</span>
+                    <span>{{ addParentBtnLabel }}</span>
                   </button>
                 </div>
 
-                <!-- Validation Error Message if Department is required -->
+                <!-- Validation Error Message if required -->
                 <mat-error *ngIf="form.controls['department'].touched && form.controls['department'].hasError('required')" class="dept-error-msg">
-                  At least one department is required.
+                  At least one {{ parentItemLabel.toLowerCase() }} is required.
                 </mat-error>
               </div>
 
-              <!-- State 2 Modal Pop-up: Add Department -->
+              <!-- State 2 Modal Pop-up: Add Class / Add Department -->
               <div class="modal-backdrop" *ngIf="showAddDepartmentModal" (click)="closeAddDepartmentModal()"></div>
               <div class="modal-dialog" *ngIf="showAddDepartmentModal">
                 <div class="modal-header">
                   <div class="modal-title-group">
-                    <mat-icon class="modal-title-icon">account_tree</mat-icon>
-                    <h3 class="modal-title">Add Department</h3>
+                    <mat-icon class="modal-title-icon">{{ isSchool ? 'school' : 'account_tree' }}</mat-icon>
+                    <h3 class="modal-title">{{ modalTitle }}</h3>
                   </div>
                   <button type="button" mat-icon-button class="modal-close-btn" (click)="closeAddDepartmentModal()">
                     <mat-icon>close</mat-icon>
@@ -249,14 +249,14 @@
                 </div>
                 <div class="modal-body">
                   <mat-form-field appearance="outline" class="field-full">
-                    <mat-label>Department Name</mat-label>
+                    <mat-label>{{ modalInputLabel }}</mat-label>
                     <mat-icon matPrefix>layers</mat-icon>
-                    <input matInput type="text" [(ngModel)]="newDepartmentName" [ngModelOptions]="{standalone: true}" placeholder="e.g. IT, Human Resources, Finance" (keydown.enter)="confirmAddDepartment()" autofocus />
+                    <input matInput type="text" [(ngModel)]="newDepartmentName" [ngModelOptions]="{standalone: true}" [placeholder]="modalInputPlaceholder" (keydown.enter)="confirmAddDepartment()" autofocus />
                   </mat-form-field>
                 </div>
                 <div class="modal-footer">
                   <button type="button" mat-button (click)="closeAddDepartmentModal()">Cancel</button>
-                  <button type="button" mat-flat-button color="primary" [disabled]="!newDepartmentName.trim()" (click)="confirmAddDepartment()">Add Department</button>
+                  <button type="button" mat-flat-button color="primary" [disabled]="!newDepartmentName.trim()" (click)="confirmAddDepartment()">{{ modalTitle }}</button>
                 </div>
               </div>
             </div>
@@ -654,19 +654,19 @@
                       <div class="review-dept-block" *ngFor="let dept of departments">
                         <div class="review-dept-header">
                           <span class="review-label font-bold">{{ dept.name }}</span>
-                          <span class="review-team-badge">{{ dept.teams.length }} teams</span>
+                          <span class="review-team-badge">{{ dept.teams.length }} {{ dept.teams.length === 1 ? childItemLabel.toLowerCase() : (isSchool ? 'sections' : 'teams') }}</span>
                         </div>
                         <div class="review-value">
                           <ng-container *ngIf="dept.teams.length; else noDeptTeams">
                             <span class="review-chip" *ngFor="let t of dept.teams">{{ t }}</span>
                           </ng-container>
-                          <ng-template #noDeptTeams><span class="text-muted">No teams</span></ng-template>
+                          <ng-template #noDeptTeams><span class="text-muted">No {{ isSchool ? 'sections' : 'teams' }}</span></ng-template>
                         </div>
                       </div>
                     </ng-container>
                     <ng-template #noDeptsTpl>
                       <div class="review-item">
-                        <span class="review-label">Departments</span>
+                        <span class="review-label">{{ isSchool ? 'Classes' : 'Departments' }}</span>
                         <span class="review-value">–</span>
                       </div>
                     </ng-template>

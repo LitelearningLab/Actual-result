@@ -161,6 +161,10 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
 
   selectedInstitute: any = null; // used for modal detail view
 
+  get isSelectedInstituteSchool(): boolean {
+    return this.selectedInstitute?.industry_type === 'School';
+  }
+
   getTeamsForDept(dept: any): any[] {
     if (!this.selectedInstitute) return [];
 

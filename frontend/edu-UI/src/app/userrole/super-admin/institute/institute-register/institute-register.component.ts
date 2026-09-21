@@ -195,6 +195,63 @@ export class InstituteRegisterComponent {
   teamList: string[] = [];
   branchList: string[] = [];
 
+  // Dynamic terminology helpers for School vs Non-School industry types
+  get isSchool(): boolean {
+    return this.form.get('industry_type')?.value === 'School';
+  }
+
+  get orgSectionTitle(): string {
+    return this.isSchool ? 'Classes & Sections' : 'Departments & Teams';
+  }
+
+  get orgSectionDesc(): string {
+    return this.isSchool
+      ? 'Organize your school into classes and add sections inside each class.'
+      : 'Organize your institute into departments, and add team/batch tags inside each department container.';
+  }
+
+  get parentItemLabel(): string {
+    return this.isSchool ? 'Class' : 'Department';
+  }
+
+  get childItemLabel(): string {
+    return this.isSchool ? 'Section' : 'Team';
+  }
+
+  get addParentBtnLabel(): string {
+    return this.isSchool ? '+ Add Class' : '+ Add Department';
+  }
+
+  get addChildBtnLabel(): string {
+    return this.isSchool ? '+ Add Section' : '+ Add Team';
+  }
+
+  get emptyStateTitle(): string {
+    return this.isSchool ? 'No classes added yet' : 'No departments added yet';
+  }
+
+  get emptyStateDesc(): string {
+    return this.isSchool
+      ? 'Click "+ Add Class" to create your first organizational class.'
+      : 'Click "+ Add Department" to create your first organizational department.';
+  }
+
+  get modalTitle(): string {
+    return this.isSchool ? 'Add Class' : 'Add Department';
+  }
+
+  get modalInputLabel(): string {
+    return this.isSchool ? 'Class Name' : 'Department Name';
+  }
+
+  get modalInputPlaceholder(): string {
+    return this.isSchool ? 'e.g. Class 1, Class 2, Grade 10' : 'e.g. IT, Human Resources, Finance';
+  }
+
+  get childInputPlaceholder(): string {
+    return this.isSchool ? 'Enter section name (e.g., Section A)' : 'Enter team name (e.g., Development)';
+  }
+
   syncFormDepartmentAndTeam(): void {
     const deptNames = this.departments.map((d) => d.name.trim()).filter(Boolean);
     const allTeams = this.departments
@@ -227,7 +284,7 @@ export class InstituteRegisterComponent {
     if (!name) return;
 
     if (this.departments.some((d) => d.name.toLowerCase() === name.toLowerCase())) {
-      this._snack.open('Department with this name already exists.', 'Close', { duration: 3000 });
+      this._snack.open(`${this.parentItemLabel} with this name already exists.`, 'Close', { duration: 3000 });
       return;
     }
 
@@ -253,7 +310,7 @@ export class InstituteRegisterComponent {
     const val = (dept.editNameValue || '').trim();
     if (val && val !== dept.name) {
       if (this.departments.some((d) => d !== dept && d.name.toLowerCase() === val.toLowerCase())) {
-        this._snack.open('Department with this name already exists.', 'Close', { duration: 3000 });
+        this._snack.open(`${this.parentItemLabel} with this name already exists.`, 'Close', { duration: 3000 });
         return;
       }
       dept.name = val;
@@ -286,7 +343,7 @@ export class InstituteRegisterComponent {
     if (!val) return;
 
     if (dept.teams.some((t) => t.toLowerCase() === val.toLowerCase())) {
-      this._snack.open('Team already exists in this department.', 'Close', { duration: 3000 });
+      this._snack.open(`${this.childItemLabel} already exists in this ${this.parentItemLabel.toLowerCase()}.`, 'Close', { duration: 3000 });
       return;
     }
 
