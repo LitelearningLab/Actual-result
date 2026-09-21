@@ -918,22 +918,28 @@ button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover {
   transform: translateY(-1px) !important;
 }
 
-button.refresh-action-btn:not([color="primary"]):not(.btn-primary-action) mat-icon,
-button.button-one:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]) mat-icon,
-button[mat-flat-button]:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]) mat-icon,
-button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]) mat-icon {
+button.refresh-action-btn mat-icon,
+button.button-one:has(mat-icon[svgIcon="refresh"]) mat-icon[svgIcon="refresh"],
+button[mat-flat-button]:has(mat-icon[svgIcon="refresh"]) mat-icon[svgIcon="refresh"],
+button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]) mat-icon[svgIcon="refresh"],
+button[title*="Refresh" i] mat-icon,
+button[aria-label*="Refresh" i] mat-icon,
+.mobile-action-icon[title*="Refresh" i] mat-icon,
+.mobile-action-icon[aria-label*="Refresh" i] mat-icon {
   width: 1.25rem !important;
   height: 1.25rem !important;
-  color: #64748b !important;
-  transition: color 0.2s ease, transform 0.25s ease !important;
+  transition: color 0.2s ease, transform 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-button.refresh-action-btn:not([color="primary"]):not(.btn-primary-action):hover mat-icon,
-button.button-one:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]):hover mat-icon,
-button[mat-flat-button]:not(.action-row button):not([color="primary"]):has(mat-icon[svgIcon="refresh"]):hover mat-icon,
-button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon {
-  color: #475569 !important;
-  transform: rotate(90deg) !important;
+button.refresh-action-btn:hover mat-icon,
+button.button-one:has(mat-icon[svgIcon="refresh"]):hover mat-icon[svgIcon="refresh"],
+button[mat-flat-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon[svgIcon="refresh"],
+button[mat-stroked-button]:has(mat-icon[svgIcon="refresh"]):hover mat-icon[svgIcon="refresh"],
+button[title*="Refresh" i]:hover mat-icon,
+button[aria-label*="Refresh" i]:hover mat-icon,
+.mobile-action-icon[title*="Refresh" i]:hover mat-icon,
+.mobile-action-icon[aria-label*="Refresh" i]:hover mat-icon {
+  transform: rotate(360deg) !important;
 }
 
 /* Primary blue action-row buttons icon styling */

@@ -472,7 +472,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       );
 
     if (this.isSuperAdmin) this.loadInstitutes();
-    if (this.instituteId || this.isSuperAdmin) this.loadExams();
+    if (this.instituteId || this.isSuperAdmin || this.currentUserId) this.loadExams();
   }
 
   get isAdminUser(): boolean {
@@ -1715,14 +1715,7 @@ formatSeconds(sec: number | null | undefined): string {
   }
 
   loadExams(showLoader = true) {
-    if (!this.instituteId) return;
-    // Skip a polling cycle while another exam-list request is still active.
-    if (this.isFetchingExams) return;
-    if (showLoader) {
-      this.loading = true;
-    }
-    this.isFetchingExams = true;
-    // include session user data as a payload in the query string
+    // Extract session user data as payload for query string
     const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
     let userObj: any = null;
     try {
@@ -1730,9 +1723,17 @@ formatSeconds(sec: number | null | undefined): string {
     } catch (e) {
       userObj = null;
     }
-    const userId = userObj?.user_id || userObj?.id || '';
+    const userId = userObj?.user_id || userObj?.id || userObj?.user?.user_id || userObj?.user?.id || this.currentUserId || '';
 
-    // send user_id as query param via GET request to fetch exams for the user's institute
+    if (!userId && !this.instituteId && !this.isSuperAdmin) return;
+    // Skip a polling cycle while another exam-list request is still active (unless user explicitly clicks refresh).
+    if (this.isFetchingExams && !showLoader) return;
+    if (showLoader) {
+      this.loading = true;
+    }
+    this.isFetchingExams = true;
+
+    // send user_id as query param via GET request to fetch exams
     const url = `${this.examsUrl}?user_id=${encodeURIComponent(userId)}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
