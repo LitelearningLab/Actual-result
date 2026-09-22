@@ -209,14 +209,14 @@
                     <div class="filter-col-full filter-row-two-col">
                         <!-- Departments -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Departments</mat-label>
+                            <mat-label>{{ terminology.deptPluralLabel }}</mat-label>
                             <mat-select multiple [(ngModel)]="selectedDepartments"
                                 (selectionChange)="onDepartmentsChange()"
                                 [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
-                                placeholder="Select departments"
+                                [placeholder]="'Select ' + terminology.deptPluralLabel.toLowerCase()"
                                 (openedChange)="onFilterDepartmentOpenedChange($event)">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input matInput class="select-search-input" placeholder="Search department"
+                                    <input matInput class="select-search-input" [placeholder]="'Search ' + terminology.deptLabel.toLowerCase()"
                                         [(ngModel)]="departmentFilterSearch" [ngModelOptions]="{ standalone: true }"
                                         (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
                                         (keyup)="stopFilterSearchEvent($event)"
@@ -236,12 +236,12 @@
 
                         <!-- Teams -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>Teams</mat-label>
+                            <mat-label>{{ terminology.teamPluralLabel }}</mat-label>
                             <mat-select multiple [(ngModel)]="selectedTeams"
                                 [disabled]="isSuperAdmin && !selectedInstitutes.length && !selectedInstitute"
-                                placeholder="Select teams" (openedChange)="onFilterTeamOpenedChange($event)">
+                                [placeholder]="'Select ' + terminology.teamPluralLabel.toLowerCase()" (openedChange)="onFilterTeamOpenedChange($event)">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input matInput class="select-search-input" placeholder="Search team"
+                                    <input matInput class="select-search-input" [placeholder]="'Search ' + terminology.teamLabel.toLowerCase()"
                                         [(ngModel)]="teamFilterSearch" [ngModelOptions]="{ standalone: true }"
                                         (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
                                         (keyup)="stopFilterSearchEvent($event)"

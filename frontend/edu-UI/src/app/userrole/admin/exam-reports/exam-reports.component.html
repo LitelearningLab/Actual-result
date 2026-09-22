@@ -34,7 +34,7 @@
             class="applied-filter-pill"
             *ngFor="let dept of userFilters.department_id"
           >
-            <strong>Department:</strong> {{ getDepartmentDisplayName(dept) }}
+            <strong>{{ terminology.deptLabel }}:</strong> {{ getDepartmentDisplayName(dept) }}
           </span>
         </ng-container>
 
@@ -43,7 +43,7 @@
             class="applied-filter-pill"
             *ngFor="let team of userFilters.teams_id"
           >
-            <strong>Team:</strong> {{ getTeamDisplayName(team) }}
+            <strong>{{ terminology.teamLabel }}:</strong> {{ getTeamDisplayName(team) }}
           </span>
         </ng-container>
 
@@ -324,7 +324,7 @@
               <div class="filter-col-full filter-row-two-col">
                 <!-- Department -->
                 <mat-form-field appearance="outline" class="filter-item">
-                  <mat-label>Department</mat-label>
+                  <mat-label>{{ terminology.deptLabel }}</mat-label>
                   <mat-select
                     [(ngModel)]="userFilters.department_id"
                     name="filterDepartment"
@@ -342,7 +342,7 @@
                       <input
                         matInput
                         class="select-search-input"
-                        placeholder="Search department..."
+                        [placeholder]="'Search ' + terminology.deptLabel.toLowerCase() + '...'"
                         [(ngModel)]="departmentFilterSearch"
                         [ngModelOptions]="{ standalone: true }"
                         (click)="$event.stopPropagation()"
@@ -365,7 +365,7 @@
                       <strong>Select All</strong>
                     </mat-option>
                     <mat-option *ngIf="!filteredDepartmentsForFilter.length && !departmentsLoading && (selectedInstituteId || userFilters.institute_id || userFilters.campus_id)" disabled>
-                      No departments available
+                      No {{ terminology.deptPluralLabel.toLowerCase() }} available
                     </mat-option>
                     <mat-option *ngFor="let d of filteredDepartmentsForFilter" [value]="d">
                       {{ d }}
@@ -373,13 +373,13 @@
                   </mat-select>
                   <mat-hint *ngIf="departmentsLoading" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
                     <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
-                    <span>Loading departments...</span>
+                    <span>Loading {{ terminology.deptPluralLabel.toLowerCase() }}...</span>
                   </mat-hint>
                 </mat-form-field>
 
                 <!-- Team -->
                 <mat-form-field appearance="outline" class="filter-item">
-                  <mat-label>Team</mat-label>
+                  <mat-label>{{ terminology.teamLabel }}</mat-label>
                   <mat-select
                     [(ngModel)]="userFilters.teams_id"
                     name="filterTeam"
@@ -397,7 +397,7 @@
                       <input
                         matInput
                         class="select-search-input"
-                        placeholder="Search team..."
+                        [placeholder]="'Search ' + terminology.teamLabel.toLowerCase() + '...'"
                         [(ngModel)]="teamFilterSearch"
                         [ngModelOptions]="{ standalone: true }"
                         (click)="$event.stopPropagation()"
@@ -420,7 +420,7 @@
                       <strong>Select All</strong>
                     </mat-option>
                     <mat-option *ngIf="!filteredTeamsForFilter.length && !teamsLoading && (selectedInstituteId || userFilters.institute_id || userFilters.campus_id)" disabled>
-                      No teams available
+                      No {{ terminology.teamPluralLabel.toLowerCase() }} available
                     </mat-option>
                     <mat-option *ngFor="let t of filteredTeamsForFilter" [value]="t.id || t.name || t">
                       {{ t.name || t }}
@@ -428,7 +428,7 @@
                   </mat-select>
                   <mat-hint *ngIf="teamsLoading" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
                     <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
-                    <span>Loading teams...</span>
+                    <span>Loading {{ terminology.teamPluralLabel.toLowerCase() }}...</span>
                   </mat-hint>
                 </mat-form-field>
               </div>
@@ -2956,10 +2956,10 @@
                                     <span class="user-attempts-pill" *ngIf="student.attempts">{{ student.attempts }}</span>
                                   </div>
                                   <div class="user-details-meta small-muted" *ngIf="student.department_name || student.dept || student.team_name || student.team || student.location || student.country_name || student.campus_name">
-                                    <span *ngIf="student.department_name || student.dept" class="meta-part" title="Department">
+                                    <span *ngIf="student.department_name || student.dept" class="meta-part" [attr.title]="terminology.deptLabel">
                                       <mat-icon class="meta-icon">business</mat-icon>{{ student.department_name || student.dept }}
                                     </span>
-                                    <span *ngIf="student.team_name || student.team" class="meta-part" title="Team">
+                                    <span *ngIf="student.team_name || student.team" class="meta-part" [attr.title]="terminology.teamLabel">
                                       <mat-icon class="meta-icon">groups</mat-icon>{{ student.team_name || student.team }}
                                     </span>
                                     <span *ngIf="student.location || student.country_name || student.campus_name" class="meta-part" title="Location">
@@ -3000,10 +3000,10 @@
                                 <span class="user-attempts-pill" *ngIf="student.attempts">{{ student.attempts }}</span>
                               </div>
                                   <div class="user-details-meta small-muted" *ngIf="student.department_name || student.dept || student.team_name || student.team || student.location || student.country_name || student.campus_name">
-                                    <span *ngIf="student.department_name || student.dept" class="meta-part" title="Department">
+                                    <span *ngIf="student.department_name || student.dept" class="meta-part" [attr.title]="terminology.deptLabel">
                                       <mat-icon class="meta-icon">business</mat-icon>{{ student.department_name || student.dept }}
                                     </span>
-                                    <span *ngIf="student.team_name || student.team" class="meta-part" title="Team">
+                                    <span *ngIf="student.team_name || student.team" class="meta-part" [attr.title]="terminology.teamLabel">
                                       <mat-icon class="meta-icon">groups</mat-icon>{{ student.team_name || student.team }}
                                     </span>
                                     <span *ngIf="student.location || student.country_name || student.campus_name" class="meta-part" title="Location">
@@ -3215,10 +3215,10 @@
                                       </span>
                                     </div>
                                     <div class="user-details-meta small-muted" *ngIf="r.department_name || r.dept || r.team_name || r.team || r.location || r.country_name || r.campus_name">
-                                      <span *ngIf="r.department_name || r.dept" class="meta-part" title="Department">
+                                      <span *ngIf="r.department_name || r.dept" class="meta-part" [attr.title]="terminology.deptLabel">
                                         <mat-icon class="meta-icon">business</mat-icon>{{ r.department_name || r.dept }}
                                       </span>
-                                      <span *ngIf="r.team_name || r.team" class="meta-part" title="Team">
+                                      <span *ngIf="r.team_name || r.team" class="meta-part" [attr.title]="terminology.teamLabel">
                                         <mat-icon class="meta-icon">groups</mat-icon>{{ r.team_name || r.team }}
                                       </span>
                                       <span *ngIf="r.location || r.country_name || r.campus_name" class="meta-part" title="Location">

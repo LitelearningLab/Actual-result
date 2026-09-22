@@ -398,21 +398,21 @@
             <div class="section-header">
               <mat-icon class="section-icon">category</mat-icon>
               <div class="section-header-text">
-                <h2 class="section-heading">Set Dept and Teams</h2>
-                <p class="section-desc">Select departments and teams for this question bank.</p>
+                <h2 class="section-heading">{{ terminology.setDeptAndTeamsHeading }}</h2>
+                <p class="section-desc">{{ terminology.deptAndTeamsDesc }}</p>
               </div>
             </div>
 
             <div class="field-row">
               <!-- Department Field -->
               <mat-form-field appearance="outline" class="field-half">
-                <mat-label>Department</mat-label>
+                <mat-label>{{ terminology.deptLabel }}</mat-label>
                 <mat-icon matPrefix>layers</mat-icon>
                 <mat-select
                   multiple
                   [disabled]="!institute"
                   [value]="departmentSelectValue"
-                  placeholder="Select department"
+                  [placeholder]="terminology.selectDeptPlaceholder"
                 >
                   <mat-option *ngIf="!institute" disabled>
                     -- Select institute first --
@@ -432,19 +432,19 @@
                     {{ d.name }}
                   </mat-option>
                   <mat-option *ngIf="institute && !departments.length" disabled>
-                    No departments available
+                    No {{ terminology.deptPlural.toLowerCase() }} available
                   </mat-option>
                 </mat-select>
               </mat-form-field>
               <!-- Team Field -->
               <mat-form-field appearance="outline" class="field-half">
-                <mat-label>Team</mat-label>
+                <mat-label>{{ terminology.teamLabel }}</mat-label>
                 <mat-icon matPrefix>group</mat-icon>
                 <mat-select
                   multiple
                   [disabled]="!institute"
                   [value]="teamSelectValue"
-                  placeholder="Select team"
+                  [placeholder]="terminology.selectTeamPlaceholder"
                 >
                   <mat-option *ngIf="!institute" disabled>
                     -- Select institute first --
@@ -464,7 +464,7 @@
                     {{ t.name }}
                   </mat-option>
                   <mat-option *ngIf="institute && !filteredTeams.length" disabled>
-                    No teams available
+                    No {{ terminology.teamPlural.toLowerCase() }} available
                   </mat-option>
                 </mat-select>
               </mat-form-field>
@@ -584,11 +584,11 @@
                     ><span class="review-value">{{ description || '—' }}</span>
                   </div>
                   <div class="review-item">
-                    <span class="review-label">Departments</span
+                    <span class="review-label">{{ terminology.deptPlural }}</span
                     ><span class="review-value">{{ getSelectedDepartmentNames() }}</span>
                   </div>
                   <div class="review-item">
-                    <span class="review-label">Teams</span
+                    <span class="review-label">{{ terminology.teamPlural }}</span
                     ><span class="review-value">{{ getSelectedTeamNames() }}</span>
                   </div>
                 </div>

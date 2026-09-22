@@ -44,6 +44,10 @@ import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { notify } from 'src/app/shared/global-notify';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import { Subscription, forkJoin } from 'rxjs';
+import {
+  getInstituteTerminology,
+  InstituteTerminology,
+} from 'src/app/shared/services/institute-terminology.service';
 
 @Component({
   selector: 'app-view-schedule-exam',
@@ -76,9 +80,79 @@ import { Subscription, forkJoin } from 'rxjs';
 })
 export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewInit {
   search = '';
-  institutes: Array<{ name: string; institute_id?: string }> = [];
-  private allInstitutes: Array<{ name: string; institute_id?: string }> = [];
+  institutes: Array<{
+    name: string;
+    institute_id?: string;
+    industry_type?: string;
+    industry_sector?: string;
+  }> = [];
+  private allInstitutes: Array<{
+    name: string;
+    institute_id?: string;
+    industry_type?: string;
+    industry_sector?: string;
+  }> = [];
   selectedInstitute = '';
+
+  get terminology(): InstituteTerminology {
+    let industry = (this as any).filterIndustry || '';
+    const instId =
+      (this.selectedInstitutes && this.selectedInstitutes.length
+        ? this.selectedInstitutes[0]
+        : '') || this.selectedInstitute;
+    if (!industry && instId && this.institutes && this.institutes.length) {
+      const matched = this.institutes.find(
+        (i: any) => String(i.institute_id) === String(instId)
+      );
+      if (matched?.industry_type) {
+        industry = matched.industry_type;
+      }
+    }
+    if (!industry && !this.isSuperAdmin && this.institutes && this.institutes.length === 1) {
+      industry = this.institutes[0].industry_type || '';
+    }
+    if (!industry && this.institutes && this.institutes.length) {
+      const storedId = sessionStorage.getItem('institute_id') || '';
+      if (storedId) {
+        const matched = this.institutes.find(
+          (i: any) => String(i.institute_id) === String(storedId)
+        );
+        if (matched?.industry_type) {
+          industry = matched.industry_type;
+        }
+      }
+    }
+    if (!industry) {
+      const ctxInst: any = this.globalInstituteContext?.activeInstitute;
+      if (ctxInst?.industry_type || ctxInst?.industry) {
+        industry = ctxInst.industry_type || ctxInst.industry;
+      }
+    }
+    if (!industry) {
+      try {
+        const u = JSON.parse(
+          sessionStorage.getItem('user') ||
+            sessionStorage.getItem('user_profile') ||
+            sessionStorage.getItem('currentUser') ||
+            '{}'
+        );
+        industry = u?.industry_type || u?.industry || '';
+        if (!industry && (u?.institute_name || u?.institute)) {
+          const instName = String(u.institute_name || u.institute).toLowerCase();
+          if (instName.includes('college')) industry = 'College';
+          else if (instName.includes('school')) industry = 'School';
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    if (!industry) {
+      const storedInst = (sessionStorage.getItem('institute') || '').toLowerCase();
+      if (storedInst.includes('college')) industry = 'College';
+      else if (storedInst.includes('school')) industry = 'School';
+    }
+    return getInstituteTerminology(industry);
+  }
   instituteSearch = '';
   instituteSearchTerm = '';
   departmentFilterSearch = '';
@@ -151,7 +225,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
   selectedSchedule: any = null;
 
   private baseUrl = API_BASE;
-  private apiUrl = `${API_BASE}/get-institutes`;
+  private apiUrl = `${API_BASE}/get-institute-list`;
   private activeInstituteId = '';
   private globalInstituteSub: Subscription | null = null;
 
@@ -898,6 +972,8 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
           .map((r: any) => ({
             name: r.name || r.institute_name || r.short_name || '',
             institute_id: r.institute_id || r.id || r._id || '',
+            industry_type: r.industry_type || r.industry || '',
+            industry_sector: r.industry_sector || r.sector || '',
           }))
           .filter((i: any) => !!i.institute_id);
         this.allInstitutes = [...this.institutes];
@@ -1053,7 +1129,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     (this.selectedDepartments || []).forEach((id) => {
       const deptName = this.getSelectedName(this.departments, id);
       if (deptName)
-        chips.push({ key: `department:${id}`, label: `Department: ${deptName}`, removable: true });
+        chips.push({ key: `department:${id}`, label: `${this.terminology.deptLabel}: ${deptName}`, removable: true });
     });
     (this.selectedCampuses || []).forEach((id) => {
       const campusName = this.getSelectedName(this.campuses, id);
@@ -1062,7 +1138,7 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     });
     (this.selectedTeams || []).forEach((id) => {
       const teamName = this.getSelectedName(this.teams, id);
-      if (teamName) chips.push({ key: `team:${id}`, label: `Team: ${teamName}`, removable: true });
+      if (teamName) chips.push({ key: `team:${id}`, label: `${this.terminology.teamLabel}: ${teamName}`, removable: true });
     });
     if (this.filterCreationDateAfter)
       chips.push({
@@ -1192,6 +1268,8 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
           this.institutes = res.data.map((r: any) => ({
             name: r.name || r.institute_name || r.short_name || '',
             institute_id: r.institute_id,
+            industry_type: r.industry_type || r.industry || '',
+            industry_sector: r.industry_sector || r.sector || '',
           }));
           this.allInstitutes = [...this.institutes];
           if (this.isSuperAdmin) {

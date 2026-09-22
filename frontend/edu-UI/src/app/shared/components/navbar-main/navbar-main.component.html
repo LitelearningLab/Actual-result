@@ -108,7 +108,7 @@
           <mat-icon fontSet="material-icons-outlined">groups</mat-icon>
         </div>
         <div class="profile-row-content">
-          <span class="profile-row-label">Team</span>
+          <span class="profile-row-label">{{ teamLabel }}</span>
           <span class="profile-row-value" [title]="teamDisplay">{{ teamDisplay }}</span>
         </div>
       </div>
@@ -119,7 +119,7 @@
           <mat-icon fontSet="material-icons-outlined">school</mat-icon>
         </div>
         <div class="profile-row-content">
-          <span class="profile-row-label">Department</span>
+          <span class="profile-row-label">{{ deptLabel }}</span>
           <span class="profile-row-value" [title]="departmentDisplay">{{ departmentDisplay }}</span>
         </div>
       </div>

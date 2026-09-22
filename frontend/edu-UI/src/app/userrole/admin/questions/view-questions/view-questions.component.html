@@ -262,26 +262,26 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-item">
-              <mat-label>Department <span class="required-star">*</span></mat-label>
+              <mat-label>{{ terminology.deptLabel }} <span class="required-star">*</span></mat-label>
               <mat-select
                 multiple
                 [(ngModel)]="selectedDepartments"
                 (selectionChange)="onDepartmentSelectionChange()"
-                placeholder="Select department"
+                [placeholder]="'Select ' + terminology.deptLabel.toLowerCase()"
                 [disabled]="!isInstituteSelected"
                 (openedChange)="onFilterDepartmentOpenedChange($event)"
               >
                 <mat-option *ngIf="departmentsLoading" disabled>
                   <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
                     <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
-                    <span>Loading departments...</span>
+                    <span>Loading {{ terminology.deptPluralLabel.toLowerCase() }}...</span>
                   </div>
                 </mat-option>
                 <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!departmentsLoading">
                   <input
                     matInput
                     class="select-search-input"
-                    placeholder="Search department"
+                    [placeholder]="'Search ' + terminology.deptLabel.toLowerCase()"
                     [(ngModel)]="departmentFilterSearch"
                     [ngModelOptions]="{ standalone: true }"
                     (click)="$event.stopPropagation()"
@@ -427,26 +427,26 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="filter-item">
-              <mat-label>Team</mat-label>
+              <mat-label>{{ terminology.teamLabel }}</mat-label>
               <mat-select
                 multiple
                 [(ngModel)]="selectedTeams"
                 (selectionChange)="onTeamSelectionChange()"
-                placeholder="Select team"
+                [placeholder]="'Select ' + terminology.teamLabel.toLowerCase()"
                 [disabled]="!isInstituteSelected"
                 (openedChange)="onFilterTeamOpenedChange($event)"
               >
                 <mat-option *ngIf="teamsLoading" disabled>
                   <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
                     <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
-                    <span>Loading teams...</span>
+                    <span>Loading {{ terminology.teamPluralLabel.toLowerCase() }}...</span>
                   </div>
                 </mat-option>
                 <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!teamsLoading">
                   <input
                     matInput
                     class="select-search-input"
-                    placeholder="Search team"
+                    [placeholder]="'Search ' + terminology.teamLabel.toLowerCase()"
                     [(ngModel)]="teamFilterSearch"
                     [ngModelOptions]="{ standalone: true }"
                     (click)="$event.stopPropagation()"

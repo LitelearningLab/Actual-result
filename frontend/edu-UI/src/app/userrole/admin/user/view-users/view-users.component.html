@@ -341,19 +341,19 @@
           </ng-container>
 
           <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>{{ isSchool ? 'Classes' : 'Departments' }}</mat-label>
+            <mat-label>{{ terminology.deptPlural }}</mat-label>
             <mat-select
               multiple
               [(ngModel)]="filters.department"
               (selectionChange)="onDepartmentFilterChange()"
               [disabled]="!selectedInstitute && !selectedInstitutes.length && !isGlobalInstituteActive"
-              [placeholder]="isSchool ? 'Select classes' : 'Select departments'"
+              [placeholder]="terminology.selectDeptPluralPlaceholder"
             >
               <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                 <input
                   matInput
                   class="select-search-input"
-                  [placeholder]="isSchool ? 'Search class' : 'Search department'"
+                  [placeholder]="terminology.searchDeptPlaceholder"
                   [(ngModel)]="departmentFilterSearch"
                   [ngModelOptions]="{ standalone: true }"
                   (click)="$event.stopPropagation()"
@@ -378,11 +378,11 @@
               <mat-option disabled *ngIf="loadingDepartments" class="dropdown-status-option">
                 <div class="dropdown-loading-wrap">
                   <mat-icon class="spin-icon">sync</mat-icon>
-                  <span>Loading {{ isSchool ? 'classes' : 'departments' }}...</span>
+                  <span>{{ terminology.loadingDepts }}</span>
                 </div>
               </mat-option>
               <mat-option disabled *ngIf="!loadingDepartments && !filteredDepartmentsForFilter.length" class="dropdown-status-option">
-                <span>No {{ isSchool ? 'classes' : 'departments' }} found</span>
+                <span>{{ terminology.noDeptsFound }}</span>
               </mat-option>
               <mat-option *ngFor="let d of filteredDepartmentsForFilter; trackBy: trackById" [value]="d.id">{{
                 d.name
@@ -391,18 +391,18 @@
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>{{ isSchool ? 'Sections' : 'Teams' }}</mat-label>
+            <mat-label>{{ terminology.teamPlural }}</mat-label>
             <mat-select
               multiple
               [(ngModel)]="filters.team"
               [disabled]="(!selectedInstitute && !selectedInstitutes.length && !isGlobalInstituteActive) || !hasSelectedDepartment"
-              [placeholder]="hasSelectedDepartment ? (isSchool ? 'Select sections' : 'Select teams') : (isSchool ? 'Select class first' : 'Select department first')"
+              [placeholder]="hasSelectedDepartment ? terminology.selectTeamPluralPlaceholder : terminology.selectDeptFirst"
             >
               <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                 <input
                   matInput
                   class="select-search-input"
-                  placeholder="Search team"
+                  [placeholder]="terminology.searchTeamPlaceholder"
                   [(ngModel)]="teamFilterSearch"
                   [ngModelOptions]="{ standalone: true }"
                   (click)="$event.stopPropagation()"
@@ -427,11 +427,11 @@
               <mat-option disabled *ngIf="loadingTeams" class="dropdown-status-option">
                 <div class="dropdown-loading-wrap">
                   <mat-icon class="spin-icon">sync</mat-icon>
-                  <span>Loading teams...</span>
+                  <span>{{ terminology.loadingTeams }}</span>
                 </div>
               </mat-option>
               <mat-option disabled *ngIf="!loadingTeams && !filteredTeamsForFilter.length" class="dropdown-status-option">
-                <span>No teams found</span>
+                <span>{{ terminology.noTeamsFound }}</span>
               </mat-option>
               <mat-option *ngFor="let t of filteredTeamsForFilter; trackBy: trackById" [value]="t.id">{{
                 t.name
@@ -576,12 +576,12 @@
           </ng-container>
 
           <ng-container matColumnDef="department">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>Department</th>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ terminology.deptLabel }}</th>
             <td mat-cell *matCellDef="let u">{{ u.department || '—' }}</td>
           </ng-container>
 
           <ng-container matColumnDef="team">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>Team</th>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ terminology.teamLabel }}</th>
             <td mat-cell *matCellDef="let u">{{ u.team || '—' }}</td>
           </ng-container>
 
@@ -743,7 +743,7 @@
                   }}
                 </div>
 
-                <div class="label"><mat-icon>school</mat-icon> Department</div>
+                <div class="label"><mat-icon>school</mat-icon> {{ terminology.deptLabel }}</div>
                 <div class="value">
                   {{
                     selectedUser.department?.department_name ||
@@ -753,7 +753,7 @@
                   }}
                 </div>
 
-                <div class="label"><mat-icon>groups</mat-icon> Team</div>
+                <div class="label"><mat-icon>groups</mat-icon> {{ terminology.teamLabel }}</div>
                 <div class="value">
                   {{
                     selectedUser.team?.team_name ||

@@ -34,6 +34,10 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { forkJoin } from 'rxjs';
 import {
+  getInstituteTerminology,
+  InstituteTerminology,
+} from 'src/app/shared/services/institute-terminology.service';
+import {
   DateRangePickerDialogComponent,
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
@@ -282,6 +286,51 @@ export class AdminQuestionsComponent {
 
   get showLocationAndIndustryFilters(): boolean {
     return this.isSuperAdmin && !this.isGlobalInstituteActive;
+  }
+
+  get terminology(): InstituteTerminology {
+    let industry = this.filterIndustry || '';
+    if (!industry && this.selectedIndustries && this.selectedIndustries.length === 1) {
+      industry = this.selectedIndustries[0];
+    }
+    const instId =
+      this.filterInstituteId ||
+      (this.questions && this.questions[0] && this.questions[0].institute_id);
+    if (!industry && instId) {
+      const matched = (this.institutes || []).find(
+        (i: any) => String(i.institute_id) === String(instId)
+      );
+      if (matched?.industry_type) {
+        industry = matched.industry_type;
+      }
+    }
+    if (!industry && !this.isSuperAdmin && this.institutes && this.institutes.length === 1) {
+      industry = (this.institutes[0] as any)?.industry_type || '';
+    }
+    if (!industry) {
+      try {
+        const u = JSON.parse(
+          sessionStorage.getItem('user') ||
+            sessionStorage.getItem('user_profile') ||
+            sessionStorage.getItem('currentUser') ||
+            '{}'
+        );
+        industry = u?.industry_type || u?.industry || '';
+        if (!industry && (u?.institute_name || u?.institute)) {
+          const instName = String(u.institute_name || u.institute).toLowerCase();
+          if (instName.includes('college')) industry = 'College';
+          else if (instName.includes('school')) industry = 'School';
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    if (!industry) {
+      const storedInst = (sessionStorage.getItem('institute') || '').toLowerCase();
+      if (storedInst.includes('college')) industry = 'College';
+      else if (storedInst.includes('school')) industry = 'School';
+    }
+    return getInstituteTerminology(industry);
   }
 
   private apiUrl = `${API_BASE}/add-question`;
@@ -2163,13 +2212,13 @@ export class AdminQuestionsComponent {
         (id) =>
           this.departments.find((department) => String(department.id) === String(id))?.name || id
       );
-      chips.push({ key: 'department', label: `Department: ${names.join(', ')}`, removable: true });
+      chips.push({ key: 'department', label: `${this.terminology.deptLabel}: ${names.join(', ')}`, removable: true });
     }
     if (this.selectedTeams.length) {
       const names = this.selectedTeams.map(
         (id) => this.teams.find((team) => String(team.id) === String(id))?.name || id
       );
-      chips.push({ key: 'team', label: `Team: ${names.join(', ')}`, removable: true });
+      chips.push({ key: 'team', label: `${this.terminology.teamLabel}: ${names.join(', ')}`, removable: true });
     }
     const createdAfter = this.formatFilterDate(this.filterCreationDateAfter);
     const createdBefore = this.formatFilterDate(this.filterCreationDate);

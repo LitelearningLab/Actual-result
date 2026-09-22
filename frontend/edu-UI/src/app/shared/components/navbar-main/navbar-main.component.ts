@@ -13,6 +13,7 @@ import { APP_VERSION } from '../../../../environments/version';
 import { PageMetaService } from '../../services/page-meta.service';
 import { GlobalInstituteContextService } from '../../services/global-institute-context.service';
 import { SidenavService } from '../../services/sidenav.service';
+import { getInstituteTerminology, InstituteTerminology } from '../../services/institute-terminology.service';
 
 @Component({
   selector: 'app-navbar-main',
@@ -64,6 +65,36 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     } catch (e) { /* ignore */ }
     const role = String(this.userObj?.user_role || this.userObj?.role || sessionUserRole || this.userRole || sessionStorage.getItem('userRole') || '').toLowerCase().trim();
     return ['admin', 'super_admin', 'superadmin', 'super-admin'].some(r => role === r || role.includes(r));
+  }
+
+  get isSuperAdmin(): boolean {
+    let sessionUserRole = '';
+    try {
+      const rawUser = sessionStorage.getItem('user');
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        sessionUserRole = u?.role || u?.user_role || '';
+      }
+    } catch (e) { /* ignore */ }
+    const role = String(this.userObj?.user_role || this.userObj?.role || sessionUserRole || this.userRole || sessionStorage.getItem('userRole') || '').toLowerCase().trim();
+    return ['super_admin', 'superadmin', 'super-admin'].some(r => role === r || role.includes('super'));
+  }
+
+  get terminology(): InstituteTerminology {
+    const industryType = this.userObj?.industry_type || 
+                         this.userObj?.industry || 
+                         (this.globalInstituteContext?.activeInstitute as any)?.industry_type || 
+                         this.globalInstituteContext?.activeInstitute?.industry || 
+                         '';
+    return getInstituteTerminology(industryType);
+  }
+
+  get deptLabel(): string {
+    return this.isSuperAdmin ? 'Department' : this.terminology.deptLabel;
+  }
+
+  get teamLabel(): string {
+    return this.isSuperAdmin ? 'Team' : this.terminology.teamLabel;
   }
 
   userObj: any = (() => {

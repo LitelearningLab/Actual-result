@@ -38,6 +38,10 @@ import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
 import { DirectivesModule } from 'src/app/shared/directives/directives.module';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import { Subscription, forkJoin } from 'rxjs';
+import {
+  getInstituteTerminology,
+  InstituteTerminology,
+} from 'src/app/shared/services/institute-terminology.service';
 
 import {
   DateRangePickerDialogComponent,
@@ -74,11 +78,19 @@ import {
   styleUrls: ['./exams.component.scss'],
 })
 export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
-  institutes: Array<{ institute_name: string; short_name: string; institute_id?: string }> = [];
+  institutes: Array<{
+    institute_name: string;
+    short_name: string;
+    institute_id?: string;
+    industry_type?: string;
+    industry_sector?: string;
+  }> = [];
   private allInstitutes: Array<{
     institute_name: string;
     short_name: string;
     institute_id?: string;
+    industry_type?: string;
+    industry_sector?: string;
   }> = [];
   selectedInstitute = '';
   selectedInstitutes: string[] = [];
@@ -194,6 +206,62 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       });
       this.isGlobalInstituteActive = this.globalInstituteContext.isGlobalFilterActive();
     } catch (e) {}
+  }
+
+  get terminology(): InstituteTerminology {
+    let industry = this.filterIndustry || '';
+    if (!industry && this.selectedIndustries && this.selectedIndustries.length === 1) {
+      industry = this.selectedIndustries[0];
+    }
+    if (!industry && this.selectedInstitutes && this.selectedInstitutes.length) {
+      const matched = this.institutes.find(
+        (i) => i.institute_id && this.selectedInstitutes.includes(i.institute_id)
+      );
+      if (matched?.industry_type) {
+        industry = matched.industry_type;
+      }
+    }
+    if (!industry && this.selectedInstitute) {
+      const matched = this.institutes.find(
+        (i) => String(i.institute_id) === String(this.selectedInstitute)
+      );
+      if (matched?.industry_type) {
+        industry = matched.industry_type;
+      }
+    }
+    if (!industry && !this.isSuperAdmin && this.institutes && this.institutes.length === 1) {
+      industry = this.institutes[0].industry_type || '';
+    }
+    if (!industry) {
+      const ctxInst: any = this.globalInstituteContext?.activeInstitute;
+      if (ctxInst?.industry_type || ctxInst?.industry) {
+        industry = ctxInst.industry_type || ctxInst.industry;
+      }
+    }
+    if (!industry) {
+      try {
+        const u = JSON.parse(
+          sessionStorage.getItem('user') ||
+            sessionStorage.getItem('user_profile') ||
+            sessionStorage.getItem('currentUser') ||
+            '{}'
+        );
+        industry = u?.industry_type || u?.industry || '';
+        if (!industry && (u?.institute_name || u?.institute)) {
+          const instName = String(u.institute_name || u.institute).toLowerCase();
+          if (instName.includes('college')) industry = 'College';
+          else if (instName.includes('school')) industry = 'School';
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    if (!industry) {
+      const storedInst = (sessionStorage.getItem('institute') || '').toLowerCase();
+      if (storedInst.includes('college')) industry = 'College';
+      else if (storedInst.includes('school')) industry = 'School';
+    }
+    return getInstituteTerminology(industry);
   }
 
   get filteredInstitutesForFilter(): Array<{
@@ -932,6 +1000,8 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
             institute_name: r.institute_name || r.name || r.short_name || '',
             short_name: r.short_name || r.institute_name || r.name || '',
             institute_id: r.institute_id || r.id || r._id || '',
+            industry_type: r.industry_type || r.industry || '',
+            industry_sector: r.industry_sector || r.sector || '',
           }))
           .filter((i: any) => !!i.institute_id);
         this.allInstitutes = [...this.institutes];
@@ -1176,14 +1246,14 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     (this.selectedDepartments || []).forEach((id) =>
       chips.push({
         key: `department:${id}`,
-        label: `Department: ${this.getSelectedName(this.departments, id)}`,
+        label: `${this.terminology.deptLabel}: ${this.getSelectedName(this.departments, id)}`,
         removable: true,
       })
     );
     (this.selectedTeams || []).forEach((id) =>
       chips.push({
         key: `team:${id}`,
-        label: `Team: ${this.getSelectedName(this.teams, id)}`,
+        label: `${this.terminology.teamLabel}: ${this.getSelectedName(this.teams, id)}`,
         removable: true,
       })
     );
@@ -1778,6 +1848,8 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
             institute_name: r.institute_name || r.name || r.short_name || '',
             short_name: r.short_name || r.institute_name || r.name || '',
             institute_id: r.institute_id,
+            industry_type: r.industry_type || r.industry || '',
+            industry_sector: r.industry_sector || r.sector || '',
           }));
           this.allInstitutes = [...this.institutes];
           // If a selectedInstitute is already set (e.g. via route/session), prefer that

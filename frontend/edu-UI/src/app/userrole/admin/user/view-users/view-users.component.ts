@@ -38,6 +38,7 @@ import { PortalModule } from '@angular/cdk/portal';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -153,14 +154,48 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   departmentFilterSearch = '';
   teamFilterSearch = '';
 
-  get isSchool(): boolean {
-    if (this.selectedIndustries && this.selectedIndustries.includes('School')) return true;
-    if (this.filters?.industry === 'School') return true;
-    if (this.selectedInstitutes && this.selectedInstitutes.length && this.institutes && this.institutes.length) {
-      const selInsts = this.institutes.filter((i: any) => this.selectedInstitutes.includes(i.institute_id || i.id));
-      if (selInsts.some((i: any) => i.industry_type === 'School' || i.industry === 'School')) return true;
+  get terminology(): InstituteTerminology {
+    if (this.selectedIndustries && this.selectedIndustries.length === 1) {
+      return getInstituteTerminology(this.selectedIndustries[0]);
     }
-    return false;
+    if (this.filters?.industry) {
+      return getInstituteTerminology(this.filters.industry);
+    }
+    const selIds = (this.selectedInstitutes && this.selectedInstitutes.length)
+      ? this.selectedInstitutes
+      : (this.selectedInstitute ? [this.selectedInstitute] : (this.filters.institute ? [this.filters.institute] : []));
+
+    if (selIds.length && this.institutes && this.institutes.length) {
+      const selInsts = this.institutes.filter((i: any) => selIds.includes(String(i.institute_id || i.id)));
+      const types = selInsts.map((i: any) => i.industry_type || i.industry || '').filter(Boolean);
+      if (types.length) {
+        const first = types[0].toLowerCase();
+        if (types.every((t: string) => t.toLowerCase() === first)) {
+          return getInstituteTerminology(types[0]);
+        }
+      }
+    }
+    const loggedInstId = this.isGlobalInstituteActive
+      ? (this.globalInstituteContext.activeInstituteId || '')
+      : (sessionStorage.getItem('global_institute_id') || sessionStorage.getItem('institute_id') || '');
+    if (loggedInstId && this.institutes && this.institutes.length) {
+      const inst: any = this.institutes.find((i: any) => String(i.institute_id || i.id) === String(loggedInstId));
+      if (inst && (inst.industry_type || inst.industry)) {
+        return getInstituteTerminology(inst.industry_type || inst.industry);
+      }
+    }
+    try {
+      const u = JSON.parse(sessionStorage.getItem('user') || sessionStorage.getItem('user_profile') || '{}');
+      if (u?.industry_type || u?.industry) return getInstituteTerminology(u.industry_type || u.industry);
+      const instName = String(u?.institute_name || u?.institute || sessionStorage.getItem('institute') || '').toLowerCase();
+      if (instName.includes('college')) return getInstituteTerminology('College');
+      if (instName.includes('school')) return getInstituteTerminology('School');
+    } catch (e) {}
+    return getInstituteTerminology('');
+  }
+
+  get isSchool(): boolean {
+    return this.terminology.isSchool;
   }
 
   loadingInstitutes = false;
@@ -1241,7 +1276,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           .filter(Boolean);
         chips.push({
           key: 'department',
-          label: `Departments: ${labels.join(', ')}`,
+          label: `${this.terminology.deptPlural}: ${labels.join(', ')}`,
           removable: true,
         });
       }
@@ -1251,7 +1286,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         const labels = this.filters.team
           .map((id: any) => this.getSelectedName(this.teams, id))
           .filter(Boolean);
-        chips.push({ key: 'team', label: `Teams: ${labels.join(', ')}`, removable: true });
+        chips.push({ key: 'team', label: `${this.terminology.teamPlural}: ${labels.join(', ')}`, removable: true });
       }
 
       // Campus Chip
@@ -1790,6 +1825,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           institute_id: i.institute_id || i.id || i._id || '',
           institute_name: i.institute_name || i.name || i.short_name || '',
           short_name: i.short_name || i.institute_name || i.name || '',
+          industry_type: i.industry_type || i.industry || '',
+          industry_sector: i.industry_sector || i.sector || '',
         }));
         try {
           if (this.selectedInstitute) {

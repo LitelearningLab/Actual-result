@@ -41,6 +41,7 @@ import {
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
+import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
 
 @Component({
   selector: 'app-category',
@@ -88,6 +89,42 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
   instituteFilterSearch = '';
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
+
+  get terminology(): InstituteTerminology {
+    if (this.filterIndustry) {
+      return getInstituteTerminology(this.filterIndustry);
+    }
+    const selIds = (this.selectedInstitutes && this.selectedInstitutes.length) 
+      ? this.selectedInstitutes 
+      : (this.selectedInstitute ? [this.selectedInstitute] : []);
+    if (selIds.length && this.institutes && this.institutes.length) {
+      const selInsts = this.institutes.filter((i: any) => selIds.includes(String(i.institute_id || i.id)));
+      const types = selInsts.map((i: any) => i.industry_type || i.industry || '').filter(Boolean);
+      if (types.length) {
+        const first = types[0].toLowerCase();
+        if (types.every((t: string) => t.toLowerCase() === first)) {
+          return getInstituteTerminology(types[0]);
+        }
+      }
+    }
+    const loggedInstId = this.isGlobalInstituteActive
+      ? (this.globalInstituteContext.activeInstituteId || '')
+      : (sessionStorage.getItem('global_institute_id') || sessionStorage.getItem('institute_id') || '');
+    if (loggedInstId && this.institutes && this.institutes.length) {
+      const inst: any = this.institutes.find((i: any) => String(i.institute_id || i.id) === String(loggedInstId));
+      if (inst && (inst.industry_type || inst.industry)) {
+        return getInstituteTerminology(inst.industry_type || inst.industry);
+      }
+    }
+    try {
+      const u = JSON.parse(sessionStorage.getItem('user') || sessionStorage.getItem('user_profile') || '{}');
+      if (u?.industry_type || u?.industry) return getInstituteTerminology(u.industry_type || u.industry);
+      const instName = String(u?.institute_name || u?.institute || sessionStorage.getItem('institute') || '').toLowerCase();
+      if (instName.includes('college')) return getInstituteTerminology('College');
+      if (instName.includes('school')) return getInstituteTerminology('School');
+    } catch (e) {}
+    return getInstituteTerminology('');
+  }
   // location / industry filters that scope the Institute list (mirrors view-institutes.component.ts cascade)
   filterCountry: string = '';
   filterCity: string = '';
@@ -684,14 +721,14 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     (this.selectedDepartments || []).forEach((id) =>
       chips.push({
         key: `department:${id}`,
-        label: `Department: ${this.getSelectedName(this.departments, id)}`,
+        label: `${this.terminology.deptLabel}: ${this.getSelectedName(this.departments, id)}`,
         removable: true,
       })
     );
     (this.selectedTeams || []).forEach((id) =>
       chips.push({
         key: `team:${id}`,
-        label: `Team: ${this.getSelectedName(this.teams, id)}`,
+        label: `${this.terminology.teamLabel}: ${this.getSelectedName(this.teams, id)}`,
         removable: true,
       })
     );
@@ -923,6 +960,8 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
             institute_id: i.institute_id || i.id || i.instituteId || null,
             institute_name: i.institute_name || i.name || i.short_name || '',
             short_name: i.short_name || i.institute_name || i.name || '',
+            industry_type: i.industry_type || i.industry || '',
+            industry_sector: i.industry_sector || i.sector || '',
           }))
           .filter((i: any) => !!i.institute_id);
         this.institutes = [...this.allInstitutes];

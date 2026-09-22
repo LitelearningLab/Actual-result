@@ -18,6 +18,7 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { FormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
 
 @Component({
   selector: 'app-category-create',
@@ -71,6 +72,18 @@ export class CategoryCreateComponent {
   selectedInstitutes: string[] = [];
   selectedInstitute: string = '';
   instituteFilterSearch = '';
+
+  get terminology(): InstituteTerminology {
+    let ind = '';
+    const instId = this.institute || (this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes[0] : '');
+    if (instId && this.institutesList && this.institutesList.length) {
+      const inst = this.institutesList.find((i: any) => String(i.id) === String(instId));
+      if (inst && (inst.industry || (inst as any).industry_type)) {
+        ind = inst.industry || (inst as any).industry_type;
+      }
+    }
+    return getInstituteTerminology(ind);
+  }
 
   selectedCountries: string[] = [];
   countrySearch = '';

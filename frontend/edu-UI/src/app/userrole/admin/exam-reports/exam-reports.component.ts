@@ -27,6 +27,10 @@ import { SharedModule } from 'src/app/shared/shared.module';
 import { ActivatedRoute } from '@angular/router';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import { AuthService } from 'src/app/home/service/auth.service';
+import {
+  getInstituteTerminology,
+  InstituteTerminology,
+} from 'src/app/shared/services/institute-terminology.service';
 
 @Component({
   selector: 'app-exam-reports',
@@ -561,6 +565,53 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }> = [];
   selectedInstituteId: string | null = null;
   selectedInstitutes: string[] = [];
+
+  get terminology(): InstituteTerminology {
+    let industry = this.userFilters?.industry || '';
+    const instId = this.selectedInstituteId || this.userFilters?.institute_id || '';
+    if (!industry && instId) {
+      const matched = (this.institutes || []).find(
+        (i: any) => String(i.id) === String(instId)
+      );
+      if (matched?.industry_type) {
+        industry = matched.industry_type;
+      }
+    }
+    if (!industry && !this.isSuperAdmin && this.institutes && this.institutes.length === 1) {
+      industry = (this.institutes[0] as any)?.industry_type || '';
+    }
+    if (!industry) {
+      const ctxInst: any = this.globalContextService?.activeInstitute;
+      if (ctxInst?.industry_type || ctxInst?.industry) {
+        industry = ctxInst.industry_type || ctxInst.industry;
+      }
+    }
+    if (!industry) {
+      try {
+        const u = JSON.parse(
+          sessionStorage.getItem('user') ||
+            sessionStorage.getItem('user_profile') ||
+            sessionStorage.getItem('currentUser') ||
+            '{}'
+        );
+        industry = u?.industry_type || u?.industry || '';
+        if (!industry && (u?.institute_name || u?.institute)) {
+          const instName = String(u.institute_name || u.institute).toLowerCase();
+          if (instName.includes('college')) industry = 'College';
+          else if (instName.includes('school')) industry = 'School';
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    if (!industry) {
+      const storedInst = (sessionStorage.getItem('institute') || '').toLowerCase();
+      if (storedInst.includes('college')) industry = 'College';
+      else if (storedInst.includes('school')) industry = 'School';
+    }
+    return getInstituteTerminology(industry);
+  }
+
   instituteFilterSearch = '';
   departmentFilterSearch = '';
   teamFilterSearch = '';

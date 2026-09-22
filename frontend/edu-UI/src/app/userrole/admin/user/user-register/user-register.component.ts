@@ -22,6 +22,7 @@ import { RouterModule } from '@angular/router';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
+import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
 import * as XLSX from 'xlsx';
 
 @Component({
@@ -75,7 +76,19 @@ export class AdminUserRegisterComponent implements OnInit {
     const instituteName = (selectedInstitute?.name || (typeof selectedInstituteId === 'string' ? selectedInstituteId : '') || '').trim().toLowerCase();
     return instituteName.includes('profluent');
   }
-  institutes: Array<{ id: string; name: string }> = [];
+  institutes: Array<{ id: string; name: string; industry_type?: string; industry_sector?: string }> = [];
+
+  get terminology(): InstituteTerminology {
+    const selectedInstituteId = this.form?.get('institute')?.value || this.bulkInstitute || this.loggedInstitute;
+    let industryType = '';
+    if (selectedInstituteId && this.institutes && this.institutes.length) {
+      const inst = this.institutes.find(i => String(i.id) === String(selectedInstituteId) || String(i.name) === String(selectedInstituteId));
+      if (inst && inst.industry_type) {
+        industryType = inst.industry_type;
+      }
+    }
+    return getInstituteTerminology(industryType);
+  }
   loadingInstitutes = false;
   submitting = false;
   // campus & location lists
@@ -440,6 +453,9 @@ export class AdminUserRegisterComponent implements OnInit {
       }, { emitEvent: false });
       this.departments = [];
       this.teams = [];
+      this.departmentSearch = '';
+      this.teamSearch = '';
+      this.form.get('team')?.disable({ emitEvent: false });
       this.campuses = [];
       this.countries = [];
       this.states = [];
@@ -842,7 +858,12 @@ export class AdminUserRegisterComponent implements OnInit {
       next: (res) => {
         try {
           const data = res?.data || [];
-          this.institutes = data.map((i: any) => ({ id: i.institute_id, name: i.name || i.institute_name || i.short_name || '' }));
+          this.institutes = data.map((i: any) => ({
+            id: i.institute_id,
+            name: i.name || i.institute_name || i.short_name || '',
+            industry_type: i.industry_type || i.industry || '',
+            industry_sector: i.industry_sector || i.sector || ''
+          }));
         } catch (e) { this.institutes = []; }
         this.loadingInstitutes = false;
         this.loader.hide();

@@ -49,6 +49,10 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import { getLocaleDateFormat } from 'src/app/shared/date/localized-date-adapter';
+import {
+  getInstituteTerminology,
+  InstituteTerminology,
+} from 'src/app/shared/services/institute-terminology.service';
 
 import {
   CountryTimezoneRecord,
@@ -100,8 +104,63 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
   @ViewChild('testInput') testInput?: ElementRef<HTMLInputElement>;
   isGlobalInstituteActive = false;
   private _globalInstituteSub?: Subscription;
-  // institute list will be fetched from backend
-  institutes: Array<{ name: string; institute_id?: string; short_name?: string }> = [];
+  institutes: Array<{
+    name: string;
+    institute_id?: string;
+    short_name?: string;
+    industry_type?: string;
+    industry_sector?: string;
+  }> = [];
+
+  get terminology(): InstituteTerminology {
+    let industry = this.filterIndustry || '';
+    const instId =
+      this.model?.institute ||
+      this.filterInstitute ||
+      this.getAdminInstituteId() ||
+      '';
+    if (!industry && instId) {
+      const matched = (this.institutes || []).find(
+        (i: any) => String(i.institute_id) === String(instId)
+      );
+      if (matched?.industry_type) {
+        industry = matched.industry_type;
+      }
+    }
+    if (!industry && !this.isSuperAdmin && this.institutes && this.institutes.length === 1) {
+      industry = this.institutes[0].industry_type || '';
+    }
+    if (!industry) {
+      const ctxInst: any = this.globalInstituteContext?.activeInstitute;
+      if (ctxInst?.industry_type || ctxInst?.industry) {
+        industry = ctxInst.industry_type || ctxInst.industry;
+      }
+    }
+    if (!industry) {
+      try {
+        const u = JSON.parse(
+          sessionStorage.getItem('user') ||
+            sessionStorage.getItem('user_profile') ||
+            sessionStorage.getItem('currentUser') ||
+            '{}'
+        );
+        industry = u?.industry_type || u?.industry || '';
+        if (!industry && (u?.institute_name || u?.institute)) {
+          const instName = String(u.institute_name || u.institute).toLowerCase();
+          if (instName.includes('college')) industry = 'College';
+          else if (instName.includes('school')) industry = 'School';
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    if (!industry) {
+      const storedInst = (sessionStorage.getItem('institute') || '').toLowerCase();
+      if (storedInst.includes('college')) industry = 'College';
+      else if (storedInst.includes('school')) industry = 'School';
+    }
+    return getInstituteTerminology(industry);
+  }
   // autocomplete controls for institute/exam
   instituteCtrl: FormControl = new FormControl('');
   private institutesSubject = new BehaviorSubject<
@@ -2424,6 +2483,8 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
               name: r.name || r.institute_name || r.short_name || '',
               short_name: r.short_name || r.name || r.institute_name || '',
               institute_id: r.institute_id,
+              industry_type: r.industry_type || r.industry || '',
+              industry_sector: r.industry_sector || r.sector || '',
             }));
             this.institutesSubject.next(this.institutes);
             this.updateAvailableTimezones();

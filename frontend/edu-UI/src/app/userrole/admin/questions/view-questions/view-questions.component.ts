@@ -45,8 +45,12 @@ import {
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
-import { notify } from 'src/app/shared/global-notify';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { notify } from 'src/app/shared/global-notify';
+import {
+  getInstituteTerminology,
+  InstituteTerminology,
+} from 'src/app/shared/services/institute-terminology.service';
 
 export type QuestionType = 'MCQ' | 'Subjective';
 
@@ -103,8 +107,18 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   // currently selected question for the details modal
   viewedQuestion: any = null;
   filter = '';
-  institutes: Array<{ name: string; institute_id?: string }> = [];
-  private allInstitutes: Array<{ name: string; institute_id?: string }> = [];
+  institutes: Array<{
+    name: string;
+    institute_id?: string;
+    industry_type?: string;
+    industry_sector?: string;
+  }> = [];
+  private allInstitutes: Array<{
+    name: string;
+    institute_id?: string;
+    industry_type?: string;
+    industry_sector?: string;
+  }> = [];
   exams: Array<{ title: string; exam_id?: string }> = [];
   selectedInstitute = '';
   selectedInstitutes: string[] = [];
@@ -119,6 +133,55 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   get isInstituteSelected(): boolean {
     if (!this.isSuperAdmin) return true;
     return !!this.getScopedInstituteId();
+  }
+
+  get terminology(): InstituteTerminology {
+    let industry = this.filterIndustry || '';
+    if (!industry && this.selectedIndustries && this.selectedIndustries.length === 1) {
+      industry = this.selectedIndustries[0];
+    }
+    const scopedInstId = this.getScopedInstituteId();
+    if (!industry && scopedInstId) {
+      const matched = (this.institutes || []).find(
+        (i: any) => String(i.institute_id) === String(scopedInstId)
+      );
+      if (matched?.industry_type) {
+        industry = matched.industry_type;
+      }
+    }
+    if (!industry && !this.isSuperAdmin && this.institutes && this.institutes.length === 1) {
+      industry = (this.institutes[0] as any)?.industry_type || '';
+    }
+    if (!industry) {
+      const ctxInst: any = this.globalInstituteContext?.activeInstitute;
+      if (ctxInst?.industry_type || ctxInst?.industry) {
+        industry = ctxInst.industry_type || ctxInst.industry;
+      }
+    }
+    if (!industry) {
+      try {
+        const u = JSON.parse(
+          sessionStorage.getItem('user') ||
+            sessionStorage.getItem('user_profile') ||
+            sessionStorage.getItem('currentUser') ||
+            '{}'
+        );
+        industry = u?.industry_type || u?.industry || '';
+        if (!industry && (u?.institute_name || u?.institute)) {
+          const instName = String(u.institute_name || u.institute).toLowerCase();
+          if (instName.includes('college')) industry = 'College';
+          else if (instName.includes('school')) industry = 'School';
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    if (!industry) {
+      const storedInst = (sessionStorage.getItem('institute') || '').toLowerCase();
+      if (storedInst.includes('college')) industry = 'College';
+      else if (storedInst.includes('school')) industry = 'School';
+    }
+    return getInstituteTerminology(industry);
   }
 
   instituteSearch = '';
@@ -811,14 +874,14 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     (this.selectedDepartments || []).forEach((id) =>
       chips.push({
         key: `department:${id}`,
-        label: `Department: ${this.getSelectedName(this.departments, id)}`,
+        label: `${this.terminology.deptLabel}: ${this.getSelectedName(this.departments, id)}`,
         removable: true,
       })
     );
     (this.selectedTeams || []).forEach((id) =>
       chips.push({
         key: `team:${id}`,
-        label: `Team: ${this.getSelectedName(this.teams, id)}`,
+        label: `${this.terminology.teamLabel}: ${this.getSelectedName(this.teams, id)}`,
         removable: true,
       })
     );
@@ -1115,6 +1178,8 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         this.institutes = arr.map((r: any) => ({
           name: r.institute_name || r.name || r.short_name || '',
           institute_id: r.institute_id || r.id,
+          industry_type: r.industry_type || r.industry || '',
+          industry_sector: r.industry_sector || r.sector || '',
         }));
         this.allInstitutes = [...this.institutes];
         // If a selectedInstitute is already set (e.g. via route/session), prefer that
@@ -1628,6 +1693,8 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
           .map((r: any) => ({
             name: r.institute_name || r.name || r.short_name || '',
             institute_id: r.institute_id || r.id || r._id || '',
+            industry_type: r.industry_type || r.industry || '',
+            industry_sector: r.industry_sector || r.sector || '',
           }))
           .filter((i: any) => !!i.institute_id);
 

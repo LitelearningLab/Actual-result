@@ -37,6 +37,7 @@ import {
   DateRangePickerDialogComponent,
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
+import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
 
 @Component({
   selector: 'app-create-exam',
@@ -71,7 +72,19 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   passMark: number | null = 50;
   startDateTime = '';
   numberOfAttempts: number | null = 1;
-  institutes: Array<{ id: string; name: string }> = [];
+  institutes: Array<{ id: string; name: string; industry_type?: string; industry_sector?: string }> = [];
+
+  get terminology(): InstituteTerminology {
+    let ind = '';
+    const instId = this.institute;
+    if (instId && this.institutes && this.institutes.length) {
+      const inst = this.institutes.find((i: any) => String(i.id) === String(instId));
+      if (inst && (inst.industry_type || (inst as any).industry)) {
+        ind = inst.industry_type || (inst as any).industry;
+      }
+    }
+    return getInstituteTerminology(ind);
+  }
   departmentFilterSearch = '';
   teamFilterSearch = '';
   // categories UI model
@@ -839,6 +852,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         this.institutes = arr.map((r: any) => ({
           id: String(r.institute_id || r.id || r.instituteId || ''),
           name: r.name || r.institute_name || r.short_name || '',
+          industry_type: r.industry_type || r.industry || '',
+          industry_sector: r.industry_sector || r.sector || '',
         }));
 
         // If an institute is already selected (from edit payload or elsewhere), try to reconcile
