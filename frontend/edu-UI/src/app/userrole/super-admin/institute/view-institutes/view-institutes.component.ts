@@ -163,9 +163,6 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
   selectedDetailTabIndex: number = 0;
   instituteSubjects: any[] = [];
   loadingSubjects: boolean = false;
-  showAddSubjectModal: boolean = false;
-  newSubjectName: string = '';
-  savingSubject: boolean = false;
 
   get isSelectedInstituteSchool(): boolean {
     return this.selectedInstitute?.industry_type === 'School';
@@ -1463,10 +1460,6 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     }
   }
 
-  manageSubjectsForInstitute(i: Institute) {
-    this.viewDetails(i, 4);
-  }
-
   loadInstituteSubjects(instId: string) {
     if (!instId) return;
     this.loadingSubjects = true;
@@ -1480,98 +1473,6 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
         this.instituteSubjects = [];
         console.error('Failed to load subjects for institute', err);
       }
-    });
-  }
-
-  openAddSubjectModal() {
-    this.newSubjectName = '';
-    this.showAddSubjectModal = true;
-  }
-
-  closeAddSubjectModal() {
-    this.showAddSubjectModal = false;
-    this.newSubjectName = '';
-    this.savingSubject = false;
-  }
-
-  saveSubject() {
-    const name = (this.newSubjectName || '').trim();
-    if (!name) {
-      try { notify('Please enter a subject name.', 'info'); } catch(e){}
-      return;
-    }
-    const instId = this.selectedInstitute?.institute_id || this.selectedInstitute?.id;
-    if (!instId) {
-      try { notify('Institute not found.', 'error'); } catch(e){}
-      return;
-    }
-
-    this.savingSubject = true;
-    this.http.post<any>(`${API_BASE}/add-subject`, {
-      institute_id: String(instId),
-      subject_name: name
-    }).subscribe({
-      next: (res) => {
-        this.savingSubject = false;
-        try { notify(res?.statusMessage || 'Subject added successfully', 'success'); } catch(e){}
-        this.closeAddSubjectModal();
-        this.loadInstituteSubjects(String(instId));
-      },
-      error: (err) => {
-        this.savingSubject = false;
-        const msg = err?.error?.statusMessage || err?.message || 'Failed to add subject';
-        try { notify(msg, 'error'); } catch(e){}
-      }
-    });
-  }
-
-  toggleSubjectActive(subj: any) {
-    if (!subj || !subj.id) return;
-    const previous = subj.active;
-    const newActive = !previous;
-    subj.active = newActive;
-    subj.active_status = newActive ? 1 : 0;
-
-    this.http.put<any>(`${API_BASE}/update-subject/${subj.id}`, {
-      active: newActive
-    }).subscribe({
-      next: (res) => {
-        try { notify(res?.statusMessage || `Subject set to ${newActive ? 'active' : 'inactive'}`, 'success'); } catch(e){}
-      },
-      error: (err) => {
-        subj.active = previous;
-        subj.active_status = previous ? 1 : 0;
-        const msg = err?.error?.statusMessage || 'Failed to update subject status';
-        try { notify(msg, 'error'); } catch(e){}
-      }
-    });
-  }
-
-  deleteSubject(subj: any) {
-    if (!subj || !subj.id) return;
-    const subjectName = subj.name || subj.subject_name || 'this subject';
-    this.confirmService.confirm({
-      title: 'Delete Subject',
-      message: `Are you sure you want to delete "${subjectName}"?`,
-      confirmText: 'Delete',
-      cancelText: 'Cancel'
-    }).subscribe((confirmed: boolean) => {
-      if (!confirmed) return;
-      const instId = this.selectedInstitute?.institute_id || this.selectedInstitute?.id;
-      this.http.delete<any>(`${API_BASE}/delete-subject/${subj.id}`).subscribe({
-        next: (res) => {
-          try { notify(res?.statusMessage || 'Subject deleted successfully', 'success'); } catch(e){}
-          if (instId) {
-            this.loadInstituteSubjects(String(instId));
-          } else {
-            this.instituteSubjects = this.instituteSubjects.filter(s => s.id !== subj.id);
-          }
-        },
-        error: (err) => {
-          const msg = err?.error?.statusMessage || 'Failed to delete subject';
-          try { notify(msg, 'error'); } catch(e){}
-        }
-      });
     });
   }
 
@@ -1790,8 +1691,6 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     this.editing = false;
     this.editableInstitute = null;
     this.instituteSubjects = [];
-    this.showAddSubjectModal = false;
-    this.newSubjectName = '';
   }
 
   saveEdit() {

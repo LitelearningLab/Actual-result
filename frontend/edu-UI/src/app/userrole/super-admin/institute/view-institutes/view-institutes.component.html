@@ -484,15 +484,6 @@
               >
                 <mat-icon svgIcon="view"></mat-icon>
               </button>
-              <button
-                mat-icon-button
-                aria-label="Subject Management"
-                (click)="manageSubjectsForInstitute(u)"
-                title="Subject Management"
-                class="subjects-btn"
-              >
-                <mat-icon>menu_book</mat-icon>
-              </button>
               <button mat-icon-button class="delete-btn" (click)="confirmDelete(u)" title="Delete">
                 <mat-icon svgIcon="delete"></mat-icon>
               </button>
@@ -742,15 +733,6 @@
                   </span>
                 </ng-template>
                 <div class="view-subjects-container">
-                  <div class="subjects-toolbar">
-                    <div class="subjects-toolbar-title">
-                      <mat-icon style="color: #6366f1;">menu_book</mat-icon>
-                      <span>Institute Subjects</span>
-                    </div>
-                    <button mat-flat-button color="primary" class="add-subject-btn" (click)="openAddSubjectModal()">
-                      <mat-icon>add</mat-icon> Add Subject
-                    </button>
-                  </div>
 
                   <div *ngIf="loadingSubjects" class="subjects-loading-state">
                     <mat-icon class="rotating-spinner" style="font-size: 20px; width: 20px; height: 20px;">sync</mat-icon>
@@ -759,10 +741,7 @@
 
                   <div *ngIf="!loadingSubjects && instituteSubjects.length === 0" class="subjects-empty-state">
                     <mat-icon style="font-size: 40px; width: 40px; height: 40px; color: #94a3b8;">menu_book</mat-icon>
-                    <p style="margin: 8px 0 16px; color: #64748b; font-size: 13px;">No subjects added yet for this institute.</p>
-                    <button mat-stroked-button color="primary" (click)="openAddSubjectModal()">
-                      <mat-icon>add</mat-icon> Add First Subject
-                    </button>
+                    <p style="margin: 8px 0 0; color: #64748b; font-size: 13px;">No subjects added yet for this institute.</p>
                   </div>
 
                   <div *ngIf="!loadingSubjects && instituteSubjects.length > 0" class="subjects-table-wrapper">
@@ -772,7 +751,6 @@
                           <th style="width: 50px;">#</th>
                           <th>Subject Name</th>
                           <th style="width: 120px; text-align: center;">Status</th>
-                          <th style="width: 80px; text-align: center;">Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -780,22 +758,12 @@
                           <td style="color: #94a3b8; font-weight: 500;">{{ idx + 1 }}</td>
                           <td style="font-weight: 600; color: #1e293b;">{{ subj.name || subj.subject_name }}</td>
                           <td style="text-align: center;">
-                            <button
-                              type="button"
-                              role="switch"
-                              [attr.aria-checked]="subj.active ? 'true' : 'false'"
-                              [attr.data-state]="subj.active ? 'checked' : 'unchecked'"
-                              (click)="toggleSubjectActive(subj)"
-                              title="Toggle active status"
-                              class="custom-toggle peer inline-flex"
-                            >
-                              <span class="toggle-thumb" [attr.data-state]="subj.active ? 'checked' : 'unchecked'"></span>
-                            </button>
-                          </td>
-                          <td style="text-align: center;">
-                            <button mat-icon-button color="warn" (click)="deleteSubject(subj)" title="Delete subject" class="delete-btn">
-                              <mat-icon svgIcon="delete"></mat-icon>
-                            </button>
+                            <span class="cell-badge cell-badge--teal" *ngIf="subj.active !== false && subj.active_status !== 0">
+                              Active
+                            </span>
+                            <span class="cell-badge cell-badge--muted" *ngIf="subj.active === false || subj.active_status === 0">
+                              Inactive
+                            </span>
                           </td>
                         </tr>
                       </tbody>
@@ -844,41 +812,6 @@
     </div>
   </div>
 
-  <!-- ── Add Subject Modal ── -->
-  <div class="modal-backdrop sub-modal-backdrop" *ngIf="showAddSubjectModal" style="z-index: 1050;">
-    <div class="modal sub-modal" style="max-width: 480px; width: 90%; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);" (click)="$event.stopPropagation()">
-      <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding: 1rem 1.5rem;">
-        <div class="modal-header-left">
-          <div class="modal-header-text">
-            <h2 class="modal-inst-name" style="font-size: 1.15rem; font-weight: 600; margin: 0; color: #0f172a;">Add Subject</h2>
-            <p style="margin: 0.2rem 0 0; font-size: 0.8rem; color: #64748b;">
-              Institute: {{ selectedInstitute?.name }}
-            </p>
-          </div>
-        </div>
-      </div>
-      <div class="modal-body" style="padding: 1.5rem 1.5rem 0.75rem;">
-        <mat-form-field appearance="outline" style="width: 100%;">
-          <mat-label>Subject Name <span class="required-star" style="color: #ef4444;">*</span></mat-label>
-          <input
-            matInput
-            [(ngModel)]="newSubjectName"
-            placeholder="Enter subject name"
-            (keydown.enter)="saveSubject()"
-            autocomplete="off"
-          />
-        </mat-form-field>
-      </div>
-      <div class="modal-actions" style="padding: 0.75rem 1.5rem 1.25rem; display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid #f1f5f9;">
-        <button mat-button type="button" (click)="closeAddSubjectModal()" class="modal-btn-close">
-          Cancel
-        </button>
-        <button mat-flat-button color="primary" type="button" (click)="saveSubject()" [disabled]="!newSubjectName?.trim() || savingSubject">
-          <mat-icon *ngIf="savingSubject" class="rotating-spinner">sync</mat-icon>
-          <span>Save Subject</span>
-        </button>
-      </div>
-    </div>
-  </div>
+
 </div>
 
