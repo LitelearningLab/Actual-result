@@ -102,18 +102,7 @@
         </div>
       </div>
 
-      <!-- 👥 Team -->
-      <div class="profile-info-row">
-        <div class="profile-row-icon-wrap">
-          <mat-icon fontSet="material-icons-outlined">groups</mat-icon>
-        </div>
-        <div class="profile-row-content">
-          <span class="profile-row-label">{{ teamLabel }}</span>
-          <span class="profile-row-value" [title]="teamDisplay">{{ teamDisplay }}</span>
-        </div>
-      </div>
-
-      <!-- 🎓 Department -->
+      <!-- 🎓 Department / Class -->
       <div class="profile-info-row">
         <div class="profile-row-icon-wrap">
           <mat-icon fontSet="material-icons-outlined">school</mat-icon>
@@ -121,6 +110,17 @@
         <div class="profile-row-content">
           <span class="profile-row-label">{{ deptLabel }}</span>
           <span class="profile-row-value" [title]="departmentDisplay">{{ departmentDisplay }}</span>
+        </div>
+      </div>
+
+      <!-- 👥 Team / Section / Year -->
+      <div class="profile-info-row">
+        <div class="profile-row-icon-wrap">
+          <mat-icon fontSet="material-icons-outlined">groups</mat-icon>
+        </div>
+        <div class="profile-row-content">
+          <span class="profile-row-label">{{ teamLabel }}</span>
+          <span class="profile-row-value" [title]="teamDisplay">{{ teamDisplay }}</span>
         </div>
       </div>
 

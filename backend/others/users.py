@@ -1162,6 +1162,7 @@ def get_user_details(request):
             "institute": {
                 "institute_id": user.institute_id,
                 "institute_name": institute_name,
+                "industry_type": getattr(institute, 'industry_type', None) if institute else None,
             },
             "department": {"department_id": user.department_id, "department_name": department_name},
             "team": {"team_id": user.team_id, "team_name": team_name},
@@ -1305,7 +1306,7 @@ def get_user_list(request, current_user=None):
             "full_name": user.full_name,
             "user_name": user.user_name,
             "user_role": user.user_role,
-            "institute": {"institute_id": user.institute_id,"institute_name": institute_name,},
+            "institute": {"institute_id": user.institute_id,"institute_name": institute_name, "industry_type": getattr(institute, 'industry_type', None) if institute else None},
             "department": {"department_id": user.department_id, "department_name": department_name},
             "team": {"team_id": user.team_id, "team_name": team_name},
             "email": user.email,

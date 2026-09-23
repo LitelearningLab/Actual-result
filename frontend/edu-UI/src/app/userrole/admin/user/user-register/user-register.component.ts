@@ -87,6 +87,17 @@ export class AdminUserRegisterComponent implements OnInit {
         industryType = inst.industry_type;
       }
     }
+    if (!industryType) {
+      try {
+        const u = JSON.parse(sessionStorage.getItem('user') || '{}');
+        industryType = u?.industry_type || u?.industry || sessionStorage.getItem('industry_type') || '';
+        if (!industryType) {
+          const instName = String(u?.institute_name || u?.institute || this.loggedInstitute || '').toLowerCase();
+          if (instName.includes('school')) industryType = 'School';
+          else if (instName.includes('college')) industryType = 'College';
+        }
+      } catch (e) {}
+    }
     return getInstituteTerminology(industryType);
   }
   loadingInstitutes = false;

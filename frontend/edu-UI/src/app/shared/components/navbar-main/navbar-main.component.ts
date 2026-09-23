@@ -81,20 +81,27 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
   }
 
   get terminology(): InstituteTerminology {
-    const industryType = this.userObj?.industry_type || 
-                         this.userObj?.industry || 
-                         (this.globalInstituteContext?.activeInstitute as any)?.industry_type || 
-                         this.globalInstituteContext?.activeInstitute?.industry || 
-                         '';
+    let industryType = this.userObj?.industry_type || 
+                       this.userObj?.industry || 
+                       sessionStorage.getItem('industry_type') || 
+                       sessionStorage.getItem('industry') || 
+                       (this.globalInstituteContext?.activeInstitute as any)?.industry_type || 
+                       this.globalInstituteContext?.activeInstitute?.industry || 
+                       '';
+    if (!industryType) {
+      const instName = (this.userInstituteDisplay || '').toLowerCase();
+      if (instName.includes('school')) industryType = 'School';
+      else if (instName.includes('college')) industryType = 'College';
+    }
     return getInstituteTerminology(industryType);
   }
 
   get deptLabel(): string {
-    return this.isSuperAdmin ? 'Department' : this.terminology.deptLabel;
+    return this.terminology.deptLabel;
   }
 
   get teamLabel(): string {
-    return this.isSuperAdmin ? 'Team' : this.terminology.teamLabel;
+    return this.terminology.teamLabel;
   }
 
   userObj: any = (() => {

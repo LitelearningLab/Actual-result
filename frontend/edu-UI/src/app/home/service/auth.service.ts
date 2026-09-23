@@ -131,6 +131,8 @@ export class AuthService {
           if (user.country_code) sessionStorage.setItem('country_code', user.country_code);
           if (user.country_name) sessionStorage.setItem('country_name', user.country_name);
           if (user.country_id) sessionStorage.setItem('country_id', user.country_id);
+          if (user.industry_type) sessionStorage.setItem('industry_type', user.industry_type);
+          else if (user.industry) sessionStorage.setItem('industry_type', user.industry);
           const uid = user.id || user.user_id || user.userId;
           if (uid) this.pageAccess.fetchForUser(uid.toString()).subscribe();
           this.startHeartbeat();
@@ -172,6 +174,8 @@ export class AuthService {
                 if (u.country_code) sessionStorage.setItem('country_code', u.country_code);
                 if (u.country_name) sessionStorage.setItem('country_name', u.country_name);
                 if (u.country_id) sessionStorage.setItem('country_id', u.country_id);
+                if (u.industry_type) sessionStorage.setItem('industry_type', u.industry_type);
+                else if (u.industry) sessionStorage.setItem('industry_type', u.industry);
               } catch (e) {
                 sessionStorage.setItem('user', JSON.stringify(resp.user));
                 this._user.next(resp.user);

@@ -90,6 +90,8 @@ def get_user_profile_payload(session, user):
         'institute_name': None,
         'institute_short_name': None,
         'institute_id': None,
+        'industry_type': None,
+        'industry': None,
         'department': None,
         'department_name': None,
         'department_id': None,
@@ -115,11 +117,13 @@ def get_user_profile_payload(session, user):
 
     institute_name = None
     institute_short_name = None
+    industry_type = None
     if getattr(user, 'institute_id', None):
         inst = session.query(Institute).filter_by(institute_id=str(user.institute_id)).first()
         if inst:
             institute_name = inst.name
             institute_short_name = inst.short_name
+            industry_type = getattr(inst, 'industry_type', None)
 
     department_name = None
     if getattr(user, 'department_id', None):
@@ -175,6 +179,8 @@ def get_user_profile_payload(session, user):
         'institute_name': institute_name,
         'institute_short_name': institute_short_name,
         'institute_id': str(user.institute_id) if getattr(user, 'institute_id', None) else None,
+        'industry_type': industry_type,
+        'industry': industry_type,
         'department': department_name,
         'department_name': department_name,
         'department_id': str(user.department_id) if getattr(user, 'department_id', None) else None,

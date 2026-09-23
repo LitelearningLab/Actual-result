@@ -384,6 +384,7 @@ class AuthService {
           if (user.country_code) sessionStorage.setItem('country_code', user.country_code);
           if (user.country_name) sessionStorage.setItem('country_name', user.country_name);
           if (user.country_id) sessionStorage.setItem('country_id', user.country_id);
+          if (user.industry_type) sessionStorage.setItem('industry_type', user.industry_type);else if (user.industry) sessionStorage.setItem('industry_type', user.industry);
           const uid = user.id || user.user_id || user.userId;
           if (uid) this.pageAccess.fetchForUser(uid.toString()).subscribe();
           this.startHeartbeat();
@@ -431,6 +432,7 @@ class AuthService {
                 if (u.country_code) sessionStorage.setItem('country_code', u.country_code);
                 if (u.country_name) sessionStorage.setItem('country_name', u.country_name);
                 if (u.country_id) sessionStorage.setItem('country_id', u.country_id);
+                if (u.industry_type) sessionStorage.setItem('industry_type', u.industry_type);else if (u.industry) sessionStorage.setItem('industry_type', u.industry);
               } catch (e) {
                 sessionStorage.setItem('user', JSON.stringify(resp.user));
                 _this._user.next(resp.user);
@@ -1626,14 +1628,18 @@ class NavbarMainComponent {
     return ['super_admin', 'superadmin', 'super-admin'].some(r => role === r || role.includes('super'));
   }
   get terminology() {
-    const industryType = this.userObj?.industry_type || this.userObj?.industry || this.globalInstituteContext?.activeInstitute?.industry_type || this.globalInstituteContext?.activeInstitute?.industry || '';
+    let industryType = this.userObj?.industry_type || this.userObj?.industry || sessionStorage.getItem('industry_type') || sessionStorage.getItem('industry') || this.globalInstituteContext?.activeInstitute?.industry_type || this.globalInstituteContext?.activeInstitute?.industry || '';
+    if (!industryType) {
+      const instName = (this.userInstituteDisplay || '').toLowerCase();
+      if (instName.includes('school')) industryType = 'School';else if (instName.includes('college')) industryType = 'College';
+    }
     return (0,_services_institute_terminology_service__WEBPACK_IMPORTED_MODULE_2__.getInstituteTerminology)(industryType);
   }
   get deptLabel() {
-    return this.isSuperAdmin ? 'Department' : this.terminology.deptLabel;
+    return this.terminology.deptLabel;
   }
   get teamLabel() {
-    return this.isSuperAdmin ? 'Team' : this.terminology.teamLabel;
+    return this.terminology.teamLabel;
   }
   get userInstituteDisplay() {
     const inst = this.userObj?.institute_name || this.userObj?.institute || this.instituteDisplayName || this.displayInstitute || this.instituteShortName || sessionStorage.getItem('institute') || '—';
@@ -1972,7 +1978,7 @@ class NavbarMainComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](55);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()()();
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](56, "div", 22)(57, "div", 23)(58, "mat-icon", 16);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](59, "groups");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](59, "school");
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](60, "div", 24)(61, "span", 25);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](62);
@@ -1981,7 +1987,7 @@ class NavbarMainComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](64);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()()();
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](65, "div", 22)(66, "div", 23)(67, "mat-icon", 16);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](68, "school");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](68, "groups");
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](69, "div", 24)(70, "span", 25);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](71);
@@ -2049,17 +2055,17 @@ class NavbarMainComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](9);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx.roleDisplay);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](7);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx.teamLabel);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("title", ctx.teamDisplay);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx.teamDisplay);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](7);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx.deptLabel);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("title", ctx.departmentDisplay);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx.departmentDisplay);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx.teamLabel);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("title", ctx.teamDisplay);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx.teamDisplay);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](8);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("title", ctx.campusDisplay);
           _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
