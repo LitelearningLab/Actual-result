@@ -222,6 +222,8 @@ class Exam(Base):
      title = Column(String, nullable=False)
      description = Column(String)
      institute_id = Column(String, ForeignKey('Institutes.institute_id'), nullable=False)
+     subject_id = Column(String)
+     subject_name = Column(String)
      duration_mins = Column(Integer, default=10)
      total_questions = Column(Integer, default=0)
      number_of_attempts = Column(Integer, default=1)
@@ -238,6 +240,15 @@ class Exam(Base):
      institute = relationship("Institute", back_populates="exams")
     #  questions = relationship("Question", back_populates="exam")
     #  answers = relationship("Answer", back_populates="exam")
+
+class ExamSection(Base):
+     __tablename__ = 'ExamSections'
+     section_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+     exam_id = Column(String, ForeignKey('Exams.exam_id'), nullable=False)
+     name = Column(String, nullable=False)
+     question_type = Column(String, nullable=False)
+     order_number = Column(Integer, default=1)
+     created_date = Column(DateTime, default=datetime.datetime.utcnow)
 
 class ExamMapping(Base):
      __tablename__ = 'ExamMapping'
@@ -257,6 +268,7 @@ class ExamQuestionMapping(Base):
      exam_id = Column(String, ForeignKey('Exams.exam_id'), nullable=False)
      category_id = Column(String, ForeignKey('Categories.category_id'))
      question_id = Column(String, ForeignKey('Questions.question_id'), nullable=False)    
+     section_id = Column(String, nullable=True)
      order_number = Column(Integer)
      
 

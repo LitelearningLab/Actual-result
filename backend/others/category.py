@@ -97,6 +97,9 @@ def get_categories_list(request):
             filter.append(Categories.institute_id.in_([i.strip() for i in inst_val.split(',') if i.strip()]))
         else:
             filter.append(Categories.institute_id == inst_val)
+    if args.get("subject"):
+        subj_arg = str(args.get("subject")).strip().lower()
+        filter.append(func.lower(Categories.subject) == subj_arg)
     if args.get("created_after"):
         filter.append(Categories.created_date >= args.get("created_after"))
     if args.get("created_before"):

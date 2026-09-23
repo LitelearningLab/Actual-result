@@ -1044,27 +1044,49 @@ button[mat-flat-button][color="primary"]:hover mat-icon {
 /* ════════════════════════════════════════════════════════════════════════════════
  * HIDE UNWANTED CHECKBOXES ON SEARCH AND SELECT ALL OPTIONS GLOBALLY
  * ════════════════════════════════════════════════════════════════════════════════ */
+.mat-mdc-option.select-search-option mat-pseudo-checkbox,
+.mat-mdc-option.select-search-option .mat-pseudo-checkbox,
+.mat-mdc-option.select-search-option .mat-mdc-option-pseudo-checkbox,
+.mat-mdc-option.select-search-option .mat-mdc-pseudo-checkbox,
+.mat-mdc-option.select-search-option .mat-pseudo-checkbox-minimal,
+.mat-mdc-option.select-search-option .mat-pseudo-checkbox-full,
+.mat-mdc-option.select-search-option .mdc-checkbox,
+.mat-mdc-option.select-search-option .mat-mdc-checkbox,
+.mat-mdc-option.select-search-option .mdc-list-item__graphic,
+.mat-mdc-option.select-search-option .mat-mdc-option-graphic,
+.mat-mdc-option.select-search-option .mdc-list-item__start,
+.mat-mdc-option.select-search-option .mdc-list-item__end,
+.select-search-option mat-pseudo-checkbox,
 .select-search-option .mat-pseudo-checkbox,
 .select-search-option .mat-mdc-option-pseudo-checkbox,
+.select-search-option .mat-mdc-pseudo-checkbox,
 .select-search-option .mat-pseudo-checkbox-minimal,
+.select-search-option .mat-pseudo-checkbox-full,
 .select-search-option .mdc-checkbox,
 .select-search-option .mat-mdc-checkbox,
 .select-search-option .mdc-list-item__graphic,
 .select-search-option .mat-mdc-option-graphic,
 .select-search-option .mdc-list-item__start,
-.select-search-option .mdc-list-item__end,
-::ng-deep .select-search-option .mat-pseudo-checkbox,
-::ng-deep .select-search-option .mat-mdc-option-pseudo-checkbox,
-::ng-deep .select-search-option .mat-pseudo-checkbox-minimal,
-::ng-deep .select-search-option .mdc-checkbox,
-::ng-deep .select-search-option .mat-mdc-checkbox,
-::ng-deep .select-search-option .mdc-list-item__graphic,
-::ng-deep .select-search-option .mat-mdc-option-graphic,
-::ng-deep .select-search-option .mdc-list-item__start,
-::ng-deep .select-search-option .mdc-list-item__end {
+.select-search-option .mdc-list-item__end {
   display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
+.mat-mdc-option.select-all-option mat-pseudo-checkbox,
+.mat-mdc-option.select-all-option .mat-pseudo-checkbox,
+.mat-mdc-option.select-all-option .mat-mdc-option-pseudo-checkbox,
+.mat-mdc-option.select-all-option .mat-pseudo-checkbox-minimal,
+.mat-mdc-option.select-all-option .mdc-checkbox,
+.mat-mdc-option.select-all-option .mat-mdc-checkbox,
+.mat-mdc-option.select-all-option .mdc-list-item__graphic,
+.mat-mdc-option.select-all-option .mat-mdc-option-graphic,
+.mat-mdc-option.select-all-option .mdc-list-item__start,
+.mat-mdc-option.select-all-option .mdc-list-item__end,
+.select-all-option mat-pseudo-checkbox,
 .select-all-option .mat-pseudo-checkbox,
 .select-all-option .mat-mdc-option-pseudo-checkbox,
 .select-all-option .mat-pseudo-checkbox-minimal,
@@ -1073,17 +1095,13 @@ button[mat-flat-button][color="primary"]:hover mat-icon {
 .select-all-option .mdc-list-item__graphic,
 .select-all-option .mat-mdc-option-graphic,
 .select-all-option .mdc-list-item__start,
-.select-all-option .mdc-list-item__end,
-::ng-deep .select-all-option .mat-pseudo-checkbox,
-::ng-deep .select-all-option .mat-mdc-option-pseudo-checkbox,
-::ng-deep .select-all-option .mat-pseudo-checkbox-minimal,
-::ng-deep .select-all-option .mdc-checkbox,
-::ng-deep .select-all-option .mat-mdc-checkbox,
-::ng-deep .select-all-option .mdc-list-item__graphic,
-::ng-deep .select-all-option .mat-mdc-option-graphic,
-::ng-deep .select-all-option .mdc-list-item__start,
-::ng-deep .select-all-option .mdc-list-item__end {
+.select-all-option .mdc-list-item__end {
   display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 @keyframes spin-inline {

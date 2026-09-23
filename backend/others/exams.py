@@ -14,6 +14,8 @@ from db.models import (
     CategoriesTeams,
     ExamsDepartments,
     ExamsTeams,
+    ExamSection,
+    Subject,
 )
 from db.db import SQLiteDB
 from others.exam_review import (
@@ -184,16 +186,67 @@ def ensure_exam_columns(session):
     try:
         from sqlalchemy import text
 
-        session.execute(text("""
-            IF EXISTS (
-                SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
-                WHERE TABLE_NAME = 'Exams' AND COLUMN_NAME = 'title' AND (CHARACTER_MAXIMUM_LENGTH < 255 AND CHARACTER_MAXIMUM_LENGTH > 0)
-            )
-            BEGIN
-                ALTER TABLE Exams ALTER COLUMN title NVARCHAR(500) NOT NULL;
-            END;
-        """))
-        session.commit()
+        try:
+            session.execute(text("""
+                IF EXISTS (
+                    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_NAME = 'Exams' AND COLUMN_NAME = 'title' AND (CHARACTER_MAXIMUM_LENGTH < 255 AND CHARACTER_MAXIMUM_LENGTH > 0)
+                )
+                BEGIN
+                    ALTER TABLE Exams ALTER COLUMN title NVARCHAR(500) NOT NULL;
+                END;
+            """))
+            session.commit()
+        except Exception:
+            session.rollback()
+
+        # Check and add subject_id and subject_name to Exams
+        try:
+            session.execute(text("""
+                IF COL_LENGTH('Exams', 'subject_id') IS NULL
+                BEGIN
+                    ALTER TABLE Exams ADD subject_id NVARCHAR(50) NULL;
+                END;
+                IF COL_LENGTH('Exams', 'subject_name') IS NULL
+                BEGIN
+                    ALTER TABLE Exams ADD subject_name NVARCHAR(255) NULL;
+                END;
+            """))
+            session.commit()
+        except Exception:
+            session.rollback()
+
+        # Check and create ExamSections table
+        try:
+            session.execute(text("""
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ExamSections' AND xtype='U')
+                BEGIN
+                    CREATE TABLE ExamSections (
+                        section_id NVARCHAR(50) PRIMARY KEY,
+                        exam_id NVARCHAR(50) NOT NULL,
+                        name NVARCHAR(255) NOT NULL,
+                        question_type NVARCHAR(50) NOT NULL,
+                        order_number INT DEFAULT 1,
+                        created_date DATETIME
+                    );
+                    CREATE INDEX IX_ExamSections_Exam ON ExamSections(exam_id);
+                END;
+            """))
+            session.commit()
+        except Exception:
+            session.rollback()
+
+        # Check and add section_id to exam_question_mapping
+        try:
+            session.execute(text("""
+                IF COL_LENGTH('exam_question_mapping', 'section_id') IS NULL
+                BEGIN
+                    ALTER TABLE exam_question_mapping ADD section_id NVARCHAR(50) NULL;
+                END;
+            """))
+            session.commit()
+        except Exception:
+            session.rollback()
     except Exception as e:
         session.rollback()
 
@@ -212,6 +265,8 @@ def add_exam(request):
     start_time_str = data.get("start_time", None)
     end_time_str = data.get("end_time", None)
     created_by = data.get("created_by")
+    subject_id = data.get("subject_id")
+    subject_name = data.get("subject_name")
 
     if not title or not str(title).strip():
         return {"statusMessage": "Title is required", "status": False}, 400
@@ -233,6 +288,11 @@ def add_exam(request):
     ensure_exam_columns(session)
 
     try:
+        if subject_id and not subject_name:
+            subj_obj = session.query(Subject).filter_by(subject_id=subject_id).first()
+            if subj_obj:
+                subject_name = subj_obj.subject_name
+
         add_exam = Exam(
             title=title,
             description=description,
@@ -244,6 +304,8 @@ def add_exam(request):
             start_time=start_time,
             end_time=end_time,
             created_by=created_by,
+            subject_id=subject_id,
+            subject_name=subject_name,
         )
         session.add(add_exam)
         session.flush()
@@ -268,55 +330,103 @@ def add_exam(request):
                     )
                 )
 
-        categories_list = data.get("categories", [])
-        for category in categories_list:
-            category_id = category.get("category_id")
-            if not category_id:
-                continue
-            raw_noq = category.get("number_of_questions") if category.get("number_of_questions") is not None else category.get("questions", 0)
-            try:
-                number_of_questions = int(raw_noq or 0)
-            except (ValueError, TypeError):
-                number_of_questions = 0
-            randomize_questions = category.get("randomize_questions", 0)
-            if randomize_questions == True:
-                randomize_questions = 1
-            else:
-                randomize_questions = 0
-
-            pool_count = len(_category_pool_question_ids(session, category_id))
-            if number_of_questions and pool_count < number_of_questions:
-                session.rollback()
-                return {
-                    "statusMessage": f"Question bank does not have enough questions (requested {number_of_questions}, available {pool_count})",
-                    "status": False,
-                }, 400
-
-            new_mapping = ExamMapping(
-                exam_id=exam_id,
-                category_id=category_id,
-                number_of_questions=number_of_questions,
-                randomize_questions=randomize_questions,
-                created_by=created_by,
-            )
-            session.add(new_mapping)
-            if randomize_questions == 0:
-                questions_list = _resolve_fixed_question_ids(
-                    session,
-                    category_id,
-                    number_of_questions,
-                    category.get("question_ids", []),
+        sections_list = data.get("sections", [])
+        if sections_list:
+            category_counts = {}
+            for sec_idx, sec in enumerate(sections_list, 1):
+                sec_name = sec.get("name") or f"Section {sec_idx}"
+                sec_type = sec.get("question_type") or "objective"
+                new_sec = ExamSection(
+                    exam_id=exam_id,
+                    name=sec_name,
+                    question_type=sec_type,
+                    order_number=sec.get("order_number") or sec_idx,
                 )
-                for question_id in questions_list:
-                    add_exam_question_mapping = ExamQuestionMapping(
+                session.add(new_sec)
+                session.flush()
+
+                for q_idx, q_item in enumerate(sec.get("questions", []), 1):
+                    qid = q_item.get("question_id") or q_item.get("id")
+                    if not qid:
+                        continue
+                    cat_id = q_item.get("category_id")
+                    if not cat_id:
+                        q_map = session.query(QuestionMapping).filter_by(question_id=qid).first()
+                        if q_map:
+                            cat_id = q_map.category_id
+
+                    new_eqm = ExamQuestionMapping(
                         exam_id=exam_id,
-                        category_id=category_id,
-                        question_id=question_id,
+                        category_id=cat_id,
+                        question_id=qid,
+                        section_id=str(new_sec.section_id),
+                        order_number=q_idx,
                     )
-                    session.add(add_exam_question_mapping)
+                    session.add(new_eqm)
+
+                    if cat_id:
+                        category_counts[cat_id] = category_counts.get(cat_id, 0) + 1
+
+            for cat_id, count in category_counts.items():
+                session.add(
+                    ExamMapping(
+                        exam_id=exam_id,
+                        category_id=cat_id,
+                        number_of_questions=count,
+                        randomize_questions=0,
+                        created_by=created_by,
+                    )
+                )
+        else:
+            categories_list = data.get("categories", [])
+            for category in categories_list:
+                category_id = category.get("category_id")
+                if not category_id:
+                    continue
+                raw_noq = category.get("number_of_questions") if category.get("number_of_questions") is not None else category.get("questions", 0)
+                try:
+                    number_of_questions = int(raw_noq or 0)
+                except (ValueError, TypeError):
+                    number_of_questions = 0
+                randomize_questions = category.get("randomize_questions", 0)
+                if randomize_questions == True:
+                    randomize_questions = 1
+                else:
+                    randomize_questions = 0
+
+                pool_count = len(_category_pool_question_ids(session, category_id))
+                if number_of_questions and pool_count < number_of_questions:
+                    session.rollback()
+                    return {
+                        "statusMessage": f"Question bank does not have enough questions (requested {number_of_questions}, available {pool_count})",
+                        "status": False,
+                    }, 400
+
+                new_mapping = ExamMapping(
+                    exam_id=exam_id,
+                    category_id=category_id,
+                    number_of_questions=number_of_questions,
+                    randomize_questions=randomize_questions,
+                    created_by=created_by,
+                )
+                session.add(new_mapping)
+                if randomize_questions == 0:
+                    questions_list = _resolve_fixed_question_ids(
+                        session,
+                        category_id,
+                        number_of_questions,
+                        category.get("question_ids", []),
+                    )
+                    for question_id in questions_list:
+                        add_exam_question_mapping = ExamQuestionMapping(
+                            exam_id=exam_id,
+                            category_id=category_id,
+                            question_id=question_id,
+                        )
+                        session.add(add_exam_question_mapping)
 
         session.commit()
-        json_data = {"statusMessage": "Exam inserted successfully", "status": True}
+        json_data = {"statusMessage": "Exam inserted successfully", "status": True, "exam_id": exam_id}
         return json_data, 200
     except Exception as e:
         session.rollback()
@@ -365,6 +475,14 @@ def update_exam(request):
         exam.number_of_attempts = data.get(
             "number_of_attempts", exam.number_of_attempts
         )
+        if "subject_id" in data:
+            exam.subject_id = data.get("subject_id")
+        if "subject_name" in data:
+            exam.subject_name = data.get("subject_name")
+        elif data.get("subject_id"):
+            subj_obj = session.query(Subject).filter_by(subject_id=data.get("subject_id")).first()
+            if subj_obj:
+                exam.subject_name = subj_obj.subject_name
 
         # handle optional start/end times
         start_time_str = data.get("start_time", None)
@@ -385,12 +503,15 @@ def update_exam(request):
             except Exception:
                 pass
 
-        # remove ExamMapping, ExamQuestionMapping, ExamsDepartments, and ExamsTeams rows for this exam
+        # remove ExamMapping, ExamQuestionMapping, ExamSection, ExamsDepartments, and ExamsTeams rows for this exam
         session.query(ExamMapping).filter(ExamMapping.exam_id == exam_id).delete(
             synchronize_session=False
         )
         session.query(ExamQuestionMapping).filter(
             ExamQuestionMapping.exam_id == exam_id
+        ).delete(synchronize_session=False)
+        session.query(ExamSection).filter(
+            ExamSection.exam_id == exam_id
         ).delete(synchronize_session=False)
         session.query(ExamsDepartments).filter(
             ExamsDepartments.exam_id == exam_id
@@ -420,51 +541,99 @@ def update_exam(request):
                     )
                 )
 
-        categories_list = data.get("categories", [])
-        for category in categories_list:
-            category_id = category.get("category_id")
-            if not category_id:
-                continue
-            raw_noq = category.get("number_of_questions") if category.get("number_of_questions") is not None else category.get("questions", 0)
-            try:
-                number_of_questions = int(raw_noq or 0)
-            except (ValueError, TypeError):
-                number_of_questions = 0
-            randomize_questions = category.get("randomize_questions", 0)
-            if randomize_questions == True:
-                randomize_questions = 1
-            else:
-                randomize_questions = 0
-
-            pool_count = len(_category_pool_question_ids(session, category_id))
-            if number_of_questions and pool_count < number_of_questions:
-                session.rollback()
-                return {
-                    "statusMessage": f"Question bank does not have enough questions (requested {number_of_questions}, available {pool_count})",
-                    "status": False,
-                }, 400
-
-            new_mapping = ExamMapping(
-                exam_id=exam_id,
-                category_id=category_id,
-                number_of_questions=number_of_questions,
-                randomize_questions=randomize_questions,
-            )
-            session.add(new_mapping)
-            if randomize_questions == 0:
-                questions_list = _resolve_fixed_question_ids(
-                    session,
-                    category_id,
-                    number_of_questions,
-                    category.get("question_ids", []),
+        sections_list = data.get("sections", [])
+        if sections_list:
+            category_counts = {}
+            for sec_idx, sec in enumerate(sections_list, 1):
+                sec_name = sec.get("name") or f"Section {sec_idx}"
+                sec_type = sec.get("question_type") or "objective"
+                new_sec = ExamSection(
+                    exam_id=exam_id,
+                    name=sec_name,
+                    question_type=sec_type,
+                    order_number=sec.get("order_number") or sec_idx,
                 )
-                for question_id in questions_list:
-                    add_exam_question_mapping = ExamQuestionMapping(
+                session.add(new_sec)
+                session.flush()
+
+                for q_idx, q_item in enumerate(sec.get("questions", []), 1):
+                    qid = q_item.get("question_id") or q_item.get("id")
+                    if not qid:
+                        continue
+                    cat_id = q_item.get("category_id")
+                    if not cat_id:
+                        q_map = session.query(QuestionMapping).filter_by(question_id=qid).first()
+                        if q_map:
+                            cat_id = q_map.category_id
+
+                    new_eqm = ExamQuestionMapping(
                         exam_id=exam_id,
-                        category_id=category_id,
-                        question_id=question_id,
+                        category_id=cat_id,
+                        question_id=qid,
+                        section_id=str(new_sec.section_id),
+                        order_number=q_idx,
                     )
-                    session.add(add_exam_question_mapping)
+                    session.add(new_eqm)
+
+                    if cat_id:
+                        category_counts[cat_id] = category_counts.get(cat_id, 0) + 1
+
+            for cat_id, count in category_counts.items():
+                session.add(
+                    ExamMapping(
+                        exam_id=exam_id,
+                        category_id=cat_id,
+                        number_of_questions=count,
+                        randomize_questions=0,
+                        created_by=updated_by_user,
+                    )
+                )
+        else:
+            categories_list = data.get("categories", [])
+            for category in categories_list:
+                category_id = category.get("category_id")
+                if not category_id:
+                    continue
+                raw_noq = category.get("number_of_questions") if category.get("number_of_questions") is not None else category.get("questions", 0)
+                try:
+                    number_of_questions = int(raw_noq or 0)
+                except (ValueError, TypeError):
+                    number_of_questions = 0
+                randomize_questions = category.get("randomize_questions", 0)
+                if randomize_questions == True:
+                    randomize_questions = 1
+                else:
+                    randomize_questions = 0
+
+                pool_count = len(_category_pool_question_ids(session, category_id))
+                if number_of_questions and pool_count < number_of_questions:
+                    session.rollback()
+                    return {
+                        "statusMessage": f"Question bank does not have enough questions (requested {number_of_questions}, available {pool_count})",
+                        "status": False,
+                    }, 400
+
+                new_mapping = ExamMapping(
+                    exam_id=exam_id,
+                    category_id=category_id,
+                    number_of_questions=number_of_questions,
+                    randomize_questions=randomize_questions,
+                )
+                session.add(new_mapping)
+                if randomize_questions == 0:
+                    questions_list = _resolve_fixed_question_ids(
+                        session,
+                        category_id,
+                        number_of_questions,
+                        category.get("question_ids", []),
+                    )
+                    for question_id in questions_list:
+                        add_exam_question_mapping = ExamQuestionMapping(
+                            exam_id=exam_id,
+                            category_id=category_id,
+                            question_id=question_id,
+                        )
+                        session.add(add_exam_question_mapping)
 
         session.commit()
         return {"statusMessage": "Exam updated successfully", "status": True}, 200
@@ -800,10 +969,63 @@ def get_exam_details(request):
             except Exception:
                 team_rows = []
 
+            sections_data = []
+            try:
+                sec_rows = (
+                    session.query(ExamSection)
+                    .filter(ExamSection.exam_id == exam.exam_id)
+                    .order_by(ExamSection.order_number.asc())
+                    .all()
+                )
+                for sec in sec_rows:
+                    eq_mappings = (
+                        session.query(ExamQuestionMapping)
+                        .filter(
+                            ExamQuestionMapping.exam_id == exam.exam_id,
+                            ExamQuestionMapping.section_id == sec.section_id,
+                        )
+                        .order_by(ExamQuestionMapping.order_number.asc())
+                        .all()
+                    )
+                    sec_questions = []
+                    for eqm in eq_mappings:
+                        q_obj = session.query(Question).filter_by(question_id=eqm.question_id).first()
+                        if not q_obj:
+                            continue
+                        cat_name = ""
+                        if eqm.category_id:
+                            cat_obj = session.query(Categories).filter_by(category_id=eqm.category_id).first()
+                            if cat_obj:
+                                cat_name = cat_obj.name
+                        sec_questions.append({
+                            "question_id": q_obj.question_id,
+                            "id": q_obj.question_id,
+                            "question_text": q_obj.question_text,
+                            "question": q_obj.question_text,
+                            "question_type": q_obj.question_type,
+                            "marks": q_obj.marks,
+                            "category_id": eqm.category_id,
+                            "category_name": cat_name,
+                            "order_number": eqm.order_number,
+                        })
+                    sections_data.append({
+                        "section_id": sec.section_id,
+                        "id": sec.section_id,
+                        "name": sec.name,
+                        "question_type": sec.question_type,
+                        "order_number": sec.order_number,
+                        "questions": sec_questions,
+                    })
+            except Exception as sec_err:
+                print(f"Error querying sections for exam {exam.exam_id}: {sec_err}", flush=True)
+                sections_data = []
+
             exam_list.append(
                 {
                     "exam_id": exam.exam_id,
                     "title": exam.title,
+                    "subject_id": getattr(exam, "subject_id", None),
+                    "subject_name": getattr(exam, "subject_name", None),
                     "institute": {
                         "institute_id": exam.institute_id,
                         "institute_name": Institute_data.name if Institute_data else "",
@@ -811,6 +1033,7 @@ def get_exam_details(request):
                     "departments": [r[0] for r in dept_rows],
                     "teams": [r[0] for r in team_rows],
                     "categories": category_list,
+                    "sections": sections_data,
                     "description": exam.description,
                     "duration_mins": exam.duration_mins,
                     "total_questions": exam.total_questions,

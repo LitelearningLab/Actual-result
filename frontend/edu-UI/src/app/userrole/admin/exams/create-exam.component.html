@@ -1,656 +1,634 @@
-<div class="page create-exam">
-    <!-- ── Top Toolbar ── -->
-    <div class="toolbar">
-        <div class="title"></div>
-        <div class="form-actions">
-            <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="cancel()">
-                <mat-icon>arrow_back</mat-icon>
-                <span>Cancel</span>
+<div class="qp-builder-page">
+
+    <!-- ══ TOP BAR / BACK NAVIGATION ══ -->
+    <div class="qp-nav-bar">
+        <button class="btn-back-papers" type="button" (click)="goBack()">
+            <mat-icon>arrow_back</mat-icon>
+            <span>My Question Papers</span>
+        </button>
+    </div>
+
+    <div class="qp-body">
+        <!-- ══ LEFT MAIN CONTENT ══ -->
+        <div class="qp-main">
+
+            <!-- ── Test Details Card ── -->
+            <div class="qp-card" id="test-details-card">
+                <div class="qp-card-header">
+                    <div class="qp-card-title">
+                        <h2>Test Details</h2>
+                        <p>Create the basic details of the written test.</p>
+                    </div>
+                    <span class="draft-badge">Draft</span>
+                </div>
+
+                <div class="qp-card-body">
+                    <!-- Row 1: Institute (if super admin) + Department + Team -->
+                    <div class="fields-row" [ngClass]="isSuperAdmin ? 'fields-row--3' : 'fields-row--2'">
+                        <!-- Institute (super admin only) -->
+                        <div class="field-group" *ngIf="isSuperAdmin">
+                            <label class="field-label">Institute</label>
+                            <mat-select class="qp-select" [(ngModel)]="institute"
+                                (selectionChange)="onInstituteChange($event.value)"
+                                (openedChange)="onInstituteOpenedChange($event)"
+                                placeholder="Select institute">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input class="select-search-input" placeholder="Search institute"
+                                        [(ngModel)]="instituteFilterSearch"
+                                        [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option value="">Select institute</mat-option>
+                                <mat-option *ngFor="let i of filteredInstitutes" [value]="i.id">{{i.name}}</mat-option>
+                            </mat-select>
+                        </div>
+
+                        <!-- Department -->
+                        <div class="field-group">
+                            <label class="field-label">{{ terminology.deptLabel || terminology.deptPlural }}</label>
+                            <mat-select class="qp-select" [(ngModel)]="selectedDepartment"
+                                (selectionChange)="onDepartmentChange($event.value)"
+                                (openedChange)="onDepartmentOpenedChange($event)"
+                                [placeholder]="terminology.selectDeptPlaceholder">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input class="select-search-input" [placeholder]="terminology.searchDeptPlaceholder"
+                                        [(ngModel)]="departmentFilterSearch"
+                                        [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option value="">{{ terminology.selectDeptPlaceholder }}</mat-option>
+                                <mat-option *ngFor="let d of filteredDepartments" [value]="d.id">{{d.name}}</mat-option>
+                            </mat-select>
+                        </div>
+
+                        <!-- Team -->
+                        <div class="field-group">
+                            <label class="field-label">{{ terminology.teamLabel || terminology.teamPlural }}</label>
+                            <mat-select class="qp-select" [(ngModel)]="selectedTeam"
+                                (selectionChange)="onTeamChange($event.value)"
+                                (openedChange)="onTeamOpenedChange($event)"
+                                [placeholder]="terminology.selectTeamPlaceholder">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input class="select-search-input" [placeholder]="terminology.searchTeamPlaceholder"
+                                        [(ngModel)]="teamFilterSearch"
+                                        [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option value="">{{ terminology.selectTeamPlaceholder }}</mat-option>
+                                <mat-option *ngFor="let t of filteredTeams" [value]="t.id">{{t.name}}</mat-option>
+                            </mat-select>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Subject + Exam Type -->
+                    <div class="fields-row fields-row--2">
+                        <!-- Subject -->
+                        <div class="field-group">
+                            <label class="field-label">Subject <span class="req">*</span></label>
+                            <mat-select class="qp-select" [(ngModel)]="subject_id"
+                                (selectionChange)="onSubjectChange($event.value)"
+                                (openedChange)="onSubjectOpenedChange($event)"
+                                [disabled]="!institute"
+                                placeholder="Select subject">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input class="select-search-input" placeholder="Search subject"
+                                        [(ngModel)]="subjectFilterSearch"
+                                        [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option value="">Select subject</mat-option>
+                                <mat-option *ngIf="loadingSubjects" disabled>Loading...</mat-option>
+                                <mat-option *ngFor="let s of filteredSubjects" [value]="s.id">{{s.name}}</mat-option>
+                            </mat-select>
+                        </div>
+
+                        <!-- Exam Type -->
+                        <div class="field-group">
+                            <label class="field-label">Exam Type</label>
+                            <mat-select class="qp-select" [(ngModel)]="examTypeLabel" placeholder="Select type">
+                                <mat-option value="Unit Test">Unit Test</mat-option>
+                                <mat-option value="Mid Term">Mid Term</mat-option>
+                                <mat-option value="Final Exam">Final Exam</mat-option>
+                                <mat-option value="Practice">Practice</mat-option>
+                            </mat-select>
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Test Name + Exam Date -->
+                    <div class="fields-row fields-row--2">
+                        <div class="field-group">
+                            <label class="field-label">Test Name <span class="req">*</span></label>
+                            <input class="qp-input" type="text" [(ngModel)]="title"
+                                placeholder="Physics – Unit Test 1" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Exam Date <span class="opt">(optional)</span></label>
+                            <div class="date-input-wrap">
+                                <input class="qp-input date-input" type="date" [(ngModel)]="examDate" placeholder="dd-mm-yyyy" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Total Marks + Duration -->
+                    <div class="fields-row fields-row--2">
+                        <div class="field-group">
+                            <label class="field-label">Total Marks</label>
+                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride"
+                                placeholder="50" min="0" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Duration <span class="opt">(printed on paper)</span></label>
+                            <input class="qp-input" type="text" [(ngModel)]="durationLabel"
+                                placeholder="1 Hour" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Sections and Questions Card ── -->
+            <div class="qp-card" id="sections-card">
+                <div class="qp-card-header">
+                    <div class="qp-card-title">
+                        <h2>Sections and Questions</h2>
+                        <p>Drag a section to reorder it. Marks are added up automatically.</p>
+                    </div>
+                    <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()" [disabled]="readOnly || !subject_id">
+                        <mat-icon>add</mat-icon>
+                        <span>Add Section</span>
+                    </button>
+                </div>
+
+                <div class="qp-card-body">
+                    <!-- No subject warning -->
+                    <div class="no-subject-warn" *ngIf="!subject_id">
+                        <mat-icon>info</mat-icon>
+                        <span>Select a <strong>Subject</strong> above before adding sections.</span>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div class="sections-empty" *ngIf="sections.length === 0 && subject_id">
+                        <mat-icon>view_agenda</mat-icon>
+                        <h3>No Sections Yet</h3>
+                        <p>Add your first section to start building the question paper.</p>
+                        <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()">
+                            <mat-icon>add</mat-icon>
+                            <span>Add Section</span>
+                        </button>
+                    </div>
+
+                    <!-- Sections list -->
+                    <div class="sections-list" *ngIf="sections.length > 0">
+                        <div class="section-block-card" *ngFor="let sec of sections; let secIdx = index">
+
+                            <!-- Section header -->
+                            <div class="sec-head">
+                                <div class="sec-drag-handle">
+                                    <mat-icon>drag_indicator</mat-icon>
+                                </div>
+                                <div class="sec-head-info">
+                                    <h3 class="sec-name">{{ sec.name }} – {{ sec.question_type === 'objective' ? 'MCQ' : 'Descriptive' }}</h3>
+                                    <div class="sec-subheading" *ngIf="getSectionSubHeading(sec)">
+                                        {{ getSectionSubHeading(sec) }}
+                                    </div>
+                                    <div class="sec-meta">
+                                        <span class="sec-meta-item">{{ getSectionMarksPerQ(sec) || 1 }} mark each</span>
+                                        <span class="sec-meta-item">{{ sec.questions?.length || 0 }} of {{ sec.targetCount || 10 }} questions</span>
+                                        <span class="sec-meta-item">{{ getSectionMarks(sec) }} of {{ (sec.targetCount || 10) * (getSectionMarksPerQ(sec) || 1) }} marks</span>
+                                    </div>
+                                </div>
+                                <div class="sec-head-actions">
+                                    <button class="btn-icon-action" type="button" (click)="openEditSectionModal(secIdx)" title="Edit section" [disabled]="readOnly">
+                                        <mat-icon>edit</mat-icon>
+                                    </button>
+                                    <button class="btn-icon-action btn-del" type="button" (click)="removeSection(secIdx)" title="Delete section" [disabled]="readOnly">
+                                        <mat-icon>delete_outline</mat-icon>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Underline progress bar -->
+                            <div class="sec-progress-bar">
+                                <div class="sec-progress-fill"
+                                    [style.width]="getSectionProgressPct(sec) + '%'"
+                                    [class.full]="getSectionProgressPct(sec) >= 100">
+                                </div>
+                            </div>
+
+                            <!-- Questions list -->
+                            <div class="sec-questions" *ngIf="sec.questions && sec.questions.length > 0">
+                                <div class="sec-q-row" *ngFor="let q of sec.questions; let qIdx = index">
+                                    <span class="q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}</span>
+                                    <span class="q-text">{{ q.question }}</span>
+                                    <div class="q-marks-wrap">
+                                        <input class="q-marks-input" type="number" [(ngModel)]="q.marks" min="0"
+                                            [ngModelOptions]="{standalone: true}" [disabled]="readOnly" />
+                                        <span class="q-marks-label">marks</span>
+                                    </div>
+                                    <button class="q-btn-del" type="button" (click)="removeQuestionFromSection(secIdx, qIdx)" title="Remove" [disabled]="readOnly">
+                                        <mat-icon>close</mat-icon>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Add Question button -->
+                            <div class="sec-add-question-wrap">
+                                <button class="btn-sec-add-q" type="button"
+                                    (click)="openAddQuestionModal(secIdx)" [disabled]="readOnly">
+                                    <mat-icon>add</mat-icon>
+                                    <span>Add Question</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /qp-main -->
+
+        <!-- ══ RIGHT SIDEBAR ══ -->
+        <div class="qp-sidebar">
+            <div class="sidebar-card">
+                <h2 class="sidebar-title">Paper Summary</h2>
+
+                <!-- Marks display -->
+                <div class="summary-marks-block">
+                    <div class="summary-marks-big">
+                        <span class="marks-current">{{ totalPaperMarks }}</span>
+                        <span class="marks-of">of {{ totalMarksOverride || 50 }} marks added</span>
+                    </div>
+                    <div class="summary-marks-bar">
+                        <div class="summary-marks-fill"
+                            [style.width]="getMarksProgressPct() + '%'"
+                            [class.over]="totalPaperMarks > (totalMarksOverride || 50)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats chips -->
+                <div class="summary-stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-card-label">QUESTIONS</span>
+                        <span class="stat-card-val">{{ totalPaperQuestionsCount }} / {{ getTotalTargetQuestions() || 23 }}</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-card-label">SECTIONS</span>
+                        <span class="stat-card-val">{{ totalSectionsCount }}</span>
+                    </div>
+                </div>
+
+                <!-- Answer Setup row -->
+                <div class="summary-answer-card">
+                    <span class="stat-card-label">ANSWER SETUP</span>
+                    <span class="answer-card-val">{{ getAnswerReadyCount() }} / {{ totalPaperQuestionsCount || 10 }} questions ready</span>
+                </div>
+
+                <!-- Per-section progress -->
+                <div class="section-prog-list" *ngIf="sections.length > 0">
+                    <div class="section-prog-row" *ngFor="let sec of sections">
+                        <span class="sec-prog-name">{{ sec.name }}</span>
+                        <div class="sec-prog-track">
+                            <div class="sec-prog-bar"
+                                [style.width]="getSectionProgressPct(sec) + '%'"
+                                [class.full]="getSectionProgressPct(sec) >= 100">
+                            </div>
+                        </div>
+                        <span class="sec-prog-val">{{ sec.questions?.length || 0 }} / {{ sec.targetCount || 10 }}</span>
+                    </div>
+                </div>
+
+                <!-- Warning: marks mismatch -->
+                <div class="summary-alert alert-danger" *ngIf="totalMarksOverride && totalPaperMarks !== totalMarksOverride">
+                    <mat-icon class="alert-icon">warning</mat-icon>
+                    <span class="alert-text">
+                        <ng-container *ngIf="totalPaperMarks < totalMarksOverride">
+                            Section marks add up to {{ totalPaperMarks }}, but the test total is {{ totalMarksOverride }}. Add {{ totalMarksOverride - totalPaperMarks }} more marks.
+                        </ng-container>
+                        <ng-container *ngIf="totalPaperMarks > totalMarksOverride">
+                            Section marks add up to {{ totalPaperMarks }}, which exceeds the test total of {{ totalMarksOverride }}. Remove {{ totalPaperMarks - totalMarksOverride }} marks.
+                        </ng-container>
+                    </span>
+                </div>
+
+                <!-- Alert 2: Questions needing evaluation -->
+                <div class="summary-alert alert-warning" *ngIf="getQuestionsNeedingEvaluationCount() > 0">
+                    <mat-icon class="alert-icon">info</mat-icon>
+                    <span class="alert-text">
+                        {{ getQuestionsNeedingEvaluationCount() }} question{{ getQuestionsNeedingEvaluationCount() > 1 ? 's' : '' }} need evaluation or answer keys.
+                    </span>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="sidebar-action-group">
+                    <button class="btn-sidebar-preview-paper" type="button" (click)="previewPaper()">
+                        <mat-icon>visibility</mat-icon>
+                        <span>Preview Question Paper</span>
+                    </button>
+                    <button class="btn-sidebar-preview-guide" type="button" (click)="previewGuide()">
+                        <mat-icon>menu_book</mat-icon>
+                        <span>Preview Answer Key</span>
+                    </button>
+                    <button class="btn-sidebar-save" type="button" (click)="save()">
+                        <mat-icon>save</mat-icon>
+                        <span>{{ editMode ? 'Update' : 'Save Draft' }}</span>
+                    </button>
+
+                    <!-- Download as PDF -->
+                    <div class="sidebar-download-wrap">
+                        <span class="sidebar-download-label">Download as PDF</span>
+                        <button class="btn-sidebar-download" type="button" (click)="downloadQuestionPaper()">
+                            <mat-icon>download</mat-icon>
+                            <span>Download Question Paper</span>
+                        </button>
+                        <button class="btn-sidebar-download" type="button" (click)="downloadEvaluationGuide()">
+                            <mat-icon>download</mat-icon>
+                            <span>Download Answer Key</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div><!-- /qp-sidebar -->
+    </div><!-- /qp-body -->
+
+    <!-- ═══ Preview Overlay: Question Paper ═══ -->
+    <div class="preview-overlay" *ngIf="showPreviewPaper">
+        <div class="preview-topbar">
+            <button class="btn-back-editing" (click)="showPreviewPaper = false">
+                <mat-icon>arrow_back</mat-icon> Back to Editing
             </button>
+            <div class="preview-tabs">
+                <button class="preview-tab active" type="button">
+                    <mat-icon>description</mat-icon> Question Paper
+                </button>
+                <button class="preview-tab" type="button" (click)="showPreviewPaper = false; showPreviewGuide = true">
+                    <mat-icon>menu_book</mat-icon> Answer Key
+                </button>
+            </div>
+            <button class="btn-download-top" type="button" (click)="downloadQuestionPaper()">
+                <mat-icon>download</mat-icon> Download Question Paper
+            </button>
+        </div>
+        <div class="preview-warning" *ngIf="totalMarksOverride && totalPaperMarks !== totalMarksOverride">
+            <mat-icon>warning_amber</mat-icon>
+            <span>This paper adds up to {{ totalPaperMarks }} of {{ totalMarksOverride }} marks. Update the information to include the correct total on the question paper PDF.</span>
+        </div>
+        <div class="preview-paper-page">
+            <div class="paper-doc">
+                <div class="paper-school-name">{{ instituteNameDisplay | uppercase }}</div>
+                <div class="paper-meta-line">{{ getSelectedDepartmentsDisplay() | uppercase }} · {{ getSelectedTeamsDisplay() | uppercase }} · {{ subject_name | uppercase }}</div>
+                <div class="paper-test-type">{{ examTypeLabel | uppercase }} – {{ title }}</div>
+                <div class="paper-header-row">
+                    <span>Time: {{ durationLabel || (durationMinutes + ' mins') }}</span>
+                    <span>Maximum Marks: {{ totalMarksOverride || totalPaperMarks }}</span>
+                </div>
+                <hr class="paper-divider">
+                <div *ngFor="let sec of sections; let secIdx = index" class="paper-section-block">
+                    <div class="paper-section-heading"><u>{{ sec.name }}</u></div>
+                    <div class="paper-section-instructions">{{ getSectionSubHeading(sec) }}</div>
+                    <div class="paper-question-item" *ngFor="let q of sec.questions; let qIdx = index">
+                        <div class="paper-q-header">
+                            <span class="paper-q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}.</span>
+                            <span class="paper-q-text">{{ q.question }}</span>
+                            <span class="paper-q-marks">[{{ q.marks || 1 }}]</span>
+                        </div>
+                        <div class="paper-q-options-grid" *ngIf="q.options && q.options.length > 0">
+                            <div class="paper-q-option" *ngFor="let opt of q.options; let optIdx = index">
+                                {{ formatOptionText(opt, optIdx) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- ── Form Card ── -->
-    <div class="form-card">
-        <mat-horizontal-stepper linear #stepper>
-            <!-- ═══ Step 1: Basic info & Settings ═══ -->
-            <mat-step [completed]="isStep1Valid">
-                <ng-template matStepLabel>Basic info & Settings</ng-template>
-                <div class="step-content">
-                    <div class="card-body-inner two-column first-step">
-                        <div class="left">
-                            <div class="section-block">
-                                <div class="section-header">
-                                    <mat-icon class="section-icon">assignment</mat-icon>
-                                    <div class="section-header-text">
-                                        <h2 class="section-heading">Basic Information</h2>
-                                        <p class="section-desc">Enter test title and details.</p>
-                                    </div>
-                                </div>
-
-                                <div class="field-row">
-                                    <mat-form-field appearance="outline" class="field-half local-institute-field">
-                                        <mat-icon matPrefix>apartment</mat-icon>
-                                        <mat-label>Institute</mat-label>
-                                        <mat-select [(ngModel)]="institute"
-                                            (selectionChange)="onInstituteChange($event.value)"
-                                            (openedChange)="onInstituteOpenedChange($event)" [disabled]="!isSuperAdmin">
-
-                                            <!-- Embedded Search Bar -->
-                                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                                <input matInput class="select-search-input"
-                                                    placeholder="Search institute" [(ngModel)]="instituteFilterSearch"
-                                                    [ngModelOptions]="{standalone: true}"
-                                                    (click)="$event.stopPropagation()"
-                                                    (keydown)="stopFilterSearchEvent($event)"
-                                                    (keyup)="stopFilterSearchEvent($event)"
-                                                    (input)="stopFilterSearchEvent($event)" />
-                                            </mat-option>
-
-                                            <mat-option value="">Select institute</mat-option>
-                                            <!-- Loop through filteredInstitutes getter -->
-                                            <mat-option *ngFor="let i of filteredInstitutes"
-                                                [value]="i.id">{{i.name}}</mat-option>
-                                        </mat-select>
-
-                                    </mat-form-field>
-
-                                    <mat-form-field appearance="outline" class="field-half"
-                                        [class.mat-form-field-invalid]="step1Submitted && !title.trim()">
-                                        <mat-icon matPrefix>edit</mat-icon>
-                                        <mat-label>Title <span class="required-star">*</span></mat-label>
-                                        <input matInput id="examTitle" [(ngModel)]="title" name="title"
-                                            placeholder="E.g. Midterm Maths" />
-                                    </mat-form-field>
-                                </div>
-
-                                <div class="field-row">
-                                    <mat-form-field appearance="outline" class="field-full">
-                                        <mat-icon matPrefix>description</mat-icon>
-                                        <mat-label>Description</mat-label>
-                                        <textarea matInput id="examDescription" [(ngModel)]="description"
-                                            name="description" placeholder="E.g. This is a midterm exam"
-                                            rows="3"></textarea>
-                                    </mat-form-field>
-                                </div>
-
-                                <div class="field-row">
-                                    <mat-form-field appearance="outline" class="field-half"
-                                        [class.mat-form-field-invalid]="step1Submitted && !selectedDepartments.length">
-                                        <mat-icon matPrefix>apartment</mat-icon>
-                                        <mat-label>{{ terminology.deptPlural }} <span class="required-star">*</span></mat-label>
-                                        <mat-select multiple [(ngModel)]="selectedDepartments" [compareWith]="compareById"
-                                            (selectionChange)="toggleSelectAllDepartments($event)"
-                                            (openedChange)="onDepartmentOpenedChange($event)"
-                                            [placeholder]="terminology.selectDeptPluralPlaceholder">
-
-                                            <!-- Embedded Search Bar -->
-                                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-
-
-                                                <input matInput class="select-search-input"
-                                                    [placeholder]="terminology.searchDeptPlaceholder" [(ngModel)]="departmentFilterSearch"
-                                                    [ngModelOptions]="{standalone: true}"
-                                                    (click)="$event.stopPropagation()"
-                                                    (keydown)="stopFilterSearchEvent($event)"
-                                                    (keyup)="stopFilterSearchEvent($event)"
-                                                    (input)="stopFilterSearchEvent($event)" />
-                                            </mat-option>
-
-
-                                            <!-- Select All Option -->
-                                            <mat-option value="ALL">
-                                                Select All
-                                            </mat-option>
-                                            <mat-divider></mat-divider>
-
-                                            <!-- Filtered list loop -->
-                                            <mat-option *ngFor="let d of filteredDepartments"
-                                                [value]="d.id">{{d.name}}</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-
-                                    <mat-form-field appearance="outline" class="field-half"
-                                        [class.mat-form-field-invalid]="step1Submitted && !selectedTeams.length">
-                                        <mat-icon matPrefix>groups</mat-icon>
-                                        <mat-label>{{ terminology.teamPlural }} <span class="required-star">*</span></mat-label>
-                                        <mat-select multiple [(ngModel)]="selectedTeams" [compareWith]="compareById"
-                                            (selectionChange)="toggleSelectAllTeams($event)"
-                                            (openedChange)="onTeamOpenedChange($event)" [placeholder]="terminology.selectTeamPluralPlaceholder">
-
-                                            <!-- Embedded Search Bar -->
-                                            <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                                <input matInput class="select-search-input" [placeholder]="terminology.searchTeamPlaceholder"
-                                                    [(ngModel)]="teamFilterSearch" [ngModelOptions]="{standalone: true}"
-                                                    (click)="$event.stopPropagation()"
-                                                    (keydown)="stopFilterSearchEvent($event)"
-                                                    (keyup)="stopFilterSearchEvent($event)"
-                                                    (input)="stopFilterSearchEvent($event)" />
-                                            </mat-option>
-
-                                            <!--  Select All Option  -->
-                                            <mat-option value="ALL">
-                                                Select All
-                                            </mat-option>
-                                            <mat-divider></mat-divider>
-
-                                            <!-- Individual Options -->
-                                            <mat-option *ngFor="let t of filteredTeams"
-                                                [value]="t.id">{{t.name}}</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-
-                                </div>
-                            </div>
-
+    <!-- ═══ Preview Overlay: Answer Key ═══ -->
+    <div class="preview-overlay" *ngIf="showPreviewGuide">
+        <div class="preview-topbar">
+            <button class="btn-back-editing" (click)="showPreviewGuide = false">
+                <mat-icon>arrow_back</mat-icon> Back to Editing
+            </button>
+            <div class="preview-tabs">
+                <button class="preview-tab" type="button" (click)="showPreviewGuide = false; showPreviewPaper = true">
+                    <mat-icon>description</mat-icon> Question Paper
+                </button>
+                <button class="preview-tab active" type="button">
+                    <mat-icon>menu_book</mat-icon> Answer Key
+                </button>
+            </div>
+            <button class="btn-download-top" type="button" (click)="downloadEvaluationGuide()">
+                <mat-icon>download</mat-icon> Download Answer Key
+            </button>
+        </div>
+        <div class="preview-warning" *ngIf="totalMarksOverride && totalPaperMarks !== totalMarksOverride">
+            <mat-icon>warning_amber</mat-icon>
+            <span>This paper adds up to {{ totalPaperMarks }} of {{ totalMarksOverride }} marks. Update the information to include the correct total on the answer key PDF.</span>
+        </div>
+        <div class="preview-paper-page">
+            <div class="paper-doc">
+                <div class="paper-school-name">{{ instituteNameDisplay | uppercase }}</div>
+                <div class="paper-meta-line">{{ getSelectedDepartmentsDisplay() | uppercase }} · {{ getSelectedTeamsDisplay() | uppercase }} · {{ subject_name | uppercase }}</div>
+                <div class="paper-test-type">{{ examTypeLabel ? (examTypeLabel | uppercase) + ' – ' : '' }}{{ title }} (ANSWER KEY)</div>
+                <div class="paper-header-row">
+                    <span>Time: {{ durationLabel || (durationMinutes + ' mins') }}</span>
+                    <span>Maximum Marks: {{ totalMarksOverride || totalPaperMarks }}</span>
+                </div>
+                <hr class="paper-divider">
+                <div *ngFor="let sec of sections; let secIdx = index" class="paper-section-block">
+                    <div class="paper-section-heading"><u>{{ sec.name }}</u></div>
+                    <div class="paper-section-instructions">{{ getSectionSubHeading(sec) }}</div>
+                    <div class="paper-question-item" *ngFor="let q of sec.questions; let qIdx = index">
+                        <div class="paper-q-header">
+                            <span class="paper-q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}.</span>
+                            <span class="paper-q-text">{{ q.question }}</span>
+                            <span class="paper-q-marks">[{{ q.marks || 1 }}]</span>
                         </div>
-
-                        <div class="right">
-                            <div class="section-block">
-                                <div class="section-header">
-                                    <mat-icon class="section-icon">settings</mat-icon>
-                                    <div class="section-header-text">
-                                        <h2 class="section-heading">Settings</h2>
-                                        <p class="section-desc">Configure test duration and limits.</p>
-                                    </div>
-                                </div>
-
-                                <div class="field-row">
-                                    <mat-form-field appearance="outline" class="field-half">
-                                        <mat-icon matPrefix>timer</mat-icon>
-                                        <mat-label>Duration (minutes)</mat-label>
-                                        <input matInput id="duration" type="number" [(ngModel)]="durationMinutes"
-                                            name="durationMinutes" min="5" placeholder="Minutes"
-                                            aria-label="Duration in minutes" />
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline" class="field-half">
-                                        <mat-icon matPrefix>check_circle</mat-icon>
-                                        <mat-label>Pass Percentage</mat-label>
-                                        <input matInput id="passMark" type="number" [(ngModel)]="passMark"
-                                            (input)="onPassMarkInput($event)" (ngModelChange)="onPassMarkChange($event)"
-                                            name="passMark" placeholder="e.g. 50" min="0" max="100" />
-                                        <span matSuffix>%</span>
-                                    </mat-form-field>
-                                </div>
-
-                                <div class="field-row">
-                                    <div class="field-half attempts-field-container">
-                                        <label class="attempts-label">
-                                            <mat-icon class="attempts-icon">repeat</mat-icon>
-                                            <span>Number of attempts</span>
-                                        </label>
-                                        <div class="attempts-btn-group">
-                                            <button type="button" class="attempt-btn"
-                                                [class.active]="numberOfAttempts === 1"
-                                                (click)="setAttempts(1)">1</button>
-                                            <button type="button" class="attempt-btn"
-                                                [class.active]="numberOfAttempts === 2"
-                                                (click)="setAttempts(2)">2</button>
-                                        </div>
-                                    </div>
-                                    <div class="field-half"></div>
-                                </div>
-                            </div>
+                        <div class="paper-q-answer">
+                            <span class="ans-badge">Ans:</span>
+                            <span class="ans-value" *ngIf="getCorrectAnswerText(q)">{{ getCorrectAnswerText(q) }}</span>
+                            <em class="no-answer" *ngIf="!getCorrectAnswerText(q)">Answer not set yet</em>
                         </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <span></span>
-                        <button mat-button type="button" class="next-btn" (click)="validateStep1AndProceed()">
-                            <span>Next</span>
-                            <mat-icon>arrow_forward</mat-icon>
-                        </button>
                     </div>
                 </div>
-            </mat-step>
-
-            <!-- ═══ Step 2: Question Banks & Questions ═══ -->
-            <mat-step [completed]="isStep2Valid">
-                <ng-template matStepLabel>Question Banks & Questions</ng-template>
-                <div class="step-content">
-                    <div class="card-body-inner question-bank-layout">
-                        <div class="left">
-                            <div class="section-block">
-                                <div class="section-header">
-                                    <mat-icon class="section-icon">category</mat-icon>
-                                    <div class="section-header-text">
-                                        <h2 class="section-heading">Question Banks</h2>
-                                        <p class="section-desc">Add question banks and questions to this test.</p>
-                                    </div>
-                                    <button #filtersBtn mat-flat-button type="button" class="filter-toggle-btn"
-                                        [class.filter-toggle-btn--active]="filterEnabled || appliedQuestionBankFilters.length"
-                                        (click)="openFiltersOverlay(); $event.stopPropagation()" [disabled]="readOnly"
-                                        [attr.aria-pressed]="filterEnabled" matTooltip="Toggle filters"
-                                        matTooltipPosition="left">
-                                        <mat-icon>filter_list</mat-icon>
-                                        <span>Filter question bank</span>
-                                        <span class="filter-count-badge" *ngIf="appliedQuestionBankFilters.length">· {{
-                                            appliedQuestionBankFilters.length }}</span>
-                                    </button>
-                                </div>
-
-                                <div class="applied-filters" *ngIf="appliedQuestionBankFilters.length">
-                                    <span class="applied-filters-label"><mat-icon>filter_alt</mat-icon> Active
-                                        filters</span>
-                                    <span class="applied-filter-chip" *ngFor="let filter of appliedQuestionBankFilters">
-                                        <ng-container *ngIf="filter.includes(':')">
-                                            <strong class="filter-chip-key">{{ filter.split(':')[0] }}:</strong>{{ filter.substring(filter.indexOf(':') + 1) }}
-                                        </ng-container>
-                                        <ng-container *ngIf="!filter.includes(':')">
-                                            {{ filter }}
-                                        </ng-container>
-                                    </span>
-                                    <button type="button" class="clear-all-btn" (click)="onReset()">
-                                        <mat-icon>close</mat-icon> Clear all
-                                    </button>
-                                </div>
-
-
-                                <ng-template #filtersPanel>
-                                    <div class="filters-panel card" (click)="$event.stopPropagation()">
-                                        <div class="filters-panel-caret"></div>
-                                        <div class="filters-panel-header">
-                                            <h4><mat-icon>tune</mat-icon> Filter Question Bank</h4>
-                                        </div>
-                                        <div class="filter-panel-body">
-                                            <div class="compact-filter-grid">
-                                                <mat-form-field appearance="outline" class="filter-item">
-                                                    <mat-label>{{ terminology.deptLabel }} <span class="required-star">*</span></mat-label>
-                                                    <mat-select multiple [(ngModel)]="questionBankFilterDepartments" [compareWith]="compareById"
-                                                        [disabled]="!institute"
-                                                        (selectionChange)="onQuestionBankDepartmentChange()"
-                                                        (openedChange)="onQuestionBankDepartmentOpenedChange($event)">
-                                                        <mat-option class="select-search-option"
-                                                            (click)="$event.stopPropagation()">
-                                                            <input matInput class="select-search-input"
-                                                                [placeholder]="terminology.searchDeptPlaceholder"
-                                                                [(ngModel)]="questionBankDepartmentSearch"
-                                                                [ngModelOptions]="{ standalone: true }"
-                                                                (click)="$event.stopPropagation()"
-                                                                (keydown)="stopFilterSearchEvent($event)" />
-                                                        </mat-option>
-                                                        <mat-option class="select-all-option"
-                                                            *ngIf="filteredQuestionBankDepartments.length && !questionBankDepartmentSearch?.trim()"
-                                                            (click)="toggleSelectAllQuestionBankDepartments()">
-                                                            <mat-icon class="select-all-checkbox-icon"
-                                                                [style.color]="isAllQuestionBankDepartmentsSelected() ? '#2563eb' : '#64748b'">
-                                                                {{ isAllQuestionBankDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                                                            </mat-icon>
-                                                            <strong>Select All</strong>
-                                                        </mat-option>
-                                                        <mat-option *ngFor="let department of filteredQuestionBankDepartments"
-                                                            [value]="department.id">{{ department.name }}</mat-option>
-                                                    </mat-select>
-                                                </mat-form-field>
-
-                                                <mat-form-field appearance="outline" class="filter-item">
-                                                    <mat-label>{{ terminology.teamLabel }}</mat-label>
-                                                    <mat-select multiple [(ngModel)]="questionBankFilterTeams" [compareWith]="compareById"
-                                                        [disabled]="!institute"
-                                                        (openedChange)="onQuestionBankTeamOpenedChange($event)">
-                                                        <mat-option class="select-search-option"
-                                                            (click)="$event.stopPropagation()">
-                                                            <input matInput class="select-search-input"
-                                                                [placeholder]="terminology.searchTeamPlaceholder"
-                                                                [(ngModel)]="questionBankTeamSearch"
-                                                                [ngModelOptions]="{ standalone: true }"
-                                                                (click)="$event.stopPropagation()"
-                                                                (keydown)="stopFilterSearchEvent($event)" />
-                                                        </mat-option>
-                                                        <mat-option class="select-all-option"
-                                                            *ngIf="filteredQuestionBankTeams.length && !questionBankTeamSearch?.trim()"
-                                                            (click)="toggleSelectAllQuestionBankTeams()">
-                                                            <mat-icon class="select-all-checkbox-icon"
-                                                                [style.color]="isAllQuestionBankTeamsSelected() ? '#2563eb' : '#64748b'">
-                                                                {{ isAllQuestionBankTeamsSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                                                            </mat-icon>
-                                                            <strong>Select All</strong>
-                                                        </mat-option>
-                                                        <mat-option *ngFor="let team of filteredQuestionBankTeams"
-                                                            [value]="team.id">{{ team.name }}</mat-option>
-                                                    </mat-select>
-                                                </mat-form-field>
-
-                                                <mat-form-field appearance="outline"
-                                                    class="filter-item date-range-field compact-full-row"
-                                                    (click)="openCreatedDateRangePicker()" style="cursor: pointer;">
-                                                    <input matInput readonly [value]="getCreatedDateRangeDisplay()"
-                                                        placeholder="Created Date" style="cursor: pointer;" />
-                                                    <mat-icon matSuffix>calendar_today</mat-icon>
-                                                </mat-form-field>
-
-                                                <mat-form-field appearance="outline"
-                                                    class="filter-item compact-full-row">
-                                                    <mat-label>Type <span class="required-star">*</span></mat-label>
-                                                    <mat-select multiple [(ngModel)]="selectedQuestionTypes"
-                                                        placeholder="Type">
-                                                        <mat-option value="objective">Objective</mat-option>
-                                                        <mat-option value="descriptive">Descriptive</mat-option>
-                                                    </mat-select>
-                                                </mat-form-field>
-
-                                                <div class="compact-access-row compact-full-row">
-                                                    <mat-checkbox [(ngModel)]="filterCreatedByMe">Created by me</mat-checkbox>
-                                                    <mat-checkbox [(ngModel)]="filterPublicAccess">Public access</mat-checkbox>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="filter-actions">
-                                            <button mat-button class="filter-reset-btn" type="button"
-                                                (click)="onReset()"><mat-icon>refresh</mat-icon>
-                                                Reset</button>
-                                            <button mat-flat-button class="filter-apply-btn" type="button"
-                                                (click)="onApply()"><mat-icon>check</mat-icon>
-                                                Apply</button>
-                                        </div>
-                                    </div>
-                                </ng-template>
-
-                                <div class="row small small-grid question-bank-details-row">
-                                    <div class="col category-col">
-                                        <mat-form-field appearance="outline" class="full">
-                                            <mat-icon matPrefix>assignment</mat-icon>
-                                            <mat-label>Question Bank</mat-label>
-                                            <input type="text" matInput [formControl]="categoryCtrl"
-                                                #categoryTrigger="matAutocompleteTrigger"
-                                                [matAutocomplete]="auto" placeholder="Type or pick a question bank"
-                                                [readonly]="readOnly" autocomplete="off" spellcheck="false"
-                                                (input)="onQuestionBankNameInput($event)"
-                                                (click)="$event.stopPropagation(); categoryTrigger.panelOpen ? categoryTrigger.closePanel() : categoryTrigger.openPanel()" />
-                                            <mat-icon matSuffix style="cursor: pointer; color: #6b7280;"
-                                                (click)="$event.stopPropagation(); categoryTrigger.panelOpen ? categoryTrigger.closePanel() : categoryTrigger.openPanel()">arrow_drop_down</mat-icon>
-                                            <mat-autocomplete #auto="matAutocomplete"
-                                                [displayWith]="displayCategory.bind(this)"
-                                                (optionSelected)="onCategoryAutocompleteSelected($event.option.value)">
-                                                <mat-option *ngFor="let cat of (filteredCategories$ | async)"
-                                                    [value]="cat" class="question-bank-option-row">
-                                                    <span class="question-bank-option">
-                                                        <span class="question-bank-option-name">{{cat.name}}</span>
-                                                        <mat-icon *ngIf="isQuestionBankOptionChecked(cat)"
-                                                            class="question-bank-option-check">check</mat-icon>
-                                                    </span>
-                                                </mat-option>
-                                                <mat-option *ngIf="(filteredCategories$ | async)?.length === 0"
-                                                    [disabled]="true"
-                                                    style="font-size: 13px; color: #6b7280; font-style: italic;">
-                                                    {{ (appliedQuestionBankFilters.length > 0 || hasCategoryFilterValues() || (categoryCtrl.value && categoryCtrl.value.trim())) ? (categoryFilterError || 'No question bank found for the selected filter') : 'Please apply a filter to view question banks' }}
-                                                </mat-option>
-                                            </mat-autocomplete>
-                                        </mat-form-field>
-                                        <div class="question-count-error" *ngIf="categoryFilterError"
-                                            style="margin-top: 4px;">
-                                            {{ categoryFilterError }}
-                                        </div>
-                                    </div>
-
-                                    <div class="col question-type-col">
-                                        <mat-form-field appearance="outline" class="full">
-                                            <mat-label>Question Type</mat-label>
-                                            <input matInput [value]="formatQuestionBankType(newCategory.question_type)"
-                                                readonly />
-                                        </mat-form-field>
-                                    </div>
-
-                                    <div class="col marks-col">
-                                        <mat-form-field appearance="outline" class="full">
-                                            <mat-label>Marks per Question</mat-label>
-                                            <input matInput [value]="newCategory.marks_per_question ?? ''" readonly />
-                                        </mat-form-field>
-                                    </div>
-
-                                    <div class="col total-questions-col">
-                                        <mat-form-field appearance="outline" class="full">
-                                            <mat-label>No of Questions Available in Question Bank</mat-label>
-                                            <input matInput [value]="selectedQuestionBankQuestionCount || ''"
-                                                readonly />
-                                        </mat-form-field>
-                                    </div>
-                                </div>
-
-                                <div class="row small second-row">
-                                    <div class="col count-col">
-                                        <mat-form-field appearance="outline" class="full">
-                                            <mat-label>Count of questions to be included from this bank</mat-label>
-                                            <input matInput type="number" [(ngModel)]="newCategory.questions"
-                                                (ngModelChange)="onNewCategoryQuestionCountChange($event)"
-                                                (input)="stripLeadingZeros($event)" name="newCategoryQuestions"
-                                                placeholder="" min="1" [max]="selectedQuestionBankQuestionCount || null"
-                                                [disabled]="!selectedCategory || readOnly" />
-                                        </mat-form-field>
-                                    </div>
-                                    <div class="col checkbox-col">
-                                        <mat-checkbox [(ngModel)]="newCategory.randomize_questions"
-                                            (ngModelChange)="onNewCategoryRandomizeChange($event)"
-                                            [disabled]="readOnly">Randomly assign questions to user</mat-checkbox>
-                                    </div>
-                                    <div class="col actions-col">
-                                        <button mat-flat-button color="primary" aria-label="Add category"
-                                            class="add-btn" type="button" (click)="addSelectedQuestionBankQuestions()"
-                                            [disabled]="!selectedCategory || activeQuestionCategoryId !== selectedCategory || !canAddSelectedQuestionBankQuestions || readOnly">
-                                            <mat-icon class="add-icon">add</mat-icon>Add Selected
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="question-count-error" *ngIf="questionCountError"
-                                    [class.warning-msg]="questionCountError.includes('Random selection has no effect')">
-                                    {{ questionCountError }}</div>
-                                <div class="question-mode-hint" *ngIf="selectedCategory" style="margin-top: 0.75rem;">
-                                    <span *ngIf="!newCategory?.randomize_questions" class="handpick-chip handpick-chip--fixed">
-                                        <strong>Fixed:</strong> A fixed set of <strong>{{ newCategory.questions || 0 }}</strong> question(s) are randomly chosen once and given to every student.
-                                    </span>
-                                    <span *ngIf="newCategory?.randomize_questions" class="handpick-chip handpick-chip--randomized">
-                                        <strong>Randomized:</strong> Each student gets a freshly randomized set of <strong>{{ newCategory.questions || 0 }}</strong> question(s) when they start the test.
-                                    </span>
-                                </div>
-
-
-                                <div *ngIf="model.categories?.length">
-                                    <div class="category-list">
-                                        <div class="category-list-header">
-                                            <span>Attached Question Banks</span>
-                                            <strong>{{ model.categories?.length || 0 }}</strong>
-                                        </div>
-                                        <div class="attached-bank-table" role="list">
-                                            <div class="attached-bank-row attached-bank-row--head" aria-hidden="true">
-                                                <div class="attached-bank-cell attached-bank-cell--sno">S.No</div>
-                                                <div class="attached-bank-cell attached-bank-cell--name">Question
-                                                    Bank
-                                                    Name</div>
-                                                <div class="attached-bank-cell attached-bank-cell--type">Question
-                                                    Type
-                                                </div>
-                                                <div class="attached-bank-cell attached-bank-cell--count">No. of
-                                                    Questions Selected</div>
-                                                <div class="attached-bank-cell attached-bank-cell--per-mark">Marks
-                                                    per
-                                                    Question</div>
-                                                <div class="attached-bank-cell attached-bank-cell--marks">Total
-                                                    Marks
-                                                </div>
-                                                <div class="attached-bank-cell attached-bank-cell--actions">Actions
-                                                </div>
-                                            </div>
-                                            <div class="attached-bank-row attached-bank-card"
-                                                *ngFor="let c of model.categories; let i = index" role="listitem"
-                                                [class.attached-bank-card--active]="isCategoryQuestionsExpanded(c)">
-                                                <div class="attached-bank-cell attached-bank-cell--sno"
-                                                    data-label="S.No">{{ i + 1 }}</div>
-                                                <div class="attached-bank-cell attached-bank-cell--name"
-                                                    data-label="Question Bank Name">
-                                                    <span class="attached-bank-name">{{ c.name }}</span>
-                                                    <span class="attached-bank-randomize"
-                                                        *ngIf="c.randomize_questions">Randomized</span>
-                                                    <span class="attached-bank-fixed"
-                                                        *ngIf="!c.randomize_questions && (!c.question_ids || c.question_ids.length === 0) && c.questions > 0">Fixed</span>
-                                                </div>
-                                                <div class="attached-bank-cell attached-bank-cell--type"
-                                                    data-label="Question Type">
-                                                    {{ formatQuestionBankType(c.question_type) || '--' }}
-                                                </div>
-
-                                                <div class="attached-bank-cell attached-bank-cell--count"
-                                                    data-label="No. of Questions Selected">{{ c.questions || 0 }}
-                                                </div>
-                                                <div class="attached-bank-cell attached-bank-cell--per-mark"
-                                                    data-label="Marks per Question">{{
-                                                    getCategoryMarksPerQuestion(c) }}
-                                                </div>
-                                                <div class="attached-bank-cell attached-bank-cell--marks"
-                                                    data-label="Total Marks">{{ getCategoryTotalMarks(c) }}</div>
-                                                <div class="attached-bank-cell attached-bank-cell--actions"
-                                                    data-label="Actions">
-                                                    <button mat-icon-button type="button"
-                                                        class="attached-bank-action-btn attached-bank-action-btn--view"
-                                                        (click)="viewCategoryQuestions(c)"
-                                                        [attr.aria-label]="isCategoryQuestionsExpanded(c) ? 'Hide questions' : 'View questions'"
-                                                        [title]="isCategoryQuestionsExpanded(c) ? 'Hide questions' : 'View questions'">
-                                                        <mat-icon>{{ isCategoryQuestionsExpanded(c) ? 'visibility' :
-                                                            'visibility_off' }}</mat-icon>
-                                                    </button>
-                                                    <button mat-icon-button color="warn" type="button"
-                                                        class="attached-bank-action-btn attached-bank-action-btn--delete"
-                                                        (click)="removeCategory(i)" aria-label="Remove question bank"
-                                                        title="Remove question bank" [disabled]="readOnly">
-                                                        <mat-icon>delete</mat-icon>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="attached-bank-summary">Total Questions: {{ totalQuestions || 0
-                                            }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="right">
-                            <div class="section-block">
-                                <div class="section-header">
-                                    <mat-icon class="section-icon">quiz</mat-icon>
-                                    <div class="section-header-text">
-                                        <h2 class="section-heading">Questions</h2>
-                                        <p class="section-desc" *ngIf="activeQuestionCategoryName">Questions from {{
-                                            activeQuestionCategoryName }}.</p>
-                                        <p class="section-desc" *ngIf="!activeQuestionCategoryName">Select or view a
-                                            question bank to load questions.</p>
-                                    </div>
-                                </div>
-                                <div class="question-controls">
-                                    <mat-checkbox class="question-select-all" [(ngModel)]="selectAllQuestions"
-                                        [disabled]="readOnly || isActiveQuestionBankRandomized()"
-                                        (change)="toggleSelectAllQuestions($event.checked)">Select All
-                                        ({{questionsForCategory.length}})</mat-checkbox><span
-                                        class="question-count question-count--selected"><span>Selected</span><strong>{{selectedQuestionIds.length}}</strong></span>
-                                     <span class="question-handpick-chip" *ngIf="!newCategory?.randomize_questions">Optionally hand-pick specific questions below.</span>
-                                </div>
-                                <div class="question-list">
-                                    <mat-list *ngIf="questionsForCategory.length">
-                                        <mat-list-item *ngFor="let q of questionsForCategory" class="question-row">
-                                            <mat-checkbox [checked]="selectedQuestionIds.indexOf(q.id+'')>=0"
-                                                [disabled]="readOnly || isActiveQuestionBankRandomized()"
-                                                (change)="toggleQuestionSelection(q.id, $event.checked)">{{q.question}}</mat-checkbox>
-                                        </mat-list-item>
-                                    </mat-list>
-                                    <div *ngIf="!questionsForCategory.length" class="muted">Select a question bank
-                                        or
-                                        click View Questions from an attached question bank.</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button mat-button matStepperPrevious type="button" class="prev-btn">
-                            <mat-icon>arrow_back</mat-icon>
-                            <span>Back</span>
-                        </button>
-                        <button mat-button type="button" class="next-btn" (click)="validateStep2AndProceed()">
-                            <span>Next</span>
-                            <mat-icon>arrow_forward</mat-icon>
-                        </button>
-                    </div>
-                </div>
-            </mat-step>
-
-            <!-- ═══ Step 3: Review ═══ -->
-            <mat-step>
-                <ng-template matStepLabel>Review</ng-template>
-                <div class="step-content">
-                    <div class="section-block">
-                        <div class="section-header">
-                            <mat-icon class="section-icon">fact_check</mat-icon>
-                            <div class="section-header-text">
-                                <h2 class="section-heading">Review &amp; Submit</h2>
-                                <p class="section-desc">Please review all information before saving.</p>
-                            </div>
-                        </div>
-
-                        <div class="review-grid">
-                            <!-- Basic Info -->
-                            <div class="review-section">
-                                <h4 class="review-section-title">
-                                    <mat-icon>assignment</mat-icon> Basic Info
-                                </h4>
-                                <div class="review-items">
-                                    <div class="review-item"><span class="review-label">Title</span><span
-                                            class="review-value">{{ title || '—' }}</span></div>
-                                    <div class="review-item"><span class="review-label">Description</span><span
-                                            class="review-value">{{ description || '—' }}</span></div>
-                                    <div class="review-item"><span class="review-label">{{ terminology.deptPlural }}</span><span
-                                            class="review-value">{{ getSelectedDepartmentsDisplay() }}</span></div>
-                                    <div class="review-item"><span class="review-label">{{ terminology.teamPlural }}</span><span
-                                            class="review-value">{{ getSelectedTeamsDisplay() }}</span></div>
-                                </div>
-                            </div>
-
-                            <!-- Settings -->
-                            <div class="review-section">
-                                <h4 class="review-section-title">
-                                    <mat-icon>settings</mat-icon> Settings
-                                </h4>
-                                <div class="review-items">
-                                    <div class="review-item"><span class="review-label">Duration</span><span
-                                            class="review-value">{{ durationMinutes || '—' }} mins</span></div>
-                                    <div class="review-item"><span class="review-label">Pass Percentage</span><span
-                                            class="review-value">{{ passMark || '—' }}%</span></div>
-                                    <div class="review-item"><span class="review-label">Attempts</span><span
-                                            class="review-value">{{ numberOfAttempts || 0 }}</span></div>
-                                </div>
-                            </div>
-
-                            <!-- Questions & Question Banks -->
-                            <div class="review-section review-section--full">
-                                <h4 class="review-section-title">
-                                    <mat-icon>quiz</mat-icon> Questions &amp; Question Banks
-                                </h4>
-                                <div class="review-items review-items--grid">
-                                    <div class="review-item"><span class="review-label">Total questions</span><span
-                                            class="review-value">{{ totalQuestions || 0 }}</span></div>
-                                    <div class="review-item"><span class="review-label">Question Banks</span><span
-                                            class="review-value">{{ model.categories?.length || 0 }}</span></div>
-                                    <div class="review-item"><span class="review-label">Randomize</span><span
-                                            class="review-value">{{ anyCategoryRandomized() ? 'Yes' : 'No' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button mat-button matStepperPrevious type="button" class="prev-btn">
-                            <mat-icon>arrow_back</mat-icon>
-                            <span>Back</span>
-                        </button>
-                        <button mat-flat-button color="primary" (click)="save()" type="button" class="submit-btn">
-                            <mat-icon>save</mat-icon>
-                            <span *ngIf="!editMode">Save</span>
-                            <span *ngIf="editMode">Update</span>
-                        </button>
-                    </div>
-                </div>
-            </mat-step>
-        </mat-horizontal-stepper>
+            </div>
+        </div>
     </div>
+
+    <!-- ═══ Modal: Add / Edit Section ═══ -->
+    <div class="modal-backdrop" *ngIf="showAddSectionModal" (click)="closeAddSectionModal()">
+        <div class="modal-dialog section-dialog" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h3>{{ editingSectionIndex >= 0 ? 'Edit Section' : 'Add New Section' }}</h3>
+                <button mat-icon-button type="button" (click)="closeAddSectionModal()">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Section Name -->
+                <div class="form-group">
+                    <label class="field-label">Section Name <span class="req">*</span></label>
+                    <input class="qp-input" [(ngModel)]="newSectionName" placeholder="e.g. Section A" />
+                </div>
+                <!-- Sub Heading / Instructions -->
+                <div class="form-group">
+                    <label class="field-label">Sub Heading <span class="opt">(instructions / description)</span></label>
+                    <input class="qp-input" [(ngModel)]="newSectionSubHeading" placeholder="e.g. Answer all questions. Each question carries 1 mark." />
+                </div>
+                <!-- Target count -->
+                <div class="form-group">
+                    <label class="field-label">Total Questions in Section</label>
+                    <input class="qp-input" type="number" [(ngModel)]="newSectionTargetCount" min="1" placeholder="e.g. 10" />
+                </div>
+                <!-- Marks per question -->
+                <div class="form-group">
+                    <label class="field-label">Marks per Question</label>
+                    <input class="qp-input" type="number" [(ngModel)]="newSectionMarksPerQ" min="0" step="0.5" placeholder="e.g. 1" />
+                </div>
+                <!-- Question Type -->
+                <div class="form-group">
+                    <label class="field-label">Question Type <span class="req">*</span></label>
+                    <div class="type-cards">
+                        <div class="type-card" [class.selected]="newSectionType === 'objective'" (click)="newSectionType = 'objective'">
+                            <span class="type-radio" [class.checked]="newSectionType === 'objective'"></span>
+                            <div class="type-card-info">
+                                <strong>Objective</strong>
+                                <span>MCQ, Single Choice, Fill in Blanks</span>
+                            </div>
+                        </div>
+                        <div class="type-card" [class.selected]="newSectionType === 'descriptive'" (click)="newSectionType = 'descriptive'">
+                            <span class="type-radio" [class.checked]="newSectionType === 'descriptive'"></span>
+                            <div class="type-card-info">
+                                <strong>Descriptive</strong>
+                                <span>Short Answer, Paragraph, Essay</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" type="button" (click)="closeAddSectionModal()">Cancel</button>
+                <button class="btn-modal-confirm" type="button" (click)="confirmAddSection()">
+                    <mat-icon>check</mat-icon>
+                    <span>{{ editingSectionIndex >= 0 ? 'Save Changes' : 'Add Section' }}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Modal: Add Questions ═══ -->
+    <div class="modal-backdrop" *ngIf="showAddQuestionModal" (click)="closeAddQuestionModal()">
+        <div class="modal-dialog questions-dialog" (click)="$event.stopPropagation()">
+            <!-- Context header -->
+            <div class="modal-context-header">
+                <div class="context-row">
+                    <div class="context-chips">
+                        <span class="context-chip subject">
+                            <mat-icon>menu_book</mat-icon> {{ subject_name || 'Subject' }}
+                        </span>
+                        <span class="context-chip section">
+                            <strong>{{ activeModalSection?.name }}</strong>
+                            <span class="dot">·</span>
+                            <span>{{ activeModalSection?.question_type | titlecase }}</span>
+                        </span>
+                    </div>
+                    <button mat-icon-button type="button" (click)="closeAddQuestionModal()">
+                        <mat-icon>close</mat-icon>
+                    </button>
+                </div>
+                <h3>Add Questions</h3>
+            </div>
+
+            <div class="modal-body">
+                <!-- Question Bank Select -->
+                <div class="form-group">
+                    <label class="field-label">Question Bank</label>
+                    <mat-select class="qp-select" [(ngModel)]="modalSelectedBankId"
+                        (selectionChange)="onModalQuestionBankChange($event.value)"
+                        placeholder="Select Question Bank">
+                        <mat-option *ngIf="modalLoadingBanks" disabled>Loading question banks for {{ subject_name }}...</mat-option>
+                        <mat-option *ngIf="!modalLoadingBanks && modalQuestionBanks.length === 0" disabled>No question banks for {{ subject_name }}</mat-option>
+                        <mat-option *ngFor="let b of modalQuestionBanks" [value]="b.id">{{ b.name }}</mat-option>
+                    </mat-select>
+                </div>
+
+                <!-- Search + Select All -->
+                <div class="q-filter-row" *ngIf="modalSelectedBankId">
+                    <div class="q-search-wrap">
+                        <mat-icon>search</mat-icon>
+                        <input type="text" [(ngModel)]="modalSearchTerm" placeholder="Search questions..." />
+                        <button *ngIf="modalSearchTerm" type="button" class="q-clear-btn" (click)="modalSearchTerm = ''">
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    </div>
+                    <div class="q-select-all" *ngIf="filteredModalQuestions.length > 0">
+                        <mat-checkbox [checked]="isAllModalQuestionsSelected()"
+                            [indeterminate]="isSomeModalQuestionsSelected()"
+                            (change)="toggleSelectAllModalQuestions($event.checked)">
+                            Select All ({{ selectableModalQuestionsCount }} available)
+                        </mat-checkbox>
+                    </div>
+                </div>
+
+                <!-- Questions scroll list -->
+                <div class="modal-questions-list" *ngIf="modalSelectedBankId">
+                    <div class="modal-loading" *ngIf="modalLoadingQuestions">
+                        <mat-icon class="spin">hourglass_empty</mat-icon>
+                        Loading questions...
+                    </div>
+                    <div class="modal-empty" *ngIf="!modalLoadingQuestions && filteredModalQuestions.length === 0">
+                        <mat-icon>search_off</mat-icon>
+                        <p>No {{ activeModalSection?.question_type }} questions found.</p>
+                    </div>
+                    <div class="modal-q-row" *ngFor="let q of filteredModalQuestions"
+                        [class.disabled]="q.alreadyInOtherSection"
+                        [class.selected]="q.selected && !q.alreadyInOtherSection">
+                        <mat-checkbox [checked]="q.selected" [disabled]="q.alreadyInOtherSection"
+                            (change)="toggleModalQuestion(q, $event.checked)">
+                            <div class="modal-q-label">
+                                <span class="modal-q-text">{{ q.question }}</span>
+                                <div class="modal-q-meta">
+                                    <span class="modal-q-marks">{{ q.marks || 1 }} mark{{ (q.marks || 1) > 1 ? 's' : '' }}</span>
+                                    <span class="modal-q-used" *ngIf="q.alreadyInOtherSection">
+                                        <mat-icon>lock</mat-icon> Already in Paper
+                                    </span>
+                                </div>
+                            </div>
+                        </mat-checkbox>
+                    </div>
+                </div>
+
+                <!-- No bank selected state -->
+                <div class="modal-no-bank" *ngIf="!modalSelectedBankId">
+                    <mat-icon>inventory_2</mat-icon>
+                    <p>Select a Question Bank above to view questions.</p>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <span class="selected-count" *ngIf="selectedModalQuestionsCount > 0">
+                    <strong>{{ selectedModalQuestionsCount }}</strong> question{{ selectedModalQuestionsCount > 1 ? 's' : '' }} selected
+                </span>
+                <div class="footer-btns">
+                    <button class="btn-modal-cancel" type="button" (click)="closeAddQuestionModal()">Cancel</button>
+                    <button class="btn-modal-confirm" type="button"
+                        [disabled]="selectedModalQuestionsCount === 0"
+                        (click)="confirmAddSelectedQuestions()">
+                        <mat-icon>add</mat-icon> Add Selected Questions
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
