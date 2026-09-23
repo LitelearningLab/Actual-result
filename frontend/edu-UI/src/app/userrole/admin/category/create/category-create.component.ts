@@ -132,6 +132,8 @@ export class CategoryCreateComponent {
     department_id?: string | null;
     department_name?: string | null;
   }> = [];
+  subjects: Array<{ id: string; name: string }> = [];
+  loadingSubjects = false;
   isSuperAdmin: boolean = false;
   currentUserId: string | null = null;
 
@@ -193,6 +195,7 @@ export class CategoryCreateComponent {
     if (this.institute) {
       this.loadDepartments();
       this.loadTeams();
+      this.loadSubjects();
     }
     this.loadCountries();
   }
@@ -341,6 +344,39 @@ export class CategoryCreateComponent {
         this.selectedTeams = [];
       },
     });
+  }
+
+  loadSubjects() {
+    if (!this.institute) {
+      this.subjects = [];
+      return;
+    }
+    this.loadingSubjects = true;
+    const url = `${API_BASE}/get-subject-list`;
+    const params: any = { institute_id: this.institute, active_only: true };
+    this.http.get<any>(url, { params }).subscribe({
+      next: (res) => {
+        this.loadingSubjects = false;
+        const data = res?.data || res || [];
+        this.subjects = (Array.isArray(data) ? data : [])
+          .map((s: any) => ({
+            id: s.subject_id || s.id,
+            name: s.subject_name || s.name,
+          }))
+          .filter((s: any) => !!s.name);
+      },
+      error: () => {
+        this.loadingSubjects = false;
+        this.subjects = [];
+      },
+    });
+  }
+
+  isSubjectInList(subjectName: string): boolean {
+    if (!subjectName || !this.subjects.length) return false;
+    return this.subjects.some(
+      (s) => s.name?.toLowerCase().trim() === subjectName.toLowerCase().trim()
+    );
   }
 
   save() {
@@ -527,10 +563,12 @@ export class CategoryCreateComponent {
     if (!this.isEditing) {
       this.selectedDepartments = [];
       this.selectedTeams = [];
+      this.subject = '';
     }
 
     this.loadDepartments();
     this.loadTeams();
+    this.loadSubjects();
   }
 
   @HostListener('document:click', ['$event'])

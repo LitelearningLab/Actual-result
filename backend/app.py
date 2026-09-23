@@ -24,8 +24,16 @@ from others.ocr import extract_text_from_image
 # Flask Application Core - Name Resolution Fix Reload
 import os
 from masters.location import get_location_hierarchy_details, get_registered_countries_details
-from masters.insititute_masters import get_institute_department_details, get_institute_team_details
+from masters.insititute_masters import (
+    get_institute_department_details,
+    get_institute_team_details,
+    get_institute_subject_details,
+    add_institute_subject,
+    update_institute_subject,
+    delete_institute_subject
+)
 from masters.others import get_pages_list
+
 
 from dashboard.super_admin_dashboard import superadmin_dashboard_details
 from dashboard.admin_dashboard import admin_dashboard_details
@@ -736,6 +744,60 @@ def get_team_details():
     institute_id = request.args.get('institute_id') or request.args.get('institute')
     response_data, status_code = get_institute_team_details(institute_id, filter_by_institute=filter_by_institute)
     return jsonify(response_data), status_code
+
+@edu_blueprint.route('/get-subject-list', methods=['GET'])
+@admin_required
+def get_subject_details():
+    filter_by_institute = ('institute_id' in request.args) or ('institute' in request.args)
+    institute_id = request.args.get('institute_id') or request.args.get('institute')
+    active_only = request.args.get('active_only', 'false').lower() in ('true', '1')
+    response_data, status_code = get_institute_subject_details(institute_id, filter_by_institute=filter_by_institute, active_only=active_only)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/add-subject', methods=['POST'])
+@admin_required
+def add_subject_route():
+    try:
+        data = request.get_json(silent=True) or {}
+        current_user_id = getattr(request, 'user_id', None)
+        response_data, status_code = add_institute_subject(data, current_user_id=current_user_id)
+        return jsonify(response_data), status_code
+    except Exception as exc:
+        print(f"Unhandled add-subject error: {exc}", flush=True)
+        return jsonify({
+            "status": False,
+            "statusMessage": f"Failed to add subject: {str(exc)}"
+        }), 500
+
+@edu_blueprint.route('/update-subject/<subject_id>', methods=['PUT', 'OPTIONS'])
+@admin_required
+def update_subject_route(subject_id):
+    try:
+        data = request.get_json(silent=True) or {}
+        current_user_id = getattr(request, 'user_id', None)
+        response_data, status_code = update_institute_subject(subject_id, data, current_user_id=current_user_id)
+        return jsonify(response_data), status_code
+    except Exception as exc:
+        print(f"Unhandled update-subject error: {exc}", flush=True)
+        return jsonify({
+            "status": False,
+            "statusMessage": f"Failed to update subject: {str(exc)}"
+        }), 500
+
+@edu_blueprint.route('/delete-subject/<subject_id>', methods=['DELETE', 'OPTIONS'])
+@admin_required
+def delete_subject_route(subject_id):
+    try:
+        current_user_id = getattr(request, 'user_id', None)
+        response_data, status_code = delete_institute_subject(subject_id, current_user_id=current_user_id)
+        return jsonify(response_data), status_code
+    except Exception as exc:
+        print(f"Unhandled delete-subject error: {exc}", flush=True)
+        return jsonify({
+            "status": False,
+            "statusMessage": f"Failed to delete subject: {str(exc)}"
+        }), 500
+
 
 @edu_blueprint.route('/superadmin-dashboard', methods=['GET'])
 @super_admin_required

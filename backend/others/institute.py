@@ -1,4 +1,4 @@
-from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City
+from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City, Subject
 from db.db import SQLiteDB
 from datetime import datetime
 from sqlalchemy import func, or_
@@ -304,6 +304,21 @@ def insert_institute(data):
                     created_by=created_by
                 )
                 session.add(new_InstituteTeam)
+
+        operation = "insert_subjects"
+        for subj in data.get('subjects') or []:
+            subj_str = (subj.get('name') if isinstance(subj, dict) else str(subj)).strip()
+            if not subj_str:
+                continue
+            new_Subject = Subject(
+                institute_id=institute_id,
+                subject_name=subj_str,
+                created_by=created_by,
+                active_status=1,
+                is_deleted=0
+            )
+            session.add(new_Subject)
+
         operation = "commit"
         session.commit()
 
@@ -525,6 +540,33 @@ def update_institute(request):
                         created_by=data.get("current_user", 'system')
                     )
                     session.add(new_InstituteTeam)
+
+    # update subjects if provided
+    subjects_list = data.get('subjects', None)
+    if subjects_list is not None:
+        existing_subjects = session.query(Subject).filter(
+            Subject.institute_id == institute_id,
+            or_(Subject.is_deleted == False, Subject.is_deleted == 0, Subject.is_deleted.is_(None))
+        ).all()
+        existing_map = {s.subject_name.lower(): s for s in existing_subjects}
+        incoming_names = set()
+        for s in subjects_list:
+            s_name = (s.get('name') if isinstance(s, dict) else str(s)).strip()
+            if not s_name:
+                continue
+            incoming_names.add(s_name.lower())
+            if s_name.lower() not in existing_map:
+                new_Subject = Subject(
+                    institute_id=institute_id,
+                    subject_name=s_name,
+                    created_by=data.get("current_user", 'system'),
+                    active_status=1,
+                    is_deleted=0
+                )
+                session.add(new_Subject)
+        for s_lower, s_obj in existing_map.items():
+            if s_lower not in incoming_names:
+                s_obj.is_deleted = 1
 
     # update campuses if provided
     campus_list = data.get('campuses', None)
@@ -825,6 +867,17 @@ def get_institute_details(request):
             "departments": dept_list,
             "teams": team_list,
             "campuses": campus_list,
+            "subjects": [
+                {
+                    "subject_id": s.subject_id,
+                    "name": s.subject_name,
+                    "active_status": True if s.active_status in (1, True, '1') else False
+                }
+                for s in session.query(Subject).filter(
+                    Subject.institute_id == inst.institute_id,
+                    or_(Subject.is_deleted == False, Subject.is_deleted == 0, Subject.is_deleted.is_(None))
+                ).all()
+            ],
             "created_by": {"user_id": inst.created_by, "user_name" :created_by},
             "created_date": inst.created_date,
             "updated_by":{ "user_id": inst.updated_by, "user_name" : updated_by},

@@ -570,3 +570,16 @@ class ExamsTeams(Base):
     team_id = Column(String)
     created_by = Column(String)
     created_date = Column(DateTime, default=datetime.datetime.utcnow)
+
+class Subject(Base):
+    __tablename__ = 'Subjects'
+    subject_id = Column(String, primary_key=True, default=generate_uuid)
+    institute_id = Column(String, ForeignKey('Institutes.institute_id'), nullable=False)
+    subject_name = Column(String(255), nullable=False)
+    created_by = Column(String)
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_by = Column(String)
+    updated_date = Column(DateTime)
+    active_status = Column(Integer, default=1)
+    is_deleted = Column(Boolean, default=0)
+

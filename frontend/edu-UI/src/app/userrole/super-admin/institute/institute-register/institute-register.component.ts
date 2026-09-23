@@ -194,6 +194,11 @@ export class InstituteRegisterComponent {
   departmentList: string[] = [];
   teamList: string[] = [];
   branchList: string[] = [];
+  subjectsList: string[] = [];
+  showAddSubjectModal: boolean = false;
+  newSubjectName: string = '';
+  isAddingSubjectInline: boolean = false;
+  newSubjectInput: string = '';
 
   // Dynamic terminology helpers for School vs Non-School industry types
   get isSchool(): boolean {
@@ -272,6 +277,50 @@ export class InstituteRegisterComponent {
   openAddDepartmentModal(): void {
     this.showAddDepartmentModal = true;
     this.newDepartmentName = '';
+  }
+
+  openAddSubjectModal(): void {
+    this.showAddSubjectModal = true;
+    this.newSubjectName = '';
+  }
+
+  closeAddSubjectModal(): void {
+    this.showAddSubjectModal = false;
+    this.newSubjectName = '';
+  }
+
+  confirmAddSubjectModal(): void {
+    const val = (this.newSubjectName || '').trim();
+    if (!val) return;
+    if (!this.subjectsList.some((s) => s.toLowerCase() === val.toLowerCase())) {
+      this.subjectsList.push(val);
+    }
+    this.closeAddSubjectModal();
+  }
+
+  startAddingSubjectInline(): void {
+    this.isAddingSubjectInline = true;
+    this.newSubjectInput = '';
+  }
+
+  cancelAddingSubjectInline(): void {
+    this.isAddingSubjectInline = false;
+    this.newSubjectInput = '';
+  }
+
+  confirmAddSubjectInline(): void {
+    const val = (this.newSubjectInput || '').trim();
+    if (val && !this.subjectsList.some((s) => s.toLowerCase() === val.toLowerCase())) {
+      this.subjectsList.push(val);
+    }
+    this.newSubjectInput = '';
+    this.isAddingSubjectInline = false;
+  }
+
+  removeSubject(index: number): void {
+    if (index >= 0 && index < this.subjectsList.length) {
+      this.subjectsList.splice(index, 1);
+    }
   }
 
   closeAddDepartmentModal(): void {
@@ -720,6 +769,30 @@ export class InstituteRegisterComponent {
           this.departments = [];
         }
         this.syncFormDepartmentAndTeam();
+
+        // Prefill subjects if available
+        const rawSubjects = Array.isArray(obj.subjects) ? obj.subjects : [];
+        if (rawSubjects.length > 0) {
+          this.subjectsList = rawSubjects
+            .map((s: any) => (typeof s === 'string' ? s : s?.name || s?.subject_name || ''))
+            .filter(Boolean);
+        } else if (this.editingInstituteId) {
+          this.http
+            .get<any>(`${API_BASE}/get-subject-list`, {
+              params: { institute_id: this.editingInstituteId },
+            })
+            .subscribe({
+              next: (res) => {
+                const data = res?.data || [];
+                this.subjectsList = (Array.isArray(data) ? data : [])
+                  .map((s: any) => s.name || s.subject_name || '')
+                  .filter(Boolean);
+              },
+              error: () => {
+                this.subjectsList = [];
+              },
+            });
+        }
         // campuses — deferred until getCountries() resolves so mat-select
         // options exist before values are written (fixes blank dropdowns on edit)
         this._pendingEditCampuses = campusesData.filter(
@@ -1205,6 +1278,7 @@ export class InstituteRegisterComponent {
         .filter((d) => Boolean(d.name)),
       department: this.departmentList.slice(),
       team: this.teamList.slice(),
+      subjects: this.subjectsList.slice(),
       // send only current user's id
       current_user:
         current_user && (current_user.user_id || current_user.id)

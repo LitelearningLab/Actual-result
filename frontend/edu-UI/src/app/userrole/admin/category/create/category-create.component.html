@@ -348,12 +348,31 @@
               <mat-form-field appearance="outline" class="field-full">
                 <mat-label>Subject</mat-label>
                 <mat-icon matPrefix>menu_book</mat-icon>
-                <input
-                  matInput
-                  [value]="subject"
-                  (input)="setSubject($any($event.target).value)"
-                  placeholder="Subject"
-                />
+                <mat-select
+                  [(ngModel)]="subject"
+                  [ngModelOptions]="{ standalone: true }"
+                  placeholder="Select Subject"
+                >
+                  <mat-option *ngIf="loadingSubjects" disabled>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
+                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                      <span>Loading subjects...</span>
+                    </div>
+                  </mat-option>
+                  <mat-option *ngIf="!loadingSubjects && subjects.length === 0" disabled>
+                    No subjects found for this institute
+                  </mat-option>
+                  <!-- Preserve existing value if not in the fetched list (e.g. legacy free-text) -->
+                  <mat-option *ngIf="subject && !isSubjectInList(subject)" [value]="subject">
+                    {{ subject }}
+                  </mat-option>
+                  <mat-option *ngFor="let s of subjects" [value]="s.name">
+                    {{ s.name }}
+                  </mat-option>
+                </mat-select>
+                <mat-hint *ngIf="!institute" style="color: #64748b; font-size: 12px;">
+                  Please select an institute to load its subjects
+                </mat-hint>
               </mat-form-field>
             </div>
 

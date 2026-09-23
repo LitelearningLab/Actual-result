@@ -235,6 +235,95 @@
                 </mat-error>
               </div>
 
+              <!-- Subjects Section -->
+              <div class="dept-teams-section" style="margin-top: 1.5rem;">
+                <div class="dept-section-header">
+                  <div>
+                    <label class="chip-label">Subjects</label>
+                    <p class="chip-subdesc">Add subjects or topics for this institute to organize question banks.</p>
+                  </div>
+                </div>
+
+                <!-- State 1: Empty Subjects State -->
+                <div class="empty-dept-container" *ngIf="!subjectsList.length">
+                  <div class="empty-dept-icon-wrapper">
+                    <mat-icon style="color: #6366f1;">menu_book</mat-icon>
+                  </div>
+                  <div class="empty-dept-title">No subjects added yet</div>
+                  <div class="empty-dept-desc">Add subjects for this institute to organize question banks and assessments.</div>
+                  <button type="button" mat-stroked-button color="primary" class="empty-add-btn" (click)="openAddSubjectModal()">
+                    <mat-icon>add</mat-icon>
+                    <span>+ Add Subject</span>
+                  </button>
+                </div>
+
+                <!-- State 2: Subjects Card & Chips List -->
+                <div class="dept-card" *ngIf="subjectsList.length" style="padding: 1.25rem 1.5rem;">
+                  <div class="dept-card-header" style="margin-bottom: 0.75rem;">
+                    <div class="dept-card-title-group">
+                      <mat-icon class="dept-folder-icon" style="color: #6366f1;">menu_book</mat-icon>
+                      <h3 class="dept-card-title">Subjects</h3>
+                      <span class="dept-team-count-badge" style="background: #e0e7ff; color: #4338ca;">{{ subjectsList.length }} {{ subjectsList.length === 1 ? 'subject' : 'subjects' }}</span>
+                    </div>
+                  </div>
+
+                  <div class="teams-chips-container" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+                    <div class="team-chip" *ngFor="let subj of subjectsList; let sIdx = index" style="background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; padding: 0.35rem 0.75rem; border-radius: 20px; display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 500;">
+                      <mat-icon style="font-size: 16px; width: 16px; height: 16px; color: #6366f1;">bookmark_border</mat-icon>
+                      <span>{{ subj }}</span>
+                      <button type="button" class="team-chip-remove" (click)="removeSubject(sIdx)" title="Remove subject" style="background: none; border: none; cursor: pointer; display: flex; align-items: center; padding: 0; color: #6366f1;">
+                        <mat-icon style="font-size: 16px; width: 16px; height: 16px;">close</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="dept-card-actions-bar" *ngIf="!isAddingSubjectInline">
+                    <button type="button" mat-stroked-button color="primary" class="add-team-stroked-btn" (click)="startAddingSubjectInline()">
+                      <mat-icon>add</mat-icon>
+                      <span>+ Add Subject</span>
+                    </button>
+                  </div>
+
+                  <div class="add-team-inline-form" *ngIf="isAddingSubjectInline" style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+                    <input matInput type="text" [(ngModel)]="newSubjectInput" [ngModelOptions]="{standalone: true}" placeholder="Enter subject name (e.g. Mathematics)" class="team-inline-input" (keydown.enter)="confirmAddSubjectInline()" (keydown.escape)="cancelAddingSubjectInline()" autofocus style="max-width: 320px; padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;" />
+                    <button type="button" mat-flat-button color="primary" (click)="confirmAddSubjectInline()" style="height: 36px;">Add</button>
+                    <button type="button" mat-stroked-button (click)="cancelAddingSubjectInline()" style="height: 36px;">Cancel</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Modal Dialog: Add Subject -->
+              <div class="modal-backdrop" *ngIf="showAddSubjectModal" (click)="closeAddSubjectModal()"></div>
+              <div class="modal-dialog" *ngIf="showAddSubjectModal" style="max-width: 440px;">
+                <div class="modal-header">
+                  <div class="modal-title-group">
+                    <mat-icon class="modal-title-icon" style="color: #6366f1;">menu_book</mat-icon>
+                    <h3 class="modal-title">Add Subject</h3>
+                  </div>
+                  <button type="button" mat-icon-button class="modal-close-btn" (click)="closeAddSubjectModal()">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+                <div class="modal-body" style="padding: 1.25rem 1.5rem 0.5rem;">
+                  <mat-form-field appearance="outline" class="w-full" style="width: 100%;">
+                    <mat-label>Subject Name <span class="required-star">*</span></mat-label>
+                    <input
+                      matInput
+                      [(ngModel)]="newSubjectName"
+                      [ngModelOptions]="{standalone: true}"
+                      placeholder="Enter subject name (e.g. Mathematics)"
+                      (keydown.enter)="confirmAddSubjectModal()"
+                      autocomplete="off"
+                    />
+                  </mat-form-field>
+                </div>
+                <div class="modal-footer" style="padding: 0.75rem 1.5rem 1.25rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
+                  <button type="button" mat-stroked-button (click)="closeAddSubjectModal()">Cancel</button>
+                  <button type="button" mat-flat-button color="primary" (click)="confirmAddSubjectModal()" [disabled]="!newSubjectName?.trim()">Save Subject</button>
+                </div>
+              </div>
+
+
               <!-- State 2 Modal Pop-up: Add Class / Add Department -->
               <div class="modal-backdrop" *ngIf="showAddDepartmentModal" (click)="closeAddDepartmentModal()"></div>
               <div class="modal-dialog" *ngIf="showAddDepartmentModal">
@@ -670,6 +759,18 @@
                         <span class="review-value">–</span>
                       </div>
                     </ng-template>
+                  </div>
+                </div>
+
+                <!-- Subjects Review -->
+                <div class="review-section" *ngIf="subjectsList?.length">
+                  <h4 class="review-section-title">
+                    <mat-icon style="color: #6366f1;">menu_book</mat-icon> Subjects ({{ subjectsList.length }})
+                  </h4>
+                  <div class="review-items">
+                    <div class="review-value" style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.25rem 0;">
+                      <span class="review-chip" *ngFor="let s of subjectsList" style="background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe;">{{ s }}</span>
+                    </div>
                   </div>
                 </div>
 
