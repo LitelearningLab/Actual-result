@@ -453,6 +453,7 @@ class Categories(Base):
     __tablename__ = 'Categories'
     category_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
     name = Column(String, nullable=False)
+    subject = Column(String)
     description = Column(Text)
     institute_id = Column(String, ForeignKey('Institutes.institute_id'))
     type = Column(String)

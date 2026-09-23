@@ -42,6 +42,7 @@ import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/se
 })
 export class CategoryCreateComponent {
   name = '';
+  subject = '';
   description = '';
   institute = '';
   type = '';
@@ -200,6 +201,7 @@ export class CategoryCreateComponent {
     this.isEditing = true;
     this.editId = c.category_id || c.id || c._id || null;
     this.name = c.name || c.category_name || '';
+    this.subject = c.subject || '';
     this.description = c.description || '';
 
     if (c.institute && typeof c.institute === 'object') {
@@ -396,6 +398,7 @@ export class CategoryCreateComponent {
 
     const payload: any = {
       name: String(this.name).trim(),
+      subject: this.subject ? String(this.subject).trim() : null,
       description: this.description || null,
       // backend expects institute id as institute_id when present
       institute_id: this.institute || null,
@@ -479,6 +482,7 @@ export class CategoryCreateComponent {
   // Reset the form fields to their defaults
   reset(): void {
     this.name = '';
+    this.subject = '';
     this.description = '';
     if (this.isSuperAdmin) {
       this.institute = '';
@@ -503,6 +507,9 @@ export class CategoryCreateComponent {
   }
   setName(v: string) {
     this.name = v || '';
+  }
+  setSubject(v: string) {
+    this.subject = v || '';
   }
   setDescription(v: string) {
     this.description = (v || '').slice(0, 250);

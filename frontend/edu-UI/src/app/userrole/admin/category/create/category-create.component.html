@@ -343,6 +343,20 @@
               </mat-form-field>
             </div>
 
+            <!-- Subject Field -->
+            <div class="field-row">
+              <mat-form-field appearance="outline" class="field-full">
+                <mat-label>Subject</mat-label>
+                <mat-icon matPrefix>menu_book</mat-icon>
+                <input
+                  matInput
+                  [value]="subject"
+                  (input)="setSubject($any($event.target).value)"
+                  placeholder="Subject"
+                />
+              </mat-form-field>
+            </div>
+
             <div class="field-row">
               <div class="field-half">
                 <mat-form-field appearance="outline" class="field-full">
@@ -570,6 +584,10 @@
                   <div class="review-item">
                     <span class="review-label">Name</span
                     ><span class="review-value">{{ name || '—' }}</span>
+                  </div>
+                  <div class="review-item">
+                    <span class="review-label">Subject</span
+                    ><span class="review-value">{{ subject || '—' }}</span>
                   </div>
                   <div class="review-item" *ngIf="isSuperAdmin">
                     <span class="review-label">Institute</span

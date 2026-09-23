@@ -15,6 +15,11 @@ def ensure_category_columns(session):
                 ALTER TABLE Categories ADD is_deleted BIT NULL;
             END;
 
+            IF COL_LENGTH('Categories', 'subject') IS NULL
+            BEGIN
+                ALTER TABLE Categories ADD subject NVARCHAR(255) NULL;
+            END;
+
             IF COL_LENGTH('Categories', 'name') IS NOT NULL
             BEGIN
                 ALTER TABLE Categories ALTER COLUMN name NVARCHAR(255) NULL;
@@ -132,6 +137,7 @@ def get_categories_list(request):
         categories_list.append({
             "id": category.category_id,
             "name": category.name,
+            "subject": getattr(category, "subject", None),
             "description": category.description,
             "type": category.type,
             "created_date": category.created_date.isoformat() if category.created_date else None,
@@ -268,6 +274,7 @@ def get_category_details(request):
         category_info = {
             "category_id": category.category_id,
             "name": category.name,
+            "subject": getattr(category, "subject", None),
             "description": category.description,
             "institute": {
                 "institute_id": category.institute_id,
@@ -346,6 +353,7 @@ def add_categories(request):
         created_date = datetime.utcnow()
         new_category = Categories(
             name=category_data.get("name"),
+            subject=category_data.get("subject"),
             description=category_data.get("description"),
             institute_id=institute_id,
             type=category_data.get("type"),
@@ -438,6 +446,8 @@ def update_category(category_id, request):
 
         # update fields
         category.name = data.get('name', category.name)
+        if 'subject' in data:
+            category.subject = data.get('subject')
         category.description = data.get('description', category.description)
         category.type = data.get('type', category.type)
         category.answer_by = data.get('who_inputs', category.answer_by)
