@@ -133,6 +133,21 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   totalMarksOverride: number | null = null;
   durationLabel = '1 Hour';
 
+  // User assignment mirrors the Select Users experience from Schedule Test.
+  paperUsers: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    departmentId?: string;
+    teamId?: string;
+  }> = [];
+  selectedPaperUsers: string[] = [];
+  assignmentDepartments: string[] = [];
+  assignmentTeams: string[] = [];
+  assignmentUserSearch = '';
+  assignmentFiltersOpen = false;
+  loadingPaperUsers = false;
+
   get examDate(): string {
     if (!this.startDateTime) return '';
     return this.startDateTime.includes('T') ? this.startDateTime.split('T')[0] : this.startDateTime;
@@ -838,6 +853,21 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
             )
             .filter(Boolean)
         : [];
+      const assignedUsers = Array.isArray(e.assigned_users) ? e.assigned_users : [];
+      this.selectedPaperUsers = Array.from(new Set(
+        (Array.isArray(e.assigned_user_ids) ? e.assigned_user_ids : assignedUsers)
+          .map((user: any) => String(
+            typeof user === 'object' ? user.user_id || user.id || '' : user
+          ))
+          .filter(Boolean)
+      ));
+      this.paperUsers = assignedUsers.map((user: any) => ({
+        id: String(user.user_id || user.id || ''),
+        name: user.full_name || user.name || user.user_name || user.email || 'User',
+        email: user.email || '',
+        departmentId: String(user.department_id || user.department?.department_id || ''),
+        teamId: String(user.team_id || user.team?.team_id || ''),
+      })).filter((user: any) => !!user.id);
 
       // normalize categories if present in the payload
       const srcCats = Array.isArray(e.categories)
@@ -1892,6 +1922,11 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.sections = [];
       this.resetQuestionBanksAndQuestionsSection();
     }
+    if (instituteChanged) {
+      this.selectedPaperUsers = [];
+      this.paperUsers = [];
+      this.resetAssignmentFilters();
+    }
     this.trackedInstituteForQuestionBanks = v;
     this.hasTrackedInstituteForQuestionBanks = true;
 
@@ -1900,6 +1935,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.loadDepartments(this.institute);
       this.loadTeams(this.institute);
       this.loadSubjects(this.institute);
+      this.loadPaperUsers();
       // also reload categories scoped to this institute
       this.loadCategoriesWithFilters({ institute_id: this.institute });
     } else {
@@ -1909,6 +1945,9 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.subject_id = '';
       this.subject_name = '';
       this.sections = [];
+      this.paperUsers = [];
+      this.selectedPaperUsers = [];
+      this.resetAssignmentFilters();
       this.loadCategories();
     }
   }
@@ -2895,6 +2934,110 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  get assignmentAvailableTeams(): Array<{
+    id: string;
+    name: string;
+    department_id?: string | null;
+    department_name?: string | null;
+  }> {
+    if (!this.assignmentDepartments.length) return this.teams;
+    const selected = new Set(this.assignmentDepartments.map(String));
+    return this.teams.filter((team) => !team.department_id || selected.has(String(team.department_id)));
+  }
+
+  get filteredPaperUsers() {
+    const term = this.assignmentUserSearch.trim().toLowerCase();
+    const departmentIds = new Set(this.assignmentDepartments.map(String));
+    const teamIds = new Set(this.assignmentTeams.map(String));
+    return this.paperUsers.filter((user) => {
+      if (departmentIds.size && !departmentIds.has(String(user.departmentId || ''))) return false;
+      if (teamIds.size && !teamIds.has(String(user.teamId || ''))) return false;
+      if (!term) return true;
+      return (user.name || '').toLowerCase().includes(term) ||
+        (user.email || '').toLowerCase().includes(term);
+    });
+  }
+
+  get areAllVisiblePaperUsersSelected(): boolean {
+    return this.filteredPaperUsers.length > 0 &&
+      this.filteredPaperUsers.every((user) => this.selectedPaperUsers.includes(user.id));
+  }
+
+  get areSomeVisiblePaperUsersSelected(): boolean {
+    const selectedCount = this.filteredPaperUsers.filter((user) =>
+      this.selectedPaperUsers.includes(user.id)
+    ).length;
+    return selectedCount > 0 && selectedCount < this.filteredPaperUsers.length;
+  }
+
+  loadPaperUsers(): void {
+    if (!this.institute) {
+      this.paperUsers = [];
+      return;
+    }
+    this.loadingPaperUsers = true;
+    this.http.get<any>(`${API_BASE}/get-users-list`, {
+      params: {
+        institute_id: this.institute,
+        active_status: 'true',
+        _ts: Date.now().toString(),
+      },
+    }).subscribe({
+      next: (res) => {
+        const data = Array.isArray(res?.data) ? res.data : [];
+        const loaded = data
+          .filter((user: any) => String(user.user_role || '').toLowerCase() === 'user')
+          .map((user: any) => ({
+            id: String(user.user_id || user.id || ''),
+            name: user.full_name || user.user_name || user.name || user.email || 'User',
+            email: user.email || '',
+            departmentId: String(user.department?.department_id || user.department_id || ''),
+            teamId: String(user.team?.team_id || user.team_id || ''),
+          }))
+          .filter((user: any) => !!user.id);
+        const merged = new Map(this.paperUsers.map((user) => [user.id, user]));
+        loaded.forEach((user: any) => merged.set(user.id, user));
+        this.paperUsers = Array.from(merged.values());
+      },
+      error: (err) => {
+        console.warn('Failed to load users for question-paper assignment', err);
+        this.loadingPaperUsers = false;
+      },
+      complete: () => {
+        this.loadingPaperUsers = false;
+      },
+    });
+  }
+
+  togglePaperUser(userId: string, checked: boolean): void {
+    const id = String(userId);
+    if (checked && !this.selectedPaperUsers.includes(id)) {
+      this.selectedPaperUsers = [...this.selectedPaperUsers, id];
+    } else if (!checked) {
+      this.selectedPaperUsers = this.selectedPaperUsers.filter((selectedId) => selectedId !== id);
+    }
+  }
+
+  toggleAllVisiblePaperUsers(checked: boolean): void {
+    const visibleIds = this.filteredPaperUsers.map((user) => user.id);
+    if (checked) {
+      this.selectedPaperUsers = Array.from(new Set([...this.selectedPaperUsers, ...visibleIds]));
+    } else {
+      const visibleSet = new Set(visibleIds);
+      this.selectedPaperUsers = this.selectedPaperUsers.filter((id) => !visibleSet.has(id));
+    }
+  }
+
+  resetAssignmentFilters(): void {
+    this.assignmentDepartments = [];
+    this.assignmentTeams = [];
+    this.assignmentUserSearch = '';
+  }
+
+  trackPaperUserById(_: number, user: { id: string }): string {
+    return user.id;
+  }
+
   onCategoryChange(catId: string) {
     const found = (this.categories || []).find((c) => String(c.category_id) === String(catId));
     if (found) this.loadQuestionBankDraft(found);
@@ -3286,6 +3429,10 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       notify('Please add at least one section with questions before saving', 'error');
       return;
     }
+    if (!this.selectedPaperUsers.length) {
+      notify('Please select at least one user to assign this question paper.', 'error');
+      return;
+    }
 
     this.syncModelCategoriesFromSections();
 
@@ -3314,6 +3461,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       teams: Array.isArray(this.selectedTeams)
         ? this.selectedTeams.filter((id) => id !== 'ALL')
         : [],
+      assigned_user_ids: [...this.selectedPaperUsers],
       categories: Array.isArray(this.model.categories) ? this.model.categories : [],
       total_questions: this.totalPaperQuestionsCount,
       sections: this.sections.map((sec, idx) => ({

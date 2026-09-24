@@ -158,6 +158,98 @@
             </div>
 
             <!-- ── Sections and Questions Card ── -->
+            <div class="qp-card" id="paper-assignment-card">
+                <div class="qp-card-header assignment-card-header">
+                    <div class="assignment-heading-wrap">
+                        <mat-icon class="assignment-heading-icon">people</mat-icon>
+                        <div class="qp-card-title">
+                            <h2>Assign Question Paper <span class="req">*</span></h2>
+                            <p>Choose which users to assign this question paper to (at least 1 user required). Selected: <strong>{{ selectedPaperUsers.length }}</strong></p>
+                        </div>
+                    </div>
+                    <button class="btn-assignment-filter" type="button"
+                        (click)="assignmentFiltersOpen = !assignmentFiltersOpen"
+                        [disabled]="readOnly || !institute">
+                        <mat-icon>filter_list</mat-icon>
+                        <span>Filter Users</span>
+                    </button>
+                </div>
+
+                <div class="assignment-filter-panel" *ngIf="assignmentFiltersOpen">
+                    <div class="fields-row fields-row--3">
+                        <div class="field-group">
+                            <label class="field-label">Search users</label>
+                            <div class="assignment-search-wrap">
+                                <mat-icon>search</mat-icon>
+                                <input class="qp-input" type="text" [(ngModel)]="assignmentUserSearch"
+                                    placeholder="Search by name or email" />
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">{{ terminology.deptPluralLabel }}</label>
+                            <mat-select class="qp-select" multiple [(ngModel)]="assignmentDepartments"
+                                [placeholder]="'Select ' + terminology.deptPluralLabel.toLowerCase()">
+                                <mat-option *ngFor="let d of departments" [value]="d.id">{{ d.name }}</mat-option>
+                            </mat-select>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">{{ terminology.teamPluralLabel }}</label>
+                            <mat-select class="qp-select" multiple [(ngModel)]="assignmentTeams"
+                                [placeholder]="'Select ' + terminology.teamPluralLabel.toLowerCase()">
+                                <mat-option *ngFor="let t of assignmentAvailableTeams" [value]="t.id">{{ t.name }}</mat-option>
+                            </mat-select>
+                        </div>
+                    </div>
+                    <div class="assignment-filter-actions">
+                        <button class="btn-assignment-reset" type="button" (click)="resetAssignmentFilters()">
+                            <mat-icon>refresh</mat-icon>
+                            <span>Reset</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="assignment-user-list" [class.assignment-user-list--disabled]="!institute">
+                    <div class="assignment-user-list-header">
+                        <mat-checkbox [checked]="areAllVisiblePaperUsersSelected"
+                            [indeterminate]="areSomeVisiblePaperUsersSelected"
+                            (change)="toggleAllVisiblePaperUsers($event.checked)"
+                            [disabled]="readOnly || !institute || filteredPaperUsers.length === 0">
+                            Select all ({{ filteredPaperUsers.length }})
+                        </mat-checkbox>
+                        <button class="assignment-refresh" type="button" (click)="loadPaperUsers()"
+                            [disabled]="readOnly || !institute || loadingPaperUsers">
+                            <mat-icon>refresh</mat-icon>
+                            <span>{{ loadingPaperUsers ? 'Loading...' : 'Refresh' }}</span>
+                        </button>
+                    </div>
+
+                    <div class="assignment-empty" *ngIf="!institute">
+                        <mat-icon>info</mat-icon>
+                        <p>Select an institute above before assigning users.</p>
+                    </div>
+                    <div class="assignment-empty" *ngIf="institute && !loadingPaperUsers && filteredPaperUsers.length === 0">
+                        <mat-icon>person_off</mat-icon>
+                        <p>No users found matching the selected filters.</p>
+                    </div>
+
+                    <mat-list class="paper-user-selection-list" *ngIf="institute && filteredPaperUsers.length > 0">
+                        <mat-list-item *ngFor="let user of filteredPaperUsers; trackBy: trackPaperUserById">
+                            <mat-checkbox [checked]="selectedPaperUsers.includes(user.id)"
+                                [disabled]="readOnly"
+                                (change)="togglePaperUser(user.id, $event.checked)">
+                                {{ user.name }}
+                                <span class="assignment-user-email" *ngIf="user.email">&nbsp;({{ user.email }})</span>
+                            </mat-checkbox>
+                        </mat-list-item>
+                    </mat-list>
+                </div>
+
+                <div class="assignment-warning" *ngIf="institute && selectedPaperUsers.length === 0">
+                    <mat-icon>error_outline</mat-icon>
+                    <span>At least one user must be assigned to the question paper.</span>
+                </div>
+            </div>
+
             <div class="qp-card" id="sections-card">
                 <div class="qp-card-header">
                     <div class="qp-card-title">

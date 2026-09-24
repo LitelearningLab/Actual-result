@@ -14,6 +14,7 @@ from db.models import (
     CategoriesTeams,
     ExamsDepartments,
     ExamsTeams,
+    QuestionPaperUserAssignment,
     ExamSection,
     Subject,
 )
@@ -270,6 +271,31 @@ def ensure_exam_columns(session):
             session.commit()
         except Exception:
             session.rollback()
+
+        # Printable papers are assigned directly to users, independently of
+        # online-test schedules and ExamScheduleMapping.
+        try:
+            session.execute(text("""
+                IF OBJECT_ID('QuestionPaperUserAssignments', 'U') IS NULL
+                BEGIN
+                    CREATE TABLE QuestionPaperUserAssignments (
+                        assignment_id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+                        exam_id UNIQUEIDENTIFIER NOT NULL,
+                        user_id UNIQUEIDENTIFIER NOT NULL,
+                        created_by NVARCHAR(255) NULL,
+                        created_date DATETIME NOT NULL DEFAULT GETUTCDATE(),
+                        CONSTRAINT UQ_QuestionPaperUserAssignments UNIQUE (exam_id, user_id)
+                    );
+                    CREATE INDEX IX_QuestionPaperUserAssignments_Exam
+                        ON QuestionPaperUserAssignments(exam_id);
+                    CREATE INDEX IX_QuestionPaperUserAssignments_User
+                        ON QuestionPaperUserAssignments(user_id);
+                END;
+            """))
+            session.commit()
+        except Exception as assignment_schema_err:
+            session.rollback()
+            print(f"Error ensuring paper assignment table: {assignment_schema_err}", flush=True)
     except Exception as e:
         session.rollback()
 
@@ -356,6 +382,33 @@ def add_exam(request):
                         exam_id=exam_id, team_id=str(team_id), created_by=created_by
                     )
                 )
+
+        if test_mode == "paper" and "assigned_user_ids" in data:
+            requested_user_ids = list(dict.fromkeys(
+                str(user_id) for user_id in (data.get("assigned_user_ids") or []) if user_id
+            ))
+            valid_users = []
+            if requested_user_ids:
+                valid_users = session.query(User).filter(
+                    User.user_id.in_(requested_user_ids),
+                    User.institute_id == institute_id,
+                    User.user_role == "user",
+                    or_(User.active_status == 1, User.active_status == None),
+                    or_(User.is_deleted == 0, User.is_deleted == None),
+                ).all()
+            valid_ids = {str(user.user_id) for user in valid_users}
+            if len(valid_ids) != len(requested_user_ids):
+                session.rollback()
+                return {
+                    "statusMessage": "One or more selected users are invalid or outside this institute.",
+                    "status": False,
+                }, 400
+            for user_id in requested_user_ids:
+                session.add(QuestionPaperUserAssignment(
+                    exam_id=exam_id,
+                    user_id=user_id,
+                    created_by=created_by,
+                ))
 
         sections_list = data.get("sections", [])
         if sections_list:
@@ -552,6 +605,10 @@ def update_exam(request):
         session.query(ExamsTeams).filter(ExamsTeams.exam_id == exam_id).delete(
             synchronize_session=False
         )
+        if "assigned_user_ids" in data:
+            session.query(QuestionPaperUserAssignment).filter(
+                QuestionPaperUserAssignment.exam_id == exam_id
+            ).delete(synchronize_session=False)
 
         updated_by_user = data.get("updated_by")
         for dept_id in data.get("departments", []):
@@ -573,6 +630,33 @@ def update_exam(request):
                         created_by=updated_by_user,
                     )
                 )
+
+        if getattr(exam, "test_mode", None) == "paper" and "assigned_user_ids" in data:
+            requested_user_ids = list(dict.fromkeys(
+                str(user_id) for user_id in (data.get("assigned_user_ids") or []) if user_id
+            ))
+            valid_users = []
+            if requested_user_ids:
+                valid_users = session.query(User).filter(
+                    User.user_id.in_(requested_user_ids),
+                    User.institute_id == exam.institute_id,
+                    User.user_role == "user",
+                    or_(User.active_status == 1, User.active_status == None),
+                    or_(User.is_deleted == 0, User.is_deleted == None),
+                ).all()
+            valid_ids = {str(user.user_id) for user in valid_users}
+            if len(valid_ids) != len(requested_user_ids):
+                session.rollback()
+                return {
+                    "statusMessage": "One or more selected users are invalid or outside this institute.",
+                    "status": False,
+                }, 400
+            for user_id in requested_user_ids:
+                session.add(QuestionPaperUserAssignment(
+                    exam_id=exam_id,
+                    user_id=user_id,
+                    created_by=updated_by_user,
+                ))
 
         sections_list = data.get("sections", [])
         if sections_list:
@@ -694,6 +778,7 @@ def delete_exam(exam_id, deleted_by):
         session.query(ExamQuestionMapping).filter_by(exam_id=exam_id).delete()
         # delete exam mappings
         session.query(ExamMapping).filter_by(exam_id=exam_id).delete()
+        session.query(QuestionPaperUserAssignment).filter_by(exam_id=exam_id).delete()
         # delete the exam
         session.delete(exam)
         session.commit()
@@ -1014,6 +1099,27 @@ def get_exam_details(request):
             except Exception:
                 team_rows = []
 
+            assigned_users = []
+            if (getattr(exam, "test_mode", None) or "online") == "paper":
+                try:
+                    assignment_rows = (
+                        session.query(QuestionPaperUserAssignment, User)
+                        .join(User, User.user_id == QuestionPaperUserAssignment.user_id)
+                        .filter(QuestionPaperUserAssignment.exam_id == exam.exam_id)
+                        .order_by(User.full_name.asc())
+                        .all()
+                    )
+                    assigned_users = [
+                        {
+                            "user_id": str(user.user_id),
+                            "full_name": user.full_name,
+                            "email": user.email,
+                        }
+                        for _, user in assignment_rows
+                    ]
+                except Exception as assignment_err:
+                    print(f"Error querying paper assignments for exam {exam.exam_id}: {assignment_err}", flush=True)
+
             sections_data = []
             try:
                 sec_rows = (
@@ -1078,6 +1184,8 @@ def get_exam_details(request):
                     },
                     "departments": [r[0] for r in dept_rows],
                     "teams": [r[0] for r in team_rows],
+                    "assigned_users": assigned_users,
+                    "assigned_user_ids": [user["user_id"] for user in assigned_users],
                     "categories": category_list,
                     "sections": sections_data,
                     "description": exam.description,

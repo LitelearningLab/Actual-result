@@ -586,6 +586,18 @@ class ExamsTeams(Base):
     created_by = Column(String)
     created_date = Column(DateTime, default=datetime.datetime.utcnow)
 
+class QuestionPaperUserAssignment(Base):
+    __tablename__ = 'QuestionPaperUserAssignments'
+    assignment_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+    exam_id = Column(String, ForeignKey('Exams.exam_id'), nullable=False)
+    user_id = Column(String, ForeignKey('Users.user_id'), nullable=False)
+    created_by = Column(String)
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('exam_id', 'user_id', name='uq_question_paper_user_assignment'),
+    )
+
 class Subject(Base):
     __tablename__ = 'Subjects'
     subject_id = Column(String, primary_key=True, default=generate_uuid)
