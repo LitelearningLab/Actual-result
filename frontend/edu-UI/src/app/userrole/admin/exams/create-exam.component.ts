@@ -19,7 +19,6 @@ import { MatListModule } from '@angular/material/list';
 import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
@@ -40,29 +39,6 @@ import {
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
 
-export interface PaperQuestion {
-  id: string;
-  question: string;
-  type: string;
-  marks: number;
-  category_id?: string;
-  category_name?: string;
-  options?: any[];
-  raw?: any;
-  answer?: any;
-}
-
-export interface PaperSection {
-  section_id?: string;
-  name: string;
-  sub_heading?: string;
-  instructions?: string;
-  question_type: 'objective' | 'descriptive';
-  order_number: number;
-  questions: PaperQuestion[];
-  targetCount?: number | null;
-}
-
 @Component({
   selector: 'app-create-exam',
   standalone: true,
@@ -79,7 +55,6 @@ export interface PaperSection {
     MatListModule,
     MatCheckboxModule,
     MatDatepickerModule,
-    MatTooltipModule,
     MatDialogModule,
     RouterModule,
     MatStepperModule,
@@ -98,67 +73,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   startDateTime = '';
   numberOfAttempts: number | null = 1;
   institutes: Array<{ id: string; name: string; industry_type?: string; industry_sector?: string }> = [];
-
-  // ── Subject Management ──
-  subject_id = '';
-  subject_name = '';
-  subjects: Array<{ id: string; name: string }> = [];
-  loadingSubjects = false;
-  subjectFilterSearch = '';
-
-  // ── Section Management ──
-  sections: PaperSection[] = [];
-
-  // ── Add Section Modal State ──
-  showAddSectionModal = false;
-  editingSectionIndex = -1;
-  newSectionName = '';
-  newSectionSubHeading = '';
-  newSectionType: 'objective' | 'descriptive' = 'objective';
-  newSectionTargetCount: number | null = null;
-  newSectionMarksPerQ: number | null = null;
-
-  // ── Add Questions Modal State ──
-  showAddQuestionModal = false;
-  activeModalSectionIndex = -1;
-  modalQuestionBanks: Array<{ id: string; name: string; type?: string; subject?: string; marks_per_question?: number | null }> = [];
-  modalSelectedBankId = '';
-  modalQuestions: Array<PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }> = [];
-  modalSearchTerm = '';
-  modalLoadingQuestions = false;
-  modalLoadingBanks = false;
-
-  // ── New UI properties ──
-  examTypeLabel = 'Unit Test';
-  totalMarksOverride: number | null = null;
-  durationLabel = '1 Hour';
-
-  // User assignment mirrors the Select Users experience from Schedule Test.
-  paperUsers: Array<{
-    id: string;
-    name: string;
-    email?: string;
-    departmentId?: string;
-    teamId?: string;
-  }> = [];
-  selectedPaperUsers: string[] = [];
-  assignmentDepartments: string[] = [];
-  assignmentTeams: string[] = [];
-  assignmentUserSearch = '';
-  assignmentFiltersOpen = false;
-  loadingPaperUsers = false;
-
-  get examDate(): string {
-    if (!this.startDateTime) return '';
-    return this.startDateTime.includes('T') ? this.startDateTime.split('T')[0] : this.startDateTime;
-  }
-  set examDate(val: string) {
-    this.startDateTime = val ? (val.includes('T') ? val : `${val}T09:00:00`) : '';
-  }
-
-  // ── Preview overlays ──
-  showPreviewPaper = false;
-  showPreviewGuide = false;
 
   get terminology(): InstituteTerminology {
     let ind = '';
@@ -232,41 +146,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   compareById(o1: any, o2: any): boolean {
     if (o1 === null || o1 === undefined || o2 === null || o2 === undefined) return o1 === o2;
     return String(o1) === String(o2);
-  }
-
-  // Single-select property & change handlers for Department / Class
-  get selectedDepartment(): string {
-    return Array.isArray(this.selectedDepartments) && this.selectedDepartments.length > 0
-      ? this.selectedDepartments[0]
-      : (typeof this.selectedDepartments === 'string' ? this.selectedDepartments : '');
-  }
-
-  set selectedDepartment(val: string) {
-    this.selectedDepartments = val ? [val] : [];
-    this.onDepartmentChange(val);
-  }
-
-  onDepartmentChange(val: string): void {
-    this.selectedDepartments = val ? [val] : [];
-    const validTeamIds = (this.filteredTeams || []).map((t: any) => t.id);
-    if (Array.isArray(this.selectedTeams)) {
-      this.selectedTeams = this.selectedTeams.filter((id: string) => validTeamIds.includes(id));
-    }
-  }
-
-  // Single-select property & change handlers for Team / Section
-  get selectedTeam(): string {
-    return Array.isArray(this.selectedTeams) && this.selectedTeams.length > 0
-      ? this.selectedTeams[0]
-      : (typeof this.selectedTeams === 'string' ? this.selectedTeams : '');
-  }
-
-  set selectedTeam(val: string) {
-    this.selectedTeams = val ? [val] : [];
-  }
-
-  onTeamChange(val: string): void {
-    this.selectedTeams = val ? [val] : [];
   }
 
   // Select All functionality for Departments
@@ -832,11 +711,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.passMark = e.pass_mark ?? e.passMark ?? null;
       this.numberOfAttempts = e.number_of_attempts ?? e.numberOfAttempts ?? null;
       this.startDateTime = e.start_time || e.start || '';
-      if (e.total_marks !== undefined && e.total_marks !== null) {
-        this.totalMarksOverride = Number(e.total_marks);
-      } else if (e.totalMarks !== undefined && e.totalMarks !== null) {
-        this.totalMarksOverride = Number(e.totalMarks);
-      }
       this.selectedDepartments = Array.isArray(e.departments)
         ? e.departments
             .map((d: any) =>
@@ -853,21 +727,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
             )
             .filter(Boolean)
         : [];
-      const assignedUsers = Array.isArray(e.assigned_users) ? e.assigned_users : [];
-      this.selectedPaperUsers = Array.from(new Set(
-        (Array.isArray(e.assigned_user_ids) ? e.assigned_user_ids : assignedUsers)
-          .map((user: any) => String(
-            typeof user === 'object' ? user.user_id || user.id || '' : user
-          ))
-          .filter(Boolean)
-      ));
-      this.paperUsers = assignedUsers.map((user: any) => ({
-        id: String(user.user_id || user.id || ''),
-        name: user.full_name || user.name || user.user_name || user.email || 'User',
-        email: user.email || '',
-        departmentId: String(user.department_id || user.department?.department_id || ''),
-        teamId: String(user.team_id || user.team?.team_id || ''),
-      })).filter((user: any) => !!user.id);
 
       // normalize categories if present in the payload
       const srcCats = Array.isArray(e.categories)
@@ -877,36 +736,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
           : [];
       this.model.categories = srcCats.map((c: any) => this.normalizeEditCategory(c));
       this.hydrateMissingEditCategoryMarks();
-
-      this.subject_id = e.subject_id ? String(e.subject_id) : '';
-      this.subject_name = e.subject_name || '';
-      if (this.institute) {
-        this.loadSubjects(this.institute);
-      }
-      if (Array.isArray(e.sections) && e.sections.length > 0) {
-        this.sections = e.sections.map((sec: any, idx: number) => ({
-          section_id: sec.section_id || sec.id || null,
-          name: sec.name || `Section ${idx + 1}`,
-          sub_heading: sec.sub_heading || sec.instructions || '',
-          instructions: sec.instructions || sec.sub_heading || '',
-          question_type: sec.question_type || 'objective',
-          targetCount: Number(sec.target_count ?? sec.targetCount) || null,
-          order_number: sec.order_number || idx + 1,
-          questions: Array.isArray(sec.questions)
-            ? sec.questions.map((q: any) => ({
-                id: String(q.question_id || q.id),
-                question: q.question || q.question_text || q.text || 'Question',
-                type: q.type || q.question_type || sec.question_type || 'objective',
-                marks: Number(q.marks ?? q.mark ?? 1),
-                category_id: q.category_id ? String(q.category_id) : undefined,
-                category_name: q.category_name || undefined,
-                options: q.options || q.choices || (q.raw ? q.raw.options : []),
-                answer: q.answer || '',
-                raw: q,
-              }))
-            : [],
-        }));
-      }
     } catch (_) {
       /* ignore malformed edit payload */
     } finally {
@@ -1917,15 +1746,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.filterCreationDate = null;
       this.filterCreatedByMe = false;
       this.filterPublicAccess = false;
-      this.subject_id = '';
-      this.subject_name = '';
-      this.sections = [];
       this.resetQuestionBanksAndQuestionsSection();
-    }
-    if (instituteChanged) {
-      this.selectedPaperUsers = [];
-      this.paperUsers = [];
-      this.resetAssignmentFilters();
     }
     this.trackedInstituteForQuestionBanks = v;
     this.hasTrackedInstituteForQuestionBanks = true;
@@ -1934,934 +1755,13 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.institute) {
       this.loadDepartments(this.institute);
       this.loadTeams(this.institute);
-      this.loadSubjects(this.institute);
-      this.loadPaperUsers();
       // also reload categories scoped to this institute
       this.loadCategoriesWithFilters({ institute_id: this.institute });
     } else {
       this.departments = [];
       this.teams = [];
-      this.subjects = [];
-      this.subject_id = '';
-      this.subject_name = '';
-      this.sections = [];
-      this.paperUsers = [];
-      this.selectedPaperUsers = [];
-      this.resetAssignmentFilters();
       this.loadCategories();
     }
-  }
-
-  // ── Subject Methods ──
-  get filteredSubjects(): Array<{ id: string; name: string }> {
-    const term = (this.subjectFilterSearch || '').trim().toLowerCase();
-    if (!term) return this.subjects;
-    return this.subjects.filter((s) => (s.name || '').toLowerCase().includes(term));
-  }
-
-  onSubjectOpenedChange(opened: boolean) {
-    if (opened) {
-      setTimeout(() => {
-        try {
-          const input = document.querySelector(
-            '.cdk-overlay-pane .select-search-input'
-          ) as HTMLInputElement | null;
-          input?.focus();
-        } catch (e) {}
-      });
-    } else {
-      this.subjectFilterSearch = '';
-    }
-  }
-
-  onSubjectChange(val: any) {
-    const subId = val ? String(val) : '';
-    this.subject_id = subId;
-    const found = this.subjects.find((s) => String(s.id) === subId);
-    this.subject_name = found ? found.name : '';
-  }
-
-  loadSubjects(instId?: string) {
-    if (!instId) {
-      this.subjects = [];
-      this.subject_id = '';
-      this.subject_name = '';
-      return;
-    }
-    this.loadingSubjects = true;
-    const url = `${API_BASE}/get-subject-list`;
-    this.http.get<any>(url, { params: { institute_id: instId, active_only: 'true' } }).subscribe({
-      next: (res) => {
-        this.loadingSubjects = false;
-        const data = res?.data || res || [];
-        this.subjects = (Array.isArray(data) ? data : [])
-          .map((s: any) => ({
-            id: String(s.subject_id || s.id || ''),
-            name: s.subject_name || s.name || '',
-          }))
-          .filter((s: any) => !!s.name);
-
-        if (this.subject_id) {
-          const matched = this.subjects.find(
-            (s) =>
-              String(s.id) === String(this.subject_id) ||
-              s.name.toLowerCase().trim() === String(this.subject_name).toLowerCase().trim()
-          );
-          if (matched) {
-            this.subject_id = String(matched.id);
-            this.subject_name = matched.name;
-          } else if (this.subject_name) {
-            this.subjects.unshift({ id: this.subject_id || this.subject_name, name: this.subject_name });
-          }
-        } else if (this.subject_name) {
-          const matched = this.subjects.find(
-            (s) => s.name.toLowerCase().trim() === String(this.subject_name).toLowerCase().trim()
-          );
-          if (matched) {
-            this.subject_id = String(matched.id);
-            this.subject_name = matched.name;
-          } else {
-            this.subjects.unshift({ id: this.subject_name, name: this.subject_name });
-            this.subject_id = this.subject_name;
-          }
-        }
-      },
-      error: () => {
-        this.loadingSubjects = false;
-        this.subjects = [];
-      },
-    });
-  }
-
-  // ── Section Management Methods ──
-  get activeModalSection(): PaperSection | null {
-    if (this.activeModalSectionIndex >= 0 && this.activeModalSectionIndex < this.sections.length) {
-      return this.sections[this.activeModalSectionIndex];
-    }
-    return null;
-  }
-
-  get totalSectionsCount(): number {
-    return this.sections.length;
-  }
-
-  get totalPaperQuestionsCount(): number {
-    return this.sections.reduce((sum, s) => sum + (s.questions ? s.questions.length : 0), 0);
-  }
-
-  get totalPaperMarks(): number {
-    return this.sections.reduce((sum, s) => sum + this.getSectionMarks(s), 0);
-  }
-
-  getSectionMarks(section: PaperSection): number {
-    return (section.questions || []).reduce((sum, q) => sum + (Number(q.marks) || 0), 0);
-  }
-
-  getSectionMarksPerQ(section: PaperSection): number {
-    const qs = section.questions || [];
-    if (!qs.length) return (section as any).marksPerQ || 1;
-    const marks = qs.map(q => Number(q.marks) || 0).filter(m => m > 0);
-    if (!marks.length) return (section as any).marksPerQ || 1;
-    const unique = [...new Set(marks)];
-    return unique.length === 1 ? unique[0] : (unique[0] || 1);
-  }
-
-  getOptionLabel(index: number): string {
-    const letters = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)'];
-    return letters[index] || `(${String.fromCharCode(97 + index)})`;
-  }
-
-  formatOptionText(opt: any, index: number): string {
-    let text = typeof opt === 'string' ? opt : (opt?.text || opt?.option_text || opt?.label || opt?.value || '');
-    text = (text || '').trim();
-    const hasPrefix = /^\(?[a-zA-Z0-9][\.\)\:\-]\s*/.test(text);
-    if (hasPrefix) {
-      return text;
-    }
-    return `${this.getOptionLabel(index)} ${text}`;
-  }
-
-  getCorrectAnswerText(q: PaperQuestion): string {
-    // 1. If options array has a marked correct option
-    if (q.options && q.options.length) {
-      const correctOptIdx = q.options.findIndex(
-        (o: any) =>
-          o.is_correct === 1 ||
-          o.is_correct === true ||
-          o.is_correct === '1' ||
-          o.is_correct === 'true' ||
-          o.isCorrect === true ||
-          o.isCorrect === 1
-      );
-      if (correctOptIdx >= 0) {
-        return this.formatOptionText(q.options[correctOptIdx], correctOptIdx);
-      }
-    }
-    // 2. If q.answer matches an option by value/id/label/text
-    if (q.answer && q.options && q.options.length) {
-      const ansStr = String(q.answer).trim().toLowerCase();
-      const matchIdx = q.options.findIndex((o: any, idx: number) => {
-        const oText = (typeof o === 'string' ? o : (o.text || o.option_text || o.value || '')).trim().toLowerCase();
-        const oId = String(o.id || o.option_id || '').trim().toLowerCase();
-        const optLetter = this.getOptionLabel(idx).replace(/[\(\)\.]/g, '').trim().toLowerCase();
-        return oText === ansStr || oId === ansStr || optLetter === ansStr;
-      });
-      if (matchIdx >= 0) {
-        return this.formatOptionText(q.options[matchIdx], matchIdx);
-      }
-    }
-    // 3. Direct string answer (e.g. descriptive questions or direct answer field)
-    if (q.answer && typeof q.answer === 'string' && q.answer.trim()) {
-      return q.answer.trim();
-    }
-    return '';
-  }
-
-  hydrateMissingQuestionOptions() {
-    // 1. Recover from raw if available
-    for (const sec of this.sections) {
-      for (const q of (sec.questions || [])) {
-        if ((!q.options || !q.options.length) && q.raw?.options?.length) {
-          q.options = q.raw.options;
-        }
-      }
-    }
-
-    // 2. Query questions for any category missing options
-    const categoryIds = new Set<string>();
-    for (const sec of this.sections) {
-      for (const q of (sec.questions || [])) {
-        if (!q.options || !q.options.length) {
-          if (q.category_id) categoryIds.add(String(q.category_id));
-        }
-      }
-    }
-
-    categoryIds.forEach((catId) => {
-      this.http.get<any>(`${API_BASE}/get-questions-details?category_id=${encodeURIComponent(catId)}`).subscribe({
-        next: (res) => {
-          const arr = Array.isArray(res) ? res : res?.data || [];
-          for (const raw of arr) {
-            const rawId = String(raw.id || raw.question_id || raw._id);
-            for (const sec of this.sections) {
-              for (const q of (sec.questions || [])) {
-                if (String(q.id) === rawId && (!q.options || !q.options.length)) {
-                  q.options = raw.options || raw.choices || [];
-                  if (!q.answer) q.answer = raw.answer || raw.answerText || '';
-                }
-              }
-            }
-          }
-        },
-        error: () => {}
-      });
-    });
-  }
-
-  previewPaper() {
-    this.hydrateMissingQuestionOptions();
-    this.showPreviewPaper = true;
-  }
-
-  previewGuide() {
-    this.hydrateMissingQuestionOptions();
-    this.showPreviewGuide = true;
-  }
-
-  getSectionProgressPct(section: PaperSection): number {
-    const target = (section as any).targetCount || 10;
-    if (!target) return 0;
-    return Math.min(100, Math.round(((section.questions?.length || 0) / target) * 100));
-  }
-
-  getGlobalQuestionIndex(secIdx: number, qIdx: number): number {
-    let count = 0;
-    for (let i = 0; i < secIdx; i++) {
-      count += (this.sections[i]?.questions?.length || 0);
-    }
-    return count + qIdx + 1;
-  }
-
-  getTotalTargetQuestions(): number {
-    return this.sections.reduce((sum, s) => sum + ((s as any).targetCount || 0), 0);
-  }
-
-  getMarksProgressPct(): number {
-    const target = this.totalMarksOverride;
-    if (!target) return 0;
-    return Math.min(100, Math.round((this.totalPaperMarks / target) * 100));
-  }
-
-  goBack() {
-    this.router.navigate(['/exams']);
-  }
-
-  getSectionTotalMarks(section: PaperSection): number {
-    return this.getSectionMarks(section);
-  }
-
-  getAnswerReadyCount(): number {
-    let count = 0;
-    for (const sec of this.sections) {
-      for (const q of (sec.questions || [])) {
-        if (q.answer || (q.options && q.options.some((o: any) => o.is_correct || o.isCorrect))) {
-          count++;
-        }
-      }
-    }
-    return count;
-  }
-
-  getQuestionsNeedingEvaluationCount(): number {
-    let count = 0;
-    for (const sec of this.sections) {
-      for (const q of (sec.questions || [])) {
-        if (sec.question_type === 'descriptive' || (!q.answer && (!q.options || !q.options.some((o: any) => o.is_correct || o.isCorrect)))) {
-          count++;
-        }
-      }
-    }
-    return count;
-  }
-
-  printPaperDocument(isAnswerKey: boolean): void {
-    const printWin = window.open('', '_blank', 'width=900,height=750');
-    if (!printWin) {
-      try {
-        notify('Please allow popups to download/print the ' + (isAnswerKey ? 'answer key' : 'question paper'), 'info');
-      } catch (_) {}
-      return;
-    }
-
-    const schoolName = (this.instituteNameDisplay || '').trim().toUpperCase() || 'INSTITUTE NAME';
-    const dept = (this.getSelectedDepartmentsDisplay() || '').trim().toUpperCase();
-    const team = (this.getSelectedTeamsDisplay() || '').trim().toUpperCase();
-    const subj = (this.subject_name || '').trim().toUpperCase();
-    const metaParts = [dept, team, subj].filter(Boolean);
-    const metaLine = metaParts.join(' · ');
-
-    const examTypePrefix = this.examTypeLabel ? (this.examTypeLabel.trim().toUpperCase() + ' – ') : '';
-    const paperTitle = (this.title || '').trim();
-    let docTitle = '';
-    if (!paperTitle) {
-      docTitle = isAnswerKey ? 'Answer Key' : 'Question Paper';
-    } else if (paperTitle.toLowerCase().includes('question paper') || paperTitle.toLowerCase().includes('answer key')) {
-      docTitle = paperTitle;
-    } else {
-      docTitle = `${paperTitle} - ${isAnswerKey ? 'Answer Key' : 'Question Paper'}`;
-    }
-
-    const testTypeLabel = isAnswerKey
-      ? `${examTypePrefix}${(paperTitle || 'QUESTION PAPER').toUpperCase()} (ANSWER KEY)`
-      : `${examTypePrefix}${(paperTitle || 'QUESTION PAPER').toUpperCase()}`;
-
-    const durationText = this.durationLabel || (this.durationMinutes ? `${this.durationMinutes} mins` : '1 Hour');
-    const maxMarks = this.totalMarksOverride || this.totalPaperMarks || 0;
-
-    let sectionsHtml = '';
-    if (this.sections && this.sections.length > 0) {
-      this.sections.forEach((sec, secIdx) => {
-        const secName = sec.name || `Section ${String.fromCharCode(65 + secIdx)}`;
-        const instructions = this.getSectionSubHeading(sec) || '';
-        let questionsHtml = '';
-        const questions = sec.questions || [];
-
-        questions.forEach((q, qIdx) => {
-          const qNum = this.getGlobalQuestionIndex(secIdx, qIdx);
-          const qText = q.question || (q as any).question_text || (q as any).text || 'Question text';
-          const marks = q.marks ? `[${q.marks}]` : '[1]';
-
-          let optionsOrAnswerHtml = '';
-          if (!isAnswerKey) {
-            if (q.options && q.options.length > 0) {
-              const optionsItems = q.options
-                .map((opt: any, optIdx: number) => {
-                  const optFormatted = this.formatOptionText(opt, optIdx);
-                  return `<div class="paper-q-option">${optFormatted}</div>`;
-                })
-                .join('');
-              optionsOrAnswerHtml = `<div class="paper-q-options-grid">${optionsItems}</div>`;
-            }
-          } else {
-            const ansText = this.getCorrectAnswerText(q);
-            const ansDisplay = ansText
-              ? `<span class="ans-value">${ansText}</span>`
-              : `<em class="no-answer">Answer not set yet</em>`;
-            optionsOrAnswerHtml = `
-              <div class="paper-q-answer">
-                <span class="ans-badge">Ans:</span>
-                ${ansDisplay}
-              </div>
-            `;
-          }
-
-          questionsHtml += `
-            <div class="paper-question-item">
-              <div class="paper-q-header">
-                <span class="paper-q-num">${qNum}.</span>
-                <span class="paper-q-text">${qText}</span>
-                <span class="paper-q-marks">${marks}</span>
-              </div>
-              ${optionsOrAnswerHtml}
-            </div>
-          `;
-        });
-
-        sectionsHtml += `
-          <div class="paper-section-block">
-            <div class="paper-section-heading"><u>${secName}</u></div>
-            ${instructions ? `<div class="paper-section-instructions">${instructions}</div>` : ''}
-            ${questionsHtml || '<p style="text-align: center; color: #888; font-style: italic;">No questions in this section.</p>'}
-          </div>
-        `;
-      });
-    } else {
-      sectionsHtml = '<p style="text-align: center; margin-top: 40px; color: #64748b;">No sections or questions added to this test yet.</p>';
-    }
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${docTitle}</title>
-          <style>
-            @page {
-              size: A4;
-              margin: 0 !important;
-            }
-            * {
-              box-sizing: border-box;
-            }
-            html, body {
-              font-family: 'Times New Roman', Times, serif;
-              color: #111;
-              line-height: 1.5;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #fff;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            .paper-doc {
-              width: 100%;
-              max-width: 100%;
-              box-sizing: border-box;
-              margin: 0 auto;
-              padding: 12mm 16mm;
-            }
-            .paper-school-name {
-              text-align: center;
-              font-size: 18px;
-              font-weight: 700;
-              letter-spacing: 0.06em;
-              margin-bottom: 3px;
-              color: #000;
-            }
-            .paper-meta-line {
-              text-align: center;
-              font-size: 12.5px;
-              color: #333;
-              margin-bottom: 3px;
-              letter-spacing: 0.04em;
-            }
-            .paper-test-type {
-              text-align: center;
-              font-size: 13.5px;
-              font-weight: 700;
-              margin-bottom: 10px;
-              color: #000;
-            }
-            .paper-header-row {
-              display: flex;
-              justify-content: space-between;
-              font-size: 12.5px;
-              font-weight: 600;
-              margin-bottom: 3px;
-              color: #111;
-            }
-            .paper-divider {
-              border: none;
-              border-top: 1.5px solid #000;
-              margin: 6px 0 16px 0;
-            }
-            .paper-section-block {
-              margin-bottom: 20px;
-            }
-            .paper-section-heading {
-              text-align: center;
-              font-size: 15px;
-              font-weight: 700;
-              margin: 16px 0 4px;
-              color: #000;
-              break-after: avoid;
-              page-break-after: avoid;
-            }
-            .paper-section-heading u {
-              text-decoration: underline;
-            }
-            .paper-section-instructions {
-              text-align: center;
-              font-size: 12.5px;
-              font-style: italic;
-              margin-bottom: 16px;
-              color: #333;
-              break-after: avoid;
-              page-break-after: avoid;
-            }
-            .paper-question-item {
-              margin-bottom: 14px;
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-            .paper-q-header {
-              display: flex;
-              align-items: flex-start;
-              gap: 8px;
-              line-height: 1.45;
-            }
-            .paper-q-num {
-              flex-shrink: 0;
-              font-weight: 700;
-              min-width: 22px;
-              font-size: 13.5px;
-              color: #000;
-            }
-            .paper-q-text {
-              flex: 1;
-              font-size: 13.5px;
-              color: #111;
-            }
-            .paper-q-marks {
-              flex-shrink: 0;
-              font-weight: 700;
-              margin-left: 14px;
-              white-space: nowrap;
-              color: #000;
-              font-size: 13.5px;
-            }
-            .paper-q-options-grid {
-              display: grid;
-              grid-template-columns: repeat(2, 1fr);
-              column-gap: 28px;
-              row-gap: 4px;
-              margin-top: 5px;
-              margin-left: 30px;
-              font-size: 13px;
-            }
-            .paper-q-option {
-              color: #111;
-              word-break: break-word;
-            }
-            .paper-q-answer {
-              display: flex;
-              align-items: baseline;
-              gap: 6px;
-              margin-top: 5px;
-              margin-left: 30px;
-              font-size: 13.5px;
-            }
-            .ans-badge {
-              font-weight: 700;
-              color: #000;
-              flex-shrink: 0;
-            }
-            .ans-value {
-              font-weight: 600;
-              color: #000;
-              word-break: break-word;
-            }
-            .no-answer {
-              color: #888;
-              font-style: italic;
-            }
-            @media print {
-              @page {
-                size: A4;
-                margin: 0 !important;
-              }
-              html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-              }
-              .paper-doc {
-                width: 100%;
-                max-width: 100%;
-                box-sizing: border-box;
-                margin: 0;
-                padding: 12mm 16mm !important;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="paper-doc">
-            <div class="paper-school-name">${schoolName}</div>
-            ${metaLine ? `<div class="paper-meta-line">${metaLine}</div>` : ''}
-            <div class="paper-test-type">${testTypeLabel}</div>
-            <div class="paper-header-row">
-              <span>Time: ${durationText}</span>
-              <span>Maximum Marks: ${maxMarks}</span>
-            </div>
-            <hr class="paper-divider">
-            ${sectionsHtml}
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
-        </body>
-      </html>
-    `;
-
-    printWin.document.open();
-    printWin.document.write(htmlContent);
-    printWin.document.close();
-  }
-
-  downloadQuestionPaper() {
-    this.printPaperDocument(false);
-  }
-
-  downloadEvaluationGuide() {
-    this.printPaperDocument(true);
-  }
-
-  downloadAnswerKey() {
-    this.printPaperDocument(true);
-  }
-
-  openAddSectionModal() {
-    this.newSectionName = '';
-    this.newSectionSubHeading = 'Answer all questions. Each question carries 1 mark.';
-    this.newSectionType = 'objective';
-    this.newSectionTargetCount = null;
-    this.newSectionMarksPerQ = null;
-    this.editingSectionIndex = -1;
-    this.showAddSectionModal = true;
-  }
-
-  openEditSectionModal(secIdx: number) {
-    const sec = this.sections[secIdx];
-    if (!sec) return;
-    this.editingSectionIndex = secIdx;
-    this.newSectionName = sec.name;
-    this.newSectionSubHeading = sec.sub_heading || sec.instructions || this.getSectionSubHeading(sec);
-    this.newSectionType = sec.question_type;
-    this.newSectionTargetCount = (sec as any).targetCount || null;
-    this.newSectionMarksPerQ = this.getSectionMarksPerQ(sec) || null;
-    this.showAddSectionModal = true;
-  }
-
-  closeAddSectionModal() {
-    this.showAddSectionModal = false;
-    this.editingSectionIndex = -1;
-    this.newSectionSubHeading = '';
-  }
-
-  getSectionSubHeading(sec: PaperSection): string {
-    if (sec.sub_heading && sec.sub_heading.trim()) {
-      return sec.sub_heading.trim();
-    }
-    if (sec.instructions && sec.instructions.trim()) {
-      return sec.instructions.trim();
-    }
-    const marks = this.getSectionMarksPerQ(sec) || 1;
-    return `Answer all questions. Each question carries ${marks} mark${marks > 1 ? 's' : ''}.`;
-  }
-
-  confirmAddSection() {
-    if (!this.newSectionName || !this.newSectionName.trim()) {
-      notify('Please enter a section name', 'error');
-      return;
-    }
-    const name = this.newSectionName.trim();
-    const subHeading = this.newSectionSubHeading ? this.newSectionSubHeading.trim() : '';
-
-    if (this.editingSectionIndex >= 0) {
-      // Editing existing section
-      const sec = this.sections[this.editingSectionIndex];
-      sec.name = name;
-      sec.sub_heading = subHeading;
-      sec.instructions = subHeading;
-      sec.question_type = this.newSectionType;
-      (sec as any).targetCount = this.newSectionTargetCount || null;
-      this.closeAddSectionModal();
-      notify(`Updated ${name}`, 'success');
-      return;
-    }
-    if (this.sections.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
-      notify(`A section named "${name}" already exists`, 'error');
-      return;
-    }
-    const newSec: PaperSection & { targetCount?: number | null } = {
-      name,
-      sub_heading: subHeading,
-      instructions: subHeading,
-      question_type: this.newSectionType,
-      order_number: this.sections.length + 1,
-      questions: [],
-      targetCount: this.newSectionTargetCount || null,
-    };
-    this.sections.push(newSec as PaperSection);
-    this.syncModelCategoriesFromSections();
-    this.closeAddSectionModal();
-    notify(`Created ${newSec.name}`, 'success');
-  }
-
-  removeSection(index: number) {
-    if (index >= 0 && index < this.sections.length) {
-      const removed = this.sections.splice(index, 1)[0];
-      this.sections.forEach((s, i) => (s.order_number = i + 1));
-      this.syncModelCategoriesFromSections();
-      notify(`Removed ${removed.name}`, 'info');
-    }
-  }
-
-  removeQuestionFromSection(secIdx: number, qIdx: number) {
-    if (this.sections[secIdx] && this.sections[secIdx].questions) {
-      this.sections[secIdx].questions.splice(qIdx, 1);
-      this.syncModelCategoriesFromSections();
-    }
-  }
-
-  // ── Add Questions Modal Methods ──
-  openAddQuestionModal(secIdx: number) {
-    if (!this.subject_id) {
-      notify('Please select a Subject in Step 1 before adding questions', 'error');
-      return;
-    }
-    this.activeModalSectionIndex = secIdx;
-    this.modalSelectedBankId = '';
-    this.modalQuestions = [];
-    this.modalSearchTerm = '';
-    this.showAddQuestionModal = true;
-    this.loadSubjectQuestionBanks();
-  }
-
-  closeAddQuestionModal() {
-    this.showAddQuestionModal = false;
-    this.activeModalSectionIndex = -1;
-    this.modalSelectedBankId = '';
-    this.modalQuestions = [];
-    this.modalSearchTerm = '';
-  }
-
-  loadSubjectQuestionBanks() {
-    this.modalLoadingBanks = true;
-    this.modalQuestionBanks = [];
-    const params: any = { institute_id: this.institute };
-    if (this.subject_name) {
-      params.subject = this.subject_name;
-    }
-    this.http.get<any>(`${API_BASE}/get-categories-list`, { params }).subscribe({
-      next: (res) => {
-        this.modalLoadingBanks = false;
-        const arr = Array.isArray(res) ? res : res?.data || [];
-        this.modalQuestionBanks = arr.map((c: any) => ({
-          id: String(c.category_id || c.id || ''),
-          name: c.name || c.category_name || '',
-          type: c.type || c.question_type || '',
-          subject: c.subject || '',
-          marks_per_question: this.getMarksPerQuestion(c),
-        }));
-      },
-      error: (err) => {
-        this.modalLoadingBanks = false;
-        console.warn('Failed to load question banks for subject', err);
-      },
-    });
-  }
-
-  onModalQuestionBankChange(bankId: string) {
-    this.modalSelectedBankId = bankId;
-    this.modalQuestions = [];
-    this.modalSearchTerm = '';
-    if (!bankId) return;
-
-    this.modalLoadingQuestions = true;
-    const url = `${API_BASE}/get-questions-details?category_id=${encodeURIComponent(bankId)}`;
-    this.http.get<any>(url).subscribe({
-      next: (res) => {
-        this.modalLoadingQuestions = false;
-        const rawArr = Array.isArray(res) ? res : res?.data || [];
-        const activeSec = this.activeModalSection;
-        const secType = (activeSec?.question_type || 'objective').toLowerCase();
-
-        // Collect all question IDs already in paper across all sections
-        const allPaperQIds = new Set<string>();
-        for (const sec of this.sections) {
-          for (const q of sec.questions || []) {
-            allPaperQIds.add(String(q.id));
-          }
-        }
-
-        const bank = this.modalQuestionBanks.find((b) => b.id === bankId);
-        const bankName = bank?.name || 'Question Bank';
-        const defaultBankMark = bank?.marks_per_question ?? 1;
-
-        // Filter by question type
-        const objectiveTypes = ['objective', 'choose', 'multi', 'fill', 'mcq', 'single_choice', 'multiple_choice'];
-        const descriptiveTypes = ['descriptive', 'paragraph', 'subjective', 'essay', 'short_answer', 'long_answer'];
-
-        const mapped: Array<PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }> = [];
-        for (const raw of rawArr) {
-          const qType = String(raw.type || raw.question_type || '').toLowerCase();
-          const isObjective = objectiveTypes.some((t) => qType.includes(t)) || (!qType && secType === 'objective');
-          const isDescriptive = descriptiveTypes.some((t) => qType.includes(t)) || (!qType && secType === 'descriptive');
-
-          let matchesType = false;
-          if (secType === 'objective') {
-            matchesType = isObjective;
-          } else {
-            matchesType = isDescriptive;
-          }
-
-          if (matchesType) {
-            const qId = String(raw.id || raw.question_id || raw._id);
-            const mark = this.getMarksPerQuestion(raw) ?? defaultBankMark ?? 1;
-            const alreadyInPaper = allPaperQIds.has(qId);
-
-            mapped.push({
-              id: qId,
-              question: raw.question || raw.text || raw.title || '',
-              type: raw.type || raw.question_type || secType,
-              marks: Number(mark) || 1,
-              category_id: bankId,
-              category_name: bankName,
-              options: raw.options || raw.choices || [],
-              answer: raw.answer || raw.answerText || '',
-              raw,
-              alreadyInOtherSection: alreadyInPaper,
-              selected: false,
-            });
-          }
-        }
-        this.modalQuestions = mapped;
-      },
-      error: (err) => {
-        this.modalLoadingQuestions = false;
-        console.warn('Failed to load questions for bank', err);
-        this.modalQuestions = [];
-      },
-    });
-  }
-
-  get filteredModalQuestions(): Array<PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }> {
-    const term = (this.modalSearchTerm || '').trim().toLowerCase();
-    if (!term) return this.modalQuestions;
-    return this.modalQuestions.filter((q) => (q.question || '').toLowerCase().includes(term));
-  }
-
-  get selectableModalQuestions(): Array<PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }> {
-    return this.filteredModalQuestions.filter((q) => !q.alreadyInOtherSection);
-  }
-
-  get selectableModalQuestionsCount(): number {
-    return this.selectableModalQuestions.length;
-  }
-
-  get selectedModalQuestionsCount(): number {
-    return this.modalQuestions.filter((q) => q.selected && !q.alreadyInOtherSection).length;
-  }
-
-  isAllModalQuestionsSelected(): boolean {
-    const selectable = this.selectableModalQuestions;
-    return selectable.length > 0 && selectable.every((q) => q.selected);
-  }
-
-  isSomeModalQuestionsSelected(): boolean {
-    const selectable = this.selectableModalQuestions;
-    return selectable.some((q) => q.selected) && !this.isAllModalQuestionsSelected();
-  }
-
-  toggleSelectAllModalQuestions(checked: boolean) {
-    const selectable = this.selectableModalQuestions;
-    selectable.forEach((q) => (q.selected = checked));
-  }
-
-  toggleModalQuestion(
-    q: PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean },
-    checked: boolean
-  ) {
-    if (q.alreadyInOtherSection) return;
-    q.selected = checked;
-  }
-
-  confirmAddSelectedQuestions() {
-    const activeSec = this.activeModalSection;
-    if (!activeSec) return;
-
-    const toAdd = this.modalQuestions.filter((q) => q.selected && !q.alreadyInOtherSection);
-    if (!toAdd.length) {
-      notify('Please select at least one question to add', 'error');
-      return;
-    }
-
-    if (!activeSec.questions) activeSec.questions = [];
-    toAdd.forEach((q) => {
-      activeSec.questions.push({
-        id: q.id,
-        question: q.question,
-        type: q.type,
-        marks: q.marks,
-        category_id: q.category_id,
-        category_name: q.category_name,
-        options: q.options || q.raw?.options || [],
-        answer: q.answer || q.raw?.answer || '',
-        raw: q.raw,
-      });
-    });
-
-    this.syncModelCategoriesFromSections();
-    notify(`Added ${toAdd.length} question(s) to ${activeSec.name}`, 'success');
-    this.closeAddQuestionModal();
-  }
-
-  syncModelCategoriesFromSections() {
-    const catMap = new Map<
-      string,
-      {
-        category_id: string;
-        name: string;
-        question_ids: string[];
-        question_type: string;
-        marks_per_question: number | null;
-        total_marks: number;
-      }
-    >();
-
-    for (const sec of this.sections) {
-      for (const q of sec.questions || []) {
-        const bankId = String(q.category_id || 'default');
-        const bankName = q.category_name || 'Question Bank';
-        if (!catMap.has(bankId)) {
-          catMap.set(bankId, {
-            category_id: bankId,
-            name: bankName,
-            question_ids: [],
-            question_type: sec.question_type,
-            marks_per_question: Number(q.marks) || 1,
-            total_marks: 0,
-          });
-        }
-        const entry = catMap.get(bankId)!;
-        entry.question_ids.push(String(q.id));
-        entry.total_marks += Number(q.marks) || 0;
-      }
-    }
-
-    this.model.categories = Array.from(catMap.values()).map((entry) => ({
-      category_id: entry.category_id,
-      name: entry.name,
-      questions: entry.question_ids.length,
-      question_ids: entry.question_ids,
-      randomize_questions: false,
-      question_type: entry.question_type,
-      marks_per_question: entry.marks_per_question,
-      total_marks: entry.total_marks,
-    }));
   }
 
   loadDepartments(instId?: string) {
@@ -2932,110 +1832,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         this.teams = [];
       },
     });
-  }
-
-  get assignmentAvailableTeams(): Array<{
-    id: string;
-    name: string;
-    department_id?: string | null;
-    department_name?: string | null;
-  }> {
-    if (!this.assignmentDepartments.length) return this.teams;
-    const selected = new Set(this.assignmentDepartments.map(String));
-    return this.teams.filter((team) => !team.department_id || selected.has(String(team.department_id)));
-  }
-
-  get filteredPaperUsers() {
-    const term = this.assignmentUserSearch.trim().toLowerCase();
-    const departmentIds = new Set(this.assignmentDepartments.map(String));
-    const teamIds = new Set(this.assignmentTeams.map(String));
-    return this.paperUsers.filter((user) => {
-      if (departmentIds.size && !departmentIds.has(String(user.departmentId || ''))) return false;
-      if (teamIds.size && !teamIds.has(String(user.teamId || ''))) return false;
-      if (!term) return true;
-      return (user.name || '').toLowerCase().includes(term) ||
-        (user.email || '').toLowerCase().includes(term);
-    });
-  }
-
-  get areAllVisiblePaperUsersSelected(): boolean {
-    return this.filteredPaperUsers.length > 0 &&
-      this.filteredPaperUsers.every((user) => this.selectedPaperUsers.includes(user.id));
-  }
-
-  get areSomeVisiblePaperUsersSelected(): boolean {
-    const selectedCount = this.filteredPaperUsers.filter((user) =>
-      this.selectedPaperUsers.includes(user.id)
-    ).length;
-    return selectedCount > 0 && selectedCount < this.filteredPaperUsers.length;
-  }
-
-  loadPaperUsers(): void {
-    if (!this.institute) {
-      this.paperUsers = [];
-      return;
-    }
-    this.loadingPaperUsers = true;
-    this.http.get<any>(`${API_BASE}/get-users-list`, {
-      params: {
-        institute_id: this.institute,
-        active_status: 'true',
-        _ts: Date.now().toString(),
-      },
-    }).subscribe({
-      next: (res) => {
-        const data = Array.isArray(res?.data) ? res.data : [];
-        const loaded = data
-          .filter((user: any) => String(user.user_role || '').toLowerCase() === 'user')
-          .map((user: any) => ({
-            id: String(user.user_id || user.id || ''),
-            name: user.full_name || user.user_name || user.name || user.email || 'User',
-            email: user.email || '',
-            departmentId: String(user.department?.department_id || user.department_id || ''),
-            teamId: String(user.team?.team_id || user.team_id || ''),
-          }))
-          .filter((user: any) => !!user.id);
-        const merged = new Map(this.paperUsers.map((user) => [user.id, user]));
-        loaded.forEach((user: any) => merged.set(user.id, user));
-        this.paperUsers = Array.from(merged.values());
-      },
-      error: (err) => {
-        console.warn('Failed to load users for question-paper assignment', err);
-        this.loadingPaperUsers = false;
-      },
-      complete: () => {
-        this.loadingPaperUsers = false;
-      },
-    });
-  }
-
-  togglePaperUser(userId: string, checked: boolean): void {
-    const id = String(userId);
-    if (checked && !this.selectedPaperUsers.includes(id)) {
-      this.selectedPaperUsers = [...this.selectedPaperUsers, id];
-    } else if (!checked) {
-      this.selectedPaperUsers = this.selectedPaperUsers.filter((selectedId) => selectedId !== id);
-    }
-  }
-
-  toggleAllVisiblePaperUsers(checked: boolean): void {
-    const visibleIds = this.filteredPaperUsers.map((user) => user.id);
-    if (checked) {
-      this.selectedPaperUsers = Array.from(new Set([...this.selectedPaperUsers, ...visibleIds]));
-    } else {
-      const visibleSet = new Set(visibleIds);
-      this.selectedPaperUsers = this.selectedPaperUsers.filter((id) => !visibleSet.has(id));
-    }
-  }
-
-  resetAssignmentFilters(): void {
-    this.assignmentDepartments = [];
-    this.assignmentTeams = [];
-    this.assignmentUserSearch = '';
-  }
-
-  trackPaperUserById(_: number, user: { id: string }): string {
-    return user.id;
   }
 
   onCategoryChange(catId: string) {
@@ -3409,10 +2205,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       notify('Institute is required', 'error');
       return;
     }
-    if (!this.subject_id) {
-      notify('Subject is required', 'error');
-      return;
-    }
     if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) {
       notify('Duration is required', 'error');
       return;
@@ -3425,32 +2217,20 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       notify('Pass Percentage must be between 0 and 100', 'error');
       return;
     }
-    if (!this.sections.length || this.totalPaperQuestionsCount === 0) {
-      notify('Please add at least one section with questions before saving', 'error');
-      return;
-    }
-    if (!this.selectedPaperUsers.length) {
-      notify('Please select at least one user to assign this question paper.', 'error');
-      return;
-    }
+    if (!this.model.categories || !this.model.categories.length) {
+      notify(
+        'Please click the "+ Add Selected" button to attach the Question Bank before saving',
+        'error'
+      );
 
-    this.syncModelCategoriesFromSections();
+      return;
+    }
 
     const currentUser = this.getCurrentUserId();
-    const calcMarks = this.totalPaperMarks > 0 ? this.totalPaperMarks : null;
-    const finalTotalMarks =
-      this.totalMarksOverride !== null && this.totalMarksOverride !== undefined && Number(this.totalMarksOverride) >= 0
-        ? Number(this.totalMarksOverride)
-        : calcMarks;
-
     const payload: any = {
-      test_mode: 'paper',
       title: String(this.title).trim(),
-      total_marks: finalTotalMarks,
       description: this.description || null,
       institute_id: this.institute || null,
-      subject_id: this.subject_id || null,
-      subject_name: this.subject_name || null,
       duration_minutes: Number(this.durationMinutes),
       pass_mark: this.passMark !== null ? Number(this.passMark) : null,
       number_of_attempts: this.numberOfAttempts !== null ? Number(this.numberOfAttempts) : null,
@@ -3461,24 +2241,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       teams: Array.isArray(this.selectedTeams)
         ? this.selectedTeams.filter((id) => id !== 'ALL')
         : [],
-      assigned_user_ids: [...this.selectedPaperUsers],
       categories: Array.isArray(this.model.categories) ? this.model.categories : [],
-      total_questions: this.totalPaperQuestionsCount,
-      sections: this.sections.map((sec, idx) => ({
-        section_id: sec.section_id || null,
-        name: sec.name,
-        sub_heading: sec.sub_heading || sec.instructions || '',
-        instructions: sec.instructions || sec.sub_heading || '',
-        question_type: sec.question_type,
-        target_count: (sec as any).targetCount || null,
-        order_number: idx + 1,
-        questions: (sec.questions || []).map((q, qIdx) => ({
-          question_id: q.id,
-          category_id: q.category_id || null,
-          order_number: qIdx + 1,
-          marks: q.marks !== null && q.marks !== undefined ? Number(q.marks) : 1,
-        })),
-      })),
+      total_questions: this.totalQuestions,
     };
 
     // attach audit fields when available
@@ -3550,9 +2314,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.title = '';
     this.description = '';
     this.institute = '';
-    this.subject_id = '';
-    this.subject_name = '';
-    this.sections = [];
     this.durationMinutes = null;
     this.passMark = null;
     this.startDateTime = '';
@@ -3577,8 +2338,6 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     return !!(
       this.title &&
       this.title.trim() &&
-      this.institute &&
-      this.subject_id &&
       this.durationMinutes &&
       this.selectedDepartments.length > 0 &&
       this.selectedTeams.length > 0
@@ -3586,7 +2345,22 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   validateStep1AndProceed() {
-    // No-op in single-page mode — save() handles validation
+    this.step1Submitted = true;
+    const missing: string[] = [];
+    if (!this.title || !this.title.trim()) missing.push('Title');
+    if (!this.selectedDepartments.length) missing.push('Departments');
+    if (!this.selectedTeams.length) missing.push('Teams');
+    if (!this.durationMinutes) missing.push('Duration');
+    if (missing.length) {
+      try {
+        notify(`Please fill required fields: ${missing.join(', ')}`, 'error');
+      } catch (e) {}
+      return;
+    }
+    // All valid — move to next step
+    if (this.stepper) {
+      this.stepper.next();
+    }
   }
 
   getSelectedDepartmentsDisplay(): string {
@@ -3605,58 +2379,22 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     return names.length ? names.join(', ') : `${this.selectedTeams.length} selected`;
   }
 
-  get instituteNameDisplay(): string {
-    // 1. If this.institute is selected, look up in loaded institutes list
-    if (this.institute) {
-      const want = String(this.institute).trim().toLowerCase();
-      if (this.institutes && this.institutes.length) {
-        const found = this.institutes.find(
-          (i) =>
-            String(i.id).toLowerCase() === want ||
-            (i.name && i.name.trim().toLowerCase() === want)
-        );
-        if (found && found.name) return found.name;
-      }
-      // If this.institute is non-numeric (e.g. an actual name string)
-      if (isNaN(Number(this.institute)) && this.institute.trim().length > 1) {
-        return this.institute.trim();
-      }
-    }
-
-    // 2. Fallback to logged-in user profile from session storage
-    try {
-      const raw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
-      if (raw) {
-        const u = JSON.parse(raw);
-        const name =
-          u?.institute_name ||
-          (u?.institute && (u.institute.institute_name || u.institute.name)) ||
-          u?.institute_short_name;
-        if (name && typeof name === 'string' && name.trim()) {
-          return name.trim();
-        }
-      }
-    } catch (e) {}
-
-    // 3. Fallback to direct 'institute' key in session storage
-    const sessionInst = sessionStorage.getItem('institute');
-    if (sessionInst && sessionInst.trim()) {
-      return sessionInst.trim();
-    }
-
-    // 4. If single institute in loaded list, use its name
-    if (this.institutes && this.institutes.length === 1 && this.institutes[0]?.name) {
-      return this.institutes[0].name;
-    }
-
-    return 'INSTITUTE NAME';
-  }
-
   get isStep2Valid(): boolean {
-    return this.sections.length > 0 && this.sections.some((s) => s.questions && s.questions.length > 0);
+    return !!(this.model.categories && this.model.categories.length > 0);
   }
 
   validateStep2AndProceed() {
-    // No-op in single-page mode
+    if (!this.model.categories || !this.model.categories.length) {
+      try {
+        notify(
+          'Please click the "+ Add Selected" button to attach the Question Bank before proceeding',
+          'error'
+        );
+      } catch (e) {}
+      return;
+    }
+    if (this.stepper) {
+      this.stepper.next();
+    }
   }
 }

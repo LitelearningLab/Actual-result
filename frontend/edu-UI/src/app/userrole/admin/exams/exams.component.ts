@@ -152,15 +152,12 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   displayedColumns: string[] = [
     'sno',
     'title',
-    'sections',
-    'questions',
-    'marks',
-    'duration',
-    'status',
+    'description',
+    'total_questions',
+    'duration_mins',
+    'number_of_attempts',
     'actions',
   ];
-  activeTab: 'drafts' | 'published' = 'drafts';
-  allExams: any[] = [];
   dataSource = new MatTableDataSource<any>([]);
   hasAppliedFilters = false;
   private shouldLoadTestsAfterInstitutes = false;
@@ -575,433 +572,22 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
 
   refresh() {
+    if (!this.hasAppliedFilters) {
+      try {
+        notify('Apply filters to fetch tests', 'info');
+      } catch (e) {}
+      return;
+    }
     this.loadExamsForInstitute(this.selectedInstitute || undefined);
   }
-
-  setTab(tab: 'drafts' | 'published') {
-    this.activeTab = tab;
-    this.updateFilteredExams();
-  }
-
-  get draftsCount(): number {
-    return (this.allExams || []).filter((e) => this.isDraft(e)).length;
-  }
-
-  get publishedCount(): number {
-    return (this.allExams || []).filter((e) => this.isPublished(e)).length;
-  }
-
-  isPublished(e: any): boolean {
-    return !!(
-      e?.published ||
-      e?.is_published ||
-      e?.status === 'published' ||
-      e?.status === 'active'
-    );
-  }
-
-  isDraft(e: any): boolean {
-    return !this.isPublished(e);
-  }
-
-  updateFilteredExams() {
-    let list = (this.allExams || []).filter((e) => {
-      return this.activeTab === 'drafts' ? this.isDraft(e) : this.isPublished(e);
-    });
-    const term = (this.filter || '').trim().toLowerCase();
-    if (term) {
-      list = list.filter((e) =>
-        (e.title || '').toLowerCase().includes(term) ||
-        (e.description || '').toLowerCase().includes(term) ||
-        (e.subject_name || '').toLowerCase().includes(term) ||
-        this.getTestSubtitle(e).toLowerCase().includes(term)
-      );
-    }
-    this.dataSource.data = list;
-    if (this.paginator) {
-      this.dataSource.paginator = this.paginator;
-    }
-  }
-
   applyFilter(filterValue: string) {
-    this.filter = filterValue || '';
-    this.updateFilteredExams();
+    this.dataSource.filter = filterValue.trim().toLowerCase();
   }
 
   getRowNumber(index: number): number {
     const pageIndex = this.paginator?.pageIndex || 0;
     const pageSize = this.paginator?.pageSize || this.dataSource.filteredData.length || 1;
     return pageIndex * pageSize + index + 1;
-  }
-
-  getTestSubtitle(e: any): string {
-    let deptName = '';
-    if (e.departments && e.departments.length) {
-      deptName = this.getSelectedName(this.departments, e.departments[0]) || e.departments[0];
-    }
-    let teamName = '';
-    if (e.teams && e.teams.length) {
-      teamName = this.getSelectedName(this.teams, e.teams[0]) || e.teams[0];
-    }
-    const subj = e.subject_name || e.subject || '';
-
-    if (!deptName || deptName.length > 25 || (deptName.includes('-') && !deptName.includes(' '))) {
-      deptName = 'Science';
-    }
-    if (!teamName || teamName.length > 25 || (teamName.includes('-') && !teamName.includes('12-A'))) {
-      teamName = '12-A';
-    }
-    const finalSubj = subj || 'Physics';
-
-    return `${deptName} • ${teamName}, ${finalSubj}`;
-  }
-
-  getSectionCount(e: any): number {
-    if (Array.isArray(e?.sections) && e.sections.length > 0) return e.sections.length;
-    if (Array.isArray(e?.categories) && e.categories.length > 0) return e.categories.length;
-    return e?.section_count || e?.sections_count || (Number(e?.total_questions) > 20 ? 4 : 3);
-  }
-
-  getSelectedQuestionsCount(e: any): number {
-    if (Array.isArray(e?.sections) && e.sections.length > 0) {
-      let count = 0;
-      for (const s of e.sections) {
-        count += (s?.questions?.length || 0);
-      }
-      if (count > 0) return count;
-    }
-    if (e?.questions_added !== undefined) return e.questions_added;
-    if (Array.isArray(e?.categories) && e.categories.length > 0) {
-      let count = 0;
-      for (const c of e.categories) {
-        count += (c?.questions?.length || c?.question_ids?.length || 0);
-      }
-      if (count > 0) return count;
-    }
-    return Number(e?.total_questions) || 0;
-  }
-
-  getTotalQuestionsCount(e: any): number {
-    return Number(e?.total_questions) || this.getSelectedQuestionsCount(e) || 20;
-  }
-
-  isQuestionsIncomplete(e: any): boolean {
-    return this.getSelectedQuestionsCount(e) < this.getTotalQuestionsCount(e);
-  }
-
-  getSelectedMarksCount(e: any): number {
-    if (e?.marks_added !== undefined && e.marks_added !== null) return e.marks_added;
-    if (Array.isArray(e?.sections) && e.sections.length > 0) {
-      let marks = 0;
-      for (const s of e.sections) {
-        for (const q of (s?.questions || [])) {
-          marks += (Number(q?.marks) || 1);
-        }
-      }
-      if (marks > 0) return marks;
-    }
-    return Number(e?.total_questions) || 0;
-  }
-
-  getTotalMarksCount(e: any): number {
-    if (e?.total_marks !== undefined && e?.total_marks !== null && Number(e.total_marks) > 0) {
-      return Number(e.total_marks);
-    }
-    const added = this.getSelectedMarksCount(e);
-    return added || 0;
-  }
-
-  isMarksIncomplete(e: any): boolean {
-    return this.getSelectedMarksCount(e) < this.getTotalMarksCount(e);
-  }
-
-  getDurationDisplay(e: any): string {
-    const mins = Number(e?.duration_mins) || 60;
-    if (mins >= 60 && mins % 60 === 0) {
-      const hours = mins / 60;
-      return `${hours} Hour${hours > 1 ? 's' : ''}`;
-    }
-    if (mins >= 60) {
-      const hours = Math.floor(mins / 60);
-      const rem = mins % 60;
-      return `${hours} hr ${rem} min`;
-    }
-    return `${mins} min`;
-  }
-
-  openCreateQuestionPaper(): void {
-    try {
-      sessionStorage.removeItem('edit_exam');
-    } catch (e) {}
-    this.saveTestsReturnState();
-    this.router.navigate(['/create-exam']);
-  }
-
-  onDuplicate(e: any): void {
-    this.confirmService
-      .confirm({
-        title: 'Duplicate Question Paper',
-        message: `Are you sure you want to duplicate "${e?.title || 'this test'}"?`,
-        confirmText: 'Duplicate',
-        cancelText: 'Cancel',
-      })
-      .subscribe((ok) => {
-        if (!ok) return;
-        this.loader.show();
-        const examId = e?.test_id || e?.exam_id || e?.id;
-        const doDuplicate = (details: any) => {
-          const newPayload = {
-            ...details,
-            title: `${details.title || e.title || 'Question Paper'} (Copy)`,
-            published: false,
-          };
-          delete newPayload.exam_id;
-          delete newPayload.test_id;
-          delete newPayload.id;
-
-          this.http.post<any>(`${API_BASE}/register-exam`, newPayload).subscribe({
-            next: () => {
-              this.loader.hide();
-              try {
-                notify('Question paper duplicated successfully', 'success');
-              } catch (_) {}
-              this.loadExamsForInstitute(this.selectedInstitute || undefined);
-            },
-            error: () => {
-              this.loader.hide();
-              try {
-                sessionStorage.setItem('edit_exam', JSON.stringify(newPayload));
-              } catch (_) {}
-              this.router.navigate(['/create-exam']);
-            },
-          });
-        };
-
-        if (examId) {
-          this.http
-            .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}`)
-            .subscribe({
-              next: (res) => {
-                const item =
-                  Array.isArray(res?.data) && res.data.length ? res.data[0] : res?.data || e;
-                doDuplicate(item);
-              },
-              error: () => doDuplicate(e),
-            });
-        } else {
-          doDuplicate(e);
-        }
-      });
-  }
-
-  downloadQuestionPaper(e: any): void {
-    const examId = e?.test_id || e?.exam_id || e?.id;
-    const generateDoc = (item: any) => {
-      const printWin = window.open('', '_blank', 'width=900,height=700');
-      if (!printWin) {
-        try {
-          notify('Please allow popups to download/print the question paper', 'info');
-        } catch (_) {}
-        return;
-      }
-      const title = item.title || 'Question Paper';
-      const duration = this.getDurationDisplay(item);
-      const totalMarks = this.getTotalMarksCount(item);
-      const subtitle = this.getTestSubtitle(item);
-      let sectionsHtml = '';
-      const sections = item.sections || [];
-      if (sections.length > 0) {
-        sections.forEach((s: any, sIdx: number) => {
-          sectionsHtml += `
-            <div style="margin-top: 24px; border-bottom: 2px solid #0f172a; padding-bottom: 8px;">
-              <h3 style="margin: 0; font-size: 16px; color: #1e293b;">Section ${s.name || String.fromCharCode(65 + sIdx)} (${(s.question_type || 'Objective').toUpperCase()})</h3>
-            </div>
-          `;
-          (s.questions || []).forEach((q: any, qIdx: number) => {
-            const marks = q.marks ? `[${q.marks} Mark${q.marks > 1 ? 's' : ''}]` : '';
-            let optionsHtml = '';
-            if (q.options && q.options.length) {
-              optionsHtml =
-                '<div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">' +
-                q.options
-                  .map(
-                    (opt: any, optIdx: number) => `
-                  <div style="font-size: 13px; color: #334155;">
-                    ${String.fromCharCode(65 + optIdx)}. ${opt.option_text || opt.text || opt}
-                  </div>
-                `
-                  )
-                  .join('') +
-                '</div>';
-            }
-            sectionsHtml += `
-              <div style="margin: 16px 0; padding-left: 8px;">
-                <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 500; color: #0f172a;">
-                  <span>${qIdx + 1}. ${q.question_text || q.text || q.question || 'Question text'}</span>
-                  <span style="color: #64748b; font-size: 13px;">${marks}</span>
-                </div>
-                ${optionsHtml}
-              </div>
-            `;
-          });
-        });
-      } else {
-        sectionsHtml = '<p style="margin-top: 20px; color: #64748b;">No questions added to this test yet.</p>';
-      }
-
-      printWin.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>${title} - Question Paper</title>
-            <style>
-              @page { size: A4; margin: 0mm; }
-              body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.5; margin: 0; }
-              .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
-              .title { font-size: 24px; font-weight: bold; margin: 0; }
-              .sub { font-size: 14px; color: #64748b; margin-top: 6px; }
-              .meta-row { display: flex; justify-content: space-between; margin-top: 16px; font-size: 14px; font-weight: 600; }
-              @media print {
-                body { padding: 15mm 20mm; }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1 class="title">${title}</h1>
-              <div class="sub">${subtitle}</div>
-              <div class="meta-row">
-                <span>Duration: ${duration}</span>
-                <span>Total Marks: ${totalMarks}</span>
-              </div>
-            </div>
-            ${sectionsHtml}
-            <script>
-              window.onload = function() { window.print(); };
-            </script>
-          </body>
-        </html>
-      `);
-      printWin.document.close();
-    };
-
-    if (examId) {
-      this.http
-        .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}`)
-        .subscribe({
-          next: (res) => {
-            const item =
-              Array.isArray(res?.data) && res.data.length ? res.data[0] : res?.data || e;
-            generateDoc(item);
-          },
-          error: () => generateDoc(e),
-        });
-    } else {
-      generateDoc(e);
-    }
-  }
-
-  downloadEvaluationGuide(e: any): void {
-    const examId = e?.test_id || e?.exam_id || e?.id;
-    const generateGuide = (item: any) => {
-      const printWin = window.open('', '_blank', 'width=900,height=700');
-      if (!printWin) {
-        try {
-          notify('Please allow popups to download/print the answer key', 'info');
-        } catch (_) {}
-        return;
-      }
-      const title = item.title || 'Answer Key';
-      const duration = this.getDurationDisplay(item);
-      const totalMarks = this.getTotalMarksCount(item);
-      const subtitle = this.getTestSubtitle(item);
-      let sectionsHtml = '';
-      const sections = item.sections || [];
-      if (sections.length > 0) {
-        sections.forEach((s: any, sIdx: number) => {
-          sectionsHtml += `
-            <div style="margin-top: 24px; border-bottom: 2px solid #2563eb; padding-bottom: 8px;">
-              <h3 style="margin: 0; font-size: 16px; color: #1e293b;">Section ${s.name || String.fromCharCode(65 + sIdx)} - Answer Key</h3>
-            </div>
-          `;
-          (s.questions || []).forEach((q: any, qIdx: number) => {
-            const marks = q.marks ? `[${q.marks} Mark${q.marks > 1 ? 's' : ''}]` : '';
-            let correctAns = q.answer || '';
-            if (!correctAns && q.options) {
-              const correctOpt = q.options.find((o: any) => o.is_correct || o.isCorrect);
-              if (correctOpt) correctAns = correctOpt.option_text || correctOpt.text;
-            }
-            if (!correctAns) correctAns = 'Refer to model answer rubric';
-            sectionsHtml += `
-              <div style="margin: 16px 0; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 500; color: #0f172a;">
-                  <span>${qIdx + 1}. ${q.question_text || q.text || q.question || 'Question'}</span>
-                  <span style="color: #64748b; font-size: 13px;">${marks}</span>
-                </div>
-                <div style="margin-top: 8px; font-size: 13px; color: #15803d; font-weight: 600;">
-                  ✓ Correct Answer / Key: <span style="font-weight: 400; color: #0f172a;">${correctAns}</span>
-                </div>
-                ${q.explanation ? `<div style="margin-top: 6px; font-size: 12px; color: #64748b;"><strong>Explanation:</strong> ${q.explanation}</div>` : ''}
-              </div>
-            `;
-          });
-        });
-      } else {
-        sectionsHtml = '<p style="margin-top: 20px; color: #64748b;">No questions available in this test.</p>';
-      }
-
-      printWin.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>${title} - Answer Key</title>
-            <style>
-              @page { size: A4; margin: 0mm; }
-              body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.5; margin: 0; }
-              .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; }
-              .title { font-size: 24px; font-weight: bold; margin: 0; color: #1e293b; }
-              .guide-badge { display: inline-block; background: #eff6ff; color: #2563eb; padding: 4px 12px; border-radius: 9999px; font-weight: 600; font-size: 12px; margin-top: 6px; }
-              .sub { font-size: 14px; color: #64748b; margin-top: 6px; }
-              .meta-row { display: flex; justify-content: space-between; margin-top: 16px; font-size: 14px; font-weight: 600; }
-              @media print {
-                body { padding: 15mm 20mm; }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1 class="title">${title}</h1>
-              <div class="guide-badge">Answer Key</div>
-              <div class="sub">${subtitle}</div>
-              <div class="meta-row">
-                <span>Duration: ${duration}</span>
-                <span>Total Marks: ${totalMarks}</span>
-              </div>
-            </div>
-            ${sectionsHtml}
-            <script>
-              window.onload = function() { window.print(); };
-            </script>
-          </body>
-        </html>
-      `);
-      printWin.document.close();
-    };
-
-    if (examId) {
-      this.http
-        .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}`)
-        .subscribe({
-          next: (res) => {
-            const item =
-              Array.isArray(res?.data) && res.data.length ? res.data[0] : res?.data || e;
-            generateGuide(item);
-          },
-          error: () => generateGuide(e),
-        });
-    } else {
-      generateGuide(e);
-    }
   }
   private filtersOverlayRef: OverlayRef | null = null;
 
@@ -1474,11 +1060,10 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.pageMeta.setMeta('My Question Papers');
+    this.pageMeta.setMeta('Tests', 'Browse and review tests');
     this.loadCountries();
     this.loadInstitutes();
     this.loadTestOptions(this.selectedInstitute);
-    this.loadExamsForInstitute(this.selectedInstitute || undefined);
     this.globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe((context) => {
       const instituteId = context?.institute_id || '';
       if (instituteId) {
@@ -1758,11 +1343,10 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.onReset();
   }
   private refreshAfterFilterChipChange() {
-    if (this.appliedFilterChips.length) {
+    if (this.appliedFilterChips.length)
       this.loadExamsForInstitute(this.selectedInstitute || undefined);
-    } else {
+    else {
       this.hasAppliedFilters = false;
-      this.loadExamsForInstitute(this.selectedInstitute || undefined);
     }
   }
   private getCountryLabel(code: string): string {
@@ -2306,7 +1890,6 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
                   // load dependent lists scoped to the institute
                   this.loadDepartments(this.selectedInstitute);
                   this.loadTeams(this.selectedInstitute);
-                  this.loadExamsForInstitute(this.selectedInstitute);
                 }
               }
             }
@@ -2366,6 +1949,17 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   onApply() {
+    if (
+      this.isSuperAdmin &&
+      !this.isGlobalInstituteActive &&
+      (!this.selectedInstitutes || !this.selectedInstitutes.length) &&
+      !this.selectedInstitute
+    ) {
+      try {
+        notify('Please select an institute', 'info');
+      } catch (e) {}
+      return;
+    }
     if (!this.hasFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');
@@ -2407,22 +2001,15 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.filterCreatedByMe = false;
     this.filter = '';
     this.dataSource.filter = '';
+    this.exams = [];
+    this.dataSource.data = [];
     this.hasAppliedFilters = false;
     try {
       sessionStorage.removeItem('exams_table_return_state');
     } catch (e) {}
     if (this.isSuperAdmin) {
       this.refreshInstituteScope();
-    } else {
-      try {
-        const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
-        if (raw) {
-          const u = JSON.parse(raw);
-          this.selectedInstitute = u?.institute_id || u?.instituteId || u?.institute || '';
-        }
-      } catch (e) {}
     }
-    this.loadExamsForInstitute(this.selectedInstitute || undefined);
     this.closeFiltersOverlay();
   }
 
@@ -2430,7 +2017,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.loader.show();
     const base = `${API_BASE}/get-exams-details`;
     // build query params based on filters
-    const params: string[] = ['test_mode=paper'];
+    const params: string[] = [];
     if (this.selectedInstitutes && this.selectedInstitutes.length) {
       params.push(`institute_id=${encodeURIComponent(this.selectedInstitutes.join(','))}`);
     } else if (id) {
@@ -2479,10 +2066,12 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.http.get<any>(url).subscribe({
       next: (res) => {
         const arr = Array.isArray(res?.data) ? res.data : [];
-        this.allExams = arr.map((x: any) => ({
+        // normalize each exam to expected display shape
+        this.exams = arr.map((x: any) => ({
           test_id: x.test_id || x.id || x.exam_id,
           title: x.title || x.name || '',
           description: x.description || x.desc || '',
+          // preserve raw categories if returned by the API so the view modal can show them
           categories: Array.isArray(x.categories)
             ? x.categories
             : Array.isArray(x.category_list)
@@ -2490,31 +2079,23 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
               : Array.isArray(x.categories_list)
                 ? x.categories_list
                 : [],
-          sections: Array.isArray(x.sections) ? x.sections : [],
-          departments: x.departments || [],
-          teams: x.teams || [],
-          subject_id: x.subject_id,
-          subject_name: x.subject_name,
           institute: {
             institute_id: x.institute_id || '',
             institute_name: x.institute_name || '',
           },
-          duration_mins: x.duration_mins || x.duration || 60,
+          duration_mins: x.duration_mins || x.duration || 0,
           total_questions: x.total_questions || x.questions_count || 0,
           number_of_attempts: x.number_of_attempts || x.attempts || 1,
-          pass_mark: x.pass_mark || 0,
-          total_marks: x.total_marks ?? x.totalMarks ?? null,
+          pass_mark: x.pass_mark || x.pass_mark || 0,
           public_access: x.public_access || x.public || false,
           created_by: x.created_by || x.creator || '',
           created_date: x.created_date || x.created || '',
           updated_by: x.updated_by || x.modifier || '',
           updated_date: x.updated_date || x.updated || '',
           published: !!x.published,
-          status: x.published ? 'published' : 'draft',
-          is_editable: x.is_editable !== false,
         }));
-        this.exams = this.allExams;
-        this.updateFilteredExams();
+        this.dataSource.data = this.exams;
+        this.dataSource.paginator = this.paginator;
 
         try {
           this.loader.hide();
@@ -2524,9 +2105,9 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       },
       error: (err) => {
         console.warn('Failed loading exams', err);
-        this.allExams = [];
         this.exams = [];
-        this.updateFilteredExams();
+        this.dataSource.data = this.exams;
+        this.dataSource.paginator = this.paginator;
         try {
           this.loader.hide();
         } catch (e) {
