@@ -864,6 +864,10 @@ def get_exam_details(request):
                 filter.append(Exam.test_mode == 'paper')
             elif tm_val == 'online':
                 filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
+            elif tm_val == 'all':
+                pass
+        else:
+            filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
 
         dept_arg = args.get("departments", None) or args.get("department", None)
         if dept_arg:

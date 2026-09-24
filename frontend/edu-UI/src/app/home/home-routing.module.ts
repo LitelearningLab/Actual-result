@@ -13,6 +13,8 @@ import { AdminScheduleTestComponent } from '../userrole/admin/schedule-test/sche
 import { ViewScheduleExamComponent } from '../userrole/admin/schedule-test/view-schedule-exam.component';
 import { CreateExamComponent } from '../userrole/admin/exams/create-exam.component';
 import { AdminExamsComponent } from '../userrole/admin/exams/exams.component';
+import { QuestionPaperComponent } from '../userrole/admin/question-paper/question-paper.component';
+import { CreateQuestionPaperComponent } from '../userrole/admin/question-paper/create-question-paper.component';
 import { AdminResultsComponent } from '../userrole/admin/results/results.component';
 import { ViewUsersComponent } from '../userrole/admin/user/view-users/view-users.component';
 import { ViewQuestionsComponent } from '../userrole/admin/questions/view-questions/view-questions.component';
@@ -42,8 +44,10 @@ const routes: Routes = [
   , { path: 'questions', component: AdminQuestionsComponent, canActivate: [PermissionGuard], data: { pageName: 'Questions', action: 'add' } }
   , { path: 'schedule-exam', component: AdminScheduleTestComponent, canActivate: [PermissionGuard], canDeactivate: [scheduleTestUnsavedChangesGuard], data: { pageName: 'Schedule Exam', action: 'add' } }
   , { path: 'view-schedule-exam', component: ViewScheduleExamComponent, canActivate: [PermissionGuard], data: { pageName: 'Schedule Exam', action: 'view' } }
-  , { path: 'exams', component: AdminExamsComponent, canActivate: [PermissionGuard], data: { pageName: 'Exams', action: 'view' } }
-  , { path: 'create-exam', component: CreateExamComponent, canActivate: [PermissionGuard], data: { pageName: 'Exams', action: 'add' } }
+  , { path: 'exams', component: AdminExamsComponent, canActivate: [PermissionGuard], data: { pageName: 'Manage test', action: 'view' } }
+  , { path: 'create-exam', component: CreateExamComponent, canActivate: [PermissionGuard], data: { pageName: 'Manage test', action: 'add' } }
+  , { path: 'question-papers', component: QuestionPaperComponent, canActivate: [PermissionGuard], data: { pageName: 'Create Question Paper', action: 'view', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'create-question-paper', component: CreateQuestionPaperComponent, canActivate: [PermissionGuard], data: { pageName: 'Create Question Paper', action: 'add', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'view-users', component: ViewUsersComponent, canActivate: [PermissionGuard], data: { pageName: 'Users', action: 'view' } }
   , { path: 'unauthorized', component: UnauthorizedComponent }
   , { path: 'view-questions', component: ViewQuestionsComponent, canActivate: [PermissionGuard], data: { pageName: 'Questions', action: 'view' } }

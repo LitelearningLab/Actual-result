@@ -87,14 +87,16 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/category-create': 'Question Banks',
     '/view-questions': 'Questions',
     '/questions': 'Questions',
-    '/exams': 'Create Question Paper',
-    '/create-exam': 'Create Question Paper',
+    '/exams': 'Manage test',
+    '/create-exam': 'Manage test',
     '/view-schedule-exam': 'Schedule Test',
     '/schedule-exam': 'Schedule Test',
     '/view-institutes': 'Institutes',
     '/institute-register': 'Institutes',
     '/admin/exam-reports': 'Test Reports',
     '/user/exam/run': 'Test Inbox',
+    '/question-papers': 'Create Question Paper',
+    '/create-question-paper': 'Create Question Paper',
   };
 
   /** Updates selectedMenu by finding which menu path matches the current URL */
@@ -225,7 +227,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
       this.menus.push({ label: 'Users', path: '/view-users', icon: 'users' });
       this.menus.push({ label: 'Question Banks', path: '/category', icon: 'category' });
       this.menus.push({ label: 'Questions', path: '/view-questions', icon: 'quiz' });
-      this.menus.push({ label: 'Create Question Paper', path: '/exams', icon: 'exam' });
+      this.menus.push({ label: 'Manage test', path: '/exams', icon: 'exam' });
       this.menus.push({ label: 'Schedule Test', path: '/view-schedule-exam', icon: 'calendar' });
       this.menus.push({ label: 'Test Reports', path: '/admin/exam-reports', icon: 'report' });
     }
@@ -234,6 +236,11 @@ export class SideNavComponent implements OnInit, OnDestroy {
       // Admins retain their management menus and also receive the candidate entry points.
       // this.menus.push({ label: 'User Dashboard', path: '/user-dashboard', icon: 'user' });
       this.menus.push({ label: 'Test Inbox', path: '/user/exam', icon: 'assignment' });
+    }
+
+    if (role === 'admin' || role === 'super_admin' || role === 'super-admin') {
+      // Separate Question Paper module placed after Test Inbox
+      this.menus.push({ label: 'Create Question Paper', path: '/question-papers', icon: 'exam' });
     }
 
     // After menus are set, update selected menu based on current URL

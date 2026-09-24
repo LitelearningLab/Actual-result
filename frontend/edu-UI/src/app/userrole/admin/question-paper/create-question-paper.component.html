@@ -1,0 +1,718 @@
+<div class="qp-builder-page">
+
+    <!-- ══ TOP BAR / BACK NAVIGATION ══ -->
+    <div class="qp-nav-bar">
+        <button class="btn-back-papers" type="button" (click)="goBack()">
+            <mat-icon>arrow_back</mat-icon>
+            <span>My Question Papers</span>
+        </button>
+    </div>
+
+    <div class="qp-body">
+        <!-- ══ LEFT MAIN CONTENT ══ -->
+        <div class="qp-main">
+
+            <!-- ── Test Details Card ── -->
+            <div class="qp-card" id="test-details-card">
+                <div class="qp-card-header">
+                    <div class="qp-card-title">
+                        <h2>Test Details</h2>
+                        <p>Create the basic details of the written test.</p>
+                    </div>
+                    <span class="draft-badge">Draft</span>
+                </div>
+
+                <div class="qp-card-body">
+                    <!-- Row 1: Institute (if super admin) + Department + Team -->
+                    <div class="fields-row" [ngClass]="isSuperAdmin ? 'fields-row--3' : 'fields-row--2'">
+                        <!-- Institute (super admin only) -->
+                        <div class="field-group" *ngIf="isSuperAdmin">
+                            <label class="field-label">Institute</label>
+                            <mat-select class="qp-select" [(ngModel)]="institute"
+                                (selectionChange)="onInstituteChange($event.value)"
+                                (openedChange)="onInstituteOpenedChange($event)"
+                                placeholder="Select institute">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input class="select-search-input" placeholder="Search institute"
+                                        [(ngModel)]="instituteFilterSearch"
+                                        [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option value="">Select institute</mat-option>
+                                <mat-option *ngFor="let i of filteredInstitutes" [value]="i.id">{{i.name}}</mat-option>
+                            </mat-select>
+                        </div>
+
+                        <!-- Department -->
+                        <div class="field-group">
+                            <label class="field-label">{{ terminology.deptLabel || terminology.deptPlural }}</label>
+                            <mat-select class="qp-select" [(ngModel)]="selectedDepartment"
+                                (selectionChange)="onDepartmentChange($event.value)"
+                                (openedChange)="onDepartmentOpenedChange($event)"
+                                [placeholder]="terminology.selectDeptPlaceholder">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input class="select-search-input" [placeholder]="terminology.searchDeptPlaceholder"
+                                        [(ngModel)]="departmentFilterSearch"
+                                        [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option value="">{{ terminology.selectDeptPlaceholder }}</mat-option>
+                                <mat-option *ngFor="let d of filteredDepartments" [value]="d.id">{{d.name}}</mat-option>
+                            </mat-select>
+                        </div>
+
+                        <!-- Team -->
+                        <div class="field-group">
+                            <label class="field-label">{{ terminology.teamLabel || terminology.teamPlural }}</label>
+                            <mat-select class="qp-select" [(ngModel)]="selectedTeam"
+                                (selectionChange)="onTeamChange($event.value)"
+                                (openedChange)="onTeamOpenedChange($event)"
+                                [placeholder]="terminology.selectTeamPlaceholder">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input class="select-search-input" [placeholder]="terminology.searchTeamPlaceholder"
+                                        [(ngModel)]="teamFilterSearch"
+                                        [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option value="">{{ terminology.selectTeamPlaceholder }}</mat-option>
+                                <mat-option *ngFor="let t of filteredTeams" [value]="t.id">{{t.name}}</mat-option>
+                            </mat-select>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Subject + Exam Type -->
+                    <div class="fields-row fields-row--2">
+                        <!-- Subject -->
+                        <div class="field-group">
+                            <label class="field-label">Subject <span class="req">*</span></label>
+                            <mat-select class="qp-select" [(ngModel)]="subject_id"
+                                (selectionChange)="onSubjectChange($event.value)"
+                                (openedChange)="onSubjectOpenedChange($event)"
+                                [disabled]="!institute"
+                                placeholder="Select subject">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input class="select-search-input" placeholder="Search subject"
+                                        [(ngModel)]="subjectFilterSearch"
+                                        [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option value="">Select subject</mat-option>
+                                <mat-option *ngIf="loadingSubjects" disabled>Loading...</mat-option>
+                                <mat-option *ngFor="let s of filteredSubjects" [value]="s.id">{{s.name}}</mat-option>
+                            </mat-select>
+                        </div>
+
+                        <!-- Exam Type -->
+                        <div class="field-group">
+                            <label class="field-label">Exam Type</label>
+                            <mat-select class="qp-select" [(ngModel)]="examTypeLabel" placeholder="Select type">
+                                <mat-option value="Unit Test">Unit Test</mat-option>
+                                <mat-option value="Mid Term">Mid Term</mat-option>
+                                <mat-option value="Final Exam">Final Exam</mat-option>
+                                <mat-option value="Practice">Practice</mat-option>
+                            </mat-select>
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Test Name + Exam Date -->
+                    <div class="fields-row fields-row--2">
+                        <div class="field-group">
+                            <label class="field-label">Test Name <span class="req">*</span></label>
+                            <input class="qp-input" type="text" [(ngModel)]="title"
+                                placeholder="Physics – Unit Test 1" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Exam Date <span class="opt">(optional)</span></label>
+                            <div class="date-input-wrap">
+                                <input class="qp-input date-input" type="date" [(ngModel)]="examDate" placeholder="dd-mm-yyyy" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Total Marks + Duration -->
+                    <div class="fields-row fields-row--2">
+                        <div class="field-group">
+                            <label class="field-label">Total Marks</label>
+                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride"
+                                placeholder="50" min="0" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Duration <span class="opt">(printed on paper)</span></label>
+                            <input class="qp-input" type="text" [(ngModel)]="durationLabel"
+                                placeholder="1 Hour" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Sections and Questions Card ── -->
+            <div class="qp-card" id="paper-assignment-card">
+                <div class="qp-card-header assignment-card-header">
+                    <div class="assignment-heading-wrap">
+                        <mat-icon class="assignment-heading-icon">people</mat-icon>
+                        <div class="qp-card-title">
+                            <h2>Assign Question Paper <span class="req">*</span></h2>
+                            <p>Choose which users to assign this question paper to (at least 1 user required). Selected: <strong>{{ selectedPaperUsers.length }}</strong></p>
+                        </div>
+                    </div>
+                    <button class="btn-assignment-filter" type="button"
+                        (click)="assignmentFiltersOpen = !assignmentFiltersOpen"
+                        [disabled]="readOnly || !institute">
+                        <mat-icon>filter_list</mat-icon>
+                        <span>Filter Users</span>
+                    </button>
+                </div>
+
+                <div class="assignment-filter-panel" *ngIf="assignmentFiltersOpen">
+                    <div class="fields-row fields-row--3">
+                        <div class="field-group">
+                            <label class="field-label">Search users</label>
+                            <div class="assignment-search-wrap">
+                                <mat-icon>search</mat-icon>
+                                <input class="qp-input" type="text" [(ngModel)]="assignmentUserSearch"
+                                    placeholder="Search by name or email" />
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">{{ terminology.deptPluralLabel }}</label>
+                            <mat-select class="qp-select" multiple [(ngModel)]="assignmentDepartments"
+                                [placeholder]="'Select ' + terminology.deptPluralLabel.toLowerCase()">
+                                <mat-option *ngFor="let d of departments" [value]="d.id">{{ d.name }}</mat-option>
+                            </mat-select>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">{{ terminology.teamPluralLabel }}</label>
+                            <mat-select class="qp-select" multiple [(ngModel)]="assignmentTeams"
+                                [placeholder]="'Select ' + terminology.teamPluralLabel.toLowerCase()">
+                                <mat-option *ngFor="let t of assignmentAvailableTeams" [value]="t.id">{{ t.name }}</mat-option>
+                            </mat-select>
+                        </div>
+                    </div>
+                    <div class="assignment-filter-actions">
+                        <button class="btn-assignment-reset" type="button" (click)="resetAssignmentFilters()">
+                            <mat-icon>refresh</mat-icon>
+                            <span>Reset</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="assignment-user-list" [class.assignment-user-list--disabled]="!institute">
+                    <div class="assignment-user-list-header">
+                        <mat-checkbox [checked]="areAllVisiblePaperUsersSelected"
+                            [indeterminate]="areSomeVisiblePaperUsersSelected"
+                            (change)="toggleAllVisiblePaperUsers($event.checked)"
+                            [disabled]="readOnly || !institute || filteredPaperUsers.length === 0">
+                            Select all ({{ filteredPaperUsers.length }})
+                        </mat-checkbox>
+                        <button class="assignment-refresh" type="button" (click)="loadPaperUsers()"
+                            [disabled]="readOnly || !institute || loadingPaperUsers">
+                            <mat-icon>refresh</mat-icon>
+                            <span>{{ loadingPaperUsers ? 'Loading...' : 'Refresh' }}</span>
+                        </button>
+                    </div>
+
+                    <div class="assignment-empty" *ngIf="!institute">
+                        <mat-icon>info</mat-icon>
+                        <p>Select an institute above before assigning users.</p>
+                    </div>
+                    <div class="assignment-empty" *ngIf="institute && !loadingPaperUsers && filteredPaperUsers.length === 0">
+                        <mat-icon>person_off</mat-icon>
+                        <p>No users found matching the selected filters.</p>
+                    </div>
+
+                    <mat-list class="paper-user-selection-list" *ngIf="institute && filteredPaperUsers.length > 0">
+                        <mat-list-item *ngFor="let user of filteredPaperUsers; trackBy: trackPaperUserById">
+                            <mat-checkbox [checked]="selectedPaperUsers.includes(user.id)"
+                                [disabled]="readOnly"
+                                (change)="togglePaperUser(user.id, $event.checked)">
+                                {{ user.name }}
+                                <span class="assignment-user-email" *ngIf="user.email">&nbsp;({{ user.email }})</span>
+                            </mat-checkbox>
+                        </mat-list-item>
+                    </mat-list>
+                </div>
+
+                <div class="assignment-warning" *ngIf="institute && selectedPaperUsers.length === 0">
+                    <mat-icon>error_outline</mat-icon>
+                    <span>At least one user must be assigned to the question paper.</span>
+                </div>
+            </div>
+
+            <div class="qp-card" id="sections-card">
+                <div class="qp-card-header">
+                    <div class="qp-card-title">
+                        <h2>Sections and Questions</h2>
+                        <p>Drag a section to reorder it. Marks are added up automatically.</p>
+                    </div>
+                    <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()" [disabled]="readOnly || !subject_id">
+                        <mat-icon>add</mat-icon>
+                        <span>Add Section</span>
+                    </button>
+                </div>
+
+                <div class="qp-card-body">
+                    <!-- No subject warning -->
+                    <div class="no-subject-warn" *ngIf="!subject_id">
+                        <mat-icon>info</mat-icon>
+                        <span>Select a <strong>Subject</strong> above before adding sections.</span>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div class="sections-empty" *ngIf="sections.length === 0 && subject_id">
+                        <mat-icon>view_agenda</mat-icon>
+                        <h3>No Sections Yet</h3>
+                        <p>Add your first section to start building the question paper.</p>
+                        <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()">
+                            <mat-icon>add</mat-icon>
+                            <span>Add Section</span>
+                        </button>
+                    </div>
+
+                    <!-- Sections list -->
+                    <div class="sections-list" *ngIf="sections.length > 0">
+                        <div class="section-block-card" *ngFor="let sec of sections; let secIdx = index">
+
+                            <!-- Section header -->
+                            <div class="sec-head">
+                                <div class="sec-drag-handle">
+                                    <mat-icon>drag_indicator</mat-icon>
+                                </div>
+                                <div class="sec-head-info">
+                                    <h3 class="sec-name">{{ sec.name }}</h3>
+                                    <div class="sec-subheading" *ngIf="getSectionSubHeading(sec)">
+                                        {{ getSectionSubHeading(sec) }}
+                                    </div>
+                                    <div class="sec-meta">
+                                        <span class="sec-meta-item">{{ getSectionMarksPerQ(sec) || 1 }} mark each</span>
+                                        <span class="sec-meta-item">{{ sec.questions?.length || 0 }} of {{ sec.targetCount || 10 }} questions</span>
+                                        <span class="sec-meta-item">{{ getSectionMarks(sec) }} of {{ (sec.targetCount || 10) * (getSectionMarksPerQ(sec) || 1) }} marks</span>
+                                    </div>
+                                </div>
+                                <div class="sec-head-actions">
+                                    <button class="btn-icon-action" type="button" (click)="openEditSectionModal(secIdx)" title="Edit section" [disabled]="readOnly">
+                                        <mat-icon>edit</mat-icon>
+                                    </button>
+                                    <button class="btn-icon-action btn-del" type="button" (click)="removeSection(secIdx)" title="Delete section" [disabled]="readOnly">
+                                        <mat-icon>delete_outline</mat-icon>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Underline progress bar -->
+                            <div class="sec-progress-bar">
+                                <div class="sec-progress-fill"
+                                    [style.width]="getSectionProgressPct(sec) + '%'"
+                                    [class.full]="getSectionProgressPct(sec) >= 100">
+                                </div>
+                            </div>
+
+                            <!-- Questions list -->
+                            <div class="sec-questions" *ngIf="sec.questions && sec.questions.length > 0">
+                                <div class="sec-q-row" *ngFor="let q of sec.questions; let qIdx = index">
+                                    <span class="q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}</span>
+                                    <span class="q-text">{{ q.question }}</span>
+                                    <div class="q-marks-wrap">
+                                        <input class="q-marks-input" type="number" [(ngModel)]="q.marks" min="0"
+                                            [ngModelOptions]="{standalone: true}" [disabled]="readOnly" />
+                                        <span class="q-marks-label">marks</span>
+                                    </div>
+                                    <button class="q-btn-del" type="button" (click)="removeQuestionFromSection(secIdx, qIdx)" title="Remove" [disabled]="readOnly">
+                                        <mat-icon>close</mat-icon>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Add Question button -->
+                            <div class="sec-add-question-wrap">
+                                <button class="btn-sec-add-q" type="button"
+                                    (click)="openAddQuestionModal(secIdx)" [disabled]="readOnly">
+                                    <mat-icon>add</mat-icon>
+                                    <span>Add Question</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /qp-main -->
+
+        <!-- ══ RIGHT SIDEBAR ══ -->
+        <div class="qp-sidebar">
+            <div class="sidebar-card">
+                <h2 class="sidebar-title">Paper Summary</h2>
+
+                <!-- Marks display -->
+                <div class="summary-marks-block">
+                    <div class="summary-marks-big">
+                        <span class="marks-current">{{ totalPaperMarks }}</span>
+                        <span class="marks-of">of {{ totalMarksOverride || 50 }} marks added</span>
+                    </div>
+                    <div class="summary-marks-bar">
+                        <div class="summary-marks-fill"
+                            [style.width]="getMarksProgressPct() + '%'"
+                            [class.over]="totalPaperMarks > (totalMarksOverride || 50)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats chips -->
+                <div class="summary-stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-card-label">SECTIONS</span>
+                        <span class="stat-card-val">{{ totalSectionsCount }}</span>
+                    </div>
+                </div>
+
+                <!-- Per-section progress -->
+                <div class="section-prog-list" *ngIf="sections.length > 0">
+                    <div class="section-prog-row" *ngFor="let sec of sections">
+                        <span class="sec-prog-name">{{ sec.name }}</span>
+                        <div class="sec-prog-track">
+                            <div class="sec-prog-bar"
+                                [style.width]="getSectionProgressPct(sec) + '%'"
+                                [class.full]="getSectionProgressPct(sec) >= 100">
+                            </div>
+                        </div>
+                        <span class="sec-prog-val">{{ sec.questions?.length || 0 }} / {{ sec.targetCount || 10 }}</span>
+                    </div>
+                </div>
+
+                <!-- Warning: marks mismatch -->
+                <div class="summary-alert alert-danger" *ngIf="totalMarksOverride && totalPaperMarks !== totalMarksOverride">
+                    <mat-icon class="alert-icon">warning</mat-icon>
+                    <span class="alert-text">
+                        <ng-container *ngIf="totalPaperMarks < totalMarksOverride">
+                            Section marks add up to {{ totalPaperMarks }}, but the test total is {{ totalMarksOverride }}. Add {{ totalMarksOverride - totalPaperMarks }} more marks.
+                        </ng-container>
+                        <ng-container *ngIf="totalPaperMarks > totalMarksOverride">
+                            Section marks add up to {{ totalPaperMarks }}, which exceeds the test total of {{ totalMarksOverride }}. Remove {{ totalPaperMarks - totalMarksOverride }} marks.
+                        </ng-container>
+                    </span>
+                </div>
+
+                <!-- Alert 2: Questions needing evaluation -->
+                <div class="summary-alert alert-warning" *ngIf="getQuestionsNeedingEvaluationCount() > 0">
+                    <mat-icon class="alert-icon">info</mat-icon>
+                    <span class="alert-text">
+                        {{ getQuestionsNeedingEvaluationCount() }} question{{ getQuestionsNeedingEvaluationCount() > 1 ? 's' : '' }} need evaluation or answer keys.
+                    </span>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="sidebar-action-group">
+                    <button class="btn-sidebar-preview-paper" type="button" (click)="previewPaper()">
+                        <mat-icon>visibility</mat-icon>
+                        <span>Preview Question Paper</span>
+                    </button>
+                    <button class="btn-sidebar-preview-guide" type="button" (click)="previewGuide()">
+                        <mat-icon>menu_book</mat-icon>
+                        <span>Preview Answer Key</span>
+                    </button>
+                    <button class="btn-sidebar-save" type="button" (click)="save()">
+                        <mat-icon>save</mat-icon>
+                        <span>{{ editMode ? 'Update' : 'Save Draft' }}</span>
+                    </button>
+
+                    <!-- Download as PDF -->
+                    <div class="sidebar-download-wrap">
+                        <span class="sidebar-download-label">Download as PDF</span>
+                        <button class="btn-sidebar-download" type="button" (click)="downloadQuestionPaper()">
+                            <mat-icon>download</mat-icon>
+                            <span>Download Question Paper</span>
+                        </button>
+                        <button class="btn-sidebar-download" type="button" (click)="downloadEvaluationGuide()">
+                            <mat-icon>download</mat-icon>
+                            <span>Download Answer Key</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div><!-- /qp-sidebar -->
+    </div><!-- /qp-body -->
+
+    <!-- ═══ Preview Overlay: Question Paper ═══ -->
+    <div class="preview-overlay" *ngIf="showPreviewPaper">
+        <div class="preview-topbar">
+            <button class="btn-back-editing" type="button" (click)="showPreviewPaper = false">
+                <mat-icon>arrow_back</mat-icon>
+                <span>Back to Editing</span>
+            </button>
+            <div class="preview-tabs">
+                <button class="preview-tab active" type="button">
+                    <mat-icon>description</mat-icon> Question Paper
+                </button>
+                <button class="preview-tab" type="button" (click)="showPreviewPaper = false; showPreviewGuide = true">
+                    <mat-icon>menu_book</mat-icon> Answer Key
+                </button>
+            </div>
+            <button class="btn-download-top" type="button" (click)="downloadQuestionPaper()">
+                <mat-icon>download</mat-icon> Download Question Paper
+            </button>
+        </div>
+        <div class="preview-warning" *ngIf="totalMarksOverride && totalPaperMarks !== totalMarksOverride">
+            <mat-icon>warning_amber</mat-icon>
+            <span>This paper adds up to {{ totalPaperMarks }} of {{ totalMarksOverride }} marks. Update the information to include the correct total on the question paper PDF.</span>
+        </div>
+        <div class="preview-paper-page">
+            <div class="paper-doc">
+                <div class="paper-school-name">{{ instituteNameDisplay | uppercase }}</div>
+                <div class="paper-meta-line">{{ getSelectedDepartmentsDisplay() | uppercase }} · {{ getSelectedTeamsDisplay() | uppercase }} · {{ subject_name | uppercase }}</div>
+                <div class="paper-test-type">{{ examTypeLabel | uppercase }} – {{ title }}</div>
+                <div class="paper-header-row">
+                    <span>Time: {{ durationLabel || (durationMinutes + ' mins') }}</span>
+                    <span>Maximum Marks: {{ totalMarksOverride || totalPaperMarks }}</span>
+                </div>
+                <hr class="paper-divider">
+                <div *ngFor="let sec of sections; let secIdx = index" class="paper-section-block">
+                    <div class="paper-section-heading"><u>{{ sec.name }}</u></div>
+                    <div class="paper-section-instructions">{{ getSectionSubHeading(sec) }}</div>
+                    <div class="paper-question-item" *ngFor="let q of sec.questions; let qIdx = index">
+                        <div class="paper-q-header">
+                            <span class="paper-q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}.</span>
+                            <span class="paper-q-text">{{ q.question }}</span>
+                            <span class="paper-q-marks">[{{ q.marks || 1 }}]</span>
+                        </div>
+                        <div class="paper-q-options-grid" *ngIf="q.options && q.options.length > 0">
+                            <div class="paper-q-option" *ngFor="let opt of q.options; let optIdx = index">
+                                {{ formatOptionText(opt, optIdx) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Preview Overlay: Answer Key ═══ -->
+    <div class="preview-overlay" *ngIf="showPreviewGuide">
+        <div class="preview-topbar">
+            <button class="btn-back-editing" type="button" (click)="showPreviewGuide = false">
+                <mat-icon>arrow_back</mat-icon>
+                <span>Back to Editing</span>
+            </button>
+            <div class="preview-tabs">
+                <button class="preview-tab" type="button" (click)="showPreviewGuide = false; showPreviewPaper = true">
+                    <mat-icon>description</mat-icon> Question Paper
+                </button>
+                <button class="preview-tab active" type="button">
+                    <mat-icon>menu_book</mat-icon> Answer Key
+                </button>
+            </div>
+            <button class="btn-download-top" type="button" (click)="downloadEvaluationGuide()">
+                <mat-icon>download</mat-icon> Download Answer Key
+            </button>
+        </div>
+        <div class="preview-warning" *ngIf="totalMarksOverride && totalPaperMarks !== totalMarksOverride">
+            <mat-icon>warning_amber</mat-icon>
+            <span>This paper adds up to {{ totalPaperMarks }} of {{ totalMarksOverride }} marks. Update the information to include the correct total on the answer key PDF.</span>
+        </div>
+        <div class="preview-paper-page">
+            <div class="paper-doc">
+                <div class="paper-school-name">{{ instituteNameDisplay | uppercase }}</div>
+                <div class="paper-meta-line">{{ getSelectedDepartmentsDisplay() | uppercase }} · {{ getSelectedTeamsDisplay() | uppercase }} · {{ subject_name | uppercase }}</div>
+                <div class="paper-test-type">{{ examTypeLabel ? (examTypeLabel | uppercase) + ' – ' : '' }}{{ title }} (ANSWER KEY)</div>
+                <div class="paper-header-row">
+                    <span>Time: {{ durationLabel || (durationMinutes + ' mins') }}</span>
+                    <span>Maximum Marks: {{ totalMarksOverride || totalPaperMarks }}</span>
+                </div>
+                <hr class="paper-divider">
+                <div *ngFor="let sec of sections; let secIdx = index" class="paper-section-block">
+                    <div class="paper-section-heading"><u>{{ sec.name }}</u></div>
+                    <div class="paper-section-instructions">{{ getSectionSubHeading(sec) }}</div>
+                    <div class="paper-question-item" *ngFor="let q of sec.questions; let qIdx = index">
+                        <div class="paper-q-header">
+                            <span class="paper-q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}.</span>
+                            <span class="paper-q-text">{{ q.question }}</span>
+                            <span class="paper-q-marks">[{{ q.marks || 1 }}]</span>
+                        </div>
+                        <div class="paper-q-answer">
+                            <span class="ans-badge">Ans:</span>
+                            <span class="ans-value" *ngIf="getCorrectAnswerText(q)">{{ getCorrectAnswerText(q) }}</span>
+                            <em class="no-answer" *ngIf="!getCorrectAnswerText(q)">Answer not set yet</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Modal: Add / Edit Section ═══ -->
+    <div class="modal-backdrop" *ngIf="showAddSectionModal" (click)="closeAddSectionModal()">
+        <div class="modal-dialog section-dialog" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h3>{{ editingSectionIndex >= 0 ? 'Edit Section' : 'Add New Section' }}</h3>
+                <button mat-icon-button type="button" (click)="closeAddSectionModal()">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Section Name -->
+                <div class="form-group">
+                    <label class="field-label">Section Name <span class="req">*</span></label>
+                    <input class="qp-input" [(ngModel)]="newSectionName" placeholder="e.g. Section A" />
+                </div>
+                <!-- Sub Heading / Instructions -->
+                <div class="form-group">
+                    <label class="field-label">Sub Heading <span class="opt">(instructions / description)</span></label>
+                    <input class="qp-input" [(ngModel)]="newSectionSubHeading" placeholder="e.g. Answer all questions. Each question carries 1 mark." />
+                </div>
+                <!-- Target count -->
+                <div class="form-group">
+                    <label class="field-label">Total Questions in Section</label>
+                    <input class="qp-input" type="number" [(ngModel)]="newSectionTargetCount" min="1" placeholder="e.g. 10" />
+                </div>
+                <!-- Marks per question -->
+                <div class="form-group">
+                    <label class="field-label">Marks per Question</label>
+                    <input class="qp-input" type="number" [(ngModel)]="newSectionMarksPerQ" min="0" step="0.5" placeholder="e.g. 1" />
+                </div>
+                <!-- Question Type -->
+                <div class="form-group">
+                    <label class="field-label">Question Type <span class="req">*</span></label>
+                    <div class="type-cards">
+                        <div class="type-card" [class.selected]="newSectionType === 'objective'" (click)="newSectionType = 'objective'">
+                            <span class="type-radio" [class.checked]="newSectionType === 'objective'"></span>
+                            <div class="type-card-info">
+                                <strong>Objective</strong>
+                                <span>MCQ, Single Choice, Fill in Blanks</span>
+                            </div>
+                        </div>
+                        <div class="type-card" [class.selected]="newSectionType === 'descriptive'" (click)="newSectionType = 'descriptive'">
+                            <span class="type-radio" [class.checked]="newSectionType === 'descriptive'"></span>
+                            <div class="type-card-info">
+                                <strong>Descriptive</strong>
+                                <span>Short Answer, Paragraph, Essay</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" type="button" (click)="closeAddSectionModal()">Cancel</button>
+                <button class="btn-modal-confirm" type="button" (click)="confirmAddSection()">
+                    <mat-icon>check</mat-icon>
+                    <span>{{ editingSectionIndex >= 0 ? 'Save Changes' : 'Add Section' }}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Modal: Add Questions ═══ -->
+    <div class="modal-backdrop" *ngIf="showAddQuestionModal" (click)="closeAddQuestionModal()">
+        <div class="modal-dialog questions-dialog" (click)="$event.stopPropagation()">
+            <!-- Context header -->
+            <div class="modal-context-header">
+                <div class="context-row">
+                    <div class="context-chips">
+                        <span class="context-chip subject">
+                            <mat-icon>menu_book</mat-icon> {{ subject_name || 'Subject' }}
+                        </span>
+                        <span class="context-chip section">
+                            <strong>{{ activeModalSection?.name }}</strong>
+                            <span class="dot">·</span>
+                            <span>{{ activeModalSection?.question_type | titlecase }}</span>
+                        </span>
+                    </div>
+                    <button mat-icon-button type="button" (click)="closeAddQuestionModal()">
+                        <mat-icon>close</mat-icon>
+                    </button>
+                </div>
+                <h3>Add Questions</h3>
+            </div>
+
+            <div class="modal-body">
+                <!-- Question Bank Select -->
+                <div class="form-group">
+                    <label class="field-label">Question Bank</label>
+                    <mat-select class="qp-select" [(ngModel)]="modalSelectedBankId"
+                        (selectionChange)="onModalQuestionBankChange($event.value)"
+                        placeholder="Select Question Bank">
+                        <mat-option *ngIf="modalLoadingBanks" disabled>Loading question banks for {{ subject_name }}...</mat-option>
+                        <mat-option *ngIf="!modalLoadingBanks && modalQuestionBanks.length === 0" disabled>No question banks for {{ subject_name }}</mat-option>
+                        <mat-option *ngFor="let b of modalQuestionBanks" [value]="b.id">{{ b.name }}</mat-option>
+                    </mat-select>
+                </div>
+
+                <!-- Search + Select All -->
+                <div class="q-filter-row" *ngIf="modalSelectedBankId">
+                    <div class="q-search-wrap">
+                        <mat-icon>search</mat-icon>
+                        <input type="text" [(ngModel)]="modalSearchTerm" placeholder="Search questions..." />
+                        <button *ngIf="modalSearchTerm" type="button" class="q-clear-btn" (click)="modalSearchTerm = ''">
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    </div>
+                    <div class="q-select-all" *ngIf="filteredModalQuestions.length > 0">
+                        <mat-checkbox [checked]="isAllModalQuestionsSelected()"
+                            [indeterminate]="isSomeModalQuestionsSelected()"
+                            (change)="toggleSelectAllModalQuestions($event.checked)">
+                            Select All ({{ selectableModalQuestionsCount }} available)
+                        </mat-checkbox>
+                    </div>
+                </div>
+
+                <!-- Questions scroll list -->
+                <div class="modal-questions-list" *ngIf="modalSelectedBankId">
+                    <div class="modal-loading" *ngIf="modalLoadingQuestions">
+                        <mat-icon class="spin">hourglass_empty</mat-icon>
+                        Loading questions...
+                    </div>
+                    <div class="modal-empty" *ngIf="!modalLoadingQuestions && filteredModalQuestions.length === 0">
+                        <mat-icon>search_off</mat-icon>
+                        <p>No {{ activeModalSection?.question_type }} questions found.</p>
+                    </div>
+                    <div class="modal-q-row" *ngFor="let q of filteredModalQuestions"
+                        [class.disabled]="q.alreadyInOtherSection"
+                        [class.selected]="q.selected && !q.alreadyInOtherSection">
+                        <mat-checkbox [checked]="q.selected" [disabled]="q.alreadyInOtherSection"
+                            (change)="toggleModalQuestion(q, $event.checked)">
+                            <div class="modal-q-label">
+                                <span class="modal-q-text">{{ q.question }}</span>
+                                <div class="modal-q-meta">
+                                    <span class="modal-q-marks">{{ q.marks || 1 }} mark{{ (q.marks || 1) > 1 ? 's' : '' }}</span>
+                                    <span class="modal-q-used" *ngIf="q.alreadyInOtherSection">
+                                        <mat-icon>lock</mat-icon> Already in Paper
+                                    </span>
+                                </div>
+                            </div>
+                        </mat-checkbox>
+                    </div>
+                </div>
+
+                <!-- No bank selected state -->
+                <div class="modal-no-bank" *ngIf="!modalSelectedBankId">
+                    <mat-icon>inventory_2</mat-icon>
+                    <p>Select a Question Bank above to view questions.</p>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <span class="selected-count" *ngIf="selectedModalQuestionsCount > 0">
+                    <strong>{{ selectedModalQuestionsCount }}</strong> question{{ selectedModalQuestionsCount > 1 ? 's' : '' }} selected
+                </span>
+                <div class="footer-btns">
+                    <button class="btn-modal-cancel" type="button" (click)="closeAddQuestionModal()">Cancel</button>
+                    <button class="btn-modal-confirm" type="button"
+                        [disabled]="selectedModalQuestionsCount === 0"
+                        (click)="confirmAddSelectedQuestions()">
+                        <mat-icon>add</mat-icon> Add Selected Questions
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
