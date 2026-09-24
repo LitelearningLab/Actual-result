@@ -419,7 +419,11 @@
                         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
                         <tr class="mat-row" *matNoDataRow>
                             <td class="mat-cell empty-table-cell" [attr.colspan]="displayedColumns.length">
-                                {{ activeTab === 'drafts' ? 'No draft question papers found.' : 'No published question papers found.' }}
+                                {{ !hasAppliedFilters
+                                    ? 'Apply filters to view question papers.'
+                                    : (activeTab === 'drafts'
+                                        ? 'No draft question papers found for the selected filters.'
+                                        : 'No published question papers found for the selected filters.') }}
                             </td>
                         </tr>
                     </tbody>

@@ -2748,13 +2748,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.modalQuestions = [];
     this.modalSearchTerm = '';
     this.showAddQuestionModal = true;
-
-    // Only load question banks if filter has been applied
-    if (this.hasCategoryFilterValues()) {
-      this.loadSubjectQuestionBanks();
-    } else {
-      this.modalQuestionBanks = [];
-    }
+    this.loadSubjectQuestionBanks();
   }
 
   closeAddQuestionModal() {
@@ -2766,12 +2760,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   loadSubjectQuestionBanks() {
-    // Block fetch if user has not set any filters
-    if (!this.hasCategoryFilterValues()) {
-      this.modalQuestionBanks = [];
-      return;
-    }
-
     this.modalLoadingBanks = true;
     this.modalQuestionBanks = [];
     const params: any = { institute_id: this.institute };

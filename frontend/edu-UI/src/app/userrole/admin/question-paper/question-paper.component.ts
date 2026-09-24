@@ -577,6 +577,12 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
 
   refresh() {
+    if (!this.hasAppliedFilters) {
+      try {
+        notify('Apply filters to fetch question papers', 'info');
+      } catch (e) {}
+      return;
+    }
     this.loadExamsForInstitute(this.selectedInstitute || undefined);
   }
 
@@ -1480,7 +1486,6 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     this.loadCountries();
     this.loadInstitutes();
     this.loadTestOptions(this.selectedInstitute);
-    this.loadExamsForInstitute(this.selectedInstitute || undefined);
     this.globalInstituteSub = this.globalInstituteContext.activeInstitute$.subscribe((context) => {
       const instituteId = context?.institute_id || '';
       if (instituteId) {
@@ -1764,7 +1769,15 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       this.loadExamsForInstitute(this.selectedInstitute || undefined);
     } else {
       this.hasAppliedFilters = false;
-      this.loadExamsForInstitute(this.selectedInstitute || undefined);
+      this.examLoadSeq++;
+      this.allExams = [];
+      this.exams = [];
+      this.dataSource.data = [];
+      this.loadingQuestionPapers = false;
+      if (this.paginator) {
+        this.paginator.firstPage();
+        this.paginator.length = 0;
+      }
     }
   }
   private getCountryLabel(code: string): string {
@@ -2425,6 +2438,18 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   loadExamsForInstitute(id?: string) {
+    if (!this.hasAppliedFilters) {
+      this.examLoadSeq++;
+      this.allExams = [];
+      this.exams = [];
+      this.dataSource.data = [];
+      this.loadingQuestionPapers = false;
+      if (this.paginator) {
+        this.paginator.firstPage();
+        this.paginator.length = 0;
+      }
+      return;
+    }
     const requestSeq = ++this.examLoadSeq;
     this.loadingQuestionPapers = true;
     const base = `${API_BASE}/get-exams-details`;
@@ -2745,6 +2770,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   private resetForInstituteChange(instituteId: string): void {
+    this.examLoadSeq++;
     this.activeInstituteId = instituteId;
     this.selectedInstitute = instituteId;
     this.instituteSearch = '';
@@ -2783,6 +2809,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   private resetAfterGlobalInstituteClear(): void {
+    this.examLoadSeq++;
     this.activeInstituteId = '';
     this.selectedInstitute = '';
     this.instituteSearch = '';
