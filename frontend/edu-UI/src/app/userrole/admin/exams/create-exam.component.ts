@@ -130,7 +130,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── New UI properties ──
   examTypeLabel = 'Unit Test';
-  totalMarksOverride: number | null = 50;
+  totalMarksOverride: number | null = null;
   durationLabel = '1 Hour';
 
   get examDate(): string {
@@ -817,6 +817,11 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.passMark = e.pass_mark ?? e.passMark ?? null;
       this.numberOfAttempts = e.number_of_attempts ?? e.numberOfAttempts ?? null;
       this.startDateTime = e.start_time || e.start || '';
+      if (e.total_marks !== undefined && e.total_marks !== null) {
+        this.totalMarksOverride = Number(e.total_marks);
+      } else if (e.totalMarks !== undefined && e.totalMarks !== null) {
+        this.totalMarksOverride = Number(e.totalMarks);
+      }
       this.selectedDepartments = Array.isArray(e.departments)
         ? e.departments
             .map((d: any) =>
@@ -855,6 +860,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
           sub_heading: sec.sub_heading || sec.instructions || '',
           instructions: sec.instructions || sec.sub_heading || '',
           question_type: sec.question_type || 'objective',
+          targetCount: Number(sec.target_count ?? sec.targetCount) || null,
           order_number: sec.order_number || idx + 1,
           questions: Array.isArray(sec.questions)
             ? sec.questions.map((q: any) => ({
@@ -2124,7 +2130,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getSectionProgressPct(section: PaperSection): number {
-    const target = (section as any).targetCount || 0;
+    const target = (section as any).targetCount || 10;
     if (!target) return 0;
     return Math.min(100, Math.round(((section.questions?.length || 0) / target) * 100));
   }
@@ -2488,9 +2494,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openAddSectionModal() {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const nextLetter = letters[this.sections.length] || `${this.sections.length + 1}`;
-    this.newSectionName = `Section ${nextLetter}`;
+    this.newSectionName = '';
     this.newSectionSubHeading = 'Answer all questions. Each question carries 1 mark.';
     this.newSectionType = 'objective';
     this.newSectionTargetCount = null;
@@ -2564,7 +2568,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.sections.push(newSec as PaperSection);
     this.syncModelCategoriesFromSections();
     this.closeAddSectionModal();
-    notify(`Created ${newSec.name} (${newSec.question_type})`, 'success');
+    notify(`Created ${newSec.name}`, 'success');
   }
 
   removeSection(index: number) {
@@ -3286,8 +3290,16 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.syncModelCategoriesFromSections();
 
     const currentUser = this.getCurrentUserId();
+    const calcMarks = this.totalPaperMarks > 0 ? this.totalPaperMarks : null;
+    const finalTotalMarks =
+      this.totalMarksOverride !== null && this.totalMarksOverride !== undefined && Number(this.totalMarksOverride) >= 0
+        ? Number(this.totalMarksOverride)
+        : calcMarks;
+
     const payload: any = {
+      test_mode: 'paper',
       title: String(this.title).trim(),
+      total_marks: finalTotalMarks,
       description: this.description || null,
       institute_id: this.institute || null,
       subject_id: this.subject_id || null,
@@ -3310,6 +3322,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
         sub_heading: sec.sub_heading || sec.instructions || '',
         instructions: sec.instructions || sec.sub_heading || '',
         question_type: sec.question_type,
+        target_count: (sec as any).targetCount || null,
         order_number: idx + 1,
         questions: (sec.questions || []).map((q, qIdx) => ({
           question_id: q.id,

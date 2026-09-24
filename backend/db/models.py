@@ -236,6 +236,8 @@ class Exam(Base):
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
      updated_by = Column(String)
      updated_date = Column(DateTime)
+     test_mode = Column(String, default='online')
+     total_marks = Column(Integer)
 
      institute = relationship("Institute", back_populates="exams")
     #  questions = relationship("Question", back_populates="exam")
@@ -247,6 +249,7 @@ class ExamSection(Base):
      exam_id = Column(String, ForeignKey('Exams.exam_id'), nullable=False)
      name = Column(String, nullable=False)
      question_type = Column(String, nullable=False)
+     target_count = Column(Integer)
      order_number = Column(Integer, default=1)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
 

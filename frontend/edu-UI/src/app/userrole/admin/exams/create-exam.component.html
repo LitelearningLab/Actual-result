@@ -198,7 +198,7 @@
                                     <mat-icon>drag_indicator</mat-icon>
                                 </div>
                                 <div class="sec-head-info">
-                                    <h3 class="sec-name">{{ sec.name }} – {{ sec.question_type === 'objective' ? 'MCQ' : 'Descriptive' }}</h3>
+                                    <h3 class="sec-name">{{ sec.name }}</h3>
                                     <div class="sec-subheading" *ngIf="getSectionSubHeading(sec)">
                                         {{ getSectionSubHeading(sec) }}
                                     </div>
@@ -279,19 +279,9 @@
                 <!-- Stats chips -->
                 <div class="summary-stats-grid">
                     <div class="stat-card">
-                        <span class="stat-card-label">QUESTIONS</span>
-                        <span class="stat-card-val">{{ totalPaperQuestionsCount }} / {{ getTotalTargetQuestions() || 23 }}</span>
-                    </div>
-                    <div class="stat-card">
                         <span class="stat-card-label">SECTIONS</span>
                         <span class="stat-card-val">{{ totalSectionsCount }}</span>
                     </div>
-                </div>
-
-                <!-- Answer Setup row -->
-                <div class="summary-answer-card">
-                    <span class="stat-card-label">ANSWER SETUP</span>
-                    <span class="answer-card-val">{{ getAnswerReadyCount() }} / {{ totalPaperQuestionsCount || 10 }} questions ready</span>
                 </div>
 
                 <!-- Per-section progress -->

@@ -3382,7 +3382,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       return;
     }
     let url = `${API_BASE}/get-exams-list`;
-    const params: string[] = [];
+    const params: string[] = ['test_mode=online'];
     params.push(`institute_id=${encodeURIComponent(instituteId)}`);
     if (this.filterExamName) params.push(`name=${encodeURIComponent(this.filterExamName)}`);
     if (this.filterCountry) params.push(`country=${encodeURIComponent(this.filterCountry)}`);

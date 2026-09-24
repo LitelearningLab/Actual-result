@@ -690,7 +690,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   getSelectedMarksCount(e: any): number {
-    if (e?.marks_added !== undefined) return e.marks_added;
+    if (e?.marks_added !== undefined && e.marks_added !== null) return e.marks_added;
     if (Array.isArray(e?.sections) && e.sections.length > 0) {
       let marks = 0;
       for (const s of e.sections) {
@@ -700,15 +700,15 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       }
       if (marks > 0) return marks;
     }
-    if (e?.pass_mark && e.pass_mark < (e?.total_marks || 50)) return e.pass_mark;
-    return (this.getSelectedQuestionsCount(e) * 2) || 20;
+    return Number(e?.total_questions) || 0;
   }
 
   getTotalMarksCount(e: any): number {
-    if (e?.total_marks) return Number(e.total_marks);
+    if (e?.total_marks !== undefined && e?.total_marks !== null && Number(e.total_marks) > 0) {
+      return Number(e.total_marks);
+    }
     const added = this.getSelectedMarksCount(e);
-    if (this.isDraft(e) && added < 50 && added > 0) return Math.max(50, Math.round(added * 2.38));
-    return added || 40;
+    return added || 0;
   }
 
   isMarksIncomplete(e: any): boolean {
@@ -2432,7 +2432,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.loader.show();
     const base = `${API_BASE}/get-exams-details`;
     // build query params based on filters
-    const params: string[] = [];
+    const params: string[] = ['test_mode=paper'];
     if (this.selectedInstitutes && this.selectedInstitutes.length) {
       params.push(`institute_id=${encodeURIComponent(this.selectedInstitutes.join(','))}`);
     } else if (id) {
@@ -2505,6 +2505,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
           total_questions: x.total_questions || x.questions_count || 0,
           number_of_attempts: x.number_of_attempts || x.attempts || 1,
           pass_mark: x.pass_mark || 0,
+          total_marks: x.total_marks ?? x.totalMarks ?? null,
           public_access: x.public_access || x.public || false,
           created_by: x.created_by || x.creator || '',
           created_date: x.created_date || x.created || '',

@@ -197,10 +197,11 @@ def ensure_exam_columns(session):
                 END;
             """))
             session.commit()
-        except Exception:
+        except Exception as title_schema_err:
             session.rollback()
+            print(f"Error ensuring Exams.title schema: {title_schema_err}", flush=True)
 
-        # Check and add subject_id and subject_name to Exams
+        # Check and add subject_id, subject_name, and test_mode to Exams
         try:
             session.execute(text("""
                 IF COL_LENGTH('Exams', 'subject_id') IS NULL
@@ -211,10 +212,19 @@ def ensure_exam_columns(session):
                 BEGIN
                     ALTER TABLE Exams ADD subject_name NVARCHAR(255) NULL;
                 END;
+                IF COL_LENGTH('Exams', 'test_mode') IS NULL
+                BEGIN
+                    ALTER TABLE Exams ADD test_mode NVARCHAR(50) NULL;
+                END;
+                IF COL_LENGTH('Exams', 'total_marks') IS NULL
+                BEGIN
+                    ALTER TABLE Exams ADD total_marks INT NULL;
+                END;
             """))
             session.commit()
-        except Exception:
+        except Exception as exam_columns_err:
             session.rollback()
+            print(f"Error ensuring Exams columns: {exam_columns_err}", flush=True)
 
         # Check and create ExamSections table
         try:
@@ -226,6 +236,7 @@ def ensure_exam_columns(session):
                         exam_id NVARCHAR(50) NOT NULL,
                         name NVARCHAR(255) NOT NULL,
                         question_type NVARCHAR(50) NOT NULL,
+                        target_count INT NULL,
                         order_number INT DEFAULT 1,
                         created_date DATETIME
                     );
@@ -235,6 +246,18 @@ def ensure_exam_columns(session):
             session.commit()
         except Exception:
             session.rollback()
+
+        try:
+            session.execute(text("""
+                IF COL_LENGTH('ExamSections', 'target_count') IS NULL
+                BEGIN
+                    ALTER TABLE ExamSections ADD target_count INT NULL;
+                END;
+            """))
+            session.commit()
+        except Exception as section_schema_err:
+            session.rollback()
+            print(f"Error ensuring ExamSections columns: {section_schema_err}", flush=True)
 
         # Check and add section_id to exam_question_mapping
         try:
@@ -267,6 +290,8 @@ def add_exam(request):
     created_by = data.get("created_by")
     subject_id = data.get("subject_id")
     subject_name = data.get("subject_name")
+    test_mode = data.get("test_mode", "online")
+    total_marks = data.get("total_marks", None)
 
     if not title or not str(title).strip():
         return {"statusMessage": "Title is required", "status": False}, 400
@@ -306,6 +331,8 @@ def add_exam(request):
             created_by=created_by,
             subject_id=subject_id,
             subject_name=subject_name,
+            test_mode=test_mode,
+            total_marks=total_marks,
         )
         session.add(add_exam)
         session.flush()
@@ -340,6 +367,7 @@ def add_exam(request):
                     exam_id=exam_id,
                     name=sec_name,
                     question_type=sec_type,
+                    target_count=sec.get("target_count") or sec.get("targetCount"),
                     order_number=sec.get("order_number") or sec_idx,
                 )
                 session.add(new_sec)
@@ -484,6 +512,11 @@ def update_exam(request):
             if subj_obj:
                 exam.subject_name = subj_obj.subject_name
 
+        if "test_mode" in data and data.get("test_mode"):
+            exam.test_mode = data.get("test_mode")
+        if "total_marks" in data:
+            exam.total_marks = data.get("total_marks")
+
         # handle optional start/end times
         start_time_str = data.get("start_time", None)
         end_time_str = data.get("end_time", None)
@@ -551,6 +584,7 @@ def update_exam(request):
                     exam_id=exam_id,
                     name=sec_name,
                     question_type=sec_type,
+                    target_count=sec.get("target_count") or sec.get("targetCount"),
                     order_number=sec.get("order_number") or sec_idx,
                 )
                 session.add(new_sec)
@@ -723,6 +757,17 @@ def get_exam_details(request):
                 filter.append(Exam.created_by == created_by)
         if args.get("exam_id", None):
             filter.append(Exam.exam_id == args["exam_id"])
+
+        test_mode_arg = args.get("test_mode", None) or args.get("exam_type_mode", None)
+        if test_mode_arg:
+            tm_val = str(test_mode_arg).strip().lower()
+            if tm_val == 'paper':
+                # Question papers are a separate workflow from online tests.
+                # Legacy rows without a mode belong to the online-test flow and
+                # must not leak into the question-paper list.
+                filter.append(Exam.test_mode == 'paper')
+            elif tm_val == 'online':
+                filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
 
         dept_arg = args.get("departments", None) or args.get("department", None)
         if dept_arg:
@@ -1013,6 +1058,7 @@ def get_exam_details(request):
                         "id": sec.section_id,
                         "name": sec.name,
                         "question_type": sec.question_type,
+                        "target_count": getattr(sec, "target_count", None),
                         "order_number": sec.order_number,
                         "questions": sec_questions,
                     })
@@ -1039,6 +1085,7 @@ def get_exam_details(request):
                     "total_questions": exam.total_questions,
                     "number_of_attempts": exam.number_of_attempts,
                     "pass_mark": exam.pass_mark,
+                    "total_marks": getattr(exam, "total_marks", None),
                     "published": True if exam.published == 1 else False,
                     "public_access": True if exam.public_access == 1 else False,
                     "start_time": safe_isoformat(exam.start_time),
@@ -1048,6 +1095,7 @@ def get_exam_details(request):
                     "updated_by": updated_user_name,
                     "updated_date": exam.updated_date,
                     "is_editable": is_editable,
+                    "test_mode": getattr(exam, "test_mode", None) or "online",
                 }
             )
         # institute_id	start_time	end_time	created_by	created_date	updated_by	updated_date	published
@@ -1691,6 +1739,16 @@ def get_exam_list(request):
                 print(f"Error parsing created_before date in exams: {e}", flush=True)
         if args.get("created_by", None):
             filter.append(Exam.created_by == args["created_by"])
+
+        test_mode_arg = args.get("test_mode", None)
+        if test_mode_arg:
+            tm_val = str(test_mode_arg).strip().lower()
+            if tm_val == 'paper':
+                filter.append(Exam.test_mode == 'paper')
+            elif tm_val == 'online':
+                filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
+        else:
+            filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
 
         exams = session.query(Exam).filter(*filter).all()
         if exams is None or len(exams) == 0:
