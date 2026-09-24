@@ -162,6 +162,8 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   activeTab: 'drafts' | 'published' = 'drafts';
   allExams: any[] = [];
   dataSource = new MatTableDataSource<any>([]);
+  loadingQuestionPapers = false;
+  private examLoadSeq = 0;
   hasAppliedFilters = false;
   private shouldLoadTestsAfterInstitutes = false;
   private activeInstituteId = '';
@@ -2255,7 +2257,6 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   loadInstitutes() {
-    this.loader.show();
     this.http.get<any>(this.apiUrl).subscribe({
       next: (res) => {
         if (res && res.data && Array.isArray(res.data)) {
@@ -2282,7 +2283,6 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
                 this.loadDepartments(this.selectedInstitute);
                 this.loadTeams(this.selectedInstitute);
                 this.loadExamsFromReturnState();
-                this.loader.hide();
                 return;
               }
             }
@@ -2315,11 +2315,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           }
         }
         this.loadExamsFromReturnState();
-        this.loader.hide();
       },
       error: (err) => {
         console.warn('Failed to load institutes', err);
-        this.loader.hide();
       },
     });
   }
@@ -2427,7 +2425,8 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   loadExamsForInstitute(id?: string) {
-    this.loader.show();
+    const requestSeq = ++this.examLoadSeq;
+    this.loadingQuestionPapers = true;
     const base = `${API_BASE}/get-exams-details`;
     // build query params based on filters
     const params: string[] = ['test_mode=paper'];
@@ -2478,6 +2477,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
     this.http.get<any>(url).subscribe({
       next: (res) => {
+        if (requestSeq !== this.examLoadSeq) return;
         const arr = Array.isArray(res?.data) ? res.data : [];
         this.allExams = arr.map((x: any) => ({
           test_id: x.test_id || x.id || x.exam_id,
@@ -2515,23 +2515,15 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
         }));
         this.exams = this.allExams;
         this.updateFilteredExams();
-
-        try {
-          this.loader.hide();
-        } catch (e) {
-          /* ignore */
-        }
+        this.loadingQuestionPapers = false;
       },
       error: (err) => {
+        if (requestSeq !== this.examLoadSeq) return;
         console.warn('Failed loading exams', err);
         this.allExams = [];
         this.exams = [];
         this.updateFilteredExams();
-        try {
-          this.loader.hide();
-        } catch (e) {
-          /* ignore */
-        }
+        this.loadingQuestionPapers = false;
       },
     });
   }

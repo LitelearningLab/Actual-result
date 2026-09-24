@@ -167,81 +167,251 @@
                             <p>Choose which users to assign this question paper to (at least 1 user required). Selected: <strong>{{ selectedPaperUsers.length }}</strong></p>
                         </div>
                     </div>
-                    <button class="btn-assignment-filter" type="button"
-                        (click)="assignmentFiltersOpen = !assignmentFiltersOpen"
+                    <button #userFiltersBtn class="btn-assignment-filter" type="button"
+                        (click)="openUserFiltersOverlay(); $event.stopPropagation()"
+                        [attr.aria-expanded]="userFilterOpen" aria-haspopup="true"
                         [disabled]="readOnly || !institute">
                         <mat-icon>filter_list</mat-icon>
                         <span>Filter Users</span>
                     </button>
                 </div>
 
-                <div class="assignment-filter-panel" *ngIf="assignmentFiltersOpen">
-                    <div class="fields-row fields-row--3">
-                        <div class="field-group">
-                            <label class="field-label">Search users</label>
-                            <div class="assignment-search-wrap">
-                                <mat-icon>search</mat-icon>
-                                <input class="qp-input" type="text" [(ngModel)]="assignmentUserSearch"
-                                    placeholder="Search by name or email" />
-                            </div>
-                        </div>
-                        <div class="field-group">
-                            <label class="field-label">{{ terminology.deptPluralLabel }}</label>
-                            <mat-select class="qp-select" multiple [(ngModel)]="assignmentDepartments"
-                                [placeholder]="'Select ' + terminology.deptPluralLabel.toLowerCase()">
-                                <mat-option *ngFor="let d of departments" [value]="d.id">{{ d.name }}</mat-option>
-                            </mat-select>
-                        </div>
-                        <div class="field-group">
-                            <label class="field-label">{{ terminology.teamPluralLabel }}</label>
-                            <mat-select class="qp-select" multiple [(ngModel)]="assignmentTeams"
-                                [placeholder]="'Select ' + terminology.teamPluralLabel.toLowerCase()">
-                                <mat-option *ngFor="let t of assignmentAvailableTeams" [value]="t.id">{{ t.name }}</mat-option>
-                            </mat-select>
-                        </div>
-                    </div>
-                    <div class="assignment-filter-actions">
-                        <button class="btn-assignment-reset" type="button" (click)="resetAssignmentFilters()">
-                            <mat-icon>refresh</mat-icon>
-                            <span>Reset</span>
-                        </button>
-                    </div>
+                <div class="applied-user-filters" *ngIf="appliedUserFilterChips.length">
+                    <span class="applied-user-filters-title">Applied filters</span>
+                    <button type="button" class="applied-user-filter-chip"
+                        *ngFor="let chip of appliedUserFilterChips" (click)="removeUserFilter(chip.key)">
+                        <span>{{ chip.label }}</span>
+                        <mat-icon>close</mat-icon>
+                    </button>
+                    <button type="button" class="applied-user-filter-clear" (click)="clearUserFilters()">
+                        Clear all
+                    </button>
                 </div>
 
+                <ng-template #filtersPanelUserAnchor>
+                    <div class="user-filters-panel" *ngIf="userFilterOpen">
+                        <div class="user-filter-grid">
+                            <mat-form-field appearance="outline" class="user-filter-item">
+                                <mat-icon matPrefix>public</mat-icon>
+                                <mat-label>Country</mat-label>
+                                <mat-select multiple [(ngModel)]="selectedUserCountries"
+                                    placeholder="Select Country" (selectionChange)="onUserCountryChange()">
+                                    <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                        <input matInput class="select-search-input" placeholder="Search country"
+                                            [(ngModel)]="userCountrySearch" [ngModelOptions]="{ standalone: true }"
+                                            (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                            (keyup)="stopFilterSearchEvent($event)" />
+                                    </mat-option>
+                                    <mat-option class="select-all-option"
+                                        *ngIf="filteredUserCountriesForFilter.length && !userCountrySearch.trim()"
+                                        (click)="toggleSelectAllUserCountries()">
+                                        <mat-icon>{{ isAllUserCountriesSelected() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                                        <strong>Select All</strong>
+                                    </mat-option>
+                                    <mat-option *ngFor="let country of filteredUserCountriesForFilter"
+                                        [value]="country.code">{{ country.name }}</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="user-filter-item">
+                                <mat-icon matPrefix>location_city</mat-icon>
+                                <mat-label>City</mat-label>
+                                <mat-select multiple [(ngModel)]="selectedUserCities" placeholder="Select City"
+                                    [disabled]="!selectedUserCountries.length"
+                                    (selectionChange)="onUserCityChange()">
+                                    <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                        <input matInput class="select-search-input" placeholder="Search city"
+                                            [(ngModel)]="userCitySearch" [ngModelOptions]="{ standalone: true }"
+                                            (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                            (keyup)="stopFilterSearchEvent($event)" />
+                                    </mat-option>
+                                    <mat-option class="select-all-option"
+                                        *ngIf="filteredUserCitiesForFilter.length && !userCitySearch.trim()"
+                                        (click)="toggleSelectAllUserCities()">
+                                        <mat-icon>{{ isAllUserCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                                        <strong>Select All</strong>
+                                    </mat-option>
+                                    <mat-option *ngIf="!filteredUserCitiesForFilter.length" disabled>No cities available</mat-option>
+                                    <mat-option *ngFor="let city of filteredUserCitiesForFilter"
+                                        [value]="city.name">{{ city.name }}</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="user-filter-item">
+                                <mat-icon matPrefix>business_center</mat-icon>
+                                <mat-label>{{ terminology.deptPluralLabel }}</mat-label>
+                                <mat-select multiple [(ngModel)]="selectedUserDepartments"
+                                    (selectionChange)="onUserDepartmentChange()"
+                                    [placeholder]="'Select ' + terminology.deptPluralLabel.toLowerCase()">
+                                    <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                        <input matInput class="select-search-input"
+                                            [placeholder]="'Search ' + terminology.deptLabel.toLowerCase()"
+                                            [(ngModel)]="userDepartmentSearch" [ngModelOptions]="{ standalone: true }"
+                                            (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                            (keyup)="stopFilterSearchEvent($event)" />
+                                    </mat-option>
+                                    <mat-option class="select-all-option"
+                                        *ngIf="filteredUserDepartmentsForFilter.length && !userDepartmentSearch.trim()"
+                                        (click)="toggleSelectAllUserDepartments()">
+                                        <mat-icon>{{ isAllUserDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                                        <strong>Select All</strong>
+                                    </mat-option>
+                                    <mat-option *ngFor="let department of filteredUserDepartmentsForFilter"
+                                        [value]="department.id">{{ department.name }}</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="user-filter-item">
+                                <mat-icon matPrefix>groups</mat-icon>
+                                <mat-label>{{ terminology.teamPluralLabel }}</mat-label>
+                                <mat-select multiple [(ngModel)]="selectedUserTeams"
+                                    (selectionChange)="markUserFiltersDirty()"
+                                    [placeholder]="'Select ' + terminology.teamPluralLabel.toLowerCase()">
+                                    <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                        <input matInput class="select-search-input"
+                                            [placeholder]="'Search ' + terminology.teamLabel.toLowerCase()"
+                                            [(ngModel)]="userTeamSearch" [ngModelOptions]="{ standalone: true }"
+                                            (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                            (keyup)="stopFilterSearchEvent($event)" />
+                                    </mat-option>
+                                    <mat-option class="select-all-option"
+                                        *ngIf="filteredUserTeamsForFilter.length && !userTeamSearch.trim()"
+                                        (click)="toggleSelectAllUserTeams()">
+                                        <mat-icon>{{ isAllUserTeamsSelected() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                                        <strong>Select All</strong>
+                                    </mat-option>
+                                    <mat-option *ngFor="let team of filteredUserTeamsForFilter"
+                                        [value]="team.id">{{ team.name }}</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="user-filter-item">
+                                <mat-icon matPrefix>location_on</mat-icon>
+                                <mat-label>Campus</mat-label>
+                                <mat-select multiple [(ngModel)]="selectedUserCampuses" placeholder="Select campus"
+                                    (selectionChange)="markUserFiltersDirty()">
+                                    <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                        <input matInput class="select-search-input" placeholder="Search campus"
+                                            [(ngModel)]="userCampusSearch" [ngModelOptions]="{ standalone: true }"
+                                            (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                                            (keyup)="stopFilterSearchEvent($event)" />
+                                    </mat-option>
+                                    <mat-option class="select-all-option"
+                                        *ngIf="filteredUserCampusesForFilter.length && !userCampusSearch.trim()"
+                                        (click)="toggleSelectAllUserCampuses()">
+                                        <mat-icon>{{ isAllUserCampusesSelected() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                                        <strong>Select All</strong>
+                                    </mat-option>
+                                    <mat-option *ngFor="let campus of filteredUserCampusesForFilter"
+                                        [value]="campus.id">{{ campus.name }}</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="user-filter-item user-date-filter"
+                                (click)="openJoinedDateRangePicker()">
+                                <mat-label>Joined Date</mat-label>
+                                <input matInput readonly [value]="getJoinedDateRangeDisplay()"
+                                    placeholder="Select date range" />
+                                <mat-icon matSuffix>calendar_today</mat-icon>
+                            </mat-form-field>
+
+                            <div class="user-filter-actions">
+                                <button type="button" class="user-filter-reset" (click)="resetUserFilters()">
+                                    <mat-icon>refresh</mat-icon>
+                                    Reset
+                                </button>
+                                <button type="button" class="user-filter-apply"
+                                    [disabled]="!hasUserFilterValues"
+                                    (click)="applyUserFilters()">
+                                    <mat-icon>search</mat-icon>
+                                    Apply
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </ng-template>
+
                 <div class="assignment-user-list" [class.assignment-user-list--disabled]="!institute">
-                    <div class="assignment-user-list-header">
-                        <mat-checkbox [checked]="areAllVisiblePaperUsersSelected"
-                            [indeterminate]="areSomeVisiblePaperUsersSelected"
-                            (change)="toggleAllVisiblePaperUsers($event.checked)"
-                            [disabled]="readOnly || !institute || filteredPaperUsers.length === 0">
-                            Select all ({{ filteredPaperUsers.length }})
-                        </mat-checkbox>
-                        <button class="assignment-refresh" type="button" (click)="loadPaperUsers()"
-                            [disabled]="readOnly || !institute || loadingPaperUsers">
-                            <mat-icon>refresh</mat-icon>
-                            <span>{{ loadingPaperUsers ? 'Loading...' : 'Refresh' }}</span>
+                    <div class="assignment-empty assignment-filter-placeholder"
+                        *ngIf="institute && !hasAppliedUserFilters">
+                        <mat-icon>filter_alt</mat-icon>
+                        <h3>Apply filter to select the users</h3>
+                        <p>Filter users by country, city, {{ terminology.deptLabel.toLowerCase() }},
+                            {{ terminology.teamLabel.toLowerCase() }}, campus, or joined date.</p>
+                        <button class="btn-assignment-filter" type="button"
+                            (click)="openUserFiltersOverlay(); $event.stopPropagation()">
+                            <mat-icon>filter_list</mat-icon>
+                            <span>Filter Users</span>
                         </button>
                     </div>
+
+                    <ng-container *ngIf="institute && hasAppliedUserFilters">
+                        <div class="assignment-user-list-header">
+                            <mat-checkbox [checked]="areAllVisiblePaperUsersSelected"
+                                [indeterminate]="areSomeVisiblePaperUsersSelected"
+                                (change)="toggleAllVisiblePaperUsers($event.checked)"
+                                [disabled]="readOnly || loadingPaperUsers || filteredPaperUsers.length === 0">
+                                Select all ({{ filteredPaperUsers.length }})
+                            </mat-checkbox>
+                            <div class="assignment-list-actions">
+                                <div class="assignment-search-wrap">
+                                    <mat-icon>search</mat-icon>
+                                    <input class="assignment-search-input" type="text"
+                                        [(ngModel)]="assignmentUserSearch" placeholder="Search users" />
+                                </div>
+                                <button class="assignment-refresh" type="button" (click)="loadUsers()"
+                                    [disabled]="readOnly || loadingPaperUsers">
+                                    <mat-icon>refresh</mat-icon>
+                                    <span>{{ loadingPaperUsers ? 'Loading...' : 'Refresh' }}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="assignment-empty" *ngIf="loadingPaperUsers">
+                            <mat-icon>hourglass_top</mat-icon>
+                            <p>Loading users...</p>
+                        </div>
+                        <div class="assignment-empty assignment-load-error"
+                            *ngIf="!loadingPaperUsers && paperUsersLoadError">
+                            <mat-icon>error_outline</mat-icon>
+                            <p>{{ paperUsersLoadError }}</p>
+                            <button class="assignment-refresh" type="button" (click)="loadUsers()">
+                                <mat-icon>refresh</mat-icon>
+                                <span>Try again</span>
+                            </button>
+                        </div>
+                        <div class="assignment-empty"
+                            *ngIf="!loadingPaperUsers && !paperUsersLoadError && filteredPaperUsers.length === 0">
+                            <mat-icon>person_off</mat-icon>
+                            <p *ngIf="assignableUserCount === 0">
+                                No assignable user accounts exist for this institute. Create or import an active account
+                                with the User role first.
+                            </p>
+                            <p *ngIf="assignableUserCount !== 0">
+                                No users found matching the selected filters.
+                            </p>
+                        </div>
+
+                        <mat-list class="paper-user-selection-list"
+                            *ngIf="!loadingPaperUsers && !paperUsersLoadError && filteredPaperUsers.length > 0">
+                            <mat-list-item *ngFor="let user of filteredPaperUsers; trackBy: trackPaperUserById">
+                                <mat-checkbox [checked]="selectedPaperUsers.includes(user.id)"
+                                    [disabled]="readOnly" (change)="togglePaperUser(user.id, $event.checked)">
+                                    {{ user.name }}
+                                    <span class="assignment-user-email" *ngIf="user.email">&nbsp;({{ user.email }})</span>
+                                    <span class="assignment-user-meta"
+                                        *ngIf="user.department || user.team">
+                                        {{ user.department }}{{ user.department && user.team ? ' · ' : '' }}{{ user.team }}
+                                    </span>
+                                </mat-checkbox>
+                            </mat-list-item>
+                        </mat-list>
+                    </ng-container>
 
                     <div class="assignment-empty" *ngIf="!institute">
                         <mat-icon>info</mat-icon>
                         <p>Select an institute above before assigning users.</p>
                     </div>
-                    <div class="assignment-empty" *ngIf="institute && !loadingPaperUsers && filteredPaperUsers.length === 0">
-                        <mat-icon>person_off</mat-icon>
-                        <p>No users found matching the selected filters.</p>
-                    </div>
-
-                    <mat-list class="paper-user-selection-list" *ngIf="institute && filteredPaperUsers.length > 0">
-                        <mat-list-item *ngFor="let user of filteredPaperUsers; trackBy: trackPaperUserById">
-                            <mat-checkbox [checked]="selectedPaperUsers.includes(user.id)"
-                                [disabled]="readOnly"
-                                (change)="togglePaperUser(user.id, $event.checked)">
-                                {{ user.name }}
-                                <span class="assignment-user-email" *ngIf="user.email">&nbsp;({{ user.email }})</span>
-                            </mat-checkbox>
-                        </mat-list-item>
-                    </mat-list>
                 </div>
 
                 <div class="assignment-warning" *ngIf="institute && selectedPaperUsers.length === 0">

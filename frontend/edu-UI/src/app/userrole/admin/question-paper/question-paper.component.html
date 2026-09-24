@@ -316,8 +316,17 @@
             </div>
         </ng-template>
 
+        <div *ngIf="loadingQuestionPapers" class="question-paper-loader" role="status"
+            aria-live="polite" aria-label="Loading question papers">
+            <div class="question-paper-loader-ring" aria-hidden="true"></div>
+            <div class="question-paper-loader-copy">
+                <h5>Loading Question Papers</h5>
+                <p>Fetching your draft and published question papers...</p>
+            </div>
+        </div>
+
         <!-- Tests List Table -->
-        <div class="list-wrapper">
+        <div class="list-wrapper" *ngIf="!loadingQuestionPapers">
             <div class="table-responsive">
                 <table mat-table [dataSource]="dataSource" class="custom-table premium-table" matSort
                     role="grid" aria-label="Question papers list table">

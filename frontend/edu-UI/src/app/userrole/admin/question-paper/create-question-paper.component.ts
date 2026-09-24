@@ -38,7 +38,10 @@ import {
   DateRangePickerDialogComponent,
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
-import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
+import {
+  getInstituteTerminology,
+  InstituteTerminology,
+} from 'src/app/shared/services/institute-terminology.service';
 
 export interface PaperQuestion {
   id: string;
@@ -97,7 +100,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   passMark: number | null = 50;
   startDateTime = '';
   numberOfAttempts: number | null = 1;
-  institutes: Array<{ id: string; name: string; industry_type?: string; industry_sector?: string }> = [];
+  institutes: Array<{
+    id: string;
+    name: string;
+    industry_type?: string;
+    industry_sector?: string;
+  }> = [];
 
   // ── Subject Management ──
   subject_id = '';
@@ -121,9 +129,16 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   // ── Add Questions Modal State ──
   showAddQuestionModal = false;
   activeModalSectionIndex = -1;
-  modalQuestionBanks: Array<{ id: string; name: string; type?: string; subject?: string; marks_per_question?: number | null }> = [];
+  modalQuestionBanks: Array<{
+    id: string;
+    name: string;
+    type?: string;
+    subject?: string;
+    marks_per_question?: number | null;
+  }> = [];
   modalSelectedBankId = '';
-  modalQuestions: Array<PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }> = [];
+  modalQuestions: Array<PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }> =
+    [];
   modalSearchTerm = '';
   modalLoadingQuestions = false;
   modalLoadingBanks = false;
@@ -134,19 +149,65 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   durationLabel = '1 Hour';
 
   // User assignment mirrors the Select Users experience from Schedule Test.
+  @ViewChild('userFiltersBtn', { read: ElementRef }) userFiltersBtn?: ElementRef;
+  @ViewChild('filtersPanelUserAnchor') filtersPanelUserAnchorTpl?: TemplateRef<any>;
+  private userFiltersOverlayRef: OverlayRef | null = null;
+  userFilterOpen = false;
+
+  userFilters: {
+    joined_after: Date | null;
+    joined_before: Date | null;
+  } = {
+    joined_after: null,
+    joined_before: null,
+  };
+
+  selectedUserCountries: string[] = [];
+  selectedUserCities: string[] = [];
+  selectedUserDepartments: string[] = [];
+  selectedUserTeams: string[] = [];
+  selectedUserCampuses: string[] = [];
+
+  userCountrySearch = '';
+  userCitySearch = '';
+  userDepartmentSearch = '';
+  userTeamSearch = '';
+  userCampusSearch = '';
+
+  userCampuses: Array<{
+    id: string;
+    name: string;
+    country_id?: string;
+    country_name?: string;
+    city_id?: string;
+    city_name?: string;
+  }> = [];
+
+  superAdminUserCountries: Array<{ code: string; name: string }> = [];
+  superAdminUserCities: Array<{
+    code: string;
+    name: string;
+    countryCode: string;
+    campusId?: string;
+  }> = [];
+
   paperUsers: Array<{
     id: string;
     name: string;
     email?: string;
+    department?: string;
+    team?: string;
+    campus?: string;
     departmentId?: string;
     teamId?: string;
   }> = [];
   selectedPaperUsers: string[] = [];
-  assignmentDepartments: string[] = [];
-  assignmentTeams: string[] = [];
   assignmentUserSearch = '';
-  assignmentFiltersOpen = false;
   loadingPaperUsers = false;
+  paperUsersLoadError = '';
+  assignableUserCount: number | null = null;
+  userFiltersApplied = false;
+  private userLoadSeq = 0;
 
   get examDate(): string {
     if (!this.startDateTime) return '';
@@ -238,7 +299,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   get selectedDepartment(): string {
     return Array.isArray(this.selectedDepartments) && this.selectedDepartments.length > 0
       ? this.selectedDepartments[0]
-      : (typeof this.selectedDepartments === 'string' ? this.selectedDepartments : '');
+      : typeof this.selectedDepartments === 'string'
+        ? this.selectedDepartments
+        : '';
   }
 
   set selectedDepartment(val: string) {
@@ -248,9 +311,14 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   onDepartmentChange(val: string): void {
     this.selectedDepartments = val ? [val] : [];
-    const validTeamIds = (this.filteredTeams || []).map((t: any) => t.id);
+    const validTeamIds = (this.filteredTeams || []).map((t: any) => String(t.id));
+    if (this.selectedTeam && !validTeamIds.includes(String(this.selectedTeam))) {
+      this.selectedTeam = '';
+    }
     if (Array.isArray(this.selectedTeams)) {
-      this.selectedTeams = this.selectedTeams.filter((id: string) => validTeamIds.includes(id));
+      this.selectedTeams = this.selectedTeams.filter((id: string) =>
+        validTeamIds.includes(String(id))
+      );
     }
   }
 
@@ -258,7 +326,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   get selectedTeam(): string {
     return Array.isArray(this.selectedTeams) && this.selectedTeams.length > 0
       ? this.selectedTeams[0]
-      : (typeof this.selectedTeams === 'string' ? this.selectedTeams : '');
+      : typeof this.selectedTeams === 'string'
+        ? this.selectedTeams
+        : '';
   }
 
   set selectedTeam(val: string) {
@@ -317,26 +387,32 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         : [this.selectedDepartments]
     )
       .filter(Boolean)
-      .map((v: any) => String(v));
+      .map((v: any) => String(v).toLowerCase().trim());
 
     if (deptsArr.length > 0 && !deptsArr.includes('ALL')) {
       const selectedDeptObjs = (this.departments || []).filter(
-        (d) => deptsArr.includes(String(d.id)) || deptsArr.includes(d.name)
+        (d) =>
+          deptsArr.includes(String(d.id).toLowerCase().trim()) ||
+          deptsArr.includes((d.name || '').toLowerCase().trim())
       );
+      const deptIds = selectedDeptObjs.map((d) => String(d.id).toLowerCase().trim());
       const deptNames = selectedDeptObjs.map((d) => (d.name || '').toLowerCase().trim());
       deptsArr.forEach((val) => {
-        if (typeof val === 'string' && val.trim()) deptNames.push(val.toLowerCase().trim());
+        if (typeof val === 'string' && val.trim()) {
+          deptNames.push(val.toLowerCase().trim());
+          deptIds.push(val.toLowerCase().trim());
+        }
       });
 
       list = list.filter((t: any) => {
         if (Array.isArray(this.selectedTeams) && this.selectedTeams.includes(t.id)) return true;
 
-        const teamDeptId = t.department_id ? String(t.department_id) : '';
+        const teamDeptId = t.department_id ? String(t.department_id).toLowerCase().trim() : '';
         const teamDeptName = t.department_name
-          ? (t.departupdateFilteredCategoriesStreamment_name || '').toLowerCase().trim()
+          ? (t.department_name || '').toLowerCase().trim()
           : '';
 
-        if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
+        if (teamDeptId && deptIds.includes(teamDeptId)) return true;
         if (teamDeptName && deptNames.includes(teamDeptName)) return true;
 
         return false;
@@ -714,6 +790,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   ngOnDestroy(): void {
+    this.closeUserFiltersOverlay();
     try {
       this._subs?.unsubscribe();
     } catch (e) {}
@@ -854,20 +931,24 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             .filter(Boolean)
         : [];
       const assignedUsers = Array.isArray(e.assigned_users) ? e.assigned_users : [];
-      this.selectedPaperUsers = Array.from(new Set(
-        (Array.isArray(e.assigned_user_ids) ? e.assigned_user_ids : assignedUsers)
-          .map((user: any) => String(
-            typeof user === 'object' ? user.user_id || user.id || '' : user
-          ))
-          .filter(Boolean)
-      ));
-      this.paperUsers = assignedUsers.map((user: any) => ({
-        id: String(user.user_id || user.id || ''),
-        name: user.full_name || user.name || user.user_name || user.email || 'User',
-        email: user.email || '',
-        departmentId: String(user.department_id || user.department?.department_id || ''),
-        teamId: String(user.team_id || user.team?.team_id || ''),
-      })).filter((user: any) => !!user.id);
+      this.selectedPaperUsers = Array.from(
+        new Set(
+          (Array.isArray(e.assigned_user_ids) ? e.assigned_user_ids : assignedUsers)
+            .map((user: any) =>
+              String(typeof user === 'object' ? user.user_id || user.id || '' : user)
+            )
+            .filter(Boolean)
+        )
+      );
+      this.paperUsers = assignedUsers
+        .map((user: any) => ({
+          id: String(user.user_id || user.id || ''),
+          name: user.full_name || user.name || user.user_name || user.email || 'User',
+          email: user.email || '',
+          departmentId: String(user.department_id || user.department?.department_id || ''),
+          teamId: String(user.team_id || user.team?.team_id || ''),
+        }))
+        .filter((user: any) => !!user.id);
 
       // normalize categories if present in the payload
       const srcCats = Array.isArray(e.categories)
@@ -1601,11 +1682,19 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
   // load categories with filters (called by Apply)
   loadCategoriesWithFilters(filters: any = {}) {
+    // If no filters are applied, completely wipe the data and return
+    if (!this.hasCategoryFilterValues()) {
+      this.categories = [];
+      this.updateFilteredCategoriesStream();
+      return;
+    }
+
     this.loader.show();
     const requestSeq = ++this.categoryLoadSeq;
     const currentUser = this.getCurrentUserId();
     const base = `${API_BASE}/get-categories-list`;
     const params: string[] = [];
+
     if (filters.institute_id)
       params.push(`institute_id=${encodeURIComponent(filters.institute_id)}`);
     if (filters.departments && filters.departments.length)
@@ -1626,6 +1715,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       if (typeof filters.public_access !== 'undefined' && filters.public_access !== null)
         params.push(`public_access=${encodeURIComponent(String(filters.public_access))}`);
     }
+
     const url = params.length ? `${base}?${params.join('&')}` : base;
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -1633,8 +1723,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         const arr = Array.isArray(res) ? res : res?.data || [];
         this.categories = arr.map((c: any) => this.normalizeCategoryOption(c));
         this.reconcileAttachedQuestionBankMarks();
-        // ensure autocomplete reflects latest categories
         this.updateFilteredCategoriesStream();
+
         if (this.categories.length === 0 && this.hasCategoryFilterValues()) {
           this.categoryFilterError = 'No question bank found for the selected filter / date range.';
           try {
@@ -1671,24 +1761,22 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.filteredCategories$ = this.categoryCtrl.valueChanges.pipe(
         startWith(this.categoryCtrl.value || ''),
         map((val: any) => {
-          // If val is a string (user typing), search by text.
-          // If val is an object (question bank selected), set q = '' so all filtered items stay visible.
-          const q = typeof val === 'string' ? val.trim().toLowerCase() : '';
-          const currentUser = this.getCurrentUserId();
-
-          // Require filter or non-empty search query before displaying options
           const hasAppliedFilter =
-            (this.appliedQuestionBankFilters && this.appliedQuestionBankFilters.length > 0) ||
+            this.appliedQuestionBankFilters &&
+            this.appliedQuestionBankFilters.length > 0 &&
             this.hasCategoryFilterValues();
-          if (!hasAppliedFilter && !q) {
+
+          // STRICT CHECK: If no filter is applied, return empty list regardless of input
+          if (!hasAppliedFilter || !this.categories.length) {
             return [];
           }
 
+          const q = typeof val === 'string' ? val.trim().toLowerCase() : '';
+          const currentUser = this.getCurrentUserId();
+
           return (this.categories || []).filter((c: any) => {
-            // 1. Search query match (only filters if user typed text)
             const matchesName = !q || (c.name || '').toLowerCase().includes(q);
 
-            // 2. Date range match
             let matchesDate = true;
             if (c.created_at || c.created_date) {
               const itemDate = new Date(c.created_at || c.created_date).getTime();
@@ -1706,7 +1794,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               }
             }
 
-            // 3. Access match (Created by me / Public access)
             let matchesAccess = true;
             if (this.filterCreatedByMe || this.filterPublicAccess) {
               const creator = String(c.created_by_id || c.created_by_user_id || c.created_by || '');
@@ -1725,32 +1812,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               }
             }
 
-            // 4. Question Bank Type match
-            let matchesType = true;
-            if (this.selectedQuestionTypes && this.selectedQuestionTypes.length > 0) {
-              const catType = (c.type || '').toLowerCase();
-              matchesType = this.selectedQuestionTypes.some((selectedType) => {
-                const st = selectedType.toLowerCase();
-                if (st === 'objective') {
-                  return ['objective', 'choose', 'multi', 'fill', 'mcq'].some((t) =>
-                    catType.includes(t)
-                  );
-                }
-                if (st === 'descriptive') {
-                  return ['descriptive', 'paragraph', 'subjective'].some((t) =>
-                    catType.includes(t)
-                  );
-                }
-                return catType.includes(st);
-              });
-            }
-
-            return matchesName && matchesDate && matchesAccess && matchesType;
+            return matchesName && matchesDate && matchesAccess;
           });
         })
       );
     } catch (e) {
-      this.filteredCategories$ = of(this.categories || []);
+      this.filteredCategories$ = of([]);
     }
   }
 
@@ -1892,8 +1959,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.filterPublicAccess = false;
     this.appliedQuestionBankFilters = [];
     this.categoryFilterError = '';
-    // reload categories for current institute if any
-    this.loadCategoriesWithFilters({ institute_id: this.institute });
+
+    // Clear categories so nothing shows when reset
+    this.categories = [];
+    this.resetQuestionBankDraft(true);
+    this.updateFilteredCategoriesStream();
+
     this.closeFiltersOverlay();
   }
 
@@ -1909,6 +1980,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.categories = [];
       this.selectedDepartments = [];
       this.selectedTeams = [];
+      this.departments = [];
+      this.teams = [];
       this.questionBankFilterDepartments = [];
       this.questionBankFilterTeams = [];
       this.questionBankDepartmentSearch = '';
@@ -1925,7 +1998,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (instituteChanged) {
       this.selectedPaperUsers = [];
       this.paperUsers = [];
-      this.resetAssignmentFilters();
+      this.assignableUserCount = null;
+      this.clearUserFilters();
     }
     this.trackedInstituteForQuestionBanks = v;
     this.hasTrackedInstituteForQuestionBanks = true;
@@ -1935,9 +2009,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.loadDepartments(this.institute);
       this.loadTeams(this.institute);
       this.loadSubjects(this.institute);
-      this.loadPaperUsers();
-      // also reload categories scoped to this institute
-      this.loadCategoriesWithFilters({ institute_id: this.institute });
+      this.loadCampusList(this.institute);
+      // Removed this.loadUserLocations() so users are never fetched on page load
+      this.categories = [];
+      this.paperUsers = [];
     } else {
       this.departments = [];
       this.teams = [];
@@ -1947,8 +2022,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.sections = [];
       this.paperUsers = [];
       this.selectedPaperUsers = [];
-      this.resetAssignmentFilters();
-      this.loadCategories();
+      this.clearUserFilters();
+      this.userCampuses = [];
+      this.superAdminUserCountries = [];
+      this.superAdminUserCities = [];
+      this.assignableUserCount = null;
+      this.assignmentUserSearch = '';
+      this.categories = [];
     }
   }
 
@@ -2011,7 +2091,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             this.subject_id = String(matched.id);
             this.subject_name = matched.name;
           } else if (this.subject_name) {
-            this.subjects.unshift({ id: this.subject_id || this.subject_name, name: this.subject_name });
+            this.subjects.unshift({
+              id: this.subject_id || this.subject_name,
+              name: this.subject_name,
+            });
           }
         } else if (this.subject_name) {
           const matched = this.subjects.find(
@@ -2060,10 +2143,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   getSectionMarksPerQ(section: PaperSection): number {
     const qs = section.questions || [];
     if (!qs.length) return (section as any).marksPerQ || 1;
-    const marks = qs.map(q => Number(q.marks) || 0).filter(m => m > 0);
+    const marks = qs.map((q) => Number(q.marks) || 0).filter((m) => m > 0);
     if (!marks.length) return (section as any).marksPerQ || 1;
     const unique = [...new Set(marks)];
-    return unique.length === 1 ? unique[0] : (unique[0] || 1);
+    return unique.length === 1 ? unique[0] : unique[0] || 1;
   }
 
   getOptionLabel(index: number): string {
@@ -2072,7 +2155,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   formatOptionText(opt: any, index: number): string {
-    let text = typeof opt === 'string' ? opt : (opt?.text || opt?.option_text || opt?.label || opt?.value || '');
+    let text =
+      typeof opt === 'string'
+        ? opt
+        : opt?.text || opt?.option_text || opt?.label || opt?.value || '';
     text = (text || '').trim();
     const hasPrefix = /^\(?[a-zA-Z0-9][\.\)\:\-]\s*/.test(text);
     if (hasPrefix) {
@@ -2101,9 +2187,16 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (q.answer && q.options && q.options.length) {
       const ansStr = String(q.answer).trim().toLowerCase();
       const matchIdx = q.options.findIndex((o: any, idx: number) => {
-        const oText = (typeof o === 'string' ? o : (o.text || o.option_text || o.value || '')).trim().toLowerCase();
-        const oId = String(o.id || o.option_id || '').trim().toLowerCase();
-        const optLetter = this.getOptionLabel(idx).replace(/[\(\)\.]/g, '').trim().toLowerCase();
+        const oText = (typeof o === 'string' ? o : o.text || o.option_text || o.value || '')
+          .trim()
+          .toLowerCase();
+        const oId = String(o.id || o.option_id || '')
+          .trim()
+          .toLowerCase();
+        const optLetter = this.getOptionLabel(idx)
+          .replace(/[\(\)\.]/g, '')
+          .trim()
+          .toLowerCase();
         return oText === ansStr || oId === ansStr || optLetter === ansStr;
       });
       if (matchIdx >= 0) {
@@ -2120,7 +2213,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   hydrateMissingQuestionOptions() {
     // 1. Recover from raw if available
     for (const sec of this.sections) {
-      for (const q of (sec.questions || [])) {
+      for (const q of sec.questions || []) {
         if ((!q.options || !q.options.length) && q.raw?.options?.length) {
           q.options = q.raw.options;
         }
@@ -2130,7 +2223,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     // 2. Query questions for any category missing options
     const categoryIds = new Set<string>();
     for (const sec of this.sections) {
-      for (const q of (sec.questions || [])) {
+      for (const q of sec.questions || []) {
         if (!q.options || !q.options.length) {
           if (q.category_id) categoryIds.add(String(q.category_id));
         }
@@ -2138,23 +2231,25 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     }
 
     categoryIds.forEach((catId) => {
-      this.http.get<any>(`${API_BASE}/get-questions-details?category_id=${encodeURIComponent(catId)}`).subscribe({
-        next: (res) => {
-          const arr = Array.isArray(res) ? res : res?.data || [];
-          for (const raw of arr) {
-            const rawId = String(raw.id || raw.question_id || raw._id);
-            for (const sec of this.sections) {
-              for (const q of (sec.questions || [])) {
-                if (String(q.id) === rawId && (!q.options || !q.options.length)) {
-                  q.options = raw.options || raw.choices || [];
-                  if (!q.answer) q.answer = raw.answer || raw.answerText || '';
+      this.http
+        .get<any>(`${API_BASE}/get-questions-details?category_id=${encodeURIComponent(catId)}`)
+        .subscribe({
+          next: (res) => {
+            const arr = Array.isArray(res) ? res : res?.data || [];
+            for (const raw of arr) {
+              const rawId = String(raw.id || raw.question_id || raw._id);
+              for (const sec of this.sections) {
+                for (const q of sec.questions || []) {
+                  if (String(q.id) === rawId && (!q.options || !q.options.length)) {
+                    q.options = raw.options || raw.choices || [];
+                    if (!q.answer) q.answer = raw.answer || raw.answerText || '';
+                  }
                 }
               }
             }
-          }
-        },
-        error: () => {}
-      });
+          },
+          error: () => {},
+        });
     });
   }
 
@@ -2177,7 +2272,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   getGlobalQuestionIndex(secIdx: number, qIdx: number): number {
     let count = 0;
     for (let i = 0; i < secIdx; i++) {
-      count += (this.sections[i]?.questions?.length || 0);
+      count += this.sections[i]?.questions?.length || 0;
     }
     return count + qIdx + 1;
   }
@@ -2203,7 +2298,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   getAnswerReadyCount(): number {
     let count = 0;
     for (const sec of this.sections) {
-      for (const q of (sec.questions || [])) {
+      for (const q of sec.questions || []) {
         if (q.answer || (q.options && q.options.some((o: any) => o.is_correct || o.isCorrect))) {
           count++;
         }
@@ -2215,8 +2310,11 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   getQuestionsNeedingEvaluationCount(): number {
     let count = 0;
     for (const sec of this.sections) {
-      for (const q of (sec.questions || [])) {
-        if (sec.question_type === 'descriptive' || (!q.answer && (!q.options || !q.options.some((o: any) => o.is_correct || o.isCorrect)))) {
+      for (const q of sec.questions || []) {
+        if (
+          sec.question_type === 'descriptive' ||
+          (!q.answer && (!q.options || !q.options.some((o: any) => o.is_correct || o.isCorrect)))
+        ) {
           count++;
         }
       }
@@ -2228,7 +2326,11 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     const printWin = window.open('', '_blank', 'width=900,height=750');
     if (!printWin) {
       try {
-        notify('Please allow popups to download/print the ' + (isAnswerKey ? 'answer key' : 'question paper'), 'info');
+        notify(
+          'Please allow popups to download/print the ' +
+            (isAnswerKey ? 'answer key' : 'question paper'),
+          'info'
+        );
       } catch (_) {}
       return;
     }
@@ -2240,12 +2342,17 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     const metaParts = [dept, team, subj].filter(Boolean);
     const metaLine = metaParts.join(' · ');
 
-    const examTypePrefix = this.examTypeLabel ? (this.examTypeLabel.trim().toUpperCase() + ' – ') : '';
+    const examTypePrefix = this.examTypeLabel
+      ? this.examTypeLabel.trim().toUpperCase() + ' – '
+      : '';
     const paperTitle = (this.title || '').trim();
     let docTitle = '';
     if (!paperTitle) {
       docTitle = isAnswerKey ? 'Answer Key' : 'Question Paper';
-    } else if (paperTitle.toLowerCase().includes('question paper') || paperTitle.toLowerCase().includes('answer key')) {
+    } else if (
+      paperTitle.toLowerCase().includes('question paper') ||
+      paperTitle.toLowerCase().includes('answer key')
+    ) {
       docTitle = paperTitle;
     } else {
       docTitle = `${paperTitle} - ${isAnswerKey ? 'Answer Key' : 'Question Paper'}`;
@@ -2255,7 +2362,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       ? `${examTypePrefix}${(paperTitle || 'QUESTION PAPER').toUpperCase()} (ANSWER KEY)`
       : `${examTypePrefix}${(paperTitle || 'QUESTION PAPER').toUpperCase()}`;
 
-    const durationText = this.durationLabel || (this.durationMinutes ? `${this.durationMinutes} mins` : '1 Hour');
+    const durationText =
+      this.durationLabel || (this.durationMinutes ? `${this.durationMinutes} mins` : '1 Hour');
     const maxMarks = this.totalMarksOverride || this.totalPaperMarks || 0;
 
     let sectionsHtml = '';
@@ -2268,7 +2376,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
         questions.forEach((q, qIdx) => {
           const qNum = this.getGlobalQuestionIndex(secIdx, qIdx);
-          const qText = q.question || (q as any).question_text || (q as any).text || 'Question text';
+          const qText =
+            q.question || (q as any).question_text || (q as any).text || 'Question text';
           const marks = q.marks ? `[${q.marks}]` : '[1]';
 
           let optionsOrAnswerHtml = '';
@@ -2316,7 +2425,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         `;
       });
     } else {
-      sectionsHtml = '<p style="text-align: center; margin-top: 40px; color: #64748b;">No sections or questions added to this test yet.</p>';
+      sectionsHtml =
+        '<p style="text-align: center; margin-top: 40px; color: #64748b;">No sections or questions added to this test yet.</p>';
     }
 
     const htmlContent = `
@@ -2547,7 +2657,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (!sec) return;
     this.editingSectionIndex = secIdx;
     this.newSectionName = sec.name;
-    this.newSectionSubHeading = sec.sub_heading || sec.instructions || this.getSectionSubHeading(sec);
+    this.newSectionSubHeading =
+      sec.sub_heading || sec.instructions || this.getSectionSubHeading(sec);
     this.newSectionType = sec.question_type;
     this.newSectionTargetCount = (sec as any).targetCount || null;
     this.newSectionMarksPerQ = this.getSectionMarksPerQ(sec) || null;
@@ -2637,7 +2748,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.modalQuestions = [];
     this.modalSearchTerm = '';
     this.showAddQuestionModal = true;
-    this.loadSubjectQuestionBanks();
+
+    // Only load question banks if filter has been applied
+    if (this.hasCategoryFilterValues()) {
+      this.loadSubjectQuestionBanks();
+    } else {
+      this.modalQuestionBanks = [];
+    }
   }
 
   closeAddQuestionModal() {
@@ -2649,6 +2766,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   loadSubjectQuestionBanks() {
+    // Block fetch if user has not set any filters
+    if (!this.hasCategoryFilterValues()) {
+      this.modalQuestionBanks = [];
+      return;
+    }
+
     this.modalLoadingBanks = true;
     this.modalQuestionBanks = [];
     const params: any = { institute_id: this.institute };
@@ -2702,14 +2825,34 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         const defaultBankMark = bank?.marks_per_question ?? 1;
 
         // Filter by question type
-        const objectiveTypes = ['objective', 'choose', 'multi', 'fill', 'mcq', 'single_choice', 'multiple_choice'];
-        const descriptiveTypes = ['descriptive', 'paragraph', 'subjective', 'essay', 'short_answer', 'long_answer'];
+        const objectiveTypes = [
+          'objective',
+          'choose',
+          'multi',
+          'fill',
+          'mcq',
+          'single_choice',
+          'multiple_choice',
+        ];
+        const descriptiveTypes = [
+          'descriptive',
+          'paragraph',
+          'subjective',
+          'essay',
+          'short_answer',
+          'long_answer',
+        ];
 
-        const mapped: Array<PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }> = [];
+        const mapped: Array<
+          PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }
+        > = [];
         for (const raw of rawArr) {
           const qType = String(raw.type || raw.question_type || '').toLowerCase();
-          const isObjective = objectiveTypes.some((t) => qType.includes(t)) || (!qType && secType === 'objective');
-          const isDescriptive = descriptiveTypes.some((t) => qType.includes(t)) || (!qType && secType === 'descriptive');
+          const isObjective =
+            objectiveTypes.some((t) => qType.includes(t)) || (!qType && secType === 'objective');
+          const isDescriptive =
+            descriptiveTypes.some((t) => qType.includes(t)) ||
+            (!qType && secType === 'descriptive');
 
           let matchesType = false;
           if (secType === 'objective') {
@@ -2748,13 +2891,17 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     });
   }
 
-  get filteredModalQuestions(): Array<PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }> {
+  get filteredModalQuestions(): Array<
+    PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }
+  > {
     const term = (this.modalSearchTerm || '').trim().toLowerCase();
     if (!term) return this.modalQuestions;
     return this.modalQuestions.filter((q) => (q.question || '').toLowerCase().includes(term));
   }
 
-  get selectableModalQuestions(): Array<PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }> {
+  get selectableModalQuestions(): Array<
+    PaperQuestion & { alreadyInOtherSection?: boolean; selected?: boolean }
+  > {
     return this.filteredModalQuestions.filter((q) => !q.alreadyInOtherSection);
   }
 
@@ -2871,7 +3018,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       return;
     }
     const url = `${API_BASE}/get-department-list`;
-    this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
+    this.http
+      .get<any>(url, {
+        params: { institute_id: instId },
+        ...this.explicitInstituteRequestOptions(),
+      })
+      .subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : res?.data || [];
         this.departments = arr.map((d: any) => ({
@@ -2897,7 +3049,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       complete: () => {
         this.loader.hide();
       },
-    });
+      });
   }
 
   loadTeams(instId?: string) {
@@ -2906,7 +3058,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       return;
     }
     const url = `${API_BASE}/get-teams-list`;
-    this.http.get<any>(url, { params: { institute_id: instId } }).subscribe({
+    this.http
+      .get<any>(url, {
+        params: { institute_id: instId },
+        ...this.explicitInstituteRequestOptions(),
+      })
+      .subscribe({
       next: (res) => {
         const arr = Array.isArray(res) ? res : res?.data || [];
         this.teams = arr.map((t: any) => ({
@@ -2931,36 +3088,762 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         console.warn('Failed to load teams', err);
         this.teams = [];
       },
+      });
+  }
+
+  // ── User Assignment Overlay & Filter Methods ──
+
+  openUserFiltersOverlay(): void {
+    if (!this.userFiltersBtn) return;
+    this.userFilterOpen = true;
+    this.loadUserLocations();
+    if (this.userFiltersOverlayRef) {
+      try {
+        this.userFiltersOverlayRef.dispose();
+      } catch (e) {}
+      this.userFiltersOverlayRef = null;
+    }
+
+    const positionStrategy = this.overlay
+      .position()
+      .flexibleConnectedTo(this.userFiltersBtn)
+      .withPositions([
+        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
+        { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -8 },
+      ])
+      .withPush(true);
+
+    this.userFiltersOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      panelClass: 'overlay-filters-panel-left',
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+    });
+    this.userFiltersOverlayRef.backdropClick().subscribe(() => this.closeUserFiltersOverlay());
+    this.userFiltersOverlayRef.keydownEvents().subscribe((ev: any) => {
+      if (ev.key === 'Escape') this.closeUserFiltersOverlay();
+    });
+
+    if (this.filtersPanelUserAnchorTpl) {
+      const portal = new TemplatePortal(this.filtersPanelUserAnchorTpl, this.vcr);
+      this.userFiltersOverlayRef.attach(portal);
+    }
+  }
+
+  closeUserFiltersOverlay(): void {
+    if (this.userFiltersOverlayRef) {
+      try {
+        this.userFiltersOverlayRef.dispose();
+      } catch (e) {}
+      this.userFiltersOverlayRef = null;
+    }
+    this.userFilterOpen = false;
+  }
+
+  private explicitInstituteRequestOptions(): { headers?: { [name: string]: string } } {
+    return this.isSuperAdmin ? { headers: { 'X-Skip-Institute-Context': 'true' } } : {};
+  }
+
+  loadCampusList(instituteId: string): void {
+    this.userCampuses = [];
+    if (!instituteId) return;
+    const url = `${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instituteId)}`;
+    this.http.get<any>(url, this.explicitInstituteRequestOptions()).subscribe({
+      next: (res) => {
+        const arr = Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res?.campuses)
+            ? res.campuses
+            : Array.isArray(res)
+              ? res
+              : [];
+        this.userCampuses = arr.map((c: any) => ({
+          id: String(c.campus_id || c.id || ''),
+          name: String(c.name || c.campus_name || c.campus || c || ''),
+          country_id: String(c.country?.country_id || c.country_id || ''),
+          country_name: String(c.country?.country_name || c.country_name || ''),
+          city_id: String(c.city?.city_id || c.city_id || ''),
+          city_name: String(c.city?.city_name || c.city_name || ''),
+        }));
+      },
+      error: () => {
+        this.userCampuses = [];
+      },
     });
   }
 
-  get assignmentAvailableTeams(): Array<{
+  loadUserLocations(): void {
+    const instId = this.institute;
+    if (!instId) {
+      this.superAdminUserCountries = [];
+      this.superAdminUserCities = [];
+      this.assignableUserCount = null;
+      return;
+    }
+    const params: any = {
+      pageSize: 10000,
+      pageNumber: 1,
+      institute_id: instId,
+      active_status: 'true',
+      _ts: Date.now(),
+    };
+    this.http
+      .get<any>(`${API_BASE}/get-users`, {
+        params,
+        ...this.explicitInstituteRequestOptions(),
+      })
+      .subscribe({
+      next: (res) => {
+        try {
+          const dataCandidate = res?.data?.users ?? res?.users ?? res?.data ?? res;
+          const users = Array.isArray(dataCandidate) ? dataCandidate : [];
+          this.assignableUserCount = users.length;
+          const uniqueCountries = new Map<string, { code: string; name: string }>();
+          const uniqueCities = new Map<
+            string,
+            { code: string; name: string; countryCode: string; campusId?: string }
+          >();
+
+          users.forEach((user: any) => {
+            const countryCode = String(
+              user?.country?.country_id ||
+                user?.country_id ||
+                user?.country?.country_name ||
+                user?.country_name ||
+                ''
+            ).trim();
+            const countryName = String(
+              user?.country?.country_name ||
+                user?.country_name ||
+                user?.country?.country_id ||
+                user?.country_id ||
+                ''
+            ).trim();
+            const cityCode = String(
+              user?.city?.city_id || user?.city_id || user?.city?.city_name || user?.city_name || ''
+            ).trim();
+            const cityName = String(
+              user?.city?.city_name || user?.city_name || user?.city?.city_id || user?.city_id || ''
+            ).trim();
+            const campusId = String(user?.campus_id || user?.campus?.campus_id || '').trim();
+
+            if (countryCode && countryName && !uniqueCountries.has(countryCode.toLowerCase())) {
+              uniqueCountries.set(countryCode.toLowerCase(), {
+                code: countryCode,
+                name: countryName,
+              });
+            }
+
+            if (countryCode && cityName) {
+              const cityKey = `${countryCode.toLowerCase()}|${cityName.toLowerCase()}`;
+              if (!uniqueCities.has(cityKey)) {
+                uniqueCities.set(cityKey, {
+                  code: cityCode || cityName,
+                  name: cityName,
+                  countryCode: countryCode,
+                  campusId: campusId,
+                });
+              }
+            }
+          });
+
+          (this.userCampuses || []).forEach((c) => {
+            if (
+              c.country_id &&
+              c.country_name &&
+              !uniqueCountries.has(c.country_id.toLowerCase())
+            ) {
+              uniqueCountries.set(c.country_id.toLowerCase(), {
+                code: c.country_id,
+                name: c.country_name,
+              });
+            }
+            if (c.city_name && (c.country_id || c.country_name)) {
+              const cCode = c.country_id || c.country_name || '';
+              const cityKey = `${cCode.toLowerCase()}|${c.city_name.toLowerCase()}`;
+              if (!uniqueCities.has(cityKey)) {
+                uniqueCities.set(cityKey, {
+                  code: c.city_id || c.city_name,
+                  name: c.city_name,
+                  countryCode: cCode,
+                  campusId: c.id,
+                });
+              }
+            }
+          });
+
+          this.superAdminUserCountries = Array.from(uniqueCountries.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+          this.superAdminUserCities = Array.from(uniqueCities.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+        } catch (e) {
+          this.superAdminUserCountries = [];
+          this.superAdminUserCities = [];
+          this.assignableUserCount = null;
+        }
+      },
+      error: () => {
+        this.superAdminUserCountries = [];
+        this.superAdminUserCities = [];
+        this.assignableUserCount = null;
+      },
+      });
+  }
+
+  // ── Country Filter ──
+  get filteredUserCountriesForFilter(): Array<{ code: string; name: string }> {
+    const term = (this.userCountrySearch || '').trim().toLowerCase();
+    let list = this.superAdminUserCountries || [];
+    if (term) {
+      list = list.filter((c) => (c.name || '').toLowerCase().includes(term));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = this.selectedUserCountries.includes(a.code);
+      const bSel = this.selectedUserCountries.includes(b.code);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllUserCountriesSelected(): boolean {
+    const items = this.filteredUserCountriesForFilter || [];
+    return items.length > 0 && items.every((c) => this.selectedUserCountries.includes(c.code));
+  }
+
+  toggleSelectAllUserCountries(): void {
+    const items = this.filteredUserCountriesForFilter || [];
+    if (this.isAllUserCountriesSelected()) {
+      this.selectedUserCountries = [];
+    } else {
+      this.selectedUserCountries = items.map((c) => c.code);
+    }
+    this.onUserCountryChange();
+  }
+
+  onUserCountryChange(): void {
+    this.markUserFiltersDirty();
+    const validCityNames = new Set((this.filteredUserCitiesForFilter || []).map((c) => c.name));
+    this.selectedUserCities = (this.selectedUserCities || []).filter((name) =>
+      validCityNames.has(name)
+    );
+    this.pruneSelectedUserCampuses();
+  }
+
+  onUserCityChange(): void {
+    this.markUserFiltersDirty();
+    this.pruneSelectedUserCampuses();
+  }
+
+  // ── City Filter ──
+  get filteredUserCitiesForFilter(): Array<{ code: string; name: string }> {
+    const term = (this.userCitySearch || '').trim().toLowerCase();
+    let list = this.superAdminUserCities || [];
+    if (this.selectedUserCountries && this.selectedUserCountries.length > 0) {
+      const selectedCodes = this.selectedUserCountries.map((c) => c.toLowerCase());
+      list = list.filter((city) => selectedCodes.includes(String(city.countryCode).toLowerCase()));
+    }
+    if (term) {
+      list = list.filter((c) => (c.name || '').toLowerCase().includes(term));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = this.selectedUserCities.includes(a.name);
+      const bSel = this.selectedUserCities.includes(b.name);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllUserCitiesSelected(): boolean {
+    const items = this.filteredUserCitiesForFilter || [];
+    return items.length > 0 && items.every((c) => this.selectedUserCities.includes(c.name));
+  }
+
+  toggleSelectAllUserCities(): void {
+    const items = this.filteredUserCitiesForFilter || [];
+    if (this.isAllUserCitiesSelected()) {
+      this.selectedUserCities = [];
+    } else {
+      this.selectedUserCities = items.map((c) => c.name);
+    }
+    this.onUserCityChange();
+  }
+
+  // ── Department Filter ──
+  get filteredUserDepartmentsForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.userDepartmentSearch || '').trim().toLowerCase();
+    let list = this.departments || [];
+    if (term) {
+      list = list.filter((d) => (d.name || '').toLowerCase().includes(term));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = this.selectedUserDepartments.includes(String(a.id));
+      const bSel = this.selectedUserDepartments.includes(String(b.id));
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllUserDepartmentsSelected(): boolean {
+    const items = this.filteredUserDepartmentsForFilter || [];
+    return (
+      items.length > 0 && items.every((d) => this.selectedUserDepartments.includes(String(d.id)))
+    );
+  }
+
+  toggleSelectAllUserDepartments(): void {
+    const items = this.filteredUserDepartmentsForFilter || [];
+    if (this.isAllUserDepartmentsSelected()) {
+      this.selectedUserDepartments = [];
+    } else {
+      this.selectedUserDepartments = items.map((d) => String(d.id));
+    }
+    this.onUserDepartmentChange();
+  }
+
+  onUserDepartmentChange(): void {
+    this.markUserFiltersDirty();
+    const validTeamIds = new Set(
+      (this.filteredUserTeamsForFilter || []).map((team) => String(team.id))
+    );
+    this.selectedUserTeams = (this.selectedUserTeams || []).filter((id) =>
+      validTeamIds.has(String(id))
+    );
+  }
+
+  // ── Team Filter ──
+  get filteredUserTeamsForFilter(): Array<{
     id: string;
     name: string;
     department_id?: string | null;
-    department_name?: string | null;
   }> {
-    if (!this.assignmentDepartments.length) return this.teams;
-    const selected = new Set(this.assignmentDepartments.map(String));
-    return this.teams.filter((team) => !team.department_id || selected.has(String(team.department_id)));
+    const term = (this.userTeamSearch || '').trim().toLowerCase();
+    let list = this.teams || [];
+
+    if (this.selectedUserDepartments && this.selectedUserDepartments.length > 0) {
+      const selDeptIds = this.selectedUserDepartments.map(String);
+      const selDeptNames = (this.departments || [])
+        .filter((d) => selDeptIds.includes(String(d.id)))
+        .map((d) => (d.name || '').toLowerCase().trim());
+
+      list = list.filter((t: any) => {
+        const teamDeptId = t.department_id ? String(t.department_id) : '';
+        const teamDeptName = t.department_name
+          ? String(t.department_name).toLowerCase().trim()
+          : '';
+        if (teamDeptId && selDeptIds.includes(teamDeptId)) return true;
+        if (teamDeptName && selDeptNames.includes(teamDeptName)) return true;
+        return false;
+      });
+    }
+
+    if (term) {
+      list = list.filter((t) => (t.name || '').toLowerCase().includes(term));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = this.selectedUserTeams.includes(String(a.id));
+      const bSel = this.selectedUserTeams.includes(String(b.id));
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllUserTeamsSelected(): boolean {
+    const items = this.filteredUserTeamsForFilter || [];
+    return items.length > 0 && items.every((t) => this.selectedUserTeams.includes(String(t.id)));
+  }
+
+  toggleSelectAllUserTeams(): void {
+    const items = this.filteredUserTeamsForFilter || [];
+    if (this.isAllUserTeamsSelected()) {
+      this.selectedUserTeams = [];
+    } else {
+      this.selectedUserTeams = items.map((t) => String(t.id));
+    }
+    this.markUserFiltersDirty();
+  }
+
+  // ── Campus Filter ──
+  get filteredUserCampusesForFilter(): Array<{ id: string; name: string }> {
+    const term = (this.userCampusSearch || '').trim().toLowerCase();
+    let list = this.userCampuses || [];
+    if (this.selectedUserCountries && this.selectedUserCountries.length > 0) {
+      const selectedCodes = this.selectedUserCountries.map((c) => c.toLowerCase());
+      list = list.filter((c) =>
+        selectedCodes.some(
+          (sc) =>
+            sc === String(c.country_id || '').toLowerCase() ||
+            sc === String(c.country_name || '').toLowerCase()
+        )
+      );
+    }
+    if (this.selectedUserCities && this.selectedUserCities.length > 0) {
+      const selectedCityNames = this.selectedUserCities.map((ct) => ct.toLowerCase());
+      list = list.filter((c) =>
+        selectedCityNames.some(
+          (sc) =>
+            sc === String(c.city_id || '').toLowerCase() ||
+            sc === String(c.city_name || '').toLowerCase()
+        )
+      );
+    }
+    if (term) {
+      list = list.filter((c) => (c.name || '').toLowerCase().includes(term));
+    }
+    return [...list].sort((a, b) => {
+      const aSel = this.selectedUserCampuses.includes(String(a.id));
+      const bSel = this.selectedUserCampuses.includes(String(b.id));
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  isAllUserCampusesSelected(): boolean {
+    const items = this.filteredUserCampusesForFilter || [];
+    return items.length > 0 && items.every((c) => this.selectedUserCampuses.includes(String(c.id)));
+  }
+
+  toggleSelectAllUserCampuses(): void {
+    const items = this.filteredUserCampusesForFilter || [];
+    if (this.isAllUserCampusesSelected()) {
+      this.selectedUserCampuses = [];
+    } else {
+      this.selectedUserCampuses = items.map((c) => String(c.id));
+    }
+    this.markUserFiltersDirty();
+  }
+
+  private pruneSelectedUserCampuses(): void {
+    const validCampusIds = new Set(
+      (this.filteredUserCampusesForFilter || []).map((campus) => String(campus.id))
+    );
+    this.selectedUserCampuses = (this.selectedUserCampuses || []).filter((id) =>
+      validCampusIds.has(String(id))
+    );
+  }
+
+  // ── Date Range Dialog ──
+  openJoinedDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.userFilters.joined_after,
+        endDate: this.userFilters.joined_before,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.userFilters.joined_after = res.startDate;
+        this.userFilters.joined_before = res.endDate;
+        this.markUserFiltersDirty();
+      }
+    });
+  }
+
+  getJoinedDateRangeDisplay(): string {
+    const start = this.userFilters.joined_after;
+    const end = this.userFilters.joined_before;
+    if (!start && !end) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const startStr = format(start);
+    const endStr = format(end);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return `From ${startStr}`;
+    if (endStr) return `Until ${endStr}`;
+    return '';
+  }
+
+  private formatFilterDate(date: Date | null): string {
+    if (!date) return '';
+    const d = new Date(date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // ── Filter Chips ──
+  get hasUserFilterValues(): boolean {
+    return (
+      (this.selectedUserCountries && this.selectedUserCountries.length > 0) ||
+      (this.selectedUserCities && this.selectedUserCities.length > 0) ||
+      (this.selectedUserCampuses && this.selectedUserCampuses.length > 0) ||
+      (this.selectedUserDepartments && this.selectedUserDepartments.length > 0) ||
+      (this.selectedUserTeams && this.selectedUserTeams.length > 0) ||
+      !!this.userFilters.joined_after ||
+      !!this.userFilters.joined_before
+    );
+  }
+
+  get hasAppliedUserFilters(): boolean {
+    return this.userFiltersApplied && this.hasUserFilterValues;
+  }
+
+  get appliedUserFilterChips(): Array<{ key: string; label: string }> {
+    if (!this.hasAppliedUserFilters) return [];
+    const chips: Array<{ key: string; label: string }> = [];
+
+    if (this.selectedUserCountries && this.selectedUserCountries.length) {
+      const labels = this.selectedUserCountries
+        .map(
+          (code) =>
+            this.superAdminUserCountries.find((c) => String(c.code) === String(code))?.name || code
+        )
+        .filter(Boolean);
+      chips.push({ key: 'country', label: `Country: ${labels.join(', ')}` });
+    }
+
+    if (this.selectedUserCities && this.selectedUserCities.length) {
+      chips.push({ key: 'city', label: `City: ${this.selectedUserCities.join(', ')}` });
+    }
+
+    if (this.selectedUserDepartments && this.selectedUserDepartments.length) {
+      const labels = this.selectedUserDepartments
+        .map((id) => this.departments.find((d) => String(d.id) === String(id))?.name || id)
+        .filter(Boolean);
+      chips.push({
+        key: 'department',
+        label: `${this.terminology.deptPluralLabel || this.terminology.deptPlural || 'Departments'}: ${labels.join(', ')}`,
+      });
+    }
+
+    if (this.selectedUserTeams && this.selectedUserTeams.length) {
+      const labels = this.selectedUserTeams
+        .map((id) => this.teams.find((t) => String(t.id) === String(id))?.name || id)
+        .filter(Boolean);
+      chips.push({
+        key: 'team',
+        label: `${this.terminology.teamPluralLabel || this.terminology.teamPlural || 'Teams'}: ${labels.join(', ')}`,
+      });
+    }
+
+    if (this.selectedUserCampuses && this.selectedUserCampuses.length) {
+      const labels = this.selectedUserCampuses
+        .map((id) => this.userCampuses.find((c) => String(c.id) === String(id))?.name || id)
+        .filter(Boolean);
+      chips.push({ key: 'campus', label: `Campus: ${labels.join(', ')}` });
+    }
+
+    const dateRangeDisplay = this.getJoinedDateRangeDisplay();
+    if (dateRangeDisplay) {
+      chips.push({ key: 'joined_date', label: `Joined: ${dateRangeDisplay}` });
+    }
+    return chips;
+  }
+
+  removeUserFilter(key: string): void {
+    if (key === 'country') {
+      this.selectedUserCountries = [];
+      this.onUserCountryChange();
+    }
+    if (key === 'city') {
+      this.selectedUserCities = [];
+    }
+    if (key === 'campus') {
+      this.selectedUserCampuses = [];
+    }
+    if (key === 'department') {
+      this.selectedUserDepartments = [];
+    }
+    if (key === 'team') {
+      this.selectedUserTeams = [];
+    }
+    if (key === 'joined_date') {
+      this.userFilters.joined_after = null;
+      this.userFilters.joined_before = null;
+    }
+    if (this.hasUserFilterValues) {
+      this.userFiltersApplied = true;
+      this.loadUsers();
+    } else {
+      this.userFiltersApplied = false;
+      this.userLoadSeq++;
+      this.paperUsers = [];
+      this.loadingPaperUsers = false;
+    }
+  }
+
+  clearUserFilters(): void {
+    this.userLoadSeq++;
+    this.userFiltersApplied = false;
+    this.selectedUserCountries = [];
+    this.selectedUserCities = [];
+    this.selectedUserCampuses = [];
+    this.selectedUserDepartments = [];
+    this.selectedUserTeams = [];
+    this.userCountrySearch = '';
+    this.userCitySearch = '';
+    this.userCampusSearch = '';
+    this.userDepartmentSearch = '';
+    this.userTeamSearch = '';
+    this.userFilters = {
+      joined_after: null,
+      joined_before: null,
+    };
+    this.paperUsers = [];
+    this.paperUsersLoadError = '';
+    this.loadingPaperUsers = false;
+  }
+
+  resetUserFilters(): void {
+    this.clearUserFilters();
+  }
+
+  markUserFiltersDirty(): void {
+    if (!this.userFiltersApplied && !this.loadingPaperUsers && this.paperUsers.length === 0) return;
+    this.userLoadSeq++;
+    this.userFiltersApplied = false;
+    this.loadingPaperUsers = false;
+    this.paperUsers = [];
+    this.paperUsersLoadError = '';
+    this.assignmentUserSearch = '';
+  }
+
+  applyUserFilters(): void {
+    if (!this.institute || !this.hasUserFilterValues) return;
+    this.userFiltersApplied = true;
+    this.loadUsers();
+    this.closeUserFiltersOverlay();
+  }
+
+  // ── Load Users from backend ──
+  loadUsers(): void {
+    if (!this.institute || !this.hasAppliedUserFilters) {
+      this.userLoadSeq++;
+      this.paperUsers = [];
+      this.paperUsersLoadError = '';
+      this.loadingPaperUsers = false;
+      return;
+    }
+    const requestSeq = ++this.userLoadSeq;
+    this.loadingPaperUsers = true;
+    this.paperUsersLoadError = '';
+    const url = `${API_BASE}/get-users`;
+    const params: any = {
+      pageSize: 10000,
+      pageNumber: 1,
+      institute_id: this.institute,
+      active_status: 'true',
+      _ts: Date.now(),
+    };
+
+    if (this.selectedUserDepartments && this.selectedUserDepartments.length) {
+      params.department = this.selectedUserDepartments.join(',');
+    }
+    if (this.selectedUserTeams && this.selectedUserTeams.length) {
+      params.team = this.selectedUserTeams.join(',');
+    }
+    if (this.selectedUserCountries && this.selectedUserCountries.length) {
+      params.country = this.selectedUserCountries.join(',');
+    }
+    if (this.selectedUserCities && this.selectedUserCities.length) {
+      params.city = this.selectedUserCities.join(',');
+    }
+    if (this.selectedUserCampuses && this.selectedUserCampuses.length) {
+      params.campus = this.selectedUserCampuses.join(',');
+    }
+    if (this.userFilters.joined_after) {
+      params.joined_after = this.formatFilterDate(this.userFilters.joined_after);
+    }
+    if (this.userFilters.joined_before) {
+      params.joined_before = this.formatFilterDate(this.userFilters.joined_before);
+    }
+
+    this.http
+      .get<any>(url, {
+        params,
+        ...this.explicitInstituteRequestOptions(),
+      })
+      .subscribe({
+      next: (res) => {
+        if (requestSeq !== this.userLoadSeq || !this.hasAppliedUserFilters) return;
+        if (res?.status === false || res?.status === 'false') {
+          this.paperUsers = [];
+          this.paperUsersLoadError =
+            res?.statusMessage || res?.message || 'Unable to load users for the selected filters.';
+          this.loadingPaperUsers = false;
+          return;
+        }
+        const dataCandidate = res?.data?.users ?? res?.users ?? res?.data ?? res;
+        const data = Array.isArray(dataCandidate) ? dataCandidate : [];
+        const fetched = data
+          .map((u: any) => ({
+            id: String(u.user_id || u.id || ''),
+            name:
+              u.full_name ||
+              u.user_name ||
+              u.name ||
+              `${u.first_name || ''} ${u.last_name || ''}`.trim() ||
+              u.email,
+            email: u.email || '',
+            department:
+              (u.department && (u.department.department_name || u.department.name)) ||
+              u.department_name ||
+              '',
+            team: (u.team && (u.team.team_name || u.team.name)) || u.team_name || '',
+            campus: (u.campus && (u.campus.campus_name || u.campus.name)) || u.campus_name || '',
+            departmentId: String(u.department?.department_id || u.department_id || ''),
+            teamId: String(u.team?.team_id || u.team_id || ''),
+          }))
+          .filter((u: any) => !!u.id);
+
+        this.paperUsers = fetched;
+        if (this.assignableUserCount === null && fetched.length > 0) {
+          this.assignableUserCount = fetched.length;
+        }
+        this.paperUsersLoadError = '';
+        this.loadingPaperUsers = false;
+      },
+      error: (err) => {
+        if (requestSeq !== this.userLoadSeq) return;
+        console.warn('Failed to load users for assignment', err);
+        this.paperUsers = [];
+        this.paperUsersLoadError =
+          err?.error?.statusMessage ||
+          err?.error?.message ||
+          err?.message ||
+          'Unable to load users. Please check your connection and try again.';
+        this.loadingPaperUsers = false;
+      },
+      });
   }
 
   get filteredPaperUsers() {
-    const term = this.assignmentUserSearch.trim().toLowerCase();
-    const departmentIds = new Set(this.assignmentDepartments.map(String));
-    const teamIds = new Set(this.assignmentTeams.map(String));
+    const term = (this.assignmentUserSearch || '').trim().toLowerCase();
+    if (!term) return this.paperUsers;
     return this.paperUsers.filter((user) => {
-      if (departmentIds.size && !departmentIds.has(String(user.departmentId || ''))) return false;
-      if (teamIds.size && !teamIds.has(String(user.teamId || ''))) return false;
-      if (!term) return true;
-      return (user.name || '').toLowerCase().includes(term) ||
-        (user.email || '').toLowerCase().includes(term);
+      return (
+        (user.name || '').toLowerCase().includes(term) ||
+        (user.email || '').toLowerCase().includes(term) ||
+        (user.department || '').toLowerCase().includes(term) ||
+        (user.team || '').toLowerCase().includes(term) ||
+        (user.campus || '').toLowerCase().includes(term)
+      );
     });
   }
 
   get areAllVisiblePaperUsersSelected(): boolean {
-    return this.filteredPaperUsers.length > 0 &&
-      this.filteredPaperUsers.every((user) => this.selectedPaperUsers.includes(user.id));
+    return (
+      this.filteredPaperUsers.length > 0 &&
+      this.filteredPaperUsers.every((user) => this.selectedPaperUsers.includes(user.id))
+    );
   }
 
   get areSomeVisiblePaperUsersSelected(): boolean {
@@ -2968,45 +3851,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.selectedPaperUsers.includes(user.id)
     ).length;
     return selectedCount > 0 && selectedCount < this.filteredPaperUsers.length;
-  }
-
-  loadPaperUsers(): void {
-    if (!this.institute) {
-      this.paperUsers = [];
-      return;
-    }
-    this.loadingPaperUsers = true;
-    this.http.get<any>(`${API_BASE}/get-users-list`, {
-      params: {
-        institute_id: this.institute,
-        active_status: 'true',
-        _ts: Date.now().toString(),
-      },
-    }).subscribe({
-      next: (res) => {
-        const data = Array.isArray(res?.data) ? res.data : [];
-        const loaded = data
-          .filter((user: any) => String(user.user_role || '').toLowerCase() === 'user')
-          .map((user: any) => ({
-            id: String(user.user_id || user.id || ''),
-            name: user.full_name || user.user_name || user.name || user.email || 'User',
-            email: user.email || '',
-            departmentId: String(user.department?.department_id || user.department_id || ''),
-            teamId: String(user.team?.team_id || user.team_id || ''),
-          }))
-          .filter((user: any) => !!user.id);
-        const merged = new Map(this.paperUsers.map((user) => [user.id, user]));
-        loaded.forEach((user: any) => merged.set(user.id, user));
-        this.paperUsers = Array.from(merged.values());
-      },
-      error: (err) => {
-        console.warn('Failed to load users for question-paper assignment', err);
-        this.loadingPaperUsers = false;
-      },
-      complete: () => {
-        this.loadingPaperUsers = false;
-      },
-    });
   }
 
   togglePaperUser(userId: string, checked: boolean): void {
@@ -3026,12 +3870,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       const visibleSet = new Set(visibleIds);
       this.selectedPaperUsers = this.selectedPaperUsers.filter((id) => !visibleSet.has(id));
     }
-  }
-
-  resetAssignmentFilters(): void {
-    this.assignmentDepartments = [];
-    this.assignmentTeams = [];
-    this.assignmentUserSearch = '';
   }
 
   trackPaperUserById(_: number, user: { id: string }): string {
@@ -3439,7 +4277,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     const currentUser = this.getCurrentUserId();
     const calcMarks = this.totalPaperMarks > 0 ? this.totalPaperMarks : null;
     const finalTotalMarks =
-      this.totalMarksOverride !== null && this.totalMarksOverride !== undefined && Number(this.totalMarksOverride) >= 0
+      this.totalMarksOverride !== null &&
+      this.totalMarksOverride !== undefined &&
+      Number(this.totalMarksOverride) >= 0
         ? Number(this.totalMarksOverride)
         : calcMarks;
 
@@ -3612,8 +4452,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       if (this.institutes && this.institutes.length) {
         const found = this.institutes.find(
           (i) =>
-            String(i.id).toLowerCase() === want ||
-            (i.name && i.name.trim().toLowerCase() === want)
+            String(i.id).toLowerCase() === want || (i.name && i.name.trim().toLowerCase() === want)
         );
         if (found && found.name) return found.name;
       }
@@ -3653,7 +4492,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   get isStep2Valid(): boolean {
-    return this.sections.length > 0 && this.sections.some((s) => s.questions && s.questions.length > 0);
+    return (
+      this.sections.length > 0 && this.sections.some((s) => s.questions && s.questions.length > 0)
+    );
   }
 
   validateStep2AndProceed() {
