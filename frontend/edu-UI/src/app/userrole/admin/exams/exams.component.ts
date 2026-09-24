@@ -2481,104 +2481,39 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.http.get<any>(url).subscribe({
       next: (res) => {
         const arr = Array.isArray(res?.data) ? res.data : [];
-        if (arr.length === 0) {
-          this.allExams = [
-            {
-              test_id: 'mock-1',
-              title: 'Physics – Unit Test 1',
-              subject_name: 'Physics',
-              departments: ['Science'],
-              teams: ['12-A'],
-              duration_mins: 60,
-              total_questions: 23,
-              questions_added: 10,
-              total_marks: 50,
-              marks_added: 21,
-              sections: [
-                { name: 'A', question_type: 'objective', questions: new Array(10).fill({ marks: 2, question_text: 'Sample Objective Question' }) },
-                { name: 'B', question_type: 'objective', questions: [] },
-                { name: 'C', question_type: 'descriptive', questions: [] },
-                { name: 'D', question_type: 'descriptive', questions: [] },
-              ],
-              published: false,
-              status: 'draft',
-              is_editable: true,
-            },
-            {
-              test_id: 'mock-2',
-              title: 'Physics – Revision Test',
-              subject_name: 'Physics',
-              departments: ['Science'],
-              teams: ['12-A'],
-              duration_mins: 60,
-              total_questions: 20,
-              questions_added: 20,
-              total_marks: 40,
-              marks_added: 40,
-              sections: [
-                { name: 'A', question_type: 'objective', questions: new Array(10).fill({ marks: 2, question_text: 'Sample Objective Question' }) },
-                { name: 'B', question_type: 'objective', questions: new Array(5).fill({ marks: 2, question_text: 'Sample Objective Question' }) },
-                { name: 'C', question_type: 'descriptive', questions: new Array(5).fill({ marks: 2, question_text: 'Sample Descriptive Question' }) },
-              ],
-              published: false,
-              status: 'draft',
-              is_editable: true,
-            },
-            {
-              test_id: 'mock-3',
-              title: 'Physics – Final Term Examination',
-              subject_name: 'Physics',
-              departments: ['Science'],
-              teams: ['12-A'],
-              duration_mins: 120,
-              total_questions: 50,
-              questions_added: 50,
-              total_marks: 100,
-              marks_added: 100,
-              sections: [
-                { name: 'A', question_type: 'objective', questions: new Array(25).fill({ marks: 2, question_text: 'Sample Objective Question' }) },
-                { name: 'B', question_type: 'descriptive', questions: new Array(25).fill({ marks: 2, question_text: 'Sample Descriptive Question' }) },
-              ],
-              published: true,
-              status: 'published',
-              is_editable: false,
-            },
-          ];
-        } else {
-          this.allExams = arr.map((x: any) => ({
-            test_id: x.test_id || x.id || x.exam_id,
-            title: x.title || x.name || '',
-            description: x.description || x.desc || '',
-            categories: Array.isArray(x.categories)
-              ? x.categories
-              : Array.isArray(x.category_list)
-                ? x.category_list
-                : Array.isArray(x.categories_list)
-                  ? x.categories_list
-                  : [],
-            sections: Array.isArray(x.sections) ? x.sections : [],
-            departments: x.departments || [],
-            teams: x.teams || [],
-            subject_id: x.subject_id,
-            subject_name: x.subject_name,
-            institute: {
-              institute_id: x.institute_id || '',
-              institute_name: x.institute_name || '',
-            },
-            duration_mins: x.duration_mins || x.duration || 60,
-            total_questions: x.total_questions || x.questions_count || 0,
-            number_of_attempts: x.number_of_attempts || x.attempts || 1,
-            pass_mark: x.pass_mark || 0,
-            public_access: x.public_access || x.public || false,
-            created_by: x.created_by || x.creator || '',
-            created_date: x.created_date || x.created || '',
-            updated_by: x.updated_by || x.modifier || '',
-            updated_date: x.updated_date || x.updated || '',
-            published: !!x.published,
-            status: x.published ? 'published' : 'draft',
-            is_editable: x.is_editable !== false,
-          }));
-        }
+        this.allExams = arr.map((x: any) => ({
+          test_id: x.test_id || x.id || x.exam_id,
+          title: x.title || x.name || '',
+          description: x.description || x.desc || '',
+          categories: Array.isArray(x.categories)
+            ? x.categories
+            : Array.isArray(x.category_list)
+              ? x.category_list
+              : Array.isArray(x.categories_list)
+                ? x.categories_list
+                : [],
+          sections: Array.isArray(x.sections) ? x.sections : [],
+          departments: x.departments || [],
+          teams: x.teams || [],
+          subject_id: x.subject_id,
+          subject_name: x.subject_name,
+          institute: {
+            institute_id: x.institute_id || '',
+            institute_name: x.institute_name || '',
+          },
+          duration_mins: x.duration_mins || x.duration || 60,
+          total_questions: x.total_questions || x.questions_count || 0,
+          number_of_attempts: x.number_of_attempts || x.attempts || 1,
+          pass_mark: x.pass_mark || 0,
+          public_access: x.public_access || x.public || false,
+          created_by: x.created_by || x.creator || '',
+          created_date: x.created_date || x.created || '',
+          updated_by: x.updated_by || x.modifier || '',
+          updated_date: x.updated_date || x.updated || '',
+          published: !!x.published,
+          status: x.published ? 'published' : 'draft',
+          is_editable: x.is_editable !== false,
+        }));
         this.exams = this.allExams;
         this.updateFilteredExams();
 
@@ -2590,69 +2525,8 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
       },
       error: (err) => {
         console.warn('Failed loading exams', err);
-        this.allExams = [
-          {
-            test_id: 'mock-1',
-            title: 'Physics – Unit Test 1',
-            subject_name: 'Physics',
-            departments: ['Science'],
-            teams: ['12-A'],
-            duration_mins: 60,
-            total_questions: 23,
-            questions_added: 10,
-            total_marks: 50,
-            marks_added: 21,
-            sections: [
-              { name: 'A', question_type: 'objective', questions: new Array(10).fill({ marks: 2, question_text: 'Sample Objective Question' }) },
-              { name: 'B', question_type: 'objective', questions: [] },
-              { name: 'C', question_type: 'descriptive', questions: [] },
-              { name: 'D', question_type: 'descriptive', questions: [] },
-            ],
-            published: false,
-            status: 'draft',
-            is_editable: true,
-          },
-          {
-            test_id: 'mock-2',
-            title: 'Physics – Revision Test',
-            subject_name: 'Physics',
-            departments: ['Science'],
-            teams: ['12-A'],
-            duration_mins: 60,
-            total_questions: 20,
-            questions_added: 20,
-            total_marks: 40,
-            marks_added: 40,
-            sections: [
-              { name: 'A', question_type: 'objective', questions: new Array(10).fill({ marks: 2, question_text: 'Sample Objective Question' }) },
-              { name: 'B', question_type: 'objective', questions: new Array(5).fill({ marks: 2, question_text: 'Sample Objective Question' }) },
-              { name: 'C', question_type: 'descriptive', questions: new Array(5).fill({ marks: 2, question_text: 'Sample Descriptive Question' }) },
-            ],
-            published: false,
-            status: 'draft',
-            is_editable: true,
-          },
-          {
-            test_id: 'mock-3',
-            title: 'Physics – Final Term Examination',
-            subject_name: 'Physics',
-            departments: ['Science'],
-            teams: ['12-A'],
-            duration_mins: 120,
-            total_questions: 50,
-            questions_added: 50,
-            total_marks: 100,
-            marks_added: 100,
-            sections: [
-              { name: 'A', question_type: 'objective', questions: new Array(25).fill({ marks: 2, question_text: 'Sample Objective Question' }) },
-              { name: 'B', question_type: 'descriptive', questions: new Array(25).fill({ marks: 2, question_text: 'Sample Descriptive Question' }) },
-            ],
-            published: true,
-            status: 'published',
-            is_editable: false,
-          },
-        ];
-        this.exams = this.allExams;
+        this.allExams = [];
+        this.exams = [];
         this.updateFilteredExams();
         try {
           this.loader.hide();

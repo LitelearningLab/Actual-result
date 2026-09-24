@@ -21,6 +21,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatSortModule, MatSort } from '@angular/material/sort';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { FormBuilder, FormGroup, FormArray } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
@@ -84,6 +85,7 @@ export interface Institute {
     RouterModule,
     MatPaginatorModule,
     MatSortModule,
+    MatTooltipModule,
     OverlayModule,
     PortalModule,
   ],

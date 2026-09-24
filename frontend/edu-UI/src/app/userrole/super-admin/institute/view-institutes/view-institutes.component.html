@@ -356,14 +356,13 @@
         <colgroup>
           <col class="col-sno" />
           <col class="col-name" />
-          <col class="col-short" />
           <col class="col-industry" />
           <col class="col-sector" />
           <col class="col-primary-contact" />
           <col class="col-sub-start" />
           <col class="col-sub-end" />
           <col class="col-active" />
-          <col />
+          <col class="col-actions" />
         </colgroup>
 
         <!-- S.No -->
@@ -381,7 +380,13 @@
             <div class="inst-cell">
               <!-- <div class="inst-avatar">{{ (i.name || '?').charAt(0).toUpperCase() }}</div> -->
               <div class="inst-info">
-                <span class="inst-name">{{ i.name }}</span>
+                <span
+                  class="inst-name"
+                  [matTooltip]="i.name"
+                  matTooltipPosition="above"
+                  matTooltipClass="inst-tooltip"
+                  [title]="i.name"
+                >{{ i.name }}</span>
                 <span class="inst-short" *ngIf="i.short">{{ i.short }}</span>
               </div>
             </div>
@@ -492,7 +497,7 @@
         </ng-container>
 
         <thead>
-          <tr mat-header-row *matHeaderRowDef="columns"></tr>
+          <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
         </thead>
         <tbody>
           <tr mat-row *matRowDef="let row; columns: columns"></tr>
