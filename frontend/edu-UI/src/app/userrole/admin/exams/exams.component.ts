@@ -1758,10 +1758,11 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.onReset();
   }
   private refreshAfterFilterChipChange() {
-    if (this.appliedFilterChips.length)
+    if (this.appliedFilterChips.length) {
       this.loadExamsForInstitute(this.selectedInstitute || undefined);
-    else {
+    } else {
       this.hasAppliedFilters = false;
+      this.loadExamsForInstitute(this.selectedInstitute || undefined);
     }
   }
   private getCountryLabel(code: string): string {
@@ -2305,6 +2306,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
                   // load dependent lists scoped to the institute
                   this.loadDepartments(this.selectedInstitute);
                   this.loadTeams(this.selectedInstitute);
+                  this.loadExamsForInstitute(this.selectedInstitute);
                 }
               }
             }
@@ -2364,17 +2366,6 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   onApply() {
-    if (
-      this.isSuperAdmin &&
-      !this.isGlobalInstituteActive &&
-      (!this.selectedInstitutes || !this.selectedInstitutes.length) &&
-      !this.selectedInstitute
-    ) {
-      try {
-        notify('Please select an institute', 'info');
-      } catch (e) {}
-      return;
-    }
     if (!this.hasFilterValues()) {
       try {
         notify('Please add filters in the filter form.', 'info');
@@ -2416,15 +2407,22 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
     this.filterCreatedByMe = false;
     this.filter = '';
     this.dataSource.filter = '';
-    this.exams = [];
-    this.dataSource.data = [];
     this.hasAppliedFilters = false;
     try {
       sessionStorage.removeItem('exams_table_return_state');
     } catch (e) {}
     if (this.isSuperAdmin) {
       this.refreshInstituteScope();
+    } else {
+      try {
+        const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          this.selectedInstitute = u?.institute_id || u?.instituteId || u?.institute || '';
+        }
+      } catch (e) {}
     }
+    this.loadExamsForInstitute(this.selectedInstitute || undefined);
     this.closeFiltersOverlay();
   }
 

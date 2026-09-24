@@ -32,6 +32,19 @@
         </div>
     </div>
 
+    <!-- ─── Applied Filters Bar (Top of Drafts & Published tabs) ─── -->
+    <div class="applied-filters" *ngIf="appliedFilterChips.length">
+        <span class="applied-filters-title">Applied filters</span>
+        <button type="button" class="applied-filter-chip" *ngFor="let chip of appliedFilterChips"
+            [class.applied-filter-chip--locked]="!chip.removable"
+            [matTooltip]="chip.tooltip || ''"
+            [matTooltipDisabled]="!chip.tooltip"
+            (click)="chip.removable && removeAppliedFilter(chip.key)">
+            <span>{{ chip.label }}</span>
+        </button>
+        <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">Clear all</button>
+    </div>
+
     <!-- ─── Full-width Segmented Tabs (Drafts / Published) ─── -->
     <div class="tabs-bar-fullwidth" role="tablist">
         <button type="button" class="tab-segment" [class.active]="activeTab === 'drafts'" (click)="setTab('drafts')"
@@ -47,17 +60,17 @@
     </div>
 
     <!-- ─── Main Content Card ─── -->
-    <div class="applied-filters" *ngIf="appliedFilterChips.length">
-        <span class="applied-filters-title">Applied filters</span>
-        <button type="button" class="applied-filter-chip" *ngFor="let chip of appliedFilterChips"
-            [class.applied-filter-chip--locked]="!chip.removable"
-            [matTooltip]="chip.tooltip || ''"
-            [matTooltipDisabled]="!chip.tooltip"
-            (click)="chip.removable && removeAppliedFilter(chip.key)">
-            <span>{{ chip.label }}</span>
-        </button>
-        <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">Clear all</button>
-    </div>
+
+
+
+
+
+
+
+
+
+
+
     <div class="exams-card">
         <!-- Filters Panel Template -->
         <ng-template #filtersPanel>

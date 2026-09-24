@@ -17,6 +17,8 @@ from db.models import (
     QuestionPaperUserAssignment,
     ExamSection,
     Subject,
+    InstituteDepartment,
+    InstituteTeam,
 )
 from db.db import SQLiteDB
 from others.exam_review import (
@@ -32,6 +34,7 @@ from db.models import Institute, InstituteCampus, User
 from sqlalchemy import func, or_
 from sqlalchemy.orm import load_only
 import random
+from flask import g
 
 
 def _to_naive_utc_datetime(val):
@@ -807,6 +810,14 @@ def get_exam_details(request):
                 filter.append(Exam.institute_id.in_(inst_ids))
             else:
                 filter.append(Exam.institute_id == inst_val)
+        else:
+            try:
+                current_user = getattr(g, 'current_user', None)
+                if current_user and getattr(current_user, 'user_role', '').lower() not in ('super_admin', 'superadmin', 'super-admin'):
+                    if getattr(current_user, 'institute_id', None):
+                        filter.append(Exam.institute_id == current_user.institute_id)
+            except Exception:
+                pass
         if args.get("name", None):
             filter.append(Exam.title.ilike(f"%{args.get('name')}%"))
         if args.get("created_before", None):
@@ -858,6 +869,74 @@ def get_exam_details(request):
         if dept_arg:
             dept_ids = [d.strip() for d in str(dept_arg).split(",") if d.strip()]
             if dept_ids:
+                resolved_dept_keys = set(dept_ids)
+                try:
+                    dept_objs = session.query(InstituteDepartment).filter(
+                        or_(
+                            InstituteDepartment.department_id.in_(dept_ids),
+                            InstituteDepartment.name.in_(dept_ids)
+                        )
+                    ).all()
+                    for d in dept_objs:
+                        if d.department_id:
+                            resolved_dept_keys.add(str(d.department_id))
+                        if d.name:
+                            resolved_dept_keys.add(str(d.name))
+                except Exception:
+                    pass
+                all_dept_keys = list(resolved_dept_keys)
+
+                exam_dept_ids = [
+                    r[0]
+                    for r in session.query(ExamsDepartments.exam_id)
+                    .filter(ExamsDepartments.department_id.in_(all_dept_keys))
+                    .all()
+                ]
+                cat_exam_ids = [
+                    r[0]
+                    for r in session.query(ExamMapping.exam_id)
+                    .join(
+                        CategoriesDepartments,
+                        CategoriesDepartments.category_id == ExamMapping.category_id,
+                    )
+                    .filter(CategoriesDepartments.department_id.in_(all_dept_keys))
+                    .all()
+                ]
+                user_exam_ids = [
+                    r[0]
+                    for r in session.query(Exam.exam_id)
+                    .join(User, User.user_id == Exam.created_by)
+                    .filter(User.department_id.in_(all_dept_keys))
+                    .all()
+                ]
+                sched_exam_ids = [
+                    r[0]
+                    for r in session.query(ExamSchedule.exam_id)
+                    .join(
+                        ExamScheduleMapping,
+                        ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id,
+                    )
+                    .filter(ExamScheduleMapping.department_id.in_(all_dept_keys))
+                    .all()
+                ]
+                assigned_exam_ids = [
+                    r[0]
+                    for r in session.query(QuestionPaperUserAssignment.exam_id)
+                    .join(User, User.user_id == QuestionPaperUserAssignment.user_id)
+                    .filter(User.department_id.in_(all_dept_keys))
+                    .all()
+                ]
+                matching_exam_ids = list(
+                    set(exam_dept_ids + cat_exam_ids + user_exam_ids + sched_exam_ids + assigned_exam_ids)
+                )
+                filter.append(
+                    Exam.exam_id.in_(
+                        matching_exam_ids if matching_exam_ids else ["__none__"]
+                    )
+                )
+
+            pass
+            if False:
                 cat_exam_ids = [
                     r[0]
                     for r in session.query(ExamMapping.exam_id)
@@ -898,6 +977,73 @@ def get_exam_details(request):
         if team_arg:
             team_ids = [t.strip() for t in str(team_arg).split(",") if t.strip()]
             if team_ids:
+                resolved_team_keys = set(team_ids)
+                try:
+                    team_objs = session.query(InstituteTeam).filter(
+                        or_(
+                            InstituteTeam.team_id.in_(team_ids),
+                            InstituteTeam.name.in_(team_ids)
+                        )
+                    ).all()
+                    for t in team_objs:
+                        if t.team_id:
+                            resolved_team_keys.add(str(t.team_id))
+                        if t.name:
+                            resolved_team_keys.add(str(t.name))
+                except Exception:
+                    pass
+                all_team_keys = list(resolved_team_keys)
+
+                exam_team_ids = [
+                    r[0]
+                    for r in session.query(ExamsTeams.exam_id)
+                    .filter(ExamsTeams.team_id.in_(all_team_keys))
+                    .all()
+                ]
+                cat_exam_ids = [
+                    r[0]
+                    for r in session.query(ExamMapping.exam_id)
+                    .join(
+                        CategoriesTeams,
+                        CategoriesTeams.category_id == ExamMapping.category_id,
+                    )
+                    .filter(CategoriesTeams.team_id.in_(all_team_keys))
+                    .all()
+                ]
+                user_exam_ids = [
+                    r[0]
+                    for r in session.query(Exam.exam_id)
+                    .join(User, User.user_id == Exam.created_by)
+                    .filter(User.team_id.in_(all_team_keys))
+                    .all()
+                ]
+                sched_exam_ids = [
+                    r[0]
+                    for r in session.query(ExamSchedule.exam_id)
+                    .join(
+                        ExamScheduleMapping,
+                        ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id,
+                    )
+                    .filter(ExamScheduleMapping.team_id.in_(all_team_keys))
+                    .all()
+                ]
+                assigned_exam_ids = [
+                    r[0]
+                    for r in session.query(QuestionPaperUserAssignment.exam_id)
+                    .join(User, User.user_id == QuestionPaperUserAssignment.user_id)
+                    .filter(User.team_id.in_(all_team_keys))
+                    .all()
+                ]
+                matching_exam_ids = list(
+                    set(exam_team_ids + cat_exam_ids + user_exam_ids + sched_exam_ids + assigned_exam_ids)
+                )
+                filter.append(
+                    Exam.exam_id.in_(
+                        matching_exam_ids if matching_exam_ids else ["__none__"]
+                    )
+                )
+
+            if False:
                 cat_exam_ids = [
                     r[0]
                     for r in session.query(ExamMapping.exam_id)
