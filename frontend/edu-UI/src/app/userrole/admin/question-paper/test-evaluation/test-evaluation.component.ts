@@ -8,6 +8,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 
 export interface StudentEvaluation {
   sno: number;
@@ -128,7 +129,10 @@ export class TestEvaluationComponent implements OnInit {
 
   filteredStudents: StudentEvaluation[] = [];
 
+  constructor(private pageMeta: PageMetaService) {}
+
   ngOnInit(): void {
+    this.pageMeta.setMeta('Test Evaluation');
     this.filterStudents();
   }
 

@@ -45,7 +45,7 @@
         <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">Clear all</button>
     </div>
 
-    <!-- ─── Full-width Segmented Tabs (Drafts / Published / Test Evaluation) ─── -->
+    <!-- ─── Full-width Segmented Tabs (Drafts / Published) ─── -->
     <div class="tabs-bar-fullwidth" role="tablist">
         <button type="button" class="tab-segment" [class.active]="activeTab === 'drafts'" (click)="setTab('drafts')"
             role="tab" [attr.aria-selected]="activeTab === 'drafts'">
@@ -56,10 +56,6 @@
             role="tab" [attr.aria-selected]="activeTab === 'published'">
             <span class="tab-title">Published</span>
             <span class="tab-badge" [class.badge-active]="activeTab === 'published'">{{ publishedCount }}</span>
-        </button>
-        <button type="button" class="tab-segment" [class.active]="activeTab === 'evaluation'" (click)="setTab('evaluation')"
-            role="tab" [attr.aria-selected]="activeTab === 'evaluation'">
-            <span class="tab-title">Test Evaluation</span>
         </button>
     </div>
 
@@ -75,7 +71,7 @@
 
 
 
-    <div class="exams-card" *ngIf="activeTab !== 'evaluation'">
+    <div class="exams-card">
         <!-- Filters Panel Template -->
         <ng-template #filtersPanel>
             <div class="filters-panel view-questions-filters-panel" [class.admin-single-col]="!showLocationAndIndustryFilters" role="region" aria-label="Filter options"
@@ -621,6 +617,4 @@
         </div>
     </div>
 
-    <!-- ─── Test Evaluation Tab Component ─── -->
-    <app-test-evaluation *ngIf="activeTab === 'evaluation'"></app-test-evaluation>
 </div>

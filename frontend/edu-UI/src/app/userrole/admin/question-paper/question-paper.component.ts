@@ -47,7 +47,6 @@ import {
   DateRangePickerDialogComponent,
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
-import { TestEvaluationComponent } from './test-evaluation/test-evaluation.component';
 
 @Component({
   selector: 'app-question-paper',
@@ -74,7 +73,6 @@ import { TestEvaluationComponent } from './test-evaluation/test-evaluation.compo
     OverlayModule,
     PortalModule,
     DirectivesModule,
-    TestEvaluationComponent,
   ],
   templateUrl: './question-paper.component.html',
   styleUrls: ['./question-paper.component.scss'],
@@ -161,7 +159,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     'status',
     'actions',
   ];
-  activeTab: 'drafts' | 'published' | 'evaluation' = 'drafts';
+  activeTab: 'drafts' | 'published' = 'drafts';
   allExams: any[] = [];
   dataSource = new MatTableDataSource<any>([]);
   loadingQuestionPapers = false;
@@ -589,14 +587,12 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     this.loadExamsForInstitute(this.selectedInstitute || undefined);
   }
 
-  setTab(tab: 'drafts' | 'published' | 'evaluation') {
+  setTab(tab: 'drafts' | 'published') {
     this.activeTab = tab;
     if (this.hasAppliedFilters) {
       this.saveTestsReturnState();
     }
-    if (tab !== 'evaluation') {
-      this.updateFilteredExams();
-    }
+    this.updateFilteredExams();
   }
 
   get draftsCount(): number {
@@ -1568,7 +1564,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   ngOnInit(): void {
-    this.pageMeta.setMeta('My Question Papers');
+    this.pageMeta.setMeta('Create Question Paper');
     this.loadCountries();
     this.loadInstitutes();
     this.loadTestOptions(this.selectedInstitute);
