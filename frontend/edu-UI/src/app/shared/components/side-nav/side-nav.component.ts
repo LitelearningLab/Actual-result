@@ -97,6 +97,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/user/exam/run': 'Test Inbox',
     '/question-papers': 'Create Question Paper',
     '/create-question-paper': 'Create Question Paper',
+    '/test-evaluation': 'Test Evaluation',
   };
 
   /** Updates selectedMenu by finding which menu path matches the current URL */
@@ -241,6 +242,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
     if (role === 'admin' || role === 'super_admin' || role === 'super-admin') {
       // Separate Question Paper module placed after Test Inbox
       this.menus.push({ label: 'Create Question Paper', path: '/question-papers', icon: 'exam' });
+      this.menus.push({ label: 'Test Evaluation', path: '/test-evaluation', icon: 'assignment' });
     }
 
     // After menus are set, update selected menu based on current URL

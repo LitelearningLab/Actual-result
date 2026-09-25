@@ -47,6 +47,7 @@ import {
   DateRangePickerDialogComponent,
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
+import { TestEvaluationComponent } from './test-evaluation/test-evaluation.component';
 
 @Component({
   selector: 'app-question-paper',
@@ -73,6 +74,7 @@ import {
     OverlayModule,
     PortalModule,
     DirectivesModule,
+    TestEvaluationComponent,
   ],
   templateUrl: './question-paper.component.html',
   styleUrls: ['./question-paper.component.scss'],
@@ -159,7 +161,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     'status',
     'actions',
   ];
-  activeTab: 'drafts' | 'published' = 'drafts';
+  activeTab: 'drafts' | 'published' | 'evaluation' = 'drafts';
   allExams: any[] = [];
   dataSource = new MatTableDataSource<any>([]);
   loadingQuestionPapers = false;
@@ -587,12 +589,14 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     this.loadExamsForInstitute(this.selectedInstitute || undefined);
   }
 
-  setTab(tab: 'drafts' | 'published') {
+  setTab(tab: 'drafts' | 'published' | 'evaluation') {
     this.activeTab = tab;
     if (this.hasAppliedFilters) {
       this.saveTestsReturnState();
     }
-    this.updateFilteredExams();
+    if (tab !== 'evaluation') {
+      this.updateFilteredExams();
+    }
   }
 
   get draftsCount(): number {

@@ -1,0 +1,289 @@
+<div class="test-evaluation-page">
+  <!-- ─── Applied Filters & Top Actions Bar ─── -->
+  <div class="top-filter-bar-row">
+    <div class="applied-filters-container">
+      <span class="applied-filters-title">APPLIED FILTERS</span>
+      <span class="applied-filter-pill">
+        <strong>Institute:</strong> Profluent Lab Pvt. Ltd
+      </span>
+      <span class="applied-filter-pill">
+        <strong>Test:</strong> {{ selectedTest }}
+      </span>
+      <button type="button" class="clear-all-chip-btn" (click)="refreshData()">
+        Clear all
+      </button>
+    </div>
+
+    <div class="top-actions">
+      <button type="button" class="icon-refresh-btn" (click)="refreshData()" title="Refresh">
+        <mat-icon>refresh</mat-icon>
+      </button>
+      <button type="button" class="btn-filter-reports">
+        <mat-icon>filter_alt</mat-icon>
+        <span>Filter Test Reports</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── Filter Selectors Row ─── -->
+  <div class="filter-selectors-row">
+    <div class="filter-group">
+      <label class="filter-label">Class</label>
+      <div class="select-wrapper">
+        <select [(ngModel)]="selectedClass" (change)="filterStudents()">
+          <option *ngFor="let c of classList" [value]="c">{{ c }}</option>
+        </select>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Section</label>
+      <div class="select-wrapper">
+        <select [(ngModel)]="selectedSection" (change)="filterStudents()">
+          <option *ngFor="let s of sectionList" [value]="s">{{ s }}</option>
+        </select>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Subject</label>
+      <div class="select-wrapper">
+        <select [(ngModel)]="selectedSubject" (change)="filterStudents()">
+          <option *ngFor="let sub of subjectList" [value]="sub">{{ sub }}</option>
+        </select>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Test</label>
+      <div class="select-wrapper">
+        <select [(ngModel)]="selectedTest" (change)="filterStudents()">
+          <option *ngFor="let t of testList" [value]="t">{{ t }}</option>
+        </select>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Info Alert Banner ─── -->
+  <div class="info-alert-banner">
+    <mat-icon class="info-icon">info</mat-icon>
+    <span>
+      Tests come from <a routerLink="/create-question-paper" class="link-bold">Create Question Paper</a>, so the questions, marks and answer key are already set. Only students of the selected class and section are listed.
+    </span>
+  </div>
+
+  <!-- ─── Sub-tabs Toggle Bar (User Upload / Bulk Upload) ─── -->
+  <div class="upload-tabs-container">
+    <button
+      type="button"
+      class="upload-tab-btn"
+      [class.active]="uploadTab === 'user'"
+      (click)="setUploadTab('user')"
+    >
+      User Upload
+    </button>
+    <button
+      type="button"
+      class="upload-tab-btn"
+      [class.active]="uploadTab === 'bulk'"
+      (click)="setUploadTab('bulk')"
+    >
+      Bulk Upload
+    </button>
+  </div>
+
+  <!-- ─── Image 2 KPI Header & Status Cards Container ─── -->
+  <div class="test-kpi-container">
+    <!-- Header Row -->
+    <div class="test-kpi-header">
+      <div class="header-left">
+        <h2 class="test-title">{{ testDetails.title }}</h2>
+        <div class="badge-group">
+          <span class="detail-badge">{{ testDetails.class }}</span>
+          <span class="detail-badge">{{ testDetails.section }}</span>
+          <span class="detail-badge">{{ testDetails.subject }}</span>
+          <span class="detail-badge">{{ testDetails.totalMarks }}</span>
+          <span class="detail-badge">{{ testDetails.totalQuestions }}</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button type="button" class="btn-refresh-counts" (click)="refreshData()">
+          <mat-icon>refresh</mat-icon>
+          <span>Refresh Counts</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 4 Status KPI Cards Grid -->
+    <div class="kpi-cards-grid">
+      <!-- Card 1: Students -->
+      <div class="kpi-card kpi-students">
+        <div class="kpi-content">
+          <div class="kpi-val">{{ testDetails.totalStudents }}</div>
+          <div class="kpi-lbl">Students</div>
+        </div>
+      </div>
+
+      <!-- Card 2: Evaluated -->
+      <div class="kpi-card kpi-evaluated">
+        <div class="kpi-content">
+          <div class="kpi-val font-styled">{{ testDetails.evaluated }}</div>
+          <div class="kpi-lbl">Evaluated</div>
+        </div>
+      </div>
+
+      <!-- Card 3: Need to Check -->
+      <div class="kpi-card kpi-need-check">
+        <div class="kpi-content">
+          <div class="kpi-val">{{ testDetails.needToCheck }}</div>
+          <div class="kpi-lbl">Need to Check</div>
+        </div>
+      </div>
+
+      <!-- Card 4: Not Evaluated -->
+      <div class="kpi-card kpi-not-evaluated">
+        <div class="kpi-content">
+          <div class="kpi-val">{{ testDetails.notEvaluated }}</div>
+          <div class="kpi-lbl">Not Evaluated</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Segmented Multi-Color Progress Bar -->
+    <div class="progress-bar-container">
+      <div
+        class="progress-seg seg-evaluated"
+        [style.width.%]="(testDetails.evaluated / testDetails.totalStudents) * 100"
+        title="Evaluated: {{ testDetails.evaluated }}"
+      ></div>
+      <div
+        class="progress-seg seg-ai"
+        [style.width.%]="(testDetails.aiEvaluated / testDetails.totalStudents) * 100"
+        title="AI Evaluated: {{ testDetails.aiEvaluated }}"
+      ></div>
+      <div
+        class="progress-seg seg-need-check"
+        [style.width.%]="(testDetails.needToCheck / testDetails.totalStudents) * 100"
+        title="Need to Check: {{ testDetails.needToCheck }}"
+      ></div>
+      <div
+        class="progress-seg seg-not-evaluated"
+        [style.width.%]="(testDetails.notEvaluated / testDetails.totalStudents) * 100"
+        title="Not Evaluated: {{ testDetails.notEvaluated }}"
+      ></div>
+    </div>
+  </div>
+
+  <!-- ─── Student Search & Action Toolbar ─── -->
+  <div class="student-toolbar">
+    <div class="search-box">
+      <mat-icon class="search-icon">search</mat-icon>
+      <input
+        type="text"
+        placeholder="Search student"
+        [(ngModel)]="searchQuery"
+        (input)="filterStudents()"
+      />
+    </div>
+
+    <div class="toolbar-right-actions">
+      <div class="select-wrapper status-select">
+        <select [(ngModel)]="selectedStatus" (change)="filterStudents()">
+          <option *ngFor="let st of statusList" [value]="st">{{ st }}</option>
+        </select>
+        <mat-icon class="dropdown-icon">expand_more</mat-icon>
+      </div>
+
+      <button type="button" class="btn-refresh-solid" (click)="refreshData()">
+        <mat-icon>refresh</mat-icon>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── Student Evaluation Table ─── -->
+  <div class="table-card">
+    <div class="table-responsive">
+      <table class="evaluation-table">
+        <thead>
+          <tr>
+            <th>S.NO</th>
+            <th>STUDENT NAME</th>
+            <th>ANSWER SHEET</th>
+            <th>EVALUATION STATUS</th>
+            <th>MARKS</th>
+            <th class="text-center">SCAN</th>
+            <th class="text-center">ATTACH</th>
+            <th class="text-center">ACTION</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of filteredStudents">
+            <td class="col-sno">{{ s.sno }}</td>
+            <td class="col-student">
+              <div class="student-name">{{ s.name }}</div>
+              <div class="student-roll">{{ s.rollNo }}</div>
+            </td>
+            <td class="col-pages">
+              <div>{{ s.pagesInfo }}</div>
+              <div *ngIf="s.missingPagesWarning" class="warning-subtext">
+                {{ s.missingPagesWarning }}
+              </div>
+            </td>
+            <td class="col-status">
+              <span
+                class="status-pill"
+                [ngClass]="{
+                  'pill-completed': s.status === 'Completed',
+                  'pill-need-check': s.status === 'Need to Check',
+                  'pill-ai-evaluated': s.status === 'AI Evaluated',
+                  'pill-not-evaluated': s.status === 'Not Evaluated'
+                }"
+              >
+                <span class="status-dot">●</span> {{ s.status }}
+              </span>
+            </td>
+            <td class="col-marks">
+              <span
+                [ngClass]="{
+                  'marks-bold': s.marks !== 'Not marked' && !s.marks.includes('suggests'),
+                  'marks-ai': s.marks.includes('suggests'),
+                  'marks-muted': s.marks === 'Not marked'
+                }"
+              >
+                {{ s.marks }}
+              </span>
+            </td>
+            <td class="col-icon text-center">
+              <button type="button" class="icon-btn-circle" title="Scan Sheet">
+                <mat-icon>photo_camera</mat-icon>
+              </button>
+            </td>
+            <td class="col-icon text-center">
+              <button type="button" class="icon-btn-circle" title="Attach Document">
+                <mat-icon>attach_file</mat-icon>
+              </button>
+            </td>
+            <td class="col-action text-center">
+              <button
+                type="button"
+                [ngClass]="s.actionClass"
+              >
+                {{ s.actionText }}
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="filteredStudents.length === 0">
+            <td colspan="8" class="no-data-cell">
+              No student records found matching your filters.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
