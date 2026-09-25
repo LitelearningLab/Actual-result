@@ -19,7 +19,7 @@
                         <h2>Test Details</h2>
                         <p>Create the basic details of the written test.</p>
                     </div>
-                    <span class="draft-badge">Draft</span>
+                    <span class="draft-badge" [class.published-badge]="isPublished">{{ isPublished ? 'Published' : 'Draft' }}</span>
                 </div>
 
                 <div class="qp-card-body">
@@ -333,7 +333,7 @@
 
                 <div class="assignment-user-list" [class.assignment-user-list--disabled]="!institute">
                     <div class="assignment-empty assignment-filter-placeholder"
-                        *ngIf="institute && !hasAppliedUserFilters">
+                        *ngIf="institute && !hasAppliedUserFilters && paperUsers.length === 0">
                         <mat-icon>filter_alt</mat-icon>
                         <h3>Apply filter to select the users</h3>
                         <p>Filter users by country, city, {{ terminology.deptLabel.toLowerCase() }},
@@ -345,7 +345,7 @@
                         </button>
                     </div>
 
-                    <ng-container *ngIf="institute && hasAppliedUserFilters">
+                    <ng-container *ngIf="institute && (hasAppliedUserFilters || paperUsers.length > 0)">
                         <div class="assignment-user-list-header">
                             <mat-checkbox [checked]="areAllVisiblePaperUsersSelected"
                                 [indeterminate]="areSomeVisiblePaperUsersSelected"
@@ -591,9 +591,13 @@
                         <mat-icon>menu_book</mat-icon>
                         <span>Preview Answer Key</span>
                     </button>
-                    <button class="btn-sidebar-save" type="button" (click)="save()">
+                    <button class="btn-sidebar-publish" type="button" (click)="save(true)" *ngIf="!isPublished">
+                        <mat-icon>publish</mat-icon>
+                        <span>Publish Question Paper</span>
+                    </button>
+                    <button class="btn-sidebar-save" type="button" (click)="save(false)">
                         <mat-icon>save</mat-icon>
-                        <span>{{ editMode ? 'Update' : 'Save Draft' }}</span>
+                        <span>{{ editMode ? (isPublished ? 'Update Published Paper' : 'Update Draft') : 'Save Draft' }}</span>
                     </button>
 
                     <!-- Download as PDF -->
@@ -624,41 +628,88 @@
                 <button class="preview-tab active" type="button">
                     <mat-icon>description</mat-icon> Question Paper
                 </button>
-                <button class="preview-tab" type="button" (click)="showPreviewPaper = false; showPreviewGuide = true">
+                <button class="preview-tab" type="button" (click)="switchToGuidePreview()">
                     <mat-icon>menu_book</mat-icon> Answer Key
                 </button>
             </div>
-            <button class="btn-download-top" type="button" (click)="downloadQuestionPaper()">
-                <mat-icon>download</mat-icon> Download Question Paper
-            </button>
+            <div class="preview-top-actions">
+                <span class="preview-page-count-badge" *ngIf="paginatedPaperPages && paginatedPaperPages.length">
+                    {{ paginatedPaperPages.length }} Page{{ paginatedPaperPages.length > 1 ? 's' : '' }}
+                </span>
+                <button class="btn-download-top" type="button" (click)="downloadQuestionPaper()">
+                    <mat-icon>download</mat-icon> Download Question Paper
+                </button>
+            </div>
         </div>
         <div class="preview-warning" *ngIf="totalMarksOverride && totalPaperMarks !== totalMarksOverride">
             <mat-icon>warning_amber</mat-icon>
             <span>This paper adds up to {{ totalPaperMarks }} of {{ totalMarksOverride }} marks. Update the information to include the correct total on the question paper PDF.</span>
         </div>
         <div class="preview-paper-page">
-            <div class="paper-doc">
-                <div class="paper-school-name">{{ instituteNameDisplay | uppercase }}</div>
-                <div class="paper-meta-line">{{ getSelectedDepartmentsDisplay() | uppercase }} · {{ getSelectedTeamsDisplay() | uppercase }} · {{ subject_name | uppercase }}</div>
-                <div class="paper-test-type">{{ examTypeLabel | uppercase }} – {{ title }}</div>
-                <div class="paper-header-row">
-                    <span>Time: {{ durationLabel || (durationMinutes + ' mins') }}</span>
-                    <span>Maximum Marks: {{ totalMarksOverride || totalPaperMarks }}</span>
-                </div>
-                <hr class="paper-divider">
-                <div *ngFor="let sec of sections; let secIdx = index" class="paper-section-block">
-                    <div class="paper-section-heading"><u>{{ sec.name }}</u></div>
-                    <div class="paper-section-instructions">{{ getSectionSubHeading(sec) }}</div>
-                    <div class="paper-question-item" *ngFor="let q of sec.questions; let qIdx = index">
-                        <div class="paper-q-header">
-                            <span class="paper-q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}.</span>
-                            <span class="paper-q-text">{{ q.question }}</span>
-                            <span class="paper-q-marks">[{{ q.marks || 1 }}]</span>
-                        </div>
-                        <div class="paper-q-options-grid" *ngIf="q.options && q.options.length > 0">
-                            <div class="paper-q-option" *ngFor="let opt of q.options; let optIdx = index">
-                                {{ formatOptionText(opt, optIdx) }}
+            <div class="document-pages-wrapper">
+                <div class="word-page" *ngFor="let page of paginatedPaperPages">
+                    <div class="word-page-inner">
+                        <!-- Full Header on Page 1 -->
+                        <div class="page-main-header" *ngIf="page.isFirstPage">
+                            <div class="paper-school-name">{{ instituteNameDisplay | uppercase }}</div>
+                            <div class="paper-meta-line" *ngIf="getSelectedDepartmentsDisplay() || getSelectedTeamsDisplay() || subject_name">
+                                {{ getSelectedDepartmentsDisplay() | uppercase }} · {{ getSelectedTeamsDisplay() | uppercase }} · {{ subject_name | uppercase }}
                             </div>
+                            <div class="paper-test-type">{{ examTypeLabel ? (examTypeLabel | uppercase) + ' – ' : '' }}{{ title }}</div>
+                            <div class="paper-header-row">
+                                <span>Time: {{ durationLabel || (durationMinutes + ' mins') }}</span>
+                                <span>Maximum Marks: {{ totalMarksOverride || totalPaperMarks }}</span>
+                            </div>
+                            <hr class="paper-divider">
+                        </div>
+
+                        <!-- Running Header on Page 2+ -->
+                        <div class="page-running-header" *ngIf="!page.isFirstPage">
+                            <span class="running-header-left">{{ examTypeLabel ? examTypeLabel + ' – ' : '' }}{{ title }} · {{ subject_name }}</span>
+                            <span class="running-header-right">{{ instituteNameDisplay }}</span>
+                        </div>
+
+                        <!-- Content Flow -->
+                        <div class="page-content-flow">
+                            <ng-container *ngFor="let item of page.items">
+                                <!-- Section Header -->
+                                <div class="paper-section-heading-wrap" *ngIf="item.type === 'section-header'">
+                                    <div class="paper-section-spacer"></div>
+                                    <div class="paper-section-heading">
+                                        <u>{{ item.sectionName }}</u>
+                                    </div>
+                                    <div class="paper-section-marks-calc">
+                                        {{ item.sectionCalculation || '' }}
+                                    </div>
+                                </div>
+                                <div class="paper-section-instructions" *ngIf="item.type === 'section-header' && item.sectionSubHeading">
+                                    {{ item.sectionSubHeading }}
+                                </div>
+
+                                <!-- Question Item -->
+                                <div class="paper-question-item" *ngIf="item.type === 'question' && item.question">
+                                    <div class="paper-q-header">
+                                        <span class="paper-q-num">{{ item.globalQuestionIndex }}.</span>
+                                        <span class="paper-q-text">{{ item.question.question }}</span>
+                                        <span class="paper-q-marks">[{{ item.question.marks || 1 }}]</span>
+                                    </div>
+                                    <div class="paper-q-options-grid" *ngIf="item.question.options && item.question.options.length > 0 && !isDescriptiveQuestion(item.question, item.sectionIndex)">
+                                        <div class="paper-q-option" *ngFor="let opt of item.question.options; let optIdx = index">
+                                            {{ formatOptionText(opt, optIdx) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </ng-container>
+
+                            <p class="paper-no-questions" *ngIf="!page.items || page.items.length === 0">
+                                No questions added to this test yet.
+                            </p>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="word-page-footer">
+                            <span class="page-footer-left">{{ title || 'Question Paper' }}</span>
+                            <span class="page-footer-right">Page {{ page.pageNumber }} of {{ page.totalPages }}</span>
                         </div>
                     </div>
                 </div>
@@ -674,50 +725,98 @@
                 <span>Back to Editing</span>
             </button>
             <div class="preview-tabs">
-                <button class="preview-tab" type="button" (click)="showPreviewGuide = false; showPreviewPaper = true">
+                <button class="preview-tab" type="button" (click)="switchToPaperPreview()">
                     <mat-icon>description</mat-icon> Question Paper
                 </button>
                 <button class="preview-tab active" type="button">
                     <mat-icon>menu_book</mat-icon> Answer Key
                 </button>
             </div>
-            <button class="btn-download-top" type="button" (click)="downloadEvaluationGuide()">
-                <mat-icon>download</mat-icon> Download Answer Key
-            </button>
+            <div class="preview-top-actions">
+                <span class="preview-page-count-badge" *ngIf="paginatedGuidePages && paginatedGuidePages.length">
+                    {{ paginatedGuidePages.length }} Page{{ paginatedGuidePages.length > 1 ? 's' : '' }}
+                </span>
+                <button class="btn-download-top" type="button" (click)="downloadEvaluationGuide()">
+                    <mat-icon>download</mat-icon> Download Answer Key
+                </button>
+            </div>
         </div>
         <div class="preview-warning" *ngIf="totalMarksOverride && totalPaperMarks !== totalMarksOverride">
             <mat-icon>warning_amber</mat-icon>
             <span>This paper adds up to {{ totalPaperMarks }} of {{ totalMarksOverride }} marks. Update the information to include the correct total on the answer key PDF.</span>
         </div>
         <div class="preview-paper-page">
-            <div class="paper-doc">
-                <div class="paper-school-name">{{ instituteNameDisplay | uppercase }}</div>
-                <div class="paper-meta-line">{{ getSelectedDepartmentsDisplay() | uppercase }} · {{ getSelectedTeamsDisplay() | uppercase }} · {{ subject_name | uppercase }}</div>
-                <div class="paper-test-type">{{ examTypeLabel ? (examTypeLabel | uppercase) + ' – ' : '' }}{{ title }} (ANSWER KEY)</div>
-                <div class="paper-header-row">
-                    <span>Time: {{ durationLabel || (durationMinutes + ' mins') }}</span>
-                    <span>Maximum Marks: {{ totalMarksOverride || totalPaperMarks }}</span>
-                </div>
-                <hr class="paper-divider">
-                <div *ngFor="let sec of sections; let secIdx = index" class="paper-section-block">
-                    <div class="paper-section-heading"><u>{{ sec.name }}</u></div>
-                    <div class="paper-section-instructions">{{ getSectionSubHeading(sec) }}</div>
-                    <div class="paper-question-item" *ngFor="let q of sec.questions; let qIdx = index">
-                        <div class="paper-q-header">
-                            <span class="paper-q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}.</span>
-                            <span class="paper-q-text">{{ q.question }}</span>
-                            <span class="paper-q-marks">[{{ q.marks || 1 }}]</span>
+            <div class="document-pages-wrapper">
+                <div class="word-page" *ngFor="let page of paginatedGuidePages">
+                    <div class="word-page-inner">
+                        <!-- Full Header on Page 1 -->
+                        <div class="page-main-header" *ngIf="page.isFirstPage">
+                            <div class="paper-school-name">{{ instituteNameDisplay | uppercase }}</div>
+                            <div class="paper-meta-line" *ngIf="getSelectedDepartmentsDisplay() || getSelectedTeamsDisplay() || subject_name">
+                                {{ getSelectedDepartmentsDisplay() | uppercase }} · {{ getSelectedTeamsDisplay() | uppercase }} · {{ subject_name | uppercase }}
+                            </div>
+                            <div class="paper-test-type">{{ examTypeLabel ? (examTypeLabel | uppercase) + ' – ' : '' }}{{ title }} (ANSWER KEY)</div>
+                            <div class="paper-header-row">
+                                <span>Time: {{ durationLabel || (durationMinutes + ' mins') }}</span>
+                                <span>Maximum Marks: {{ totalMarksOverride || totalPaperMarks }}</span>
+                            </div>
+                            <hr class="paper-divider">
                         </div>
-                        <div class="paper-q-answer">
-                            <span class="ans-badge">Ans:</span>
-                            <span class="ans-value" *ngIf="getCorrectAnswerText(q)">{{ getCorrectAnswerText(q) }}</span>
-                            <em class="no-answer" *ngIf="!getCorrectAnswerText(q)">Answer not set yet</em>
+
+                        <!-- Running Header on Page 2+ -->
+                        <div class="page-running-header" *ngIf="!page.isFirstPage">
+                            <span class="running-header-left">{{ examTypeLabel ? examTypeLabel + ' – ' : '' }}{{ title }} (ANSWER KEY)</span>
+                            <span class="running-header-right">{{ instituteNameDisplay }}</span>
+                        </div>
+
+                        <!-- Content Flow -->
+                        <div class="page-content-flow">
+                            <ng-container *ngFor="let item of page.items">
+                                <!-- Section Header -->
+                                <div class="paper-section-heading-wrap" *ngIf="item.type === 'section-header'">
+                                    <div class="paper-section-spacer"></div>
+                                    <div class="paper-section-heading">
+                                        <u>{{ item.sectionName }}</u>
+                                    </div>
+                                    <div class="paper-section-marks-calc">
+                                        {{ item.sectionCalculation || '' }}
+                                    </div>
+                                </div>
+                                <div class="paper-section-instructions" *ngIf="item.type === 'section-header' && item.sectionSubHeading">
+                                    {{ item.sectionSubHeading }}
+                                </div>
+
+                                <!-- Question Item with Answer -->
+                                <div class="paper-question-item" *ngIf="item.type === 'question' && item.question">
+                                    <div class="paper-q-header">
+                                        <span class="paper-q-num">{{ item.globalQuestionIndex }}.</span>
+                                        <span class="paper-q-text">{{ item.question.question }}</span>
+                                        <span class="paper-q-marks">[{{ item.question.marks || 1 }}]</span>
+                                    </div>
+                                    <div class="paper-q-answer">
+                                        <span class="ans-badge">Ans:</span>
+                                        <span class="ans-value" *ngIf="getCorrectAnswerText(item.question)">{{ getCorrectAnswerText(item.question) }}</span>
+                                        <em class="no-answer" *ngIf="!getCorrectAnswerText(item.question)">Answer not set yet</em>
+                                    </div>
+                                </div>
+                            </ng-container>
+
+                            <p class="paper-no-questions" *ngIf="!page.items || page.items.length === 0">
+                                No questions added to this test yet.
+                            </p>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="word-page-footer">
+                            <span class="page-footer-left">{{ title || 'Answer Key' }}</span>
+                            <span class="page-footer-right">Page {{ page.pageNumber }} of {{ page.totalPages }}</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
 
     <!-- ═══ Modal: Add / Edit Section ═══ -->
     <div class="modal-backdrop" *ngIf="showAddSectionModal" (click)="closeAddSectionModal()">

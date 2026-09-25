@@ -31,7 +31,7 @@ from others.exam_review import (
 import sys
 from datetime import datetime, timezone
 from db.models import Institute, InstituteCampus, User
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, String, text
 from sqlalchemy.orm import load_only
 import random
 from flask import g
@@ -257,6 +257,14 @@ def ensure_exam_columns(session):
                 BEGIN
                     ALTER TABLE ExamSections ADD target_count INT NULL;
                 END;
+                IF COL_LENGTH('ExamSections', 'sub_heading') IS NULL
+                BEGIN
+                    ALTER TABLE ExamSections ADD sub_heading NVARCHAR(500) NULL;
+                END;
+                IF COL_LENGTH('ExamSections', 'instructions') IS NULL
+                BEGIN
+                    ALTER TABLE ExamSections ADD instructions NVARCHAR(MAX) NULL;
+                END;
             """))
             session.commit()
         except Exception as section_schema_err:
@@ -347,6 +355,7 @@ def add_exam(request):
             if subj_obj:
                 subject_name = subj_obj.subject_name
 
+        published_val = 1 if data.get("published") in (True, 1, "1", "true") else 0
         add_exam = Exam(
             title=title,
             description=description,
@@ -362,6 +371,7 @@ def add_exam(request):
             subject_name=subject_name,
             test_mode=test_mode,
             total_marks=total_marks,
+            published=published_val,
         )
         session.add(add_exam)
         session.flush()
@@ -393,19 +403,27 @@ def add_exam(request):
             valid_users = []
             if requested_user_ids:
                 valid_users = session.query(User).filter(
-                    User.user_id.in_(requested_user_ids),
-                    User.institute_id == institute_id,
-                    User.user_role == "user",
+                    func.cast(User.user_id, String).in_(requested_user_ids),
+                    func.cast(User.institute_id, String) == str(institute_id),
+                    func.lower(User.user_role).in_(["user", "candidate", "student"]),
                     or_(User.active_status == 1, User.active_status == None),
                     or_(User.is_deleted == 0, User.is_deleted == None),
                 ).all()
-            valid_ids = {str(user.user_id) for user in valid_users}
-            if len(valid_ids) != len(requested_user_ids):
-                session.rollback()
-                return {
-                    "statusMessage": "One or more selected users are invalid or outside this institute.",
-                    "status": False,
-                }, 400
+            valid_ids = {str(user.user_id).lower() for user in valid_users}
+            requested_ids_lower = {uid.lower() for uid in requested_user_ids}
+            if len(valid_ids) != len(requested_ids_lower):
+                fallback_users = session.query(User).filter(
+                    func.cast(User.user_id, String).in_(requested_user_ids),
+                    func.cast(User.institute_id, String) == str(institute_id),
+                    or_(User.is_deleted == 0, User.is_deleted == None),
+                ).all()
+                valid_ids = {str(user.user_id).lower() for user in fallback_users}
+                if len(valid_ids) != len(requested_ids_lower):
+                    session.rollback()
+                    return {
+                        "statusMessage": "One or more selected users are invalid or outside this institute.",
+                        "status": False,
+                    }, 400
             for user_id in requested_user_ids:
                 session.add(QuestionPaperUserAssignment(
                     exam_id=exam_id,
@@ -422,6 +440,8 @@ def add_exam(request):
                 new_sec = ExamSection(
                     exam_id=exam_id,
                     name=sec_name,
+                    sub_heading=sec.get("sub_heading") or sec.get("instructions") or "",
+                    instructions=sec.get("instructions") or sec.get("sub_heading") or "",
                     question_type=sec_type,
                     target_count=sec.get("target_count") or sec.get("targetCount"),
                     order_number=sec.get("order_number") or sec_idx,
@@ -572,6 +592,8 @@ def update_exam(request):
             exam.test_mode = data.get("test_mode")
         if "total_marks" in data:
             exam.total_marks = data.get("total_marks")
+        if "published" in data:
+            exam.published = 1 if data.get("published") in (True, 1, "1", "true") else 0
 
         # handle optional start/end times
         start_time_str = data.get("start_time", None)
@@ -641,19 +663,27 @@ def update_exam(request):
             valid_users = []
             if requested_user_ids:
                 valid_users = session.query(User).filter(
-                    User.user_id.in_(requested_user_ids),
-                    User.institute_id == exam.institute_id,
-                    User.user_role == "user",
+                    func.cast(User.user_id, String).in_(requested_user_ids),
+                    func.cast(User.institute_id, String) == str(exam.institute_id),
+                    func.lower(User.user_role).in_(["user", "candidate", "student"]),
                     or_(User.active_status == 1, User.active_status == None),
                     or_(User.is_deleted == 0, User.is_deleted == None),
                 ).all()
-            valid_ids = {str(user.user_id) for user in valid_users}
-            if len(valid_ids) != len(requested_user_ids):
-                session.rollback()
-                return {
-                    "statusMessage": "One or more selected users are invalid or outside this institute.",
-                    "status": False,
-                }, 400
+            valid_ids = {str(user.user_id).lower() for user in valid_users}
+            requested_ids_lower = {uid.lower() for uid in requested_user_ids}
+            if len(valid_ids) != len(requested_ids_lower):
+                fallback_users = session.query(User).filter(
+                    func.cast(User.user_id, String).in_(requested_user_ids),
+                    func.cast(User.institute_id, String) == str(exam.institute_id),
+                    or_(User.is_deleted == 0, User.is_deleted == None),
+                ).all()
+                valid_ids = {str(user.user_id).lower() for user in fallback_users}
+                if len(valid_ids) != len(requested_ids_lower):
+                    session.rollback()
+                    return {
+                        "statusMessage": "One or more selected users are invalid or outside this institute.",
+                        "status": False,
+                    }, 400
             for user_id in requested_user_ids:
                 session.add(QuestionPaperUserAssignment(
                     exam_id=exam_id,
@@ -670,6 +700,8 @@ def update_exam(request):
                 new_sec = ExamSection(
                     exam_id=exam_id,
                     name=sec_name,
+                    sub_heading=sec.get("sub_heading") or sec.get("instructions") or "",
+                    instructions=sec.get("instructions") or sec.get("sub_heading") or "",
                     question_type=sec_type,
                     target_count=sec.get("target_count") or sec.get("targetCount"),
                     order_number=sec.get("order_number") or sec_idx,
@@ -794,6 +826,47 @@ def delete_exam(exam_id, deleted_by):
         return {"statusMessage": f"Error deleting exam: {str(e)}", "status": False}, 500
 
 
+def publish_exam(request):
+    data = request.get_json(silent=True) or {}
+    exam_id = data.get("exam_id") or data.get("id")
+    if not exam_id:
+        return {"statusMessage": "Missing exam_id", "status": False}, 400
+
+    published = 1 if data.get("published", True) in (True, 1, "1", "true") else 0
+
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    try:
+        exam = session.query(Exam).filter(Exam.exam_id == exam_id).first()
+        if not exam:
+            return {"statusMessage": "Question paper not found", "status": False}, 404
+
+        exam.published = published
+        exam.updated_date = datetime.utcnow()
+        if g and hasattr(g, "user_id") and g.user_id:
+            exam.updated_by = g.user_id
+
+        session.commit()
+        status_msg = (
+            "Question paper published successfully"
+            if published == 1
+            else "Question paper moved to draft"
+        )
+        return {
+            "statusMessage": status_msg,
+            "status": True,
+            "published": published,
+            "exam_id": str(exam_id),
+        }, 200
+    except Exception as e:
+        session.rollback()
+        print(f"Error publishing exam {exam_id}: {e}", flush=True)
+        return {"statusMessage": f"Error publishing question paper: {str(e)}", "status": False}, 500
+
+
 def get_exam_details(request):
     db = SQLiteDB()
     session = db.connect()
@@ -851,7 +924,8 @@ def get_exam_details(request):
                 filter.append(Exam.created_by == user.user_id)
             else:
                 filter.append(Exam.created_by == created_by)
-        if args.get("exam_id", None):
+        has_specific_exam_id = bool(args.get("exam_id", None))
+        if has_specific_exam_id:
             filter.append(Exam.exam_id == args["exam_id"])
 
         test_mode_arg = args.get("test_mode", None) or args.get("exam_type_mode", None)
@@ -866,7 +940,7 @@ def get_exam_details(request):
                 filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
             elif tm_val == 'all':
                 pass
-        else:
+        elif not has_specific_exam_id:
             filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
 
         dept_arg = args.get("departments", None) or args.get("department", None)
@@ -1254,7 +1328,7 @@ def get_exam_details(request):
                 try:
                     assignment_rows = (
                         session.query(QuestionPaperUserAssignment, User)
-                        .join(User, User.user_id == QuestionPaperUserAssignment.user_id)
+                        .join(User, func.cast(User.user_id, String) == func.cast(QuestionPaperUserAssignment.user_id, String))
                         .filter(QuestionPaperUserAssignment.exam_id == exam.exam_id)
                         .order_by(User.full_name.asc())
                         .all()
@@ -1264,6 +1338,9 @@ def get_exam_details(request):
                             "user_id": str(user.user_id),
                             "full_name": user.full_name,
                             "email": user.email,
+                            "user_name": getattr(user, "user_name", "") or "",
+                            "department_id": getattr(user, "department_id", "") or "",
+                            "team_id": getattr(user, "team_id", "") or "",
                         }
                         for _, user in assignment_rows
                     ]
@@ -1279,18 +1356,28 @@ def get_exam_details(request):
                     .all()
                 )
                 for sec in sec_rows:
+                    sec_id_str = str(sec.section_id)
                     eq_mappings = (
                         session.query(ExamQuestionMapping)
                         .filter(
                             ExamQuestionMapping.exam_id == exam.exam_id,
-                            ExamQuestionMapping.section_id == sec.section_id,
+                            or_(
+                                ExamQuestionMapping.section_id == sec_id_str,
+                                ExamQuestionMapping.section_id == sec.section_id,
+                                func.cast(ExamQuestionMapping.section_id, String) == sec_id_str,
+                            )
                         )
                         .order_by(ExamQuestionMapping.order_number.asc())
                         .all()
                     )
                     sec_questions = []
                     for eqm in eq_mappings:
-                        q_obj = session.query(Question).filter_by(question_id=eqm.question_id).first()
+                        q_obj = session.query(Question).filter(
+                            or_(
+                                Question.question_id == eqm.question_id,
+                                func.cast(Question.question_id, String) == str(eqm.question_id),
+                            )
+                        ).first()
                         if not q_obj:
                             continue
                         cat_name = ""
@@ -1299,8 +1386,8 @@ def get_exam_details(request):
                             if cat_obj:
                                 cat_name = cat_obj.name
                         sec_questions.append({
-                            "question_id": q_obj.question_id,
-                            "id": q_obj.question_id,
+                            "question_id": str(q_obj.question_id),
+                            "id": str(q_obj.question_id),
                             "question_text": q_obj.question_text,
                             "question": q_obj.question_text,
                             "question_type": q_obj.question_type,
@@ -1310,10 +1397,12 @@ def get_exam_details(request):
                             "order_number": eqm.order_number,
                         })
                     sections_data.append({
-                        "section_id": sec.section_id,
-                        "id": sec.section_id,
+                        "section_id": str(sec.section_id),
+                        "id": str(sec.section_id),
                         "name": sec.name,
                         "question_type": sec.question_type,
+                        "sub_heading": getattr(sec, "sub_heading", "") or getattr(sec, "instructions", "") or "",
+                        "instructions": getattr(sec, "instructions", "") or getattr(sec, "sub_heading", "") or "",
                         "target_count": getattr(sec, "target_count", None),
                         "order_number": sec.order_number,
                         "questions": sec_questions,

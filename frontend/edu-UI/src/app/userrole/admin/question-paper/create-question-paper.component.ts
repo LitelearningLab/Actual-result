@@ -66,6 +66,24 @@ export interface PaperSection {
   targetCount?: number | null;
 }
 
+export interface PaperPageItem {
+  type: 'section-header' | 'question';
+  sectionIndex: number;
+  sectionName?: string;
+  sectionSubHeading?: string;
+  sectionCalculation?: string;
+  questionIndex?: number;
+  globalQuestionIndex?: number;
+  question?: PaperQuestion;
+}
+
+export interface PaperPage {
+  pageNumber: number;
+  totalPages: number;
+  isFirstPage: boolean;
+  items: PaperPageItem[];
+}
+
 @Component({
   selector: 'app-create-question-paper',
   standalone: true,
@@ -220,6 +238,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   // ── Preview overlays ──
   showPreviewPaper = false;
   showPreviewGuide = false;
+  paginatedPaperPages: PaperPage[] = [];
+  paginatedGuidePages: PaperPage[] = [];
 
   get terminology(): InstituteTerminology {
     let ind = '';
@@ -672,6 +692,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   private _subs: Subscription | null = null;
   editMode: boolean = false;
   editExamId: string | null = null;
+  isPublished: boolean = false;
   private filtersOverlayRef: OverlayRef | null = null;
   private categoryLoadSeq = 0;
   private questionLoadSeq = 0;
@@ -888,6 +909,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       }
       this.editMode = true;
       this.editExamId = e.exam_id || e.test_id || e.id || null;
+      this.isPublished = !!(
+        e.published ||
+        e.is_published ||
+        e.status === 'published' ||
+        e.status === 'active'
+      );
       this.title = e.title || e.name || '';
       this.description = e.description || e.desc || '';
       const instRaw = e.institute;
@@ -904,6 +931,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         );
         if (matchedInst) this.institute = String(matchedInst.id);
       }
+      this.trackedInstituteForQuestionBanks = this.institute;
+      this.hasTrackedInstituteForQuestionBanks = true;
 
       this.durationMinutes = e.duration_mins || e.duration || null;
       this.passMark = e.pass_mark ?? e.passMark ?? null;
@@ -945,10 +974,35 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           id: String(user.user_id || user.id || ''),
           name: user.full_name || user.name || user.user_name || user.email || 'User',
           email: user.email || '',
+          department:
+            user.department_name ||
+            (user.department && (user.department.name || user.department.department_name)) ||
+            '',
+          team: user.team_name || (user.team && (user.team.name || user.team.team_name)) || '',
+          campus:
+            (user.campus && (user.campus.campus_name || user.campus.name)) ||
+            user.campus_name ||
+            '',
           departmentId: String(user.department_id || user.department?.department_id || ''),
           teamId: String(user.team_id || user.team?.team_id || ''),
         }))
         .filter((user: any) => !!user.id);
+
+      if (this.selectedPaperUsers.length > 0) {
+        this.userFiltersApplied = true;
+        if (this.paperUsers.length === 0) {
+          this.paperUsers = this.selectedPaperUsers.map((uid) => ({
+            id: uid,
+            name: `User (${uid.slice(0, 8)}...)`,
+            email: '',
+            department: '',
+            team: '',
+            campus: '',
+            departmentId: '',
+            teamId: '',
+          }));
+        }
+      }
 
       // normalize categories if present in the payload
       const srcCats = Array.isArray(e.categories)
@@ -2012,7 +2066,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.loadCampusList(this.institute);
       // Removed this.loadUserLocations() so users are never fetched on page load
       this.categories = [];
-      this.paperUsers = [];
+      if (!this.editMode || instituteChanged) {
+        this.paperUsers = [];
+      }
     } else {
       this.departments = [];
       this.teams = [];
@@ -2149,6 +2205,30 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     return unique.length === 1 ? unique[0] : unique[0] || 1;
   }
 
+  getSectionMarksCalculation(sec: PaperSection): string {
+    if (!sec) return '';
+    const questions = sec.questions || [];
+    const count = questions.length;
+    if (count === 0) {
+      const target = (sec as any).targetCount;
+      if (target && target > 0) {
+        const marks = this.getSectionMarksPerQ(sec) || 1;
+        return `${target} × ${marks} = ${target * marks}`;
+      }
+      return '';
+    }
+    const marksList = questions.map((q) => Number(q.marks) || 0).filter((m) => m > 0);
+    const uniqueMarks = [...new Set(marksList)];
+    const marksPerQ = uniqueMarks.length === 1 ? uniqueMarks[0] : (this.getSectionMarksPerQ(sec) || 1);
+    const totalMarks = this.getSectionMarks(sec);
+
+    if (uniqueMarks.length <= 1) {
+      return `${count} × ${marksPerQ} = ${totalMarks}`;
+    } else {
+      return `${count} Qs = ${totalMarks} Marks`;
+    }
+  }
+
   getOptionLabel(index: number): string {
     const letters = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)'];
     return letters[index] || `(${String.fromCharCode(97 + index)})`;
@@ -2236,6 +2316,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         .subscribe({
           next: (res) => {
             const arr = Array.isArray(res) ? res : res?.data || [];
+            let updated = false;
             for (const raw of arr) {
               const rawId = String(raw.id || raw.question_id || raw._id);
               for (const sec of this.sections) {
@@ -2243,8 +2324,17 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
                   if (String(q.id) === rawId && (!q.options || !q.options.length)) {
                     q.options = raw.options || raw.choices || [];
                     if (!q.answer) q.answer = raw.answer || raw.answerText || '';
+                    updated = true;
                   }
                 }
+              }
+            }
+            if (updated) {
+              if (this.showPreviewPaper) {
+                this.paginatedPaperPages = this.buildPaginatedPages(false);
+              }
+              if (this.showPreviewGuide) {
+                this.paginatedGuidePages = this.buildPaginatedPages(true);
               }
             }
           },
@@ -2253,13 +2343,199 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     });
   }
 
+  isDescriptiveQuestion(q: any, secIdx?: number): boolean {
+    const sec = secIdx !== undefined && this.sections ? this.sections[secIdx] : null;
+    const questionType = String(
+      q?.type || q?.question_type || sec?.question_type || ''
+    ).toLowerCase();
+    return (
+      String(sec?.question_type || '').toLowerCase() === 'descriptive' ||
+      questionType.includes('descriptive') ||
+      questionType.includes('subjective')
+    );
+  }
+
+  estimateQuestionHeight(q: PaperQuestion, sec: PaperSection, isAnswerKey: boolean): number {
+    const qText = q?.question || (q as any)?.question_text || (q as any)?.text || '';
+    // In Times New Roman 13.5px across 600px width, ~100 characters fit on a single line
+    const textLines = Math.max(1, Math.ceil(qText.length / 100));
+    const textHeight = textLines * 18;
+
+    let optionsOrAnsHeight = 0;
+    if (!isAnswerKey) {
+      const isDescriptive = this.isDescriptiveQuestion(q, this.sections?.indexOf(sec));
+      if (!isDescriptive) {
+        const opts = q?.options && q.options.length > 0 ? q.options : (q?.raw?.options || null);
+        if (opts && opts.length > 0) {
+          const maxOptLen = Math.max(
+            ...opts.map((o: any) =>
+              (typeof o === 'string' ? o : o?.text || o?.option_text || o?.value || '').length
+            )
+          );
+          if (maxOptLen > 50) {
+            // Stacked options: 1 column
+            optionsOrAnsHeight = opts.length * 17 + 4;
+          } else {
+            // 2 column grid
+            const rows = Math.ceil(opts.length / 2);
+            optionsOrAnsHeight = rows * 17 + 4;
+          }
+        } else {
+          // Objective questions have multiple choice options (typically 4 options in 2 rows)
+          optionsOrAnsHeight = 38;
+        }
+      }
+    } else {
+      const ansText = this.getCorrectAnswerText(q) || 'Answer not set yet';
+      const ansLines = Math.max(1, Math.ceil(ansText.length / 100));
+      optionsOrAnsHeight = ansLines * 17 + 4;
+    }
+
+    return textHeight + optionsOrAnsHeight + 8;
+  }
+
+  buildPaginatedPages(isAnswerKey: boolean): PaperPage[] {
+    const pages: PaperPage[] = [];
+
+    // Standard A4 height is 297mm = 1122.5px.
+    // Inner padding: 14mm top (53px) + 12mm bottom (45px) = 98px.
+    // Footer: 20px.
+    // Usable inside page content height = 1122.5 - 98 - 20 = 1004.5px.
+    const USABLE_PAGE_HEIGHT = 1000;
+
+    // Estimate Page 1 Examination Header height
+    let p1HeaderHeight = 14; // divider + margins
+    if (this.instituteNameDisplay && this.instituteNameDisplay.trim()) {
+      p1HeaderHeight += 20;
+    }
+    const metaParts = [
+      this.getSelectedDepartmentsDisplay(),
+      this.getSelectedTeamsDisplay(),
+      this.subject_name,
+    ].filter((p) => p && p.trim());
+    if (metaParts.length > 0) {
+      p1HeaderHeight += 16;
+    }
+    if (this.title || this.examTypeLabel) {
+      p1HeaderHeight += 18;
+    }
+    p1HeaderHeight += 16; // Time / Max Marks row
+
+    const runningHeaderHeight = 26;
+
+    let currentPageItems: PaperPageItem[] = [];
+    let currentCapacity = Math.max(400, USABLE_PAGE_HEIGHT - p1HeaderHeight);
+    let currentUsedHeight = 0;
+    let isFirst = true;
+
+    const commitPage = () => {
+      pages.push({
+        pageNumber: pages.length + 1,
+        totalPages: 1,
+        isFirstPage: isFirst,
+        items: [...currentPageItems],
+      });
+      currentPageItems = [];
+      isFirst = false;
+      currentCapacity = USABLE_PAGE_HEIGHT - runningHeaderHeight;
+      currentUsedHeight = 0;
+    };
+
+    if (!this.sections || this.sections.length === 0) {
+      commitPage();
+      pages.forEach((p) => (p.totalPages = pages.length));
+      return pages;
+    }
+
+    for (let secIdx = 0; secIdx < this.sections.length; secIdx++) {
+      const sec = this.sections[secIdx];
+      const secName = sec.name || `Section ${String.fromCharCode(65 + secIdx)}`;
+      const instructions = this.getSectionSubHeading(sec) || '';
+      const instrLines = instructions ? Math.max(1, Math.ceil(instructions.length / 100)) : 0;
+      const secHeaderHeight = 18 + (instrLines > 0 ? instrLines * 15 + 4 : 0);
+
+      const questions = sec.questions || [];
+
+      // Calculate first question height for orphan check ("Keep with next")
+      let firstQHeight = 26;
+      if (questions.length > 0) {
+        firstQHeight = this.estimateQuestionHeight(questions[0], sec, isAnswerKey);
+      }
+
+      // Check if section header fits on current page WITH at least one question
+      const neededForSecAndFirstQ =
+        secHeaderHeight + (questions.length > 0 ? Math.min(firstQHeight, 65) : 15);
+      if (
+        currentPageItems.length > 0 &&
+        currentUsedHeight + neededForSecAndFirstQ > currentCapacity
+      ) {
+        commitPage();
+      }
+
+      // Add section header
+      const secCalc = this.getSectionMarksCalculation(sec);
+      currentPageItems.push({
+        type: 'section-header',
+        sectionIndex: secIdx,
+        sectionName: secName,
+        sectionSubHeading: instructions,
+        sectionCalculation: secCalc,
+      });
+      currentUsedHeight += secHeaderHeight;
+
+      // Iterate questions
+      for (let qIdx = 0; qIdx < questions.length; qIdx++) {
+        const q = questions[qIdx];
+        const globalNum = this.getGlobalQuestionIndex(secIdx, qIdx);
+        const qHeight = this.estimateQuestionHeight(q, sec, isAnswerKey);
+
+        if (currentPageItems.length > 0 && currentUsedHeight + qHeight > currentCapacity) {
+          commitPage();
+        }
+
+        currentPageItems.push({
+          type: 'question',
+          sectionIndex: secIdx,
+          questionIndex: qIdx,
+          globalQuestionIndex: globalNum,
+          question: q,
+        });
+        currentUsedHeight += qHeight;
+      }
+    }
+
+    if (currentPageItems.length > 0 || pages.length === 0) {
+      commitPage();
+    }
+
+    const total = pages.length;
+    pages.forEach((p) => (p.totalPages = total));
+    return pages;
+  }
+
   previewPaper() {
     this.hydrateMissingQuestionOptions();
+    this.paginatedPaperPages = this.buildPaginatedPages(false);
     this.showPreviewPaper = true;
   }
 
   previewGuide() {
     this.hydrateMissingQuestionOptions();
+    this.paginatedGuidePages = this.buildPaginatedPages(true);
+    this.showPreviewGuide = true;
+  }
+
+  switchToPaperPreview() {
+    this.hydrateMissingQuestionOptions();
+    this.paginatedPaperPages = this.buildPaginatedPages(false);
+    this.showPreviewGuide = false;
+    this.showPreviewPaper = true;
+  }
+
+  switchToGuidePreview() {
+    this.hydrateMissingQuestionOptions();
+    this.paginatedGuidePages = this.buildPaginatedPages(true);
+    this.showPreviewPaper = false;
     this.showPreviewGuide = true;
   }
 
@@ -2323,7 +2599,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   printPaperDocument(isAnswerKey: boolean): void {
-    const printWin = window.open('', '_blank', 'width=900,height=750');
+    const printWin = window.open('', '_blank', 'width=950,height=800');
     if (!printWin) {
       try {
         notify(
@@ -2366,68 +2642,108 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.durationLabel || (this.durationMinutes ? `${this.durationMinutes} mins` : '1 Hour');
     const maxMarks = this.totalMarksOverride || this.totalPaperMarks || 0;
 
-    let sectionsHtml = '';
-    if (this.sections && this.sections.length > 0) {
-      this.sections.forEach((sec, secIdx) => {
-        const secName = sec.name || `Section ${String.fromCharCode(65 + secIdx)}`;
-        const instructions = this.getSectionSubHeading(sec) || '';
-        let questionsHtml = '';
-        const questions = sec.questions || [];
+    const pages = this.buildPaginatedPages(isAnswerKey);
 
-        questions.forEach((q, qIdx) => {
-          const qNum = this.getGlobalQuestionIndex(secIdx, qIdx);
-          const qText =
-            q.question || (q as any).question_text || (q as any).text || 'Question text';
-          const marks = q.marks ? `[${q.marks}]` : '[1]';
+    let pagesHtml = '';
+    pages.forEach((page) => {
+      let pageHeaderHtml = '';
+      if (page.isFirstPage) {
+        pageHeaderHtml = `
+          <div class="paper-school-name">${schoolName}</div>
+          ${metaLine ? `<div class="paper-meta-line">${metaLine}</div>` : ''}
+          <div class="paper-test-type">${testTypeLabel}</div>
+          <div class="paper-header-row">
+            <span>Time: ${durationText}</span>
+            <span>Maximum Marks: ${maxMarks}</span>
+          </div>
+          <hr class="paper-divider">
+        `;
+      } else {
+        pageHeaderHtml = `
+          <div class="page-running-header">
+            <span>${testTypeLabel} · ${subj || 'EXAMINATION'}</span>
+            <span>${schoolName}</span>
+          </div>
+        `;
+      }
 
-          let optionsOrAnswerHtml = '';
-          if (!isAnswerKey) {
-            if (q.options && q.options.length > 0) {
-              const optionsItems = q.options
-                .map((opt: any, optIdx: number) => {
-                  const optFormatted = this.formatOptionText(opt, optIdx);
-                  return `<div class="paper-q-option">${optFormatted}</div>`;
-                })
-                .join('');
-              optionsOrAnswerHtml = `<div class="paper-q-options-grid">${optionsItems}</div>`;
+      let itemsHtml = '';
+      if (page.items && page.items.length > 0) {
+        page.items.forEach((item) => {
+          if (item.type === 'section-header') {
+            const calcHtml = item.sectionCalculation
+              ? `<div class="paper-section-marks-calc">${item.sectionCalculation}</div>`
+              : '<div class="paper-section-marks-calc"></div>';
+            itemsHtml += `
+              <div class="paper-section-heading-wrap">
+                <div class="paper-section-spacer"></div>
+                <div class="paper-section-heading"><u>${item.sectionName}</u></div>
+                ${calcHtml}
+              </div>
+              ${item.sectionSubHeading ? `<div class="paper-section-instructions">${item.sectionSubHeading}</div>` : ''}
+            `;
+          } else if (item.type === 'question' && item.question) {
+            const q = item.question;
+            const qNum = item.globalQuestionIndex;
+            const qText = q.question || (q as any).question_text || (q as any).text || 'Question text';
+            const marks = q.marks ? `[${q.marks}]` : '[1]';
+
+            let optionsOrAnswerHtml = '';
+            if (!isAnswerKey) {
+              const isDescriptive = this.isDescriptiveQuestion(q, item.sectionIndex);
+              if (!isDescriptive && q.options && q.options.length > 0) {
+                const optionsItems = q.options
+                  .map((opt: any, optIdx: number) => {
+                    const optFormatted = this.formatOptionText(opt, optIdx);
+                    return `<div class="paper-q-option">${optFormatted}</div>`;
+                  })
+                  .join('');
+                optionsOrAnswerHtml = `<div class="paper-q-options-grid">${optionsItems}</div>`;
+              }
+            } else {
+              const ansText = this.getCorrectAnswerText(q);
+              const ansDisplay = ansText
+                ? `<span class="ans-value">${ansText}</span>`
+                : `<em class="no-answer">Answer not set yet</em>`;
+              optionsOrAnswerHtml = `
+                <div class="paper-q-answer">
+                  <span class="ans-badge">Ans:</span>
+                  ${ansDisplay}
+                </div>
+              `;
             }
-          } else {
-            const ansText = this.getCorrectAnswerText(q);
-            const ansDisplay = ansText
-              ? `<span class="ans-value">${ansText}</span>`
-              : `<em class="no-answer">Answer not set yet</em>`;
-            optionsOrAnswerHtml = `
-              <div class="paper-q-answer">
-                <span class="ans-badge">Ans:</span>
-                ${ansDisplay}
+
+            itemsHtml += `
+              <div class="paper-question-item">
+                <div class="paper-q-header">
+                  <span class="paper-q-num">${qNum}.</span>
+                  <span class="paper-q-text">${qText}</span>
+                  <span class="paper-q-marks">${marks}</span>
+                </div>
+                ${optionsOrAnswerHtml}
               </div>
             `;
           }
-
-          questionsHtml += `
-            <div class="paper-question-item">
-              <div class="paper-q-header">
-                <span class="paper-q-num">${qNum}.</span>
-                <span class="paper-q-text">${qText}</span>
-                <span class="paper-q-marks">${marks}</span>
-              </div>
-              ${optionsOrAnswerHtml}
-            </div>
-          `;
         });
+      } else {
+        itemsHtml = '<p style="text-align: center; margin-top: 40px; color: #64748b;">No questions added to this test yet.</p>';
+      }
 
-        sectionsHtml += `
-          <div class="paper-section-block">
-            <div class="paper-section-heading"><u>${secName}</u></div>
-            ${instructions ? `<div class="paper-section-instructions">${instructions}</div>` : ''}
-            ${questionsHtml || '<p style="text-align: center; color: #888; font-style: italic;">No questions in this section.</p>'}
+      pagesHtml += `
+        <div class="word-page">
+          <div class="word-page-inner">
+            ${pageHeaderHtml}
+            <div class="page-content-flow">
+              ${itemsHtml}
+            </div>
+            <div class="word-page-footer">
+              <span class="page-footer-left">${paperTitle || 'Question Paper'}</span>
+              <span class="page-footer-right">Page ${page.pageNumber} of ${page.totalPages}</span>
+            </div>
           </div>
-        `;
-      });
-    } else {
-      sectionsHtml =
-        '<p style="text-align: center; margin-top: 40px; color: #64748b;">No sections or questions added to this test yet.</p>';
-    }
+        </div>
+      `;
+    });
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -2437,8 +2753,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           <title>${docTitle}</title>
           <style>
             @page {
-              size: A4;
-              margin: 0 !important;
+              size: A4 portrait;
+              margin: 0;
             }
             * {
               box-sizing: border-box;
@@ -2449,86 +2765,141 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               line-height: 1.5;
               margin: 0 !important;
               padding: 0 !important;
-              background: #fff;
+              background: #eaecf0;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
-            .paper-doc {
-              width: 100%;
-              max-width: 100%;
+            .word-page {
+              width: 210mm;
+              min-height: 297mm;
+              height: 297mm;
+              margin: 24px auto;
+              background: #ffffff;
+              box-shadow: 0 4px 18px rgba(0,0,0,0.12);
               box-sizing: border-box;
-              margin: 0 auto;
-              padding: 12mm 16mm;
+              page-break-after: always;
+              break-after: page;
+            }
+            .word-page-inner {
+              padding: 14mm 18mm 12mm 18mm;
+              height: 100%;
+              display: flex;
+              flex-direction: column;
+              box-sizing: border-box;
+            }
+            .page-content-flow {
+              flex: 1;
+            }
+            .page-running-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              color: #555;
+              padding-bottom: 5px;
+              margin-bottom: 12px;
+              border-bottom: 1px solid #999;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            .word-page-footer {
+              margin-top: auto;
+              padding-top: 8px;
+              border-top: 1px solid #d1d5db;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 11px;
+              color: #666;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             }
             .paper-school-name {
               text-align: center;
-              font-size: 18px;
+              font-size: 16.5px;
               font-weight: 700;
-              letter-spacing: 0.06em;
-              margin-bottom: 3px;
+              letter-spacing: 0.05em;
+              margin-bottom: 2px;
               color: #000;
+              line-height: 1.25;
             }
             .paper-meta-line {
               text-align: center;
-              font-size: 12.5px;
+              font-size: 12px;
               color: #333;
-              margin-bottom: 3px;
-              letter-spacing: 0.04em;
+              margin-bottom: 2px;
+              letter-spacing: 0.03em;
+              line-height: 1.25;
             }
             .paper-test-type {
               text-align: center;
-              font-size: 13.5px;
+              font-size: 13px;
               font-weight: 700;
-              margin-bottom: 10px;
+              margin-bottom: 3px;
               color: #000;
+              line-height: 1.25;
             }
             .paper-header-row {
               display: flex;
               justify-content: space-between;
-              font-size: 12.5px;
+              font-size: 12px;
               font-weight: 600;
               margin-bottom: 3px;
               color: #111;
+              line-height: 1.25;
             }
             .paper-divider {
               border: none;
               border-top: 1.5px solid #000;
-              margin: 6px 0 16px 0;
+              margin: 4px 0 10px 0;
             }
-            .paper-section-block {
-              margin-bottom: 20px;
+            .paper-section-heading-wrap {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin: 8px 0 2px;
+            }
+            .paper-section-spacer {
+              flex: 1;
             }
             .paper-section-heading {
+              flex: 2;
               text-align: center;
-              font-size: 15px;
+              font-size: 13.5px;
               font-weight: 700;
-              margin: 16px 0 4px;
+              margin: 0;
               color: #000;
-              break-after: avoid;
-              page-break-after: avoid;
+              line-height: 1.25;
             }
             .paper-section-heading u {
               text-decoration: underline;
             }
+            .paper-section-marks-calc {
+              flex: 1;
+              text-align: right;
+              font-size: 13px;
+              font-weight: 700;
+              color: #000;
+              white-space: nowrap;
+            }
             .paper-section-instructions {
               text-align: center;
-              font-size: 12.5px;
+              font-size: 12px;
               font-style: italic;
-              margin-bottom: 16px;
+              margin-bottom: 6px;
               color: #333;
-              break-after: avoid;
-              page-break-after: avoid;
+              line-height: 1.25;
             }
             .paper-question-item {
-              margin-bottom: 14px;
-              break-inside: avoid;
-              page-break-inside: avoid;
+              margin-bottom: 8px;
+              font-size: 13.5px;
+              color: #111;
             }
             .paper-q-header {
               display: flex;
               align-items: flex-start;
               gap: 8px;
-              line-height: 1.45;
+              line-height: 1.35;
             }
             .paper-q-num {
               flex-shrink: 0;
@@ -2541,23 +2912,25 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               flex: 1;
               font-size: 13.5px;
               color: #111;
+              line-height: 1.35;
             }
             .paper-q-marks {
               flex-shrink: 0;
               font-weight: 700;
-              margin-left: 14px;
+              margin-left: 12px;
               white-space: nowrap;
               color: #000;
-              font-size: 13.5px;
+              font-size: 13px;
             }
             .paper-q-options-grid {
               display: grid;
               grid-template-columns: repeat(2, 1fr);
-              column-gap: 28px;
-              row-gap: 4px;
-              margin-top: 5px;
-              margin-left: 30px;
+              column-gap: 24px;
+              row-gap: 2.5px;
+              margin-top: 3px;
+              margin-left: 28px;
               font-size: 13px;
+              line-height: 1.35;
             }
             .paper-q-option {
               color: #111;
@@ -2567,9 +2940,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               display: flex;
               align-items: baseline;
               gap: 6px;
-              margin-top: 5px;
-              margin-left: 30px;
-              font-size: 13.5px;
+              margin-top: 4px;
+              margin-left: 28px;
+              font-size: 13px;
+              line-height: 1.35;
             }
             .ans-badge {
               font-weight: 700;
@@ -2586,36 +2960,29 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               font-style: italic;
             }
             @media print {
-              @page {
-                size: A4;
-                margin: 0 !important;
+              body {
+                background: #fff !important;
               }
-              html, body {
+              .word-page {
                 margin: 0 !important;
-                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                min-height: 297mm !important;
+                max-height: 297mm !important;
+                page-break-after: always !important;
+                break-after: page !important;
               }
-              .paper-doc {
-                width: 100%;
-                max-width: 100%;
-                box-sizing: border-box;
-                margin: 0;
-                padding: 12mm 16mm !important;
+              .word-page:last-child {
+                page-break-after: auto !important;
+                break-after: auto !important;
               }
             }
           </style>
         </head>
         <body>
-          <div class="paper-doc">
-            <div class="paper-school-name">${schoolName}</div>
-            ${metaLine ? `<div class="paper-meta-line">${metaLine}</div>` : ''}
-            <div class="paper-test-type">${testTypeLabel}</div>
-            <div class="paper-header-row">
-              <span>Time: ${durationText}</span>
-              <span>Maximum Marks: ${maxMarks}</span>
-            </div>
-            <hr class="paper-divider">
-            ${sectionsHtml}
-          </div>
+          ${pagesHtml}
           <script>
             window.onload = function() {
               window.print();
@@ -2629,6 +2996,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     printWin.document.write(htmlContent);
     printWin.document.close();
   }
+
 
   downloadQuestionPaper() {
     this.printPaperDocument(false);
@@ -3581,7 +3949,11 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   get hasAppliedUserFilters(): boolean {
-    return this.userFiltersApplied && this.hasUserFilterValues;
+    return (
+      (this.userFiltersApplied && this.hasUserFilterValues) ||
+      this.paperUsers.length > 0 ||
+      this.selectedPaperUsers.length > 0
+    );
   }
 
   get appliedUserFilterChips(): Array<{ key: string; label: string }> {
@@ -4225,7 +4597,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.numberOfAttempts = attempts;
   }
 
-  save() {
+  save(publish: boolean = false) {
     // basic validation
     if (!this.title || !this.title.trim()) {
       notify('Title is required', 'error');
@@ -4271,6 +4643,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         ? Number(this.totalMarksOverride)
         : calcMarks;
 
+    const shouldPublish = publish || this.isPublished;
+
     const payload: any = {
       test_mode: 'paper',
       title: String(this.title).trim(),
@@ -4283,6 +4657,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       pass_mark: this.passMark !== null ? Number(this.passMark) : null,
       number_of_attempts: this.numberOfAttempts !== null ? Number(this.numberOfAttempts) : null,
       start_time: this.startDateTime || null,
+      published: shouldPublish ? 1 : 0,
       departments: Array.isArray(this.selectedDepartments)
         ? this.selectedDepartments.filter((id) => id !== 'ALL')
         : [],
@@ -4315,6 +4690,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       else payload.created_by = currentUser;
     }
 
+    const targetTab = shouldPublish ? 'published' : 'drafts';
+
     // If editing an existing exam, call update endpoint
     if (this.editMode && this.editExamId) {
       payload.exam_id = this.editExamId;
@@ -4323,14 +4700,21 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
           try {
-            const msg = res?.statusMessage || res?.message || 'Test updated';
+            const defaultMsg = publish
+              ? 'Question paper published successfully'
+              : (this.isPublished
+                  ? 'Question paper updated successfully'
+                  : 'Question paper draft updated successfully');
+            const msg = res?.statusMessage || res?.message || defaultMsg;
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
             notify(msg, ok ? 'success' : 'error');
           } catch (e) {}
           try {
             sessionStorage.removeItem('edit_exam');
           } catch (e) {}
-          this.router.navigate(['/question-papers']);
+          this.router.navigate(['/question-papers'], {
+            queryParams: { tab: targetTab },
+          });
         },
         error: (err) => {
           console.error('Failed to update exam', err);
@@ -4351,14 +4735,19 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.http.post<any>(url, payload).subscribe({
       next: (res) => {
         try {
-          const msg = res?.statusMessage || res?.message || 'Test created';
+          const defaultMsg = publish
+            ? 'Question paper published successfully'
+            : 'Question paper draft saved successfully';
+          const msg = res?.statusMessage || res?.message || defaultMsg;
           const ok = typeof res?.status === 'undefined' ? true : !!res.status;
           notify(msg, ok ? 'success' : 'error');
         } catch (e) {}
         try {
           sessionStorage.removeItem('edit_exam');
         } catch (e) {}
-        this.router.navigate(['/question-papers']);
+        this.router.navigate(['/question-papers'], {
+          queryParams: { tab: targetTab },
+        });
       },
       error: (err) => {
         console.error('Failed to create exam', err);

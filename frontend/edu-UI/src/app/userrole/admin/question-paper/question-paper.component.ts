@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
@@ -182,6 +182,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     private pageMeta: PageMetaService,
     private confirmService: ConfirmService,
     private router: Router,
+    private route: ActivatedRoute,
     private globalInstituteContext: GlobalInstituteContextService,
     private dialog: MatDialog
   ) {
@@ -745,6 +746,57 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     this.router.navigate(['/create-question-paper']);
   }
 
+  publishQuestionPaper(e: any): void {
+    const examId = e?.test_id || e?.exam_id || e?.id;
+    if (!examId) return;
+
+    this.confirmService
+      .confirm({
+        title: 'Publish Question Paper',
+        message: `Are you sure you want to publish "${e?.title || 'this question paper'}"? It will move to the Published tab and become available for users.`,
+        confirmText: 'Publish',
+        cancelText: 'Cancel',
+      })
+      .subscribe((confirmed) => {
+        if (!confirmed) return;
+
+        this.loader.show();
+        const url = `${API_BASE}/publish-exam`;
+        this.http.post<any>(url, { exam_id: examId, published: 1 }).subscribe({
+          next: (res) => {
+            this.loader.hide();
+            e.published = true;
+            e.is_published = true;
+            e.status = 'published';
+
+            const match = (this.allExams || []).find(
+              (x) => String(x?.test_id || x?.exam_id || x?.id) === String(examId)
+            );
+            if (match) {
+              match.published = true;
+              match.is_published = true;
+              match.status = 'published';
+            }
+
+            this.updateFilteredExams();
+            try {
+              notify(res?.statusMessage || 'Question paper published successfully', 'success');
+            } catch (_) {}
+          },
+          error: (err) => {
+            this.loader.hide();
+            console.error('Failed to publish question paper', err);
+            try {
+              notify(
+                err?.error?.statusMessage || 'Failed to publish question paper. Please try again.',
+                'error'
+              );
+            } catch (_) {}
+          },
+        });
+      });
+  }
+
   onDuplicate(e: any): void {
     this.confirmService
       .confirm({
@@ -787,7 +839,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
         if (examId) {
           this.http
-            .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}`)
+            .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}&test_mode=paper`)
             .subscribe({
               next: (res) => {
                 const item =
@@ -820,15 +872,26 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       const sections = item.sections || [];
       if (sections.length > 0) {
         sections.forEach((s: any, sIdx: number) => {
+          const sectionInstructions = s.sub_heading || s.instructions || '';
           sectionsHtml += `
-            <div style="margin-top: 24px; border-bottom: 2px solid #0f172a; padding-bottom: 8px;">
+            <div class="section-heading" style="margin-top: 24px; border-bottom: 2px solid #0f172a; padding-bottom: 8px;">
               <h3 style="margin: 0; font-size: 16px; color: #1e293b;">Section ${s.name || String.fromCharCode(65 + sIdx)} (${(s.question_type || 'Objective').toUpperCase()})</h3>
+              ${sectionInstructions ? `<div style="margin-top: 5px; font-size: 12px; font-style: italic; color: #475569;">${sectionInstructions}</div>` : ''}
             </div>
           `;
           (s.questions || []).forEach((q: any, qIdx: number) => {
             const marks = q.marks ? `[${q.marks} Mark${q.marks > 1 ? 's' : ''}]` : '';
             let optionsHtml = '';
-            if (q.options && q.options.length) {
+            const questionType = String(
+              q.type || q.question_type || s.question_type || ''
+            ).toLowerCase();
+            const isDescriptive =
+              String(s.question_type || '').toLowerCase() === 'descriptive' ||
+              questionType.includes('descriptive') ||
+              questionType.includes('subjective');
+            // Some descriptive records store their model answer in `options`.
+            // Never expose that field on the student question paper.
+            if (!isDescriptive && q.options && q.options.length) {
               optionsHtml =
                 '<div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">' +
                 q.options
@@ -843,7 +906,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
                 '</div>';
             }
             sectionsHtml += `
-              <div style="margin: 16px 0; padding-left: 8px;">
+              <div class="question-item" style="margin: 16px 0; padding-left: 8px;">
                 <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 500; color: #0f172a;">
                   <span>${qIdx + 1}. ${q.question_text || q.text || q.question || 'Question text'}</span>
                   <span style="color: #64748b; font-size: 13px;">${marks}</span>
@@ -863,14 +926,17 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           <head>
             <title>${title} - Question Paper</title>
             <style>
-              @page { size: A4; margin: 0mm; }
+              @page { size: A4 portrait; margin: 15mm 20mm; }
+              * { box-sizing: border-box; }
               body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.5; margin: 0; }
               .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
               .title { font-size: 24px; font-weight: bold; margin: 0; }
               .sub { font-size: 14px; color: #64748b; margin-top: 6px; }
               .meta-row { display: flex; justify-content: space-between; margin-top: 16px; font-size: 14px; font-weight: 600; }
+              .section-heading { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
+              .question-item { break-inside: avoid; page-break-inside: avoid; orphans: 3; widows: 3; }
               @media print {
-                body { padding: 15mm 20mm; }
+                body { padding: 0; }
               }
             </style>
           </head>
@@ -895,7 +961,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
     if (examId) {
       this.http
-        .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}`)
+        .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}&test_mode=paper`)
         .subscribe({
           next: (res) => {
             const item =
@@ -998,7 +1064,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
     if (examId) {
       this.http
-        .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}`)
+        .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}&test_mode=paper`)
         .subscribe({
           next: (res) => {
             const item =
@@ -1495,6 +1561,14 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       }
       if (this.activeInstituteId) this.resetAfterGlobalInstituteClear();
     });
+    this.route.queryParamMap.subscribe((params) => {
+      const tabParam = params.get('tab');
+      if (tabParam === 'published' || tabParam === 'drafts') {
+        this.activeTab = tabParam;
+        this.updateFilteredExams();
+      }
+    });
+
     const restoredReturnState = this.restoreTestsReturnState();
     try {
       if (!restoredReturnState && sessionStorage.getItem('question_papers_return_state') === 'true') {
@@ -1913,11 +1987,18 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     // If we have an id for the exam, fetch the full exam details from the API
     const examId = e?.test_id || e?.exam_id || e?.id;
     if (examId) {
-      const url = `${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}`;
+      const url = `${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}&test_mode=paper`;
       this.http.get<any>(url).subscribe({
         next: (res) => {
-          const item =
-            Array.isArray(res?.data) && res.data.length ? res.data[0] : res?.data || res?.item || e;
+          let item =
+            Array.isArray(res?.data) && res.data.length
+              ? res.data[0]
+              : res?.data && !Array.isArray(res.data)
+                ? res.data
+                : res?.item || e;
+          if (Array.isArray(item) && item.length === 0) {
+            item = e;
+          }
           if (item && (item.is_editable === false || item.editable === false)) {
             this.showNotEditablePopup();
             return;
@@ -1973,9 +2054,13 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
             };
           });
           const editPayload = {
+            ...e,
             ...item,
             departments: item.departments || e.departments || [],
             teams: item.teams || e.teams || [],
+            sections: Array.isArray(item.sections) && item.sections.length ? item.sections : e.sections || [],
+            assigned_users: Array.isArray(item.assigned_users) && item.assigned_users.length ? item.assigned_users : e.assigned_users || [],
+            assigned_user_ids: Array.isArray(item.assigned_user_ids) && item.assigned_user_ids.length ? item.assigned_user_ids : e.assigned_user_ids || [],
             categories: mapped,
           };
           try {
@@ -2518,6 +2603,8 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           sections: Array.isArray(x.sections) ? x.sections : [],
           departments: x.departments || [],
           teams: x.teams || [],
+          assigned_users: Array.isArray(x.assigned_users) ? x.assigned_users : [],
+          assigned_user_ids: Array.isArray(x.assigned_user_ids) ? x.assigned_user_ids : [],
           subject_id: x.subject_id,
           subject_name: x.subject_name,
           institute: {

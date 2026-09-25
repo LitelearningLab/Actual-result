@@ -248,6 +248,8 @@ class ExamSection(Base):
      section_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
      exam_id = Column(String, ForeignKey('Exams.exam_id'), nullable=False)
      name = Column(String, nullable=False)
+     sub_heading = Column(String, nullable=True)
+     instructions = Column(String, nullable=True)
      question_type = Column(String, nullable=False)
      target_count = Column(Integer)
      order_number = Column(Integer, default=1)

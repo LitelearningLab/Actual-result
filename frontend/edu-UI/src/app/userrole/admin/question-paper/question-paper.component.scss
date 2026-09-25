@@ -503,6 +503,15 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
         }
       }
 
+      &.action-btn-success {
+        color: #16a34a;
+        &:hover {
+          background: #dcfce7 !important;
+          color: #15803d !important;
+          border-color: #86efac !important;
+        }
+      }
+
       &.action-btn-danger {
         &:hover {
           background: #fee2e2 !important;

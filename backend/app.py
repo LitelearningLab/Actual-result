@@ -596,6 +596,14 @@ def update_exam_route():
     response_data, status_code = update_exam(request)
     return jsonify(response_data), status_code
 
+
+@edu_blueprint.route('/publish-exam', methods=['POST'])
+@admin_required
+def publish_exam_route():
+    from others.exams import publish_exam
+    response_data, status_code = publish_exam(request)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/add-exam-schedule', methods=['POST'])
 @admin_required
 def add_exam_schedule_route():
