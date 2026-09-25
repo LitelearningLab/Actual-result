@@ -392,14 +392,14 @@
                         <th mat-header-cell *matHeaderCellDef class="col-actions">ACTIONS</th>
                         <td mat-cell *matCellDef="let e" class="col-actions">
                             <div class="action-btn-group">
-                                <button type="button" class="action-btn action-btn-success" *ngIf="isDraft(e)" (click)="publishQuestionPaper(e)" matTooltip="Publish Question Paper" aria-label="Publish Question Paper">
+                                <button type="button" class="action-btn action-btn-success" *ngIf="isDraft(e)" [disabled]="isMarksIncomplete(e)" (click)="publishQuestionPaper(e)" [matTooltip]="isMarksIncomplete(e) ? 'Cannot publish: section marks do not tally' : 'Publish Question Paper'" aria-label="Publish Question Paper">
                                     <mat-icon>publish</mat-icon>
                                 </button>
-                                <button type="button" class="action-btn" (click)="onEdit(e)" matTooltip="Edit" aria-label="Edit test">
+                                <button type="button" class="action-btn" *ngIf="isDraft(e)" (click)="onEdit(e)" matTooltip="Edit" aria-label="Edit test">
                                     <mat-icon>edit</mat-icon>
                                 </button>
-                                <button type="button" class="action-btn" (click)="onDuplicate(e)" matTooltip="Duplicate" aria-label="Duplicate test">
-                                    <mat-icon>content_copy</mat-icon>
+                                <button type="button" class="action-btn action-btn-blue" *ngIf="isPublished(e)" (click)="onEdit(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
+                                    <mat-icon>visibility</mat-icon>
                                 </button>
                                 <button type="button" class="action-btn action-btn-blue" (click)="downloadQuestionPaper(e)" matTooltip="Download Question Paper" aria-label="Download Question Paper">
                                     <mat-icon>description</mat-icon>

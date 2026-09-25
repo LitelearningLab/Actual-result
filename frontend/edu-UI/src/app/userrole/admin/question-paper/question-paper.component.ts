@@ -589,6 +589,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
   setTab(tab: 'drafts' | 'published') {
     this.activeTab = tab;
+    if (this.hasAppliedFilters) {
+      this.saveTestsReturnState();
+    }
     this.updateFilteredExams();
   }
 
@@ -739,6 +742,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   openCreateQuestionPaper(): void {
+    this.loader.show();
     try {
       sessionStorage.removeItem('edit_exam');
     } catch (e) {}
@@ -749,6 +753,14 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   publishQuestionPaper(e: any): void {
     const examId = e?.test_id || e?.exam_id || e?.id;
     if (!examId) return;
+
+    if (this.isMarksIncomplete(e)) {
+      notify(
+        `Cannot publish "${e?.title || 'this paper'}": section marks (${this.getSelectedMarksCount(e)}) do not tally with Total Marks (${this.getTotalMarksCount(e)}).`,
+        'error'
+      );
+      return;
+    }
 
     this.confirmService
       .confirm({
@@ -857,6 +869,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   downloadQuestionPaper(e: any): void {
     const examId = e?.test_id || e?.exam_id || e?.id;
     const generateDoc = (item: any) => {
+      this.loader.hide();
       const printWin = window.open('', '_blank', 'width=900,height=700');
       if (!printWin) {
         try {
@@ -959,6 +972,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       printWin.document.close();
     };
 
+    this.loader.show();
     if (examId) {
       this.http
         .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}&test_mode=paper`)
@@ -978,6 +992,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   downloadEvaluationGuide(e: any): void {
     const examId = e?.test_id || e?.exam_id || e?.id;
     const generateGuide = (item: any) => {
+      this.loader.hide();
       const printWin = window.open('', '_blank', 'width=900,height=700');
       if (!printWin) {
         try {
@@ -1062,6 +1077,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       printWin.document.close();
     };
 
+    this.loader.show();
     if (examId) {
       this.http
         .get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}&test_mode=paper`)
@@ -1570,13 +1586,6 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     });
 
     const restoredReturnState = this.restoreTestsReturnState();
-    try {
-      if (!restoredReturnState && sessionStorage.getItem('question_papers_return_state') === 'true') {
-        sessionStorage.removeItem('question_papers_return_state');
-        this.hasAppliedFilters = false;
-        this.shouldLoadTestsAfterInstitutes = true;
-      }
-    } catch (e) {}
   }
 
   openFiltersOverlay() {
@@ -1980,10 +1989,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   onEdit(e: any) {
-    if (e && (e.is_editable === false || e.editable === false)) {
-      this.showNotEditablePopup();
-      return;
-    }
+    this.loader.show();
     // If we have an id for the exam, fetch the full exam details from the API
     const examId = e?.test_id || e?.exam_id || e?.id;
     if (examId) {
@@ -1998,10 +2004,6 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
                 : res?.item || e;
           if (Array.isArray(item) && item.length === 0) {
             item = e;
-          }
-          if (item && (item.is_editable === false || item.editable === false)) {
-            this.showNotEditablePopup();
-            return;
           }
           // normalize categories to the flat shape expected by CreateExamComponent.loadEditTest()
           const srcCats = Array.isArray(item.categories)
@@ -2367,6 +2369,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
             industry_sector: r.industry_sector || r.sector || '',
           }));
           this.allInstitutes = [...this.institutes];
+          if (this.hasAppliedFilters) {
+            return;
+          }
           // If a selectedInstitute is already set (e.g. via route/session), prefer that
           try {
             if (this.selectedInstitute) {
@@ -2759,6 +2764,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     return this.teams.filter((t) => (t.name || '').toLowerCase().includes(term));
   }
   openCreateTest(): void {
+    this.loader.show();
     try {
       sessionStorage.removeItem('edit_exam');
     } catch (e) {}
@@ -2776,14 +2782,19 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           globalInstituteActive: this.globalInstituteContext.isGlobalFilterActive(),
           filter: this.filter,
           selectedInstitute: this.selectedInstitute,
+          selectedInstitutes: this.selectedInstitutes || [],
           instituteSearch: this.instituteSearch,
           filterName: this.filterName,
           filterCountry: this.filterCountry,
           filterCity: this.filterCity,
           filterIndustry: this.filterIndustry,
           filterSector: this.filterSector,
-          selectedDepartments: this.selectedDepartments,
-          selectedTeams: this.selectedTeams,
+          selectedCountries: this.selectedCountries || [],
+          selectedCities: this.selectedCities || [],
+          selectedIndustries: this.selectedIndustries || [],
+          selectedSectors: this.selectedSectors || [],
+          selectedDepartments: this.selectedDepartments || [],
+          selectedTeams: this.selectedTeams || [],
           filterCreationDateAfter: this.filterCreationDateAfter
             ? this.filterCreationDateAfter.toISOString()
             : null,
@@ -2793,7 +2804,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           filterActiveStatus: this.filterActiveStatus,
           filterCreatedByMe: this.filterCreatedByMe,
           hasAppliedFilters: this.hasAppliedFilters,
-          exams: this.exams,
+          activeTab: this.activeTab,
         })
       );
     } catch (e) {}
@@ -2801,16 +2812,11 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
   private restoreTestsReturnState(): boolean {
     try {
-      const isReturn = sessionStorage.getItem('question_papers_return_state') === 'true';
-      if (!isReturn) {
-        sessionStorage.removeItem('question_papers_table_return_state');
-        return false;
-      }
       const raw = sessionStorage.getItem('question_papers_table_return_state');
       if (!raw) return false;
-      sessionStorage.removeItem('question_papers_table_return_state');
-      sessionStorage.removeItem('question_papers_return_state');
       const state = JSON.parse(raw);
+      if (!state || !state.hasAppliedFilters) return false;
+
       const activeInstituteId = this.globalInstituteContext.activeInstituteId;
       if (activeInstituteId && String(state?.instituteId || '') !== String(activeInstituteId))
         return false;
@@ -2822,14 +2828,26 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
         state?.instituteId
       )
         return false;
+
       this.filter = state?.filter || '';
       this.selectedInstitute = state?.selectedInstitute || '';
-      this.instituteSearch = '';
+      this.selectedInstitutes = Array.isArray(state?.selectedInstitutes)
+        ? state.selectedInstitutes
+        : [];
+      this.instituteSearch = state?.instituteSearch || '';
       this.filterName = state?.filterName || '';
       this.filterCountry = state?.filterCountry || '';
       this.filterCity = state?.filterCity || '';
       this.filterIndustry = state?.filterIndustry || '';
       this.filterSector = state?.filterSector || '';
+      this.selectedCountries = Array.isArray(state?.selectedCountries)
+        ? state.selectedCountries
+        : [];
+      this.selectedCities = Array.isArray(state?.selectedCities) ? state.selectedCities : [];
+      this.selectedIndustries = Array.isArray(state?.selectedIndustries)
+        ? state.selectedIndustries
+        : [];
+      this.selectedSectors = Array.isArray(state?.selectedSectors) ? state.selectedSectors : [];
       this.selectedDepartments = Array.isArray(state?.selectedDepartments)
         ? state.selectedDepartments
         : [];
@@ -2843,15 +2861,32 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       this.filterActiveStatus =
         typeof state?.filterActiveStatus === 'undefined' ? null : state.filterActiveStatus;
       this.filterCreatedByMe = !!state?.filterCreatedByMe;
-      this.hasAppliedFilters = !!state?.hasAppliedFilters;
-      this.exams = Array.isArray(state?.exams) ? state.exams : [];
-      this.dataSource.data = this.exams;
-      this.applyFilter(this.filter || '');
+      this.hasAppliedFilters = true;
+
+      const tabFromQuery = this.route.snapshot.queryParamMap.get('tab');
+      if (tabFromQuery === 'published' || tabFromQuery === 'drafts') {
+        this.activeTab = tabFromQuery;
+      } else if (state?.activeTab === 'published' || state?.activeTab === 'drafts') {
+        this.activeTab = state.activeTab;
+      }
+
+      if (this.selectedInstitutes.length > 0) {
+        this.onInstituteSelectionChange();
+      } else if (this.selectedInstitute) {
+        this.loadDepartments(this.selectedInstitute);
+        this.loadTeams(this.selectedInstitute);
+      }
+
+      if (this.selectedCountries.length || this.filterCountry) {
+        const countryCodes = this.selectedCountries.length
+          ? this.selectedCountries
+          : [this.filterCountry];
+        this.loadCitiesForCountry(countryCodes);
+      }
+
+      this.loadExamsForInstitute(this.selectedInstitute || undefined);
       return true;
     } catch (e) {
-      try {
-        sessionStorage.removeItem('question_papers_table_return_state');
-      } catch (_) {}
       return false;
     }
   }

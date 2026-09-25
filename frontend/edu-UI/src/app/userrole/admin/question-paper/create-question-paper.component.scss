@@ -1142,8 +1142,14 @@
         box-shadow: 0 2px 4px rgba(22, 163, 74, 0.25);
 
         mat-icon { font-size: 18px; width: 18px; height: 18px; }
-        &:hover { background: #15803d; box-shadow: 0 4px 6px rgba(22, 163, 74, 0.3); }
-        &:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
+        &:hover:not(:disabled):not([disabled]) { background: #15803d; box-shadow: 0 4px 6px rgba(22, 163, 74, 0.3); }
+        &:disabled, &[disabled], &.disabled {
+            background: #cbd5e1 !important;
+            color: #64748b !important;
+            cursor: not-allowed !important;
+            box-shadow: none !important;
+            opacity: 0.65 !important;
+        }
     }
 
     .btn-sidebar-save {

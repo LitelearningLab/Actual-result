@@ -835,7 +835,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     // load edit payload first so editMode is populated before setting page metadata
     this.loadEditTest();
 
-    if (this.editMode) {
+    if (this.readOnly || this.isPublished) {
+      this.pageMeta.setMeta(
+        'View Test',
+        'Viewing question paper details in read-only mode.'
+      );
+    } else if (this.editMode) {
       this.pageMeta.setMeta(
         'Update Test',
         'Update the exam details and click Update to save changes.'
@@ -895,18 +900,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       if (!raw) return;
       const e = JSON.parse(raw);
       if (!e) return;
-      if (e.is_editable === false || e.editable === false) {
-        const msg =
-          'This test cannot be edited because it is currently active or is being attended by users.';
-        try {
-          notify(msg, 'error');
-        } catch (_) {}
-        try {
-          sessionStorage.removeItem('edit_exam');
-        } catch (_) {}
-        this.router.navigate(['/question-papers']);
-        return;
-      }
       this.editMode = true;
       this.editExamId = e.exam_id || e.test_id || e.id || null;
       this.isPublished = !!(
@@ -915,6 +908,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         e.status === 'published' ||
         e.status === 'active'
       );
+      if (this.isPublished || e.is_editable === false || e.editable === false) {
+        this.readOnly = true;
+      }
       this.title = e.title || e.name || '';
       this.description = e.description || e.desc || '';
       const instRaw = e.institute;
@@ -2564,7 +2560,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   goBack() {
-    this.router.navigate(['/question-papers']);
+    this.cancel();
   }
 
   getSectionTotalMarks(section: PaperSection): number {
@@ -4597,7 +4593,59 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.numberOfAttempts = attempts;
   }
 
+  get canPublish(): boolean {
+    if (this.readOnly || this.isPublished) return false;
+    if (!this.title || !this.title.trim()) return false;
+    if (!this.institute) return false;
+    if (!this.subject_id) return false;
+    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return false;
+    if (!this.sections.length || this.totalPaperQuestionsCount === 0) return false;
+    if (!this.selectedPaperUsers.length) return false;
+
+    // Target total marks (default is 50 if override not set)
+    const targetMarks =
+      this.totalMarksOverride !== null &&
+      this.totalMarksOverride !== undefined &&
+      Number(this.totalMarksOverride) > 0
+        ? Number(this.totalMarksOverride)
+        : 50;
+
+    // Validate if marks tally exactly
+    if (this.totalPaperMarks !== targetMarks) {
+      return false;
+    }
+
+    return true;
+  }
+
+  get publishDisabledReason(): string {
+    if (this.readOnly || this.isPublished) return 'Question paper is in read-only mode';
+    if (!this.title || !this.title.trim()) return 'Title is required to publish';
+    if (!this.institute) return 'Institute is required to publish';
+    if (!this.subject_id) return 'Subject is required to publish';
+    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return 'Duration is required to publish';
+    if (!this.sections.length || this.totalPaperQuestionsCount === 0) return 'Add at least one section with questions to publish';
+    if (!this.selectedPaperUsers.length) return 'Assign at least one user to publish';
+
+    const targetMarks =
+      this.totalMarksOverride !== null &&
+      this.totalMarksOverride !== undefined &&
+      Number(this.totalMarksOverride) > 0
+        ? Number(this.totalMarksOverride)
+        : 50;
+
+    if (this.totalPaperMarks !== targetMarks) {
+      return `Section marks (${this.totalPaperMarks}) do not tally with Total Marks (${targetMarks})`;
+    }
+    return '';
+  }
+
   save(publish: boolean = false) {
+    if (publish && !this.canPublish) {
+      notify(this.publishDisabledReason || 'Cannot publish: section marks do not tally or required details are missing.', 'error');
+      return;
+    }
+
     // basic validation
     if (!this.title || !this.title.trim()) {
       notify('Title is required', 'error');
@@ -4710,6 +4758,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             notify(msg, ok ? 'success' : 'error');
           } catch (e) {}
           try {
+            sessionStorage.setItem('question_papers_return_state', 'true');
             sessionStorage.removeItem('edit_exam');
           } catch (e) {}
           this.router.navigate(['/question-papers'], {
@@ -4743,6 +4792,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           notify(msg, ok ? 'success' : 'error');
         } catch (e) {}
         try {
+          sessionStorage.setItem('question_papers_return_state', 'true');
           sessionStorage.removeItem('edit_exam');
         } catch (e) {}
         this.router.navigate(['/question-papers'], {

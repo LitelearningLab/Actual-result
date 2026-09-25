@@ -29,6 +29,7 @@
                         <div class="field-group" *ngIf="isSuperAdmin">
                             <label class="field-label">Institute</label>
                             <mat-select class="qp-select" [(ngModel)]="institute"
+                                [disabled]="readOnly || isPublished"
                                 (selectionChange)="onInstituteChange($event.value)"
                                 (openedChange)="onInstituteOpenedChange($event)"
                                 placeholder="Select institute">
@@ -50,6 +51,7 @@
                         <div class="field-group">
                             <label class="field-label">{{ terminology.deptLabel || terminology.deptPlural }}</label>
                             <mat-select class="qp-select" [(ngModel)]="selectedDepartment"
+                                [disabled]="readOnly || isPublished"
                                 (selectionChange)="onDepartmentChange($event.value)"
                                 (openedChange)="onDepartmentOpenedChange($event)"
                                 [placeholder]="terminology.selectDeptPlaceholder">
@@ -71,6 +73,7 @@
                         <div class="field-group">
                             <label class="field-label">{{ terminology.teamLabel || terminology.teamPlural }}</label>
                             <mat-select class="qp-select" [(ngModel)]="selectedTeam"
+                                [disabled]="readOnly || isPublished"
                                 (selectionChange)="onTeamChange($event.value)"
                                 (openedChange)="onTeamOpenedChange($event)"
                                 [placeholder]="terminology.selectTeamPlaceholder">
@@ -97,7 +100,7 @@
                             <mat-select class="qp-select" [(ngModel)]="subject_id"
                                 (selectionChange)="onSubjectChange($event.value)"
                                 (openedChange)="onSubjectOpenedChange($event)"
-                                [disabled]="!institute"
+                                [disabled]="readOnly || isPublished || !institute"
                                 placeholder="Select subject">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                                     <input class="select-search-input" placeholder="Search subject"
@@ -117,7 +120,7 @@
                         <!-- Exam Type -->
                         <div class="field-group">
                             <label class="field-label">Exam Type</label>
-                            <mat-select class="qp-select" [(ngModel)]="examTypeLabel" placeholder="Select type">
+                            <mat-select class="qp-select" [(ngModel)]="examTypeLabel" [disabled]="readOnly || isPublished" placeholder="Select type">
                                 <mat-option value="Unit Test">Unit Test</mat-option>
                                 <mat-option value="Mid Term">Mid Term</mat-option>
                                 <mat-option value="Final Exam">Final Exam</mat-option>
@@ -130,13 +133,13 @@
                     <div class="fields-row fields-row--2">
                         <div class="field-group">
                             <label class="field-label">Test Name <span class="req">*</span></label>
-                            <input class="qp-input" type="text" [(ngModel)]="title"
+                            <input class="qp-input" type="text" [(ngModel)]="title" [disabled]="readOnly || isPublished"
                                 placeholder="Physics – Unit Test 1" />
                         </div>
                         <div class="field-group">
                             <label class="field-label">Exam Date <span class="opt">(optional)</span></label>
                             <div class="date-input-wrap">
-                                <input class="qp-input date-input" type="date" [(ngModel)]="examDate" placeholder="dd-mm-yyyy" />
+                                <input class="qp-input date-input" type="date" [(ngModel)]="examDate" [disabled]="readOnly || isPublished" placeholder="dd-mm-yyyy" />
                             </div>
                         </div>
                     </div>
@@ -145,12 +148,12 @@
                     <div class="fields-row fields-row--2">
                         <div class="field-group">
                             <label class="field-label">Total Marks</label>
-                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride"
+                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" [disabled]="readOnly || isPublished"
                                 placeholder="50" min="0" />
                         </div>
                         <div class="field-group">
                             <label class="field-label">Duration <span class="opt">(printed on paper)</span></label>
-                            <input class="qp-input" type="text" [(ngModel)]="durationLabel"
+                            <input class="qp-input" type="text" [(ngModel)]="durationLabel" [disabled]="readOnly || isPublished"
                                 placeholder="1 Hour" />
                         </div>
                     </div>
@@ -591,13 +594,13 @@
                         <mat-icon>menu_book</mat-icon>
                         <span>Preview Answer Key</span>
                     </button>
-                    <button class="btn-sidebar-publish" type="button" (click)="save(true)" *ngIf="!isPublished">
+                    <button class="btn-sidebar-publish" type="button" (click)="save(true)" *ngIf="!isPublished && !readOnly" [disabled]="!canPublish" [class.disabled]="!canPublish" [matTooltip]="publishDisabledReason">
                         <mat-icon>publish</mat-icon>
                         <span>Publish Question Paper</span>
                     </button>
-                    <button class="btn-sidebar-save" type="button" (click)="save(false)">
+                    <button class="btn-sidebar-save" type="button" (click)="save(false)" *ngIf="!isPublished && !readOnly">
                         <mat-icon>save</mat-icon>
-                        <span>{{ editMode ? (isPublished ? 'Update Published Paper' : 'Update Draft') : 'Save Draft' }}</span>
+                        <span>{{ editMode ? 'Update Draft' : 'Save Draft' }}</span>
                     </button>
 
                     <!-- Download as PDF -->
