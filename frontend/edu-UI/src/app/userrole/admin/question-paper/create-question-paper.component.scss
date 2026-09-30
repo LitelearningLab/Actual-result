@@ -841,6 +841,12 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        cursor: default;
+        transition: color 0.15s ease;
+
+        &:hover {
+            color: #0f172a;
+        }
     }
 
     .q-marks-wrap {
