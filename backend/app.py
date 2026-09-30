@@ -557,6 +557,14 @@ def upload_answer_sheet_route():
     response_data, status_code = upload_answer_sheet(request, current_user)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/test-evaluation/identify-student', methods=['POST'])
+@admin_required
+def identify_student_route():
+    from others.exams import identify_student_from_answer_sheet
+    current_user = get_current_user_from_request()
+    response_data, status_code = identify_student_from_answer_sheet(request, current_user)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/uploads/answer_sheets/<path:filename>', methods=['GET'])
 def serve_answer_sheet_file(filename):
     import os

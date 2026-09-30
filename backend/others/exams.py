@@ -3252,3 +3252,197 @@ def upload_answer_sheet(request, current_user=None):
             print(f"Error in upload_answer_sheet: {err_str} - line {sys.exc_info()[-1].tb_lineno}")
             return {"statusMessage": f"Error uploading answer sheet: {err_str}", "status": False}, 500
 
+
+def identify_student_from_answer_sheet(request, current_user=None):
+    """
+    Identifies a student from an uploaded answer sheet (PDF or image).
+    Inspects multiple pages sequentially (Page 1, Page 2, Page 3, ...)
+    until the student's handwritten or printed name/roll_no is recognized.
+    """
+    import os
+    import sys
+    import json
+    import base64
+    from others.llm import openai_client
+
+    if "file" not in request.files and "files" not in request.files:
+        return {"statusMessage": "No file provided for identification", "status": False}, 400
+
+    uploaded_file = request.files.get("file") or request.files.get("files")
+    if not uploaded_file or not uploaded_file.filename:
+        return {"statusMessage": "Invalid file uploaded", "status": False}, 400
+
+    exam_id = request.form.get("exam_id")
+    students_json = request.form.get("students")
+    students_roster = []
+
+    if students_json:
+        try:
+            students_roster = json.loads(students_json)
+        except Exception:
+            students_roster = []
+
+    # If no roster passed, query database using exam_id if available
+    if not students_roster and exam_id:
+        db = SQLiteDB()
+        session = db.connect()
+        if session:
+            try:
+                assigned_users = session.query(User).filter(
+                    User.user_id.in_(
+                        session.query(QuestionPaperUserAssignment.user_id).filter(
+                            QuestionPaperUserAssignment.exam_id == exam_id
+                        )
+                    )
+                ).all()
+                students_roster = [
+                    {
+                        "user_id": str(u.user_id),
+                        "name": u.full_name or u.user_name or "",
+                        "roll_no": getattr(u, "roll_no", "") or u.user_name or ""
+                    }
+                    for u in assigned_users
+                ]
+            except Exception as e:
+                print(f"Error fetching roster for identification: {e}")
+            finally:
+                session.close()
+
+    filename = uploaded_file.filename.lower()
+    file_bytes = uploaded_file.read()
+
+    if not file_bytes:
+        return {"statusMessage": "Uploaded file is empty", "status": False}, 400
+
+    # Extract pages as images
+    page_images = []  # list of (page_num, bytes, text_content)
+    if filename.endswith(".pdf"):
+        try:
+            import fitz
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            for p_idx in range(len(doc)):
+                page = doc[p_idx]
+                page_text = page.get_text() or ""
+                pix = page.get_pixmap(dpi=150)
+                img_bytes = pix.tobytes("jpeg")
+                page_images.append((p_idx + 1, img_bytes, page_text))
+            doc.close()
+        except Exception as fitz_err:
+            print(f"PyMuPDF error reading PDF pages for identification: {fitz_err}")
+    else:
+        page_images.append((1, file_bytes, ""))
+
+    if not page_images:
+        return {"status": True, "matched": False, "statusMessage": "No readable pages found in file"}, 200
+
+    # Step 1: Check text layer first if any (instant match)
+    if students_roster:
+        for page_num, _, page_text in page_images:
+            if page_text and len(page_text.strip()) > 3:
+                norm_text = page_text.lower()
+                for st in students_roster:
+                    st_name = (st.get("name") or "").lower().strip()
+                    st_roll = (st.get("roll_no") or "").lower().strip()
+                    if (st_name and len(st_name) >= 3 and st_name in norm_text) or \
+                       (st_roll and len(st_roll) >= 3 and st_roll in norm_text):
+                        return {
+                            "status": True,
+                            "matched": True,
+                            "matched_by": f"Identified on Page {page_num} (Text)",
+                            "page_number": page_num,
+                            "student_name": st.get("name"),
+                            "user_id": st.get("user_id"),
+                            "roll_no": st.get("roll_no"),
+                            "confidence": 98
+                        }, 200
+
+    # Step 2: Use OpenAI Vision to visually inspect each page sequentially
+    client = openai_client()
+    if client.api_key:
+        roster_summary = [
+            {"user_id": str(s.get("user_id")), "name": s.get("name"), "roll_no": s.get("roll_no")}
+            for s in students_roster
+        ]
+
+        system_prompt = (
+            "You are an expert AI exam evaluation assistant specializing in recognizing student identity from physical handwritten or printed answer sheets.\n"
+            "Examine the provided answer sheet page image and determine if any student Name, Roll Number, Registration Number, or Student ID is written or printed anywhere on this page (such as in the header, title box, top/bottom margins, or signature blocks).\n\n"
+            f"Candidate Students Roster:\n{json.dumps(roster_summary, ensure_ascii=False)}\n\n"
+            "Instructions:\n"
+            "1. Match the handwriting or text against the Candidate Students Roster.\n"
+            "2. If you identify a student from the roster, return a JSON object:\n"
+            "   {\"matched\": true, \"student_name\": \"<Full Name>\", \"roll_no\": \"<Roll No>\", \"user_id\": \"<user_id>\", \"confidence\": 90, \"detected_text\": \"<text found>\"}\n"
+            "3. If this page has no student identity details or does not match the roster, return:\n"
+            "   {\"matched\": false, \"detected_text\": \"\"}\n"
+            "4. Return ONLY the raw JSON object without markdown code blocks."
+        )
+
+        for page_num, img_bytes, _ in page_images:
+            try:
+                base64_img = base64.b64encode(img_bytes).decode("utf-8")
+                data_uri = f"data:image/jpeg;base64,{base64_img}"
+
+                user_content = [
+                    {
+                        "type": "text",
+                        "text": f"Inspect Page {page_num} of this answer sheet for student name or roll number matching the roster."
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": data_uri}
+                    }
+                ]
+
+                response = client.chat_completion(
+                    system_message=system_prompt,
+                    InputData=user_content,
+                    aimodel=1,
+                    max_tokens=300,
+                    temperature=0.1
+                )
+
+                if response.status_code == 200:
+                    resp_data = response.json()
+                    choices = resp_data.get("choices", [])
+                    if choices:
+                        raw_content = choices[0].get("message", {}).get("content", "").strip()
+                        if raw_content.startswith("```"):
+                            lines = raw_content.splitlines()
+                            if lines[0].startswith("```"):
+                                lines = lines[1:]
+                            if lines and lines[-1].startswith("```"):
+                                lines = lines[:-1]
+                            raw_content = "\n".join(lines).strip()
+
+                        parsed = json.loads(raw_content)
+                        if parsed.get("matched"):
+                            det_roll = parsed.get("roll_no") or ""
+                            det_name = parsed.get("student_name") or ""
+                            matched_label = f"Identified on Page {page_num}"
+                            if det_roll:
+                                matched_label += f" (Roll No: {det_roll})"
+                            elif det_name:
+                                matched_label += f" ({det_name})"
+
+                            return {
+                                "status": True,
+                                "matched": True,
+                                "matched_by": matched_label,
+                                "page_number": page_num,
+                                "student_name": parsed.get("student_name"),
+                                "user_id": parsed.get("user_id"),
+                                "roll_no": parsed.get("roll_no"),
+                                "confidence": parsed.get("confidence", 90),
+                                "detected_text": parsed.get("detected_text", "")
+                            }, 200
+            except Exception as page_vision_err:
+                print(f"Vision inspection error on page {page_num}: {page_vision_err}")
+                continue
+
+    return {
+        "status": True,
+        "matched": False,
+        "statusMessage": "No student identity recognized on any page of this document."
+    }, 200
+
+

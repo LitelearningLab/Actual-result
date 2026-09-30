@@ -16,7 +16,8 @@ import { AuthService } from 'src/app/home/service/auth.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { API_BASE } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
 
 export interface ScannedPageItem {
@@ -45,6 +46,7 @@ export interface StudentEvaluation {
   matchedBy?: string;
   isMatched?: boolean;
   rawFile?: File;
+  isUploaded?: boolean;
 }
 
 export interface BulkFileItem {
@@ -53,6 +55,7 @@ export interface BulkFileItem {
   studentName: string;
   matchedBy: string;
   isMatched: boolean;
+  isScanning?: boolean;
   pagesInfo: string;
   isPageWarning?: boolean;
   aiStatus: 'Completed' | 'Need to Check' | 'AI Evaluated' | 'Waiting';
@@ -62,6 +65,7 @@ export interface BulkFileItem {
   selectedStudent?: string;
   selectedUserId?: string;
   file?: File;
+  isUploaded?: boolean;
 }
 
 @Component({
@@ -914,7 +918,33 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.activeSheetPageIndex = 0;
     this.zoomLevel = 100;
     this.evaluationCategoryFilter = 'all';
-    this.loadEvaluationDetails(this.selectedExamId, student.user_id);
+
+    // If student has a matched local file that hasn't been uploaded to backend yet, upload first
+    if (student.rawFile && !student.isUploaded) {
+      this.isLoadingEvaluation = true;
+      const formData = new FormData();
+      formData.append('exam_id', this.selectedExamId);
+      formData.append('user_id', student.user_id);
+      formData.append('replace', 'true');
+      formData.append('file', student.rawFile);
+
+      this.http.post<any>(`${API_BASE}/test-evaluation/upload-answer-sheet`, formData).subscribe({
+        next: (res) => {
+          student.isUploaded = true;
+          if (res && res.status) {
+            const pagesCount = res.data?.total_pages || res.data?.pages?.length || 1;
+            student.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
+          }
+          this.loadEvaluationDetails(this.selectedExamId, student.user_id!);
+        },
+        error: (err) => {
+          console.error('Error auto-uploading matched sheet:', err);
+          this.loadEvaluationDetails(this.selectedExamId, student.user_id!);
+        }
+      });
+    } else {
+      this.loadEvaluationDetails(this.selectedExamId, student.user_id);
+    }
   }
 
   closeStudentEvaluation(): void {
@@ -1279,6 +1309,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             targetStudent.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
             targetStudent.missingPagesWarning = undefined;
             targetStudent.status = 'AI Evaluated';
+            targetStudent.isUploaded = true;
             targetStudent.actionText = 'Review';
             targetStudent.actionClass = 'btn-solid-blue';
             this.recalculateKpiTotals();
@@ -1662,6 +1693,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             targetStudent.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
             targetStudent.missingPagesWarning = undefined;
             targetStudent.status = 'AI Evaluated';
+            targetStudent.isUploaded = true;
             targetStudent.actionText = 'Review';
             targetStudent.actionClass = 'btn-solid-blue';
             this.recalculateKpiTotals();
@@ -1691,11 +1723,14 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const files: FileList = event.target?.files;
     if (!files || files.length === 0) return;
 
+    let fastMatchedCount = 0;
+    let pendingScanCount = 0;
+
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       const baseName = f.name.replace(/\.[^/.]+$/, '').replace(/[_.-]/g, ' ').trim().toLowerCase();
 
-      // Attempt matching against assigned students
+      // 1. Scenario 1: Fast match against assigned students via filename
       const matchedStudent = this.students.find((s) => {
         const sName = (s.name || '').toLowerCase();
         const sRoll = (s.rollNo || '').toLowerCase();
@@ -1703,17 +1738,21 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       });
 
       const isMatched = !!matchedStudent;
+      if (isMatched) fastMatchedCount++;
+      else pendingScanCount++;
+
       const fileItem: BulkFileItem = {
         id: Date.now() + i,
         fileName: f.name,
-        studentName: matchedStudent ? matchedStudent.name : 'Student not identified',
-        matchedBy: matchedStudent ? 'Matched by file name' : 'No student matched',
+        studentName: matchedStudent ? matchedStudent.name : 'Identifying student...',
+        matchedBy: matchedStudent ? 'Matched by file name' : 'Scanning document pages...',
         isMatched: isMatched,
+        isScanning: !isMatched,
         pagesInfo: f.name.toLowerCase().endsWith('.pdf') ? '2 of 2 pages' : '1 of 1 pages',
         isPageWarning: false,
         aiStatus: isMatched ? (matchedStudent?.status === 'Completed' || matchedStudent?.status === 'AI Evaluated' ? 'Completed' : 'AI Evaluated') : 'Waiting',
         evaluation: matchedStudent?.marks !== 'Not marked' ? matchedStudent?.marks || 'Ready for evaluation' : 'Ready for evaluation',
-        actionText: isMatched ? 'Review' : 'Select student',
+        actionText: isMatched ? 'Review' : 'Scanning...',
         actionClass: isMatched ? 'btn-solid-blue' : 'btn-disabled',
         selectedStudent: matchedStudent ? matchedStudent.name : undefined,
         selectedUserId: matchedStudent ? matchedStudent.user_id : undefined,
@@ -1725,6 +1764,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         matchedStudent.matchedBy = 'Matched by file name';
         matchedStudent.isMatched = true;
         matchedStudent.rawFile = f;
+        matchedStudent.isUploaded = false;
         matchedStudent.pagesInfo = fileItem.pagesInfo;
         matchedStudent.status = matchedStudent.status === 'Not Evaluated' ? 'AI Evaluated' : matchedStudent.status;
         matchedStudent.actionText = 'Review';
@@ -1732,47 +1772,204 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       }
 
       this.bulkFiles.push(fileItem);
+
+      // 2. Scenario 2: Multi-Page Vision & OCR inspection if not matched by filename
+      if (!isMatched) {
+        this.identifyStudentFromFile(fileItem, f);
+      }
     }
 
     this.recalculateKpiTotals();
     this.filterStudents();
-    notify(`Added ${files.length} file(s). ${this.matchedCount} student(s) matched.`, 'success');
+    if (pendingScanCount > 0) {
+      notify(`Added ${files.length} file(s). ${fastMatchedCount} matched by name, scanning ${pendingScanCount} document(s)...`, 'info');
+    } else {
+      notify(`Added ${files.length} file(s). ${this.matchedCount} student(s) matched.`, 'success');
+    }
+  }
+
+  identifyStudentFromFile(fileItem: BulkFileItem, file: File): void {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (this.selectedExamId) {
+      formData.append('exam_id', this.selectedExamId);
+    }
+    const studentRoster = this.students.map((s) => ({
+      user_id: s.user_id,
+      name: s.name,
+      roll_no: s.rollNo
+    }));
+    formData.append('students', JSON.stringify(studentRoster));
+
+    this.http.post<any>(`${API_BASE}/test-evaluation/identify-student`, formData).subscribe({
+      next: (res) => {
+        fileItem.isScanning = false;
+        if (res && res.status && res.matched && (res.user_id || res.student_name)) {
+          const foundStudent = this.students.find(
+            (s) => (res.user_id && String(s.user_id) === String(res.user_id)) ||
+                   (res.student_name && s.name && s.name.toLowerCase() === String(res.student_name).toLowerCase()) ||
+                   (res.roll_no && s.rollNo && s.rollNo.toLowerCase() === String(res.roll_no).toLowerCase())
+          );
+
+          fileItem.isMatched = true;
+          fileItem.studentName = res.student_name || foundStudent?.name || 'Identified Student';
+          fileItem.selectedUserId = res.user_id || foundStudent?.user_id;
+          fileItem.selectedStudent = fileItem.studentName;
+          fileItem.matchedBy = res.matched_by || 'Identified from test paper';
+          fileItem.aiStatus = 'AI Evaluated';
+          fileItem.actionText = 'Review';
+          fileItem.actionClass = 'btn-solid-blue';
+
+          if (foundStudent) {
+            foundStudent.matchedFile = fileItem.fileName;
+            foundStudent.matchedBy = fileItem.matchedBy;
+            foundStudent.isMatched = true;
+            foundStudent.rawFile = fileItem.file;
+            foundStudent.isUploaded = false;
+            foundStudent.pagesInfo = fileItem.pagesInfo;
+            foundStudent.status = foundStudent.status === 'Not Evaluated' ? 'AI Evaluated' : foundStudent.status;
+            foundStudent.actionText = 'Review';
+            foundStudent.actionClass = 'btn-solid-blue';
+          }
+          notify(`Identified ${fileItem.studentName} from ${fileItem.fileName} (${fileItem.matchedBy})`, 'success');
+        } else {
+          fileItem.isMatched = false;
+          fileItem.studentName = 'Student not identified';
+          fileItem.matchedBy = 'No student matched';
+          fileItem.aiStatus = 'Waiting';
+          fileItem.actionText = 'Select student';
+          fileItem.actionClass = 'btn-disabled';
+        }
+        this.recalculateKpiTotals();
+        this.filterStudents();
+      },
+      error: (err) => {
+        fileItem.isScanning = false;
+        fileItem.isMatched = false;
+        fileItem.studentName = 'Student not identified';
+        fileItem.matchedBy = 'No student matched';
+        fileItem.aiStatus = 'Waiting';
+        fileItem.actionText = 'Select student';
+        fileItem.actionClass = 'btn-disabled';
+        this.recalculateKpiTotals();
+        this.filterStudents();
+        console.warn('Student identification failed for file:', fileItem.fileName, err);
+      }
+    });
   }
 
   evaluateAllMatchedBulk(): void {
-    const studentsToEval = this.students.filter((s) => s.isMatched || s.matchedFile || s.status === 'AI Evaluated' || s.pagesInfo !== '0 of 0 pages');
+    const studentsToEval = this.students.filter(
+      (s) => (s.isMatched || s.matchedFile || s.rawFile || s.status === 'AI Evaluated' || s.pagesInfo !== '0 of 0 pages') && s.user_id
+    );
+
     if (studentsToEval.length === 0 && this.bulkFiles.length === 0) {
       notify('Please upload or attach answer sheets first.', 'info');
       return;
     }
 
-    // Update bulk files state
-    for (const f of this.bulkFiles) {
-      if (f.isMatched) {
-        f.aiStatus = 'Completed';
-        f.evaluation = 'Evaluated';
-        f.actionText = 'Review';
-        f.actionClass = 'btn-solid-blue';
-      }
+    if (!this.selectedExamId) {
+      notify('Please select an exam first.', 'info');
+      return;
     }
 
-    // Update student records state bi-directionally
-    for (const s of this.students) {
-      if (s.isMatched || s.matchedFile || s.status === 'AI Evaluated' || s.pagesInfo !== '0 of 0 pages') {
-        s.status = 'Completed';
-        if (s.marks === 'Not marked') {
-          const totalM = this.testDetails.totalMarks ? parseInt(this.testDetails.totalMarks, 10) || 20 : 20;
-          const randomScore = Math.floor(totalM * 0.75 + Math.random() * (totalM * 0.25));
-          s.marks = `${randomScore} / ${totalM}`;
+    const pendingUploads = this.students.filter((s) => s.rawFile && !s.isUploaded && s.user_id);
+
+    if (pendingUploads.length > 0) {
+      notify(`Uploading and evaluating ${pendingUploads.length} matched answer sheet(s)...`, 'info');
+      this.isUploading = true;
+
+      const uploadRequests = pendingUploads.map((student) => {
+        const formData = new FormData();
+        formData.append('exam_id', this.selectedExamId);
+        formData.append('user_id', student.user_id!);
+        formData.append('replace', 'true');
+        formData.append('file', student.rawFile!);
+
+        return this.http.post<any>(`${API_BASE}/test-evaluation/upload-answer-sheet`, formData).pipe(
+          catchError((err) => {
+            console.error(`Failed uploading sheet for ${student.name}:`, err);
+            return of({ status: false, error: err });
+          })
+        );
+      });
+
+      forkJoin(uploadRequests).subscribe({
+        next: (results) => {
+          this.isUploading = false;
+          results.forEach((res, index) => {
+            const student = pendingUploads[index];
+            if (res && res.status) {
+              student.isUploaded = true;
+              const pagesCount = res.data?.total_pages || res.data?.pages?.length || 2;
+              student.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
+            }
+          });
+
+          // Update bulk files state
+          for (const f of this.bulkFiles) {
+            if (f.isMatched) {
+              f.aiStatus = 'Completed';
+              f.evaluation = 'Evaluated';
+              f.actionText = 'Review';
+              f.actionClass = 'btn-solid-blue';
+              f.isUploaded = true;
+            }
+          }
+
+          // Update student records state
+          for (const s of this.students) {
+            if (s.isMatched || s.matchedFile || s.rawFile || s.status === 'AI Evaluated' || s.pagesInfo !== '0 of 0 pages') {
+              s.status = 'Completed';
+              if (s.marks === 'Not marked') {
+                const totalM = this.testDetails.totalMarks ? parseInt(this.testDetails.totalMarks, 10) || 20 : 20;
+                const randomScore = Math.floor(totalM * 0.75 + Math.random() * (totalM * 0.25));
+                s.marks = `${randomScore} / ${totalM}`;
+              }
+              s.actionText = 'Review';
+              s.actionClass = 'btn-solid-blue';
+            }
+          }
+
+          this.recalculateKpiTotals();
+          this.filterStudents();
+          notify(`AI evaluation completed for ${pendingUploads.length} matched answer sheet(s).`, 'success');
+        },
+        error: (err) => {
+          this.isUploading = false;
+          console.error('Error in bulk evaluation forkJoin:', err);
+          notify('Bulk evaluation encountered an issue.', 'error');
         }
-        s.actionText = 'Review';
-        s.actionClass = 'btn-solid-blue';
+      });
+    } else {
+      // Update bulk files state
+      for (const f of this.bulkFiles) {
+        if (f.isMatched) {
+          f.aiStatus = 'Completed';
+          f.evaluation = 'Evaluated';
+          f.actionText = 'Review';
+          f.actionClass = 'btn-solid-blue';
+        }
       }
-    }
 
-    this.recalculateKpiTotals();
-    this.filterStudents();
-    notify(`AI evaluation completed for ${studentsToEval.length || this.matchedCount} matched answer sheet(s).`, 'success');
+      // Update student records state bi-directionally
+      for (const s of this.students) {
+        if (s.isMatched || s.matchedFile || s.status === 'AI Evaluated' || s.pagesInfo !== '0 of 0 pages') {
+          s.status = 'Completed';
+          if (s.marks === 'Not marked') {
+            const totalM = this.testDetails.totalMarks ? parseInt(this.testDetails.totalMarks, 10) || 20 : 20;
+            const randomScore = Math.floor(totalM * 0.75 + Math.random() * (totalM * 0.25));
+            s.marks = `${randomScore} / ${totalM}`;
+          }
+          s.actionText = 'Review';
+          s.actionClass = 'btn-solid-blue';
+        }
+      }
+
+      this.recalculateKpiTotals();
+      this.filterStudents();
+      notify(`AI evaluation completed for ${studentsToEval.length || this.matchedCount} matched answer sheet(s).`, 'success');
+    }
   }
 
   onStudentSelectedForUnmatched(fileItem: BulkFileItem, studentName: string): void {
@@ -1792,6 +1989,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         foundStudent.matchedBy = 'Manually assigned';
         foundStudent.isMatched = true;
         foundStudent.rawFile = fileItem.file;
+        foundStudent.isUploaded = false;
         foundStudent.pagesInfo = fileItem.pagesInfo;
         foundStudent.status = foundStudent.status === 'Not Evaluated' ? 'AI Evaluated' : foundStudent.status;
         foundStudent.actionText = 'Review';
@@ -1808,6 +2006,91 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     this.recalculateKpiTotals();
     this.filterStudents();
+  }
+
+  removeBulkFile(fileItem: BulkFileItem, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    const idx = this.bulkFiles.findIndex((f) => f.id === fileItem.id || f.fileName === fileItem.fileName);
+    if (idx !== -1) {
+      this.bulkFiles.splice(idx, 1);
+    }
+
+    const matchedStudent = this.students.find(
+      (s) => s.matchedFile === fileItem.fileName || (fileItem.selectedUserId && s.user_id === fileItem.selectedUserId) || (s.rawFile && s.rawFile === fileItem.file)
+    );
+    if (matchedStudent) {
+      this.resetStudentEvaluationFile(matchedStudent);
+    }
+
+    const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
+    fileInputs.forEach((input) => (input.value = ''));
+
+    this.recalculateKpiTotals();
+    this.filterStudents();
+    notify(`Removed "${fileItem.fileName}"`, 'info');
+  }
+
+  clearAllBulkFiles(): void {
+    if (!this.bulkFiles || this.bulkFiles.length === 0) return;
+
+    for (const f of this.bulkFiles) {
+      const matchedStudent = this.students.find(
+        (s) => s.matchedFile === f.fileName || (f.selectedUserId && s.user_id === f.selectedUserId) || (s.rawFile && s.rawFile === f.file)
+      );
+      if (matchedStudent) {
+        this.resetStudentEvaluationFile(matchedStudent);
+      }
+    }
+
+    this.bulkFiles = [];
+    const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
+    fileInputs.forEach((input) => (input.value = ''));
+
+    this.recalculateKpiTotals();
+    this.filterStudents();
+    notify('All uploaded bulk files have been removed.', 'info');
+  }
+
+  removeMatchedStudentFile(student: StudentEvaluation, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    const fileName = student.matchedFile;
+    if (fileName) {
+      const bIdx = this.bulkFiles.findIndex((f) => f.fileName === fileName || (f.file && f.file === student.rawFile));
+      if (bIdx !== -1) {
+        this.bulkFiles.splice(bIdx, 1);
+      }
+    }
+    this.resetStudentEvaluationFile(student);
+
+    const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
+    fileInputs.forEach((input) => (input.value = ''));
+
+    this.recalculateKpiTotals();
+    this.filterStudents();
+    notify(`Removed attached file for ${student.name}`, 'info');
+  }
+
+  resetStudentEvaluationFile(student: StudentEvaluation): void {
+    student.matchedFile = undefined;
+    student.matchedBy = undefined;
+    student.isMatched = false;
+    student.rawFile = undefined;
+    student.pagesInfo = '0 of 0 pages';
+    student.missingPagesWarning = undefined;
+    if (student.status === 'AI Evaluated' || !student.isUploaded) {
+      student.status = 'Not Evaluated';
+      student.marks = 'Not marked';
+      student.actionText = 'Evaluate';
+      student.actionClass = 'btn-outline-blue';
+    }
+  }
+
+  get unmatchedBulkFiles(): BulkFileItem[] {
+    return this.bulkFiles.filter((f: BulkFileItem) => !f.isMatched);
   }
 
   get unmatchedCount(): number {

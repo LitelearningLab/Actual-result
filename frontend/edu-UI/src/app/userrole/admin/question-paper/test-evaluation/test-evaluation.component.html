@@ -426,6 +426,72 @@
         </label>
       </div>
 
+      <!-- Uploaded Files Manager Tray (Quick View & Delete Mistakes) -->
+      <div class="uploaded-files-tray" *ngIf="bulkFiles.length > 0">
+        <div class="uploaded-tray-header">
+          <div class="tray-title-group">
+            <mat-icon class="tray-header-icon">folder_open</mat-icon>
+            <span class="tray-title">Uploaded Answer Sheets ({{ bulkFiles.length }})</span>
+            <span class="tray-stats-badge">
+              {{ matchedCount }} matched &bull; {{ unmatchedCount }} unmatched
+            </span>
+          </div>
+          <button
+            type="button"
+            class="btn-clear-all-files"
+            (click)="clearAllBulkFiles()"
+            matTooltip="Clear and remove all uploaded bulk files"
+          >
+            <mat-icon>delete_sweep</mat-icon>
+            <span>Clear All Files</span>
+          </button>
+        </div>
+
+        <div class="uploaded-files-chips-grid">
+          <div
+            class="file-chip-item"
+            *ngFor="let f of bulkFiles"
+            [ngClass]="{
+              'chip-matched': f.isMatched,
+              'chip-unmatched': !f.isMatched,
+              'chip-scanning': f.isScanning
+            }"
+          >
+            <div class="file-chip-left">
+              <mat-icon class="file-chip-icon">
+                {{ f.fileName.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image' }}
+              </mat-icon>
+              <div class="file-chip-details">
+                <span class="file-chip-name" [title]="f.fileName">{{ f.fileName }}</span>
+                <span class="file-chip-sub">
+                  <ng-container *ngIf="f.isMatched">
+                    <mat-icon class="sub-status-icon matched-icon">check_circle</mat-icon>
+                    <span class="sub-text"><strong>{{ f.studentName }}</strong></span>
+                  </ng-container>
+                  <ng-container *ngIf="!f.isMatched && f.isScanning">
+                    <mat-icon class="sub-status-icon scanning-icon">sync</mat-icon>
+                    <span class="sub-text">Scanning...</span>
+                  </ng-container>
+                  <ng-container *ngIf="!f.isMatched && !f.isScanning">
+                    <mat-icon class="sub-status-icon unmatched-icon">warning</mat-icon>
+                    <span class="sub-text">Unmatched</span>
+                  </ng-container>
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn-chip-remove"
+              (click)="removeBulkFile(f, $event)"
+              [matTooltip]="'Remove ' + f.fileName"
+              aria-label="Remove file"
+            >
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- 5-Step Evaluation Progress Stepper (100% Dynamic Logic) -->
       <div class="stepper-bar-container">
         <div class="stepper-track">
@@ -550,12 +616,41 @@
         </div>
       </div>
 
-      <!-- Warning Alert Banner (Image 1 & 3) -->
-      <div class="warning-alert-banner" *ngIf="unmatchedCount > 0">
-        <mat-icon class="warning-icon">warning</mat-icon>
-        <span>
-          <strong>{{ unmatchedCount }} file</strong> could not be matched to a student. Choose the student below to include it in the evaluation.
-        </span>
+      <!-- Warning Alert Banner for Unmatched Files with Resolution / Removal Controls -->
+      <div class="unmatched-resolution-card" *ngIf="unmatchedCount > 0">
+        <div class="warning-alert-banner">
+          <mat-icon class="warning-icon">warning</mat-icon>
+          <span>
+            <strong>{{ unmatchedCount }} file{{ unmatchedCount > 1 ? 's' : '' }}</strong> could not be matched automatically. Choose the student below or remove mistaken files:
+          </span>
+        </div>
+        <div class="unmatched-items-list">
+          <div class="unmatched-item-row" *ngFor="let uf of unmatchedBulkFiles">
+            <div class="unmatched-file-info">
+              <mat-icon class="unmatched-file-icon">description</mat-icon>
+              <span class="unmatched-file-name" [title]="uf.fileName">{{ uf.fileName }}</span>
+            </div>
+            <div class="unmatched-item-actions">
+              <select
+                class="student-assign-select"
+                [ngModel]="uf.selectedStudent || 'Choose student'"
+                (ngModelChange)="onStudentSelectedForUnmatched(uf, $event)"
+              >
+                <option value="Choose student" disabled>Choose student to link...</option>
+                <option *ngFor="let st of students" [value]="st.name">{{ st.name }} ({{ st.rollNo }})</option>
+              </select>
+              <button
+                type="button"
+                class="btn-unmatched-remove"
+                (click)="removeBulkFile(uf, $event)"
+                [matTooltip]="'Remove ' + uf.fileName"
+              >
+                <mat-icon>delete_outline</mat-icon>
+                <span>Remove</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Bulk Student Files Table (Synchronized with User Upload Table Structure) -->
@@ -585,7 +680,15 @@
                   <div class="student-roll">{{ s.rollNo }}</div>
                   <div *ngIf="s.matchedFile" class="match-badge-chip">
                     <mat-icon class="match-icon">description</mat-icon>
-                    <span>{{ s.matchedFile }} ({{ s.matchedBy || 'Matched' }})</span>
+                    <span class="match-chip-text" [title]="s.matchedFile">{{ s.matchedFile }} ({{ s.matchedBy || 'Matched' }})</span>
+                    <button
+                      type="button"
+                      class="btn-match-chip-remove"
+                      (click)="removeMatchedStudentFile(s, $event)"
+                      matTooltip="Remove / Detach file"
+                    >
+                      <mat-icon>close</mat-icon>
+                    </button>
                   </div>
                 </td>
 
@@ -670,13 +773,25 @@
           </table>
         </div>
 
-        <!-- Table Bottom Action Footer Bar (Exact Image 2) -->
+        <!-- Table Bottom Action Footer Bar -->
         <div class="bulk-table-footer-bar">
           <span class="files-uploaded-count">{{ bulkFiles.length }} file(s) uploaded &bull; {{ students.length }} student(s) enrolled</span>
-          <button type="button" class="btn-evaluate-matched" (click)="evaluateAllMatchedBulk()">
-            <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
-            <span>Evaluate Matched Sheets</span>
-          </button>
+          <div class="bulk-footer-actions-group">
+            <button
+              type="button"
+              class="btn-footer-clear"
+              *ngIf="bulkFiles.length > 0"
+              (click)="clearAllBulkFiles()"
+              matTooltip="Remove all uploaded bulk files"
+            >
+              <mat-icon>delete_outline</mat-icon>
+              <span>Clear All</span>
+            </button>
+            <button type="button" class="btn-evaluate-matched" (click)="evaluateAllMatchedBulk()">
+              <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
+              <span>Evaluate Matched Sheets</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
