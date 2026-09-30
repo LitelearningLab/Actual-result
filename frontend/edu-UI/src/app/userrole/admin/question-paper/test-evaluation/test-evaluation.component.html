@@ -6,24 +6,31 @@
       <span class="applied-filters-title">APPLIED FILTERS</span>
       <span class="applied-filter-pill" *ngIf="isSuperAdmin && !!selectedInstitute && activeInstituteName">
         <strong>Institute:</strong> {{ activeInstituteName }}
+        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('institute'); $event.stopPropagation()">close</mat-icon>
       </span>
       <span class="applied-filter-pill" *ngIf="selectedClassName">
         <strong>{{ terminology.deptLabel }}:</strong> {{ selectedClassName }}
+        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('class'); $event.stopPropagation()">close</mat-icon>
       </span>
       <span class="applied-filter-pill" *ngIf="selectedSectionName">
         <strong>{{ terminology.teamLabel }}:</strong> {{ selectedSectionName }}
+        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('section'); $event.stopPropagation()">close</mat-icon>
       </span>
       <span class="applied-filter-pill" *ngIf="selectedSubjectName">
         <strong>Subject:</strong> {{ selectedSubjectName }}
+        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('subject'); $event.stopPropagation()">close</mat-icon>
       </span>
       <span class="applied-filter-pill" *ngIf="selectedExamTitle">
         <strong>Test:</strong> {{ selectedExamTitle }}
+        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('test'); $event.stopPropagation()">close</mat-icon>
       </span>
       <span class="applied-filter-pill" *ngIf="selectedStatus && selectedStatus !== 'All statuses'">
         <strong>Status:</strong> {{ selectedStatus }}
+        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('status'); $event.stopPropagation()">close</mat-icon>
       </span>
       <span class="applied-filter-pill" *ngIf="searchQuery && searchQuery.trim()">
         <strong>Search:</strong> {{ searchQuery }}
+        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('search'); $event.stopPropagation()">close</mat-icon>
       </span>
 
       <button
@@ -37,24 +44,212 @@
       </button>
     </div>
 
-    <div class="top-actions" [class.ml-auto]="!hasAppliedFilters">
-      <button
-        type="button"
-        class="icon-refresh-btn"
-        (click)="refreshData()"
-        title="Refresh & Reload Test Data"
-      >
-        <mat-icon>refresh</mat-icon>
-      </button>
-      <button
-        type="button"
-        class="btn-filter-reports"
-        (click)="openFilterDrawer()"
-        title="Open Filter Drawer"
-      >
-        <mat-icon>filter_alt</mat-icon>
-        <span>Filter Test Reports</span>
-      </button>
+    <div class="controls" [class.ml-auto]="!hasAppliedFilters">
+      <div class="action-row">
+        <button
+          mat-flat-button
+          type="button"
+          (click)="clearAppliedFilters()"
+          class="refresh-icon-btn"
+          title="Refresh & Clear Filters"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" class="refresh-svg-icon">
+            <path
+              d="M204-318q-22-38-33-78t-11-82q0-134 93-228t227-94h7l-64-64 56-56 160 160-160 160-56-56 64-64h-7q-100 0-170 70.5T240-478q0 26 6 51t18 49l-60 60ZM481-40 321-200l160-160 56 56-64 64h7q100 0 170-70.5T720-482q0-26-6-51t-18-49l60-60q22 38 33 78t11 82q0 134-93 228t-227 94h-7l64 64-56 56Z"
+            />
+          </svg>
+        </button>
+        <button
+          #filtersBtn
+          mat-flat-button
+          type="button"
+          class="button-one btn-filter-reports"
+          (click)="$event.stopPropagation(); openFiltersOverlay()"
+        >
+          <mat-icon svgIcon="filter"></mat-icon>
+          <span>Filter Tests</span>
+        </button>
+      </div>
+
+      <!-- Filter fields (rendered into floating overlay) -->
+      <ng-template #filtersPanel>
+        <div
+          class="filters-panel view-questions-filters-panel"
+          (click)="$event.stopPropagation()"
+        >
+          <div class="filters-panel-header">
+            <h4><mat-icon>tune</mat-icon> Filters</h4>
+          </div>
+          <div class="filter-block filter-grid">
+            <!-- Row 1: Institute (Super Admin) -->
+            <div class="filter-col-full" *ngIf="isSuperAdmin">
+              <mat-form-field appearance="outline" class="filter-item mandatory-field">
+                <mat-label>Institute <span class="required-mark">*</span></mat-label>
+                <mat-select
+                  [(ngModel)]="selectedInstitute"
+                  name="filterInstitute"
+                  placeholder="Choose Institute"
+                  (selectionChange)="onInstituteChange($event.value)"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      matInput
+                      class="select-search-input"
+                      placeholder="Search institute..."
+                      [(ngModel)]="instituteFilterSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
+                    />
+                  </div>
+                  <mat-option value="">Choose Institute</mat-option>
+                  <mat-option *ngIf="!filteredInstitutesList.length" disabled>
+                    No institutes found
+                  </mat-option>
+                  <mat-option *ngFor="let inst of filteredInstitutesList" [value]="inst.institute_id">
+                    {{ inst.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Row 2: Department / Class -->
+            <div class="filter-col-full">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-label>{{ terminology.deptLabel }}</mat-label>
+                <mat-select
+                  [(ngModel)]="selectedClass"
+                  name="filterClass"
+                  (selectionChange)="onClassChange($event.value)"
+                  [disabled]="isSuperAdmin && !activeInstituteId"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      matInput
+                      class="select-search-input"
+                      [placeholder]="'Search ' + terminology.deptLabel.toLowerCase() + '...'"
+                      [(ngModel)]="deptFilterSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
+                    />
+                  </div>
+                  <mat-option *ngFor="let c of filteredClassList" [value]="c.id">
+                    {{ c.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Row 3: Team / Section -->
+            <div class="filter-col-full">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-label>{{ terminology.teamLabel }}</mat-label>
+                <mat-select
+                  [(ngModel)]="selectedSection"
+                  name="filterSection"
+                  (selectionChange)="onSectionChange($event.value)"
+                  [disabled]="isSuperAdmin && !activeInstituteId"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      matInput
+                      class="select-search-input"
+                      [placeholder]="'Search ' + terminology.teamLabel.toLowerCase() + '...'"
+                      [(ngModel)]="teamFilterSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
+                    />
+                  </div>
+                  <mat-option *ngFor="let s of filteredSectionList" [value]="s.id">
+                    {{ s.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Row 4: Subject -->
+            <div class="filter-col-full">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-label>Subject</mat-label>
+                <mat-select
+                  [(ngModel)]="selectedSubject"
+                  name="filterSubject"
+                  (selectionChange)="onSubjectChange($event.value)"
+                  [disabled]="isSuperAdmin && !activeInstituteId"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      matInput
+                      class="select-search-input"
+                      placeholder="Search subject..."
+                      [(ngModel)]="subjectFilterSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
+                    />
+                  </div>
+                  <mat-option *ngFor="let sub of filteredSubjectList" [value]="sub.id">
+                    {{ sub.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Row 5: Test Name -->
+            <div class="filter-col-full">
+              <mat-form-field appearance="outline" class="filter-item mandatory-field">
+                <mat-label>Test <span class="required-mark">*</span></mat-label>
+                <mat-select
+                  [(ngModel)]="selectedExamId"
+                  name="filterTest"
+                  (selectionChange)="onTestChange($event.value)"
+                  [disabled]="isSuperAdmin && !activeInstituteId"
+                  placeholder="Select Test"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      matInput
+                      class="select-search-input"
+                      placeholder="Search test..."
+                      [(ngModel)]="testFilterSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="stopFilterSearchEvent($event)"
+                    />
+                  </div>
+                  <mat-option *ngIf="filteredExamsList.length === 0" disabled>
+                    No published paper tests found
+                  </mat-option>
+                  <mat-option *ngFor="let t of filteredExamsList" [value]="t.exam_id">
+                    {{ t.title }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <div class="filter-actions">
+            <button mat-flat-button (click)="resetFiltersAndReload()" class="filter-reset-btn">
+              <mat-icon svgIcon="refresh"></mat-icon> Reset
+            </button>
+            <button mat-flat-button (click)="applyFiltersPanel()" class="filter-apply-btn">
+              <mat-icon svgIcon="apply"></mat-icon> Apply
+            </button>
+          </div>
+        </div>
+      </ng-template>
     </div>
   </div>
 
@@ -74,82 +269,120 @@
         </div>
       </div>
       <span class="selection-step-hint">
-        Select {{ terminology.deptLabel }} &rarr; Select {{ terminology.teamLabel }} &rarr; Select Subject &rarr; Select Test
+        Select {{ terminology.deptLabel }} &rarr; Select {{ terminology.teamLabel }} &rarr; Select Subject &rarr; Select Test from Filter
       </span>
     </div>
 
-    <div class="selection-fields-grid">
-      <!-- Institute Selector (Super Admin) -->
-      <mat-form-field appearance="outline" class="selection-field" *ngIf="isSuperAdmin">
-        <mat-label>Institute <span class="required-mark">*</span></mat-label>
-        <mat-select
-          [(ngModel)]="selectedInstitute"
-          (selectionChange)="onInstituteChange($event.value)"
-          placeholder="Choose Institute"
-        >
-          <mat-option value="">Choose Institute</mat-option>
-          <mat-option *ngFor="let inst of institutes" [value]="inst.institute_id">
-            {{ inst.name }}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
+    <div class="selection-card-rows">
+      <!-- Top Row: 3 Boxes (Expandable / 3 Columns) -->
+      <div class="selection-fields-row selection-row-three-col" [class.two-col-admin]="!isSuperAdmin">
+        <!-- Institute Selector Box (Super Admin) -->
+        <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always" *ngIf="isSuperAdmin">
+          <mat-label>Institute <span class="required-mark">*</span></mat-label>
+          <input
+            matInput
+            type="text"
+            [value]="activeInstituteName"
+            placeholder="Choose Institute from Filter"
+            readonly
+            tabindex="-1"
+            style="cursor: default; user-select: none;"
+          />
+        </mat-form-field>
 
-      <!-- Department / Class -->
-      <mat-form-field appearance="outline" class="selection-field">
-        <mat-label>{{ terminology.deptLabel }}</mat-label>
-        <mat-select
-          [(ngModel)]="selectedClass"
-          (selectionChange)="onClassChange($event.value)"
-          [disabled]="isSuperAdmin && !activeInstituteId"
-        >
-          <mat-option *ngFor="let c of classList" [value]="c.id">{{ c.name }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+        <!-- Department / Class Box -->
+        <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always">
+          <mat-label>{{ terminology.deptLabel }}</mat-label>
+          <input
+            matInput
+            type="text"
+            [value]="selectedClassName"
+            [placeholder]="terminology.deptLabel"
+            readonly
+            tabindex="-1"
+            style="cursor: default; user-select: none;"
+          />
+        </mat-form-field>
 
-      <!-- Team / Section / Year -->
-      <mat-form-field appearance="outline" class="selection-field">
-        <mat-label>{{ terminology.teamLabel }}</mat-label>
-        <mat-select
-          [(ngModel)]="selectedSection"
-          (selectionChange)="onSectionChange($event.value)"
-          [disabled]="isSuperAdmin && !activeInstituteId"
-        >
-          <mat-option *ngFor="let s of sectionList" [value]="s.id">{{ s.name }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+        <!-- Team / Section / Year Box -->
+        <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always">
+          <mat-label>{{ terminology.teamLabel }}</mat-label>
+          <input
+            matInput
+            type="text"
+            [value]="selectedSectionName"
+            [placeholder]="terminology.teamLabel"
+            readonly
+            tabindex="-1"
+            style="cursor: default; user-select: none;"
+          />
+        </mat-form-field>
+      </div>
 
-      <!-- Subject -->
-      <mat-form-field appearance="outline" class="selection-field">
-        <mat-label>Subject</mat-label>
-        <mat-select
-          [(ngModel)]="selectedSubject"
-          (selectionChange)="onSubjectChange($event.value)"
-          [disabled]="isSuperAdmin && !activeInstituteId"
-        >
-          <mat-option *ngFor="let sub of subjectList" [value]="sub.id">{{ sub.name }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <!-- Bottom Row: 2 Boxes (Subject & Test, Expandable / 2 Columns) -->
+      <div class="selection-fields-row selection-row-two-col">
+        <!-- Subject Box -->
+        <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always">
+          <mat-label>Subject</mat-label>
+          <input
+            matInput
+            type="text"
+            [value]="selectedSubjectName"
+            placeholder="Subject"
+            readonly
+            tabindex="-1"
+            style="cursor: default; user-select: none;"
+          />
+        </mat-form-field>
 
-      <!-- Test -->
-      <mat-form-field appearance="outline" class="selection-field test-select-field">
-        <mat-label>Test <span class="required-mark">*</span></mat-label>
-        <mat-select
-          [(ngModel)]="selectedExamId"
-          (selectionChange)="onTestChange($event.value)"
-          [disabled]="isSuperAdmin && !activeInstituteId"
-          placeholder="Select Test"
-        >
-          <mat-option *ngIf="testList.length === 0" disabled>No published paper tests found</mat-option>
-          <mat-option *ngFor="let t of testList" [value]="t.exam_id">{{ t.title }}</mat-option>
-        </mat-select>
-        <mat-hint *ngIf="isLoadingExams" style="color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
-          <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
-          <span>Loading tests...</span>
-        </mat-hint>
-      </mat-form-field>
+        <!-- Test Box -->
+        <mat-form-field appearance="outline" class="selection-field readonly-field readonly-test-field" floatLabel="always">
+          <mat-label>Test <span class="required-mark">*</span></mat-label>
+          <input
+            matInput
+            type="text"
+            [value]="selectedExamTitle"
+            placeholder="Select Test from Filter"
+            readonly
+            tabindex="-1"
+            style="cursor: default; user-select: none;"
+          />
+          <mat-hint *ngIf="isLoadingExams" style="color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
+            <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+            <span>Loading tests...</span>
+          </mat-hint>
+        </mat-form-field>
+      </div>
     </div>
   </div>
 
+  <!-- ─── Empty State when no test selected (Matching Test Reports) ─── -->
+  <div class="empty-reports-state" *ngIf="!selectedExamId">
+    <div class="empty-state-card">
+      <div class="empty-state-icon">
+        <mat-icon>analytics</mat-icon>
+      </div>
+      <h3 class="empty-state-title">No Test Selected</h3>
+      <p class="empty-state-description" *ngIf="isSuperAdmin">
+        Please select an <strong>Institute</strong> and a <strong>Test</strong> from the toolbar above or use the <strong>Filter Tests</strong> panel to load test evaluation data.
+      </p>
+      <p class="empty-state-description" *ngIf="!isSuperAdmin">
+        Please select a <strong>Test</strong> from the <strong>Filter Tests</strong> panel to load test evaluation data.
+      </p>
+      <button
+        mat-flat-button
+        type="button"
+        class="button-one empty-action-btn"
+        (click)="openFiltersOverlay()"
+      >
+        <mat-icon svgIcon="filter"></mat-icon>
+        <span>Filter Tests</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── Evaluation View Content (Shown only when a test is selected) ─── -->
+  <ng-container *ngIf="selectedExamId">
   <!-- ─── Sub-tabs Toggle Bar (User Upload / Bulk Upload) ─── -->
   <div class="upload-tabs-container">
     <button
@@ -635,7 +868,8 @@
       </div>
     </div>
   </ng-container>
-</ng-container>
+  </ng-container>
+  </ng-container>
 
   <!-- ========================================================= -->
   <!-- ─── EVALUATE ANSWER SHEET SPLIT-VIEW (Vision AI Mode) ─── -->
@@ -1520,87 +1754,6 @@
       </div>
     </div>
   </div>
-
-  <!-- ─── Filter Drawer Overlay (Slide-out panel) ─── -->
-  <div class="filter-drawer-backdrop" *ngIf="isFilterDrawerOpen" (click)="closeFilterDrawer()"></div>
-  <div class="filter-drawer" [class.open]="isFilterDrawerOpen">
-    <div class="filter-drawer-header">
-      <div class="header-title-group">
-        <mat-icon class="header-icon">tune</mat-icon>
-        <h4>Filter Tests</h4>
-      </div>
-      <button type="button" class="drawer-close-btn" (click)="closeFilterDrawer()" title="Close">
-        <mat-icon>close</mat-icon>
-      </button>
-    </div>
-
-    <div class="filter-drawer-body">
-      <!-- Institute Selector (Super Admin) -->
-      <div class="drawer-filter-group" *ngIf="isSuperAdmin">
-        <label class="drawer-filter-label">Institute <span class="required-star">*</span></label>
-        <div class="drawer-select-wrapper">
-          <select [(ngModel)]="selectedInstitute" (change)="onInstituteChange(selectedInstitute)">
-            <option value="">Choose Institute</option>
-            <option *ngFor="let inst of institutes" [value]="inst.institute_id">{{ inst.name }}</option>
-          </select>
-          <mat-icon class="dropdown-icon">expand_more</mat-icon>
-        </div>
-      </div>
-
-      <!-- Department / Class -->
-      <div class="drawer-filter-group">
-        <label class="drawer-filter-label">{{ terminology.deptLabel }}</label>
-        <div class="drawer-select-wrapper">
-          <select [(ngModel)]="selectedClass" (change)="onClassChange(selectedClass)" [disabled]="!activeInstituteId">
-            <option *ngIf="!activeInstituteId" value="ALL" disabled selected>Select Institute first</option>
-            <option *ngFor="let c of classList" [value]="c.id">{{ c.name }}</option>
-          </select>
-          <mat-icon class="dropdown-icon">expand_more</mat-icon>
-        </div>
-      </div>
-
-      <!-- Team / Section / Year -->
-      <div class="drawer-filter-group">
-        <label class="drawer-filter-label">{{ terminology.teamLabel }}</label>
-        <div class="drawer-select-wrapper">
-          <select [(ngModel)]="selectedSection" (change)="onSectionChange(selectedSection)" [disabled]="!activeInstituteId">
-            <option *ngIf="!activeInstituteId" value="ALL" disabled selected>Select Institute first</option>
-            <option *ngFor="let s of sectionList" [value]="s.id">{{ s.name }}</option>
-          </select>
-          <mat-icon class="dropdown-icon">expand_more</mat-icon>
-        </div>
-      </div>
-
-      <!-- Subject -->
-      <div class="drawer-filter-group">
-        <label class="drawer-filter-label">Subject</label>
-        <div class="drawer-select-wrapper">
-          <select [(ngModel)]="selectedSubject" (change)="onSubjectChange(selectedSubject)" [disabled]="!activeInstituteId">
-            <option *ngIf="!activeInstituteId" value="ALL" disabled selected>Select Institute first</option>
-            <option *ngFor="let sub of subjectList" [value]="sub.id">{{ sub.name }}</option>
-          </select>
-          <mat-icon class="dropdown-icon">expand_more</mat-icon>
-        </div>
-      </div>
-
-      <!-- Test -->
-      <div class="drawer-filter-group">
-        <label class="drawer-filter-label">Test</label>
-        <div class="drawer-select-wrapper">
-          <select [(ngModel)]="selectedExamId" (change)="onTestChange(selectedExamId)" [disabled]="!activeInstituteId">
-            <option *ngIf="!activeInstituteId" value="" disabled selected>Select Institute first</option>
-            <option *ngIf="activeInstituteId && testList.length === 0" value="" disabled selected>No published paper tests found</option>
-            <option *ngFor="let t of testList" [value]="t.exam_id">{{ t.title }}</option>
-          </select>
-          <mat-icon class="dropdown-icon">expand_more</mat-icon>
-        </div>
-      </div>
-    </div>
-
-    <div class="filter-drawer-footer">
-      <button type="button" class="btn-drawer-reset" (click)="resetFilterDrawer()">Reset</button>
-      <button type="button" class="btn-drawer-apply" (click)="applyFilterDrawer()">Apply Filters</button>
-    </div>
-  </div>
 </div>
+
 

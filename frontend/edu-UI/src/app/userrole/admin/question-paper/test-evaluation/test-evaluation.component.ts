@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef, TemplateRef, ViewContainerRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -9,6 +9,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { Overlay, OverlayRef, OverlayModule } from '@angular/cdk/overlay';
+import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
@@ -70,7 +72,9 @@ export interface BulkFileItem {
     MatSelectModule,
     MatFormFieldModule,
     MatInputModule,
-    MatButtonModule
+    MatButtonModule,
+    OverlayModule,
+    PortalModule
   ],
   templateUrl: './test-evaluation.component.html',
   styleUrls: ['./test-evaluation.component.scss']
@@ -85,6 +89,46 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (this.scannerVideoElement && this.mediaStream && this.isCameraStreaming) {
       this.attachStreamToVideo();
     }
+  }
+
+  @ViewChild('filtersBtn') filtersBtn?: ElementRef;
+  @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
+  filtersOverlayRef: OverlayRef | null = null;
+
+  instituteFilterSearch = '';
+  deptFilterSearch = '';
+  teamFilterSearch = '';
+  subjectFilterSearch = '';
+  testFilterSearch = '';
+
+  get filteredInstitutesList() {
+    const q = (this.instituteFilterSearch || '').toLowerCase().trim();
+    if (!q) return this.institutes;
+    return this.institutes.filter(i => i.name && i.name.toLowerCase().includes(q));
+  }
+
+  get filteredClassList() {
+    const q = (this.deptFilterSearch || '').toLowerCase().trim();
+    if (!q) return this.classList;
+    return this.classList.filter(c => c.name && c.name.toLowerCase().includes(q));
+  }
+
+  get filteredSectionList() {
+    const q = (this.teamFilterSearch || '').toLowerCase().trim();
+    if (!q) return this.sectionList;
+    return this.sectionList.filter(s => s.name && s.name.toLowerCase().includes(q));
+  }
+
+  get filteredSubjectList() {
+    const q = (this.subjectFilterSearch || '').toLowerCase().trim();
+    if (!q) return this.subjectList;
+    return this.subjectList.filter(sub => sub.name && sub.name.toLowerCase().includes(q));
+  }
+
+  get filteredExamsList() {
+    const q = (this.testFilterSearch || '').toLowerCase().trim();
+    if (!q) return this.testList;
+    return this.testList.filter(t => t.title && t.title.toLowerCase().includes(q));
   }
 
   // ─── Role & Institute State ───
@@ -191,7 +235,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     private auth: AuthService,
     private loader: LoaderService,
     private pageMeta: PageMetaService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private overlay: Overlay,
+    private vcr: ViewContainerRef
   ) {
     this.detectUserRole();
   }
@@ -206,6 +252,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (this.authSubscription) {
       this.authSubscription.unsubscribe();
     }
+    this.closeFiltersOverlay();
   }
 
   private detectUserRole(): void {
@@ -293,6 +340,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.searchQuery = '';
     this.selectedStatus = 'All statuses';
     this.bulkFiles = [];
+    this.instituteFilterSearch = '';
+    this.deptFilterSearch = '';
+    this.teamFilterSearch = '';
+    this.subjectFilterSearch = '';
+    this.testFilterSearch = '';
 
     if (this.isSuperAdmin) {
       this.selectedInstitute = '';
@@ -391,28 +443,121 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.loadPublishedExams(instituteId);
   }
 
-  isFilterDrawerOpen = false;
+  openFiltersOverlay(): void {
+    if (!this.filtersBtn) return;
+    if (this.filtersOverlayRef) {
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (e) {}
+      this.filtersOverlayRef = null;
+    }
 
-  openFilterDrawer(): void {
-    this.isFilterDrawerOpen = true;
+    this.instituteFilterSearch = '';
+    this.deptFilterSearch = '';
+    this.teamFilterSearch = '';
+    this.subjectFilterSearch = '';
+    this.testFilterSearch = '';
+
+    const targetEl =
+      this.filtersBtn?.nativeElement ||
+      (this.filtersBtn as any)?._elementRef?.nativeElement ||
+      this.filtersBtn;
+
+    const positionStrategy = this.overlay
+      .position()
+      .flexibleConnectedTo(targetEl)
+      .withPositions([
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
+        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
+      ])
+      .withPush(true);
+
+    this.filtersOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+    });
+    this.filtersOverlayRef.backdropClick().subscribe(() => this.closeFiltersOverlay());
+    this.filtersOverlayRef.keydownEvents().subscribe((ev: any) => {
+      if (ev.key === 'Escape') this.closeFiltersOverlay();
+    });
+
+    const portal = new TemplatePortal(this.filtersPanelTpl, this.vcr);
+    this.filtersOverlayRef.attach(portal);
   }
 
-  closeFilterDrawer(): void {
-    this.isFilterDrawerOpen = false;
+  closeFiltersOverlay(): void {
+    if (this.filtersOverlayRef) {
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (e) {}
+      this.filtersOverlayRef = null;
+    }
   }
 
-  toggleFilterDrawer(): void {
-    this.isFilterDrawerOpen = !this.isFilterDrawerOpen;
-  }
-
-  applyFilterDrawer(): void {
-    this.closeFilterDrawer();
+  applyFiltersPanel(): void {
+    this.closeFiltersOverlay();
     this.applyExamFilters();
     this.filterStudents();
   }
 
-  resetFilterDrawer(): void {
+  resetFiltersAndReload(): void {
+    this.instituteFilterSearch = '';
+    this.deptFilterSearch = '';
+    this.teamFilterSearch = '';
+    this.subjectFilterSearch = '';
+    this.testFilterSearch = '';
     this.clearAppliedFilters();
+    this.closeFiltersOverlay();
+  }
+
+  stopFilterSearchEvent(event: Event): void {
+    event.stopPropagation();
+  }
+
+  removeAppliedFilter(key: string): void {
+    switch (key) {
+      case 'institute':
+        if (this.isSuperAdmin) {
+          this.selectedInstitute = '';
+          this.resetAllDependentDropdowns();
+        }
+        break;
+      case 'class':
+      case 'department':
+        this.selectedClass = 'ALL';
+        this.filterSectionList();
+        this.applyExamFilters();
+        this.filterStudents();
+        break;
+      case 'section':
+      case 'team':
+        this.selectedSection = 'ALL';
+        this.applyExamFilters();
+        this.filterStudents();
+        break;
+      case 'subject':
+        this.selectedSubject = 'ALL';
+        this.applyExamFilters();
+        this.filterStudents();
+        break;
+      case 'test':
+        this.selectedExamId = '';
+        this.students = [];
+        this.filteredStudents = [];
+        this.resetTestDetails();
+        this.recalculateKpiTotals();
+        break;
+      case 'status':
+        this.selectedStatus = 'All statuses';
+        this.filterStudents();
+        break;
+      case 'search':
+        this.searchQuery = '';
+        this.filterStudents();
+        break;
+    }
   }
 
   loadDepartments(instituteId: string): void {
@@ -593,12 +738,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       title: e.title
     }));
 
-    if (this.testList.length > 0) {
-      const defaultId = this.selectedExamId && this.testList.some((t) => t.exam_id === this.selectedExamId)
-        ? this.selectedExamId
-        : this.testList[0].exam_id;
-      this.selectedExamId = defaultId;
-      this.onTestChange(defaultId);
+    if (this.testList.length > 0 && this.selectedExamId && this.testList.some((t) => t.exam_id === this.selectedExamId)) {
+      this.onTestChange(this.selectedExamId);
     } else {
       this.selectedExamId = '';
       this.students = [];

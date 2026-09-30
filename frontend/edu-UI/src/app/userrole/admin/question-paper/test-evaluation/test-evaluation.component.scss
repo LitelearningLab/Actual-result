@@ -2,6 +2,10 @@
 // Enterprise – Test Evaluation Component Styles
 // ============================================
 
+$ease: cubic-bezier(0.4, 0, 0.2, 1);
+$ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
 .test-evaluation-page {
   display: flex;
   flex-direction: column;
@@ -19,112 +23,205 @@
   justify-content: space-between;
   gap: 1rem;
   width: 100%;
+  margin-bottom: 0.75rem;
 
   .applied-filters-container {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem 0.75rem;
-    padding: 0.5rem 0.875rem;
-    background: #f1f5f9;
-    border-radius: 0.5rem;
     flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+  }
 
-    .applied-filters-title {
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: #64748b;
-      letter-spacing: 0.05em;
-      margin-right: 0.25rem;
-    }
+  .controls {
+    margin-left: auto;
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+}
 
-    .applied-filter-pill {
-      font-size: 0.8125rem;
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-      padding: 0.25rem 0.625rem;
-      border-radius: 0.375rem;
-      color: #334155;
-      font-weight: 500;
+// ── Applied Filters Container (Matching Test Reports) ──
+.applied-filters-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.625rem;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  margin-bottom: 0.75rem;
 
-      strong {
-        color: #1e293b;
-      }
-    }
+  .applied-filters-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-right: 0.375rem;
+  }
 
-    .clear-all-chip-btn {
-      background: transparent;
-      border: 1px solid #3b82f6;
-      color: #2563eb;
-      font-size: 0.75rem;
+  .applied-filter-pill {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.375rem;
+    padding: 0.3rem 0.625rem;
+    font-size: 0.8125rem;
+    color: #1e293b;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+
+    strong {
       font-weight: 600;
-      padding: 0.25rem 0.625rem;
-      border-radius: 0.375rem;
+      color: #0f172a;
+    }
+
+    .pill-remove-icon {
+      font-size: 0.875rem;
+      width: 0.875rem;
+      height: 0.875rem;
+      color: #94a3b8;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: color 0.15s ease, background 0.15s ease;
 
       &:hover {
-        background: #eff6ff;
+        color: #ef4444;
+        background: #fee2e2;
       }
     }
   }
 
-  .top-actions {
-    display: flex;
+  .clear-all-chip-btn {
+    background: #ffffff;
+    border: 1px solid #2563eb;
+    color: #2563eb;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
     align-items: center;
-    gap: 0.625rem;
 
-    &.ml-auto {
-      margin-left: auto;
+    &:hover {
+      background: #eff6ff;
+      border-color: #1d4ed8;
+      color: #1d4ed8;
+    }
+  }
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+  margin-bottom: 0.75rem;
+
+  &.ml-auto {
+    margin-left: auto;
+  }
+}
+
+.action-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+:host ::ng-deep .refresh-icon-btn,
+.refresh-icon-btn {
+  min-width: 2.625rem !important;
+  width: 2.625rem !important;
+  height: 2.625rem !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 0.625rem !important;
+  background: var(--button-1, #2563eb) !important;
+  color: #ffffff !important;
+  cursor: pointer;
+  border: none;
+
+  .refresh-svg-icon,
+  mat-icon {
+    font-size: 1.25rem !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    fill: #ffffff !important;
+    color: #ffffff !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: transform 0.3s $ease;
+
+    svg {
+      fill: #ffffff !important;
+      color: #ffffff !important;
+      width: 1.25rem !important;
+      height: 1.25rem !important;
     }
 
-    .icon-refresh-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: none;
-      background: #2563eb;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    path {
+      fill: #ffffff !important;
+      color: #ffffff !important;
+    }
+  }
 
-      mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-      }
+  .refresh-svg-icon path {
+    fill: #ffffff !important;
+  }
 
-      &:hover {
-        background: #1d4ed8;
+  &:hover {
+    background: var(--button-1-hover, #1d4ed8) !important;
+
+    .refresh-svg-icon,
+    mat-icon {
+      color: #ffffff !important;
+      transform: rotate(180deg);
+
+      svg, path {
+        fill: #ffffff !important;
+        color: #ffffff !important;
       }
     }
+  }
+}
 
-    .btn-filter-reports {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: #2563eb;
-      color: #ffffff;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 0.5rem;
-      font-weight: 600;
-      font-size: 0.875rem;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+.button-one,
+.btn-filter-reports {
+  background: var(--button-1, #2563eb) !important;
+  color: var(--button-text-1, #ffffff) !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+  height: 2.625rem;
+  padding: 0 1rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  transition: background 0.25s $ease, box-shadow 0.25s $ease, transform 0.2s $ease-bounce !important;
 
-      mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-      }
+  mat-icon {
+    font-size: 1.125rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    color: #ffffff;
+  }
 
-      &:hover {
-        background: #1d4ed8;
-      }
-    }
+  &:hover {
+    background: var(--button-1-hover, #1d4ed8) !important;
+    box-shadow: $shadow-md !important;
+    transform: translateY(-0.0625rem);
   }
 }
 
@@ -226,11 +323,17 @@
     }
   }
 
-  .selection-fields-grid {
+  .selection-card-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    width: 100%;
+  }
+
+  .selection-fields-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1rem;
-    align-items: flex-start;
+    width: 100%;
 
     .selection-field {
       width: 100%;
@@ -238,6 +341,22 @@
       .required-mark {
         color: #ef4444;
       }
+    }
+
+    &.selection-row-three-col {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+
+      &.two-col-admin {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    &.selection-row-two-col {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr !important;
     }
   }
 }
@@ -253,6 +372,36 @@
     &.mat-focused .mat-mdc-text-field-wrapper {
       background-color: #ffffff;
     }
+
+    input::placeholder {
+      color: #94a3b8 !important;
+      font-weight: 400 !important;
+      opacity: 1 !important;
+      -webkit-text-fill-color: #94a3b8 !important;
+    }
+  }
+
+  .readonly-field {
+    user-select: none !important;
+    cursor: default !important;
+
+    .mat-mdc-text-field-wrapper {
+      background-color: #f8fafc !important;
+      cursor: default !important;
+    }
+
+    input {
+      color: #1e293b;
+      font-weight: 600;
+      cursor: default !important;
+
+      &::placeholder {
+        color: #94a3b8 !important;
+        font-weight: 400 !important;
+        opacity: 1 !important;
+        -webkit-text-fill-color: #94a3b8 !important;
+      }
+    }
   }
 }
 
@@ -260,203 +409,283 @@
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+// ════════════════════════════════════════════════════════════════════════════════
+// EMPTY STATE PLACEHOLDER CARD (Matching Test Reports)
+// ════════════════════════════════════════════════════════════════════════════════
+.empty-reports-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4.5rem 1.5rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px dashed #cbd5e1;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  animation: slideUp 0.3s $ease;
+  width: 100%;
 }
 
-// ── Filter Drawer Styles ──
-.filter-drawer-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(2px);
-  z-index: 1000;
-  animation: drawerFadeIn 0.2s ease-out;
-}
-
-.filter-drawer {
-  position: fixed;
-  top: 0;
-  right: -420px;
-  width: 400px;
-  max-width: 90vw;
-  height: 100vh;
-  background: #ffffff;
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.15);
-  z-index: 1001;
+.empty-state-card {
   display: flex;
   flex-direction: column;
-  transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  align-items: center;
+  text-align: center;
+  max-width: 28rem;
 
-  &.open {
-    right: 0;
-  }
-
-  .filter-drawer-header {
+  .empty-state-icon {
+    width: 4.25rem;
+    height: 4.25rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 0.04) 100%);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid #e2e8f0;
-    background: #f8fafc;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+    border: 1px solid rgba(37, 99, 235, 0.2);
 
-    .header-title-group {
-      display: flex;
-      align-items: center;
-      gap: 0.625rem;
-
-      .header-icon {
-        color: #2563eb;
-        font-size: 22px;
-        width: 22px;
-        height: 22px;
-      }
-
-      h4 {
-        margin: 0;
-        font-size: 1.125rem;
-        font-weight: 700;
-        color: #0f172a;
-      }
-    }
-
-    .drawer-close-btn {
-      background: transparent;
-      border: none;
-      color: #64748b;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      transition: all 0.2s;
-
-      &:hover {
-        background: #e2e8f0;
-        color: #0f172a;
-      }
+    mat-icon {
+      font-size: 2.25rem;
+      width: 2.25rem;
+      height: 2.25rem;
+      color: var(--button-1, #2563eb);
     }
   }
 
-  .filter-drawer-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+  .empty-state-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.01em;
+  }
 
-    .drawer-filter-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.375rem;
+  .empty-state-description {
+    font-size: 0.875rem;
+    color: #64748b;
+    line-height: 1.5;
+    margin: 0 0 1.5rem 0;
 
-      .drawer-filter-label {
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: #334155;
-
-        .required-star {
-          color: #ef4444;
-        }
-      }
-
-      .drawer-select-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-
-        select {
-          width: 100%;
-          appearance: none;
-          background: #ffffff;
-          border: 1px solid #cbd5e1;
-          border-radius: 0.5rem;
-          padding: 0.625rem 2.25rem 0.625rem 0.875rem;
-          font-size: 0.875rem;
-          font-weight: 500;
-          color: #0f172a;
-          cursor: pointer;
-          outline: none;
-          transition: all 0.2s;
-
-          &:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-          }
-
-          &:disabled {
-            background-color: #f8fafc;
-            color: #94a3b8;
-            border-color: #e2e8f0;
-            cursor: not-allowed;
-          }
-        }
-
-        .dropdown-icon {
-          position: absolute;
-          right: 0.75rem;
-          pointer-events: none;
-          color: #64748b;
-          font-size: 20px;
-          width: 20px;
-          height: 20px;
-        }
-      }
+    strong {
+      color: #334155;
+      font-weight: 600;
     }
   }
 
-  .filter-drawer-footer {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid #e2e8f0;
-    background: #f8fafc;
+  .empty-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.5rem;
+    padding: 0 1.25rem !important;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FILTERS OVERLAY PANEL — Matching Test Reports
+// ════════════════════════════════════════════════════════════════════════════════
+.filters-panel {
+  width: min(28rem, calc(100vw - 2rem));
+  max-height: 82vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1rem;
+  box-shadow: 0 1.25rem 3rem rgba(15, 23, 42, 0.16), 0 0.375rem 1rem rgba(15, 23, 42, 0.06);
+  animation: slideUp 0.28s $ease-bounce;
+}
+
+.filters-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
+  flex-shrink: 0;
+
+  h4 {
+    margin: 0;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.01em;
 
-    .btn-drawer-reset {
-      padding: 0.5rem 1.125rem;
-      border: 1px solid #cbd5e1;
-      background: #ffffff;
-      color: #475569;
-      border-radius: 0.5rem;
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-
-      &:hover {
-        background: #f1f5f9;
-        color: #1e293b;
-        border-color: #94a3b8;
-      }
-    }
-
-    .btn-drawer-apply {
-      padding: 0.5rem 1.25rem;
-      border: none;
-      background: #2563eb;
-      color: #ffffff;
-      border-radius: 0.5rem;
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
-      transition: all 0.2s;
-
-      &:hover {
-        background: #1d4ed8;
-      }
+    mat-icon {
+      font-size: 1.125rem;
+      width: 1.125rem;
+      height: 1.125rem;
+      color: var(--button-1, #2563eb);
     }
   }
 }
+
+.filter-block,
+.filter-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem 0.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.filter-col-full {
+  width: 100%;
+}
+
+.filter-item {
+  width: 100%;
+  min-width: 0;
+}
+
+// Filter field ::ng-deep overrides — modern compact look
+:host ::ng-deep .filters-panel .filter-item .mat-mdc-text-field-wrapper {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  padding: 0 0.75rem;
+  transition: border-color 0.2s $ease, box-shadow 0.2s $ease, background 0.2s $ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+:host ::ng-deep .filters-panel .filter-item .mdc-notched-outline { display: none !important; }
+:host ::ng-deep .filters-panel .filter-item .mat-mdc-form-field-flex { height: 2.75rem; }
+:host ::ng-deep .filters-panel .filter-item .mat-mdc-form-field-infix { padding: 0.5rem 0; min-height: unset; }
+:host ::ng-deep .filters-panel .filter-item .mat-mdc-floating-label {
+  top: 1.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+:host ::ng-deep .filters-panel .filter-item.mat-focused .mat-mdc-floating-label,
+:host ::ng-deep .filters-panel .filter-item .mat-mdc-floating-label.mdc-floating-label--float-above {
+  transform: translateY(-1.45rem) scale(0.75);
+  color: var(--button-1, #2563eb);
+  font-weight: 600;
+  background: #ffffff !important;
+  z-index: 10 !important;
+  padding: 0 0.375rem !important;
+  display: inline-block !important;
+  width: max-content !important;
+  border-radius: 0.25rem;
+}
+:host ::ng-deep .filters-panel .filter-item input,
+:host ::ng-deep .filters-panel .filter-item .mat-mdc-select-value-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+:host ::ng-deep .filters-panel .filter-item .mat-mdc-select-arrow { color: #94a3b8; }
+
+// Hover
+:host ::ng-deep .filters-panel .filter-item:hover .mat-mdc-text-field-wrapper {
+  border-color: #cbd5e1;
+  box-shadow: 0 0.25rem 0.625rem rgba(15, 23, 42, 0.06);
+}
+// Focus
+:host ::ng-deep .filters-panel .filter-item.mat-focused .mat-mdc-text-field-wrapper {
+  border-color: var(--button-1, #2563eb);
+  box-shadow: 0 0 0 3px rgba(31, 123, 255, 0.12);
+  background: #ffffff;
+}
+:host ::ng-deep .filters-panel .filter-item .mat-mdc-form-field-subscript-wrapper { display: none; }
+
+// Searchable select input styling inside select dropdown options
+:host ::ng-deep .select-search-option {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #ffffff;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+
+  .select-search-input {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    color: #0f172a;
+    outline: none;
+    background: #f8fafc;
+    transition: all 0.2s $ease;
+
+    &:focus {
+      border-color: var(--button-1, #2563eb);
+      background: #ffffff;
+      box-shadow: 0 0 0 2px rgba(31, 123, 255, 0.15);
+    }
+  }
+
+  .mat-pseudo-checkbox,
+  .mat-mdc-option-pseudo-checkbox {
+    display: none !important;
+  }
+}
+
+:host ::ng-deep .mat-mdc-select-panel .select-search-option {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #ffffff;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+
+  .mat-pseudo-checkbox,
+  .mat-mdc-option-pseudo-checkbox {
+    display: none !important;
+  }
+}
+
+.filter-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
+  flex-shrink: 0;
+}
+.filter-apply-btn {
+  background: var(--button-1, #2563eb) !important;
+  color: var(--button-text-1, #ffffff) !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  padding: 0 1rem !important;
+  height: 2.25rem;
+  transition: background 0.2s $ease, box-shadow 0.2s $ease, transform 0.2s $ease-bounce !important;
+}
+.filter-apply-btn:hover {
+  background: var(--button-1-hover, #1d4ed8) !important;
+  box-shadow: $shadow-md !important;
+  transform: translateY(-0.0625rem);
+}
+.filter-reset-btn {
+  background: #ffffff !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  padding: 0 1rem !important;
+  height: 2.25rem;
+  transition: background 0.2s $ease, border-color 0.2s $ease !important;
+}
+.filter-reset-btn:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+.filter-apply-btn mat-icon,
+.filter-reset-btn mat-icon { font-size: 1rem; width: 1rem; height: 1rem; margin-right: 0.25rem; }
+
+@keyframes slideUp { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: translateY(0); } }
 
 @keyframes drawerFadeIn {
   from { opacity: 0; }
