@@ -1,30 +1,154 @@
 <div class="test-evaluation-page">
+  <ng-container *ngIf="currentView === 'list'">
   <!-- ─── Applied Filters & Top Actions Bar ─── -->
   <div class="top-filter-bar-row">
-    <div class="applied-filters-container">
+    <div class="applied-filters-container" *ngIf="hasAppliedFilters">
       <span class="applied-filters-title">APPLIED FILTERS</span>
-      <span class="applied-filter-pill">
-        <strong>Institute:</strong> Profluent Lab Pvt. Ltd
+      <span class="applied-filter-pill" *ngIf="isSuperAdmin && !!selectedInstitute && activeInstituteName">
+        <strong>Institute:</strong> {{ activeInstituteName }}
       </span>
-      <span class="applied-filter-pill">
-        <strong>Test:</strong> {{ selectedTest }}
+      <span class="applied-filter-pill" *ngIf="selectedClassName">
+        <strong>{{ terminology.deptLabel }}:</strong> {{ selectedClassName }}
       </span>
-      <button type="button" class="clear-all-chip-btn" (click)="refreshData()">
+      <span class="applied-filter-pill" *ngIf="selectedSectionName">
+        <strong>{{ terminology.teamLabel }}:</strong> {{ selectedSectionName }}
+      </span>
+      <span class="applied-filter-pill" *ngIf="selectedSubjectName">
+        <strong>Subject:</strong> {{ selectedSubjectName }}
+      </span>
+      <span class="applied-filter-pill" *ngIf="selectedExamTitle">
+        <strong>Test:</strong> {{ selectedExamTitle }}
+      </span>
+      <span class="applied-filter-pill" *ngIf="selectedStatus && selectedStatus !== 'All statuses'">
+        <strong>Status:</strong> {{ selectedStatus }}
+      </span>
+      <span class="applied-filter-pill" *ngIf="searchQuery && searchQuery.trim()">
+        <strong>Search:</strong> {{ searchQuery }}
+      </span>
+
+      <button
+        type="button"
+        class="clear-all-chip-btn"
+        (click)="clearAppliedFilters()"
+        title="Clear all applied filters"
+        *ngIf="hasAppliedFilters"
+      >
         Clear all
       </button>
     </div>
 
-    <div class="top-actions">
-      <button type="button" class="icon-refresh-btn" (click)="refreshData()" title="Refresh">
+    <div class="top-actions" [class.ml-auto]="!hasAppliedFilters">
+      <button
+        type="button"
+        class="icon-refresh-btn"
+        (click)="refreshData()"
+        title="Refresh & Reload Test Data"
+      >
         <mat-icon>refresh</mat-icon>
       </button>
-      <button type="button" class="btn-filter-reports">
+      <button
+        type="button"
+        class="btn-filter-reports"
+        (click)="openFilterDrawer()"
+        title="Open Filter Drawer"
+      >
         <mat-icon>filter_alt</mat-icon>
         <span>Filter Test Reports</span>
       </button>
     </div>
   </div>
 
+  <!-- ─── Test Selection Card (Matching Test Reports Modern Design) ─── -->
+  <div class="test-schedule-selection-card">
+    <div class="selection-card-header">
+      <div class="header-mode-toggle-group">
+        <h3 class="selection-card-title-main">Test Selection Mode:</h3>
+        <div class="mode-toggle-buttons">
+          <button
+            type="button"
+            class="mode-toggle-btn active"
+          >
+            <mat-icon>assignment</mat-icon>
+            <span>Select Test</span>
+          </button>
+        </div>
+      </div>
+      <span class="selection-step-hint">
+        Select {{ terminology.deptLabel }} &rarr; Select {{ terminology.teamLabel }} &rarr; Select Subject &rarr; Select Test
+      </span>
+    </div>
+
+    <div class="selection-fields-grid">
+      <!-- Institute Selector (Super Admin) -->
+      <mat-form-field appearance="outline" class="selection-field" *ngIf="isSuperAdmin">
+        <mat-label>Institute <span class="required-mark">*</span></mat-label>
+        <mat-select
+          [(ngModel)]="selectedInstitute"
+          (selectionChange)="onInstituteChange($event.value)"
+          placeholder="Choose Institute"
+        >
+          <mat-option value="">Choose Institute</mat-option>
+          <mat-option *ngFor="let inst of institutes" [value]="inst.institute_id">
+            {{ inst.name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Department / Class -->
+      <mat-form-field appearance="outline" class="selection-field">
+        <mat-label>{{ terminology.deptLabel }}</mat-label>
+        <mat-select
+          [(ngModel)]="selectedClass"
+          (selectionChange)="onClassChange($event.value)"
+          [disabled]="isSuperAdmin && !activeInstituteId"
+        >
+          <mat-option *ngFor="let c of classList" [value]="c.id">{{ c.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Team / Section / Year -->
+      <mat-form-field appearance="outline" class="selection-field">
+        <mat-label>{{ terminology.teamLabel }}</mat-label>
+        <mat-select
+          [(ngModel)]="selectedSection"
+          (selectionChange)="onSectionChange($event.value)"
+          [disabled]="isSuperAdmin && !activeInstituteId"
+        >
+          <mat-option *ngFor="let s of sectionList" [value]="s.id">{{ s.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Subject -->
+      <mat-form-field appearance="outline" class="selection-field">
+        <mat-label>Subject</mat-label>
+        <mat-select
+          [(ngModel)]="selectedSubject"
+          (selectionChange)="onSubjectChange($event.value)"
+          [disabled]="isSuperAdmin && !activeInstituteId"
+        >
+          <mat-option *ngFor="let sub of subjectList" [value]="sub.id">{{ sub.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Test -->
+      <mat-form-field appearance="outline" class="selection-field test-select-field">
+        <mat-label>Test <span class="required-mark">*</span></mat-label>
+        <mat-select
+          [(ngModel)]="selectedExamId"
+          (selectionChange)="onTestChange($event.value)"
+          [disabled]="isSuperAdmin && !activeInstituteId"
+          placeholder="Select Test"
+        >
+          <mat-option *ngIf="testList.length === 0" disabled>No published paper tests found</mat-option>
+          <mat-option *ngFor="let t of testList" [value]="t.exam_id">{{ t.title }}</mat-option>
+        </mat-select>
+        <mat-hint *ngIf="isLoadingExams" style="color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
+          <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+          <span>Loading tests...</span>
+        </mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
 
   <!-- ─── Sub-tabs Toggle Bar (User Upload / Bulk Upload) ─── -->
   <div class="upload-tabs-container">
@@ -65,61 +189,129 @@
         <label class="btn-upload-files">
           <mat-icon>add</mat-icon>
           <span>Upload Files</span>
-          <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg" (change)="onMultipleFilesSelected($event)" hidden />
+          <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg" (change)="onBulkFilesSelected($event)" hidden />
         </label>
       </div>
 
-      <!-- 5-Step Evaluation Progress Stepper (Connected Zero Gap Layout) -->
+      <!-- 5-Step Evaluation Progress Stepper (100% Dynamic Logic) -->
       <div class="stepper-bar-container">
         <div class="stepper-track">
           <!-- Row 1: Circles & Direct Connecting Lines -->
           <div class="stepper-nodes-row">
-            <div class="step-circle-wrapper step-completed">
-              <div class="step-circle"><mat-icon>check</mat-icon></div>
+            <!-- Step 1: Upload -->
+            <div class="step-circle-wrapper" [ngClass]="bulkFiles.length > 0 ? 'step-completed' : 'step-active'">
+              <div class="step-circle">
+                <mat-icon *ngIf="bulkFiles.length > 0">check</mat-icon>
+                <span *ngIf="bulkFiles.length === 0">1</span>
+              </div>
             </div>
-            <div class="step-line line-completed"></div>
+            <div class="step-line" [ngClass]="bulkFiles.length > 0 ? 'line-completed' : 'line-upcoming'"></div>
 
-            <div class="step-circle-wrapper step-completed">
-              <div class="step-circle"><mat-icon>check</mat-icon></div>
+            <!-- Step 2: Identify Students -->
+            <div
+              class="step-circle-wrapper"
+              [ngClass]="bulkFiles.length === 0 ? 'step-upcoming' : (unmatchedCount === 0 ? 'step-completed' : 'step-active')"
+            >
+              <div class="step-circle">
+                <mat-icon *ngIf="bulkFiles.length > 0 && unmatchedCount === 0">check</mat-icon>
+                <span *ngIf="bulkFiles.length === 0 || unmatchedCount > 0">2</span>
+              </div>
             </div>
-            <div class="step-line line-completed"></div>
+            <div
+              class="step-line"
+              [ngClass]="(bulkFiles.length > 0 && unmatchedCount === 0) ? 'line-completed' : 'line-upcoming'"
+            ></div>
 
-            <div class="step-circle-wrapper step-completed">
-              <div class="step-circle"><mat-icon>check</mat-icon></div>
+            <!-- Step 3: Validate Pages -->
+            <div
+              class="step-circle-wrapper"
+              [ngClass]="(bulkFiles.length === 0 || unmatchedCount > 0) ? 'step-upcoming' : (bulkMissingPagesCount === 0 ? 'step-completed' : 'step-active')"
+            >
+              <div class="step-circle">
+                <mat-icon *ngIf="bulkFiles.length > 0 && unmatchedCount === 0 && bulkMissingPagesCount === 0">check</mat-icon>
+                <span *ngIf="bulkFiles.length === 0 || unmatchedCount > 0 || bulkMissingPagesCount > 0">3</span>
+              </div>
             </div>
-            <div class="step-line line-completed"></div>
+            <div
+              class="step-line"
+              [ngClass]="(bulkFiles.length > 0 && unmatchedCount === 0 && bulkMissingPagesCount === 0) ? 'line-completed' : 'line-upcoming'"
+            ></div>
 
-            <div class="step-circle-wrapper step-active">
-              <div class="step-circle">4</div>
+            <!-- Step 4: AI Evaluation -->
+            <div
+              class="step-circle-wrapper"
+              [ngClass]="(bulkFiles.length === 0 || unmatchedCount > 0) ? 'step-upcoming' : (matchedCount > 0 && bulkEvaluatedCount === matchedCount ? 'step-completed' : 'step-active')"
+            >
+              <div class="step-circle">
+                <mat-icon *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">check</mat-icon>
+                <span *ngIf="!(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount)">4</span>
+              </div>
             </div>
-            <div class="step-line line-upcoming"></div>
+            <div
+              class="step-line"
+              [ngClass]="(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount) ? 'line-completed' : 'line-upcoming'"
+            ></div>
 
-            <div class="step-circle-wrapper step-upcoming">
-              <div class="step-circle">5</div>
+            <!-- Step 5: Results -->
+            <div
+              class="step-circle-wrapper"
+              [ngClass]="(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount) ? 'step-completed' : 'step-upcoming'"
+            >
+              <div class="step-circle">
+                <mat-icon *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">check</mat-icon>
+                <span *ngIf="!(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount)">5</span>
+              </div>
             </div>
           </div>
 
           <!-- Row 2: Aligning Labels & Subtitles below circles -->
           <div class="stepper-labels-row">
+            <!-- Col 1: Upload -->
             <div class="step-label-col">
               <span class="step-label">Upload</span>
-              <span class="step-sub">5 files added</span>
+              <span class="step-sub">
+                {{ bulkFiles.length > 0 ? (bulkFiles.length + ' file' + (bulkFiles.length > 1 ? 's' : '') + ' added') : 'No files added' }}
+              </span>
             </div>
+
+            <!-- Col 2: Identify Students -->
             <div class="step-label-col">
               <span class="step-label">Identify Students</span>
-              <span class="step-sub">4 matched, 1 not</span>
+              <span class="step-sub">
+                <ng-container *ngIf="bulkFiles.length === 0">Pending upload</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && unmatchedCount === 0">{{ matchedCount }} matched</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && unmatchedCount > 0">{{ matchedCount }} matched, {{ unmatchedCount }} not</ng-container>
+              </span>
             </div>
+
+            <!-- Col 3: Validate Pages -->
             <div class="step-label-col">
               <span class="step-label">Validate Pages</span>
-              <span class="step-sub">1 with a missing page</span>
+              <span class="step-sub">
+                <ng-container *ngIf="bulkFiles.length === 0">Pending upload</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && bulkMissingPagesCount === 0">All pages verified</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && bulkMissingPagesCount > 0">{{ bulkMissingPagesCount }} with missing page</ng-container>
+              </span>
             </div>
+
+            <!-- Col 4: AI Evaluation -->
             <div class="step-label-col">
               <span class="step-label">AI Evaluation</span>
-              <span class="step-sub">3 of 4 sheets done</span>
+              <span class="step-sub">
+                <ng-container *ngIf="bulkFiles.length === 0">Pending</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">All sheets evaluated</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && !(matchedCount > 0 && bulkEvaluatedCount === matchedCount)">{{ bulkEvaluatedCount }} of {{ matchedCount }} sheets done</ng-container>
+              </span>
             </div>
+
+            <!-- Col 5: Results -->
             <div class="step-label-col">
               <span class="step-label">Results</span>
-              <span class="step-sub">Review exceptions</span>
+              <span class="step-sub">
+                <ng-container *ngIf="bulkFiles.length === 0">Pending</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">Ready to review</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && !(matchedCount > 0 && bulkEvaluatedCount === matchedCount)">Review exceptions</ng-container>
+              </span>
             </div>
           </div>
         </div>
@@ -233,7 +425,7 @@
         <!-- Table Bottom Action Footer Bar (Exact Image 2) -->
         <div class="bulk-table-footer-bar">
           <span class="files-uploaded-count">{{ bulkFiles.length }} files uploaded</span>
-          <button type="button" class="btn-evaluate-matched">
+          <button type="button" class="btn-evaluate-matched" (click)="evaluateAllMatchedBulk()">
             <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
             <span>Evaluate Matched Sheets</span>
           </button>
@@ -424,7 +616,11 @@
                 </button>
               </td>
               <td class="col-action text-center">
-                <button type="button" [ngClass]="s.actionClass">
+                <button
+                  type="button"
+                  [ngClass]="s.actionClass"
+                  (click)="openStudentEvaluation(s)"
+                >
                   {{ s.actionText }}
                 </button>
               </td>
@@ -436,6 +632,622 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  </ng-container>
+</ng-container>
+
+  <!-- ========================================================= -->
+  <!-- ─── EVALUATE ANSWER SHEET SPLIT-VIEW (Vision AI Mode) ─── -->
+  <!-- ========================================================= -->
+  <ng-container *ngIf="currentView === 'evaluate'">
+    <div class="evaluate-view-wrapper">
+      <!-- ─── Top Evaluation Header Bar ─── -->
+      <div class="eval-header-top-card">
+        <div class="header-nav-row">
+          <button type="button" class="btn-back-students" (click)="closeStudentEvaluation()">
+            <mat-icon>arrow_back</mat-icon>
+            <span>Back to Students</span>
+          </button>
+          <div class="header-right-meta">
+            <span class="institute-badge-pill">
+              <strong>Institute:</strong> {{ activeInstituteName }}
+            </span>
+          </div>
+        </div>
+
+        <div class="student-info-main-row">
+          <div class="student-left-meta">
+            <h2 class="student-eval-name">{{ evaluationDetails?.student_name || evaluatingStudent?.name || 'Student Evaluation' }}</h2>
+            <div class="meta-pills-row">
+              <span class="meta-pill" *ngIf="testDetails.class && testDetails.class !== '—'">{{ testDetails.class }}</span>
+              <span class="meta-pill" *ngIf="testDetails.section && testDetails.section !== '—'">{{ testDetails.section }}</span>
+              <span class="meta-pill" *ngIf="testDetails.subject && testDetails.subject !== '—'">{{ testDetails.subject }}</span>
+              <span class="meta-pill">{{ selectedExamTitle }}</span>
+              <span class="meta-pill" *ngIf="evaluationDetails?.roll_no || evaluatingStudent?.rollNo">
+                Roll no. {{ evaluationDetails?.roll_no || evaluatingStudent?.rollNo }}
+              </span>
+            </div>
+          </div>
+
+          <div class="student-right-actions">
+            <!-- Score & Status Pill -->
+            <div class="score-summary-badge">
+              <span class="score-lbl">Total Score:</span>
+              <span class="score-val">{{ evaluationDetails?.summary?.marks_awarded || 0 }} / {{ evaluationDetails?.summary?.total_marks || 0 }}</span>
+              <span class="score-pct">({{ evaluationDetails?.summary?.percentage || 0 }}%)</span>
+            </div>
+
+            <span
+              class="status-pill"
+              [ngClass]="{
+                'pill-completed': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Completed' || (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'evaluated',
+                'pill-need-check': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Need to Check',
+                'pill-ai-evaluated': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'AI Evaluated'
+              }"
+            >
+              <span class="status-dot">●</span> {{ evaluationDetails?.summary?.status || evaluatingStudent?.status || 'AI Evaluated' }}
+            </span>
+
+            <button
+              type="button"
+              class="btn-finalize-evaluation"
+              (click)="finalizeStudentEvaluation()"
+              [disabled]="isFinalizing"
+            >
+              <mat-icon class="verified-icon">verified</mat-icon>
+              <span>{{ isFinalizing ? 'Finalizing...' : 'Approve & Finalize' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Missing Page Alert Banner (If Any) -->
+        <div class="eval-missing-alert" *ngIf="evaluatingStudent?.missingPagesWarning">
+          <div class="alert-icon-wrap">
+            <mat-icon>warning</mat-icon>
+          </div>
+          <div class="alert-text-content">
+            <strong>{{ evaluatingStudent?.missingPagesWarning }}</strong>
+            <p>Please check the uploaded answer sheet to finish the evaluation.</p>
+          </div>
+          <div class="alert-actions">
+            <button type="button" class="btn-alert-scan" (click)="openScanModal(evaluatingStudent!)">
+              <mat-icon>photo_camera</mat-icon>
+              <span>Scan Page</span>
+            </button>
+            <button type="button" class="btn-alert-attach" (click)="openAttachModal(evaluatingStudent!)">
+              <mat-icon>attach_file</mat-icon>
+              <span>Attach Page</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Split-View Mode Toggle Bar (Expandable Panes) ─── -->
+      <div class="split-view-toolbar-row">
+        <div class="split-toolbar-left">
+          <span class="toolbar-hint-text">
+            <mat-icon class="hint-icon">tune</mat-icon>
+            <span>Layout View:</span>
+          </span>
+          <div class="split-mode-pill-group">
+            <button
+              type="button"
+              class="split-pill-btn"
+              [class.active]="splitMode === 'split'"
+              (click)="setSplitMode('split')"
+              title="50% Answer Sheet / 50% Evaluation"
+            >
+              <mat-icon>vertical_split</mat-icon>
+              <span>Split (50/50)</span>
+            </button>
+            <button
+              type="button"
+              class="split-pill-btn"
+              [class.active]="splitMode === 'viewer-expanded'"
+              (click)="setSplitMode('viewer-expanded')"
+              title="Expand Answer Sheet Viewer"
+            >
+              <mat-icon>fullscreen</mat-icon>
+              <span>Expand Sheet</span>
+            </button>
+            <button
+              type="button"
+              class="split-pill-btn"
+              [class.active]="splitMode === 'eval-expanded'"
+              (click)="setSplitMode('eval-expanded')"
+              title="Expand Evaluation Details"
+            >
+              <mat-icon>rate_review</mat-icon>
+              <span>Expand Evaluation</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="split-toolbar-right">
+          <button type="button" class="btn-attach-quick" (click)="openAttachModal(evaluatingStudent!)" title="Attach/Replace Answer Sheet PDF">
+            <mat-icon>attach_file</mat-icon>
+            <span>Upload Sheet PDF</span>
+          </button>
+          <button type="button" class="btn-scan-quick" (click)="openScanModal(evaluatingStudent!)" title="Scan with Camera">
+            <mat-icon>photo_camera</mat-icon>
+            <span>Scan Sheet</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── 2-Column Evaluation Split Grid (Expandable) ─── -->
+      <div class="evaluation-split-grid" [ngClass]="'split-mode-' + splitMode">
+        <!-- ─── LEFT COLUMN: Multi-Page Answer Sheet Viewer ─── -->
+        <div class="answer-sheet-column-card" *ngIf="splitMode !== 'eval-expanded'">
+          <!-- Viewer Top Control Header -->
+          <div class="viewer-top-bar">
+            <div class="viewer-title-group">
+              <h3 class="viewer-title">Answer Sheet</h3>
+              <span class="page-count-badge" *ngIf="evaluationPages.length > 0">
+                Page {{ activeSheetPageIndex + 1 }} of {{ evaluationPages.length }}
+              </span>
+            </div>
+
+            <!-- Page Navigation Tabs (Page 1, Page 2...) -->
+            <div class="page-tabs-scroller" *ngIf="evaluationPages.length > 0">
+              <button
+                type="button"
+                *ngFor="let p of evaluationPages; let pi = index"
+                class="page-tab-chip"
+                [class.active-page-tab]="pi === activeSheetPageIndex"
+                (click)="selectSheetPage(pi)"
+              >
+                <span class="chip-dot">●</span>
+                <span>Page {{ p.page_number }}</span>
+              </button>
+            </div>
+
+            <!-- Zoom Controls -->
+            <div class="viewer-zoom-controls">
+              <button type="button" class="zoom-btn" (click)="zoomOut()" title="Zoom out" [disabled]="zoomLevel <= 50">
+                <mat-icon>remove</mat-icon>
+              </button>
+              <button type="button" class="zoom-btn-label" (click)="resetZoom()" title="Reset zoom (100%)">
+                {{ zoomLevel }}%
+              </button>
+              <button type="button" class="zoom-btn" (click)="zoomIn()" title="Zoom in" [disabled]="zoomLevel >= 250">
+                <mat-icon>add</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Interactive High-Res Page Viewport (Visual Ink / Handwriting / Diagrams) -->
+          <div class="sheet-viewport-container">
+            <div class="sheet-viewport-content" *ngIf="currentSheetPage && !isLoadingEvaluation">
+              <img
+                [src]="getPageImageUrl(currentSheetPage)"
+                alt="Student Answer Sheet Page {{ currentSheetPage.page_number }}"
+                class="sheet-page-rendered-image"
+                [style.transform]="'scale(' + (zoomLevel / 100) + ')'"
+              />
+            </div>
+
+            <!-- Empty / No Pages Uploaded State -->
+            <div class="sheet-empty-viewport" *ngIf="evaluationPages.length === 0 && !isLoadingEvaluation">
+              <div class="empty-icon-wrap">
+                <mat-icon>description</mat-icon>
+              </div>
+              <h4 class="empty-title">No Answer Sheet Pages Found</h4>
+              <p class="empty-sub">Upload the student's answer sheet PDF or scan camera pages to view visual handwriting.</p>
+              <div class="empty-actions">
+                <button type="button" class="btn-empty-scan" (click)="openScanModal(evaluatingStudent!)">
+                  <mat-icon>photo_camera</mat-icon>
+                  <span>Scan Pages</span>
+                </button>
+                <button type="button" class="btn-empty-attach" (click)="openAttachModal(evaluatingStudent!)">
+                  <mat-icon>attach_file</mat-icon>
+                  <span>Attach PDF</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div class="sheet-loading-viewport" *ngIf="isLoadingEvaluation">
+              <div class="loading-spinner"></div>
+              <span>Loading answer sheet evaluation...</span>
+            </div>
+          </div>
+
+          <!-- Bottom Viewer Navigation Footer -->
+          <div class="viewer-bottom-footer" *ngIf="evaluationPages.length > 1">
+            <button
+              type="button"
+              class="btn-prev-page"
+              (click)="selectSheetPage(activeSheetPageIndex - 1)"
+              [disabled]="activeSheetPageIndex === 0"
+            >
+              <mat-icon>chevron_left</mat-icon>
+              <span>Previous Page</span>
+            </button>
+            <span class="footer-page-indicator">
+              Viewing Page {{ activeSheetPageIndex + 1 }} of {{ evaluationPages.length }}
+            </span>
+            <button
+              type="button"
+              class="btn-next-page"
+              (click)="selectSheetPage(activeSheetPageIndex + 1)"
+              [disabled]="activeSheetPageIndex === evaluationPages.length - 1"
+            >
+              <span>Next Page</span>
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- ─── RIGHT COLUMN: Question Evaluation Cards (Exact Test Reports Design) ─── -->
+        <div class="questions-evaluation-column-card" *ngIf="splitMode !== 'viewer-expanded'">
+          <!-- Evaluation Top Filter Tabs (All, Needs Attention, Reviewed) -->
+          <div class="eval-filter-tabs-row">
+            <div class="eval-title-text">Evaluation</div>
+            <div class="eval-category-tabs">
+              <button
+                type="button"
+                class="eval-filter-pill-btn"
+                [class.active]="evaluationCategoryFilter === 'all'"
+                (click)="evaluationCategoryFilter = 'all'"
+              >
+                <span>All</span>
+                <span class="count-badge">{{ evaluationDetails?.questions?.length || 0 }}</span>
+              </button>
+
+              <button
+                type="button"
+                class="eval-filter-pill-btn"
+                [class.active]="evaluationCategoryFilter === 'needs_attention'"
+                (click)="evaluationCategoryFilter = 'needs_attention'"
+              >
+                <span>Needs attention</span>
+                <span class="count-badge count-warn">{{ (evaluationDetails?.summary?.total_questions || 0) - (evaluationDetails?.summary?.evaluated_questions || 0) }}</span>
+              </button>
+
+              <button
+                type="button"
+                class="eval-filter-pill-btn"
+                [class.active]="evaluationCategoryFilter === 'reviewed'"
+                (click)="evaluationCategoryFilter = 'reviewed'"
+              >
+                <span>Reviewed</span>
+                <span class="count-badge count-ok">{{ evaluationDetails?.summary?.evaluated_questions || 0 }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Question-by-Question Cards Container (Exact Test Reports Layout) -->
+          <div class="eval-questions-scroll-list">
+            <div
+              class="question-review-card"
+              *ngFor="let q of evaluationQuestions; let qi = index"
+            >
+              <!-- Card Top Header Row (Exact Test Reports Structure) -->
+              <div class="q-head-row">
+                <div class="q-left">
+                  <div class="q-index">{{ q.question_number || (qi + 1) }}</div>
+                  <div class="q-body">
+                    <div class="q-meta">
+                      <span class="q-badge" *ngIf="q.section_name && q.section_name !== 'General'">{{ q.section_name }}</span>
+                      <span class="q-badge">{{ q.question_type || 'DESCRIPTIVE' }}</span>
+                      <span
+                        class="mark-badge"
+                        [ngClass]="{
+                          'mark-positive': (q.marks_awarded || 0) >= (q.max_marks || 1),
+                          'mark-mid': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.max_marks || 1),
+                          'mark-negative': (q.marks_awarded || 0) == 0
+                        }"
+                      >
+                        {{ q.marks_awarded != null ? q.marks_awarded : 0 }}/{{ q.max_marks }} Marks
+                        ({{ q.max_marks > 0 ? (((q.marks_awarded || 0) / q.max_marks) * 100 | number:'1.0-1') : 0 }}%)
+                      </span>
+                      <span class="q-info" *ngIf="q.ai_confidence">
+                        <mat-icon>auto_awesome</mat-icon>
+                        <span>AI Confidence: {{ q.ai_confidence }}%</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Right Side: Teacher Marks Display & Inline Override -->
+                <div class="q-right">
+                  <div class="marks-display-mode" *ngIf="!q._editingMarks">
+                    <span
+                      class="q-marks"
+                      [ngClass]="{
+                        'mark-positive': (q.marks_awarded || 0) >= (q.max_marks || 1),
+                        'mark-mid': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.max_marks || 1),
+                        'mark-negative': (q.marks_awarded || 0) == 0
+                      }"
+                    >
+                      <span class="mark-num">{{ q.marks_awarded != null ? q.marks_awarded : 0 }}</span>
+                      <span class="mark-sep">/</span>
+                      <span class="mark-total">{{ q.max_marks }}</span>
+                    </span>
+                    <button
+                      type="button"
+                      class="edit-marks-btn"
+                      (click)="startEditMarks(q)"
+                      title="Edit marks"
+                    >
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Question Text -->
+              <div class="q-text">
+                {{ q.question_text }}
+              </div>
+
+              <!-- Inline Teacher Mark Edit Form (Visible on Edit) -->
+              <div class="marks-edit-panel" *ngIf="q._editingMarks">
+                <div class="marks-edit-row">
+                  <label class="edit-field-lbl">Awarded Marks:</label>
+                  <div class="input-max-wrap">
+                    <input
+                      type="number"
+                      class="marks-input"
+                      [(ngModel)]="q._editedMarks"
+                      [min]="0"
+                      [max]="q.max_marks"
+                      step="0.5"
+                    />
+                    <span class="marks-max">/ {{ q.max_marks }}</span>
+                  </div>
+                </div>
+
+                <div class="marks-reason-row">
+                  <label class="marks-reason-label">
+                    Change comment <span class="required-star">*</span>
+                  </label>
+                  <textarea
+                    class="marks-reason-input"
+                    [class.input-error]="q._marksReasonError"
+                    [(ngModel)]="q._marksEditReason"
+                    (input)="q._marksReasonError = false"
+                    placeholder="Explain why the marks are being changed (Required for audit log)"
+                    rows="2"
+                  ></textarea>
+                  <small *ngIf="q._marksReasonError" class="marks-reason-error-msg">
+                    Description is required when changing marks.
+                  </small>
+                </div>
+
+                <div class="marks-edit-actions">
+                  <button type="button" class="save-marks-btn" (click)="saveMarks(q)" [disabled]="q._savingMarks">
+                    <mat-icon *ngIf="!q._savingMarks">check</mat-icon>
+                    <span *ngIf="!q._savingMarks">Save Marks</span>
+                    <span *ngIf="q._savingMarks">Saving...</span>
+                  </button>
+                  <button type="button" class="cancel-marks-btn" (click)="cancelEditMarks(q)" [disabled]="q._savingMarks">
+                    <mat-icon>close</mat-icon>
+                    <span>Cancel</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Visual Page Reference Jump Link -->
+              <div class="detected-page-locator-row" *ngIf="q.detected_on_page && q.detected_on_page.length > 0">
+                <button
+                  type="button"
+                  class="btn-page-jump-link"
+                  (click)="jumpToPage(q.detected_on_page[0])"
+                  title="Click to view this question in the Answer Sheet"
+                >
+                  <mat-icon class="locator-icon">visibility</mat-icon>
+                  <span>Located on Page {{ q.detected_on_page.join(', ') }} — Click to view in left viewer</span>
+                </button>
+              </div>
+
+              <!-- Descriptive Section: Model Answer Box & Feedback Box (Exact Test Reports Design) -->
+              <div class="q-descriptive">
+                <!-- Model Answer Box -->
+                <div class="desc-model">
+                  <div class="model-label">MODEL ANSWER</div>
+                  <div class="model-text">
+                    {{ q.model_answer || 'No model answer provided in question paper.' }}
+                  </div>
+                </div>
+
+                <!-- Student Evaluation Feedback Box -->
+                <div class="q-feedback" *ngIf="q.feedback">
+                  <strong>Student answer verified against model answer key.</strong>
+                  <div class="feedback-text">{{ q.feedback }}</div>
+                </div>
+
+                <!-- Review Comments (Points Missed / Incorrect / Incomplete Columns) -->
+                <div class="q-review-comments" *ngIf="hasReviewComments(q, 'missing') || hasReviewComments(q, 'incorrect') || hasReviewComments(q, 'incomplete')">
+                  <div
+                    class="review-columns"
+                    [ngClass]="'cols-' + getNonEmptyCategoryCount(q)"
+                  >
+                    <!-- Column: Points Missed -->
+                    <div class="col missed" *ngIf="hasReviewComments(q, 'missing')">
+                      <div class="col-header">
+                        <span class="dot red"></span>
+                        <h4>Points Missed</h4>
+                      </div>
+                      <div class="review-item" *ngFor="let rc of getReviewComments(q, 'missing'); let rci = index">
+                        <div class="ri-left">
+                          <span class="ri-icon missed">{{ rci + 1 }}</span>
+                        </div>
+                        <div class="ri-body">
+                          <div class="comment-text-display" *ngIf="!rc._editing">
+                            {{ rc.comment_text }}
+                          </div>
+                          <div class="comment-edit-form" *ngIf="rc._editing">
+                            <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>
+                          </div>
+                          <div class="comment-actions-links">
+                            <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing" (click)="startEditComment(rc)">
+                              <mat-icon>edit</mat-icon> Edit
+                            </a>
+                            <a href="javascript:void(0)" class="link-delete" *ngIf="!rc._editing" (click)="confirmDeleteComment(rc, q)">
+                              <mat-icon>delete</mat-icon> Delete
+                            </a>
+                            <a href="javascript:void(0)" class="link-save" *ngIf="rc._editing" (click)="saveReviewComment(rc)">
+                              <mat-icon>check</mat-icon> Save
+                            </a>
+                            <a href="javascript:void(0)" class="link-cancel" *ngIf="rc._editing" (click)="cancelEditComment(rc)">
+                              <mat-icon>close</mat-icon> Cancel
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Column: Points Incorrect -->
+                    <div class="col incorrect" *ngIf="hasReviewComments(q, 'incorrect')">
+                      <div class="col-header">
+                        <span class="dot orange"></span>
+                        <h4>Points Incorrect</h4>
+                      </div>
+                      <div class="review-item" *ngFor="let rc of getReviewComments(q, 'incorrect'); let rci = index">
+                        <div class="ri-left">
+                          <span class="ri-icon incorrect">{{ rci + 1 }}</span>
+                        </div>
+                        <div class="ri-body">
+                          <div class="comment-text-display" *ngIf="!rc._editing">
+                            {{ rc.comment_text }}
+                          </div>
+                          <div class="comment-edit-form" *ngIf="rc._editing">
+                            <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>
+                          </div>
+                          <div class="comment-actions-links">
+                            <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing" (click)="startEditComment(rc)">
+                              <mat-icon>edit</mat-icon> Edit
+                            </a>
+                            <a href="javascript:void(0)" class="link-delete" *ngIf="!rc._editing" (click)="confirmDeleteComment(rc, q)">
+                              <mat-icon>delete</mat-icon> Delete
+                            </a>
+                            <a href="javascript:void(0)" class="link-save" *ngIf="rc._editing" (click)="saveReviewComment(rc)">
+                              <mat-icon>check</mat-icon> Save
+                            </a>
+                            <a href="javascript:void(0)" class="link-cancel" *ngIf="rc._editing" (click)="cancelEditComment(rc)">
+                              <mat-icon>close</mat-icon> Cancel
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Status Tags -->
+                <div class="rubric-status-pills-row">
+                  <span class="rubric-status-pill pill-ok" *ngIf="!hasReviewComments(q, 'incorrect')">
+                    ● No incorrect points
+                  </span>
+                  <span class="rubric-status-pill pill-ok" *ngIf="!hasReviewComments(q, 'incomplete')">
+                    ● No incomplete points
+                  </span>
+                </div>
+
+                <!-- Marks History Section (Exact Test Reports Design & Timeline) -->
+                <div class="marks-history-section">
+                  <div class="marks-history-header">
+                    <mat-icon>history</mat-icon>
+                    <span>Marks History</span>
+                  </div>
+                  <div class="marks-history-timeline">
+                    <!-- Current Marks (Latest) -->
+                    <div class="history-item current">
+                      <div class="history-indicator">
+                        <div class="dot current"></div>
+                        <div
+                          class="line"
+                          *ngIf="q.marks_history && q.marks_history.length > 0"
+                        ></div>
+                      </div>
+                      <div class="history-content">
+                        <div class="history-card current">
+                          <div
+                            class="history-badge"
+                            *ngIf="q.updated_by && q.updated_by.toLowerCase() !== 'system'"
+                          >
+                            CURRENT
+                          </div>
+                          <div class="history-marks">
+                            {{ q.marks_awarded }}
+                            <span class="marks-total">/ {{ q.max_marks || 2 }}</span>
+                          </div>
+                          <div class="history-meta">
+                            <span class="updated-by">
+                              <mat-icon>person</mat-icon>{{ q.updated_by || 'SYSTEM' }}
+                            </span>
+                            <span class="updated-date" *ngIf="q.updated_date">
+                              <mat-icon>schedule</mat-icon>{{ q.updated_date | date:'dd-MMM-yyyy HH:mm' }}
+                            </span>
+                          </div>
+                          <div class="history-reason" *ngIf="q.edit_reason">
+                            <strong>Change comment:</strong> {{ q.edit_reason }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Previous Marks History -->
+                    <div
+                      class="history-item"
+                      *ngFor="let mh of q.marks_history; let isLast = last"
+                    >
+                      <div class="history-indicator">
+                        <div class="dot past"></div>
+                        <div class="line" *ngIf="!isLast"></div>
+                      </div>
+                      <div class="history-content">
+                        <div class="history-card past">
+                          <div class="history-marks">
+                            {{ mh.marks_awarded }}
+                            <span class="marks-total">/ {{ q.max_marks || 2 }}</span>
+                          </div>
+                          <div class="history-meta">
+                            <span class="updated-by">
+                              <mat-icon>person</mat-icon>{{ mh.updated_by || 'SYSTEM' }}
+                            </span>
+                            <span class="updated-date" *ngIf="mh.updated_date">
+                              <mat-icon>schedule</mat-icon>{{ mh.updated_date | date:'dd-MMM-yyyy HH:mm' }}
+                            </span>
+                          </div>
+                          <div class="history-reason" *ngIf="mh.edit_reason">
+                            <strong>Change comment:</strong> {{ mh.edit_reason }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty Questions State -->
+            <div class="no-questions-card" *ngIf="evaluationQuestions.length === 0 && !isLoadingEvaluation">
+              <mat-icon class="no-q-icon">playlist_add_check</mat-icon>
+              <h4>No questions found</h4>
+              <p>No questions matched your current filter criteria.</p>
+            </div>
+          </div>
+
+          <!-- Bottom Evaluation Action Footer -->
+          <div class="eval-cards-bottom-footer">
+            <div class="footer-left-progress">
+              <span>All questions reviewed and verified</span>
+            </div>
+            <button
+              type="button"
+              class="btn-footer-finalize"
+              (click)="finalizeStudentEvaluation()"
+              [disabled]="isFinalizing"
+            >
+              <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
+              <span>{{ isFinalizing ? 'Finalizing...' : 'Approve & Finalize Evaluation' }}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </ng-container>
@@ -706,6 +1518,88 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ─── Filter Drawer Overlay (Slide-out panel) ─── -->
+  <div class="filter-drawer-backdrop" *ngIf="isFilterDrawerOpen" (click)="closeFilterDrawer()"></div>
+  <div class="filter-drawer" [class.open]="isFilterDrawerOpen">
+    <div class="filter-drawer-header">
+      <div class="header-title-group">
+        <mat-icon class="header-icon">tune</mat-icon>
+        <h4>Filter Tests</h4>
+      </div>
+      <button type="button" class="drawer-close-btn" (click)="closeFilterDrawer()" title="Close">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="filter-drawer-body">
+      <!-- Institute Selector (Super Admin) -->
+      <div class="drawer-filter-group" *ngIf="isSuperAdmin">
+        <label class="drawer-filter-label">Institute <span class="required-star">*</span></label>
+        <div class="drawer-select-wrapper">
+          <select [(ngModel)]="selectedInstitute" (change)="onInstituteChange(selectedInstitute)">
+            <option value="">Choose Institute</option>
+            <option *ngFor="let inst of institutes" [value]="inst.institute_id">{{ inst.name }}</option>
+          </select>
+          <mat-icon class="dropdown-icon">expand_more</mat-icon>
+        </div>
+      </div>
+
+      <!-- Department / Class -->
+      <div class="drawer-filter-group">
+        <label class="drawer-filter-label">{{ terminology.deptLabel }}</label>
+        <div class="drawer-select-wrapper">
+          <select [(ngModel)]="selectedClass" (change)="onClassChange(selectedClass)" [disabled]="!activeInstituteId">
+            <option *ngIf="!activeInstituteId" value="ALL" disabled selected>Select Institute first</option>
+            <option *ngFor="let c of classList" [value]="c.id">{{ c.name }}</option>
+          </select>
+          <mat-icon class="dropdown-icon">expand_more</mat-icon>
+        </div>
+      </div>
+
+      <!-- Team / Section / Year -->
+      <div class="drawer-filter-group">
+        <label class="drawer-filter-label">{{ terminology.teamLabel }}</label>
+        <div class="drawer-select-wrapper">
+          <select [(ngModel)]="selectedSection" (change)="onSectionChange(selectedSection)" [disabled]="!activeInstituteId">
+            <option *ngIf="!activeInstituteId" value="ALL" disabled selected>Select Institute first</option>
+            <option *ngFor="let s of sectionList" [value]="s.id">{{ s.name }}</option>
+          </select>
+          <mat-icon class="dropdown-icon">expand_more</mat-icon>
+        </div>
+      </div>
+
+      <!-- Subject -->
+      <div class="drawer-filter-group">
+        <label class="drawer-filter-label">Subject</label>
+        <div class="drawer-select-wrapper">
+          <select [(ngModel)]="selectedSubject" (change)="onSubjectChange(selectedSubject)" [disabled]="!activeInstituteId">
+            <option *ngIf="!activeInstituteId" value="ALL" disabled selected>Select Institute first</option>
+            <option *ngFor="let sub of subjectList" [value]="sub.id">{{ sub.name }}</option>
+          </select>
+          <mat-icon class="dropdown-icon">expand_more</mat-icon>
+        </div>
+      </div>
+
+      <!-- Test -->
+      <div class="drawer-filter-group">
+        <label class="drawer-filter-label">Test</label>
+        <div class="drawer-select-wrapper">
+          <select [(ngModel)]="selectedExamId" (change)="onTestChange(selectedExamId)" [disabled]="!activeInstituteId">
+            <option *ngIf="!activeInstituteId" value="" disabled selected>Select Institute first</option>
+            <option *ngIf="activeInstituteId && testList.length === 0" value="" disabled selected>No published paper tests found</option>
+            <option *ngFor="let t of testList" [value]="t.exam_id">{{ t.title }}</option>
+          </select>
+          <mat-icon class="dropdown-icon">expand_more</mat-icon>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-drawer-footer">
+      <button type="button" class="btn-drawer-reset" (click)="resetFilterDrawer()">Reset</button>
+      <button type="button" class="btn-drawer-apply" (click)="applyFilterDrawer()">Apply Filters</button>
     </div>
   </div>
 </div>

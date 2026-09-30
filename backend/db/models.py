@@ -600,6 +600,14 @@ class QuestionPaperUserAssignment(Base):
         UniqueConstraint('exam_id', 'user_id', name='uq_question_paper_user_assignment'),
     )
 
+class AnswerSheetPage(Base):
+    __tablename__ = 'AnswerSheetPages'
+    page_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+    attempt_id = Column(String, ForeignKey('Exam_Attempts.attempt_id'), nullable=False)
+    page_number = Column(Integer, nullable=False)
+    image_path = Column(String(500), nullable=False)
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
+
 class Subject(Base):
     __tablename__ = 'Subjects'
     subject_id = Column(String, primary_key=True, default=generate_uuid)

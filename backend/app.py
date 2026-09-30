@@ -533,6 +533,38 @@ def get_exams():
     response_data, status_code = get_exam_details(request)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/test-evaluation/student-evaluation-details', methods=['GET'])
+@admin_required
+def get_student_evaluation_details_route():
+    from others.exams import get_student_evaluation_details
+    current_user = get_current_user_from_request()
+    response_data, status_code = get_student_evaluation_details(request, current_user)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/test-evaluation/finalize-evaluation', methods=['POST'])
+@admin_required
+def finalize_student_evaluation_route():
+    from others.exams import finalize_student_evaluation
+    current_user = get_current_user_from_request()
+    response_data, status_code = finalize_student_evaluation(request, current_user)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/test-evaluation/upload-answer-sheet', methods=['POST'])
+@admin_required
+def upload_answer_sheet_route():
+    from others.exams import upload_answer_sheet
+    current_user = get_current_user_from_request()
+    response_data, status_code = upload_answer_sheet(request, current_user)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/uploads/answer_sheets/<path:filename>', methods=['GET'])
+def serve_answer_sheet_file(filename):
+    import os
+    from flask import send_from_directory
+    upload_folder = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'answer_sheets')
+    return send_from_directory(upload_folder, filename)
+
+
 
 @edu_blueprint.route('/launch-exam', methods=['GET'])
 @jwt_required

@@ -376,3 +376,216 @@ CRITICAL RULES:
         print(f"Error in generate_ai_subtopics LLM call: {e}")
 
     return {}
+
+
+def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60.0):
+    """
+    Evaluates student handwritten answer sheet page images directly using OpenAI Vision API.
+    Does NOT use OCR or text extraction as an intermediate step.
+    
+    Parameters:
+      - api_client: openai_client instance
+      - exam_rubric: dict containing exam metadata and question-by-question marking schemes/rubrics
+      - page_images: list of dicts:
+          [{'page_number': 1, 'image_base64': '...', 'mime_type': 'image/jpeg'}, ...]
+          OR list of file paths.
+      - timeout: float HTTP request timeout in seconds
+      
+    Returns structured JSON:
+      {
+        "status": True/False,
+        "evaluations": [
+          {
+            "question_id": "...",
+            "question_number": 1,
+            "detected_on_pages": [1],
+            "suggested_marks": 4.0,
+            "max_marks": 5.0,
+            "is_correct": 0,
+            "ai_confidence": 88,
+            "missing": "...",
+            "incomplete": "...",
+            "incorrect": "...",
+            "feedback": "..."
+          }, ...
+        ],
+        "overall_summary": "...",
+        "evaluation_notes": "..."
+      }
+    """
+    import base64
+
+    if not page_images:
+        return {
+            "status": False,
+            "error": "No answer sheet page images provided for evaluation.",
+            "evaluations": []
+        }
+
+    system_prompt = """You are an expert academic evaluator, assessment specialist, and visual answer sheet grader.
+Your task is to visually inspect and evaluate a student's physical handwritten answer sheet pages for an examination.
+
+CRITICAL EVALUATION RULES:
+1. Do NOT require or perform OCR text extraction. Look at the attached answer sheet page images directly with visual understanding.
+2. Read the handwritten responses, mathematical workings, chemical/physical formulas, step derivations, circuit/biological diagrams, and objective question markings directly from the images.
+3. Match each student answer to its corresponding Question in the provided Question Paper Blueprint & Rubric.
+4. For Objective / Multiple Choice Questions:
+   - Identify whether the student marked, ticked, circled, or wrote down the option.
+   - Compare with the correct answer key in the rubric.
+   - Award full marks if correct, 0 if incorrect or unmarked.
+5. For Descriptive / Mathematical / Scientific Questions:
+   - Understand the conceptual depth, key terminology, and definition coverage.
+   - Award step marks for intermediate mathematical / derivation steps, even if the final calculation has minor arithmetic errors.
+   - Evaluate diagrams: check labeled axes, annotations, structural components, and clarity against the rubric.
+   - Deduct marks proportionally for missing points or conceptual flaws.
+6. If a question is unattempted or cannot be found on any page:
+   - Set "suggested_marks": 0.0, "is_correct": 0, "detected_on_pages": [], "feedback": "Question was not attempted."
+7. Confidence Scoring:
+   - "ai_confidence" must be an integer between 0 and 100.
+   - If handwriting is clear and answer is definitive, confidence should be 85-100.
+   - If handwriting is ambiguous, partially cut off, or illegible, reduce confidence accordingly (e.g. 40-65).
+
+ALWAYS respond ONLY with a single valid JSON object (no markdown code blocks, no extra explanatory text outside the JSON).
+
+OUTPUT JSON STRUCTURE:
+{
+  "evaluations": [
+    {
+      "question_id": "<exact question_id string from the rubric>",
+      "question_number": <integer question number>,
+      "detected_on_pages": [<array of page numbers where this answer is located, e.g. [1] or [1, 2]>],
+      "suggested_marks": <float score between 0.0 and max_marks>,
+      "max_marks": <float maximum marks for this question>,
+      "is_correct": <1 if full marks awarded, 0 otherwise>,
+      "ai_confidence": <integer between 0 and 100>,
+      "missing": "<pipe-separated list of missing concepts/points or 'None'>",
+      "incomplete": "<pipe-separated list of incomplete working steps or 'None'>",
+      "incorrect": "<pipe-separated list of incorrect statements/calculations or 'None'>",
+      "feedback": "<clear 1-3 sentence student-friendly explanation of score, strengths, and areas to improve>"
+    }
+  ],
+  "overall_summary": "<1-2 sentence overall summary of student performance>",
+  "evaluation_notes": "<notes on scan quality or page layout, or 'Clear scan'>"
+}
+"""
+
+    # Build multimodal user content
+    user_content = []
+    rubric_text = f"QUESTION PAPER BLUEPRINT & MARKING SCHEME:\n{json.dumps(exam_rubric, ensure_ascii=False, indent=2)}\n\nPlease evaluate all questions across the attached {len(page_images)} answer sheet page(s):"
+    user_content.append({"type": "text", "text": rubric_text})
+
+    for idx, page in enumerate(page_images, 1):
+        if isinstance(page, str):
+            # File path or base64 string
+            if os.path.isfile(page):
+                with open(page, "rb") as img_f:
+                    b64_data = base64.b64encode(img_f.read()).decode("utf-8")
+                mime = "image/png" if page.lower().endswith(".png") else "image/jpeg"
+                data_uri = f"data:{mime};base64,{b64_data}"
+            elif page.startswith("data:image"):
+                data_uri = page
+            else:
+                data_uri = f"data:image/jpeg;base64,{page}"
+            page_num = idx
+        elif isinstance(page, dict):
+            b64_data = page.get("image_base64") or page.get("data") or page.get("dataUrl") or ""
+            mime = page.get("mime_type") or "image/jpeg"
+            page_num = page.get("page_number", idx)
+            if b64_data.startswith("data:image"):
+                data_uri = b64_data
+            elif os.path.isfile(b64_data):
+                with open(b64_data, "rb") as img_f:
+                    raw_b64 = base64.b64encode(img_f.read()).decode("utf-8")
+                mime = "image/png" if b64_data.lower().endswith(".png") else "image/jpeg"
+                data_uri = f"data:{mime};base64,{raw_b64}"
+            else:
+                data_uri = f"data:{mime};base64,{b64_data}"
+        else:
+            continue
+
+        user_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": data_uri,
+                "detail": "high"
+            }
+        })
+
+    try:
+        response = api_client.chat_completion(
+            system_message=system_prompt,
+            InputData=user_content,
+            aimodel=1,
+            max_tokens=4000,
+            temperature=0.15,
+            timeout=timeout
+        )
+
+        if not response or getattr(response, "status_code", None) != 200:
+            err_msg = "Failed to connect to AI vision service."
+            if hasattr(response, "json"):
+                err_msg = response.json().get("error", err_msg)
+            return {
+                "status": False,
+                "error": err_msg,
+                "evaluations": []
+            }
+
+        resp_json = response.json()
+        raw_content = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+
+        # Clean markdown code fences if present
+        clean_json = raw_content
+        if clean_json.startswith("```"):
+            clean_json = clean_json.split("```")[1]
+            if clean_json.startswith("json"):
+                clean_json = clean_json[4:]
+            clean_json = clean_json.strip()
+
+        parsed = json.loads(clean_json)
+        evaluations = parsed.get("evaluations", [])
+
+        # Sanitize and clamp scores to question maximum marks
+        q_rubrics = {}
+        for sec in exam_rubric.get("sections", []):
+            for q in sec.get("questions", []):
+                q_rubrics[str(q.get("question_id"))] = q
+
+        for ev in evaluations:
+            qid = str(ev.get("question_id", ""))
+            matched_q = q_rubrics.get(qid)
+            max_m = float(matched_q.get("max_marks", 1.0)) if matched_q else float(ev.get("max_marks", 1.0))
+            ev["max_marks"] = max_m
+            
+            try:
+                s_marks = float(ev.get("suggested_marks", 0.0))
+            except (ValueError, TypeError):
+                s_marks = 0.0
+            
+            # Clamp suggested marks between 0.0 and max_marks
+            ev["suggested_marks"] = max(0.0, min(max_m, round(s_marks, 2)))
+            ev["is_correct"] = 1 if ev["suggested_marks"] >= max_m and max_m > 0 else 0
+            
+            try:
+                conf = int(ev.get("ai_confidence", 80))
+            except (ValueError, TypeError):
+                conf = 80
+            ev["ai_confidence"] = max(0, min(100, conf))
+
+        return {
+            "status": True,
+            "evaluations": evaluations,
+            "overall_summary": parsed.get("overall_summary", "Evaluation completed."),
+            "evaluation_notes": parsed.get("evaluation_notes", "Clear scan.")
+        }
+
+    except Exception as e:
+        print(f"Error in vision_evaluate_answersheet: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": False,
+            "error": str(e),
+            "evaluations": []
+        }
+

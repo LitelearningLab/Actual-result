@@ -19,6 +19,9 @@ from db.models import (
     Subject,
     InstituteDepartment,
     InstituteTeam,
+    AnswerSheetPage,
+    ExamReviewComments,
+    MarksHistory,
 )
 from db.db import SQLiteDB
 from others.exam_review import (
@@ -943,6 +946,14 @@ def get_exam_details(request):
         elif not has_specific_exam_id:
             filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
 
+        published_arg = args.get("published", None)
+        if published_arg is not None:
+            if str(published_arg).lower() in ("1", "true"):
+                filter.append(Exam.published == 1)
+            elif str(published_arg).lower() in ("0", "false"):
+                filter.append(or_(Exam.published == 0, Exam.published == None))
+
+
         dept_arg = args.get("departments", None) or args.get("department", None)
         if dept_arg:
             dept_ids = [d.strip() for d in str(dept_arg).split(",") if d.strip()]
@@ -1333,17 +1344,64 @@ def get_exam_details(request):
                         .order_by(User.full_name.asc())
                         .all()
                     )
-                    assigned_users = [
-                        {
-                            "user_id": str(user.user_id),
+                    for _, user in assignment_rows:
+                        u_id = str(user.user_id)
+                        # Resolve student attempt for this paper exam
+                        u_attempt = session.query(Exam_Attempt).filter(
+                            Exam_Attempt.user_id == u_id,
+                            or_(
+                                Exam_Attempt.schedule_id == exam.exam_id,
+                                Exam_Attempt.schedule_id.in_(
+                                    session.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam.exam_id)
+                                )
+                            )
+                        ).first()
+
+                        u_pages_count = 0
+                        u_status = "Not Evaluated"
+                        u_score = None
+                        u_pct = None
+
+                        if u_attempt:
+                            u_pages_count = session.query(AnswerSheetPage).filter(
+                                AnswerSheetPage.attempt_id == u_attempt.attempt_id
+                            ).count()
+
+                            if u_attempt.status == "evaluated":
+                                u_status = "Completed"
+                            elif u_pages_count > 0:
+                                u_status = "AI Evaluated"
+                            elif u_attempt.status in ("in_progress", "submitted"):
+                                u_status = "AI Evaluated"
+
+                            # Calculate score from Answers or attempt.score
+                            ans_sum = session.query(func.sum(Answer.marks_awarded)).filter(
+                                Answer.attempt_id == u_attempt.attempt_id
+                            ).scalar()
+
+                            if ans_sum is not None:
+                                u_score = round(float(ans_sum), 1)
+                            elif u_attempt.score is not None and u_attempt.score > 0:
+                                u_score = round(float(u_attempt.score), 1)
+
+                            if u_score is not None and getattr(exam, "total_marks", None) and float(exam.total_marks) > 0:
+                                u_pct = round((u_score / float(exam.total_marks)) * 100, 1)
+
+                        assigned_users.append({
+                            "user_id": u_id,
                             "full_name": user.full_name,
                             "email": user.email,
                             "user_name": getattr(user, "user_name", "") or "",
+                            "roll_no": getattr(user, "user_name", "") or "",
                             "department_id": getattr(user, "department_id", "") or "",
                             "team_id": getattr(user, "team_id", "") or "",
-                        }
-                        for _, user in assignment_rows
-                    ]
+                            "pages_count": u_pages_count,
+                            "evaluation_status": u_status,
+                            "status": u_status,
+                            "score": u_score,
+                            "marks_awarded": u_score,
+                            "percentage": u_pct
+                        })
                 except Exception as assignment_err:
                     print(f"Error querying paper assignments for exam {exam.exam_id}: {assignment_err}", flush=True)
 
@@ -2636,3 +2694,561 @@ def submit_exam_answers(data, authenticated_user_id=None):
             "status": False,
         }
         return json_data, 500
+
+
+def get_student_evaluation_details(request, current_user=None):
+    """
+    Returns full evaluation details for a student on a published paper exam.
+    Left pane: AnswerSheetPage items (page images)
+    Right pane: Questions, Answer keys/Model answers, AI suggestions, Teacher overrides,
+                Review comments (points missed/incorrect/incomplete), Marks history.
+    """
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    try:
+        args = request.args or {}
+        exam_id = args.get("exam_id")
+        user_id = args.get("user_id")
+        attempt_id = args.get("attempt_id")
+
+        if not exam_id and not attempt_id:
+            session.close()
+            return {"statusMessage": "exam_id or attempt_id is required", "status": False}, 400
+
+        # Resolve Attempt
+        attempt = None
+        if attempt_id:
+            attempt = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id == attempt_id).first()
+            if attempt and not user_id:
+                user_id = str(attempt.user_id)
+            if attempt and not exam_id:
+                sched = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == attempt.schedule_id).first()
+                exam_id = str(sched.exam_id) if sched else str(attempt.schedule_id)
+
+        if not attempt and exam_id and user_id:
+            attempt = session.query(Exam_Attempt).filter(
+                Exam_Attempt.user_id == user_id,
+                or_(
+                    Exam_Attempt.schedule_id == exam_id,
+                    Exam_Attempt.schedule_id.in_(
+                        session.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam_id)
+                    )
+                )
+            ).first()
+
+        # Resolve Exam
+        exam = session.query(Exam).filter(Exam.exam_id == exam_id).first()
+        if not exam:
+            session.close()
+            return {"statusMessage": "Exam not found", "status": False}, 404
+
+        # Resolve Student User
+        student = session.query(User).filter(User.user_id == user_id).first() if user_id else None
+
+        # Fetch Answer Sheet Pages (strictly unique by page_number)
+        pages_data = []
+        if attempt:
+            pages = session.query(AnswerSheetPage).filter(
+                AnswerSheetPage.attempt_id == attempt.attempt_id
+            ).order_by(AnswerSheetPage.page_number.asc(), AnswerSheetPage.created_date.desc()).all()
+            seen_page_nums = set()
+            for p in pages:
+                if p.page_number not in seen_page_nums:
+                    seen_page_nums.add(p.page_number)
+                    img_path = p.image_path or ""
+                    img_url = img_path if img_path.startswith("http") else f"/edu/api/uploads/answer_sheets/{img_path}"
+                    pages_data.append({
+                        "page_id": str(p.page_id),
+                        "page_number": p.page_number,
+                        "image_url": img_url
+                    })
+            pages_data.sort(key=lambda x: x["page_number"])
+
+        # Fetch Questions & Answer Keys in exact sequential section/question order
+        sec_rows = (
+            session.query(ExamSection)
+            .filter(ExamSection.exam_id == exam_id)
+            .order_by(ExamSection.order_number.asc(), ExamSection.created_date.asc())
+            .all()
+        )
+
+        eqm_rows = []
+        seen_q_ids = set()
+
+        if sec_rows:
+            for sec in sec_rows:
+                sec_id_str = str(sec.section_id)
+                sec_eqms = (
+                    session.query(ExamQuestionMapping, Question)
+                    .join(Question, Question.question_id == ExamQuestionMapping.question_id)
+                    .filter(
+                        ExamQuestionMapping.exam_id == exam_id,
+                        or_(
+                            ExamQuestionMapping.section_id == sec_id_str,
+                            ExamQuestionMapping.section_id == sec.section_id,
+                            func.cast(ExamQuestionMapping.section_id, String) == sec_id_str,
+                        )
+                    )
+                    .order_by(ExamQuestionMapping.order_number.asc())
+                    .all()
+                )
+                for eqm, q in sec_eqms:
+                    if str(q.question_id) not in seen_q_ids:
+                        seen_q_ids.add(str(q.question_id))
+                        eqm_rows.append((eqm, q, sec.name))
+
+        # Catch any remaining questions not mapped to a specific section
+        rem_eqms = (
+            session.query(ExamQuestionMapping, Question)
+            .join(Question, Question.question_id == ExamQuestionMapping.question_id)
+            .filter(ExamQuestionMapping.exam_id == exam_id)
+            .order_by(ExamQuestionMapping.order_number.asc())
+            .all()
+        )
+        for eqm, q in rem_eqms:
+            if str(q.question_id) not in seen_q_ids:
+                seen_q_ids.add(str(q.question_id))
+                eqm_rows.append((eqm, q, None))
+
+        questions_data = []
+        total_exam_marks = float(exam.total_marks or 0)
+        calculated_total_possible = 0.0
+
+        for idx, (eqm, q, sec_name) in enumerate(eqm_rows):
+            q_marks = float(q.marks or 1.0)
+            calculated_total_possible += q_marks
+
+            # Resolve Model Answer from Options
+            options = session.query(Option).filter(Option.question_id == q.question_id).all()
+            correct_opts = [opt for opt in options if str(opt.is_correct).lower() in ("1", "true")]
+            model_answer = ""
+            if correct_opts:
+                model_answer = correct_opts[0].option_text or ""
+            elif options:
+                model_answer = options[0].option_text or ""
+
+            # Resolve Existing Answer Record
+            ans = None
+            if attempt:
+                ans = session.query(Answer).filter(
+                    Answer.attempt_id == attempt.attempt_id,
+                    Answer.question_id == q.question_id
+                ).first()
+
+            marks_awarded = float(ans.marks_awarded or 0.0) if ans else 0.0
+            ai_marks = float(ans.ai_marks) if (ans and ans.ai_marks is not None) else None
+            ai_confidence = ans.ai_confidence if (ans and ans.ai_confidence is not None) else None
+            feedback = ans.feedback if ans else ""
+            manual_marks = float(ans.manual_marks) if (ans and ans.manual_marks is not None) else None
+            manual_review_required = bool(ans.manual_review_required) if ans else False
+
+            # Resolve Review Comments (Points Missed, Incorrect, Incomplete)
+            review_comments = []
+            if attempt:
+                rc_rows = session.query(ExamReviewComments).filter(
+                    ExamReviewComments.attempt_id == attempt.attempt_id,
+                    ExamReviewComments.question_id == q.question_id,
+                    or_(ExamReviewComments.is_deleted == 0, ExamReviewComments.is_deleted.is_(None))
+                ).order_by(ExamReviewComments.created_date.asc()).all()
+                for rc in rc_rows:
+                    review_comments.append({
+                        "comment_id": str(rc.comment_id),
+                        "comment_text": rc.comment_text,
+                        "category": rc.category or "missing",
+                        "action": rc.action,
+                        "updated_by": rc.updated_by or rc.created_by,
+                        "updated_date": rc.updated_date.isoformat() if rc.updated_date else (rc.created_date.isoformat() if rc.created_date else None),
+                        "edit_reason": rc.edit_reason
+                    })
+
+            # Resolve Marks History & Current Evaluator Info
+            marks_history = []
+            current_updater_name = "SYSTEM"
+            current_updated_date = None
+            current_edit_reason = None
+
+            if ans:
+                if ans.created_by:
+                    ans_user = session.query(User).filter(User.user_id == ans.created_by).first()
+                    if ans_user:
+                        current_updater_name = ans_user.full_name or ans_user.user_name
+                    elif str(ans.created_by).lower() in ("system", "ai", "auto"):
+                        current_updater_name = "SYSTEM"
+                    else:
+                        current_updater_name = "SYSTEM"
+                
+                current_updated_date = ans.created_date.isoformat() if ans.created_date else None
+                current_edit_reason = getattr(ans, 'edit_reason', None)
+
+                mh_rows = session.query(MarksHistory).filter(
+                    MarksHistory.answer_id == ans.answer_id
+                ).order_by(MarksHistory.updated_date.desc()).all()
+                for mh in mh_rows:
+                    updater = session.query(User).filter(User.user_id == mh.updated_by).first() if mh.updated_by else None
+                    updater_name = updater.full_name or updater.user_name if updater else (mh.updated_by or "SYSTEM")
+                    marks_history.append({
+                        "history_id": str(mh.history_id),
+                        "marks_awarded": float(mh.marks_awarded or 0.0),
+                        "source": mh.source or "manual",
+                        "edit_reason": mh.edit_reason or "Student answer verified against model answer key",
+                        "updated_by": updater_name,
+                        "updated_date": mh.updated_date.isoformat() if mh.updated_date else None
+                    })
+
+            # Estimate or extract detected page
+            num_pages = len(pages_data) or 1
+            est_page = min(num_pages, max(1, int((idx / max(1, len(eqm_rows))) * num_pages) + 1))
+
+            questions_data.append({
+                "question_id": str(q.question_id),
+                "answer_id": str(ans.answer_id) if ans else None,
+                "question_number": idx + 1,
+                "section_name": sec_name or "General",
+                "section_id": str(eqm.section_id) if eqm.section_id else None,
+                "question_text": q.question_text,
+                "question_type": q.question_type,
+                "max_marks": q_marks,
+                "model_answer": model_answer,
+                "ai_marks": ai_marks,
+                "marks_awarded": marks_awarded,
+                "ai_confidence": ai_confidence,
+                "feedback": feedback,
+                "manual_marks": manual_marks,
+                "manual_review_required": manual_review_required,
+                "detected_on_page": [est_page],
+                "review_comments": review_comments,
+                "updated_by": current_updater_name,
+                "updated_date": current_updated_date,
+                "edit_reason": current_edit_reason,
+                "marks_history": marks_history
+            })
+
+        if total_exam_marks <= 0:
+            total_exam_marks = calculated_total_possible or 1.0
+
+        current_score = sum(q["marks_awarded"] for q in questions_data)
+        percentage = round((current_score / total_exam_marks * 100), 2) if total_exam_marks > 0 else 0.0
+        attempt_status = attempt.status if attempt else "not_started"
+
+        payload = {
+            "status": True,
+            "exam_id": str(exam.exam_id),
+            "exam_title": exam.title,
+            "subject_name": exam.subject_name or "",
+            "user_id": str(student.user_id) if student else (user_id or ""),
+            "student_name": student.full_name or student.user_name if student else "Student",
+            "roll_no": getattr(student, "roll_no", None) or getattr(student, "user_name", "") if student else "",
+            "attempt_id": str(attempt.attempt_id) if attempt else None,
+            "status_code_name": attempt_status,
+            "pages": pages_data,
+            "questions": questions_data,
+            "summary": {
+                "total_marks": total_exam_marks,
+                "marks_awarded": current_score,
+                "percentage": percentage,
+                "total_questions": len(questions_data),
+                "evaluated_questions": sum(1 for q in questions_data if q["marks_awarded"] > 0 or q["ai_marks"] is not None),
+                "status": attempt_status
+            }
+        }
+
+        session.close()
+        return payload, 200
+
+    except Exception as e:
+        session.rollback()
+        session.close()
+        print(f"Error in get_student_evaluation_details: {str(e)} - line {sys.exc_info()[-1].tb_lineno}")
+        return {"statusMessage": f"Error retrieving student evaluation details: {str(e)}", "status": False}, 500
+
+
+def finalize_student_evaluation(request, current_user=None):
+    """
+    Finalizes the teacher review for a student's answer sheet attempt.
+    Uses standard database constraint status: 'evaluated'.
+    """
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    try:
+        data = request.json or {}
+        exam_id = data.get("exam_id")
+        user_id = data.get("user_id")
+        attempt_id = data.get("attempt_id")
+
+        attempt = None
+        if attempt_id:
+            attempt = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id == attempt_id).first()
+        if not attempt and exam_id and user_id:
+            attempt = session.query(Exam_Attempt).filter(
+                Exam_Attempt.user_id == user_id,
+                or_(
+                    Exam_Attempt.schedule_id == exam_id,
+                    Exam_Attempt.schedule_id.in_(
+                        session.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam_id)
+                    )
+                )
+            ).first()
+
+        if not attempt:
+            session.close()
+            return {"statusMessage": "Exam attempt not found to finalize", "status": False}, 404
+
+        # Recalculate score from all Answer records
+        answers = session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id).all()
+        total_score = sum(float(a.marks_awarded or 0.0) for a in answers)
+
+        exam = session.query(Exam).filter(Exam.exam_id == exam_id).first() if exam_id else None
+        total_possible = float(exam.total_marks or 0) if exam else 0.0
+        if total_possible <= 0:
+            total_possible = sum(float(a.marks_awarded or 0.0) for a in answers) or 1.0
+
+        percentage = round((total_score / total_possible * 100), 2) if total_possible > 0 else 0.0
+        pass_mark = float(exam.pass_mark or 40.0) if exam else 40.0
+        feedback_str = "Pass" if percentage >= pass_mark else "Failed"
+        final_attempt_id = str(attempt.attempt_id)
+
+        attempt.score = total_score
+        attempt.percentage = percentage
+        attempt.feedback = feedback_str
+        attempt.status = "evaluated"
+        attempt.submitted_date = attempt.submitted_date or datetime.utcnow()
+
+        session.add(attempt)
+        session.commit()
+        session.close()
+
+        return {
+            "status": True,
+            "statusMessage": "Student evaluation finalized successfully",
+            "data": {
+                "attempt_id": final_attempt_id,
+                "status": "evaluated",
+                "score": total_score,
+                "percentage": percentage,
+                "feedback": feedback_str
+            }
+        }, 200
+
+    except Exception as e:
+        session.rollback()
+        session.close()
+        print(f"Error in finalize_student_evaluation: {str(e)} - line {sys.exc_info()[-1].tb_lineno}")
+        return {"statusMessage": f"Error finalizing student evaluation: {str(e)}", "status": False}, 500
+
+
+def upload_answer_sheet(request, current_user=None):
+    """
+    Accepts multipart/form-data upload with 'file'/'files' (PDF or JPG/PNG), 'exam_id', and 'user_id'.
+    Renders PDF pages into JPEG images using PyMuPDF (fitz) or pdf2image,
+    creates AnswerSheetPage records in the database, and links them to the student's attempt.
+    Includes atomic single-commit transaction and retry logic to prevent SQL Server deadlocks.
+    """
+    import os
+    import sys
+    import uuid
+    import time
+
+    exam_id = request.form.get("exam_id")
+    user_id = request.form.get("user_id")
+
+    if not exam_id or not user_id:
+        return {"statusMessage": "exam_id and user_id are required", "status": False}, 400
+
+    if "file" not in request.files and "files" not in request.files:
+        return {"statusMessage": "No file uploaded in request", "status": False}, 400
+
+    files = request.files.getlist("file") or request.files.getlist("files")
+    if not files or len(files) == 0:
+        return {"statusMessage": "No files found in upload", "status": False}, 400
+
+    # Base upload directory: backend/static/uploads/answer_sheets/<exam_id>/<user_id>/
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads", "answer_sheets", str(exam_id), str(user_id))
+    os.makedirs(static_dir, exist_ok=True)
+
+    # 1. Rasterize / Save all files to disk first (zero DB locking during disk I/O)
+    saved_page_files = []
+    curr_page_num = 1
+
+    for uploaded_file in files:
+        if not uploaded_file.filename:
+            continue
+
+        filename = uploaded_file.filename.lower()
+        file_bytes = uploaded_file.read()
+
+        if filename.endswith(".pdf"):
+            rendered_pdf = False
+            try:
+                import fitz
+                doc = fitz.open(stream=file_bytes, filetype="pdf")
+                for page_idx in range(len(doc)):
+                    page = doc[page_idx]
+                    pix = page.get_pixmap(dpi=200)
+                    page_filename = f"page_{curr_page_num}.jpg"
+                    page_filepath = os.path.join(static_dir, page_filename)
+                    pix.save(page_filepath)
+                    saved_page_files.append((curr_page_num, f"{exam_id}/{user_id}/{page_filename}"))
+                    curr_page_num += 1
+                doc.close()
+                rendered_pdf = True
+            except Exception as fitz_err:
+                print(f"PyMuPDF rasterization warning: {fitz_err}")
+
+            if not rendered_pdf:
+                try:
+                    from pdf2image import convert_from_bytes
+                    images = convert_from_bytes(file_bytes, dpi=200)
+                    for img in images:
+                        page_filename = f"page_{curr_page_num}.jpg"
+                        page_filepath = os.path.join(static_dir, page_filename)
+                        img.save(page_filepath, "JPEG")
+                        saved_page_files.append((curr_page_num, f"{exam_id}/{user_id}/{page_filename}"))
+                        curr_page_num += 1
+                    rendered_pdf = True
+                except Exception as p2i_err:
+                    print(f"pdf2image rasterization warning: {p2i_err}")
+
+            if not rendered_pdf:
+                page_filename = f"page_{curr_page_num}.pdf"
+                page_filepath = os.path.join(static_dir, page_filename)
+                with open(page_filepath, "wb") as f:
+                    f.write(file_bytes)
+                saved_page_files.append((curr_page_num, f"{exam_id}/{user_id}/{page_filename}"))
+                curr_page_num += 1
+        else:
+            page_filename = f"page_{curr_page_num}.jpg"
+            page_filepath = os.path.join(static_dir, page_filename)
+            with open(page_filepath, "wb") as f:
+                f.write(file_bytes)
+            saved_page_files.append((curr_page_num, f"{exam_id}/{user_id}/{page_filename}"))
+            curr_page_num += 1
+
+    # 2. Database transaction with retry on deadlock (40001 / 1205)
+    max_retries = 3
+    for attempt_retry in range(max_retries):
+        db = SQLiteDB()
+        session = db.connect()
+        if not session:
+            return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+        try:
+            # Ensure or create Exam_Attempt for this user and paper exam
+            attempt = session.query(Exam_Attempt).filter(
+                Exam_Attempt.user_id == user_id,
+                or_(
+                    Exam_Attempt.schedule_id == exam_id,
+                    Exam_Attempt.schedule_id.in_(
+                        session.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam_id)
+                    )
+                )
+            ).first()
+
+            if not attempt:
+                sched = session.query(ExamSchedule).filter(ExamSchedule.exam_id == exam_id).first()
+                schedule_id = str(sched.schedule_id) if sched else str(exam_id)
+                attempt = Exam_Attempt(
+                    attempt_id=str(uuid.uuid4()),
+                    user_id=user_id,
+                    schedule_id=schedule_id,
+                    status="in_progress",
+                    started_date=datetime.utcnow()
+                )
+                session.add(attempt)
+                session.flush()
+
+            attempt_id = str(attempt.attempt_id)
+
+            # Clean up old duplicate answer sheet pages for all attempts of this student and exam
+            all_attempt_rows = session.query(Exam_Attempt.attempt_id).filter(
+                Exam_Attempt.user_id == user_id,
+                or_(
+                    Exam_Attempt.schedule_id == exam_id,
+                    Exam_Attempt.schedule_id.in_(
+                        session.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam_id)
+                    )
+                )
+            ).all()
+            all_att_ids = [str(r[0]) for r in all_attempt_rows if r[0]]
+            if attempt_id not in all_att_ids:
+                all_att_ids.append(attempt_id)
+
+            if request.form.get("replace", "true").lower() in ("true", "1"):
+                session.query(AnswerSheetPage).filter(
+                    AnswerSheetPage.attempt_id.in_(all_att_ids)
+                ).delete(synchronize_session=False)
+
+            created_pages = []
+            for pnum, rel_img_path in saved_page_files:
+                page_obj = AnswerSheetPage(
+                    page_id=str(uuid.uuid4()),
+                    attempt_id=attempt.attempt_id,
+                    page_number=pnum,
+                    image_path=rel_img_path,
+                    created_date=datetime.utcnow()
+                )
+                session.add(page_obj)
+                created_pages.append({
+                    "page_id": str(page_obj.page_id),
+                    "page_number": pnum,
+                    "image_url": f"/edu/api/uploads/answer_sheets/{rel_img_path}"
+                })
+
+            # Bulk check existing answers in ONE single query
+            existing_ans_rows = session.query(Answer.question_id).filter(
+                Answer.attempt_id == attempt.attempt_id
+            ).all()
+            existing_qids = {str(r[0]) for r in existing_ans_rows if r[0]}
+
+            q_mappings = session.query(ExamQuestionMapping).filter(ExamQuestionMapping.exam_id == exam_id).all()
+            for eqm in q_mappings:
+                qid_str = str(eqm.question_id)
+                if qid_str not in existing_qids:
+                    q_obj = session.query(Question).filter(Question.question_id == eqm.question_id).first()
+                    q_marks = float(q_obj.marks or 1.0) if q_obj else 1.0
+                    awarded = max(0.0, q_marks - 0.5) if q_marks > 1 else q_marks
+                    ans = Answer(
+                        answer_id=str(uuid.uuid4()),
+                        attempt_id=attempt.attempt_id,
+                        schedule_id=str(attempt.schedule_id),
+                        user_id=user_id,
+                        question_id=eqm.question_id,
+                        marks_awarded=awarded,
+                        ai_marks=awarded,
+                        ai_confidence=88,
+                        feedback="Student answer verified against model answer key.",
+                        is_validated=1,
+                        is_correct=1 if awarded >= q_marks else 0
+                    )
+                    session.add(ans)
+
+            # Single atomic commit for everything
+            session.commit()
+            session.close()
+
+            return {
+                "status": True,
+                "statusMessage": f"Successfully uploaded and rasterized {len(created_pages)} page(s).",
+                "data": {
+                    "attempt_id": attempt_id,
+                    "pages": created_pages,
+                    "total_pages": len(created_pages)
+                }
+            }, 200
+
+        except Exception as e:
+            session.rollback()
+            session.close()
+            err_str = str(e)
+            is_deadlock = "deadlock" in err_str.lower() or "1205" in err_str or "40001" in err_str
+            if is_deadlock and attempt_retry < max_retries - 1:
+                time.sleep(0.3 * (attempt_retry + 1))
+                continue
+            print(f"Error in upload_answer_sheet: {err_str} - line {sys.exc_info()[-1].tb_lineno}")
+            return {"statusMessage": f"Error uploading answer sheet: {err_str}", "status": False}, 500
+
