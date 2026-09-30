@@ -14,10 +14,6 @@
 
         <div class="controls">
             <div class="action-row">
-                <button type="button" class="btn-primary-blue" (click)="openCreateQuestionPaper()" aria-label="Create new question paper">
-                    <mat-icon>add</mat-icon>
-                    <span>Create Question Paper</span>
-                </button>
                 <button #filtersBtn type="button" class="btn-primary-blue" (click)="openFiltersOverlay(); $event.stopPropagation()"
                     aria-label="Open filters panel" title="Filter question papers">
                     <mat-icon>filter_alt</mat-icon>
@@ -27,6 +23,10 @@
                     aria-label="Refresh question papers list" title="Refresh">
                     <mat-icon>refresh</mat-icon>
                     <span>Refresh</span>
+                </button>
+                <button type="button" class="btn-primary-blue" (click)="openCreateQuestionPaper()" aria-label="Create new question paper">
+                    <mat-icon>add</mat-icon>
+                    <span>Create Question Paper</span>
                 </button>
             </div>
         </div>
