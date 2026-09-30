@@ -25,48 +25,6 @@
     </div>
   </div>
 
-  <!-- ─── Filter Selectors Row ─── -->
-  <div class="filter-selectors-row">
-    <div class="filter-group">
-      <label class="filter-label">Class</label>
-      <div class="select-wrapper">
-        <select [(ngModel)]="selectedClass" (change)="filterStudents()">
-          <option *ngFor="let c of classList" [value]="c">{{ c }}</option>
-        </select>
-        <mat-icon class="dropdown-icon">expand_more</mat-icon>
-      </div>
-    </div>
-
-    <div class="filter-group">
-      <label class="filter-label">Section</label>
-      <div class="select-wrapper">
-        <select [(ngModel)]="selectedSection" (change)="filterStudents()">
-          <option *ngFor="let s of sectionList" [value]="s">{{ s }}</option>
-        </select>
-        <mat-icon class="dropdown-icon">expand_more</mat-icon>
-      </div>
-    </div>
-
-    <div class="filter-group">
-      <label class="filter-label">Subject</label>
-      <div class="select-wrapper">
-        <select [(ngModel)]="selectedSubject" (change)="filterStudents()">
-          <option *ngFor="let sub of subjectList" [value]="sub">{{ sub }}</option>
-        </select>
-        <mat-icon class="dropdown-icon">expand_more</mat-icon>
-      </div>
-    </div>
-
-    <div class="filter-group">
-      <label class="filter-label">Test</label>
-      <div class="select-wrapper">
-        <select [(ngModel)]="selectedTest" (change)="filterStudents()">
-          <option *ngFor="let t of testList" [value]="t">{{ t }}</option>
-        </select>
-        <mat-icon class="dropdown-icon">expand_more</mat-icon>
-      </div>
-    </div>
-  </div>
 
   <!-- ─── Sub-tabs Toggle Bar (User Upload / Bulk Upload) ─── -->
   <div class="upload-tabs-container">
