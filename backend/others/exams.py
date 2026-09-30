@@ -1337,52 +1337,61 @@ def get_exam_details(request):
             assigned_users = []
             if (getattr(exam, "test_mode", None) or "online") == "paper":
                 try:
+                    exam_id_str = str(exam.exam_id)
                     assignment_rows = (
                         session.query(QuestionPaperUserAssignment, User)
                         .join(User, func.cast(User.user_id, String) == func.cast(QuestionPaperUserAssignment.user_id, String))
-                        .filter(QuestionPaperUserAssignment.exam_id == exam.exam_id)
+                        .filter(func.cast(QuestionPaperUserAssignment.exam_id, String) == exam_id_str)
                         .order_by(User.full_name.asc())
                         .all()
                     )
+
+                    sched_ids = [
+                        str(r[0])
+                        for r in session.query(func.cast(ExamSchedule.schedule_id, String))
+                        .filter(func.cast(ExamSchedule.exam_id, String) == exam_id_str)
+                        .all()
+                    ]
+                    valid_sched_ids = list(set([exam_id_str] + [s for s in sched_ids if s]))
+
                     for _, user in assignment_rows:
                         u_id = str(user.user_id)
-                        # Resolve student attempt for this paper exam
-                        u_attempt = session.query(Exam_Attempt).filter(
-                            Exam_Attempt.user_id == u_id,
-                            or_(
-                                Exam_Attempt.schedule_id == exam.exam_id,
-                                Exam_Attempt.schedule_id.in_(
-                                    session.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam.exam_id)
-                                )
-                            )
-                        ).first()
+                        # Resolve student attempt(s) for this paper exam
+                        all_u_attempts = session.query(Exam_Attempt).filter(
+                            func.cast(Exam_Attempt.user_id, String) == u_id,
+                            func.cast(Exam_Attempt.schedule_id, String).in_(valid_sched_ids)
+                        ).order_by(Exam_Attempt.started_date.desc(), Exam_Attempt.submitted_date.desc()).all()
 
                         u_pages_count = 0
                         u_status = "Not Evaluated"
                         u_score = None
                         u_pct = None
 
-                        if u_attempt:
+                        if all_u_attempts:
+                            att_ids = [str(a.attempt_id) for a in all_u_attempts]
                             u_pages_count = session.query(AnswerSheetPage).filter(
-                                AnswerSheetPage.attempt_id == u_attempt.attempt_id
+                                func.cast(AnswerSheetPage.attempt_id, String).in_(att_ids)
                             ).count()
 
-                            if u_attempt.status == "evaluated":
+                            evaluated_att = next((a for a in all_u_attempts if a.status == "evaluated"), None)
+                            target_att = evaluated_att or all_u_attempts[0]
+
+                            if evaluated_att or target_att.status == "evaluated":
                                 u_status = "Completed"
                             elif u_pages_count > 0:
                                 u_status = "AI Evaluated"
-                            elif u_attempt.status in ("in_progress", "submitted"):
+                            elif target_att.status in ("in_progress", "submitted"):
                                 u_status = "AI Evaluated"
 
                             # Calculate score from Answers or attempt.score
                             ans_sum = session.query(func.sum(Answer.marks_awarded)).filter(
-                                Answer.attempt_id == u_attempt.attempt_id
+                                func.cast(Answer.attempt_id, String).in_(att_ids)
                             ).scalar()
 
                             if ans_sum is not None:
                                 u_score = round(float(ans_sum), 1)
-                            elif u_attempt.score is not None and u_attempt.score > 0:
-                                u_score = round(float(u_attempt.score), 1)
+                            elif target_att.score is not None and target_att.score > 0:
+                                u_score = round(float(target_att.score), 1)
 
                             if u_score is not None and getattr(exam, "total_marks", None) and float(exam.total_marks) > 0:
                                 u_pct = round((u_score / float(exam.total_marks)) * 100, 1)
@@ -2729,15 +2738,18 @@ def get_student_evaluation_details(request, current_user=None):
                 exam_id = str(sched.exam_id) if sched else str(attempt.schedule_id)
 
         if not attempt and exam_id and user_id:
+            sched_ids = [
+                str(r[0])
+                for r in session.query(func.cast(ExamSchedule.schedule_id, String))
+                .filter(func.cast(ExamSchedule.exam_id, String) == str(exam_id))
+                .all()
+            ]
+            valid_sched_ids = list(set([str(exam_id)] + [s for s in sched_ids if s]))
+
             attempt = session.query(Exam_Attempt).filter(
-                Exam_Attempt.user_id == user_id,
-                or_(
-                    Exam_Attempt.schedule_id == exam_id,
-                    Exam_Attempt.schedule_id.in_(
-                        session.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam_id)
-                    )
-                )
-            ).first()
+                func.cast(Exam_Attempt.user_id, String) == str(user_id),
+                func.cast(Exam_Attempt.schedule_id, String).in_(valid_sched_ids)
+            ).order_by(Exam_Attempt.started_date.desc(), Exam_Attempt.submitted_date.desc()).first()
 
         # Resolve Exam
         exam = session.query(Exam).filter(Exam.exam_id == exam_id).first()
@@ -2985,22 +2997,25 @@ def finalize_student_evaluation(request, current_user=None):
         if attempt_id:
             attempt = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id == attempt_id).first()
         if not attempt and exam_id and user_id:
+            sched_ids = [
+                str(r[0])
+                for r in session.query(func.cast(ExamSchedule.schedule_id, String))
+                .filter(func.cast(ExamSchedule.exam_id, String) == str(exam_id))
+                .all()
+            ]
+            valid_sched_ids = list(set([str(exam_id)] + [s for s in sched_ids if s]))
+
             attempt = session.query(Exam_Attempt).filter(
-                Exam_Attempt.user_id == user_id,
-                or_(
-                    Exam_Attempt.schedule_id == exam_id,
-                    Exam_Attempt.schedule_id.in_(
-                        session.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam_id)
-                    )
-                )
-            ).first()
+                func.cast(Exam_Attempt.user_id, String) == str(user_id),
+                func.cast(Exam_Attempt.schedule_id, String).in_(valid_sched_ids)
+            ).order_by(Exam_Attempt.started_date.desc(), Exam_Attempt.submitted_date.desc()).first()
 
         if not attempt:
             session.close()
             return {"statusMessage": "Exam attempt not found to finalize", "status": False}, 404
 
         # Recalculate score from all Answer records
-        answers = session.query(Answer).filter(Answer.attempt_id == attempt.attempt_id).all()
+        answers = session.query(Answer).filter(func.cast(Answer.attempt_id, String) == str(attempt.attempt_id)).all()
         total_score = sum(float(a.marks_awarded or 0.0) for a in answers)
 
         exam = session.query(Exam).filter(Exam.exam_id == exam_id).first() if exam_id else None

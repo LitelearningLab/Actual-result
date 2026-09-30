@@ -822,7 +822,7 @@
         </div>
       </div>
 
-      <!-- 4 Status KPI Cards Grid -->
+      <!-- 5 Status KPI Cards Grid -->
       <div class="kpi-cards-grid">
         <div class="kpi-card kpi-students">
           <div class="kpi-content">
@@ -831,10 +831,17 @@
           </div>
         </div>
 
-        <div class="kpi-card kpi-evaluated">
+        <div class="kpi-card kpi-completed">
           <div class="kpi-content">
             <div class="kpi-val font-styled">{{ testDetails.evaluated }}</div>
-            <div class="kpi-lbl">Evaluated</div>
+            <div class="kpi-lbl">Completed</div>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-ai-evaluated">
+          <div class="kpi-content">
+            <div class="kpi-val font-styled">{{ testDetails.aiEvaluated }}</div>
+            <div class="kpi-lbl">AI Evaluated</div>
           </div>
         </div>
 
@@ -854,11 +861,11 @@
       </div>
 
       <!-- Segmented Progress Bar -->
-      <div class="progress-bar-container">
+      <div class="progress-bar-container" *ngIf="testDetails.totalStudents > 0">
         <div
-          class="progress-seg seg-evaluated"
+          class="progress-seg seg-completed"
           [style.width.%]="(testDetails.evaluated / testDetails.totalStudents) * 100"
-          title="Evaluated: {{ testDetails.evaluated }}"
+          title="Completed: {{ testDetails.evaluated }}"
         ></div>
         <div
           class="progress-seg seg-ai"

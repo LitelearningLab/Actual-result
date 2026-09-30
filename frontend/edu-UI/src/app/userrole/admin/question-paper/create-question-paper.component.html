@@ -956,11 +956,7 @@
                         <mat-checkbox [checked]="q.selected" [disabled]="q.alreadyInOtherSection"
                             (change)="toggleModalQuestion(q, $event.checked)">
                             <div class="modal-q-label">
-                                <span class="modal-q-text"
-                                    [matTooltip]="q.question"
-                                    matTooltipPosition="above"
-                                    matTooltipClass="question-full-tooltip"
-                                    [matTooltipShowDelay]="100">{{ q.question }}</span>
+                                <span class="modal-q-text">{{ q.question }}</span>
                                 <div class="modal-q-meta">
                                     <span class="modal-q-marks">{{ q.marks || 1 }} mark{{ (q.marks || 1) > 1 ? 's' : '' }}</span>
                                     <span class="modal-q-used" *ngIf="q.alreadyInOtherSection">

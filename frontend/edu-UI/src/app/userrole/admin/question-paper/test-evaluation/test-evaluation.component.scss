@@ -833,23 +833,23 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
     }
   }
 
-  // 4 Cards Grid
+  // 5 Cards Grid
   .kpi-cards-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.25rem;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1.125rem;
 
     .kpi-card {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 0.875rem;
-      padding: 1.125rem 1.25rem;
+      padding: 1.125rem 1.125rem;
       position: relative;
       overflow: hidden;
       display: flex;
       align-items: center;
 
-      // Curved Left Accent Line (Matching Image 2)
+      // Curved Left Accent Line
       &::before {
         content: '';
         position: absolute;
@@ -867,7 +867,7 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         gap: 0.125rem;
 
         .kpi-val {
-          font-size: 2rem;
+          font-size: 1.875rem;
           font-weight: 800;
           color: #0f172a;
           line-height: 1;
@@ -882,6 +882,7 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           font-size: 0.8125rem;
           font-weight: 600;
           color: #64748b;
+          white-space: nowrap;
         }
       }
 
@@ -889,8 +890,13 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         background: #3b82f6;
       }
 
+      &.kpi-completed::before,
       &.kpi-evaluated::before {
         background: #22c55e;
+      }
+
+      &.kpi-ai-evaluated::before {
+        background: #8b5cf6;
       }
 
       &.kpi-need-check::before {
@@ -916,6 +922,7 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
       height: 100%;
       transition: width 0.3s ease;
 
+      &.seg-completed,
       &.seg-evaluated {
         background: #22c55e;
       }
