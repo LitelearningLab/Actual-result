@@ -558,97 +558,112 @@
         </span>
       </div>
 
-      <!-- Bulk Student Files Table (Image 3) -->
-      <div class="bulk-table-card">
+      <!-- Bulk Student Files Table (Synchronized with User Upload Table Structure) -->
+      <div class="table-card bulk-table-card">
         <div class="table-responsive">
-          <table class="bulk-evaluation-table">
+          <table class="evaluation-table bulk-evaluation-table">
             <thead>
               <tr>
-                <th>FILE</th>
-                <th>STUDENT</th>
-                <th>PAGES</th>
-                <th>AI STATUS</th>
-                <th>EVALUATION</th>
+                <th>S.NO</th>
+                <th>STUDENT NAME</th>
+                <th>ANSWER SHEET</th>
+                <th>EVALUATION STATUS</th>
+                <th>MARKS</th>
+                <th class="text-center">SCAN</th>
+                <th class="text-center">ATTACH</th>
                 <th class="text-center">ACTION</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let item of bulkFiles">
-                <!-- File Column -->
-                <td class="col-file">
-                  <div class="file-name-cell">
-                    <mat-icon class="pdf-icon">description</mat-icon>
-                    <span class="file-name-text">{{ item.fileName }}</span>
+              <tr *ngFor="let s of filteredStudents">
+                <!-- S.No Column -->
+                <td class="col-sno">{{ s.sno }}</td>
+
+                <!-- Student Name Column -->
+                <td class="col-student">
+                  <div class="student-name">{{ s.name }}</div>
+                  <div class="student-roll">{{ s.rollNo }}</div>
+                  <div *ngIf="s.matchedFile" class="match-badge-chip">
+                    <mat-icon class="match-icon">description</mat-icon>
+                    <span>{{ s.matchedFile }} ({{ s.matchedBy || 'Matched' }})</span>
                   </div>
                 </td>
 
-                <!-- Student Column -->
-                <td class="col-student-match">
-                  <ng-container *ngIf="item.isMatched; else unmatchedTpl">
-                    <div class="student-name-bold">{{ item.studentName }}</div>
-                    <div class="match-subtext">{{ item.matchedBy }}</div>
-                  </ng-container>
-                  <ng-template #unmatchedTpl>
-                    <div class="unmatched-badge">
-                      <mat-icon class="badge-icon">warning</mat-icon>
-                      <span>Student not identified</span>
-                    </div>
-                    <div class="select-student-dropdown">
-                      <select
-                        [ngModel]="item.selectedStudent || 'Choose student'"
-                        (change)="onStudentSelectedForUnmatched(item, $any($event.target).value)"
-                      >
-                        <option *ngFor="let stOpt of availableStudents" [value]="stOpt">
-                          {{ stOpt }}
-                        </option>
-                      </select>
-                      <mat-icon class="dropdown-arrow">expand_more</mat-icon>
-                    </div>
-                  </ng-template>
-                </td>
-
-                <!-- Pages Column -->
+                <!-- Answer Sheet Column -->
                 <td class="col-pages">
-                  <span [class.pages-warning]="item.isPageWarning">{{ item.pagesInfo }}</span>
+                  <div>{{ s.pagesInfo }}</div>
+                  <div *ngIf="s.missingPagesWarning" class="warning-subtext">
+                    {{ s.missingPagesWarning }}
+                  </div>
                 </td>
 
-                <!-- AI Status Column -->
+                <!-- Evaluation Status Column -->
                 <td class="col-status">
                   <span
                     class="status-pill"
                     [ngClass]="{
-                      'pill-completed': item.aiStatus === 'Completed',
-                      'pill-need-check': item.aiStatus === 'Need to Check',
-                      'pill-ai-evaluated': item.aiStatus === 'AI Evaluated',
-                      'pill-waiting': item.aiStatus === 'Waiting'
+                      'pill-completed': s.status === 'Completed' || s.status === 'evaluated',
+                      'pill-need-check': s.status === 'Need to Check',
+                      'pill-ai-evaluated': s.status === 'AI Evaluated',
+                      'pill-not-evaluated': s.status === 'Not Evaluated'
                     }"
                   >
-                    <span class="status-dot">●</span> {{ item.aiStatus }}
+                    <span class="status-dot">●</span> {{ s.status === 'evaluated' ? 'Completed' : s.status }}
                   </span>
                 </td>
 
-                <!-- Evaluation Column -->
-                <td class="col-evaluation">
+                <!-- Marks Column -->
+                <td class="col-marks">
                   <span
                     [ngClass]="{
-                      'eval-completed': item.aiStatus === 'Completed',
-                      'eval-waiting': item.evaluation === 'Waiting for review',
-                      'eval-muted': item.evaluation === 'Not marked'
+                      'marks-bold': s.marks !== 'Not marked' && !s.marks.includes('suggests'),
+                      'marks-ai': s.marks.includes('suggests'),
+                      'marks-muted': s.marks === 'Not marked'
                     }"
                   >
-                    {{ item.evaluation }}
+                    {{ s.marks }}
                   </span>
+                </td>
+
+                <!-- Scan Column -->
+                <td class="col-icon text-center">
+                  <button
+                    type="button"
+                    class="icon-btn-square"
+                    matTooltip="Scan answer sheet"
+                    (click)="openScanModal(s)"
+                  >
+                    <mat-icon>photo_camera</mat-icon>
+                  </button>
+                </td>
+
+                <!-- Attach Column -->
+                <td class="col-icon text-center">
+                  <button
+                    type="button"
+                    class="icon-btn-square"
+                    matTooltip="Attach answer sheet"
+                    (click)="openAttachModal(s)"
+                  >
+                    <mat-icon>attach_file</mat-icon>
+                  </button>
                 </td>
 
                 <!-- Action Column -->
                 <td class="col-action text-center">
                   <button
                     type="button"
-                    [ngClass]="item.actionClass"
-                    [disabled]="item.actionClass === 'btn-disabled'"
+                    [ngClass]="s.actionClass"
+                    (click)="openStudentEvaluation(s)"
                   >
-                    {{ item.actionText }}
+                    {{ s.actionText }}
                   </button>
+                </td>
+              </tr>
+
+              <tr *ngIf="filteredStudents.length === 0">
+                <td colspan="8" class="no-data-cell">
+                  No enrolled students found for this test.
                 </td>
               </tr>
             </tbody>
@@ -657,7 +672,7 @@
 
         <!-- Table Bottom Action Footer Bar (Exact Image 2) -->
         <div class="bulk-table-footer-bar">
-          <span class="files-uploaded-count">{{ bulkFiles.length }} files uploaded</span>
+          <span class="files-uploaded-count">{{ bulkFiles.length }} file(s) uploaded &bull; {{ students.length }} student(s) enrolled</span>
           <button type="button" class="btn-evaluate-matched" (click)="evaluateAllMatchedBulk()">
             <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
             <span>Evaluate Matched Sheets</span>
