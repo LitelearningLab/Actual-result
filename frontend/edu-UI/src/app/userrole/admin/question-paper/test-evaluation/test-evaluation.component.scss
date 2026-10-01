@@ -890,13 +890,17 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         background: #3b82f6;
       }
 
+      &.kpi-ai-evaluated::before {
+        background: #8b5cf6;
+      }
+
+      &.kpi-manual-review::before {
+        background: #0284c7;
+      }
+
       &.kpi-completed::before,
       &.kpi-evaluated::before {
         background: #22c55e;
-      }
-
-      &.kpi-ai-evaluated::before {
-        background: #8b5cf6;
       }
 
       &.kpi-need-check::before {
@@ -922,13 +926,17 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
       height: 100%;
       transition: width 0.3s ease;
 
+      &.seg-ai {
+        background: #8b5cf6;
+      }
+
+      &.seg-manual-review {
+        background: #0284c7;
+      }
+
       &.seg-completed,
       &.seg-evaluated {
         background: #22c55e;
-      }
-
-      &.seg-ai {
-        background: #8b5cf6;
       }
 
       &.seg-need-check {
@@ -1197,6 +1205,11 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
               &.pill-completed {
                 background: #dcfce7;
                 color: #166534;
+              }
+
+              &.pill-manual-review {
+                background: #e0f2fe;
+                color: #0369a1;
               }
 
               &.pill-need-check {
@@ -4596,6 +4609,7 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
       font-weight: 500;
     }
 
+    .btn-footer-back,
     .btn-footer-finalize {
       display: inline-flex;
       align-items: center;
@@ -4609,6 +4623,12 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
       font-weight: 600;
       cursor: pointer;
       box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
 
       .sparkle-icon {
         font-size: 16px;

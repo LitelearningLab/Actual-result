@@ -705,13 +705,13 @@
                   <span
                     class="status-pill"
                     [ngClass]="{
-                      'pill-completed': s.status === 'Completed' || s.status === 'evaluated',
+                      'pill-manual-review': s.status === 'Manual Review',
+                      'pill-ai-evaluated': s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated',
                       'pill-need-check': s.status === 'Need to Check',
-                      'pill-ai-evaluated': s.status === 'AI Evaluated',
                       'pill-not-evaluated': s.status === 'Not Evaluated'
                     }"
                   >
-                    <span class="status-dot">●</span> {{ s.status === 'evaluated' ? 'Completed' : s.status }}
+                    <span class="status-dot">●</span> {{ s.status === 'evaluated' || s.status === 'Completed' ? 'AI Evaluated' : s.status }}
                   </span>
                 </td>
 
@@ -831,17 +831,17 @@
           </div>
         </div>
 
-        <div class="kpi-card kpi-completed">
-          <div class="kpi-content">
-            <div class="kpi-val font-styled">{{ testDetails.evaluated }}</div>
-            <div class="kpi-lbl">Completed</div>
-          </div>
-        </div>
-
         <div class="kpi-card kpi-ai-evaluated">
           <div class="kpi-content">
             <div class="kpi-val font-styled">{{ testDetails.aiEvaluated }}</div>
             <div class="kpi-lbl">AI Evaluated</div>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-manual-review">
+          <div class="kpi-content">
+            <div class="kpi-val font-styled">{{ testDetails.manualReview }}</div>
+            <div class="kpi-lbl">Manual Review</div>
           </div>
         </div>
 
@@ -863,14 +863,14 @@
       <!-- Segmented Progress Bar -->
       <div class="progress-bar-container" *ngIf="testDetails.totalStudents > 0">
         <div
-          class="progress-seg seg-completed"
-          [style.width.%]="(testDetails.evaluated / testDetails.totalStudents) * 100"
-          title="Completed: {{ testDetails.evaluated }}"
-        ></div>
-        <div
           class="progress-seg seg-ai"
           [style.width.%]="(testDetails.aiEvaluated / testDetails.totalStudents) * 100"
           title="AI Evaluated: {{ testDetails.aiEvaluated }}"
+        ></div>
+        <div
+          class="progress-seg seg-manual-review"
+          [style.width.%]="(testDetails.manualReview / testDetails.totalStudents) * 100"
+          title="Manual Review: {{ testDetails.manualReview }}"
         ></div>
         <div
           class="progress-seg seg-need-check"
@@ -945,13 +945,13 @@
                 <span
                   class="status-pill"
                   [ngClass]="{
-                    'pill-completed': s.status === 'Completed',
+                    'pill-manual-review': s.status === 'Manual Review',
+                    'pill-ai-evaluated': s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated',
                     'pill-need-check': s.status === 'Need to Check',
-                    'pill-ai-evaluated': s.status === 'AI Evaluated',
                     'pill-not-evaluated': s.status === 'Not Evaluated'
                   }"
                 >
-                  <span class="status-dot">●</span> {{ s.status }}
+                  <span class="status-dot">●</span> {{ s.status === 'evaluated' || s.status === 'Completed' ? 'AI Evaluated' : s.status }}
                 </span>
               </td>
               <td class="col-marks">
@@ -1052,23 +1052,13 @@
             <span
               class="status-pill"
               [ngClass]="{
-                'pill-completed': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Completed' || (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'evaluated',
-                'pill-need-check': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Need to Check',
-                'pill-ai-evaluated': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'AI Evaluated'
+                'pill-manual-review': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Manual Review',
+                'pill-ai-evaluated': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'AI Evaluated' || (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Completed' || (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'evaluated',
+                'pill-need-check': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Need to Check'
               }"
             >
-              <span class="status-dot">●</span> {{ evaluationDetails?.summary?.status || evaluatingStudent?.status || 'AI Evaluated' }}
+              <span class="status-dot">●</span> {{ (evaluationDetails?.summary?.status === 'Completed' || evaluationDetails?.summary?.status === 'evaluated') ? 'AI Evaluated' : (evaluationDetails?.summary?.status || evaluatingStudent?.status || 'AI Evaluated') }}
             </span>
-
-            <button
-              type="button"
-              class="btn-finalize-evaluation"
-              (click)="finalizeStudentEvaluation()"
-              [disabled]="isFinalizing"
-            >
-              <mat-icon class="verified-icon">verified</mat-icon>
-              <span>{{ isFinalizing ? 'Finalizing...' : 'Approve & Finalize' }}</span>
-            </button>
           </div>
         </div>
 
@@ -1274,7 +1264,7 @@
                 (click)="evaluationCategoryFilter = 'needs_attention'"
               >
                 <span>Needs attention</span>
-                <span class="count-badge count-warn">{{ (evaluationDetails?.summary?.total_questions || 0) - (evaluationDetails?.summary?.evaluated_questions || 0) }}</span>
+                <span class="count-badge count-warn">{{ needsAttentionQuestionsCount }}</span>
               </button>
 
               <button
@@ -1284,7 +1274,7 @@
                 (click)="evaluationCategoryFilter = 'reviewed'"
               >
                 <span>Reviewed</span>
-                <span class="count-badge count-ok">{{ evaluationDetails?.summary?.evaluated_questions || 0 }}</span>
+                <span class="count-badge count-ok">{{ reviewedQuestionsCount }}</span>
               </button>
             </div>
           </div>
@@ -1606,16 +1596,15 @@
           <!-- Bottom Evaluation Action Footer -->
           <div class="eval-cards-bottom-footer">
             <div class="footer-left-progress">
-              <span>All questions reviewed and verified</span>
+              <span>All questions evaluated &amp; auto-saved</span>
             </div>
             <button
               type="button"
-              class="btn-footer-finalize"
-              (click)="finalizeStudentEvaluation()"
-              [disabled]="isFinalizing"
+              class="btn-footer-back"
+              (click)="closeStudentEvaluation()"
             >
-              <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
-              <span>{{ isFinalizing ? 'Finalizing...' : 'Approve & Finalize Evaluation' }}</span>
+              <mat-icon>arrow_back</mat-icon>
+              <span>Back to Students List</span>
             </button>
           </div>
         </div>

@@ -1358,6 +1358,9 @@ def get_exam_details(request):
                     ]
                     valid_sched_ids = list(set([exam_id_str] + [s for s in sched_ids if s]))
 
+                    from others.settings import get_ai_confidence_threshold
+                    conf_threshold = get_ai_confidence_threshold(session)
+
                     for _, user in assignment_rows:
                         u_id = str(user.user_id)
                         # Resolve student attempt(s) for this paper exam
@@ -1377,15 +1380,44 @@ def get_exam_details(request):
                                 func.cast(AnswerSheetPage.attempt_id, String).in_(att_ids)
                             ).count()
 
-                            evaluated_att = next((a for a in all_u_attempts if a.status == "evaluated"), None)
-                            target_att = evaluated_att or all_u_attempts[0]
+                            target_att = all_u_attempts[0]
+                            has_manual_edits = False
+                            
+                            # Check if any answer has manual edits / teacher overrides
+                            ans_ids = [str(r[0]) for r in session.query(Answer.answer_id).filter(
+                                func.cast(Answer.attempt_id, String).in_(att_ids)
+                            ).all()]
+                            
+                            has_need_to_check = False
+                            if ans_ids:
+                                mh_count = session.query(MarksHistory).filter(
+                                    MarksHistory.answer_id.in_(ans_ids),
+                                    or_(
+                                        (MarksHistory.edit_reason.isnot(None) & (MarksHistory.edit_reason != '')),
+                                        (MarksHistory.updated_by.isnot(None) & (MarksHistory.updated_by != '') & (MarksHistory.updated_by != 'SYSTEM') & (MarksHistory.updated_by != 'System') & (MarksHistory.updated_by != 'cac37fab-4de6-4792-969b-96e57e3c910a'))
+                                    )
+                                ).count()
+                                if mh_count > 0:
+                                    has_manual_edits = True
 
-                            if evaluated_att or target_att.status == "evaluated":
-                                u_status = "Completed"
-                            elif u_pages_count > 0:
+                                need_check_count = session.query(Answer).filter(
+                                    Answer.answer_id.in_(ans_ids),
+                                    or_(
+                                        Answer.manual_review_required == 1,
+                                        (Answer.ai_confidence.isnot(None) & (Answer.ai_confidence > 0) & (Answer.ai_confidence < conf_threshold))
+                                    )
+                                ).count()
+                                if need_check_count > 0:
+                                    has_need_to_check = True
+
+                            if has_manual_edits:
+                                u_status = "Manual Review"
+                            elif has_need_to_check:
+                                u_status = "Need to Check"
+                            elif u_pages_count > 0 or target_att.status in ("in_progress", "submitted", "evaluated"):
                                 u_status = "AI Evaluated"
-                            elif target_att.status in ("in_progress", "submitted"):
-                                u_status = "AI Evaluated"
+                            else:
+                                u_status = "Not Evaluated"
 
                             # Calculate score from Answers or attempt.score
                             ans_sum = session.query(func.sum(Answer.marks_awarded)).filter(
@@ -2960,8 +2992,30 @@ def get_student_evaluation_details(request, current_user=None):
         percentage = round((current_score / total_exam_marks * 100), 2) if total_exam_marks > 0 else 0.0
         attempt_status = attempt.status if attempt else "not_started"
 
+        from others.settings import get_ai_confidence_threshold
+        conf_threshold = get_ai_confidence_threshold(session)
+
+        has_manual_review = any(
+            (q.get("marks_history") and len(q["marks_history"]) > 0) or
+            (q.get("edit_reason")) or
+            (q.get("manual_marks") is not None and q.get("manual_marks") != q.get("ai_marks"))
+            for q in questions_data
+        )
+        has_need_to_check = any(
+            q.get("manual_review_required") or
+            (q.get("ai_confidence") is not None and 0 < q.get("ai_confidence") < conf_threshold)
+            for q in questions_data
+        )
+        if has_manual_review:
+            display_status = "Manual Review"
+        elif has_need_to_check:
+            display_status = "Need to Check"
+        else:
+            display_status = "AI Evaluated"
+
         payload = {
             "status": True,
+            "ai_confidence_threshold": conf_threshold,
             "exam_id": str(exam.exam_id),
             "exam_title": exam.title,
             "subject_name": exam.subject_name or "",
@@ -2978,7 +3032,7 @@ def get_student_evaluation_details(request, current_user=None):
                 "percentage": percentage,
                 "total_questions": len(questions_data),
                 "evaluated_questions": sum(1 for q in questions_data if q["marks_awarded"] > 0 or q["ai_marks"] is not None),
-                "status": attempt_status
+                "status": display_status
             }
         }
 

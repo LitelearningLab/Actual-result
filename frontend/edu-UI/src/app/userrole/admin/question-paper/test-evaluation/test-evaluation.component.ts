@@ -37,7 +37,7 @@ export interface StudentEvaluation {
   rollNo: string;
   pagesInfo: string;
   missingPagesWarning?: string;
-  status: 'Completed' | 'Need to Check' | 'AI Evaluated' | 'Not Evaluated' | 'evaluated';
+  status: 'Manual Review' | 'Need to Check' | 'AI Evaluated' | 'Not Evaluated' | 'Completed' | 'evaluated';
   marks: string;
   actionText: string;
   actionClass: string;
@@ -58,7 +58,7 @@ export interface BulkFileItem {
   isScanning?: boolean;
   pagesInfo: string;
   isPageWarning?: boolean;
-  aiStatus: 'Completed' | 'Need to Check' | 'AI Evaluated' | 'Waiting';
+  aiStatus: 'Manual Review' | 'Need to Check' | 'AI Evaluated' | 'Waiting' | 'Completed';
   evaluation: string;
   actionText: string;
   actionClass: string;
@@ -183,7 +183,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   uploadTab: 'user' | 'bulk' = 'bulk';
   searchQuery = '';
   selectedStatus = 'All statuses';
-  statusList = ['All statuses', 'Completed', 'Need to Check', 'AI Evaluated', 'Not Evaluated'];
+  statusList = ['All statuses', 'AI Evaluated', 'Manual Review', 'Need to Check', 'Not Evaluated'];
 
   // Test KPI Summary Data
   testDetails = {
@@ -194,10 +194,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     totalMarks: '0 marks',
     totalQuestions: '0 questions',
     totalStudents: 0,
-    evaluated: 0,
+    aiEvaluated: 0,
+    manualReview: 0,
     needToCheck: 0,
-    notEvaluated: 0,
-    aiEvaluated: 0
+    notEvaluated: 0
   };
 
   students: StudentEvaluation[] = [];
@@ -235,7 +235,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   activeSheetPageIndex = 0;
   zoomLevel = 100;
   evaluationCategoryFilter: 'all' | 'needs_attention' | 'reviewed' = 'all';
-  isFinalizing = false;
+  aiConfidenceThreshold = 70;
 
   private authSubscription?: Subscription;
 
@@ -253,7 +253,21 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.pageMeta.setMeta('Test Evaluation');
+    this.loadAIConfidenceThreshold();
     this.initFilterCascade();
+  }
+
+  loadAIConfidenceThreshold(): void {
+    this.http.get<any>(`${API_BASE}/settings/ai-confidence-threshold`).subscribe({
+      next: (res) => {
+        if (res && res.data && res.data.ai_confidence_threshold != null) {
+          this.aiConfidenceThreshold = Number(res.data.ai_confidence_threshold);
+        }
+      },
+      error: (err) => {
+        console.warn('Could not load AI confidence threshold:', err);
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -789,7 +803,17 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.students = assigned.map((user: any, idx: number) => {
       const pCount = user.pages_count || 0;
       const rawStatus = user.evaluation_status || user.status || (pCount > 0 ? 'AI Evaluated' : 'Not Evaluated');
-      const status = rawStatus === 'evaluated' ? 'Completed' : rawStatus;
+      let status: StudentEvaluation['status'] = 'Not Evaluated';
+      if (rawStatus === 'Manual Review' || rawStatus === 'manual_review') {
+        status = 'Manual Review';
+      } else if (rawStatus === 'AI Evaluated' || rawStatus === 'evaluated' || rawStatus === 'Completed' || pCount > 0) {
+        status = 'AI Evaluated';
+      } else if (rawStatus === 'Need to Check') {
+        status = 'Need to Check';
+      } else {
+        status = 'Not Evaluated';
+      }
+
       const totalMarksVal = exam.total_marks || 20;
       const scoreVal = user.marks_awarded != null ? user.marks_awarded : (user.score != null ? user.score : null);
 
@@ -798,7 +822,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         marksDisplay = `${scoreVal} / ${totalMarksVal}`;
       }
 
-      const isEvaluated = status === 'Completed' || status === 'AI Evaluated' || pCount > 0;
+      const isEvaluated = status === 'AI Evaluated' || status === 'Manual Review' || pCount > 0;
 
       return {
         sno: idx + 1,
@@ -821,10 +845,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       totalMarks: `${exam.total_marks || 0} marks`,
       totalQuestions: `${exam.total_questions || 0} questions`,
       totalStudents: assigned.length,
-      evaluated: 0,
+      aiEvaluated: 0,
+      manualReview: 0,
       needToCheck: 0,
-      notEvaluated: assigned.length,
-      aiEvaluated: 0
+      notEvaluated: assigned.length
     };
 
     // Update available student list for Bulk Upload assignment
@@ -843,10 +867,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       totalMarks: '0 marks',
       totalQuestions: '0 questions',
       totalStudents: 0,
-      evaluated: 0,
+      aiEvaluated: 0,
+      manualReview: 0,
       needToCheck: 0,
-      notEvaluated: 0,
-      aiEvaluated: 0
+      notEvaluated: 0
     };
   }
 
@@ -864,28 +888,28 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   recalculateKpiTotals(): void {
     const total = this.students.length;
-    let evaluated = 0;
+    let aiEvaluated = 0;
+    let manualReview = 0;
     let needToCheck = 0;
     let notEvaluated = 0;
-    let aiEvaluated = 0;
 
     for (const s of this.students) {
-      if (s.status === 'Completed' || s.status === 'evaluated') {
-        evaluated++;
+      if (s.status === 'Manual Review') {
+        manualReview++;
+      } else if (s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated') {
+        aiEvaluated++;
       } else if (s.status === 'Need to Check') {
         needToCheck++;
-      } else if (s.status === 'AI Evaluated') {
-        aiEvaluated++;
       } else {
         notEvaluated++;
       }
     }
 
     this.testDetails.totalStudents = total;
-    this.testDetails.evaluated = evaluated;
+    this.testDetails.aiEvaluated = aiEvaluated;
+    this.testDetails.manualReview = manualReview;
     this.testDetails.needToCheck = needToCheck;
     this.testDetails.notEvaluated = notEvaluated;
-    this.testDetails.aiEvaluated = aiEvaluated;
   }
 
   filterStudents(): void {
@@ -962,6 +986,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.isLoadingEvaluation = false;
         if (res && res.status) {
           this.evaluationDetails = res;
+          if (res.ai_confidence_threshold != null) {
+            this.aiConfidenceThreshold = Number(res.ai_confidence_threshold);
+          }
           this.activeSheetPageIndex = 0;
         } else {
           notify(res?.statusMessage || 'Could not load evaluation details.', 'error');
@@ -1041,7 +1068,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       return questions.filter(
         (q) =>
           q.manual_review_required ||
-          (q.ai_confidence != null && q.ai_confidence < 70) ||
+          (q.ai_confidence != null && q.ai_confidence < this.aiConfidenceThreshold) ||
           (q.marks_awarded != null && q.marks_awarded < q.max_marks) ||
           (q.review_comments && q.review_comments.length > 0)
       );
@@ -1051,6 +1078,22 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       );
     }
     return questions;
+  }
+
+  get needsAttentionQuestionsCount(): number {
+    const questions: any[] = this.evaluationDetails?.questions || [];
+    return questions.filter(
+      (q) =>
+        q.manual_review_required ||
+        (q.ai_confidence != null && q.ai_confidence < this.aiConfidenceThreshold) ||
+        (q.marks_awarded != null && q.marks_awarded < q.max_marks) ||
+        (q.review_comments && q.review_comments.length > 0)
+    ).length;
+  }
+
+  get reviewedQuestionsCount(): number {
+    const total = this.evaluationDetails?.questions?.length || 0;
+    return Math.max(0, total - this.needsAttentionQuestionsCount);
   }
 
   getReviewComments(q: any, category: string): any[] {
@@ -1117,6 +1160,24 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         if (res && res.status) {
           q.marks_awarded = Number(q._editedMarks) || 0;
           notify('Marks updated and logged to audit trail.', 'success');
+
+          // Transition status to 'Manual Review'
+          if (this.evaluatingStudent) {
+            this.evaluatingStudent.status = 'Manual Review';
+          }
+          const matchedStudent = this.students.find(
+            (s) => (this.evaluatingStudent?.user_id && s.user_id === this.evaluatingStudent.user_id) ||
+                   (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
+          );
+          if (matchedStudent) {
+            matchedStudent.status = 'Manual Review';
+          }
+          if (this.evaluationDetails?.summary) {
+            this.evaluationDetails.summary.status = 'Manual Review';
+          }
+          this.recalculateKpiTotals();
+          this.filterStudents();
+
           // Reload evaluation details to refresh MarksHistory & Summary
           if (this.selectedExamId && this.evaluationDetails?.user_id) {
             this.loadEvaluationDetails(this.selectedExamId, this.evaluationDetails.user_id);
@@ -1159,6 +1220,23 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           comment.comment_text = comment._editedText.trim();
           comment._editing = false;
           notify('Rubric point updated.', 'success');
+
+          // Transition status to 'Manual Review'
+          if (this.evaluatingStudent) {
+            this.evaluatingStudent.status = 'Manual Review';
+          }
+          const matchedStudent = this.students.find(
+            (s) => (this.evaluatingStudent?.user_id && s.user_id === this.evaluatingStudent.user_id) ||
+                   (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
+          );
+          if (matchedStudent) {
+            matchedStudent.status = 'Manual Review';
+          }
+          if (this.evaluationDetails?.summary) {
+            this.evaluationDetails.summary.status = 'Manual Review';
+          }
+          this.recalculateKpiTotals();
+          this.filterStudents();
         } else {
           notify(res?.statusMessage || 'Failed to update comment.', 'error');
         }
@@ -1181,6 +1259,23 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         if (res && res.status) {
           comment.is_deleted = 1;
           notify('Rubric point deleted.', 'success');
+
+          // Transition status to 'Manual Review'
+          if (this.evaluatingStudent) {
+            this.evaluatingStudent.status = 'Manual Review';
+          }
+          const matchedStudent = this.students.find(
+            (s) => (this.evaluatingStudent?.user_id && s.user_id === this.evaluatingStudent.user_id) ||
+                   (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
+          );
+          if (matchedStudent) {
+            matchedStudent.status = 'Manual Review';
+          }
+          if (this.evaluationDetails?.summary) {
+            this.evaluationDetails.summary.status = 'Manual Review';
+          }
+          this.recalculateKpiTotals();
+          this.filterStudents();
         } else {
           notify(res?.statusMessage || 'Failed to delete comment.', 'error');
         }
@@ -1188,41 +1283,6 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Error deleting review comment:', err);
         notify('Error deleting review comment.', 'error');
-      }
-    });
-  }
-
-  // ─── Finalize Evaluation ───
-  finalizeStudentEvaluation(): void {
-    if (!this.selectedExamId || !this.evaluationDetails?.user_id) return;
-
-    this.isFinalizing = true;
-    const payload = {
-      exam_id: this.selectedExamId,
-      user_id: this.evaluationDetails.user_id,
-      attempt_id: this.evaluationDetails.attempt_id
-    };
-
-    this.http.post<any>(`${API_BASE}/test-evaluation/finalize-evaluation`, payload).subscribe({
-      next: (res) => {
-        this.isFinalizing = false;
-        if (res && res.status) {
-          notify('Student evaluation successfully approved and finalized.', 'success');
-          if (this.evaluatingStudent) {
-            this.evaluatingStudent.status = 'Completed';
-            this.evaluatingStudent.marks = `${res.data?.score || 0} / ${this.evaluationDetails?.summary?.total_marks || 0}`;
-            this.evaluatingStudent.actionText = 'Review';
-            this.evaluatingStudent.actionClass = 'btn-solid-blue';
-          }
-          this.closeStudentEvaluation();
-        } else {
-          notify(res?.statusMessage || 'Failed to finalize evaluation.', 'error');
-        }
-      },
-      error: (err) => {
-        this.isFinalizing = false;
-        console.error('Error finalizing evaluation:', err);
-        notify(err?.error?.statusMessage || 'Error finalizing evaluation.', 'error');
       }
     });
   }
@@ -1941,7 +2001,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           // Update bulk files state
           for (const f of this.bulkFiles) {
             if (f.isMatched) {
-              f.aiStatus = 'Completed';
+              f.aiStatus = 'AI Evaluated';
               f.evaluation = 'Evaluated';
               f.actionText = 'Review';
               f.actionClass = 'btn-solid-blue';
@@ -1952,7 +2012,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           // Update student records state
           for (const s of this.students) {
             if (s.isMatched || s.matchedFile || s.rawFile || s.status === 'AI Evaluated' || s.pagesInfo !== '0 of 0 pages') {
-              s.status = 'Completed';
+              s.status = 'AI Evaluated';
               if (s.marks === 'Not marked') {
                 const totalM = this.testDetails.totalMarks ? parseInt(this.testDetails.totalMarks, 10) || 20 : 20;
                 const randomScore = Math.floor(totalM * 0.75 + Math.random() * (totalM * 0.25));
@@ -1977,7 +2037,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       // Update bulk files state
       for (const f of this.bulkFiles) {
         if (f.isMatched) {
-          f.aiStatus = 'Completed';
+          f.aiStatus = 'AI Evaluated';
           f.evaluation = 'Evaluated';
           f.actionText = 'Review';
           f.actionClass = 'btn-solid-blue';
@@ -1987,7 +2047,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       // Update student records state bi-directionally
       for (const s of this.students) {
         if (s.isMatched || s.matchedFile || s.status === 'AI Evaluated' || s.pagesInfo !== '0 of 0 pages') {
-          s.status = 'Completed';
+          s.status = 'AI Evaluated';
           if (s.marks === 'Not marked') {
             const totalM = this.testDetails.totalMarks ? parseInt(this.testDetails.totalMarks, 10) || 20 : 20;
             const randomScore = Math.floor(totalM * 0.75 + Math.random() * (totalM * 0.25));
