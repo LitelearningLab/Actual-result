@@ -87,8 +87,8 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/category-create': 'Question Banks',
     '/view-questions': 'Questions',
     '/questions': 'Questions',
-    '/exams': 'Manage test',
-    '/create-exam': 'Manage test',
+    '/exams': 'Create/Edit test',
+    '/create-exam': 'Create/Edit test test',
     '/view-schedule-exam': 'Schedule Test',
     '/schedule-exam': 'Schedule Test',
     '/view-institutes': 'Institutes',
@@ -228,7 +228,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
       this.menus.push({ label: 'Users', path: '/view-users', icon: 'users' });
       this.menus.push({ label: 'Question Banks', path: '/category', icon: 'category' });
       this.menus.push({ label: 'Questions', path: '/view-questions', icon: 'quiz' });
-      this.menus.push({ label: 'Manage test', path: '/exams', icon: 'exam' });
+      this.menus.push({ label: 'Create/Edit test', path: '/exams', icon: 'exam' });
       this.menus.push({ label: 'Schedule Test', path: '/view-schedule-exam', icon: 'calendar' });
       this.menus.push({ label: 'Test Reports', path: '/admin/exam-reports', icon: 'report' });
     }

@@ -37,7 +37,7 @@ export interface StudentEvaluation {
   rollNo: string;
   pagesInfo: string;
   missingPagesWarning?: string;
-  status: 'Manual Review' | 'Need to Check' | 'AI Evaluated' | 'Not Evaluated' | 'Completed' | 'evaluated';
+  status: 'Manual Reviewed' | 'Need to Check' | 'AI Evaluated' | 'Not Evaluated' | 'Completed' | 'evaluated';
   marks: string;
   actionText: string;
   actionClass: string;
@@ -58,7 +58,7 @@ export interface BulkFileItem {
   isScanning?: boolean;
   pagesInfo: string;
   isPageWarning?: boolean;
-  aiStatus: 'Manual Review' | 'Need to Check' | 'AI Evaluated' | 'Waiting' | 'Completed';
+  aiStatus: 'Manual Reviewed' | 'Need to Check' | 'AI Evaluated' | 'Waiting' | 'Completed';
   evaluation: string;
   actionText: string;
   actionClass: string;
@@ -183,7 +183,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   uploadTab: 'user' | 'bulk' = 'bulk';
   searchQuery = '';
   selectedStatus = 'All statuses';
-  statusList = ['All statuses', 'AI Evaluated', 'Manual Review', 'Need to Check', 'Not Evaluated'];
+  statusList = ['All statuses', 'AI Evaluated', 'Manual Reviewed', 'Need to Check', 'Not Evaluated'];
 
   // Test KPI Summary Data
   testDetails = {
@@ -804,12 +804,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       const pCount = user.pages_count || 0;
       const rawStatus = user.evaluation_status || user.status || (pCount > 0 ? 'AI Evaluated' : 'Not Evaluated');
       let status: StudentEvaluation['status'] = 'Not Evaluated';
-      if (rawStatus === 'Manual Review' || rawStatus === 'manual_review') {
-        status = 'Manual Review';
-      } else if (rawStatus === 'AI Evaluated' || rawStatus === 'evaluated' || rawStatus === 'Completed' || pCount > 0) {
-        status = 'AI Evaluated';
+      if (rawStatus === 'Manual Reviewed' || rawStatus === 'Manual Review' || rawStatus === 'manual_review') {
+        status = 'Manual Reviewed';
       } else if (rawStatus === 'Need to Check') {
         status = 'Need to Check';
+      } else if (rawStatus === 'AI Evaluated' || rawStatus === 'evaluated' || rawStatus === 'Completed' || pCount > 0) {
+        status = 'AI Evaluated';
       } else {
         status = 'Not Evaluated';
       }
@@ -822,7 +822,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         marksDisplay = `${scoreVal} / ${totalMarksVal}`;
       }
 
-      const isEvaluated = status === 'AI Evaluated' || status === 'Manual Review' || pCount > 0;
+      const isEvaluated = status !== 'Not Evaluated' || pCount > 0;
 
       return {
         sno: idx + 1,
@@ -894,12 +894,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     let notEvaluated = 0;
 
     for (const s of this.students) {
-      if (s.status === 'Manual Review') {
+      if (s.status === 'Manual Reviewed') {
         manualReview++;
-      } else if (s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated') {
-        aiEvaluated++;
       } else if (s.status === 'Need to Check') {
         needToCheck++;
+      } else if (s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated') {
+        aiEvaluated++;
       } else {
         notEvaluated++;
       }
@@ -1161,19 +1161,19 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           q.marks_awarded = Number(q._editedMarks) || 0;
           notify('Marks updated and logged to audit trail.', 'success');
 
-          // Transition status to 'Manual Review'
+          // Transition status to 'Manual Reviewed'
           if (this.evaluatingStudent) {
-            this.evaluatingStudent.status = 'Manual Review';
+            this.evaluatingStudent.status = 'Manual Reviewed';
           }
           const matchedStudent = this.students.find(
             (s) => (this.evaluatingStudent?.user_id && s.user_id === this.evaluatingStudent.user_id) ||
                    (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
           );
           if (matchedStudent) {
-            matchedStudent.status = 'Manual Review';
+            matchedStudent.status = 'Manual Reviewed';
           }
           if (this.evaluationDetails?.summary) {
-            this.evaluationDetails.summary.status = 'Manual Review';
+            this.evaluationDetails.summary.status = 'Manual Reviewed';
           }
           this.recalculateKpiTotals();
           this.filterStudents();
@@ -1221,19 +1221,19 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           comment._editing = false;
           notify('Rubric point updated.', 'success');
 
-          // Transition status to 'Manual Review'
+          // Transition status to 'Manual Reviewed'
           if (this.evaluatingStudent) {
-            this.evaluatingStudent.status = 'Manual Review';
+            this.evaluatingStudent.status = 'Manual Reviewed';
           }
           const matchedStudent = this.students.find(
             (s) => (this.evaluatingStudent?.user_id && s.user_id === this.evaluatingStudent.user_id) ||
                    (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
           );
           if (matchedStudent) {
-            matchedStudent.status = 'Manual Review';
+            matchedStudent.status = 'Manual Reviewed';
           }
           if (this.evaluationDetails?.summary) {
-            this.evaluationDetails.summary.status = 'Manual Review';
+            this.evaluationDetails.summary.status = 'Manual Reviewed';
           }
           this.recalculateKpiTotals();
           this.filterStudents();
@@ -1260,19 +1260,19 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           comment.is_deleted = 1;
           notify('Rubric point deleted.', 'success');
 
-          // Transition status to 'Manual Review'
+          // Transition status to 'Manual Reviewed'
           if (this.evaluatingStudent) {
-            this.evaluatingStudent.status = 'Manual Review';
+            this.evaluatingStudent.status = 'Manual Reviewed';
           }
           const matchedStudent = this.students.find(
             (s) => (this.evaluatingStudent?.user_id && s.user_id === this.evaluatingStudent.user_id) ||
                    (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
           );
           if (matchedStudent) {
-            matchedStudent.status = 'Manual Review';
+            matchedStudent.status = 'Manual Reviewed';
           }
           if (this.evaluationDetails?.summary) {
-            this.evaluationDetails.summary.status = 'Manual Review';
+            this.evaluationDetails.summary.status = 'Manual Reviewed';
           }
           this.recalculateKpiTotals();
           this.filterStudents();

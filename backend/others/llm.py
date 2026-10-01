@@ -673,9 +673,11 @@ PHASE 2 QUESTION-SPECIFIC EVALUATION RULES:
    - Read handwritten responses, mathematical workings, chemical formulas, step derivations, graphs/diagrams, and objective question markings directly from the images.
 
 3. Objective / Multiple Choice Questions:
-   - Identify whether the student marked, ticked, circled, or wrote down the option under this question's label.
-   - Compare with the correct answer key in the rubric.
-   - Award full marks if correct, 0 if incorrect or unmarked.
+   - Identify what the student wrote or marked under this question's label (e.g., option letter like 'b', 'B', 'b)', '(b)', option text like 'under', 'Under', or combination like 'b) under', 'B. Under', '(b) Under').
+   - Compare with the rubric (options list, correct_option_letter, and correct_option_text/model_answer).
+   - Treat option letters and option text as case-insensitive (e.g., 'b' == 'B', 'under' == 'Under' == 'UNDER').
+   - If the student's handwritten answer matches the correct option letter, the correct option text, or both (ignoring casing, punctuation, and prefixes like 'a)', 'b)', '(b)'), award FULL MARKS (suggested_marks = max_marks, is_correct = 1).
+   - Award 0 if the student selected an incorrect option, or if the question was unmarked/unattempted.
 
 4. Descriptive / Mathematical / Scientific Questions:
    - Award step marks for intermediate mathematical / derivation steps, even if the final calculation has minor arithmetic errors.

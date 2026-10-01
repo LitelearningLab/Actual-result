@@ -1411,7 +1411,7 @@ def get_exam_details(request):
                                     has_need_to_check = True
 
                             if has_manual_edits:
-                                u_status = "Manual Review"
+                                u_status = "Manual Reviewed"
                             elif has_need_to_check:
                                 u_status = "Need to Check"
                             elif u_pages_count > 0 or target_att.status in ("in_progress", "submitted", "evaluated"):
@@ -3007,7 +3007,7 @@ def get_student_evaluation_details(request, current_user=None):
             for q in questions_data
         )
         if has_manual_review:
-            display_status = "Manual Review"
+            display_status = "Manual Reviewed"
         elif has_need_to_check:
             display_status = "Need to Check"
         else:
@@ -3318,14 +3318,34 @@ def upload_answer_sheet(request, current_user=None):
                             options = session.query(Option).filter(Option.question_id == q.question_id).all()
                             correct_opts = [opt for opt in options if str(opt.is_correct).lower() in ("1", "true")]
                             model_ans = correct_opts[0].option_text if correct_opts else (options[0].option_text if options else "")
-                            sec_q_list.append({
+                            q_entry = {
                                 "question_id": str(q.question_id),
                                 "question_number": len(seen_qids_rubric),
                                 "question_text": q.question_text,
                                 "question_type": q.question_type,
                                 "max_marks": float(q.marks or 1.0),
                                 "model_answer": model_ans
-                            })
+                            }
+                            if q.question_type in ("choose", "multi", "scq", "mcq") and options:
+                                formatted_options = []
+                                correct_letters = []
+                                correct_texts = []
+                                for idx, opt in enumerate(options):
+                                    letter = chr(ord('a') + idx)
+                                    opt_text = opt.option_text or ""
+                                    formatted_options.append({
+                                        "letter": letter,
+                                        "text": opt_text
+                                    })
+                                    if str(getattr(opt, 'is_correct', 0)).lower() in ("1", "true"):
+                                        correct_letters.append(letter)
+                                        correct_texts.append(opt_text)
+                                q_entry["options"] = formatted_options
+                                if correct_letters:
+                                    q_entry["correct_option_letter"] = ", ".join(correct_letters)
+                                if correct_texts:
+                                    q_entry["correct_option_text"] = ", ".join(correct_texts)
+                            sec_q_list.append(q_entry)
                     if sec_q_list:
                         rubric_sections.append({
                             "section_name": sec.name or "Section",
@@ -3346,14 +3366,34 @@ def upload_answer_sheet(request, current_user=None):
                     options = session.query(Option).filter(Option.question_id == q.question_id).all()
                     correct_opts = [opt for opt in options if str(opt.is_correct).lower() in ("1", "true")]
                     model_ans = correct_opts[0].option_text if correct_opts else (options[0].option_text if options else "")
-                    rem_q_list.append({
+                    q_entry = {
                         "question_id": str(q.question_id),
                         "question_number": len(seen_qids_rubric),
                         "question_text": q.question_text,
                         "question_type": q.question_type,
                         "max_marks": float(q.marks or 1.0),
                         "model_answer": model_ans
-                    })
+                    }
+                    if q.question_type in ("choose", "multi", "scq", "mcq") and options:
+                        formatted_options = []
+                        correct_letters = []
+                        correct_texts = []
+                        for idx, opt in enumerate(options):
+                            letter = chr(ord('a') + idx)
+                            opt_text = opt.option_text or ""
+                            formatted_options.append({
+                                "letter": letter,
+                                "text": opt_text
+                            })
+                            if str(getattr(opt, 'is_correct', 0)).lower() in ("1", "true"):
+                                correct_letters.append(letter)
+                                correct_texts.append(opt_text)
+                        q_entry["options"] = formatted_options
+                        if correct_letters:
+                            q_entry["correct_option_letter"] = ", ".join(correct_letters)
+                        if correct_texts:
+                            q_entry["correct_option_text"] = ", ".join(correct_texts)
+                    rem_q_list.append(q_entry)
             if rem_q_list:
                 rubric_sections.append({
                     "section_name": "General",
@@ -3489,6 +3529,36 @@ def upload_answer_sheet(request, current_user=None):
                     is_corr = int(ev.get("is_correct", 1 if awarded >= q_marks and q_marks > 0 else 0))
                     is_val = 1
                     detected_pages = detected_pages_by_qid.get(qid_str) or pages_by_qnum.get(q_num) or ev.get("detected_on_pages") or []
+
+                    # Deterministic fallback check for objective MCQ/SCQ questions
+                    if q_obj and q_obj.question_type in ("choose", "multi", "scq", "mcq"):
+                        options = session.query(Option).filter(Option.question_id == q_obj.question_id).all()
+                        correct_opts = [opt for opt in options if str(getattr(opt, "is_correct", 0)).lower() in ("1", "true")]
+                        student_snippet_clean = (ev.get("student_answer_snippet") or "").strip().lower()
+
+                        if correct_opts and student_snippet_clean:
+                            for idx, opt in enumerate(options):
+                                if str(getattr(opt, "is_correct", 0)).lower() in ("1", "true"):
+                                    letter = chr(ord('a') + idx)
+                                    opt_text = (opt.option_text or "").strip().lower()
+                                    letter_patterns = [letter, f"{letter})", f"({letter})", f"{letter}."]
+
+                                    is_match = False
+                                    if student_snippet_clean in letter_patterns:
+                                        is_match = True
+                                    elif opt_text and student_snippet_clean == opt_text:
+                                        is_match = True
+                                    elif opt_text and any(student_snippet_clean.startswith(pat) and opt_text in student_snippet_clean for pat in letter_patterns):
+                                        is_match = True
+                                    elif opt_text and student_snippet_clean.endswith(opt_text) and any(student_snippet_clean.startswith(pat) for pat in letter_patterns):
+                                        is_match = True
+
+                                    if is_match:
+                                        awarded = q_marks
+                                        is_corr = 1
+                                        if not fb or "incorrect" in fb.lower():
+                                            fb = f"Correct. Option ({letter.upper()}) {opt.option_text or ''}"
+                                        break
                 else:
                     # Question was in rubric but NOT physically detected on answer sheet -> Unattempted
                     awarded = 0.0

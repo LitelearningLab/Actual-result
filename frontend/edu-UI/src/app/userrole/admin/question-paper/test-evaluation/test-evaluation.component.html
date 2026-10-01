@@ -705,7 +705,7 @@
                   <span
                     class="status-pill"
                     [ngClass]="{
-                      'pill-manual-review': s.status === 'Manual Review',
+                      'pill-manual-review': s.status === 'Manual Reviewed',
                       'pill-ai-evaluated': s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated',
                       'pill-need-check': s.status === 'Need to Check',
                       'pill-not-evaluated': s.status === 'Not Evaluated'
@@ -841,7 +841,7 @@
         <div class="kpi-card kpi-manual-review">
           <div class="kpi-content">
             <div class="kpi-val font-styled">{{ testDetails.manualReview }}</div>
-            <div class="kpi-lbl">Manual Review</div>
+            <div class="kpi-lbl">Manual Reviewed</div>
           </div>
         </div>
 
@@ -870,7 +870,7 @@
         <div
           class="progress-seg seg-manual-review"
           [style.width.%]="(testDetails.manualReview / testDetails.totalStudents) * 100"
-          title="Manual Review: {{ testDetails.manualReview }}"
+          title="Manual Reviewed: {{ testDetails.manualReview }}"
         ></div>
         <div
           class="progress-seg seg-need-check"
@@ -945,7 +945,7 @@
                 <span
                   class="status-pill"
                   [ngClass]="{
-                    'pill-manual-review': s.status === 'Manual Review',
+                    'pill-manual-review': s.status === 'Manual Reviewed',
                     'pill-ai-evaluated': s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated',
                     'pill-need-check': s.status === 'Need to Check',
                     'pill-not-evaluated': s.status === 'Not Evaluated'
@@ -1052,7 +1052,7 @@
             <span
               class="status-pill"
               [ngClass]="{
-                'pill-manual-review': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Manual Review',
+                'pill-manual-review': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Manual Reviewed',
                 'pill-ai-evaluated': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'AI Evaluated' || (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Completed' || (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'evaluated',
                 'pill-need-check': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Need to Check'
               }"
