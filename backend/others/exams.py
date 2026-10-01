@@ -32,6 +32,10 @@ from others.exam_review import (
     validate_answers,
 )
 import sys
+import os
+import json
+import time
+import uuid
 from datetime import datetime, timezone
 from db.models import Institute, InstituteCampus, User
 from sqlalchemy import func, or_, String, text
@@ -2905,14 +2909,24 @@ def get_student_evaluation_details(request, current_user=None):
                         "history_id": str(mh.history_id),
                         "marks_awarded": float(mh.marks_awarded or 0.0),
                         "source": mh.source or "manual",
-                        "edit_reason": mh.edit_reason or "Student answer verified against model answer key",
+                        "edit_reason": mh.edit_reason or "Marks updated",
                         "updated_by": updater_name,
                         "updated_date": mh.updated_date.isoformat() if mh.updated_date else None
                     })
 
-            # Estimate or extract detected page
-            num_pages = len(pages_data) or 1
-            est_page = min(num_pages, max(1, int((idx / max(1, len(eqm_rows))) * num_pages) + 1))
+            # Extract real detected pages from ans.written_answer metadata
+            detected_pages = []
+            student_written_text = ""
+            if ans and ans.written_answer:
+                try:
+                    if ans.written_answer.startswith("{") and "detected_pages" in ans.written_answer:
+                        meta = json.loads(ans.written_answer)
+                        detected_pages = meta.get("detected_pages", [])
+                        student_written_text = meta.get("student_answer", "")
+                    else:
+                        student_written_text = ans.written_answer
+                except Exception:
+                    student_written_text = ans.written_answer or ""
 
             questions_data.append({
                 "question_id": str(q.question_id),
@@ -2924,13 +2938,14 @@ def get_student_evaluation_details(request, current_user=None):
                 "question_type": q.question_type,
                 "max_marks": q_marks,
                 "model_answer": model_answer,
+                "student_answer": student_written_text,
                 "ai_marks": ai_marks,
                 "marks_awarded": marks_awarded,
                 "ai_confidence": ai_confidence,
                 "feedback": feedback,
                 "manual_marks": manual_marks,
                 "manual_review_required": manual_review_required,
-                "detected_on_page": [est_page],
+                "detected_on_page": detected_pages,
                 "review_comments": review_comments,
                 "updated_by": current_updater_name,
                 "updated_date": current_updated_date,
@@ -3068,6 +3083,7 @@ def upload_answer_sheet(request, current_user=None):
     import sys
     import uuid
     import time
+    import json
 
     exam_id = request.form.get("exam_id")
     user_id = request.form.get("user_id")
@@ -3214,33 +3230,270 @@ def upload_answer_sheet(request, current_user=None):
                     "image_url": f"/edu/api/uploads/answer_sheets/{rel_img_path}"
                 })
 
-            # Bulk check existing answers in ONE single query
-            existing_ans_rows = session.query(Answer.question_id).filter(
-                Answer.attempt_id == attempt.attempt_id
-            ).all()
-            existing_qids = {str(r[0]) for r in existing_ans_rows if r[0]}
+            # Build question blueprint & rubric for AI visual evaluation
+            sec_rows = (
+                session.query(ExamSection)
+                .filter(ExamSection.exam_id == exam_id)
+                .order_by(ExamSection.order_number.asc(), ExamSection.created_date.asc())
+                .all()
+            )
+            rubric_sections = []
+            seen_qids_rubric = set()
 
-            q_mappings = session.query(ExamQuestionMapping).filter(ExamQuestionMapping.exam_id == exam_id).all()
-            for eqm in q_mappings:
-                qid_str = str(eqm.question_id)
-                if qid_str not in existing_qids:
-                    q_obj = session.query(Question).filter(Question.question_id == eqm.question_id).first()
-                    q_marks = float(q_obj.marks or 1.0) if q_obj else 1.0
-                    awarded = max(0.0, q_marks - 0.5) if q_marks > 1 else q_marks
+            if sec_rows:
+                for sec in sec_rows:
+                    sec_id_str = str(sec.section_id)
+                    sec_eqms = (
+                        session.query(ExamQuestionMapping, Question)
+                        .join(Question, Question.question_id == ExamQuestionMapping.question_id)
+                        .filter(
+                            ExamQuestionMapping.exam_id == exam_id,
+                            or_(
+                                ExamQuestionMapping.section_id == sec_id_str,
+                                ExamQuestionMapping.section_id == sec.section_id,
+                                func.cast(ExamQuestionMapping.section_id, String) == sec_id_str,
+                            )
+                        )
+                        .order_by(ExamQuestionMapping.order_number.asc())
+                        .all()
+                    )
+                    sec_q_list = []
+                    for eqm, q in sec_eqms:
+                        if str(q.question_id) not in seen_qids_rubric:
+                            seen_qids_rubric.add(str(q.question_id))
+                            options = session.query(Option).filter(Option.question_id == q.question_id).all()
+                            correct_opts = [opt for opt in options if str(opt.is_correct).lower() in ("1", "true")]
+                            model_ans = correct_opts[0].option_text if correct_opts else (options[0].option_text if options else "")
+                            sec_q_list.append({
+                                "question_id": str(q.question_id),
+                                "question_number": len(seen_qids_rubric),
+                                "question_text": q.question_text,
+                                "question_type": q.question_type,
+                                "max_marks": float(q.marks or 1.0),
+                                "model_answer": model_ans
+                            })
+                    if sec_q_list:
+                        rubric_sections.append({
+                            "section_name": sec.name or "Section",
+                            "questions": sec_q_list
+                        })
+
+            rem_eqms = (
+                session.query(ExamQuestionMapping, Question)
+                .join(Question, Question.question_id == ExamQuestionMapping.question_id)
+                .filter(ExamQuestionMapping.exam_id == exam_id)
+                .order_by(ExamQuestionMapping.order_number.asc())
+                .all()
+            )
+            rem_q_list = []
+            for eqm, q in rem_eqms:
+                if str(q.question_id) not in seen_qids_rubric:
+                    seen_qids_rubric.add(str(q.question_id))
+                    options = session.query(Option).filter(Option.question_id == q.question_id).all()
+                    correct_opts = [opt for opt in options if str(opt.is_correct).lower() in ("1", "true")]
+                    model_ans = correct_opts[0].option_text if correct_opts else (options[0].option_text if options else "")
+                    rem_q_list.append({
+                        "question_id": str(q.question_id),
+                        "question_number": len(seen_qids_rubric),
+                        "question_text": q.question_text,
+                        "question_type": q.question_type,
+                        "max_marks": float(q.marks or 1.0),
+                        "model_answer": model_ans
+                    })
+            if rem_q_list:
+                rubric_sections.append({
+                    "section_name": "General",
+                    "questions": rem_q_list
+                })
+
+            exam_rubric = {
+                "exam_id": str(exam_id),
+                "sections": rubric_sections
+            }
+
+            # Absolute paths of saved page images for AI visual analysis
+            page_image_paths = [
+                os.path.join(static_dir, f"page_{pnum}.jpg")
+                for pnum, _ in saved_page_files
+                if os.path.exists(os.path.join(static_dir, f"page_{pnum}.jpg"))
+            ]
+
+            # Build question number map
+            all_exam_q_nums = []
+            exam_q_num_by_qid = {}
+            for sec in rubric_sections:
+                for q in sec.get("questions", []):
+                    qn = int(q.get("question_number", 0))
+                    if qn > 0:
+                        all_exam_q_nums.append(qn)
+                        exam_q_num_by_qid[str(q.get("question_id"))] = qn
+
+            # Execute Phase 1: Question Detection + Phase 2: Isolated Evaluation
+            evaluations_by_qid = {}
+            detected_pages_by_qid = {}
+            detected_q_nums_set = set()
+            pages_by_qnum = {}
+
+            try:
+                from others.llm import vision_detect_question_anchors, vision_evaluate_answersheet, openai_client
+                client = openai_client()
+
+                # Phase 1: Visually detect physically written question numbers
+                detection_result = vision_detect_question_anchors(
+                    client,
+                    page_image_paths,
+                    exam_question_numbers=all_exam_q_nums
+                )
+
+                uncertain_q_nums_set = set()
+                if detection_result and detection_result.get("status"):
+                    for p in detection_result.get("pages", []):
+                        p_num = p.get("page_number", 1)
+                        for q_entry in (p.get("questions") or p.get("detected_questions") or []):
+                            q_num = q_entry.get("question_number")
+                            q_status = str(q_entry.get("status", "detected")).lower()
+                            if q_num is not None:
+                                try:
+                                    q_num_int = int(q_num)
+                                    pages_by_qnum.setdefault(q_num_int, []).append(p_num)
+                                    detected_q_nums_set.add(q_num_int)
+                                    if q_status == "uncertain":
+                                        uncertain_q_nums_set.add(q_num_int)
+                                except (ValueError, TypeError):
+                                    pass
+                    for qn in detection_result.get("all_detected_question_numbers", []):
+                        try:
+                            detected_q_nums_set.add(int(qn))
+                        except (ValueError, TypeError):
+                            pass
+                    for qn in detection_result.get("uncertain_question_numbers", []):
+                        try:
+                            uncertain_q_nums_set.add(int(qn))
+                        except (ValueError, TypeError):
+                            pass
+
+                # Phase 2: Filter rubric to only evaluate detected/uncertain questions
+                filtered_sections = []
+                for sec in rubric_sections:
+                    filtered_qs = [
+                        q for q in sec.get("questions", [])
+                        if int(q.get("question_number", 0)) in detected_q_nums_set
+                    ]
+                    if filtered_qs:
+                        filtered_sections.append({
+                            "section_name": sec.get("section_name", "Section"),
+                            "questions": filtered_qs
+                        })
+
+                if filtered_sections:
+                    eval_rubric = {
+                        "exam_id": str(exam_id),
+                        "sections": filtered_sections
+                    }
+                    ai_eval_result = vision_evaluate_answersheet(client, eval_rubric, page_image_paths)
+                    if ai_eval_result and ai_eval_result.get("status"):
+                        for ev in ai_eval_result.get("evaluations", []):
+                            if ev.get("question_id"):
+                                qid = str(ev["question_id"])
+                                evaluations_by_qid[qid] = ev
+                                q_num_val = exam_q_num_by_qid.get(qid)
+                                if q_num_val and q_num_val in pages_by_qnum:
+                                    detected_pages_by_qid[qid] = pages_by_qnum[q_num_val]
+                                elif ev.get("detected_on_pages"):
+                                    detected_pages_by_qid[qid] = ev.get("detected_on_pages")
+
+            except Exception as eval_err:
+                print(f"AI evaluation warning in upload_answer_sheet: {eval_err}")
+
+            # Clean old review comments for this attempt before re-evaluating
+            session.query(ExamReviewComments).filter(
+                ExamReviewComments.attempt_id == attempt.attempt_id
+            ).delete(synchronize_session=False)
+
+            # Persist genuine evaluation results without hardcoded defaults
+            for qid_str in seen_qids_rubric:
+                q_obj = session.query(Question).filter(func.cast(Question.question_id, String) == qid_str).first()
+                q_marks = float(q_obj.marks or 1.0) if q_obj else 1.0
+
+                existing_ans = session.query(Answer).filter(
+                    Answer.attempt_id == attempt.attempt_id,
+                    func.cast(Answer.question_id, String) == qid_str
+                ).first()
+
+                q_num = exam_q_num_by_qid.get(qid_str)
+                is_detected = (q_num in detected_q_nums_set) if detected_q_nums_set else False
+                is_uncertain = (q_num in uncertain_q_nums_set) if uncertain_q_nums_set else False
+                manual_review = 1 if is_uncertain else 0
+                ev = evaluations_by_qid.get(qid_str) if is_detected else None
+
+                if is_detected and ev:
+                    awarded = float(ev.get("suggested_marks", 0.0))
+                    conf = int(ev.get("ai_confidence", 0))
+                    fb = ev.get("feedback") or ""
+                    if is_uncertain:
+                        conf = min(conf, 75)
+                    is_corr = int(ev.get("is_correct", 1 if awarded >= q_marks and q_marks > 0 else 0))
+                    is_val = 1
+                    detected_pages = detected_pages_by_qid.get(qid_str) or pages_by_qnum.get(q_num) or ev.get("detected_on_pages") or []
+                else:
+                    # Question was in rubric but NOT physically detected on answer sheet -> Unattempted
+                    awarded = 0.0
+                    conf = 0
+                    fb = "Question was not attempted or not found on the uploaded answer sheet."
+                    is_corr = 0
+                    is_val = 1
+                    detected_pages = []
+                    manual_review = 0
+
+                student_snippet = ev.get("student_answer_snippet", "") if ev else ""
+                meta_payload = json.dumps({
+                    "detected_pages": detected_pages,
+                    "student_answer": student_snippet
+                })
+
+                if existing_ans:
+                    existing_ans.marks_awarded = awarded
+                    existing_ans.ai_marks = awarded if is_val else None
+                    existing_ans.ai_confidence = conf
+                    existing_ans.feedback = fb
+                    existing_ans.is_validated = is_val
+                    existing_ans.is_correct = is_corr
+                    existing_ans.manual_review_required = manual_review
+                    existing_ans.written_answer = meta_payload
+                else:
                     ans = Answer(
                         answer_id=str(uuid.uuid4()),
                         attempt_id=attempt.attempt_id,
                         schedule_id=str(attempt.schedule_id),
                         user_id=user_id,
-                        question_id=eqm.question_id,
+                        question_id=qid_str,
+                        written_answer=meta_payload,
                         marks_awarded=awarded,
-                        ai_marks=awarded,
-                        ai_confidence=88,
-                        feedback="Student answer verified against model answer key.",
-                        is_validated=1,
-                        is_correct=1 if awarded >= q_marks else 0
+                        ai_marks=awarded if is_val else None,
+                        ai_confidence=conf,
+                        manual_review_required=manual_review,
+                        feedback=fb,
+                        is_validated=is_val,
+                        is_correct=is_corr
                     )
                     session.add(ans)
+
+                if ev:
+                    for cat in ["missing", "incomplete", "incorrect"]:
+                        val = str(ev.get(cat) or "").strip()
+                        if val and val.lower() not in ("none", "null", "n/a", ""):
+                            for c_item in val.split("|"):
+                                c_item_clean = c_item.strip()
+                                if c_item_clean and c_item_clean.lower() not in ("none", "null"):
+                                    rc = ExamReviewComments(
+                                        comment_id=str(uuid.uuid4()),
+                                        attempt_id=attempt.attempt_id,
+                                        question_id=qid_str,
+                                        comment_text=c_item_clean,
+                                        category=cat,
+                                        reviewer_id=None
+                                    )
+                                    session.add(rc)
 
             # Single atomic commit for everything
             session.commit()

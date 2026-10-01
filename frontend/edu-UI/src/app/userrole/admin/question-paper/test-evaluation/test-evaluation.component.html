@@ -1426,7 +1426,7 @@
 
                 <!-- Student Evaluation Feedback Box -->
                 <div class="q-feedback" *ngIf="q.feedback">
-                  <strong>Student answer verified against model answer key.</strong>
+                  <strong>High-level Feedback</strong>
                   <div class="feedback-text">{{ q.feedback }}</div>
                 </div>
 
@@ -1826,34 +1826,51 @@
   <!-- ========================================================= -->
   <!-- ─── ATTACH ANSWER SHEET MODAL DIALOG (Image 2 Design) ─── -->
   <!-- ========================================================= -->
-  <div class="modal-backdrop-overlay" *ngIf="isAttachModalOpen" (click)="closeAttachModal()">
+  <div class="modal-backdrop-overlay" *ngIf="isAttachModalOpen" (click)="!isUploading && closeAttachModal()">
     <div class="attach-modal-container" (click)="$event.stopPropagation()">
       <!-- Modal Header -->
       <div class="attach-modal-header">
         <div class="modal-header-text">
           <h2 class="modal-title">Attach Answer Sheet</h2>
           <p class="modal-subtitle">
-            Student: <strong>{{ selectedStudentForAttach?.name || 'Arun Kumar' }}</strong>. The file is linked to this student for {{ selectedTest }}.
+            Student: <strong>{{ selectedStudentForAttach?.name || 'Student' }}</strong>. The file is linked to this student for {{ selectedTest }}.
           </p>
         </div>
-        <button type="button" class="modal-close-btn" (click)="closeAttachModal()">
+        <button type="button" class="modal-close-btn" [disabled]="isUploading" (click)="closeAttachModal()">
           <mat-icon>close</mat-icon>
         </button>
       </div>
 
       <!-- Modal Body -->
       <div class="attach-modal-body">
+        <!-- AI Uploading Progress State Banner -->
+        <div class="attach-ai-progress-box" *ngIf="isUploading">
+          <div class="ai-spinner-circle">
+            <mat-icon class="spin-icon">sync</mat-icon>
+          </div>
+          <div class="ai-progress-text">
+            <h4>AI Evaluation in Progress...</h4>
+            <p>Rasterizing pages, detecting question answers, and calculating AI scores. Please wait a moment.</p>
+          </div>
+        </div>
+
         <!-- Dashed Dropzone Area -->
-        <div class="modal-dropzone">
+        <div
+          class="modal-dropzone"
+          [class.disabled-zone]="isUploading"
+          (dragover)="onModalDragOver($event)"
+          (dragleave)="onModalDragLeave($event)"
+          (drop)="onModalFileDrop($event)"
+        >
           <div class="cloud-badge-circle">
             <mat-icon class="cloud-icon">cloud_upload</mat-icon>
           </div>
           <h4 class="drag-title">Drag files here</h4>
           <span class="file-types-lbl">PDF, JPG, JPEG or PNG</span>
-          <label class="btn-choose-file">
+          <label class="btn-choose-file" [class.disabled-label]="isUploading">
             <mat-icon class="paperclip-icon">attach_file</mat-icon>
             <span>Choose Files</span>
-            <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" (change)="onMultipleFilesSelected($event)" hidden />
+            <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" (change)="onMultipleFilesSelected($event)" [disabled]="isUploading" hidden />
           </label>
         </div>
 
@@ -1869,7 +1886,7 @@
                 <span class="file-details">{{ file.size }} • {{ file.pages }}</span>
               </div>
             </div>
-            <button type="button" class="file-remove-btn" (click)="removeFileFromList(i)" title="Remove file">
+            <button type="button" class="file-remove-btn" [disabled]="isUploading" (click)="removeFileFromList(i)" title="Remove file">
               <mat-icon>close</mat-icon>
             </button>
           </div>
@@ -1882,10 +1899,11 @@
           The answer key from the question paper is used to evaluate all attached answer sheets.
         </div>
         <div class="footer-actions">
-          <button type="button" class="btn-cancel" (click)="closeAttachModal()">Cancel</button>
-          <button type="button" class="btn-attach-submit" (click)="attachAndEvaluateAll()">
-            <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
-            <span>Attach and Evaluate</span>
+          <button type="button" class="btn-cancel" [disabled]="isUploading" (click)="closeAttachModal()">Cancel</button>
+          <button type="button" class="btn-attach-submit" [disabled]="isUploading || selectedFilesList.length === 0" (click)="attachAndEvaluateAll()">
+            <mat-icon class="sparkle-icon spin-icon" *ngIf="isUploading">sync</mat-icon>
+            <mat-icon class="sparkle-icon" *ngIf="!isUploading">auto_awesome</mat-icon>
+            <span>{{ isUploading ? 'Evaluating with AI...' : 'Attach and Evaluate' }}</span>
           </button>
         </div>
       </div>

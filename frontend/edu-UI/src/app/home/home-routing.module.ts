@@ -28,6 +28,7 @@ import { PermissionGuard } from '../shared/guards/permission.guard';
 import { UserDashboardComponent } from '../userrole/user/dashboard/user-dashboard.component';
 import { GlobalInstituteScopeGuard } from '../shared/guards/global-institute-scope.guard';
 import { scheduleTestUnsavedChangesGuard } from '../shared/guards/schedule-test-unsaved-changes.guard';
+import { questionPaperUnsavedChangesGuard } from '../shared/guards/question-paper-unsaved-changes.guard';
 import { InstituteScopeInactiveComponent } from '../shared/components/institute-scope-inactive/institute-scope-inactive.component';
 import { AdminSettingsComponent } from '../userrole/admin/settings/settings.component';
 import { userExamExitGuard } from '../shared/guards/user-exam-exit.guard';
@@ -48,7 +49,7 @@ const routes: Routes = [
   , { path: 'exams', component: AdminExamsComponent, canActivate: [PermissionGuard], data: { pageName: 'Manage test', action: 'view' } }
   , { path: 'create-exam', component: CreateExamComponent, canActivate: [PermissionGuard], data: { pageName: 'Manage test', action: 'add' } }
   , { path: 'question-papers', component: QuestionPaperComponent, canActivate: [PermissionGuard], data: { pageName: 'Create Question Paper', action: 'view', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
-  , { path: 'create-question-paper', component: CreateQuestionPaperComponent, canActivate: [PermissionGuard], data: { pageName: 'Create Question Paper', action: 'add', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'create-question-paper', component: CreateQuestionPaperComponent, canActivate: [PermissionGuard], canDeactivate: [questionPaperUnsavedChangesGuard], data: { pageName: 'Create Question Paper', action: 'add', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'test-evaluation', component: TestEvaluationComponent, canActivate: [PermissionGuard], data: { pageName: 'Test Evaluation', action: 'view', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'view-users', component: ViewUsersComponent, canActivate: [PermissionGuard], data: { pageName: 'Users', action: 'view' } }
   , { path: 'unauthorized', component: UnauthorizedComponent }

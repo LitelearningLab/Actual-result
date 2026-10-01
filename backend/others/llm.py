@@ -378,6 +378,244 @@ CRITICAL RULES:
     return {}
 
 
+def vision_detect_question_anchors(api_client, page_images, exam_question_numbers=None, timeout=45.0):
+    """
+    Phase 1: Question Detection Engine.
+    Scans answer sheet page images to identify which question numbers / question labels
+    are PHYSICALLY WRITTEN or LABELED on each page.
+    Does NOT evaluate or grade content.
+    
+    Parameters:
+      - api_client: openai_client instance
+      - page_images: list of file paths or dicts containing image data
+      - exam_question_numbers: optional list of expected question numbers (e.g. [1, 2, ..., 15])
+      - timeout: float HTTP request timeout in seconds
+      
+    Returns structured JSON:
+      {
+        "status": True/False,
+        "pages": [
+          {
+            "page_number": 1,
+            "detected_questions": [
+              {
+                "question_number": 1,
+                "label": "1)",
+                "location_hint": "top"
+              }
+            ],
+            "question_numbers": [1, 2, 3]
+          }
+        ],
+        "all_detected_question_numbers": [1, 2, 3, 11, 12, 13, 14],
+        "detection_notes": "..."
+      }
+    """
+    import base64
+    import json
+
+    if not page_images:
+        return {
+            "status": False,
+            "error": "No answer sheet page images provided for question detection.",
+            "pages": [],
+            "all_detected_question_numbers": []
+        }
+
+    expected_q_text = ""
+    if exam_question_numbers:
+        expected_q_text = f"\nExpected examination question numbers: {sorted(list(set(exam_question_numbers)))}"
+
+    system_prompt = f"""You are a handwritten exam answer-sheet QUESTION DETECTOR.
+
+YOUR ONLY JOB:
+Identify which numbered exam questions are physically present in the uploaded page images.
+
+DO NOT grade answers.
+DO NOT compare answers with model answers.
+DO NOT infer missing questions from answer content.
+
+EXAM QUESTIONS:
+{expected_q_text}
+
+FOR EACH PAGE:
+1. Inspect the ENTIRE page from top to bottom.
+2. Pay SPECIAL ATTENTION to:
+   - The bottom 15% of the page (look for last questions near the bottom edge).
+   - The top 15% of the page.
+   - Text touching the left/right margins.
+   - Question numbers split or partially cut by page boundaries (e.g. '11)' cut off or near the edge).
+3. Look for handwritten question labels such as:
+   - 11), 11., Q11, Q.11, 11(a), 11 (a), Ans 11, Section B 11)
+4. A visible question number is enough to detect the question.
+   The question number does NOT need to be perfectly clear if surrounding writing strongly confirms the intended number.
+5. If a question number is partially visible or unclear but there is visual evidence of that question header/answer block, mark it as "uncertain" rather than silently ignoring it.
+6. NEVER identify a question only because its answer contains similar words or concepts.
+7. NEVER assign a question number based on sequential order alone.
+8. A question may continue across pages. Record every page where that question's answer is physically visible.
+9. If a question label appears at the very bottom of one page and its answer continues on the next page, keep the same question number.
+
+IMPORTANT RULE:
+A partially visible question number must NOT automatically be treated as absent.
+If there is uncertainty, prefer "uncertain" over falsely declaring the question absent.
+
+CLASSIFICATION:
+- "detected": Question number/header is visually identifiable.
+- "uncertain": There is visual evidence of a question label/block (e.g. partially cropped at margin), but exact number has minor ambiguity.
+- "absent": No physical evidence of that question exists anywhere.
+
+OUTPUT ONLY THIS JSON:
+{{
+  "pages": [
+    {{
+      "page_number": 1,
+      "questions": [
+        {{
+          "question_number": 11,
+          "status": "detected",
+          "location": "bottom",
+          "label_text": "11) (a)"
+        }}
+      ]
+    }}
+  ],
+  "detected_question_numbers": [11],
+  "uncertain_question_numbers": [],
+  "detection_notes": "<concise summary of detected and uncertain questions>"
+}}
+"""
+
+    user_content = []
+    intro_text = f"Please detect all physically written question numbers across these {len(page_images)} answer sheet page(s):"
+    user_content.append({"type": "text", "text": intro_text})
+
+    for idx, page in enumerate(page_images, 1):
+        if isinstance(page, str):
+            if os.path.isfile(page):
+                with open(page, "rb") as img_f:
+                    b64_data = base64.b64encode(img_f.read()).decode("utf-8")
+                mime = "image/png" if page.lower().endswith(".png") else "image/jpeg"
+                data_uri = f"data:{mime};base64,{b64_data}"
+            elif page.startswith("data:image"):
+                data_uri = page
+            else:
+                data_uri = f"data:image/jpeg;base64,{page}"
+            page_num = idx
+        elif isinstance(page, dict):
+            b64_data = page.get("image_base64") or page.get("data") or page.get("dataUrl") or ""
+            page_num = page.get("page_number", idx)
+            if b64_data.startswith("data:image"):
+                data_uri = b64_data
+            elif os.path.isfile(b64_data):
+                with open(b64_data, "rb") as img_f:
+                    raw_b64 = base64.b64encode(img_f.read()).decode("utf-8")
+                mime = "image/png" if b64_data.lower().endswith(".png") else "image/jpeg"
+                data_uri = f"data:{mime};base64,{raw_b64}"
+            else:
+                data_uri = f"data:{mime};base64,{b64_data}"
+        else:
+            continue
+
+        user_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": data_uri,
+                "detail": "high"
+            }
+        })
+
+    try:
+        response = api_client.chat_completion(
+            system_message=system_prompt,
+            InputData=user_content,
+            aimodel=1,
+            max_tokens=2000,
+            temperature=0.0,
+            timeout=timeout
+        )
+
+        if not response or getattr(response, "status_code", None) != 200:
+            err_msg = "Failed to connect to AI vision detection service."
+            if hasattr(response, "json"):
+                err_msg = response.json().get("error", err_msg)
+            return {
+                "status": False,
+                "error": err_msg,
+                "pages": [],
+                "all_detected_question_numbers": [],
+                "detected_question_numbers": [],
+                "uncertain_question_numbers": []
+            }
+
+        resp_json = response.json()
+        raw_content = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+
+        clean_json = raw_content
+        if clean_json.startswith("```"):
+            clean_json = clean_json.split("```")[1]
+            if clean_json.startswith("json"):
+                clean_json = clean_json[4:]
+            clean_json = clean_json.strip()
+
+        parsed = json.loads(clean_json)
+        pages_detected = parsed.get("pages", [])
+
+        # Normalize and aggregate unique question numbers across all pages
+        detected_q_nums = set()
+        uncertain_q_nums = set()
+
+        for p in pages_detected:
+            p_q_nums = []
+            for q_entry in (p.get("questions") or p.get("detected_questions") or []):
+                q_num = q_entry.get("question_number")
+                q_status = str(q_entry.get("status", "detected")).lower()
+                if q_num is not None:
+                    try:
+                        q_num_int = int(q_num)
+                        p_q_nums.append(q_num_int)
+                        if q_status == "uncertain":
+                            uncertain_q_nums.add(q_num_int)
+                        else:
+                            detected_q_nums.add(q_num_int)
+                    except (ValueError, TypeError):
+                        pass
+            p["question_numbers"] = sorted(list(set(p_q_nums)))
+
+        for qn in parsed.get("detected_question_numbers", []):
+            try:
+                detected_q_nums.add(int(qn))
+            except (ValueError, TypeError):
+                pass
+
+        for qn in parsed.get("uncertain_question_numbers", []):
+            try:
+                uncertain_q_nums.add(int(qn))
+            except (ValueError, TypeError):
+                pass
+
+        all_q_nums = sorted(list(detected_q_nums.union(uncertain_q_nums)))
+
+        return {
+            "status": True,
+            "pages": pages_detected,
+            "all_detected_question_numbers": all_q_nums,
+            "detected_question_numbers": sorted(list(detected_q_nums)),
+            "uncertain_question_numbers": sorted(list(uncertain_q_nums)),
+            "detection_notes": parsed.get("detection_notes", "Question detection completed.")
+        }
+
+    except Exception as e:
+        print(f"Error in vision_detect_question_anchors: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": False,
+            "error": str(e),
+            "pages": [],
+            "all_detected_question_numbers": []
+        }
+
+
 def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60.0):
     """
     Evaluates student handwritten answer sheet page images directly using OpenAI Vision API.
@@ -425,25 +663,32 @@ def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60
     system_prompt = """You are an expert academic evaluator, assessment specialist, and visual answer sheet grader.
 Your task is to visually inspect and evaluate a student's physical handwritten answer sheet pages for an examination.
 
-CRITICAL EVALUATION RULES:
-1. Do NOT require or perform OCR text extraction. Look at the attached answer sheet page images directly with visual understanding.
-2. Read the handwritten responses, mathematical workings, chemical/physical formulas, step derivations, circuit/biological diagrams, and objective question markings directly from the images.
-3. Match each student answer to its corresponding Question in the provided Question Paper Blueprint & Rubric.
-4. For Objective / Multiple Choice Questions:
-   - Identify whether the student marked, ticked, circled, or wrote down the option.
+PHASE 2 QUESTION-SPECIFIC EVALUATION RULES:
+1. STRICT QUESTION BOUNDARY ISOLATION:
+   - For each Question in the blueprint, you MUST evaluate ONLY the student's answer written specifically under that question's number/header (e.g., text directly following '14)', 'Q14', etc.).
+   - NEVER use or borrow words, concepts, or sentences from adjacent answers (e.g. Q12 or Q13) to award marks to another question.
+   - Grounding: Extract a short verbatim snippet of what the student actually wrote for this question into "student_answer_snippet".
+
+2. Direct Visual Inspection (No OCR):
+   - Read handwritten responses, mathematical workings, chemical formulas, step derivations, graphs/diagrams, and objective question markings directly from the images.
+
+3. Objective / Multiple Choice Questions:
+   - Identify whether the student marked, ticked, circled, or wrote down the option under this question's label.
    - Compare with the correct answer key in the rubric.
    - Award full marks if correct, 0 if incorrect or unmarked.
-5. For Descriptive / Mathematical / Scientific Questions:
-   - Understand the conceptual depth, key terminology, and definition coverage.
+
+4. Descriptive / Mathematical / Scientific Questions:
    - Award step marks for intermediate mathematical / derivation steps, even if the final calculation has minor arithmetic errors.
    - Evaluate diagrams: check labeled axes, annotations, structural components, and clarity against the rubric.
    - Deduct marks proportionally for missing points or conceptual flaws.
-6. If a question is unattempted or cannot be found on any page:
-   - Set "suggested_marks": 0.0, "is_correct": 0, "detected_on_pages": [], "feedback": "Question was not attempted."
-7. Confidence Scoring:
+
+5. Unattempted or Absent Questions:
+   - If a question header or answer block is absent, set "suggested_marks": 0.0, "is_correct": 0, "detected_on_pages": [], "feedback": "Question was not attempted."
+
+6. Confidence Scoring:
    - "ai_confidence" must be an integer between 0 and 100.
    - If handwriting is clear and answer is definitive, confidence should be 85-100.
-   - If handwriting is ambiguous, partially cut off, or illegible, reduce confidence accordingly (e.g. 40-65).
+   - If handwriting is ambiguous or difficult to read, reduce confidence accordingly (e.g. 40-65).
 
 ALWAYS respond ONLY with a single valid JSON object (no markdown code blocks, no extra explanatory text outside the JSON).
 
@@ -453,6 +698,7 @@ OUTPUT JSON STRUCTURE:
     {
       "question_id": "<exact question_id string from the rubric>",
       "question_number": <integer question number>,
+      "student_answer_snippet": "<short 1-2 sentence quote of what student actually wrote under this question>",
       "detected_on_pages": [<array of page numbers where this answer is located, e.g. [1] or [1, 2]>],
       "suggested_marks": <float score between 0.0 and max_marks>,
       "max_marks": <float maximum marks for this question>,

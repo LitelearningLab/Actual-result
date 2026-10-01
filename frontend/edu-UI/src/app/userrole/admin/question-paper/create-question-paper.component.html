@@ -30,7 +30,7 @@
                             <label class="field-label">Institute</label>
                             <mat-select class="qp-select" [(ngModel)]="institute"
                                 [disabled]="readOnly || isPublished"
-                                (selectionChange)="onInstituteChange($event.value)"
+                                (selectionChange)="onInstituteChange($event.value); markDirty()"
                                 (openedChange)="onInstituteOpenedChange($event)"
                                 placeholder="Select institute">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
@@ -52,7 +52,7 @@
                             <label class="field-label">{{ terminology.deptLabel || terminology.deptPlural }}</label>
                             <mat-select class="qp-select" [(ngModel)]="selectedDepartment"
                                 [disabled]="readOnly || isPublished"
-                                (selectionChange)="onDepartmentChange($event.value)"
+                                (selectionChange)="onDepartmentChange($event.value); markDirty()"
                                 (openedChange)="onDepartmentOpenedChange($event)"
                                 [placeholder]="terminology.selectDeptPlaceholder">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
@@ -74,7 +74,7 @@
                             <label class="field-label">{{ terminology.teamLabel || terminology.teamPlural }}</label>
                             <mat-select class="qp-select" [(ngModel)]="selectedTeam"
                                 [disabled]="readOnly || isPublished"
-                                (selectionChange)="onTeamChange($event.value)"
+                                (selectionChange)="onTeamChange($event.value); markDirty()"
                                 (openedChange)="onTeamOpenedChange($event)"
                                 [placeholder]="terminology.selectTeamPlaceholder">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
@@ -98,7 +98,7 @@
                         <div class="field-group">
                             <label class="field-label">Subject <span class="req">*</span></label>
                             <mat-select class="qp-select" [(ngModel)]="subject_id"
-                                (selectionChange)="onSubjectChange($event.value)"
+                                (selectionChange)="onSubjectChange($event.value); markDirty()"
                                 (openedChange)="onSubjectOpenedChange($event)"
                                 [disabled]="readOnly || isPublished || !institute"
                                 placeholder="Select subject">
@@ -120,7 +120,7 @@
                         <!-- Exam Type -->
                         <div class="field-group">
                             <label class="field-label">Exam Type</label>
-                            <mat-select class="qp-select" [(ngModel)]="examTypeLabel" [disabled]="readOnly || isPublished" placeholder="Select type">
+                            <mat-select class="qp-select" [(ngModel)]="examTypeLabel" (selectionChange)="markDirty()" [disabled]="readOnly || isPublished" placeholder="Select type">
                                 <mat-option value="Unit Test">Unit Test</mat-option>
                                 <mat-option value="Mid Term">Mid Term</mat-option>
                                 <mat-option value="Final Exam">Final Exam</mat-option>
@@ -133,13 +133,13 @@
                     <div class="fields-row fields-row--2">
                         <div class="field-group">
                             <label class="field-label">Test Name <span class="req">*</span></label>
-                            <input class="qp-input" type="text" [(ngModel)]="title" [disabled]="readOnly || isPublished"
+                            <input class="qp-input" type="text" [(ngModel)]="title" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
                                 placeholder="Physics – Unit Test 1" />
                         </div>
                         <div class="field-group">
                             <label class="field-label">Exam Date <span class="opt">(optional)</span></label>
                             <div class="date-input-wrap">
-                                <input class="qp-input date-input" type="date" [(ngModel)]="examDate" [disabled]="readOnly || isPublished" placeholder="dd-mm-yyyy" />
+                                <input class="qp-input date-input" type="date" [(ngModel)]="examDate" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished" placeholder="dd-mm-yyyy" />
                             </div>
                         </div>
                     </div>
@@ -148,12 +148,12 @@
                     <div class="fields-row fields-row--2">
                         <div class="field-group">
                             <label class="field-label">Total Marks</label>
-                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" [disabled]="readOnly || isPublished"
+                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
                                 placeholder="50" min="0" />
                         </div>
                         <div class="field-group">
                             <label class="field-label">Duration <span class="opt">(printed on paper)</span></label>
-                            <input class="qp-input" type="text" [(ngModel)]="durationLabel" [disabled]="readOnly || isPublished"
+                            <input class="qp-input" type="text" [(ngModel)]="durationLabel" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
                                 placeholder="1 Hour" />
                         </div>
                     </div>
@@ -469,7 +469,7 @@
                                     </div>
                                     <div class="sec-meta">
                                         <span class="sec-meta-item">{{ getSectionMarksPerQ(sec) || 1 }} mark each</span>
-                                        <span class="sec-meta-item">{{ sec.questions?.length || 0 }} of {{ sec.targetCount || 10 }} questions</span>
+                                        <span class="sec-meta-item">{{ sec.questions.length || 0 }} of {{ sec.targetCount || 10 }} questions</span>
                                         <span class="sec-meta-item">{{ getSectionMarks(sec) }} of {{ (sec.targetCount || 10) * (getSectionMarksPerQ(sec) || 1) }} marks</span>
                                     </div>
                                 </div>
@@ -501,7 +501,7 @@
                                         matTooltipClass="question-full-tooltip"
                                         [matTooltipShowDelay]="100">{{ q.question }}</span>
                                     <div class="q-marks-wrap">
-                                        <input class="q-marks-input" type="number" [(ngModel)]="q.marks" min="0"
+                                        <input class="q-marks-input" type="number" [(ngModel)]="q.marks" (ngModelChange)="markDirty()" min="0"
                                             [ngModelOptions]="{standalone: true}" [disabled]="readOnly" />
                                         <span class="q-marks-label">marks</span>
                                     </div>
@@ -563,7 +563,7 @@
                                 [class.full]="getSectionProgressPct(sec) >= 100">
                             </div>
                         </div>
-                        <span class="sec-prog-val">{{ sec.questions?.length || 0 }} / {{ sec.targetCount || 10 }}</span>
+                        <span class="sec-prog-val">{{ sec.questions.length || 0 }} / {{ sec.targetCount || 10 }}</span>
                     </div>
                 </div>
 
@@ -577,14 +577,6 @@
                         <ng-container *ngIf="totalPaperMarks > totalMarksOverride">
                             Section marks add up to {{ totalPaperMarks }}, which exceeds the test total of {{ totalMarksOverride }}. Remove {{ totalPaperMarks - totalMarksOverride }} marks.
                         </ng-container>
-                    </span>
-                </div>
-
-                <!-- Alert 2: Questions needing evaluation -->
-                <div class="summary-alert alert-warning" *ngIf="getQuestionsNeedingEvaluationCount() > 0">
-                    <mat-icon class="alert-icon">info</mat-icon>
-                    <span class="alert-text">
-                        {{ getQuestionsNeedingEvaluationCount() }} question{{ getQuestionsNeedingEvaluationCount() > 1 ? 's' : '' }} need evaluation or answer keys.
                     </span>
                 </div>
 
@@ -987,6 +979,32 @@
                         <mat-icon>add</mat-icon> Add Selected Questions
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ UNSAVED CHANGES CONFIRMATION MODAL ══ -->
+    <div class="confirm-backdrop" *ngIf="showUnsavedChangesModal" (click)="cancelDiscardModal()" role="dialog" aria-modal="true">
+        <div class="confirm-dialog-card" (click)="$event.stopPropagation()">
+            <div class="dialog-icon warning-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <h2 class="dialog-title">Unsaved Changes</h2>
+            <p class="dialog-message">
+                You have unsaved changes on this question paper. If you leave without clicking <strong>Update Draft</strong>, your changes will be discarded.
+                <br><br>
+                Do you want to discard your changes and leave?
+            </p>
+            <div class="dialog-actions">
+                <button type="button" class="cancel-btn" (click)="cancelDiscardModal()">
+                    Cancel
+                </button>
+                <button type="button" class="confirm-btn leave-btn" (click)="confirmDiscardAndLeave()">
+                    Leave & Discard
+                </button>
             </div>
         </div>
     </div>

@@ -1257,11 +1257,43 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }
   }
 
+  onModalDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  onModalDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  onModalFileDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.isUploading) return;
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      this.processFilesForAttach(files);
+    }
+  }
+
   onMultipleFilesSelected(event: any): void {
     const files: FileList = event.target?.files;
     if (files && files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i];
+      this.processFilesForAttach(files);
+    }
+    // Reset file input value so user can re-select same file if needed
+    if (event.target) {
+      event.target.value = '';
+    }
+  }
+
+  private processFilesForAttach(files: FileList | File[]): void {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      // Avoid duplicate additions of the exact same filename
+      const exists = this.uploadedRawFiles.some(existing => existing.name === f.name && existing.size === f.size);
+      if (!exists) {
         this.uploadedRawFiles.push(f);
         const sizeMb = (f.size / (1024 * 1024)).toFixed(1);
         this.selectedFilesList.push({

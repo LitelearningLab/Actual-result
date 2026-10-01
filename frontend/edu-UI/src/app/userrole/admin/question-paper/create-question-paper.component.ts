@@ -23,7 +23,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
-import { OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
+import { OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild, HostListener, ChangeDetectorRef } from '@angular/core';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { API_BASE } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
@@ -240,6 +240,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   showPreviewGuide = false;
   paginatedPaperPages: PaperPage[] = [];
   paginatedGuidePages: PaperPage[] = [];
+
+  // ── Unsaved changes tracking ──
+  isDirty = false;
+  isSavedOrSubmitted = false;
+  showUnsavedChangesModal = false;
+  pendingDeactivateResolve: ((value: boolean) => void) | null = null;
 
   get terminology(): InstituteTerminology {
     let ind = '';
@@ -713,7 +719,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     private overlay: Overlay,
     private vcr: ViewContainerRef,
     private loader: LoaderService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private cdr: ChangeDetectorRef
   ) {
     try {
       this._subs = this.auth.user$.subscribe((user: any) => {
@@ -848,6 +855,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     } else {
       this.pageMeta.setMeta('Create Test', 'Fill required fields and save the exam.');
     }
+    this.isDirty = false;
 
     // load institutes and ensure institute selection is reconciled
     this.loadInstitutes();
@@ -1042,6 +1050,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       /* ignore malformed edit payload */
     } finally {
       this.loader.hide();
+      this.isDirty = false;
     }
   }
 
@@ -2559,10 +2568,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     return Math.min(100, Math.round((this.totalPaperMarks / target) * 100));
   }
 
-  goBack() {
-    this.cancel();
-  }
-
   getSectionTotalMarks(section: PaperSection): number {
     return this.getSectionMarks(section);
   }
@@ -3062,6 +3067,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       sec.instructions = subHeading;
       sec.question_type = this.newSectionType;
       (sec as any).targetCount = this.newSectionTargetCount || null;
+      this.markDirty();
       this.closeAddSectionModal();
       notify(`Updated ${name}`, 'success');
       return;
@@ -3081,6 +3087,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     };
     this.sections.push(newSec as PaperSection);
     this.syncModelCategoriesFromSections();
+    this.markDirty();
     this.closeAddSectionModal();
     notify(`Created ${newSec.name}`, 'success');
   }
@@ -3090,6 +3097,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       const removed = this.sections.splice(index, 1)[0];
       this.sections.forEach((s, i) => (s.order_number = i + 1));
       this.syncModelCategoriesFromSections();
+      this.markDirty();
       notify(`Removed ${removed.name}`, 'info');
     }
   }
@@ -3098,6 +3106,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.sections[secIdx] && this.sections[secIdx].questions) {
       this.sections[secIdx].questions.splice(qIdx, 1);
       this.syncModelCategoriesFromSections();
+      this.markDirty();
     }
   }
 
@@ -3314,6 +3323,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     });
 
     this.syncModelCategoriesFromSections();
+    this.markDirty();
     notify(`Added ${toAdd.length} question(s) to ${activeSec.name}`, 'success');
     this.closeAddQuestionModal();
   }
@@ -4213,8 +4223,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     const id = String(userId);
     if (checked && !this.selectedPaperUsers.includes(id)) {
       this.selectedPaperUsers = [...this.selectedPaperUsers, id];
+      this.markDirty();
     } else if (!checked) {
       this.selectedPaperUsers = this.selectedPaperUsers.filter((selectedId) => selectedId !== id);
+      this.markDirty();
     }
   }
 
@@ -4226,6 +4238,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       const visibleSet = new Set(visibleIds);
       this.selectedPaperUsers = this.selectedPaperUsers.filter((id) => !visibleSet.has(id));
     }
+    this.markDirty();
   }
 
   trackPaperUserById(_: number, user: { id: string }): string {
@@ -4761,6 +4774,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             sessionStorage.setItem('question_papers_return_state', 'true');
             sessionStorage.removeItem('edit_exam');
           } catch (e) {}
+          this.isSavedOrSubmitted = true;
           this.router.navigate(['/question-papers'], {
             queryParams: { tab: targetTab },
           });
@@ -4795,6 +4809,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           sessionStorage.setItem('question_papers_return_state', 'true');
           sessionStorage.removeItem('edit_exam');
         } catch (e) {}
+        this.isSavedOrSubmitted = true;
         this.router.navigate(['/question-papers'], {
           queryParams: { tab: targetTab },
         });
@@ -4830,14 +4845,79 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.loader.hide();
   }
 
-  cancel() {
+  markDirty(): void {
+    if (!this.readOnly && !this.isSavedOrSubmitted) {
+      this.isDirty = true;
+    }
+  }
+
+  hasUnsavedChanges(): boolean {
+    if (this.readOnly || this.isSavedOrSubmitted) return false;
+    return this.isDirty;
+  }
+
+  canDeactivate(): Observable<boolean> | boolean {
+    if (this.readOnly || this.isSavedOrSubmitted || !this.hasUnsavedChanges()) {
+      return true;
+    }
+    return new Observable<boolean>((observer) => {
+      this.pendingDeactivateResolve = (allow: boolean) => {
+        observer.next(allow);
+        observer.complete();
+      };
+      this.showUnsavedChangesModal = true;
+      this.cdr.detectChanges();
+    });
+  }
+
+  confirmDiscardAndLeave(): void {
+    this.showUnsavedChangesModal = false;
+    this.isSavedOrSubmitted = true;
+    if (this.pendingDeactivateResolve) {
+      const resolve = this.pendingDeactivateResolve;
+      this.pendingDeactivateResolve = null;
+      resolve(true);
+    } else {
+      this.executeCancelNavigation();
+    }
+  }
+
+  cancelDiscardModal(): void {
+    this.showUnsavedChangesModal = false;
+    if (this.pendingDeactivateResolve) {
+      const resolve = this.pendingDeactivateResolve;
+      this.pendingDeactivateResolve = null;
+      resolve(false);
+    }
+  }
+
+  goBack(): void {
+    if (this.hasUnsavedChanges()) {
+      this.showUnsavedChangesModal = true;
+      this.cdr.detectChanges();
+    } else {
+      this.executeCancelNavigation();
+    }
+  }
+
+  cancel(): void {
+    this.goBack();
+  }
+
+  private executeCancelNavigation(): void {
     try {
       sessionStorage.removeItem('edit_exam');
-    } catch (e) {}
-    try {
       sessionStorage.setItem('question_papers_return_state', 'true');
     } catch (e) {}
     this.router.navigate(['/question-papers']);
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  warnBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges()) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
   }
 
   get isStep1Valid(): boolean {

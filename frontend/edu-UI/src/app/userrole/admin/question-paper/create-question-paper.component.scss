@@ -1819,6 +1819,145 @@
 
 .section-dialog { max-width: 480px; }
 .questions-dialog { max-width: 600px; }
+// ── Confirmation Modal (Matches standard App ConfirmDialog) ──
+.confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeInModal 0.2s ease;
+}
+
+.confirm-dialog-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1.75rem 1.5rem 1.35rem;
+    background: var(--bg-1, #ffffff);
+    border-radius: 1.25rem;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    border: 1px solid var(--theme-3-border, #e2e8f0);
+    max-width: 420px;
+    width: 100%;
+    box-sizing: border-box;
+    animation: slideUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+    .dialog-icon {
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+
+        svg {
+            width: 1.75rem;
+            height: 1.75rem;
+            color: var(--button-1, #6366f1);
+        }
+
+        &.warning-icon {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(245, 158, 11, 0.12) 100%) !important;
+
+            svg {
+                color: #dc2626 !important;
+            }
+        }
+    }
+
+    .dialog-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--theme-3-text-1, #1e293b);
+        letter-spacing: -0.01em;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .dialog-message {
+        color: var(--theme-3-text-3, #64748b);
+        line-height: 1.55;
+        white-space: normal;
+        margin: 0 0 1.5rem 0;
+        font-size: 0.9375rem;
+
+        strong {
+            color: var(--theme-3-text-1, #0f172a);
+        }
+    }
+
+    .dialog-actions {
+        display: flex;
+        gap: 0.75rem;
+        width: 100%;
+
+        .cancel-btn {
+            flex: 1;
+            border-radius: 0.625rem;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid var(--theme-3-border, #e2e8f0);
+            color: var(--theme-3-text-2, #475569);
+            background: var(--bg-1, #ffffff);
+            cursor: pointer;
+            transition: all 0.2s ease;
+
+            &:hover {
+                background: var(--bg-2, #f8fafc);
+                border-color: var(--theme-3-text-3, #94a3b8);
+            }
+        }
+
+        .confirm-btn {
+            flex: 1;
+            border-radius: 0.625rem;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: none;
+            background: var(--button-1, #6366f1);
+            color: var(--button-text-1, #ffffff);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+
+            &:hover {
+                box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+                transform: translateY(-1px);
+            }
+
+            &.leave-btn {
+                background: #dc2626 !important;
+                color: #ffffff !important;
+                box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+
+                &:hover {
+                    background: #b91c1c !important;
+                    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.35);
+                }
+            }
+        }
+    }
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUpModal {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 .modal-header {
     display: flex;

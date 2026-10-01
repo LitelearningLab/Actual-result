@@ -2061,6 +2061,52 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
       flex-direction: column;
       gap: 1.25rem;
 
+      // AI Evaluation Progress Indicator Box
+      .attach-ai-progress-box {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+
+        .ai-spinner-circle {
+          width: 40px;
+          height: 40px;
+          background: #dcfce7;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #16a34a;
+          flex-shrink: 0;
+
+          .spin-icon {
+            animation: spin 1.2s linear infinite;
+            font-size: 22px;
+            width: 22px;
+            height: 22px;
+          }
+        }
+
+        .ai-progress-text {
+          h4 {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #15803d;
+            margin: 0 0 0.25rem 0;
+          }
+
+          p {
+            font-size: 0.75rem;
+            color: #166534;
+            margin: 0;
+            line-height: 1.4;
+          }
+        }
+      }
+
       .modal-dropzone {
         border: 2px dashed #bfdbfe;
         background: #f8fafc;
@@ -2071,6 +2117,12 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         align-items: center;
         justify-content: center;
         text-align: center;
+        transition: all 0.2s ease;
+
+        &.disabled-zone {
+          opacity: 0.6;
+          pointer-events: none;
+        }
 
         .cloud-badge-circle {
           width: 48px;
@@ -2116,6 +2168,12 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           border-radius: 0.5rem;
           cursor: pointer;
           transition: all 0.2s ease;
+
+          &.disabled-label {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+          }
 
           .paperclip-icon {
             font-size: 18px;
@@ -2215,9 +2273,14 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
               height: 16px;
             }
 
-            &:hover {
+            &:hover:not(:disabled) {
               background: #fee2e2;
               color: #dc2626;
+            }
+
+            &:disabled {
+              opacity: 0.4;
+              cursor: not-allowed;
             }
           }
         }
@@ -2254,9 +2317,14 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           border-radius: 0.5rem;
           cursor: pointer;
 
-          &:hover {
+          &:hover:not(:disabled) {
             background: #f8fafc;
             color: #0f172a;
+          }
+
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
           }
         }
 
@@ -2273,15 +2341,26 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           border-radius: 0.5rem;
           cursor: pointer;
           box-shadow: 0 2px 6px rgba(31, 123, 255, 0.3);
+          transition: all 0.2s ease;
 
           .sparkle-icon {
             font-size: 18px;
             width: 18px;
             height: 18px;
+
+            &.spin-icon {
+              animation: spin 1.2s linear infinite;
+            }
           }
 
-          &:hover {
+          &:hover:not(:disabled) {
             background: #175cd3;
+          }
+
+          &:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            box-shadow: none;
           }
         }
       }
