@@ -1,12 +1,13 @@
 import datetime
 import uuid
 import random
+import json
 # pyrefly: ignore [missing-import]
 from sqlalchemy import func
 from db.db import SQLiteDB
 from db.models import User, Exam, ExamSchedule, Question, Option, Answer, Exam_Attempt, ExamScheduleMapping, ExamReviewComments, ExamReviewCommentsHistory, MarksHistory, ExamMapping, ExamQuestionMapping, QuestionMapping
 from others.settings import get_ai_confidence_threshold
-from others.llm import descriptive_evaluation, openai_client
+from others.llm import descriptive_evaluation, vision_evaluate_question_images, openai_client
 
 def get_exam_question_ids(session, exam_id=None, schedule_id=None, attempt_id=None):
     """
@@ -571,14 +572,51 @@ def validate_answers(attempt_id):
                 ans.feedback = feedback_part
                 session.add(ans)
         elif question.question_type == 'descriptive':
-            # For descriptive questions, use LLM to evaluate
+            # For descriptive questions, use LLM / Vision to evaluate
             for ans in question_answers:
                 if ans.is_validated == 1:
                     continue
-                student_answer = ans.written_answer
+                raw_answer = ans.written_answer
                 expected_answer = correct_options[0].option_text if correct_options else ""
                 question_mark = question.marks
-                evaluation = descriptive_evaluation(openai_client_instance, question_mark, expected_answer, student_answer)
+
+                # Check if answer contains handwritten answer images
+                answer_images = []
+                student_text = ""
+                if raw_answer:
+                    try:
+                        parsed_ans = json.loads(raw_answer)
+                        if isinstance(parsed_ans, dict):
+                            answer_images = parsed_ans.get("images") or parsed_ans.get("answerImages") or parsed_ans.get("answer_images") or []
+                            student_text = parsed_ans.get("text") or parsed_ans.get("textAnswer") or parsed_ans.get("written_answer") or ""
+                        elif isinstance(parsed_ans, list) and len(parsed_ans) > 0 and (isinstance(parsed_ans[0], str) and (parsed_ans[0].startswith("data:image") or parsed_ans[0].lower().endswith((".jpg", ".png", ".jpeg", ".webp")))):
+                            answer_images = parsed_ans
+                        else:
+                            student_text = str(raw_answer)
+                    except Exception:
+                        if raw_answer.startswith("data:image") or raw_answer.lower().endswith((".jpg", ".png", ".jpeg", ".webp")):
+                            answer_images = [raw_answer]
+                        else:
+                            student_text = raw_answer
+
+                if answer_images:
+                    # Direct Visual Inspection (No OCR)
+                    q_dict = {
+                        "question_id": str(question.question_id),
+                        "question_text": question.question_text or "",
+                        "marks": float(question.marks or 1.0),
+                        "expected_answer": expected_answer,
+                        "rubric": expected_answer
+                    }
+                    evaluation = vision_evaluate_question_images(
+                        openai_client_instance,
+                        q_dict,
+                        answer_images,
+                        written_text=student_text
+                    )
+                else:
+                    evaluation = descriptive_evaluation(openai_client_instance, question_mark, expected_answer, student_text or raw_answer)
+
                 if not evaluation.get("status", False):
                     # Keep the answer retryable, but persist a visible diagnostic instead
                     # of silently returning an empty feedback section.
@@ -615,6 +653,12 @@ def validate_answers(attempt_id):
                 ans.feedback = feedback_part
                 ai_confidence = evaluation.get("ai_confidence", 0)
                 ans.ai_confidence = ai_confidence
+
+                if answer_images:
+                    # Keep database lightweight: Discard heavy base64 images after AI evaluation and store only the extracted text/snippet
+                    extracted_snippet = evaluation.get("student_answer_snippet") or student_text or ""
+                    ans.written_answer = extracted_snippet if extracted_snippet else (student_text or f"[{len(answer_images)} handwritten page(s) evaluated]")
+
                 session.add(ans)
 
                 # update ExamReviewComments table category wise comments

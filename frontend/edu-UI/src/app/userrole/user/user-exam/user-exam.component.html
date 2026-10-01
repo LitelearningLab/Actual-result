@@ -156,12 +156,46 @@
 
           <!-- Descriptive -->
           <div *ngIf="q.type === 'descriptive' || q.type === 'Paragraph'" class="q-input descriptive-input">
+            <!-- Hidden file input accessible across the entire descriptive card -->
+            <input type="file" #imageInput [id]="'file-input-' + i" multiple accept="image/*" style="display:none;" (change)="onImageSelected($event, q.id || i)" />
+            <!-- Native camera capture fallback for mobile or non-HTTPS contexts -->
+            <input type="file" #cameraNativeInput [id]="'camera-native-' + i" accept="image/*" capture="environment" style="display:none;" (change)="onImageSelected($event, q.id || i)" />
+
             <div class="textarea-wrapper" [class.is-recording]="isRecording(q.id || i)">
               <label class="sr-only" [for]="'desc-' + i">Your answer</label>
-              <textarea [id]="'desc-' + i" rows="6" [(ngModel)]="answers[q.id || i]" (ngModelChange)="scheduleAutosave()" [disabled]="testStopped || submitting || isSubmitted" placeholder="Write your detailed answer here..."></textarea>
+              <textarea [id]="'desc-' + i" rows="5" [ngModel]="getTextAnswer(q.id || i)" (ngModelChange)="setTextAnswer(q.id || i, $event)" [disabled]="testStopped || submitting || isSubmitted" placeholder="Write your detailed answer here or attach handwritten answer photos..."></textarea>
             </div>
+
+            <!-- Answer Images Thumbnails Area -->
+            <div class="answer-images-section" *ngIf="getAnswerImages(q.id || i).length > 0">
+              <div class="images-section-header">
+                <div class="images-header-left">
+                  <mat-icon class="images-header-icon">photo_library</mat-icon>
+                  <span class="images-header-title">Handwritten Answer Photos ({{ getAnswerImages(q.id || i).length }})</span>
+                </div>
+                <span class="images-header-hint">Preserves page order &bull; Click to enlarge</span>
+              </div>
+              <div class="thumbnails-grid">
+                <div class="thumbnail-card" *ngFor="let img of getAnswerImages(q.id || i); let imgIdx = index">
+                  <div class="thumbnail-order-badge">{{ imgIdx + 1 }}</div>
+                  <img [src]="img" [alt]="'Page ' + (imgIdx + 1)" (click)="openImagePreview(q.id || i, imgIdx)" class="thumbnail-img" />
+                  <button type="button" class="btn-crop-thumb" (click)="openCropModal(img, q.id || i, imgIdx)" [disabled]="testStopped || submitting || isSubmitted" [title]="'Crop / Rotate Page ' + (imgIdx + 1)" [attr.aria-label]="'Crop / Rotate Page ' + (imgIdx + 1)">
+                    <mat-icon>crop</mat-icon>
+                  </button>
+                  <button type="button" class="btn-remove-thumb" (click)="removeAnswerImage(q.id || i, imgIdx)" [disabled]="testStopped || submitting || isSubmitted" [title]="'Remove Page ' + (imgIdx + 1)" [attr.aria-label]="'Remove Page ' + (imgIdx + 1)">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+                <button type="button" class="btn-add-more-thumb" (click)="imageInput.click()" [disabled]="testStopped || submitting || isSubmitted" title="Add more photos">
+                  <mat-icon>add_photo_alternate</mat-icon>
+                  <span>+ Add Photos</span>
+                </button>
+              </div>
+            </div>
+
             <div class="textarea-footer">
               <div class="input-actions-group">
+                <!-- Voice Input -->
                 <div class="voice-controls" *ngIf="enableMicrophone && speechSupported">
                   <button type="button" class="voice-action-btn" [disabled]="testStopped || submitting || isSubmitted || isExtracting(q.id || i)"
                     (click)="toggleVoiceInput(q.id || i)" 
@@ -179,26 +213,51 @@
                   <span *ngIf="!isRecording(q.id || i)" class="voice-hint-text">Click to speak your answer</span>
                 </div>
 
+                <!-- Existing Upload Image Button (Allows Multiple selection) -->
                 <div class="upload-controls" *ngIf="enableScanText">
-                  <input type="file" #imageInput [id]="'file-input-' + i" accept="image/*" style="display:none;" (change)="onImageSelected($event, q.id || i)" />
                   <button type="button" class="upload-action-btn" [disabled]="testStopped || submitting || isSubmitted || isExtracting(q.id || i)"
                     (click)="imageInput.click()"
                     [class.extracting]="isExtracting(q.id || i)"
-                    [attr.aria-label]="isExtracting(q.id || i) ? 'Extracting text...' : 'Upload image to scan text'"
-                    [title]="isExtracting(q.id || i) ? 'Extracting text...' : 'Click to upload image'"
+                    [attr.aria-label]="isExtracting(q.id || i) ? 'Loading photos...' : 'Upload answer photos'"
+                    [title]="isExtracting(q.id || i) ? 'Loading photos...' : 'Click to upload image(s)'"
                     aria-live="polite">
                     <mat-icon class="upload-btn-icon" *ngIf="!isExtracting(q.id || i)">cloud_upload</mat-icon>
                     <span class="btn-spinner" *ngIf="isExtracting(q.id || i)"></span>
-                    <span class="upload-btn-label">{{ isExtracting(q.id || i) ? 'Extracting text...' : 'Upload Image' }}</span>
+                    <span class="upload-btn-label">{{ isExtracting(q.id || i) ? 'Loading photos...' : 'Upload Image' }}</span>
                   </button>
                   <div *ngIf="isExtracting(q.id || i)" class="extracting-status" role="status" aria-live="polite">
                     <span class="rec-dot ocr-dot"></span>
-                    <span class="rec-text">Extracting text...</span>
+                    <span class="rec-text">{{ uploadProgressText || 'Loading photos...' }}</span>
                   </div>
-                  <span *ngIf="!isExtracting(q.id || i)" class="upload-hint-text">Scan text from photo</span>
+                  <span *ngIf="!isExtracting(q.id || i)" class="upload-hint-text">Upload handwritten photo(s)</span>
+                </div>
+
+                <!-- Camera Action Button -->
+                <div class="camera-controls">
+                  <button type="button" class="camera-action-btn" [disabled]="testStopped || submitting || isSubmitted"
+                    (click)="openCamera(q.id || i, cameraNativeInput)"
+                    aria-label="Take photo with camera"
+                    title="Take photo of handwritten answer"
+                    aria-live="polite">
+                    <mat-icon class="camera-btn-icon">photo_camera</mat-icon>
+                    <span class="camera-btn-label">Camera</span>
+                  </button>
+                  <span class="camera-hint-text">Take photo directly</span>
                 </div>
               </div>
-              <span class="char-count" *ngIf="isAnswered(q, i)">{{ (answers[q.id || i] || '').length }} characters</span>
+
+              <span class="char-count" *ngIf="isAnswered(q, i)">
+                <ng-container *ngIf="getAnswerImages(q.id || i).length > 0">
+                  <span class="photo-count-pill">
+                    <mat-icon>image</mat-icon>
+                    {{ getAnswerImages(q.id || i).length }} photo{{ getAnswerImages(q.id || i).length > 1 ? 's' : '' }}
+                  </span>
+                  <span *ngIf="getTextAnswer(q.id || i).length > 0" class="text-char-inline"> &bull; {{ getTextAnswer(q.id || i).length }} characters</span>
+                </ng-container>
+                <ng-container *ngIf="getAnswerImages(q.id || i).length === 0">
+                  {{ getTextAnswer(q.id || i).length }} characters
+                </ng-container>
+              </span>
             </div>
           </div>
         </article>
@@ -230,25 +289,190 @@
       </button>
     </div>
 
-    <!-- OCR Replace / Append Confirmation Dialog -->
-    <div *ngIf="showOcrConfirmModal" class="confirm-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="ocr-confirm-title">
-      <div class="confirm-dialog ocr-modal">
-        <div class="confirm-icon ocr-icon"><mat-icon>file_copy</mat-icon></div>
-        <h2 id="ocr-confirm-title" class="confirm-title">Replace or Append Text?</h2>
-        <p class="confirm-body">
-          Your answer box already contains text. Choose whether to append the extracted text to your existing content or overwrite it completely.
-        </p>
-        <div class="ocr-preview-box" *ngIf="pendingOcrText">
-          <span class="ocr-preview-label">Extracted Text Preview:</span>
-          <p class="ocr-preview-content">{{ pendingOcrText }}</p>
+    <!-- Live Camera Capture Modal -->
+    <div *ngIf="showCameraModal" class="confirm-backdrop camera-backdrop" role="dialog" aria-modal="true" aria-labelledby="camera-modal-title">
+      <div class="camera-modal-dialog">
+        <div class="camera-modal-header">
+          <div class="camera-header-left">
+            <mat-icon class="camera-title-icon">photo_camera</mat-icon>
+            <h2 id="camera-modal-title" class="camera-modal-title">Capture Handwritten Answer</h2>
+          </div>
+          <button type="button" class="camera-close-btn" (click)="closeCameraModal()" aria-label="Close camera">
+            <mat-icon>close</mat-icon>
+          </button>
         </div>
-        <div class="confirm-actions ocr-actions">
-          <button type="button" class="btn btn-outline" (click)="cancelOcrConfirmModal()">Cancel</button>
-          <button type="button" class="btn btn-secondary" (click)="confirmOcrAction('append')">Append to Existing</button>
-          <button type="button" class="btn btn-primary" (click)="confirmOcrAction('overwrite')">Overwrite Existing</button>
+
+        <div class="camera-body">
+          <div class="camera-viewport-container" *ngIf="!cameraCapturedPhoto">
+            <video autoplay playsinline muted class="camera-video-element"></video>
+            <div class="camera-overlay-guide">
+              <span class="guide-text">Position handwritten page clearly within frame</span>
+            </div>
+          </div>
+
+          <div class="camera-preview-container" *ngIf="cameraCapturedPhoto">
+            <img [src]="cameraCapturedPhoto" alt="Captured Answer Photo" class="camera-captured-img" />
+          </div>
+        </div>
+
+        <div class="camera-modal-actions">
+          <ng-container *ngIf="!cameraCapturedPhoto">
+            <button type="button" class="btn btn-outline" (click)="closeCameraModal()">Cancel</button>
+            <button type="button" class="btn btn-primary btn-snap" (click)="captureCameraPhoto()">
+              <mat-icon>camera</mat-icon>
+              <span>Capture Photo</span>
+            </button>
+          </ng-container>
+
+          <ng-container *ngIf="cameraCapturedPhoto">
+            <button type="button" class="btn btn-outline" (click)="retakeCameraPhoto()">
+              <mat-icon>replay</mat-icon>
+              <span>Retake</span>
+            </button>
+            <button type="button" class="btn btn-secondary" (click)="acceptCameraPhoto(true)" title="Crop and rotate this photo">
+              <mat-icon>crop</mat-icon>
+              <span>Crop Photo</span>
+            </button>
+            <button type="button" class="btn btn-primary" (click)="acceptCameraPhoto(false)" title="Attach full photo directly">
+              <mat-icon>check_circle</mat-icon>
+              <span>Attach Full</span>
+            </button>
+          </ng-container>
         </div>
       </div>
     </div>
+
+    <!-- Image Lightbox Preview Modal -->
+    <div *ngIf="showImagePreviewModal" class="confirm-backdrop lightbox-backdrop" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+      <div class="lightbox-dialog">
+        <div class="lightbox-header">
+          <div class="lightbox-title-group">
+            <mat-icon>image</mat-icon>
+            <span id="lightbox-title" class="lightbox-title">Answer Photo {{ previewActiveIndex + 1 }} of {{ previewImages.length }}</span>
+          </div>
+          <div class="lightbox-header-actions" style="display:flex; align-items:center; gap:0.5rem;">
+            <button type="button" class="btn btn-outline btn-sm" (click)="openCropModal(previewImages[previewActiveIndex], previewQuestionId, previewActiveIndex); closeImagePreview()" [disabled]="testStopped || submitting || isSubmitted" title="Crop or rotate this photo">
+              <mat-icon>crop</mat-icon>
+              <span>Crop / Rotate</span>
+            </button>
+            <button type="button" class="lightbox-close-btn" (click)="closeImagePreview()" aria-label="Close preview">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="lightbox-body">
+          <button type="button" class="lightbox-nav-btn prev" (click)="prevPreviewImage()" [disabled]="previewImages.length <= 1" aria-label="Previous photo">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          
+          <div class="lightbox-img-wrapper">
+            <img [src]="previewImages[previewActiveIndex]" [alt]="'Answer Photo ' + (previewActiveIndex + 1)" class="lightbox-img" />
+          </div>
+
+          <button type="button" class="lightbox-nav-btn next" (click)="nextPreviewImage()" [disabled]="previewImages.length <= 1" aria-label="Next photo">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </div>
+
+        <div class="lightbox-footer">
+          <span class="lightbox-counter">Page {{ previewActiveIndex + 1 }} of {{ previewImages.length }}</span>
+          <div class="lightbox-nav-buttons">
+            <button type="button" class="btn btn-outline btn-sm" (click)="prevPreviewImage()" [disabled]="previewImages.length <= 1">
+              <mat-icon>arrow_back</mat-icon>
+              <span>Previous</span>
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" (click)="nextPreviewImage()" [disabled]="previewImages.length <= 1">
+              <span>Next</span>
+              <mat-icon>arrow_forward</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image Crop & Rotate Modal -->
+    <div *ngIf="showCropModal" class="confirm-backdrop crop-backdrop" role="dialog" aria-modal="true" aria-labelledby="crop-modal-title">
+      <div class="crop-dialog">
+        <div class="crop-header">
+          <div class="crop-title-group">
+            <mat-icon>crop</mat-icon>
+            <span id="crop-modal-title" class="crop-title">Crop &amp; Adjust Answer Photo</span>
+          </div>
+          <button type="button" class="crop-close-btn" (click)="closeCropModal()" aria-label="Close cropper">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="crop-body">
+          <div class="crop-viewport-wrapper">
+            <div class="crop-image-container" [style.transform]="'rotate(' + cropRotation + 'deg)'">
+              <img [src]="rawImageForCrop" alt="Original photo to crop" class="crop-target-img" draggable="false" />
+              
+              <!-- Interactive Crop Box Overlay -->
+              <div class="crop-box-overlay" 
+                [style.left.%]="cropBox.x" 
+                [style.top.%]="cropBox.y" 
+                [style.width.%]="cropBox.width" 
+                [style.height.%]="cropBox.height">
+                
+                <div class="crop-box-grid">
+                  <div class="grid-line-h h1"></div>
+                  <div class="grid-line-h h2"></div>
+                  <div class="grid-line-v v1"></div>
+                  <div class="grid-line-v v2"></div>
+                </div>
+
+                <!-- Move Handle (Entire box drag) -->
+                <div class="crop-handle-move" 
+                  (mousedown)="startCropDrag($event, 'move')" 
+                  (touchstart)="startCropDrag($event, 'move')">
+                </div>
+
+                <!-- 4 Corner Drag Handles -->
+                <div class="crop-handle nw" 
+                  (mousedown)="startCropDrag($event, 'nw')" 
+                  (touchstart)="startCropDrag($event, 'nw')" 
+                  title="Drag to resize"></div>
+                <div class="crop-handle ne" 
+                  (mousedown)="startCropDrag($event, 'ne')" 
+                  (touchstart)="startCropDrag($event, 'ne')" 
+                  title="Drag to resize"></div>
+                <div class="crop-handle sw" 
+                  (mousedown)="startCropDrag($event, 'sw')" 
+                  (touchstart)="startCropDrag($event, 'sw')" 
+                  title="Drag to resize"></div>
+                <div class="crop-handle se" 
+                  (mousedown)="startCropDrag($event, 'se')" 
+                  (touchstart)="startCropDrag($event, 'se')" 
+                  title="Drag to resize"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="crop-toolbar">
+            <button type="button" class="crop-tool-btn" (click)="rotateCropImage(90)" title="Rotate 90° Clockwise">
+              <mat-icon>rotate_right</mat-icon>
+              <span>Rotate 90°</span>
+            </button>
+            <button type="button" class="crop-tool-btn" (click)="resetCropBox()" title="Reset to full image">
+              <mat-icon>restart_alt</mat-icon>
+              <span>Full Page</span>
+            </button>
+            <span class="crop-hint">Drag frame or corners to frame handwritten content</span>
+          </div>
+        </div>
+
+        <div class="crop-footer">
+          <button type="button" class="btn btn-outline" (click)="closeCropModal()">Cancel</button>
+          <button type="button" class="btn btn-primary" (click)="applyCrop()">
+            <mat-icon>check</mat-icon>
+            <span>Done &amp; Attach</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
 
     <!-- A stopped test is terminal: the student can only acknowledge and leave. -->
     <div *ngIf="testStopped" class="confirm-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="stopped-title">

@@ -122,11 +122,50 @@ def _replace_attempt_answers(session, exam_attempt, answers):
         synchronize_session=False
     )
     for question_id, answer_value in (answers or {}).items():
-        values = answer_value if isinstance(answer_value, list) else [answer_value]
-        for value in values:
-            if value is None or value == "":
+        if answer_value is None or answer_value == "":
+            continue
+        if isinstance(answer_value, dict):
+            session.add(
+                Answer(
+                    user_id=exam_attempt.user_id,
+                    schedule_id=exam_attempt.schedule_id,
+                    question_id=question_id,
+                    attempt_id=exam_attempt.attempt_id,
+                    selected_option_id=None,
+                    written_answer=json.dumps(answer_value),
+                )
+            )
+        elif isinstance(answer_value, list):
+            is_option_list = all(isinstance(v, str) and len(v) == 36 and "-" in v for v in answer_value if v)
+            if is_option_list and answer_value:
+                for opt_id in answer_value:
+                    if opt_id:
+                        session.add(
+                            Answer(
+                                user_id=exam_attempt.user_id,
+                                schedule_id=exam_attempt.schedule_id,
+                                question_id=question_id,
+                                attempt_id=exam_attempt.attempt_id,
+                                selected_option_id=opt_id,
+                                written_answer=None,
+                            )
+                        )
+            else:
+                session.add(
+                    Answer(
+                        user_id=exam_attempt.user_id,
+                        schedule_id=exam_attempt.schedule_id,
+                        question_id=question_id,
+                        attempt_id=exam_attempt.attempt_id,
+                        selected_option_id=None,
+                        written_answer=json.dumps(answer_value),
+                    )
+                )
+        else:
+            value = str(answer_value)
+            if not value.strip():
                 continue
-            is_option = isinstance(value, str) and len(value) == 36 and "-" in value
+            is_option = len(value) == 36 and "-" in value
             session.add(
                 Answer(
                     user_id=exam_attempt.user_id,
@@ -134,7 +173,7 @@ def _replace_attempt_answers(session, exam_attempt, answers):
                     question_id=question_id,
                     attempt_id=exam_attempt.attempt_id,
                     selected_option_id=value if is_option else None,
-                    written_answer=None if is_option else str(value),
+                    written_answer=None if is_option else value,
                 )
             )
 

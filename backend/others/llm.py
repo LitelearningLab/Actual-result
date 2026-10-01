@@ -944,3 +944,69 @@ OUTPUT JSON STRUCTURE:
             "evaluations": []
         }
 
+
+def vision_evaluate_question_images(api_client, question_dict, answer_images, written_text=None, timeout=60.0):
+    """
+    Evaluates one question's handwritten answer images (and optional typed text)
+    directly using OpenAI Vision API without OCR.
+    """
+    if not answer_images:
+        return {
+            "status": False,
+            "error": "No answer images provided",
+            "score": 0.0,
+            "ai_confidence": 0,
+            "feedback": "No answer images provided."
+        }
+
+    qid = str(question_dict.get("question_id") or "q1")
+    max_marks = float(question_dict.get("marks") or question_dict.get("max_marks") or 1.0)
+    expected_ans = question_dict.get("expected_answer") or question_dict.get("model_answer") or ""
+    q_text = question_dict.get("question_text") or question_dict.get("question") or ""
+
+    rubric_entry = {
+        "question_id": qid,
+        "question_number": int(question_dict.get("question_number") or 1),
+        "question_text": q_text,
+        "max_marks": max_marks,
+        "model_answer": expected_ans,
+        "rubric": expected_ans,
+    }
+    if written_text and str(written_text).strip():
+        rubric_entry["student_typed_context"] = str(written_text).strip()
+
+    exam_rubric = {
+        "exam_id": "question_evaluation",
+        "sections": [
+            {
+                "section_name": "Question Evaluation",
+                "questions": [rubric_entry]
+            }
+        ]
+    }
+    res = vision_evaluate_answersheet(api_client, exam_rubric, answer_images, timeout=timeout)
+    if res and res.get("status"):
+        evals = res.get("evaluations", [])
+        if evals:
+            ev = evals[0]
+            return {
+                "status": True,
+                "score": ev.get("suggested_marks", 0.0),
+                "is_correct": ev.get("is_correct", 0),
+                "ai_confidence": ev.get("ai_confidence", 80),
+                "missing": ev.get("missing", "None"),
+                "incomplete": ev.get("incomplete", "None"),
+                "incorrect": ev.get("incorrect", "None"),
+                "feedback": ev.get("feedback", ""),
+                "student_answer_snippet": ev.get("student_answer_snippet", ""),
+                "raw_evaluation": ev
+            }
+    return {
+        "status": False,
+        "error": res.get("error", "Vision evaluation failed"),
+        "score": 0.0,
+        "ai_confidence": 0,
+        "feedback": "AI vision evaluation could not be completed."
+    }
+
+

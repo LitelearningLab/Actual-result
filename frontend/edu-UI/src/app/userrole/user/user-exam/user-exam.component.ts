@@ -56,6 +56,106 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   enableMicrophone = true;
   enableScanText = true;
 
+  // Answer Image & Camera properties
+  extractingQuestionId: string | number | null = null;
+  uploadProgressText = '';
+  showCameraModal = false;
+  activeCameraQuestionId: string | number | null = null;
+  cameraStream: MediaStream | null = null;
+  cameraCapturedPhoto: string | null = null;
+
+  // Lightbox Preview properties
+  showImagePreviewModal = false;
+  previewImages: string[] = [];
+  previewActiveIndex = 0;
+  previewQuestionId: string | number | null = null;
+
+  // ── Image Cropper & Rotation Properties ──
+  showCropModal = false;
+  rawImageForCrop: string | null = null;
+  cropTargetQuestionId: string | number | null = null;
+  cropEditExistingIndex: number | null = null;
+  cropRotation = 0;
+  cropBox = { x: 5, y: 5, width: 90, height: 90 };
+  private activeCropDragHandle: string | null = null;
+  private cropDragStartX = 0;
+  private cropDragStartY = 0;
+  private cropDragStartBox = { x: 5, y: 5, width: 90, height: 90 };
+
+  getTextAnswer(questionId: string | number): string {
+    const key = questionId !== undefined && questionId !== null && questionId !== '' ? questionId : '';
+    const ans = this.answers[key] !== undefined ? this.answers[key] : (this.answers[String(key)] !== undefined ? this.answers[String(key)] : '');
+    if (!ans) return '';
+    if (typeof ans === 'string') return ans;
+    if (typeof ans === 'object' && !Array.isArray(ans)) {
+      return (ans.text || ans.textAnswer || '').toString();
+    }
+    return '';
+  }
+
+  setTextAnswer(questionId: string | number, text: string) {
+    const key = questionId !== undefined && questionId !== null && questionId !== '' ? questionId : '';
+    const existingImages = this.getAnswerImages(key);
+    if (existingImages.length > 0) {
+      this.answers[key] = {
+        text: text,
+        images: existingImages
+      };
+    } else {
+      this.answers[key] = text;
+    }
+    this.persistExamState();
+    this.scheduleAutosave();
+  }
+
+  getAnswerImages(questionId: string | number): string[] {
+    const key = questionId !== undefined && questionId !== null && questionId !== '' ? questionId : '';
+    const ans = this.answers[key] !== undefined ? this.answers[key] : (this.answers[String(key)] !== undefined ? this.answers[String(key)] : null);
+    if (!ans) return [];
+    if (typeof ans === 'object' && !Array.isArray(ans)) {
+      const imgs = ans.images || ans.answerImages || ans.answer_images;
+      return Array.isArray(imgs) ? imgs : [];
+    }
+    if (Array.isArray(ans)) {
+      const isImageArr = ans.some(item => typeof item === 'string' && (item.startsWith('data:image') || item.endsWith('.jpg') || item.endsWith('.png') || item.endsWith('.webp')));
+      if (isImageArr) return ans;
+    }
+    return [];
+  }
+
+  addAnswerImages(questionId: string | number, newImages: string[]) {
+    const key = questionId !== undefined && questionId !== null && questionId !== '' ? questionId : '';
+    const currentImages = this.getAnswerImages(key);
+    const updatedImages = [...currentImages, ...newImages];
+    const currentText = this.getTextAnswer(key);
+    this.answers[key] = {
+      text: currentText,
+      images: updatedImages
+    };
+    this.persistExamState();
+    this.scheduleAutosave();
+  }
+
+  removeAnswerImage(questionId: string | number, index: number) {
+    const key = questionId !== undefined && questionId !== null && questionId !== '' ? questionId : '';
+    const currentImages = this.getAnswerImages(key);
+    if (index >= 0 && index < currentImages.length) {
+      currentImages.splice(index, 1);
+      const currentText = this.getTextAnswer(key);
+      if (currentImages.length > 0) {
+        this.answers[key] = {
+          text: currentText,
+          images: currentImages
+        };
+      } else {
+        this.answers[key] = currentText;
+      }
+      this.persistExamState();
+      this.scheduleAutosave();
+      notify('Answer photo removed.', 'info');
+    }
+  }
+
   isAnswered(q: any, i: number): boolean {
     if (!q) return false;
     const key = q.id !== undefined && q.id !== null && q.id !== '' ? q.id : i;
@@ -63,6 +163,11 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     if (ans === undefined || ans === null) return false;
     if (Array.isArray(ans)) return ans.length > 0;
     if (typeof ans === 'string') return ans.trim().length > 0;
+    if (typeof ans === 'object') {
+      const text = (ans.text || ans.textAnswer || '').trim();
+      const images = ans.images || ans.answerImages || [];
+      return text.length > 0 || (Array.isArray(images) && images.length > 0);
+    }
     return true;
   }
 
@@ -87,13 +192,6 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   private autosaveUrl = `${API_BASE}/autosave-exam`;
   private autosaveTimer: any = null;
   private statusUrl = `${API_BASE}/active-exam-status`;
-  private ocrUrl = `${API_BASE}/ocr-extract`;
-
-  // OCR Upload properties
-  extractingQuestionId: string | number | null = null;
-  showOcrConfirmModal = false;
-  pendingOcrText = '';
-  pendingQuestionId: string | number | null = null;
 
   constructor(
     private http: HttpClient,
@@ -188,8 +286,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
           const base = this.baseAnswerBeforeRecording ? this.baseAnswerBeforeRecording.trim() + ' ' : '';
           const fullText = (base + accumulatedFinal + currentInterim).replace(/\s+/g, ' ').trim();
-          this.answers[this.recordingQuestionId] = fullText;
-          this.scheduleAutosave();
+          this.setTextAnswer(this.recordingQuestionId, fullText);
         });
       };
 
@@ -217,7 +314,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
           // If still recording on mobile (where continuous=false), restart automatically
           const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
           if (isMobile && this.recordingQuestionId !== null && !this.testStopped) {
-            this.baseAnswerBeforeRecording = (this.answers[this.recordingQuestionId] || '').toString();
+            this.baseAnswerBeforeRecording = this.getTextAnswer(this.recordingQuestionId);
             try {
               this.recognition.start();
               return;
@@ -225,12 +322,10 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
           }
 
           if (this.recordingQuestionId !== null) {
-            const currentAnswer = this.answers[this.recordingQuestionId];
+            const currentAnswer = this.getTextAnswer(this.recordingQuestionId);
             if (currentAnswer && typeof currentAnswer === 'string') {
-              this.answers[this.recordingQuestionId] = currentAnswer.trim();
+              this.setTextAnswer(this.recordingQuestionId, currentAnswer.trim());
             }
-            this.persistExamState();
-            this.scheduleAutosave();
             this.recordingQuestionId = null;
           }
         });
@@ -257,12 +352,10 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       try {
         this.recognition.stop();
       } catch (e) {}
-      const currentAnswer = this.answers[questionId];
+      const currentAnswer = this.getTextAnswer(questionId);
       if (currentAnswer && typeof currentAnswer === 'string') {
-        this.answers[questionId] = currentAnswer.trim();
+        this.setTextAnswer(questionId, currentAnswer.trim());
       }
-      this.persistExamState();
-      this.scheduleAutosave();
     } else {
       // Stop any existing recording first
       if (this.recordingQuestionId !== null) {
@@ -281,7 +374,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       }
 
       this.recordingQuestionId = questionId;
-      this.baseAnswerBeforeRecording = (this.answers[questionId] || '').toString();
+      this.baseAnswerBeforeRecording = this.getTextAnswer(questionId);
       try {
         this.recognition.start();
       } catch (e) {
@@ -297,93 +390,368 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     return this.recordingQuestionId === questionId;
   }
 
-  // ── OCR Image Upload Methods ──
+  // ── Handwritten Image Upload (Multiple Selection, No OCR) ──
   isExtracting(qId: string | number): boolean {
     if (this.extractingQuestionId === null || qId === null || qId === undefined) return false;
     return String(this.extractingQuestionId) === String(qId);
   }
 
-  onImageSelected(event: any, questionId: string | number) {
+  async onImageSelected(event: any, questionId: string | number) {
     if (this.testStopped || this.submitting || this.isSubmitted) return;
-    const files = event?.target?.files;
+    const files: FileList = event?.target?.files;
     if (!files || files.length === 0) return;
 
-    const file = files[0];
-    if (!file.type.startsWith('image/')) {
-      notify('Please select a valid image file (JPEG, PNG, WebP, etc.).', 'error');
-      event.target.value = '';
+    const validFiles: File[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type.startsWith('image/')) {
+        validFiles.push(file);
+      }
+    }
+
+    if (validFiles.length === 0) {
+      notify('Please select valid image files (JPEG, PNG, WebP, etc.).', 'error');
+      if (event?.target) event.target.value = '';
       return;
     }
 
     this.extractingQuestionId = questionId;
-    const formData = new FormData();
-    formData.append('file', file, file.name);
+    this.uploadProgressText = `Loading 1 / ${validFiles.length}...`;
 
-    this.http.post<any>(this.ocrUrl, formData).subscribe({
-      next: (res) => {
-        this.extractingQuestionId = null;
-        if (event?.target) event.target.value = '';
+    try {
+      const readPromises = validFiles.map((file, idx) => {
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            this.ngZone.run(() => {
+              this.uploadProgressText = `Loading ${idx + 1} / ${validFiles.length}...`;
+            });
+            resolve(reader.result as string);
+          };
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(file);
+        });
+      });
 
-        if (res && res.status && res.text) {
-          const extractedText = res.text.trim();
-          if (!extractedText) {
-            notify('No readable text was found in the uploaded image.', 'info');
-            return;
-          }
-          this.processExtractedText(questionId, extractedText);
-        } else {
-          notify(res?.statusMessage || 'Could not extract text from image.', 'error');
-        }
-      },
-      error: (err) => {
-        this.extractingQuestionId = null;
-        if (event?.target) event.target.value = '';
-        console.error('OCR Extraction Error:', err);
-        notify(err?.error?.statusMessage || 'Error processing image. Please try again.', 'error');
+      const dataUrls = await Promise.all(readPromises);
+      if (dataUrls.length === 1) {
+        // Automatically open Crop modal for single photo upload/camera capture
+        this.openCropModal(dataUrls[0], questionId);
+      } else {
+        this.addAnswerImages(questionId, dataUrls);
+        notify(`${dataUrls.length} answer photos added successfully.`, 'success');
       }
-    });
-  }
-
-  processExtractedText(questionId: string | number, text: string) {
-    const key = questionId !== undefined && questionId !== null ? questionId : '';
-    const currentVal = this.answers[key] !== undefined ? this.answers[key] : (this.answers[String(key)] !== undefined ? this.answers[String(key)] : '');
-    const existing = typeof currentVal === 'string' ? currentVal.trim() : '';
-
-    if (!existing) {
-      this.answers[key] = text;
-      this.persistExamState();
-      this.scheduleAutosave();
-      notify('Extracted text inserted into answer box.', 'success');
-    } else {
-      this.pendingQuestionId = key;
-      this.pendingOcrText = text;
-      this.showOcrConfirmModal = true;
+    } catch (err) {
+      console.error('Failed to load image files', err);
+      notify('Failed to load selected images. Please try again.', 'error');
+    } finally {
+      this.extractingQuestionId = null;
+      this.uploadProgressText = '';
+      if (event?.target) event.target.value = '';
     }
   }
 
-  confirmOcrAction(mode: 'append' | 'overwrite') {
-    if (this.pendingQuestionId === null) return;
-    const key = this.pendingQuestionId;
-    const currentVal = this.answers[key] !== undefined ? this.answers[key] : (this.answers[String(key)] !== undefined ? this.answers[String(key)] : '');
-    const existing = typeof currentVal === 'string' ? currentVal.trim() : '';
+  // ── Camera Snapshot Capture Methods ──
+  async openCamera(questionId: string | number, nativeFallbackInput?: HTMLInputElement) {
+    if (this.testStopped || this.submitting || this.isSubmitted) return;
 
-    if (mode === 'append') {
-      this.answers[key] = existing ? (existing + '\n\n' + this.pendingOcrText) : this.pendingOcrText;
-      notify('Extracted text appended to your answer.', 'success');
-    } else {
-      this.answers[key] = this.pendingOcrText;
-      notify('Answer box overwritten with extracted text.', 'success');
+    // Check if WebRTC getUserMedia is supported in the current browsing context (requires HTTPS or localhost)
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (nativeFallbackInput) {
+        // Fallback directly to native device camera capture (works on mobile browsers and non-HTTPS origins)
+        nativeFallbackInput.click();
+        return;
+      }
+      notify('Camera access requires a secure connection (HTTPS or localhost) or is not supported on this browser.', 'error');
+      return;
     }
 
-    this.persistExamState();
-    this.scheduleAutosave();
-    this.cancelOcrConfirmModal();
+    this.activeCameraQuestionId = questionId;
+    this.cameraCapturedPhoto = null;
+    this.showCameraModal = true;
+
+    try {
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        });
+      } catch (e) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+
+      this.cameraStream = stream;
+      setTimeout(() => {
+        const videoEl = document.querySelector('.camera-video-element') as HTMLVideoElement;
+        if (videoEl) {
+          videoEl.srcObject = stream;
+          videoEl.play().catch(err => console.warn('Video play warning:', err));
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error('Camera access error:', err);
+      this.closeCameraModal();
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        notify('Camera permission was denied. Please allow camera access in your browser settings.', 'error');
+      } else {
+        notify('Could not access camera: ' + (err.message || 'Device camera unavailable'), 'error');
+      }
+    }
   }
 
-  cancelOcrConfirmModal() {
-    this.showOcrConfirmModal = false;
-    this.pendingOcrText = '';
-    this.pendingQuestionId = null;
+  captureCameraPhoto() {
+    const videoEl = document.querySelector('.camera-video-element') as HTMLVideoElement;
+    if (!videoEl || !videoEl.videoWidth || !videoEl.videoHeight) {
+      notify('Camera video stream is loading. Please try in a moment.', 'info');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = videoEl.videoWidth;
+    canvas.height = videoEl.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+      this.cameraCapturedPhoto = canvas.toDataURL('image/jpeg', 0.92);
+    }
+  }
+
+  retakeCameraPhoto() {
+    this.cameraCapturedPhoto = null;
+    setTimeout(() => {
+      const videoEl = document.querySelector('.camera-video-element') as HTMLVideoElement;
+      if (videoEl && this.cameraStream) {
+        videoEl.srcObject = this.cameraStream;
+        videoEl.play().catch(() => {});
+      }
+    }, 50);
+  }
+
+  acceptCameraPhoto(andCrop = true) {
+    if (this.cameraCapturedPhoto && this.activeCameraQuestionId !== null) {
+      const qId = this.activeCameraQuestionId;
+      const photo = this.cameraCapturedPhoto;
+      this.closeCameraModal();
+      if (andCrop) {
+        // Open Crop & Rotate tool immediately
+        this.openCropModal(photo, qId);
+      } else {
+        // Attach raw full photo directly
+        this.addAnswerImages(qId, [photo]);
+        notify('Answer photo attached.', 'success');
+      }
+    }
+  }
+
+  closeCameraModal() {
+    if (this.cameraStream) {
+      this.cameraStream.getTracks().forEach(track => track.stop());
+      this.cameraStream = null;
+    }
+    this.showCameraModal = false;
+    this.cameraCapturedPhoto = null;
+    this.activeCameraQuestionId = null;
+  }
+
+  // ── Image Cropper & Rotation Methods ──
+  openCropModal(imageUrl: string, questionId: string | number | null, existingIndex: number | null = null) {
+    if (!imageUrl || questionId === null || questionId === undefined) return;
+    this.rawImageForCrop = imageUrl;
+    this.cropTargetQuestionId = questionId;
+    this.cropEditExistingIndex = existingIndex;
+    this.cropRotation = 0;
+    this.cropBox = { x: 5, y: 5, width: 90, height: 90 };
+    this.showCropModal = true;
+  }
+
+  rotateCropImage(degrees = 90) {
+    this.cropRotation = (this.cropRotation + degrees) % 360;
+  }
+
+  resetCropBox() {
+    this.cropBox = { x: 0, y: 0, width: 100, height: 100 };
+    this.cropRotation = 0;
+  }
+
+  closeCropModal() {
+    this.showCropModal = false;
+    this.rawImageForCrop = null;
+    this.cropTargetQuestionId = null;
+    this.cropEditExistingIndex = null;
+    this.activeCropDragHandle = null;
+  }
+
+  startCropDrag(event: MouseEvent | TouchEvent, handle: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.activeCropDragHandle = handle;
+    const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
+    const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+    this.cropDragStartX = clientX;
+    this.cropDragStartY = clientY;
+    this.cropDragStartBox = { ...this.cropBox };
+
+    const onMove = (moveEvt: MouseEvent | TouchEvent) => {
+      this.handleCropDragMove(moveEvt);
+    };
+
+    const onEnd = () => {
+      this.activeCropDragHandle = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+    };
+
+    window.addEventListener('mousemove', onMove, { passive: false });
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  }
+
+  private handleCropDragMove(event: MouseEvent | TouchEvent) {
+    if (!this.activeCropDragHandle) return;
+    const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
+    const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+
+    const containerEl = document.querySelector('.crop-image-container') as HTMLElement;
+    if (!containerEl) return;
+    const rect = containerEl.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const deltaXPercent = ((clientX - this.cropDragStartX) / rect.width) * 100;
+    const deltaYPercent = ((clientY - this.cropDragStartY) / rect.height) * 100;
+
+    const minSize = 10;
+    let newX = this.cropDragStartBox.x;
+    let newY = this.cropDragStartBox.y;
+    let newWidth = this.cropDragStartBox.width;
+    let newHeight = this.cropDragStartBox.height;
+
+    if (this.activeCropDragHandle === 'move') {
+      newX = Math.max(0, Math.min(100 - newWidth, this.cropDragStartBox.x + deltaXPercent));
+      newY = Math.max(0, Math.min(100 - newHeight, this.cropDragStartBox.y + deltaYPercent));
+    } else if (this.activeCropDragHandle === 'nw') {
+      newX = Math.max(0, Math.min(this.cropDragStartBox.x + this.cropDragStartBox.width - minSize, this.cropDragStartBox.x + deltaXPercent));
+      newY = Math.max(0, Math.min(this.cropDragStartBox.y + this.cropDragStartBox.height - minSize, this.cropDragStartBox.y + deltaYPercent));
+      newWidth = (this.cropDragStartBox.x + this.cropDragStartBox.width) - newX;
+      newHeight = (this.cropDragStartBox.y + this.cropDragStartBox.height) - newY;
+    } else if (this.activeCropDragHandle === 'ne') {
+      newY = Math.max(0, Math.min(this.cropDragStartBox.y + this.cropDragStartBox.height - minSize, this.cropDragStartBox.y + deltaYPercent));
+      newWidth = Math.max(minSize, Math.min(100 - this.cropDragStartBox.x, this.cropDragStartBox.width + deltaXPercent));
+      newHeight = (this.cropDragStartBox.y + this.cropDragStartBox.height) - newY;
+    } else if (this.activeCropDragHandle === 'sw') {
+      newX = Math.max(0, Math.min(this.cropDragStartBox.x + this.cropDragStartBox.width - minSize, this.cropDragStartBox.x + deltaXPercent));
+      newWidth = (this.cropDragStartBox.x + this.cropDragStartBox.width) - newX;
+      newHeight = Math.max(minSize, Math.min(100 - this.cropDragStartBox.y, this.cropDragStartBox.height + deltaYPercent));
+    } else if (this.activeCropDragHandle === 'se') {
+      newWidth = Math.max(minSize, Math.min(100 - this.cropDragStartBox.x, this.cropDragStartBox.width + deltaXPercent));
+      newHeight = Math.max(minSize, Math.min(100 - this.cropDragStartBox.y, this.cropDragStartBox.height + deltaYPercent));
+    }
+
+    this.cropBox = {
+      x: Math.max(0, Math.min(100 - minSize, newX)),
+      y: Math.max(0, Math.min(100 - minSize, newY)),
+      width: Math.max(minSize, Math.min(100 - newX, newWidth)),
+      height: Math.max(minSize, Math.min(100 - newY, newHeight))
+    };
+  }
+
+  applyCrop() {
+    if (!this.rawImageForCrop || this.cropTargetQuestionId === null || this.cropTargetQuestionId === undefined) return;
+    const targetQId = this.cropTargetQuestionId;
+    const existingIndex = this.cropEditExistingIndex;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      // Step 1: Create canvas with rotation
+      const rotCanvas = document.createElement('canvas');
+      const rotCtx = rotCanvas.getContext('2d');
+      if (!rotCtx) return;
+
+      const angle = (this.cropRotation % 360 + 360) % 360;
+      if (angle === 90 || angle === 270) {
+        rotCanvas.width = img.height;
+        rotCanvas.height = img.width;
+      } else {
+        rotCanvas.width = img.width;
+        rotCanvas.height = img.height;
+      }
+
+      rotCtx.translate(rotCanvas.width / 2, rotCanvas.height / 2);
+      rotCtx.rotate((angle * Math.PI) / 180);
+      rotCtx.drawImage(img, -img.width / 2, -img.height / 2);
+
+      // Step 2: Extract sub-rectangle corresponding to cropBox percentages
+      const cropPxX = Math.round((this.cropBox.x / 100) * rotCanvas.width);
+      const cropPxY = Math.round((this.cropBox.y / 100) * rotCanvas.height);
+      const cropPxW = Math.round((this.cropBox.width / 100) * rotCanvas.width);
+      const cropPxH = Math.round((this.cropBox.height / 100) * rotCanvas.height);
+
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = Math.max(1, cropPxW);
+      finalCanvas.height = Math.max(1, cropPxH);
+      const finalCtx = finalCanvas.getContext('2d');
+      if (!finalCtx) return;
+
+      finalCtx.drawImage(
+        rotCanvas,
+        cropPxX, cropPxY, cropPxW, cropPxH,
+        0, 0, finalCanvas.width, finalCanvas.height
+      );
+
+      const croppedDataUrl = finalCanvas.toDataURL('image/jpeg', 0.92);
+
+      if (existingIndex !== null && existingIndex >= 0) {
+        const currentImgs = this.getAnswerImages(targetQId);
+        if (existingIndex < currentImgs.length) {
+          currentImgs[existingIndex] = croppedDataUrl;
+          const currentText = this.getTextAnswer(targetQId);
+          this.answers[targetQId] = {
+            text: currentText,
+            images: currentImgs
+          };
+          this.persistExamState();
+          this.scheduleAutosave();
+          notify('Answer photo updated.', 'success');
+        }
+      } else {
+        this.addAnswerImages(targetQId, [croppedDataUrl]);
+        notify('Answer photo cropped and attached.', 'success');
+      }
+
+      this.closeCropModal();
+    };
+    img.src = this.rawImageForCrop;
+  }
+
+  // ── Lightbox Preview Methods ──
+  openImagePreview(questionId: string | number, index: number) {
+    this.previewQuestionId = questionId;
+    this.previewImages = this.getAnswerImages(questionId);
+    this.previewActiveIndex = Math.max(0, Math.min(index, this.previewImages.length - 1));
+    this.showImagePreviewModal = true;
+  }
+
+  prevPreviewImage() {
+    if (this.previewImages.length <= 1) return;
+    this.previewActiveIndex = (this.previewActiveIndex - 1 + this.previewImages.length) % this.previewImages.length;
+  }
+
+  nextPreviewImage() {
+    if (this.previewImages.length <= 1) return;
+    this.previewActiveIndex = (this.previewActiveIndex + 1) % this.previewImages.length;
+  }
+
+  closeImagePreview() {
+    this.showImagePreviewModal = false;
+    this.previewImages = [];
+    this.previewActiveIndex = 0;
+    this.previewQuestionId = null;
   }
 
   persistExamState() {
@@ -564,6 +932,8 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     this.stopTimer();
     this.stopStatusPolling();
     this.stopSpeechRecognition();
+    this.closeCameraModal();
+    this.closeImagePreview();
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
   }
 
