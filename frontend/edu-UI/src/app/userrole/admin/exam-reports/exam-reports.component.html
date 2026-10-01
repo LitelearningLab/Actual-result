@@ -3,53 +3,18 @@
     <!-- Top Action & Applied Filters Header Row -->
     <div class="top-filter-bar-row">
       <!-- Applied Filters Bar (Appears on the left side in the marked red oval area) -->
-      <div class="applied-filters-container" *ngIf="hasAppliedFilters">
+      <div class="applied-filters-container" *ngIf="appliedFilterChips.length">
         <span class="applied-filters-title">APPLIED FILTERS</span>
 
-        <span class="applied-filter-pill" *ngIf="userFilters.industry">
-          <strong>Industry:</strong> {{ userFilters.industry }}
-        </span>
-
-        <span class="applied-filter-pill" *ngIf="userFilters.sector">
-          <strong>Sector:</strong> {{ userFilters.sector }}
-        </span>
-
-        <span
+        <button
+          type="button"
           class="applied-filter-pill"
-          *ngIf="isSuperAdmin && !isGlobalInstituteActive && selectedInstituteName"
+          *ngFor="let chip of appliedFilterChips"
+          [style.cursor]="chip.removable ? 'pointer' : 'default'"
+          (click)="chip.removable && removeAppliedFilter(chip.key)"
         >
-          <strong>Institute:</strong> {{ selectedInstituteName }}
-        </span>
-
-        <span class="applied-filter-pill" *ngIf="displayTestName">
-          <strong>Test:</strong> {{ displayTestName }}
-        </span>
-
-        <span class="applied-filter-pill" *ngIf="userFilters.campus_id">
-          <strong>Campus:</strong> {{ userFilters.campus_id }}
-        </span>
-
-        <ng-container *ngIf="userFilters.department_id && userFilters.department_id.length">
-          <span
-            class="applied-filter-pill"
-            *ngFor="let dept of userFilters.department_id"
-          >
-            <strong>{{ terminology.deptLabel }}:</strong> {{ getDepartmentDisplayName(dept) }}
-          </span>
-        </ng-container>
-
-        <ng-container *ngIf="userFilters.teams_id && userFilters.teams_id.length">
-          <span
-            class="applied-filter-pill"
-            *ngFor="let team of userFilters.teams_id"
-          >
-            <strong>{{ terminology.teamLabel }}:</strong> {{ getTeamDisplayName(team) }}
-          </span>
-        </ng-container>
-
-        <span class="applied-filter-pill" *ngIf="userFilters.active_status">
-          <strong>Status:</strong> {{ userFilters.active_status }}
-        </span>
+          <span>{{ chip.label }}</span>
+        </button>
 
         <button
           type="button"
@@ -108,7 +73,13 @@
                     placeholder="Select institute"
                     (selectionChange)="onInstituteSelectionChange()"
                   >
-                    <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <mat-option *ngIf="institutesLoading" disabled>
+                      <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
+                        <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                        <span>Loading institutes...</span>
+                      </div>
+                    </mat-option>
+                    <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!institutesLoading">
                       <input
                         matInput
                         class="select-search-input"
@@ -120,12 +91,6 @@
                         (keyup)="stopFilterSearchEvent($event)"
                         (input)="stopFilterSearchEvent($event)"
                       />
-                    </div>
-                    <mat-option disabled *ngIf="institutesLoading">
-                      <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
-                        <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
-                        <span>Loading institutes...</span>
-                      </div>
                     </mat-option>
                     <mat-option value="" *ngIf="!institutesLoading">All</mat-option>
                     <mat-option
@@ -209,6 +174,7 @@
                     multiple
                     [(ngModel)]="selectedCities"
                     placeholder="Select City"
+                    [disabled]="(!selectedCountries || !selectedCountries.length) && !userFilters.country_id"
                     (openedChange)="onSelectOpened($event, 'city')"
                     (selectionChange)="onCityFilterChange()"
                   >
@@ -233,7 +199,7 @@
                     </mat-option>
                     <mat-option
                       class="select-all-option"
-                      *ngIf="filteredCitiesList.length && !citySearch?.trim() && !citiesLoading"
+                      *ngIf="filteredCities.length && !citySearch?.trim() && !citiesLoading"
                       (click)="toggleSelectAllCities()"
                     >
                       <mat-icon
@@ -244,11 +210,11 @@
                       </mat-icon>
                       <strong>Select All</strong>
                     </mat-option>
-                    <mat-option *ngIf="!filteredCitiesList.length && !citiesLoading" disabled>
+                    <mat-option *ngIf="!filteredCities.length && !citiesLoading" disabled>
                       No cities available
                     </mat-option>
-                    <mat-option *ngFor="let ct of filteredCitiesList" [value]="ct">
-                      {{ ct }}
+                    <mat-option *ngFor="let ct of filteredCities" [value]="ct.name">
+                      {{ ct.name }}
                     </mat-option>
                   </mat-select>
                   <mat-hint *ngIf="citiesLoading" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">

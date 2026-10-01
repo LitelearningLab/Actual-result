@@ -69,41 +69,43 @@ class openai_client:
             response = _ErrorResponse(502, str(exc))
         return response
 def descriptive_evaluation(api_client, question_mark, expected_answer, student_answer):
-    system_message = '''You are an automated, impartial answer evaluator. Always respond ONLY with a single, valid JSON object (no markdown, no surrounding text). Follow these rules:
+    system_message = '''You are an automated, impartial, and expert academic answer evaluator. Always respond ONLY with a single, valid JSON object (no markdown, no surrounding text). Follow these rules:
         1. Output exactly the JSON object described in the user instructions and nothing else.
-        2. Score each topic as an integer in range 0-100 using coverage, correctness, and completeness.
-        3. For lists (missing, incomplete, incorrect) return either "None" or a comma-separated string of short phrases (no internal commas if possible).
-        4. The `feedback` must be clear and easy for a student to understand. It must briefly explain:
-            - what the student answered correctly,
-            - what important point or points are missing or incorrect,
-            - and what the student should add or improve.
-            Use simple educational language. Do not use vague statements such as "expand on the benefits" or "needs more detail" without saying what detail is needed. Keep feedback to 2-3 short sentences.
-        5. If you cannot evaluate or parse the candidate answer, return score 0 and put diagnostic text in `feedback`.
-        6. Do not ask questions or include explanations outside the JSON object.
-        7. Include an integer field `ai_confidence` in the JSON output (0-100) representing the model's confidence in this evaluation. If you cannot determine a confidence, return 0.
-        7. If you must truncate, prefer truncating explanation, not the JSON keys.'''
+        2. QUESTION INTENT & REQUIRED CONCEPTS (HIGHEST PRIORITY):
+           - Evaluate whether the student's answer ACTUALLY ANSWERS THE QUESTION, not merely discusses the general subject or topic.
+           - Do NOT award marks merely because the student discusses the general topic or uses domain keywords if the specific question is not answered.
+           - Full marks require directly addressing the question intent and covering ~90% or more of the required answer concepts.
+           - If the answer is topic-related but does not address the required answer concepts, award 0 or minimal partial marks.
+        3. Semantic meaning, not exact wording: Accept synonyms, alternative valid phrasing, and simple language when the intended meaning is correct.
+        4. For lists (missing, incomplete, incorrect) return either "None" or a pipe-separated string '|' of short phrases.
+        5. The `feedback` must be concise (1-2 short sentences):
+           - Fully correct: state what concept was correctly explained.
+           - Partially correct: state what was correct and what specific required concept was missing.
+           - Topic-related but unanswered: explain that it discusses the broad topic without answering the specific question, and state what was required.
+           - Incorrect: state what was incorrect and briefly give the correct concept.
+        6. Include an integer field `ai_confidence` in the JSON output (0-100) representing confidence in this evaluation.'''
     
     user_message = f'''
         Evaluate the candidate's answer for the following topic:
-        **Question Marking Scheme:** {question_mark}
-        **Expected Answer Key Points:** {expected_answer}
+        **Question Marking Scheme / Max Marks:** {question_mark}
+        **Expected Answer Key Points & Rubric:** {expected_answer}
         **Candidate's Answer:** {student_answer}
         
-        please evaluate and award a score between 0 and {question_mark} (maximum allowed marks is {question_mark}). For each point candidate answer available in the expected answer key points mention as "Available" and for missing points mention as "Missing" and for partial answer points mention as "Partial", and correct answer points mention as "Complete" and provide the short report only for the missing part in partially answered points, and for incorrect point highlight what is incorrect based on the expected answer.
-                The feedback must be based only on the actual evaluation above. Clearly tell the student what they did well and specifically identify the missing or incorrect points. Give a practical suggestion for improving the answer. Do not give generic feedback.
-                    Don't need a summary in the output. Also not required to mention the expected answer in the output.
+        Evaluate in this sequence:
+        1. Identify the specific question intent and required answer concepts.
+        2. Check if candidate's answer directly answers the question or merely mentions the topic.
+        3. Determine coverage of required concepts (~90%+ for full marks, proportional for partial, 0 if off-target/topic-only).
+        4. Provide crisp feedback and confidence.
         
         Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
         {{
         "score": <number between 0 and {question_mark}>,
-        "missing": "<pipe-separated list of Crisp phrase on what is missed or 'None'>",
-        "incomplete": "<pipe-separated list of Crisp explanation on which part is incomplete or 'None'>",
-        "incorrect": "<pipe-separated list of Crisp explanation on what is incorrect and why or 'None'>",
-        "feedback": "<clear student-friendly feedback explaining what was correct, what was missing or incorrect, and exactly what should be improved>",
+        "missing": "<pipe-separated list of missing required concepts or 'None'>",
+        "incomplete": "<pipe-separated list of incomplete points or 'None'>",
+        "incorrect": "<pipe-separated list of incorrect statements or 'None'>",
+        "feedback": "<clear 1-2 sentence student-friendly feedback explaining what was correct, what was missing/incorrect, and what should be improved>",
         "ai_confidence": <integer between 0-100>
         }}
-        
-        Note: Use the pipe character '|' as the separator between list items (no spaces around the pipe) to avoid ambiguity with commas. If there are no items for a field, return "None".
         '''
     try:
         response = api_client.chat_completion(system_message, user_message)
@@ -664,10 +666,11 @@ def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60
 Your task is to visually inspect and evaluate a student's physical handwritten answer sheet pages for an examination.
 
 PHASE 2 QUESTION-SPECIFIC EVALUATION RULES:
-1. STRICT QUESTION BOUNDARY ISOLATION:
+1. STRICT QUESTION BOUNDARY ISOLATION & STUDENT SNIPPET:
    - For each Question in the blueprint, you MUST evaluate ONLY the student's answer written specifically under that question's number/header (e.g., text directly following '14)', 'Q14', etc.).
    - NEVER use or borrow words, concepts, or sentences from adjacent answers (e.g. Q12 or Q13) to award marks to another question.
-   - Grounding: Extract a short verbatim snippet of what the student actually wrote for this question into "student_answer_snippet".
+   - Grounding: Extract a faithful transcription of the student's answer visually read from the page into "student_answer_snippet".
+   - Do NOT invent unreadable words. If part of the handwriting is ambiguous or illegible, use "[unclear]" rather than guessing.
 
 2. Direct Visual Inspection (No OCR):
    - Read handwritten responses, mathematical workings, chemical formulas, step derivations, graphs/diagrams, and objective question markings directly from the images.
@@ -676,18 +679,107 @@ PHASE 2 QUESTION-SPECIFIC EVALUATION RULES:
    - Identify what the student wrote or marked under this question's label (e.g., option letter like 'b', 'B', 'b)', '(b)', option text like 'under', 'Under', or combination like 'b) under', 'B. Under', '(b) Under').
    - Compare with the rubric (options list, correct_option_letter, and correct_option_text/model_answer).
    - Treat option letters and option text as case-insensitive (e.g., 'b' == 'B', 'under' == 'Under' == 'UNDER').
-   - If the student's handwritten answer matches the correct option letter, the correct option text, or both (ignoring casing, punctuation, and prefixes like 'a)', 'b)', '(b)'), award FULL MARKS (suggested_marks = max_marks, is_correct = 1).
+   - If the student's handwritten answer matches the correct option letter, the correct option text, or both (ignoring casing, punctuation, and prefixes like 'a)', 'b)', '(b)'), award FULL MARKS (suggested_marks = max_marks, is_correct = 1, relevance_classification = "Directly answers question").
    - Award 0 if the student selected an incorrect option, or if the question was unmarked/unattempted.
 
-4. Descriptive / Mathematical / Scientific Questions:
-   - Award step marks for intermediate mathematical / derivation steps, even if the final calculation has minor arithmetic errors.
-   - Evaluate diagrams: check labeled axes, annotations, structural components, and clarity against the rubric.
-   - Deduct marks proportionally for missing points or conceptual flaws.
+4. QUESTION INTENT — MUST BE IDENTIFIED BEFORE MARKING:
+   - Before assigning any marks, determine the exact intent of the question:
+     A. What is the question asking?
+     B. What subject/concept is being asked about?
+     C. What specific information must the student provide to answer it?
+   - Examples:
+     * "What role does listening play...?" -> explain the role/function of listening.
+     * "Why is listening important...?" -> explain why listening is important.
+     * "How does listening improve communication...?" -> explain the mechanism/effect.
+     * "What are the benefits of communication...?" -> identify benefits of communication.
 
-5. Unattempted or Absent Questions:
-   - If a question header or answer block is absent, set "suggested_marks": 0.0, "is_correct": 0, "detected_on_pages": [], "feedback": "Question was not attempted."
+   CRITICAL DISTINCTION:
+   A student's answer can be related to the GENERAL TOPIC but still fail to answer the SPECIFIC QUESTION.
+   Example:
+   Question: "What role does listening play in effective communication?"
+   Expected answer: "Listening helps individuals understand the needs of others and respond appropriately."
+   Student answer: "Good communication positively impacts relationships by fostering trust, respect, and a collaborative work environment."
 
-6. Confidence Scoring:
+   Correct evaluation:
+   - General topic: Communication
+   - Question focus: Listening
+   - Student discusses: General benefits of communication
+   - Student explains the role of listening: NO
+   - Required listening concepts demonstrated: NONE
+   - Full marks: NO (relevance_classification = "Relevant topic but does not answer question", suggested_marks = 0.0)
+
+   Therefore:
+   "Related to the topic" MUST NOT be treated as "answers the question."
+   NEVER award full marks merely because an answer uses words related to the question or discusses the general subject.
+
+5. VALID ALTERNATIVE ANSWERS & CONCEPT EVALUATION:
+   - The marking scheme is a guide to the expected concepts, NOT a list of mandatory words.
+   - If the student gives a scientifically, mathematically, factually, or academically valid explanation that is different from the model answer, award marks when it correctly answers the question.
+   - Do NOT mark an answer wrong simply because the explanation is not explicitly listed in the marking scheme.
+   - For each essential credit-bearing concept, classify the student's response as:
+     * COMPLETE: Clearly communicates the required meaning.
+     * PARTIAL: Communicates part of the required meaning but not the full concept.
+     * MISSING: Does not communicate the required concept.
+     * INCORRECT: Communicates a contradictory or factually incorrect concept.
+
+6. MARK ALLOCATION & DECISION ORDER:
+   Marks must reflect the quality, depth, and extent of the student's demonstrated understanding. Do NOT simply count matching keywords or concepts.
+
+   Evaluate in this exact order:
+   FIRST: Determine whether the student actually answers the specific question.
+   SECOND: Determine how many essential required concepts are demonstrated and their importance.
+   THIRD: Check whether any demonstrated concepts are incorrect or contradictory.
+   ONLY AFTER THESE STEPS: Assign marks and relevance classification.
+
+   MARKING RULES & CLASSIFICATION:
+   - FULL MARKS ("Directly answers question"):
+     * Award full marks when the student demonstrates the essential meaning required by the question and covers approximately 90% or more of the important credit-bearing concepts.
+     * Do NOT require every minor rubric point when the student's answer demonstrates the expected understanding clearly.
+   - HIGH / MEDIUM PARTIAL MARKS ("Partially answers question"):
+     * The student directly answers the specific question, but one or more important concepts are missing or incomplete.
+   - LOW PARTIAL MARKS ("Partially answers question"):
+     * The student directly addresses a small part of the question, demonstrating only a limited portion of required concepts.
+   - ZERO MARKS:
+     * Blank / Unattempted -> "Unattempted"
+     * Completely incorrect / contradictory -> "Incorrect answer"
+     * Discusses the general topic without answering the specific question and contains none of the credit-bearing concepts -> "Relevant topic but does not answer question"
+   - Intermediate steps: Award step marks for intermediate mathematical / derivation steps.
+   - Diagrams: Check labeled axes, annotations, structural components, and clarity against the rubric.
+
+7. 90% SEMANTIC MATCHING RULE (ACADEMIC JUDGMENT):
+   - The ~90% threshold applies to the ESSENTIAL ANSWER CONCEPTS only.
+   - It is an academic judgment of meaning and coverage, NOT a literal keyword or word-count percentage.
+   - A student can use completely different words and still receive full marks if the meaning correctly covers the required concepts.
+   - Conversely, a student can use many words from the question and still receive zero or partial marks if the answer does not address the question.
+
+8. HIGH-LEVEL FEEDBACK & FIELD CLASSIFICATION:
+   - Feedback must contain ONLY useful information from the actual evaluation.
+   - Maximum 3 short bullet points (or 1-2 crisp sentences).
+   - FULLY CORRECT:
+     • State the key concept the student correctly explained.
+     • Mention the key concept demonstrated without unnecessarily telling the student to improve.
+   - PARTIALLY CORRECT:
+     • State what the student got correct.
+     • State the specific concept that is missing or incomplete.
+     • Briefly explain what should have been added.
+   - TOPIC-RELATED BUT DOES NOT ANSWER:
+     • Your answer discusses the general topic.
+     • It does not answer the specific question asked.
+     • You needed to address: <specific required concept>.
+   - INCORRECT:
+     • State why the answer does not satisfy the question.
+     • Identify the incorrect or irrelevant concept.
+     • State what concept should have been addressed.
+
+   MISSING vs INCORRECT FIELD DISTINCTION:
+   - "missing": The student did not mention or communicate the required concept (e.g. "Role of listening in understanding others' needs|Responding appropriately").
+   - "incorrect": The student explicitly stated something that conflicts with or incorrectly represents the required concept (or 'None'). Do not put a merely unrelated answer into "incorrect" if no false claim was made—put the absent concept in "missing".
+   - "incomplete": Specific incomplete derivations or steps (or 'None').
+
+9. Unattempted or Absent Questions:
+   - If a question header or answer block is absent, set "relevance_classification": "Unattempted", "suggested_marks": 0.0, "is_correct": 0, "detected_on_pages": [], "missing": "Entire question unattempted", "incomplete": "None", "incorrect": "None", "feedback": "Question was not attempted."
+
+10. Confidence Scoring:
    - "ai_confidence" must be an integer between 0 and 100.
    - If handwriting is clear and answer is definitive, confidence should be 85-100.
    - If handwriting is ambiguous or difficult to read, reduce confidence accordingly (e.g. 40-65).
@@ -700,8 +792,9 @@ OUTPUT JSON STRUCTURE:
     {
       "question_id": "<exact question_id string from the rubric>",
       "question_number": <integer question number>,
-      "student_answer_snippet": "<short 1-2 sentence quote of what student actually wrote under this question>",
+      "student_answer_snippet": "<faithful transcription from page, using [unclear] for ambiguous handwriting>",
       "detected_on_pages": [<array of page numbers where this answer is located, e.g. [1] or [1, 2]>],
+      "relevance_classification": "<'Directly answers question' | 'Partially answers question' | 'Relevant topic but does not answer question' | 'Incorrect answer' | 'Unattempted'>",
       "suggested_marks": <float score between 0.0 and max_marks>,
       "max_marks": <float maximum marks for this question>,
       "is_correct": <1 if full marks awarded, 0 otherwise>,
@@ -709,7 +802,7 @@ OUTPUT JSON STRUCTURE:
       "missing": "<pipe-separated list of missing concepts/points or 'None'>",
       "incomplete": "<pipe-separated list of incomplete working steps or 'None'>",
       "incorrect": "<pipe-separated list of incorrect statements/calculations or 'None'>",
-      "feedback": "<clear 1-3 sentence student-friendly explanation of score, strengths, and areas to improve>"
+      "feedback": "<concise feedback with max 3 short bullet points explaining score, strengths, and missing concepts>"
     }
   ],
   "overall_summary": "<1-2 sentence overall summary of student performance>",
@@ -751,6 +844,10 @@ OUTPUT JSON STRUCTURE:
         else:
             continue
 
+        user_content.append({
+            "type": "text",
+            "text": f"--- ANSWER SHEET PAGE {page_num} ---"
+        })
         user_content.append({
             "type": "image_url",
             "image_url": {
@@ -819,6 +916,16 @@ OUTPUT JSON STRUCTURE:
             except (ValueError, TypeError):
                 conf = 80
             ev["ai_confidence"] = max(0, min(100, conf))
+
+            if not ev.get("relevance_classification"):
+                if not ev.get("detected_on_pages"):
+                    ev["relevance_classification"] = "Unattempted"
+                elif ev["is_correct"] == 1:
+                    ev["relevance_classification"] = "Directly answers question"
+                elif ev["suggested_marks"] > 0:
+                    ev["relevance_classification"] = "Partially answers question"
+                else:
+                    ev["relevance_classification"] = "Relevant topic but does not answer question"
 
         return {
             "status": True,
