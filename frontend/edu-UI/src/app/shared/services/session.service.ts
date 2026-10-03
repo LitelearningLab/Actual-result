@@ -9,14 +9,17 @@ import { AuthService } from '../../home/service/auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class SessionService {
-  private readonly idleTimeoutMs = 30 * 60 * 1000; // 30 minutes of inactivity before warning
-  private readonly adminWarningTimeoutMs = 5 * 60 * 1000; // 5-minute countdown grace period for Admin
+  
+  private readonly warningTimeoutMs = 5 * 60 * 1000; // 5-minute countdown grace period (10m + 5m = 15m for User, 25m + 5m = 30m for Admin)
+  private get idleTimeoutMs(): number {
+    return this.isAdminOrSuperAdmin() ? 25 * 60 * 1000 : 10 * 60 * 1000;
+  }
   private readonly activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
   private listening = false;
   private lastActivityAt = Date.now();
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private countdownInterval: ReturnType<typeof setInterval> | null = null;
-  private adminDialogRef: MatDialogRef<ConfirmDialogComponent> | null = null;
+  private warningDialogRef: MatDialogRef<ConfirmDialogComponent> | null = null;
   private promptOpen = false;
   private refreshInProgress = false;
   private isLoggingOut = false;
@@ -52,7 +55,7 @@ export class SessionService {
 
   private promptSingleDeviceLogout(message: string) {
     if (this.isLoggingOut || this.promptOpen || !this.hasLoggedInSession()) return;
-    this.stopAdminCountdown();
+    this.stopCountdown();
     this.promptOpen = true;
 
     const ref = this.dialog.open(ConfirmDialogComponent, {
@@ -73,7 +76,7 @@ export class SessionService {
 
   private promptExtendOrLogout(message: string) {
     if (this.isLoggingOut || this.promptOpen || !this.hasLoggedInSession()) return;
-    this.stopAdminCountdown();
+    this.stopCountdown();
     this.promptOpen = true;
 
     const ref = this.dialog.open(ConfirmDialogComponent, {
@@ -98,11 +101,11 @@ export class SessionService {
     });
   }
 
-  private promptAdminWarning() {
+  private promptWarning() {
     if (this.isLoggingOut || this.promptOpen || !this.hasLoggedInSession()) return;
     this.promptOpen = true;
 
-    const logoutTime = Date.now() + this.adminWarningTimeoutMs;
+    const logoutTime = Date.now() + this.warningTimeoutMs;
     const dialogData: ConfirmDialogData = {
       title: 'Session Expiring',
       message: 'You have been inactive. You will be logged out in:',
@@ -111,9 +114,9 @@ export class SessionService {
       countdown: '05:00'
     };
 
-    this.updateAdminCountdownDisplay(dialogData, logoutTime);
+    this.updateCountdownDisplay(dialogData, logoutTime);
 
-    this.adminDialogRef = this.dialog.open(ConfirmDialogComponent, {
+    this.warningDialogRef = this.dialog.open(ConfirmDialogComponent, {
       data: dialogData,
       disableClose: true
     });
@@ -121,23 +124,23 @@ export class SessionService {
     this.countdownInterval = setInterval(() => {
       const remainingSec = Math.ceil((logoutTime - Date.now()) / 1000);
       if (remainingSec <= 0) {
-        this.stopAdminCountdown();
+        this.stopCountdown();
         this.ngZone.run(() => {
-          if (this.adminDialogRef) {
-            try { this.adminDialogRef.close(false); } catch (e) {}
+          if (this.warningDialogRef) {
+            try { this.warningDialogRef.close(false); } catch (e) {}
           }
           this.doLogout();
         });
       } else {
         this.ngZone.run(() => {
-          this.updateAdminCountdownDisplay(dialogData, logoutTime);
+          this.updateCountdownDisplay(dialogData, logoutTime);
         });
       }
     }, 1000);
 
-    this.adminDialogRef.afterClosed().pipe(first()).subscribe((stayLoggedIn: boolean) => {
-      this.stopAdminCountdown();
-      this.adminDialogRef = null;
+    this.warningDialogRef.afterClosed().pipe(first()).subscribe((stayLoggedIn: boolean) => {
+      this.stopCountdown();
+      this.warningDialogRef = null;
       this.promptOpen = false;
 
       if (stayLoggedIn === true) {
@@ -150,7 +153,7 @@ export class SessionService {
     });
   }
 
-  private updateAdminCountdownDisplay(dialogData: ConfirmDialogData, logoutTime: number): void {
+  private updateCountdownDisplay(dialogData: ConfirmDialogData, logoutTime: number): void {
     const remainingSec = Math.max(0, Math.ceil((logoutTime - Date.now()) / 1000));
     const minutes = Math.floor(remainingSec / 60);
     const seconds = remainingSec % 60;
@@ -159,7 +162,7 @@ export class SessionService {
     dialogData.countdown = `${mm}:${ss}`;
   }
 
-  private stopAdminCountdown(): void {
+  private stopCountdown(): void {
     if (this.countdownInterval) {
       clearInterval(this.countdownInterval);
       this.countdownInterval = null;
@@ -221,17 +224,13 @@ export class SessionService {
     this.idleTimer = setTimeout(() => {
       this.idleTimer = null;
       if (this.isLoggingOut) return;
-      if (!this.hasBeenIdleForFifteenMinutes()) {
+      if (!this.hasBeenIdle()) {
         this.scheduleIdleCheck();
         return;
       }
 
       this.ngZone.run(() => {
-        if (this.isAdminOrSuperAdmin()) {
-          this.promptAdminWarning();
-        } else {
-          this.promptExtendOrLogout('Your session has expired due to inactivity.');
-        }
+        this.promptWarning();
       });
     }, remainingMs);
   }
@@ -253,7 +252,7 @@ export class SessionService {
     }
   }
 
-  private hasBeenIdleForFifteenMinutes(): boolean {
+  private hasBeenIdle(): boolean {
     return Date.now() - this.lastActivityAt >= this.idleTimeoutMs;
   }
 
@@ -272,7 +271,7 @@ export class SessionService {
 
   private clearAndRedirect() {
     this.isLoggingOut = true;
-    this.stopAdminCountdown();
+    this.stopCountdown();
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.idleTimer = null;
     this.promptOpen = false;
