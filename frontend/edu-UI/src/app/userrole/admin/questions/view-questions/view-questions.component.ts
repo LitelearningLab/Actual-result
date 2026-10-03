@@ -2102,12 +2102,26 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     if (this.selectedDepartments && this.selectedDepartments.length) {
       url +=
         (url.includes('?') ? '&' : '?') +
-        `department_id=${encodeURIComponent(this.selectedDepartments.join(','))}`;
+        `departments=${encodeURIComponent(this.selectedDepartments.join(','))}`;
     }
     if (this.selectedTeams && this.selectedTeams.length) {
       url +=
         (url.includes('?') ? '&' : '?') +
-        `team_id=${encodeURIComponent(this.selectedTeams.join(','))}`;
+        `teams=${encodeURIComponent(this.selectedTeams.join(','))}`;
+    }
+    if (this.filterCreationDateAfter) {
+      try {
+        url +=
+          (url.includes('?') ? '&' : '?') +
+          `created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`;
+      } catch (e) {}
+    }
+    if (this.filterCreationDate) {
+      try {
+        url +=
+          (url.includes('?') ? '&' : '?') +
+          `created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`;
+      } catch (e) {}
     }
 
     this.categoriesLoading = true;
@@ -2130,7 +2144,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
                   );
                 }
                 if (st === 'descriptive') {
-                  return ['descriptive', 'paragraph', 'subjective'].some((t) =>
+                  return ['descriptive', 'paragraph', 'subjective', 'desc'].some((t) =>
                     catType.includes(t)
                   );
                 }
@@ -2149,10 +2163,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
               const deptIds = deptList.map((d: any) =>
                 String(d?.id || d?.department_id || d?.dept_id || d)
               );
-              const matchesDept = this.selectedDepartments.some((id) =>
-                deptIds.includes(String(id))
-              );
-              if (!matchesDept) return false;
+              if (deptIds.length > 0) {
+                const matchesDept = this.selectedDepartments.some((id) =>
+                  deptIds.includes(String(id))
+                );
+                if (!matchesDept) return false;
+              }
             }
 
             // Client-side filter for selected team(s)
@@ -2163,8 +2179,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
                   ? Object.values(c.teams)
                   : [];
               const teamIds = teamList.map((t: any) => String(t?.id || t?.team_id || t));
-              const matchesTeam = this.selectedTeams.some((id) => teamIds.includes(String(id)));
-              if (!matchesTeam) return false;
+              if (teamIds.length > 0) {
+                const matchesTeam = this.selectedTeams.some((id) => teamIds.includes(String(id)));
+                if (!matchesTeam) return false;
+              }
             }
 
             return true;
