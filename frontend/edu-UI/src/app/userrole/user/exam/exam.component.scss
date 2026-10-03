@@ -727,10 +727,29 @@ tr.exam-detail-row {
 @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(1.25rem) scale(0.96) } to { opacity: 1; transform: translateY(0) scale(1) } }
 
-.review-backdrop { position:fixed; inset:0; background: linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 41, 59, 0.7) 100%); -webkit-backdrop-filter:blur(0.75rem); backdrop-filter:blur(0.75rem); display:flex; align-items:center; justify-content:center; z-index:1400; padding:1.5rem; animation:fadeIn 0.25s $ease; }
+.review-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 41, 59, 0.7) 100%);
+  -webkit-backdrop-filter: blur(0.75rem);
+  backdrop-filter: blur(0.75rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1400;
+  padding: 1.5rem;
+  padding: max(1.5rem, env(safe-area-inset-top, 0px)) max(1.5rem, env(safe-area-inset-right, 0px)) max(1.5rem, env(safe-area-inset-bottom, 0px)) max(1.5rem, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  animation: fadeIn 0.25s $ease;
+}
 .review-panel {
   width: min(72rem, 94vw);
   max-height: 88vh;
+  max-height: 88dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -749,26 +768,45 @@ tr.exam-detail-row {
     overflow: hidden;
   }
 
-  ::ng-deep .mat-tab-body-wrapper,
+  ::ng-deep .mat-tab-header {
+    background: var(--bg-1);
+    border-bottom: 0.0625rem solid var(--theme-3-border);
+    flex-shrink: 0;
+    z-index: 2;
+  }
+
+  ::ng-deep .mat-tab-body-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   ::ng-deep .mat-tab-body {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow: hidden;
   }
 
   ::ng-deep .mat-tab-body-content {
     flex: 1;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     min-height: 0;
     padding: 1rem 1.25rem;
     box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   .review-list {
-    flex: 1;
-    overflow-y: auto;
-    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
   }
 }
 
@@ -1465,16 +1503,47 @@ tr.exam-detail-row {
   .meta-row.secondary-row .meta-item { min-width:8rem; }
   .q-descriptive .desc-header { flex-direction:column; align-items:flex-start; }
   .q-descriptive .desc-header .desc-score { width:100%; flex:none; margin-top:0.5rem; }
-  .q-descriptive .desc-score { width:100%; }
-  .review-panel { width:96vw; }
+  .review-panel {
+    width: 96vw;
+    max-height: calc(90vh - env(safe-area-inset-bottom, 0px));
+    max-height: calc(90dvh - env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @media (max-width: 45rem) {
-  .review-backdrop { padding: 0.5rem; }
-  .review-panel { width: min(100%, calc(100vw - 1rem)); max-height: calc(100vh - 1rem); border-radius: 1.25rem !important; margin: auto; overflow: hidden; }
-  .review-header { padding: 0.75rem 0.875rem; border-top-left-radius: 1.25rem; border-top-right-radius: 1.25rem; }
-  .review-exam-title { font-size: 1rem; }
-  .review-list { padding: 0.625rem; max-height: calc(100vh - 6.5rem); }
+  .review-backdrop {
+    padding: 0.5rem;
+    padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+  }
+  .review-panel {
+    width: min(100%, calc(100vw - 1rem));
+    max-height: calc(100vh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+    border-radius: 1.25rem !important;
+    margin: auto;
+    overflow: hidden;
+
+    ::ng-deep .mat-tab-body-content {
+      padding: 0.75rem 0.625rem;
+      padding-bottom: max(1.5rem, calc(0.75rem + env(safe-area-inset-bottom, 0px)));
+    }
+  }
+  .review-header {
+    padding: 0.75rem 0.875rem;
+    border-top-left-radius: 1.25rem;
+    border-top-right-radius: 1.25rem;
+  }
+  .review-exam-title {
+    font-size: 1rem;
+  }
+  .review-list {
+    padding: 0;
+    max-height: none;
+    overflow: visible;
+  }
   .question-review-card { padding: 0.875rem; border-radius: 0.75rem; }
   .q-head-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.625rem; }
   .q-left { display: flex; align-items: center; gap: 0.5rem; }

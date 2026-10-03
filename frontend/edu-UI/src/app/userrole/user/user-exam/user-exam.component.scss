@@ -51,6 +51,7 @@ $ease: cubic-bezier(0.4, 0, 0.2, 1); $ease-bounce: cubic-bezier(0.34, 1.56, 0.64
   z-index: 25;
   margin-top: 1.5rem;
   padding: 0.75rem 1.25rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
   background: var(--bg-1);
   border: 0.0625rem solid var(--theme-3-border);
   border-radius: 0.75rem;
