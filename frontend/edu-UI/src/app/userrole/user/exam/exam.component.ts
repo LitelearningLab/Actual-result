@@ -80,15 +80,20 @@ export interface UserTestRow {
       <div class="dialog-icon" aria-hidden="true">
         <mat-icon>rocket_launch</mat-icon>
       </div>
-      <h2>Start Test</h2>
+      <h2 class="dialog-title">Start Test</h2>
       <p class="dialog-message">Are you sure you want to start this test?</p>
       <div class="dialog-warning">
         <mat-icon class="warning-icon">info</mat-icon>
-        <span>Once you start, the test timer will begin and cannot be paused.</span>
+        <span class="warning-text">Once you start, the test timer will begin and cannot be paused.</span>
       </div>
       <div class="dialog-actions">
-        <button mat-flat-button class="start-button" [mat-dialog-close]="true">Start Test</button>
-        <button mat-button class="cancel-button" [mat-dialog-close]="false">Cancel</button>
+        <button type="button" class="action-btn cancel-button" [mat-dialog-close]="false">
+          Cancel
+        </button>
+        <button type="button" class="action-btn start-button" [mat-dialog-close]="true">
+          <mat-icon class="btn-icon">play_arrow</mat-icon>
+          <span>Start Test</span>
+        </button>
       </div>
     </div>
   `,
@@ -96,27 +101,24 @@ export interface UserTestRow {
     `
       :host {
         display: block;
-        border-radius: 1.25rem;
-        overflow: hidden;
-        background: #ffffff;
+        background: transparent;
       }
       .start-confirm-dialog {
         box-sizing: border-box;
-        padding: 1.75rem 1.5rem 1.5rem;
+        padding: 2rem 1.75rem 1.5rem;
         text-align: center;
         background: #ffffff;
         color: #0f172a;
         border-radius: 1.25rem;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
         display: flex;
         flex-direction: column;
         align-items: center;
+        width: 100%;
       }
       .dialog-icon {
         width: 3.75rem;
         height: 3.75rem;
-        margin: 0 auto 0.875rem;
+        margin: 0 auto 1rem;
         border-radius: 50%;
         background: #ecfdf5;
         color: #059669;
@@ -129,8 +131,11 @@ export interface UserTestRow {
         height: 2rem;
         font-size: 2rem;
         line-height: 2rem;
+        color: #059669;
       }
-      h2 {
+      .dialog-title {
+        width: 100%;
+        text-align: center;
         margin: 0 0 0.5rem;
         font-size: 1.35rem;
         font-weight: 700;
@@ -138,74 +143,106 @@ export interface UserTestRow {
         color: #0f172a !important;
       }
       .dialog-message {
+        width: 100%;
+        text-align: center;
         font-size: 0.95rem;
         font-weight: 500;
-        color: #334155 !important;
-        margin: 0 0 0.75rem;
+        color: #475569 !important;
+        margin: 0 0 1rem;
         line-height: 1.5;
       }
       .dialog-warning {
         display: flex;
         align-items: flex-start;
-        gap: 0.5rem;
+        gap: 0.625rem;
         background: #fffbe6;
         border: 1px solid #fef08a;
-        border-radius: 0.625rem;
-        padding: 0.75rem 0.875rem;
+        border-radius: 0.75rem;
+        padding: 0.875rem 1rem;
         text-align: left;
-        margin-top: 0.25rem;
-        color: #b45309 !important;
-        font-size: 0.84rem;
-        font-weight: 600;
+        width: 100%;
+        box-sizing: border-box;
+        color: #92400e !important;
+        font-size: 0.875rem;
+        font-weight: 500;
         line-height: 1.45;
       }
       .dialog-warning .warning-icon {
-        font-size: 1.125rem;
-        width: 1.125rem;
-        height: 1.125rem;
+        font-size: 1.25rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        line-height: 1.25rem;
         color: #d97706;
         flex-shrink: 0;
         margin-top: 1px;
       }
+      .dialog-warning .warning-text {
+        flex: 1;
+        color: #92400e;
+        font-weight: 600;
+      }
       .dialog-actions {
         display: flex;
-        flex-direction: column;
-        gap: 0.625rem;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
         margin-top: 1.5rem;
         width: 100%;
+        box-sizing: border-box;
       }
-      .dialog-actions button {
+      .action-btn {
+        flex: 1;
         height: 2.75rem;
         min-height: 44px;
-        width: 100%;
         border-radius: 0.625rem;
         font-size: 0.95rem;
-        font-weight: 700;
+        font-weight: 600;
         cursor: pointer;
-      }
-      .start-button {
-        background: #2563eb !important;
-        color: #ffffff !important;
-        border: none !important;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-      }
-      .start-button:hover {
-        background: #1d4ed8 !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        transition: all 0.2s ease;
+        outline: none;
+        box-sizing: border-box;
       }
       .cancel-button {
-        border: 1px solid #cbd5e1 !important;
+        border: 1.5px solid #cbd5e1 !important;
         color: #334155 !important;
         background: #ffffff !important;
       }
       .cancel-button:hover {
         background: #f8fafc !important;
+        border-color: #94a3b8 !important;
+        color: #0f172a !important;
       }
-      @media (min-width: 480px) {
+      .start-button {
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border: 1.5px solid #2563eb !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+      }
+      .start-button:hover {
+        background: #1d4ed8 !important;
+        border-color: #1d4ed8 !important;
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45);
+        transform: translateY(-1px);
+      }
+      .start-button .btn-icon {
+        font-size: 1.25rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        line-height: 1.25rem;
+        color: #ffffff;
+      }
+      @media (max-width: 480px) {
         .dialog-actions {
-          flex-direction: row-reverse;
+          flex-direction: column-reverse;
+          gap: 0.625rem;
         }
-        .dialog-actions button {
-          flex: 1;
+        .action-btn {
+          width: 100%;
         }
       }
     `,
