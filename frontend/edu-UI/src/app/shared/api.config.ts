@@ -18,3 +18,19 @@ const USE_LOCAL_BACKEND = false;
 
 export const API_BASE = frontendIsLocal ? LOCAL_API_BASE : LIVE_API_BASE;
 
+export function resolveMediaUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  const str = String(url).trim();
+  if (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('data:') || str.startsWith('blob:')) {
+    return str;
+  }
+  if (str.startsWith('/edu/api/')) {
+    const base = API_BASE.replace(/\/edu\/api\/?$/, '');
+    return `${base}${str}`;
+  }
+  if (str.startsWith('/')) {
+    return `${API_BASE}${str}`;
+  }
+  return `${API_BASE}/${str}`;
+}
+

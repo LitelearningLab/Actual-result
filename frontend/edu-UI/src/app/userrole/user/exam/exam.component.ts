@@ -9,7 +9,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { API_BASE } from 'src/app/shared/api.config';
+import { API_BASE, resolveMediaUrl } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
 import { Router, RouterModule } from '@angular/router';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -1287,7 +1287,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       question_text?: string;
       question?: string;
       correct_option?: string;
-      options?: Array<{ is_correct?: number; option_text?: string }>;
+      options?: Array<{ is_correct?: number; option_text?: string; text?: string; image_url?: string; gcs_path?: string; id?: string }>;
+      media?: Array<{ media_id?: string; media_type?: string; file_url?: string; url?: string; original_filename?: string; caption?: string }>;
       question_type?: string;
       selected_option?: string[];
       is_correct?: boolean | number;
@@ -1539,16 +1540,24 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
                     : Array.isArray(it.choices)
                       ? it.choices
                       : [];
-                  // ensure option objects have is_correct numeric flag and option_text
-                  const normalizedOptions = (options || []).map((o: any) => ({
-                    is_correct:
-                      typeof o.is_correct !== 'undefined'
-                        ? Number(o.is_correct)
-                        : typeof o.isCorrect !== 'undefined'
-                          ? Number(o.isCorrect)
-                          : 0,
-                    option_text: o.option_text || o.text || o.label || '',
-                  }));
+                  // ensure option objects have is_correct numeric flag, clean option_text and image_url
+                  const normalizedOptions = (options || []).map((o: any) => {
+                    const rawText = o.option_text !== undefined && o.option_text !== null ? o.option_text : (o.text !== undefined && o.text !== null ? o.text : (typeof o === 'string' ? o : ''));
+                    const cleanText = (typeof rawText === 'string' && (rawText === "''" || rawText === '""')) ? '' : (typeof rawText === 'string' ? rawText.trim() : String(rawText || ''));
+                    return {
+                      id: o.id || o.options_id || o.option_id || cleanText || '',
+                      is_correct:
+                        typeof o.is_correct !== 'undefined'
+                          ? Number(o.is_correct)
+                          : typeof o.isCorrect !== 'undefined'
+                            ? Number(o.isCorrect)
+                            : 0,
+                      option_text: cleanText,
+                      text: cleanText,
+                      image_url: o.image_url || o.url || '',
+                      gcs_path: o.gcs_path || '',
+                    };
+                  });
                   const selectedArr = Array.isArray(it.selected_option)
                     ? it.selected_option.map((s: any) => String(s))
                     : it.selected_option
@@ -1578,6 +1587,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
                     question: it.question_text || it.question || it.q || '',
                     correct_option: inferredCorrect,
                     options: normalizedOptions,
+                    media: Array.isArray(it.media) ? it.media : [],
                     question_type: it.question_type || it.type || 'choose',
                     selected_option: selectedArr,
                     is_correct: itemIsCorrect,
@@ -2032,6 +2042,22 @@ formatSeconds(sec: number | null | undefined): string {
     if (!sel) return [];
     if (Array.isArray(sel)) return sel.map((s: any) => String(s));
     return [String(sel)];
+  }
+
+  resolveMediaUrl = resolveMediaUrl;
+
+  getOptText(opt: any): string {
+    if (!opt) return '';
+    if (typeof opt === 'string') {
+      const clean = opt.trim();
+      return (clean === "''" || clean === '""') ? '' : clean;
+    }
+    const val = opt.text !== undefined && opt.text !== null ? opt.text : (opt.option_text !== undefined && opt.option_text !== null ? opt.option_text : '');
+    if (typeof val === 'string') {
+      const clean = val.trim();
+      return (clean === "''" || clean === '""') ? '' : clean;
+    }
+    return '';
   }
 
   // Return option letter (A, B, C...)

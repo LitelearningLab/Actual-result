@@ -745,7 +745,16 @@
               <mat-tab label="Overview">
                 <div class="detail-grid">
                   <div class="label">Question</div>
-                  <div class="value">{{ viewedQuestion?.question }}</div>
+                  <div class="value">
+                    <div>{{ viewedQuestion?.question }}</div>
+                    <!-- Question media display -->
+                    <div class="view-q-media" *ngIf="viewedQuestion?.media && viewedQuestion.media.length">
+                      <div class="view-q-media-item" *ngFor="let m of viewedQuestion.media">
+                        <img *ngIf="m.media_type === 'image'" [src]="resolveMediaUrl(m.file_url)" [alt]="m.original_filename || 'Question Image'" class="view-media-img" />
+                        <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url)" class="view-media-audio"></audio>
+                      </div>
+                    </div>
+                  </div>
                   <!-- type -->
                   <div class="label">Type</div>
                   <div class="value">
@@ -783,7 +792,8 @@
                             <span class="opt-label"
                               >{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[idx] || idx + 1 }}.</span
                             >
-                            <span class="opt-text">{{ getOptionText(o) }}</span>
+                            <span class="opt-text" *ngIf="getOptionText(o)">{{ getOptionText(o) }}</span>
+                            <img *ngIf="o?.image_url" [src]="resolveMediaUrl(o.image_url)" class="opt-view-img" alt="Option Image" />
                           </div>
                           <div class="opt-right">
                             <span

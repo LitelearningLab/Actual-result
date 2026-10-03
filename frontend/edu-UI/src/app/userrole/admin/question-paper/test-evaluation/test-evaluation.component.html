@@ -1344,6 +1344,23 @@
                 {{ q.question_text }}
               </div>
 
+              <!-- Question Media (Images & Audio) -->
+              <div class="eval-q-media" *ngIf="q.media && q.media.length">
+                <div class="eval-q-media-item" *ngFor="let m of q.media">
+                  <img *ngIf="m.media_type === 'image'" [src]="resolveMediaUrl(m.file_url)" [alt]="m.original_filename || 'Question Image'" class="eval-q-media-img" />
+                  <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url)" class="eval-q-media-audio"></audio>
+                </div>
+              </div>
+
+              <!-- MCQ Options with Images (if present) -->
+              <div class="eval-q-options" *ngIf="q.options && q.options.length && q.question_type !== 'DESCRIPTIVE'">
+                <div class="eval-opt-row" *ngFor="let opt of q.options; let oi = index">
+                  <span class="eval-opt-badge">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi] }}</span>
+                  <span class="eval-opt-text" *ngIf="opt.text">{{ opt.text }}</span>
+                  <img *ngIf="opt.image_url" [src]="resolveMediaUrl(opt.image_url)" class="eval-opt-img" alt="Option Image" />
+                </div>
+              </div>
+
               <!-- Inline Teacher Mark Edit Form (Visible on Edit) -->
               <div class="marks-edit-panel" *ngIf="q._editingMarks">
                 <div class="marks-edit-row">

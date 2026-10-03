@@ -20,6 +20,8 @@ interface QuestionOption {
   option_id?: string;
   text?: string;
   option_text?: string;
+  image_url?: string;
+  gcs_path?: string;
   [key: string]: any;
 }
 
@@ -30,6 +32,7 @@ interface Question {
   type?: string; // 'choose' | 'multi' | 'fill' | 'paragraph'
   options?: QuestionOption[];
   marks?: number;
+  media?: Array<any>;
 }
 
 @Component({
@@ -828,11 +831,19 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         question: q.question_text || q.question || '',
         text: q.question_text || q.question || '',
         type: q.question_type || q.type,
+        media: Array.isArray(q.media) ? q.media : [],
         options: (Array.isArray(q.options) ? q.options : []).map((o: any) => {
-          if (typeof o === 'string') return { id: o, text: o };
+          if (typeof o === 'string') {
+            const cleanStr = (o === "''" || o === '""') ? '' : o;
+            return { id: o, text: cleanStr, image_url: '', gcs_path: '' };
+          }
+          const rawText = o.text !== undefined && o.text !== null ? o.text : (o.option_text !== undefined && o.option_text !== null ? o.option_text : '');
+          const cleanText = (typeof rawText === 'string' && (rawText === "''" || rawText === '""')) ? '' : String(rawText || '');
           return {
-            id: o.id || o.options_id || o.option_id || o.text || o.option_text || '',
-            text: o.text || o.option_text || o.id || o.options_id || ''
+            id: o.id || o.options_id || o.option_id || cleanText || '',
+            text: cleanText,
+            image_url: o.image_url || o.url || '',
+            gcs_path: o.gcs_path || ''
           };
         }),
         marks: q.marks !== undefined && q.marks !== null ? Number(q.marks) : (q.points !== undefined && q.points !== null ? Number(q.points) : 1)
@@ -1028,8 +1039,29 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
   getOptText(o: any): string {
     if (!o) return '';
-    if (typeof o === 'string') return o;
-    return o.text || o.option_text || o.id || o.options_id || o.option_id || String(o);
+    if (typeof o === 'string') return (o === "''" || o === '""') ? '' : o;
+    const txt = o.text !== undefined && o.text !== null ? o.text : (o.option_text !== undefined && o.option_text !== null ? o.option_text : '');
+    if (typeof txt === 'string') {
+      if (txt === "''" || txt === '""') return '';
+      return txt.trim();
+    }
+    return '';
+  }
+
+  resolveMediaUrl(url: string | null | undefined): string {
+    if (!url) return '';
+    const str = String(url).trim();
+    if (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('data:') || str.startsWith('blob:')) {
+      return str;
+    }
+    if (str.startsWith('/edu/api/')) {
+      const base = API_BASE.replace(/\/edu\/api\/?$/, '');
+      return `${base}${str}`;
+    }
+    if (str.startsWith('/')) {
+      return `${API_BASE}${str}`;
+    }
+    return `${API_BASE}/${str}`;
   }
 
   isMultiSelected(qid: any, optVal: any): boolean {

@@ -1,11 +1,136 @@
-from db.models import Question, Option, QuestionMapping, Categories, CategoriesDepartments, CategoriesTeams, User, openai_requests
+from db.models import Question, Option, QuestionMapping, QuestionMedia, Categories, CategoriesDepartments, CategoriesTeams, User, openai_requests
 from db.db import SQLiteDB
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 import sys
 import pandas as pd
 import json
 import datetime
 from others.llm import descriptive_evaluation, openai_client
+from others.gcs_service import gcs_storage
+
+def ensure_question_media_schema(session):
+    """Ensures QuestionMedia table and Options media columns exist at runtime."""
+    try:
+        create_qm_sql = """
+        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='QuestionMedia' AND xtype='U')
+        BEGIN
+            CREATE TABLE QuestionMedia (
+                media_id NVARCHAR(50) PRIMARY KEY,
+                question_id NVARCHAR(50) NOT NULL,
+                media_type NVARCHAR(50) NOT NULL,
+                file_url NVARCHAR(1000) NOT NULL,
+                gcs_path NVARCHAR(500) NULL,
+                original_filename NVARCHAR(255) NULL,
+                mime_type NVARCHAR(100) NULL,
+                file_size INT NULL,
+                caption NVARCHAR(500) NULL,
+                order_number INT DEFAULT 1,
+                active_status INT DEFAULT 1,
+                created_by NVARCHAR(50) NULL,
+                created_date DATETIME DEFAULT GETUTCDATE(),
+                updated_by NVARCHAR(50) NULL,
+                updated_date DATETIME NULL
+            );
+            CREATE INDEX IX_QuestionMedia_Question ON QuestionMedia(question_id);
+        END
+        """
+        session.execute(text(create_qm_sql))
+        
+        add_opt_img_sql = """
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Options') AND name = 'image_url')
+        BEGIN
+            ALTER TABLE Options ADD image_url NVARCHAR(1000) NULL;
+        END
+        """
+        session.execute(text(add_opt_img_sql))
+        
+        add_opt_gcs_sql = """
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Options') AND name = 'gcs_path')
+        BEGIN
+            ALTER TABLE Options ADD gcs_path NVARCHAR(500) NULL;
+        END
+        """
+        session.execute(text(add_opt_gcs_sql))
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        try:
+            from db.models import Base
+            Base.metadata.create_all(session.bind)
+        except Exception:
+            pass
+
+def upload_question_media(request):
+    """
+    Uploads an image or audio file for questions or MCQ options to Google Cloud Storage.
+    Accepts multipart/form-data with 'file', optional 'question_id', and 'expected_type'.
+    """
+    file = request.files.get("file") or request.files.get("media") or (request.files.getlist("files")[0] if request.files.getlist("files") else None)
+    if not file:
+        return {"status": False, "statusMessage": "No file uploaded"}, 400
+
+    filename = getattr(file, "filename", "") or "media_file"
+    file_bytes = file.read()
+    if not file_bytes:
+        return {"status": False, "statusMessage": "Uploaded file is empty"}, 400
+
+    expected_type = request.form.get("expected_type", "any")
+    question_id = request.form.get("question_id", "temp")
+    media_category = request.form.get("category", "question")  # 'question' or 'option'
+
+    folder_prefix = f"questions/{question_id}/{'options' if media_category == 'option' else ('audio' if expected_type == 'audio' else 'images')}"
+
+    try:
+        res = gcs_storage.upload_media(
+            file_bytes=file_bytes,
+            filename=filename,
+            folder_prefix=folder_prefix,
+            expected_type=expected_type
+        )
+        return {
+            "status": True,
+            "statusMessage": "File uploaded successfully",
+            "data": res
+        }, 200
+    except ValueError as val_err:
+        return {"status": False, "statusMessage": str(val_err)}, 400
+    except Exception as e:
+        print(f"Error in upload_question_media: {e} at line {sys.exc_info()[-1].tb_lineno}")
+        return {"status": False, "statusMessage": f"Upload failed: {str(e)}"}, 500
+
+def delete_question_media(request):
+    """
+    Deletes a media file from GCS and database if media_id is provided.
+    """
+    data = request.get_json(silent=True) or request.form or {}
+    gcs_path = data.get("gcs_path")
+    media_id = data.get("media_id")
+
+    if not gcs_path and not media_id:
+        return {"status": False, "statusMessage": "gcs_path or media_id is required"}, 400
+
+    db = SQLiteDB()
+    session = db.connect()
+
+    try:
+        if media_id and session:
+            m = session.query(QuestionMedia).filter_by(media_id=media_id).first()
+            if m:
+                gcs_path = gcs_path or m.gcs_path
+                session.delete(m)
+                session.commit()
+
+        if gcs_path:
+            gcs_storage.delete_media(gcs_path)
+
+        return {"status": True, "statusMessage": "Media deleted successfully"}, 200
+    except Exception as e:
+        if session:
+            session.rollback()
+        return {"status": False, "statusMessage": f"Error deleting media: {str(e)}"}, 500
+    finally:
+        if session:
+            session.close()
 
 def _resolve_institute_scope(request):
     args = getattr(request, "args", {})
@@ -23,6 +148,7 @@ def add_question(request):
         return None
 
     try:
+        ensure_question_media_schema(session)
 
         data = request.json
         institute_id = data.get("institute_id")
@@ -92,25 +218,58 @@ def add_question(request):
                 created_by=created_by
             )
             session.add(question_data)
-            session.flush()  # To get question_data.id before commit
+            session.flush()  # To get question_data.question_id before commit
 
-                # options=question_options,
-                # correct=question_correct,
-                # answerText=question_answer_text,
-                # correct_indices=question_correct_indices,
+            # Save Question Media (images, audio)
+            media_items = data.get("media") or data.get("media_list") or []
+            if isinstance(media_items, list):
+                for m_idx, m_item in enumerate(media_items):
+                    if not isinstance(m_item, dict):
+                        continue
+                    m_url = m_item.get("file_url") or m_item.get("url")
+                    if not m_url:
+                        continue
+                    guessed_m_type = m_item.get("media_type")
+                    if not guessed_m_type:
+                        guessed_m_type = "audio" if any(str(m_url).lower().endswith(ext) for ext in [".mp3", ".wav", ".ogg", ".webm", ".m4a", ".aac"]) else "image"
+                    qm = QuestionMedia(
+                        question_id=question_data.question_id,
+                        media_type=guessed_m_type,
+                        file_url=m_url,
+                        gcs_path=m_item.get("gcs_path"),
+                        original_filename=m_item.get("original_filename"),
+                        mime_type=m_item.get("mime_type"),
+                        file_size=m_item.get("file_size"),
+                        caption=m_item.get("caption"),
+                        order_number=m_idx + 1,
+                        created_by=created_by
+                    )
+                    session.add(qm)
+
             if question_type in ['choose', 'multi']:
-                for idx, option_text in enumerate(question_options):
+                for idx, opt_item in enumerate(question_options or []):
                     is_correct = 1 if idx in (question_correct_indices or []) else 0
+                    if isinstance(opt_item, dict):
+                        opt_text = opt_item.get("text", "") or opt_item.get("option_text", "") or ""
+                        opt_image = opt_item.get("image_url") or opt_item.get("url") or opt_item.get("image")
+                        opt_gcs = opt_item.get("gcs_path")
+                    else:
+                        opt_text = str(opt_item) if opt_item is not None else ""
+                        opt_image = None
+                        opt_gcs = None
+
                     option = Option(
-                    question_id=question_data.question_id,
-                    option_text=option_text,
-                    is_correct=is_correct
+                        question_id=question_data.question_id,
+                        option_text=opt_text,
+                        image_url=opt_image,
+                        gcs_path=opt_gcs,
+                        is_correct=is_correct
                     )
                     session.add(option)
             else:
                 question_answer = Option(
                     question_id=question_data.question_id,
-                    option_text=question_answer_text,
+                    option_text=question_answer_text or "",
                     is_correct=1
                 )
                 session.add(question_answer)
@@ -126,7 +285,8 @@ def add_question(request):
         }
         return json_data, 200
     except Exception as e:
-        print(f"{e} occurred while inserting euestion at line {sys.exc_info()[-1].tb_lineno}")
+        session.rollback()
+        print(f"{e} occurred while inserting question at line {sys.exc_info()[-1].tb_lineno}")
         json_data = {
             "statusMessage": "Error inserting question",
             "status": False,
@@ -339,6 +499,7 @@ def get_questions_details(request):
                 mapping_with_type = [m.question_id for m in session.query(QuestionMapping.question_id).filter(QuestionMapping.category_id.in_(cat_ids_with_type)).all()] if cat_ids_with_type else []
                 filter.append(or_(Question.question_type.in_(type_conditions), Question.question_id.in_(mapping_with_type)))
 
+        ensure_question_media_schema(session)
         questions = session.query(Question).filter(*filter).all()
         question_list = []
         for q in questions:
@@ -350,10 +511,37 @@ def get_questions_details(request):
             if not category:
                 continue
 
-            options = session.query(Option).filter_by(question_id=q.question_id, active_status=1).all()
-            option_list = [{"id": opt.options_id, "text": opt.option_text, "is_correct": opt.is_correct} for opt in options]
+            q_media = session.query(QuestionMedia).filter_by(question_id=q.question_id, active_status=1).order_by(QuestionMedia.order_number.asc()).all()
+            media_list = [
+                {
+                    "media_id": str(m.media_id),
+                    "media_type": m.media_type,
+                    "file_url": m.file_url,
+                    "url": m.file_url,
+                    "gcs_path": m.gcs_path,
+                    "original_filename": m.original_filename,
+                    "mime_type": m.mime_type,
+                    "file_size": m.file_size,
+                    "caption": m.caption,
+                    "order_number": m.order_number
+                }
+                for m in q_media
+            ]
 
-            # get user infor for created_by and updated_by
+            options = session.query(Option).filter_by(question_id=q.question_id, active_status=1).all()
+            option_list = [
+                {
+                    "id": opt.options_id,
+                    "text": opt.option_text,
+                    "is_correct": opt.is_correct,
+                    "image_url": opt.image_url,
+                    "url": opt.image_url,
+                    "gcs_path": opt.gcs_path
+                }
+                for opt in options
+            ]
+
+            # get user info for created_by and updated_by
             created_by_user = None
             if q.created_by is not None:
                 created_by_user = session.query(User).filter_by(user_id=q.created_by).first()
@@ -373,6 +561,7 @@ def get_questions_details(request):
                 "text": q.question_text,
                 "type": q.question_type,
                 "marks": q.marks,
+                "media": media_list,
                 "options": option_list,
                 "answer": ans,
                 "answerText": ans,
@@ -400,6 +589,7 @@ def update_question(question_id, request):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     try:
+        ensure_question_media_schema(session)
         data = request.json
         updated_by = data.get("updated_by", "System")
         q = session.query(Question).filter_by(question_id=question_id).first()
@@ -415,13 +605,68 @@ def update_question(question_id, request):
             except Exception:
                 pass
 
+        # Update Question Media if provided
+        if 'media' in data or 'media_list' in data:
+            new_media_items = data.get('media') if data.get('media') is not None else data.get('media_list', [])
+            existing_media = session.query(QuestionMedia).filter_by(question_id=question_id).all()
+            existing_map = {str(m.media_id): m for m in existing_media}
+            kept_media_ids = set()
+
+            for idx, m_item in enumerate(new_media_items or []):
+                if not isinstance(m_item, dict):
+                    continue
+                mid = str(m_item.get("media_id") or "")
+                m_url = m_item.get("file_url") or m_item.get("url")
+                if not m_url:
+                    continue
+                guessed_m_type = m_item.get("media_type")
+                if not guessed_m_type:
+                    guessed_m_type = "audio" if any(str(m_url).lower().endswith(ext) for ext in [".mp3", ".wav", ".ogg", ".webm", ".m4a", ".aac"]) else "image"
+
+                if mid and mid in existing_map:
+                    kept_media_ids.add(mid)
+                    em = existing_map[mid]
+                    em.file_url = m_url
+                    em.gcs_path = m_item.get("gcs_path") or em.gcs_path
+                    em.media_type = guessed_m_type
+                    em.caption = m_item.get("caption")
+                    em.order_number = idx + 1
+                    em.active_status = 1
+                    em.updated_by = updated_by
+                    em.updated_date = datetime.datetime.utcnow()
+                else:
+                    qm = QuestionMedia(
+                        question_id=question_id,
+                        media_type=guessed_m_type,
+                        file_url=m_url,
+                        gcs_path=m_item.get("gcs_path"),
+                        original_filename=m_item.get("original_filename"),
+                        mime_type=m_item.get("mime_type"),
+                        file_size=m_item.get("file_size"),
+                        caption=m_item.get("caption"),
+                        order_number=idx + 1,
+                        active_status=1,
+                        created_by=updated_by
+                    )
+                    session.add(qm)
+
+            for em in existing_media:
+                if str(em.media_id) not in kept_media_ids:
+                    if em.gcs_path:
+                        try:
+                            gcs_storage.delete_media(em.gcs_path)
+                        except Exception:
+                            pass
+                    session.delete(em)
+
         qtype = (q.question_type or data.get('type') or '').lower()
         ans_text = data.get("answerText") if data.get("answerText") is not None else (data.get("answer_text") if data.get("answer_text") is not None else data.get("answer"))
 
         if qtype in ['fill', 'descriptive', 'description', 'subjective', 'essay', 'long_answer']:
             if ans_text is None and 'options' in data and data.get('options'):
                 opts = data.get('options')
-                ans_text = opts[0] if len(opts) > 0 else ''
+                first_opt = opts[0] if len(opts) > 0 else ''
+                ans_text = first_opt.get("text", "") if isinstance(first_opt, dict) else first_opt
             
             val = str(ans_text if ans_text is not None else '')
             existing_opts = session.query(Option).filter_by(question_id=question_id).all()
@@ -445,28 +690,53 @@ def update_question(question_id, request):
                 min_len = min(len(existing_opts), len(new_options))
                 for idx in range(min_len):
                     opt = existing_opts[idx]
-                    try:
-                        opt.option_text = new_options[idx]
-                    except Exception:
-                        opt.option_text = str(new_options[idx])
+                    opt_item = new_options[idx]
+                    if isinstance(opt_item, dict):
+                        new_gcs = opt_item.get("gcs_path")
+                        if opt.gcs_path and new_gcs != opt.gcs_path:
+                            try:
+                                gcs_storage.delete_media(opt.gcs_path)
+                            except Exception:
+                                pass
+                        opt.option_text = str(opt_item.get("text", "") or opt_item.get("option_text", "") or "")
+                        opt.image_url = opt_item.get("image_url") or opt_item.get("url") or opt_item.get("image")
+                        opt.gcs_path = new_gcs
+                    else:
+                        if opt.gcs_path:
+                            try:
+                                gcs_storage.delete_media(opt.gcs_path)
+                            except Exception:
+                                pass
+                        opt.option_text = str(opt_item) if opt_item is not None else ""
+                        opt.image_url = None
+                        opt.gcs_path = None
                     opt.is_correct = 1 if idx in correct_indices else 0
                     opt.active_status = 1
 
                 # Append new options if provided
                 for idx in range(min_len, len(new_options)):
-                    otext = new_options[idx]
-                    try:
-                        otext = str(otext)
-                    except Exception:
-                        pass
+                    opt_item = new_options[idx]
+                    if isinstance(opt_item, dict):
+                        otext = str(opt_item.get("text", "") or opt_item.get("option_text", "") or "")
+                        oimg = opt_item.get("image_url") or opt_item.get("url") or opt_item.get("image")
+                        ogcs = opt_item.get("gcs_path")
+                    else:
+                        otext = str(opt_item) if opt_item is not None else ""
+                        oimg = None
+                        ogcs = None
                     is_correct = 1 if idx in correct_indices else 0
-                    new_opt = Option(question_id=question_id, option_text=otext, is_correct=is_correct, active_status=1)
+                    new_opt = Option(question_id=question_id, option_text=otext, image_url=oimg, gcs_path=ogcs, is_correct=is_correct, active_status=1)
                     session.add(new_opt)
 
-                # inactivate surplus existing options not present in new list
+                # inactivate surplus existing options not present in new list and clean their GCS files
                 for idx in range(len(new_options), len(existing_opts)):
                     try:
-                        existing_opts[idx].active_status = 0
+                        surplus_opt = existing_opts[idx]
+                        if surplus_opt.gcs_path:
+                            gcs_storage.delete_media(surplus_opt.gcs_path)
+                            surplus_opt.gcs_path = None
+                            surplus_opt.image_url = None
+                        surplus_opt.active_status = 0
                     except Exception:
                         pass
 
@@ -498,6 +768,24 @@ def delete_question(question_id, deleted_by):
         return {"statusMessage": "Question not found", "status": False}, 404
 
     try:
+        # Delete question media from GCS and DB
+        q_medias = session.query(QuestionMedia).filter_by(question_id=question_id).all()
+        for m in q_medias:
+            if m.gcs_path:
+                try:
+                    gcs_storage.delete_media(m.gcs_path)
+                except Exception:
+                    pass
+        session.query(QuestionMedia).filter_by(question_id=question_id).delete()
+
+        # Delete option images from GCS if any
+        options = session.query(Option).filter_by(question_id=question_id).all()
+        for opt in options:
+            if opt.gcs_path:
+                try:
+                    gcs_storage.delete_media(opt.gcs_path)
+                except Exception:
+                    pass
         # delete related options
         session.query(Option).filter_by(question_id=question_id).delete()
         # delete question mappings

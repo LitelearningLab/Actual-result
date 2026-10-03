@@ -40,3 +40,9 @@ frontend/edu-UI/src/app/shared/api.config.ts
 
 *.patch
 patches/
+
+# Google Cloud credentials & uploads
+*gcp*.json
+*credentials*.json
+*.key
+backend/static/uploads/

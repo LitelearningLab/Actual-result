@@ -14,7 +14,7 @@ import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
-import { API_BASE } from 'src/app/shared/api.config';
+import { API_BASE, resolveMediaUrl } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
 import { Subscription, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -89,6 +89,7 @@ export interface BulkFileItem {
   styleUrls: ['./test-evaluation.component.scss']
 })
 export class TestEvaluationComponent implements OnInit, OnDestroy {
+  resolveMediaUrl = resolveMediaUrl;
   scannerVideoRef?: ElementRef<HTMLVideoElement>;
   private scannerVideoElement?: HTMLVideoElement;
 

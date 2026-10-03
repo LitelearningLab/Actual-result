@@ -349,6 +349,27 @@ class Question(Base):
     #  exam = relationship("Exam", back_populates="questions")
      options = relationship("Option", back_populates="question")
      answers = relationship("Answer", back_populates="question")
+     media = relationship("QuestionMedia", back_populates="question", cascade="all, delete-orphan")
+
+class QuestionMedia(Base):
+     __tablename__ = 'QuestionMedia'
+     media_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+     question_id = Column(String, ForeignKey('Questions.question_id'), nullable=False)
+     media_type = Column(String(50), nullable=False) # 'image', 'audio'
+     file_url = Column(String(1000), nullable=False)
+     gcs_path = Column(String(500), nullable=True)
+     original_filename = Column(String(255), nullable=True)
+     mime_type = Column(String(100), nullable=True)
+     file_size = Column(Integer, nullable=True)
+     caption = Column(String(500), nullable=True)
+     order_number = Column(Integer, default=1)
+     active_status = Column(Integer, default=1)
+     created_by = Column(String)
+     created_date = Column(DateTime, default=datetime.datetime.utcnow)
+     updated_by = Column(String)
+     updated_date = Column(DateTime)
+
+     question = relationship("Question", back_populates="media")
 
 class QuestionMapping(Base):
      __tablename__ = 'QuestionMapping'
@@ -365,6 +386,8 @@ class Option(Base):
      options_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
      question_id = Column(String, ForeignKey('Questions.question_id'), nullable=False)
      option_text = Column(Text, nullable=False)
+     image_url = Column(String(1000), nullable=True)
+     gcs_path = Column(String(500), nullable=True)
      is_correct = Column(Integer, default=0)
      active_status = Column(Integer, default=1)
 

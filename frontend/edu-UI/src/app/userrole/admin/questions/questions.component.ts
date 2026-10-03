@@ -27,7 +27,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Overlay, OverlayRef, OverlayModule } from '@angular/cdk/overlay';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { Router } from '@angular/router';
-import { API_BASE } from 'src/app/shared/api.config';
+import { API_BASE, resolveMediaUrl } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
@@ -89,6 +89,7 @@ export class AdminQuestionsComponent {
       text: '',
       marks: 1,
       options: ['', ''],
+      media: [] as Array<any>,
       correct: null as number | null | number[],
       answerText: '',
       _expanded: true,
@@ -399,14 +400,21 @@ export class AdminQuestionsComponent {
       const raw = sessionStorage.getItem('edit_question');
       if (raw) {
         const q = JSON.parse(raw);
-        // normalize options to array of strings
-        const opts: string[] = [];
+        // normalize options to array of strings or option objects
+        const opts: any[] = [];
         if (Array.isArray(q.options)) {
           for (const o of q.options) {
-            if (typeof o === 'string') opts.push(o);
-            else if (o && (o.text || o.option || o.value || o.label))
-              opts.push(o.text || o.option || o.value || o.label);
-            else opts.push(String(o));
+            if (typeof o === 'string') {
+              opts.push({ text: o, image_url: '', gcs_path: '' });
+            } else if (o && typeof o === 'object') {
+              opts.push({
+                text: o.text || o.option || o.value || o.label || '',
+                image_url: o.image_url || '',
+                gcs_path: o.gcs_path || '',
+              });
+            } else {
+              opts.push({ text: String(o || ''), image_url: '', gcs_path: '' });
+            }
           }
         }
 
@@ -471,6 +479,7 @@ export class AdminQuestionsComponent {
           text: q.question || q.text || q.title || '',
           marks: q.marks || q.points || this.getCategoryQuestionMark() || 1,
           options: opts.length ? opts : ['', ''],
+          media: Array.isArray(q.media) ? q.media : [],
           correct: correct,
           answerText:
             q.answer ||
@@ -1116,6 +1125,7 @@ export class AdminQuestionsComponent {
       text: '',
       marks: this.getCategoryQuestionMark() || 1,
       options: ['', ''],
+      media: [],
       correct: null,
       answerText: '',
       _expanded: true,
@@ -2711,6 +2721,144 @@ export class AdminQuestionsComponent {
     this.questions[qIndex].options.push('');
   }
 
+  getOptText(opt: any): string {
+    if (typeof opt === 'string') return opt;
+    if (opt && typeof opt === 'object') return opt.text || '';
+    return '';
+  }
+
+  setOptText(qIndex: number, optIndex: number, val: string) {
+    const q = this.questions[qIndex];
+    if (!q || !Array.isArray(q.options)) return;
+    const existing = q.options[optIndex];
+    if (typeof existing === 'object' && existing !== null) {
+      existing.text = val;
+    } else {
+      q.options[optIndex] = val;
+    }
+  }
+
+  resolveMediaUrl = resolveMediaUrl;
+
+  getOptImage(opt: any): string {
+    if (opt && typeof opt === 'object') return resolveMediaUrl(opt.image_url);
+    return '';
+  }
+
+  onQuestionMediaSelected(qIndex: number, event: any, mediaType: 'image' | 'audio') {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const q = this.questions[qIndex];
+    if (!q) return;
+    if (!Array.isArray(q.media)) q.media = [];
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('media_type', mediaType);
+    fd.append('folder', mediaType === 'audio' ? 'audio' : 'images');
+    if (q.id || q.question_id) {
+      fd.append('question_id', String(q.id || q.question_id));
+    }
+
+    q._uploadingMedia = true;
+    this.http.post<any>(`${API_BASE}/questions/upload-media`, fd).subscribe({
+      next: (res) => {
+        q._uploadingMedia = false;
+        if (res && res.status && res.data) {
+          q.media.push(res.data);
+          try {
+            notify(`${mediaType === 'audio' ? 'Audio' : 'Image'} uploaded successfully`, 'success');
+          } catch (e) {}
+        } else {
+          notify(res?.statusMessage || res?.message || 'Upload failed', 'error');
+        }
+        event.target.value = '';
+      },
+      error: (err) => {
+        q._uploadingMedia = false;
+        console.error('Question media upload failed', err);
+        notify(err?.error?.statusMessage || err?.error?.message || 'Upload failed', 'error');
+        event.target.value = '';
+      },
+    });
+  }
+
+  removeQuestionMedia(qIndex: number, mediaIndex: number) {
+    const q = this.questions[qIndex];
+    if (!q || !Array.isArray(q.media) || mediaIndex < 0 || mediaIndex >= q.media.length) return;
+    const mediaItem = q.media[mediaIndex];
+    if (mediaItem && (mediaItem.media_id || mediaItem.gcs_path)) {
+      const payload: any = {
+        media_id: mediaItem.media_id,
+        gcs_path: mediaItem.gcs_path,
+      };
+      this.http.post<any>(`${API_BASE}/questions/delete-media`, payload).subscribe({
+        next: () => {},
+        error: (err) => console.warn('Could not delete media from backend', err),
+      });
+    }
+    q.media.splice(mediaIndex, 1);
+  }
+
+  onOptionImageSelected(qIndex: number, optIndex: number, event: any) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const q = this.questions[qIndex];
+    if (!q || !Array.isArray(q.options)) return;
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('media_type', 'image');
+    fd.append('folder', 'options');
+    if (q.id || q.question_id) {
+      fd.append('question_id', String(q.id || q.question_id));
+    }
+
+    this.loader.show();
+    this.http.post<any>(`${API_BASE}/questions/upload-media`, fd).subscribe({
+      next: (res) => {
+        this.loader.hide();
+        if (res && res.status && res.data) {
+          const currentOpt = q.options[optIndex];
+          const currentText = typeof currentOpt === 'string' ? currentOpt : currentOpt?.text || '';
+          q.options[optIndex] = {
+            text: currentText,
+            image_url: res.data.file_url,
+            gcs_path: res.data.gcs_path,
+          };
+          try {
+            notify('Option image uploaded', 'success');
+          } catch (e) {}
+        } else {
+          notify(res?.statusMessage || res?.message || 'Failed to upload option image', 'error');
+        }
+        event.target.value = '';
+      },
+      error: (err) => {
+        this.loader.hide();
+        console.error('Option image upload error', err);
+        notify(err?.error?.statusMessage || err?.error?.message || 'Failed to upload option image', 'error');
+        event.target.value = '';
+      },
+    });
+  }
+
+  removeOptionImage(qIndex: number, optIndex: number) {
+    const q = this.questions[qIndex];
+    if (!q || !Array.isArray(q.options)) return;
+    const opt = q.options[optIndex];
+    if (typeof opt === 'object' && opt !== null) {
+      if (opt.gcs_path) {
+        this.http.post<any>(`${API_BASE}/questions/delete-media`, { gcs_path: opt.gcs_path }).subscribe({
+          next: () => {},
+          error: (e) => console.warn('Could not clean option media', e),
+        });
+      }
+      opt.image_url = '';
+      opt.gcs_path = '';
+    }
+  }
+
   // trackBy function to keep option input DOM stable when option values change
   trackByIndex(index: number, item: any) {
     return index;
@@ -2783,13 +2931,18 @@ export class AdminQuestionsComponent {
     if (type === 'fill' || type === 'descriptive') {
       return !!String(q.answerText || q.answer || '').trim();
     }
+    const isOptFilled = (opt: any) => {
+      if (typeof opt === 'string') return !!opt.trim();
+      if (opt && typeof opt === 'object') return !!(opt.text?.trim() || opt.image_url);
+      return false;
+    };
     if (type === 'choose') {
       if (typeof q.correct !== 'number') return false;
-      return !!String((q.options || [])[q.correct] || '').trim();
+      return isOptFilled((q.options || [])[q.correct]);
     }
     if (type === 'multi') {
       if (!Array.isArray(q.correct) || !q.correct.length) return false;
-      return q.correct.every((idx: number) => !!String((q.options || [])[idx] || '').trim());
+      return q.correct.every((idx: number) => isOptFilled((q.options || [])[idx]));
     }
     return true;
   }
@@ -3066,13 +3219,21 @@ export class AdminQuestionsComponent {
 
     const payload = validQuestions.map((q: any) => {
       const p = JSON.parse(JSON.stringify(q));
+      p.media = Array.isArray(q.media) ? q.media : [];
       if (q.type === 'fill' || q.type === 'descriptive') {
-        p.options = [q.answerText || ''];
+        p.options = [{ text: q.answerText || '', image_url: null, gcs_path: null }];
         p.answerText = q.answerText || '';
         p.correct_indices = [0];
         p.correct_values = [q.answerText || ''];
       } else {
-        p.options = Array.isArray(q.options) ? q.options.slice() : [];
+        p.options = (Array.isArray(q.options) ? q.options : []).map((o: any) => {
+          if (typeof o === 'string') return { text: o, image_url: null, gcs_path: null };
+          return {
+            text: o.text || '',
+            image_url: o.image_url || null,
+            gcs_path: o.gcs_path || null,
+          };
+        });
       }
       if (
         q.type === 'choose' &&
@@ -3080,7 +3241,8 @@ export class AdminQuestionsComponent {
         p.options[q.correct] !== undefined
       ) {
         p.correct_indices = [q.correct];
-        p.correct_values = [p.options[q.correct]];
+        const opt = p.options[q.correct];
+        p.correct_values = [typeof opt === 'string' ? opt : (opt.text || opt.image_url || '')];
       } else if (q.type === 'choose') {
         p.correct_indices = [];
         p.correct_values = [];
@@ -3088,7 +3250,10 @@ export class AdminQuestionsComponent {
       if (q.type === 'multi' && Array.isArray(q.correct)) {
         const validCorrect = q.correct.filter((i: number) => p.options[i] !== undefined);
         p.correct_indices = validCorrect;
-        p.correct_values = validCorrect.map((i: number) => p.options[i]);
+        p.correct_values = validCorrect.map((i: number) => {
+          const opt = p.options[i];
+          return typeof opt === 'string' ? opt : (opt.text || opt.image_url || '');
+        });
       } else if (q.type === 'multi') {
         p.correct_indices = [];
         p.correct_values = [];

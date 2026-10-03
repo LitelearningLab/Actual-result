@@ -33,7 +33,7 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import { Subscription, forkJoin } from 'rxjs';
-import { API_BASE } from 'src/app/shared/api.config';
+import { API_BASE, resolveMediaUrl } from 'src/app/shared/api.config';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule } from '@angular/cdk/portal';
@@ -104,6 +104,7 @@ export interface QuestionRow {
   styleUrls: ['./view-questions.component.scss'],
 })
 export class ViewQuestionsComponent implements OnDestroy, OnInit {
+  resolveMediaUrl = resolveMediaUrl;
   // currently selected question for the details modal
   viewedQuestion: any = null;
   filter = '';

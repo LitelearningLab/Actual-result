@@ -2,6 +2,7 @@ from db.models import (
     Exam,
     ExamSchedule,
     Question,
+    QuestionMedia,
     Option,
     Answer,
     Exam_Attempt,
@@ -1527,6 +1528,12 @@ def get_exam_details(request):
                             cat_obj = session.query(Categories).filter_by(category_id=eqm.category_id).first()
                             if cat_obj:
                                 cat_name = cat_obj.name
+
+                        q_media = session.query(QuestionMedia).filter_by(question_id=q_obj.question_id, active_status=1).order_by(QuestionMedia.order_number.asc()).all()
+                        media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption} for m in q_media]
+                        q_opts = session.query(Option).filter_by(question_id=q_obj.question_id, active_status=1).all()
+                        opt_list = [{"id": opt.options_id, "text": opt.option_text, "image_url": opt.image_url, "url": opt.image_url, "is_correct": opt.is_correct} for opt in q_opts]
+
                         sec_questions.append({
                             "question_id": str(q_obj.question_id),
                             "id": str(q_obj.question_id),
@@ -1534,6 +1541,8 @@ def get_exam_details(request):
                             "question": q_obj.question_text,
                             "question_type": q_obj.question_type,
                             "marks": q_obj.marks,
+                            "media": media_list,
+                            "options": opt_list,
                             "category_id": eqm.category_id,
                             "category_name": cat_name,
                             "order_number": eqm.order_number,
@@ -2540,11 +2549,37 @@ def launch_exam_details(schedule_id, user_id):
         rng = random.Random(str(current_attempt.attempt_id))
 
         for question in questions:
+            q_media = (
+                session.query(QuestionMedia)
+                .filter_by(question_id=question.question_id, active_status=1)
+                .order_by(QuestionMedia.order_number.asc())
+                .all()
+            )
+            media_list = [
+                {
+                    "media_id": str(m.media_id),
+                    "media_type": m.media_type,
+                    "file_url": m.file_url,
+                    "url": m.file_url,
+                    "gcs_path": m.gcs_path,
+                    "original_filename": m.original_filename,
+                    "caption": m.caption,
+                }
+                for m in q_media
+            ]
+
             options = (
-                session.query(Option).filter_by(question_id=question.question_id).all()
+                session.query(Option).filter_by(question_id=question.question_id, active_status=1).all()
             )
             option_list = [
-                {"id": opt.options_id, "text": opt.option_text} for opt in options
+                {
+                    "id": opt.options_id,
+                    "text": opt.option_text,
+                    "image_url": opt.image_url,
+                    "url": opt.image_url,
+                    "gcs_path": opt.gcs_path
+                }
+                for opt in options
             ]
             if question.question_type in ["choose", "multi"] and option_list:
                 rng.shuffle(option_list)
@@ -2552,9 +2587,13 @@ def launch_exam_details(schedule_id, user_id):
             question_list.append(
                 {
                     "question_id": question.question_id,
+                    "id": question.question_id,
                     "question_text": question.question_text,
+                    "question": question.question_text,
                     "question_type": question.question_type,
+                    "type": question.question_type,
                     "marks": question.marks if question.marks is not None else 1,
+                    "media": media_list,
                     "options": (
                         option_list
                         if question.question_type in ["choose", "multi"]
@@ -2999,6 +3038,10 @@ def get_student_evaluation_details(request, current_user=None):
                 except Exception:
                     student_written_text = ans.written_answer or ""
 
+            q_media = session.query(QuestionMedia).filter_by(question_id=q.question_id, active_status=1).order_by(QuestionMedia.order_number.asc()).all()
+            media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption} for m in q_media]
+            q_options_list = [{"id": opt.options_id, "text": opt.option_text, "image_url": opt.image_url, "url": opt.image_url, "is_correct": opt.is_correct} for opt in options]
+
             questions_data.append({
                 "question_id": str(q.question_id),
                 "answer_id": str(ans.answer_id) if ans else None,
@@ -3008,6 +3051,8 @@ def get_student_evaluation_details(request, current_user=None):
                 "question_text": q.question_text,
                 "question_type": q.question_type,
                 "max_marks": q_marks,
+                "media": media_list,
+                "options": q_options_list,
                 "model_answer": model_answer,
                 "student_answer": student_written_text,
                 "ai_marks": ai_marks,

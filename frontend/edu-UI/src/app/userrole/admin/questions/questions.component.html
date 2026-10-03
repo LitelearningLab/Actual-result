@@ -960,6 +960,72 @@
                 </mat-form-field>
               </div>
 
+              <!-- Question Media Upload & Preview Section -->
+              <div class="question-media-row">
+                <div class="media-upload-actions">
+                  <input
+                    type="file"
+                    #qImgInput
+                    style="display: none"
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                    (change)="onQuestionMediaSelected(qi, $event, 'image')"
+                  />
+                  <input
+                    type="file"
+                    #qAudInput
+                    style="display: none"
+                    accept="audio/mpeg,audio/wav,audio/mp3,audio/ogg,audio/m4a,audio/webm"
+                    (change)="onQuestionMediaSelected(qi, $event, 'audio')"
+                  />
+                  <button
+                    type="button"
+                    mat-stroked-button
+                    color="primary"
+                    class="media-action-btn"
+                    (click)="qImgInput.click()"
+                    [disabled]="q._uploadingMedia"
+                  >
+                    <mat-icon>add_photo_alternate</mat-icon>
+                    <span>Add Question Image</span>
+                  </button>
+                  <button
+                    type="button"
+                    mat-stroked-button
+                    color="accent"
+                    class="media-action-btn"
+                    (click)="qAudInput.click()"
+                    [disabled]="q._uploadingMedia"
+                  >
+                    <mat-icon>audiotrack</mat-icon>
+                    <span>Add Question Audio</span>
+                  </button>
+                </div>
+
+                <!-- Media Preview Cards -->
+                <div class="media-preview-cards" *ngIf="q.media && q.media.length">
+                  <div class="media-card-item" *ngFor="let m of q.media; let mi = index">
+                    <div class="media-preview-thumb" *ngIf="m.media_type === 'image'">
+                      <img [src]="resolveMediaUrl(m.file_url)" [alt]="m.original_filename || 'Question Image'" />
+                    </div>
+                    <div class="media-preview-audio" *ngIf="m.media_type === 'audio'">
+                      <mat-icon>volume_up</mat-icon>
+                      <audio controls [src]="resolveMediaUrl(m.file_url)"></audio>
+                    </div>
+                    <span class="media-filename" [title]="m.original_filename">{{ m.original_filename || (m.media_type | uppercase) }}</span>
+                    <button
+                      type="button"
+                      mat-icon-button
+                      color="warn"
+                      class="media-remove-btn"
+                      (click)="removeQuestionMedia(qi, mi)"
+                      matTooltip="Remove media"
+                    >
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div *ngIf="q.type === 'choose' || q.type === 'multi'" class="options-section">
                 <label class="options-label">Options</label>
                 <div class="options-list">
@@ -977,12 +1043,43 @@
                       <mat-form-field appearance="outline" class="option-field">
                         <input
                           matInput
-                          [(ngModel)]="q.options[i]"
+                          [ngModel]="getOptText(opt)"
+                          (ngModelChange)="setOptText(qi, i, $event)"
                           [ngModelOptions]="{ standalone: true }"
                           class="option-input"
-                          placeholder="Option {{ i + 1 }}"
+                          placeholder="Option {{ i + 1 }} text (optional if image attached)"
                         />
                       </mat-form-field>
+
+                      <input
+                        type="file"
+                        #optImgInput
+                        style="display: none"
+                        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                        (change)="onOptionImageSelected(qi, i, $event)"
+                      />
+                      <button
+                        type="button"
+                        mat-icon-button
+                        class="opt-attach-btn"
+                        (click)="optImgInput.click()"
+                        matTooltip="Attach image to option"
+                      >
+                        <mat-icon>image</mat-icon>
+                      </button>
+
+                      <div class="opt-img-preview" *ngIf="getOptImage(opt)">
+                        <img [src]="getOptImage(opt)" alt="Option Image" />
+                        <button
+                          type="button"
+                          class="opt-img-del-btn"
+                          (click)="removeOptionImage(qi, i)"
+                          matTooltip="Remove option image"
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                      </div>
+
                       <button type="button" class="btn small" (click)="removeOption(qi, i)">
                         <mat-icon>delete</mat-icon>
                       </button>
@@ -1002,11 +1099,42 @@
                       <mat-form-field appearance="outline" class="option-field">
                         <input
                           matInput
-                          [(ngModel)]="q.options[i]"
+                          [ngModel]="getOptText(opt)"
+                          (ngModelChange)="setOptText(qi, i, $event)"
                           [ngModelOptions]="{ standalone: true }"
-                          placeholder="Option {{ i + 1 }}"
+                          placeholder="Option {{ i + 1 }} text (optional if image attached)"
                         />
                       </mat-form-field>
+
+                      <input
+                        type="file"
+                        #optImgInputMulti
+                        style="display: none"
+                        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                        (change)="onOptionImageSelected(qi, i, $event)"
+                      />
+                      <button
+                        type="button"
+                        mat-icon-button
+                        class="opt-attach-btn"
+                        (click)="optImgInputMulti.click()"
+                        matTooltip="Attach image to option"
+                      >
+                        <mat-icon>image</mat-icon>
+                      </button>
+
+                      <div class="opt-img-preview" *ngIf="getOptImage(opt)">
+                        <img [src]="getOptImage(opt)" alt="Option Image" />
+                        <button
+                          type="button"
+                          class="opt-img-del-btn"
+                          (click)="removeOptionImage(qi, i)"
+                          matTooltip="Remove option image"
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                      </div>
+
                       <button type="button" class="btn small" (click)="removeOption(qi, i)">
                         <mat-icon color="warn">delete</mat-icon>
                       </button>

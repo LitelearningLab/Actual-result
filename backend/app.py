@@ -13,7 +13,7 @@ from others.exams import add_exam, autosave_exam_answers, get_active_exam_status
 from others.examschedule import add_exam_schedule, get_exam_schedule_details, delete_exam_schedule
 from others.examschedule import update_exam_schedule
 from others.category import add_categories, get_categories_list, get_category_details
-from others.questions import add_question, get_questions_details, bulk_upload_questions, create_question_using_llm, fine_tune_questions_using_llm
+from others.questions import add_question, get_questions_details, bulk_upload_questions, create_question_using_llm, fine_tune_questions_using_llm, upload_question_media, delete_question_media
 from others.exam_review import review_user_exam, validate_answers, update_review_comments, update_manual_review_status
 from others.exam_reports import get_user_wise_report, get_exam_analytics
 from others.exam_reports import get_question_wrong_answers
@@ -438,6 +438,18 @@ def fine_tune_question_route():
     response_data, status_code = fine_tune_questions_using_llm(request)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/questions/upload-media', methods=['POST'])
+@admin_required
+def upload_question_media_route():
+    response_data, status_code = upload_question_media(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/questions/delete-media', methods=['POST'])
+@admin_required
+def delete_question_media_route():
+    response_data, status_code = delete_question_media(request)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/get-users', methods=['GET'])
 @admin_required
 def get_users():
@@ -570,6 +582,13 @@ def serve_answer_sheet_file(filename):
     import os
     from flask import send_from_directory
     upload_folder = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'answer_sheets')
+    return send_from_directory(upload_folder, filename)
+
+@edu_blueprint.route('/uploads/media/<path:filename>', methods=['GET'])
+def serve_question_media_file(filename):
+    import os
+    from flask import send_from_directory
+    upload_folder = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
     return send_from_directory(upload_folder, filename)
 
 

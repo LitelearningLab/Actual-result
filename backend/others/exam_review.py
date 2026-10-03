@@ -5,7 +5,7 @@ import json
 # pyrefly: ignore [missing-import]
 from sqlalchemy import func
 from db.db import SQLiteDB
-from db.models import User, Exam, ExamSchedule, Question, Option, Answer, Exam_Attempt, ExamScheduleMapping, ExamReviewComments, ExamReviewCommentsHistory, MarksHistory, ExamMapping, ExamQuestionMapping, QuestionMapping
+from db.models import User, Exam, ExamSchedule, Question, QuestionMedia, Option, Answer, Exam_Attempt, ExamScheduleMapping, ExamReviewComments, ExamReviewCommentsHistory, MarksHistory, ExamMapping, ExamQuestionMapping, QuestionMapping
 from others.settings import get_ai_confidence_threshold
 from others.llm import descriptive_evaluation, vision_evaluate_question_images, openai_client
 
@@ -344,6 +344,9 @@ def review_user_exam(request, current_user=None):
                     opt_list_copy = [{"id": opt.options_id, "text": opt.option_text} for opt in options_list]
                     rng.shuffle(opt_list_copy)
 
+                q_media = session.query(QuestionMedia).filter(QuestionMedia.question_id == qid, QuestionMedia.active_status == 1).order_by(QuestionMedia.order_number.asc()).all()
+                media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption} for m in q_media]
+
                 if qid in latest_answers_by_qid:
                     question_answer = latest_answers_by_qid[qid]
                     review_comment_dict = {}
@@ -435,7 +438,8 @@ def review_user_exam(request, current_user=None):
                         "question_id": question_answer.question_id,
                         "question_text": question.question_text if question else "",
                         "question_type": question_type,
-                        "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct if show_correct_answers else 0} for opt in options_list],
+                        "media": media_list,
+                        "options": [{"id": opt.options_id, "option_text": opt.option_text, "text": opt.option_text, "image_url": opt.image_url, "url": opt.image_url, "is_correct": opt.is_correct if show_correct_answers else 0} for opt in options_list],
                         "selected_option": ([selected_option] if isinstance(selected_option, str) else selected_option) if show_student_answers else [],
                         "correct_option": correct_answer_data if show_correct_answers else None,
                         "review_comment": review_comment_dict if show_explanations else {},
@@ -492,7 +496,8 @@ def review_user_exam(request, current_user=None):
                         "question_id": qid,
                         "question_text": question.question_text if question else "",
                         "question_type": question_type,
-                        "options": [{"option_text": opt.option_text, "is_correct": opt.is_correct if show_correct_answers else 0} for opt in options_list],
+                        "media": media_list,
+                        "options": [{"id": opt.options_id, "option_text": opt.option_text, "text": opt.option_text, "image_url": opt.image_url, "url": opt.image_url, "is_correct": opt.is_correct if show_correct_answers else 0} for opt in options_list],
                         "selected_option": [] if show_student_answers else [],
                         "correct_option": correct_answer_data if show_correct_answers else None,
                         "review_comment": {} if show_explanations else {},

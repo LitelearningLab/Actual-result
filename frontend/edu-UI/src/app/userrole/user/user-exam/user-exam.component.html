@@ -120,6 +120,14 @@
           <!-- Question Text -->
           <p class="q-text" [id]="'q-text-' + i">{{ q.question || q.text }}</p>
 
+          <!-- Question Media (Images / Audio) -->
+          <div class="user-q-media" *ngIf="q.media && q.media.length">
+            <div class="user-q-media-item" *ngFor="let m of q.media">
+              <img *ngIf="m.media_type === 'image'" [src]="resolveMediaUrl(m.file_url || m.url)" [alt]="m.original_filename || 'Question Image'" class="user-q-media-img" />
+              <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)" class="user-q-media-audio"></audio>
+            </div>
+          </div>
+
           <!-- Single choice -->
           <div *ngIf="q.type === 'choose' || q.type === 'Choose' || q.type === 'MCQ'" class="q-options" role="radiogroup" aria-label="Select one answer">
             <label class="opt" *ngFor="let o of q.options; let oi = index" 
@@ -127,7 +135,8 @@
               <span class="opt-letter">{{ 'ABCDEFGH'[oi] }}</span>
               <input type="radio" name="q-{{q.id || i}}" [value]="getOptVal(o)" [(ngModel)]="answers[q.id || i]" [disabled]="testStopped || submitting || isSubmitted"
                 (change)="selectOne(q.id || i, getOptVal(o))" />
-              <span class="opt-text">{{ getOptText(o) }}</span>
+              <span class="opt-text" *ngIf="getOptText(o)">{{ getOptText(o) }}</span>
+              <img *ngIf="o?.image_url" [src]="resolveMediaUrl(o.image_url)" class="opt-choice-img" alt="Option Image" />
               <mat-icon class="opt-check" *ngIf="answers[q.id || i] === getOptVal(o)">check_circle</mat-icon>
             </label>
           </div>
@@ -139,7 +148,8 @@
               <span class="opt-letter">{{ 'ABCDEFGH'[oi] }}</span>
               <input type="checkbox" [value]="getOptVal(o)" (change)="toggleMulti(q.id || i, getOptVal(o))" [disabled]="testStopped || submitting || isSubmitted"
                 [checked]="isMultiSelected(q.id || i, getOptVal(o))" />
-              <span class="opt-text">{{ getOptText(o) }}</span>
+              <span class="opt-text" *ngIf="getOptText(o)">{{ getOptText(o) }}</span>
+              <img *ngIf="o?.image_url" [src]="resolveMediaUrl(o.image_url)" class="opt-choice-img" alt="Option Image" />
               <mat-icon class="opt-check" *ngIf="isMultiSelected(q.id || i, getOptVal(o))">check_circle</mat-icon>
             </label>
           </div>
