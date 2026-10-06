@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1] - 2026-10-06
+
+### Patch Fixes
+- **Users Scope & State Restoration**: Fixed state caching issue in View Users component ensuring records strictly reflect active global institute scope.
+
+---
+
 ## [2.0.0] - 2026-10-06
 
 ### Major Release Highlights
