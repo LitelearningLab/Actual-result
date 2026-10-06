@@ -2953,16 +2953,20 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   saveUsersReturnState(): void {
     try {
+      const activeInstId =
+        this.globalInstituteContext.activeInstituteId ||
+        this.filters.institute ||
+        this.selectedInstitute ||
+        '';
       sessionStorage.setItem(
         'users_return_state',
         JSON.stringify({
-          instituteId:
-            this.globalInstituteContext.activeInstituteId || this.selectedInstitute || '',
+          instituteId: activeInstId,
           globalInstituteActive: this.globalInstituteContext.isGlobalFilterActive(),
           filter: this.filter,
           selectedInstitute: this.selectedInstitute,
           instituteSearch: this.instituteSearch,
-          filters: this.filters,
+          filters: { ...this.filters, institute: activeInstId },
           users: this.users,
           rawRecords: this.rawRecords,
           hasAppliedFilters: this.hasAppliedFilters,
@@ -2981,21 +2985,49 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       sessionStorage.removeItem('users_return_state');
       const state = JSON.parse(raw);
       const activeInstituteId = this.globalInstituteContext.activeInstituteId;
-      if (activeInstituteId && String(state?.instituteId || '') !== String(activeInstituteId))
+      const globalInstitute = this.globalInstituteContext.activeContext;
+
+      if (activeInstituteId && String(state?.instituteId || '') !== String(activeInstituteId)) {
         return;
-      if (activeInstituteId && state?.globalInstituteActive !== true) return;
-      if (!activeInstituteId && state?.globalInstituteActive === true) return;
+      }
+      if (activeInstituteId && state?.globalInstituteActive !== true) {
+        return;
+      }
+      if (!activeInstituteId && state?.globalInstituteActive === true) {
+        return;
+      }
       if (
         !activeInstituteId &&
         typeof state?.globalInstituteActive === 'undefined' &&
         state?.instituteId
-      )
+      ) {
         return;
-      const restoredInstitute = state?.filters?.institute || state?.selectedInstitute || '';
-      const globalInstitute = this.globalInstituteContext.activeContext;
-      const globalInstituteChanged =
-        !!globalInstitute?.institute_id &&
-        String(restoredInstitute) !== String(globalInstitute.institute_id);
+      }
+
+      const savedInstituteId =
+        state?.instituteId || state?.filters?.institute || state?.selectedInstitute || '';
+      const instituteMismatch =
+        activeInstituteId && String(savedInstituteId) !== String(activeInstituteId);
+      if (instituteMismatch) {
+        return;
+      }
+
+      const stateUsers = Array.isArray(state?.users) ? state.users : [];
+      const usersBelongToInstitute =
+        !activeInstituteId ||
+        stateUsers.every((u: any) => {
+          const uInstId = u?.raw?.institute_id || u?.raw?.institute?.institute_id;
+          return !uInstId || String(uInstId) === String(activeInstituteId);
+        });
+
+      if (!usersBelongToInstitute) {
+        if (state?.hasAppliedFilters) {
+          this.hasAppliedFilters = true;
+          this.loadUsers(activeInstituteId);
+        }
+        return;
+      }
+
       this.filter = state?.filter || '';
       this.selectedInstitute = state?.selectedInstitute || '';
       this.instituteSearch = state?.instituteSearch || '';
@@ -3005,9 +3037,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         this.filters.institute = globalInstitute.institute_id;
         this.instituteSearch = globalInstitute.institute_name || '';
       }
-      this.users = !globalInstituteChanged && Array.isArray(state?.users) ? state.users : [];
-      this.rawRecords =
-        !globalInstituteChanged && Array.isArray(state?.rawRecords) ? state.rawRecords : [];
+      this.users = stateUsers;
+      this.rawRecords = Array.isArray(state?.rawRecords) ? state.rawRecords : [];
       this.hasAppliedFilters = !!state?.hasAppliedFilters;
       this.pageSize = Number(state?.pageSize || this.pageSize);
       this.pageIndex = Number(state?.pageIndex || 0);
