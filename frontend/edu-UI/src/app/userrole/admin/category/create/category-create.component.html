@@ -354,8 +354,12 @@
                   placeholder="Select Subject"
                 >
                   <mat-option *ngIf="loadingSubjects" disabled>
-                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b">
+                      <mat-icon
+                        class="rotating-spinner"
+                        style="font-size: 16px; width: 16px; height: 16px"
+                        >sync</mat-icon
+                      >
                       <span>Loading subjects...</span>
                     </div>
                   </mat-option>
@@ -370,7 +374,7 @@
                     {{ s.name }}
                   </mat-option>
                 </mat-select>
-                <mat-hint *ngIf="!institute" style="color: #64748b; font-size: 12px;">
+                <mat-hint *ngIf="!institute" style="color: #64748b; font-size: 12px">
                   Please select an institute to load its subjects
                 </mat-hint>
               </mat-form-field>
@@ -438,11 +442,18 @@
 
             <div class="field-row">
               <!-- Department Field -->
-              <mat-form-field appearance="outline" class="field-half">
+              <mat-form-field
+                appearance="outline"
+                class="field-half"
+                [class.field-invalid]="
+                  (formSubmitted || accessInfoSubmitted) && isDepartmentInvalid()
+                "
+              >
                 <mat-label>{{ terminology.deptLabel }}</mat-label>
                 <mat-icon matPrefix>layers</mat-icon>
                 <mat-select
                   multiple
+                  required
                   [disabled]="!institute"
                   [value]="departmentSelectValue"
                   [placeholder]="terminology.selectDeptPlaceholder"
@@ -468,13 +479,26 @@
                     No {{ terminology.deptPlural.toLowerCase() }} available
                   </mat-option>
                 </mat-select>
+                <mat-hint
+                  class="field-error"
+                  *ngIf="(formSubmitted || accessInfoSubmitted) && isDepartmentInvalid()"
+                >
+                  {{ terminology.deptLabel }} is required.
+                </mat-hint>
               </mat-form-field>
+
+              
               <!-- Team Field -->
-              <mat-form-field appearance="outline" class="field-half">
+              <mat-form-field
+                appearance="outline"
+                class="field-half"
+                [class.field-invalid]="(formSubmitted || accessInfoSubmitted) && isTeamInvalid()"
+              >
                 <mat-label>{{ terminology.teamLabel }}</mat-label>
                 <mat-icon matPrefix>group</mat-icon>
                 <mat-select
                   multiple
+                  required
                   [disabled]="!institute"
                   [value]="teamSelectValue"
                   [placeholder]="terminology.selectTeamPlaceholder"
@@ -500,6 +524,12 @@
                     No {{ terminology.teamPlural.toLowerCase() }} available
                   </mat-option>
                 </mat-select>
+                <mat-hint
+                  class="field-error"
+                  *ngIf="(formSubmitted || accessInfoSubmitted) && isTeamInvalid()"
+                >
+                  {{ terminology.teamLabel }} is required.
+                </mat-hint>
               </mat-form-field>
             </div>
           </div>

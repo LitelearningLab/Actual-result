@@ -334,6 +334,9 @@ def add_categories(request):
         department_ids = [str(d) for d in (category_data.get("departments", []) or []) if d]
         team_ids = [str(t) for t in (category_data.get("teams", []) or []) if t]
 
+        if not department_ids:
+            return {"statusMessage": "At least one department is required", "status": False}, 400
+
         if department_ids:
             valid_departments = session.query(InstituteDepartment.department_id).filter(
                 InstituteDepartment.institute_id == institute_id,
@@ -428,6 +431,9 @@ def update_category(category_id, request):
 
         dept_ids = [str(d) for d in (data.get('departments', []) or []) if d]
         team_ids = [str(t) for t in (data.get('teams', []) or []) if t]
+
+        if 'departments' in data and not dept_ids:
+            return {"statusMessage": "At least one department is required", "status": False}, 400
 
         if institute_id and dept_ids:
             valid_departments = session.query(InstituteDepartment.department_id).filter(

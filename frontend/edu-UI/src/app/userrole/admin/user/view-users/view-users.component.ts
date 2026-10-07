@@ -38,7 +38,10 @@ import { PortalModule } from '@angular/cdk/portal';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
+import {
+  getInstituteTerminology,
+  InstituteTerminology,
+} from 'src/app/shared/services/institute-terminology.service';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -161,12 +164,19 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (this.filters?.industry) {
       return getInstituteTerminology(this.filters.industry);
     }
-    const selIds = (this.selectedInstitutes && this.selectedInstitutes.length)
-      ? this.selectedInstitutes
-      : (this.selectedInstitute ? [this.selectedInstitute] : (this.filters.institute ? [this.filters.institute] : []));
+    const selIds =
+      this.selectedInstitutes && this.selectedInstitutes.length
+        ? this.selectedInstitutes
+        : this.selectedInstitute
+          ? [this.selectedInstitute]
+          : this.filters.institute
+            ? [this.filters.institute]
+            : [];
 
     if (selIds.length && this.institutes && this.institutes.length) {
-      const selInsts = this.institutes.filter((i: any) => selIds.includes(String(i.institute_id || i.id)));
+      const selInsts = this.institutes.filter((i: any) =>
+        selIds.includes(String(i.institute_id || i.id))
+      );
       const types = selInsts.map((i: any) => i.industry_type || i.industry || '').filter(Boolean);
       if (types.length) {
         const first = types[0].toLowerCase();
@@ -176,18 +186,27 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       }
     }
     const loggedInstId = this.isGlobalInstituteActive
-      ? (this.globalInstituteContext.activeInstituteId || '')
-      : (sessionStorage.getItem('global_institute_id') || sessionStorage.getItem('institute_id') || '');
+      ? this.globalInstituteContext.activeInstituteId || ''
+      : sessionStorage.getItem('global_institute_id') ||
+        sessionStorage.getItem('institute_id') ||
+        '';
     if (loggedInstId && this.institutes && this.institutes.length) {
-      const inst: any = this.institutes.find((i: any) => String(i.institute_id || i.id) === String(loggedInstId));
+      const inst: any = this.institutes.find(
+        (i: any) => String(i.institute_id || i.id) === String(loggedInstId)
+      );
       if (inst && (inst.industry_type || inst.industry)) {
         return getInstituteTerminology(inst.industry_type || inst.industry);
       }
     }
     try {
-      const u = JSON.parse(sessionStorage.getItem('user') || sessionStorage.getItem('user_profile') || '{}');
-      if (u?.industry_type || u?.industry) return getInstituteTerminology(u.industry_type || u.industry);
-      const instName = String(u?.institute_name || u?.institute || sessionStorage.getItem('institute') || '').toLowerCase();
+      const u = JSON.parse(
+        sessionStorage.getItem('user') || sessionStorage.getItem('user_profile') || '{}'
+      );
+      if (u?.industry_type || u?.industry)
+        return getInstituteTerminology(u.industry_type || u.industry);
+      const instName = String(
+        u?.institute_name || u?.institute || sessionStorage.getItem('institute') || ''
+      ).toLowerCase();
       if (instName.includes('college')) return getInstituteTerminology('College');
       if (instName.includes('school')) return getInstituteTerminology('School');
     } catch (e) {}
@@ -447,11 +466,17 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
       if (!this.isSuperAdmin && this.campuses && this.campuses.length > 0) {
         const campusCountryNames = new Set(
-          this.campuses.map((c: any) => (c.country_name || c.country_id || '').trim().toLowerCase()).filter(Boolean)
+          this.campuses
+            .map((c: any) => (c.country_name || c.country_id || '').trim().toLowerCase())
+            .filter(Boolean)
         );
         if (campusCountryNames.size > 0) {
           const filtered = list.filter((c) =>
-            campusCountryNames.has(String(c.name || c.code || '').trim().toLowerCase())
+            campusCountryNames.has(
+              String(c.name || c.code || '')
+                .trim()
+                .toLowerCase()
+            )
           );
           if (filtered.length > 0) {
             list = filtered;
@@ -512,12 +537,16 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
       if (!this.isSuperAdmin && this.campuses && this.campuses.length > 0) {
         const campusCitiesMap = new Map<string, { code: string; name: string }>();
-        const selectedCountryCodes = (this.selectedCountries || []).map((c) => String(c).toLowerCase());
+        const selectedCountryCodes = (this.selectedCountries || []).map((c) =>
+          String(c).toLowerCase()
+        );
         this.campuses.forEach((c: any) => {
           if (selectedCountryCodes.length > 0) {
             const countryId = String(c.country_id || '').toLowerCase();
             const countryName = String(c.country_name || '').toLowerCase();
-            const matches = selectedCountryCodes.some((sc) => sc === countryId || sc === countryName);
+            const matches = selectedCountryCodes.some(
+              (sc) => sc === countryId || sc === countryName
+            );
             if (!matches) return;
           }
           if (c.city_name) {
@@ -742,9 +771,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       let list = this.teams || [];
 
       // Filter by selected departments if any are selected in filter
-      const deptsArr: string[] = (Array.isArray(this.filters.department)
-        ? this.filters.department
-        : [this.filters.department]
+      const deptsArr: string[] = (
+        Array.isArray(this.filters.department) ? this.filters.department : [this.filters.department]
       ).filter(Boolean);
 
       if (deptsArr.length > 0) {
@@ -760,7 +788,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           if (Array.isArray(this.filters.team) && this.filters.team.includes(t.id)) return true;
 
           const teamDeptId = t.department_id ? String(t.department_id) : '';
-          const teamDeptName = t.department_name ? (t.department_name || '').toLowerCase().trim() : '';
+          const teamDeptName = t.department_name
+            ? (t.department_name || '').toLowerCase().trim()
+            : '';
 
           if (teamDeptId && deptsArr.includes(teamDeptId)) return true;
           if (teamDeptName && deptNames.includes(teamDeptName)) return true;
@@ -787,8 +817,6 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       });
     });
   }
-
-
 
   isAllInstitutesSelected(): boolean {
     const ids: string[] = (this.filteredInstitutesForFilter || [])
@@ -1286,7 +1314,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
         const labels = this.filters.team
           .map((id: any) => this.getSelectedName(this.teams, id))
           .filter(Boolean);
-        chips.push({ key: 'team', label: `${this.terminology.teamPlural}: ${labels.join(', ')}`, removable: true });
+        chips.push({
+          key: 'team',
+          label: `${this.terminology.teamPlural}: ${labels.join(', ')}`,
+          removable: true,
+        });
       }
 
       // Campus Chip
@@ -1389,7 +1421,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       return found.institute_name || found.short_name;
     }
     const globalContext = this.globalInstituteContext?.activeContext;
-    if (globalContext && String(globalContext.institute_id) === String(id) && globalContext.institute_name) {
+    if (
+      globalContext &&
+      String(globalContext.institute_id) === String(id) &&
+      globalContext.institute_name
+    ) {
       return globalContext.institute_name;
     }
     return String(id || '');
@@ -1463,15 +1499,19 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     this.loading.show();
     const url = `${API_BASE}/get-users`;
     const params: any = { _ts: Date.now() };
+    const activeGlobalId =
+      this.globalInstituteContext?.activeInstituteId ||
+      sessionStorage.getItem('global_institute_id') ||
+      '';
     const instituteParam =
       typeof instituteId !== 'undefined' && instituteId !== null
         ? instituteId
         : this.selectedInstitutes?.length
           ? this.selectedInstitutes.join(',')
-          : this.filters.institute ||
-            this.selectedInstitute ||
-            (this.isGlobalInstituteActive ? this.globalInstituteContext.activeInstituteId : '');
-    if (instituteParam) params.institute_id = instituteParam;
+          : this.filters.institute || this.selectedInstitute || activeGlobalId;
+    if (instituteParam) {
+      params.institute_id = instituteParam;
+    }
 
     if (this.filters.name) params.name = this.filters.name;
     if (Array.isArray(this.filters.department)) {
@@ -1958,12 +1998,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   loadAdminUserLocations(): void {
     if (this.isSuperAdmin) return;
     const params: any = { pageNumber: 1, pageSize: 500, _ts: Date.now() };
-    const instituteParam =
-      this.selectedInstitutes?.length
-        ? this.selectedInstitutes.join(',')
-        : this.filters.institute ||
-          this.selectedInstitute ||
-          (this.isGlobalInstituteActive ? this.globalInstituteContext.activeInstituteId : '');
+    const instituteParam = this.selectedInstitutes?.length
+      ? this.selectedInstitutes.join(',')
+      : this.filters.institute ||
+        this.selectedInstitute ||
+        (this.isGlobalInstituteActive ? this.globalInstituteContext.activeInstituteId : '');
     if (instituteParam) params.institute_id = instituteParam;
 
     this.http.get<any>(`${API_BASE}/get-users`, { params }).subscribe({
@@ -1972,12 +2011,22 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
           const dataCandidate = res?.data?.users ?? res?.users ?? res?.data ?? res;
           const users = Array.isArray(dataCandidate) ? dataCandidate : [];
 
-          const uniqueCountries = new Map<string, { code: string; name: string; countryCode?: string }>();
-          const uniqueCities = new Map<string, { code: string; name: string; countryCode: string }>();
+          const uniqueCountries = new Map<
+            string,
+            { code: string; name: string; countryCode?: string }
+          >();
+          const uniqueCities = new Map<
+            string,
+            { code: string; name: string; countryCode: string }
+          >();
 
           users.forEach((user: any) => {
             const countryCode = String(
-              user?.country?.country_id || user?.country_id || user?.country?.country_code || user?.country_code || ''
+              user?.country?.country_id ||
+                user?.country_id ||
+                user?.country?.country_code ||
+                user?.country_code ||
+                ''
             ).trim();
             const countryName = String(
               user?.country?.country_name || user?.country_name || user?.country?.name || ''
@@ -1990,7 +2039,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             ).trim();
 
             if (countryName && !uniqueCountries.has(countryName.toLowerCase())) {
-              uniqueCountries.set(countryName.toLowerCase(), { code: countryCode || countryName, name: countryName, countryCode: countryCode || countryName });
+              uniqueCountries.set(countryName.toLowerCase(), {
+                code: countryCode || countryName,
+                name: countryName,
+                countryCode: countryCode || countryName,
+              });
             }
 
             if (countryCode && cityName) {
@@ -1999,7 +2052,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                 uniqueCities.set(cityKey, {
                   code: cityCode || cityName,
                   name: cityName,
-                  countryCode: countryCode
+                  countryCode: countryCode,
                 });
               }
             }
@@ -2015,7 +2068,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             });
           }
 
-          this.countries = Array.from(uniqueCountries.values()).sort((a, b) => a.name.localeCompare(b.name));
+          this.countries = Array.from(uniqueCountries.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
 
           if (!this.countries || this.countries.length === 0) {
             this.http.get<any>(`${API_BASE}/registered-countries`).subscribe({
@@ -2051,7 +2106,7 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       error: () => {
         this.countries = [];
         this.allUserCities = [];
-      }
+      },
     });
   }
 
@@ -2207,38 +2262,49 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             const toTitleCase = (str: string) =>
               str
                 ? str
-                  .trim()
-                  .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase())
+                    .trim()
+                    .replace(
+                      /\w\S*/g,
+                      (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+                    )
                 : '';
 
             institutes.forEach((inst: any) => {
-              const locations = [
-                inst,
-                ...(Array.isArray(inst?.campuses) ? inst.campuses : []),
-              ];
+              const locations = [inst, ...(Array.isArray(inst?.campuses) ? inst.campuses : [])];
 
               locations.forEach((loc: any) => {
                 if (!loc) return;
                 const rawCountry = loc?.country;
                 const cId = String(
                   loc?.country_id ||
-                  loc?.country_code ||
-                  (typeof rawCountry === 'object'
-                    ? rawCountry?.country_id || rawCountry?.id || rawCountry?.country_code || rawCountry?.code
-                    : rawCountry) ||
-                  ''
-                ).trim().toLowerCase();
+                    loc?.country_code ||
+                    (typeof rawCountry === 'object'
+                      ? rawCountry?.country_id ||
+                        rawCountry?.id ||
+                        rawCountry?.country_code ||
+                        rawCountry?.code
+                      : rawCountry) ||
+                    ''
+                )
+                  .trim()
+                  .toLowerCase();
 
                 const cName = String(
                   loc?.country_name ||
-                  (typeof rawCountry === 'object'
-                    ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
-                    : rawCountry) ||
-                  ''
-                ).trim().toLowerCase();
+                    (typeof rawCountry === 'object'
+                      ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
+                      : rawCountry) ||
+                    ''
+                )
+                  .trim()
+                  .toLowerCase();
 
                 const matchesCountry = selectedCodes.some(
-                  (key) => key === cId || key === cName || (cName && cName.includes(key)) || (cId && key.includes(cId))
+                  (key) =>
+                    key === cId ||
+                    key === cName ||
+                    (cName && cName.includes(key)) ||
+                    (cId && key.includes(cId))
                 );
 
                 if (matchesCountry) {
@@ -2251,7 +2317,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
                   if (cityName && String(cityName).trim()) {
                     const formatted = toTitleCase(String(cityName).trim());
                     if (formatted && !uniqueCities.has(formatted.toLowerCase())) {
-                      uniqueCities.set(formatted.toLowerCase(), { code: formatted, name: formatted });
+                      uniqueCities.set(formatted.toLowerCase(), {
+                        code: formatted,
+                        name: formatted,
+                      });
                     }
                   }
                 }
@@ -2594,7 +2663,10 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
   viewDetails(u: UserRow) {
     const payload: any = { ...u };
     this.selectedUser = payload;
-    const userId = u.id || (u.raw && (u.raw.user_id || u.raw.id)) || (payload && (payload.user_id || payload.id));
+    const userId =
+      u.id ||
+      (u.raw && (u.raw.user_id || u.raw.id)) ||
+      (payload && (payload.user_id || payload.id));
     if (userId) {
       const url = `${API_BASE}/get-user-page-access/${userId}`;
       this.http.get<any>(url).subscribe({
@@ -2613,7 +2685,8 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
             this.selectedUser &&
             (this.selectedUser.id === userId ||
               this.selectedUser.user_id === userId ||
-              (this.selectedUser.raw && (this.selectedUser.raw.user_id === userId || this.selectedUser.raw.id === userId)))
+              (this.selectedUser.raw &&
+                (this.selectedUser.raw.user_id === userId || this.selectedUser.raw.id === userId)))
           ) {
             this.selectedUser.privileges = mappedPrivileges;
             this.selectedUser.user_privileges = mappedPrivileges;
@@ -2872,7 +2945,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (idx >= 0) {
       this.users[idx] = {
         ...this.users[idx],
-        name: this.editableUser.full_name || this.editableUser.display_name || this.editableUser.name || this.editableUser.user_name,
+        name:
+          this.editableUser.full_name ||
+          this.editableUser.display_name ||
+          this.editableUser.name ||
+          this.editableUser.user_name,
         email: this.editableUser.email,
         phone: this.editableUser.contact_no,
         role: this.editableUser.user_role,
@@ -3054,10 +3131,11 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
 
   private resetForInstituteChange(instituteId: string): void {
     this.activeInstituteId = instituteId;
-    this.selectedInstitute = '';
+    this.selectedInstitute = instituteId;
     this.filters = {
       ...this.filters,
-      institute: '',
+      institute: instituteId,
+
       name: '',
       department: [],
       team: [],
@@ -3149,25 +3227,25 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
     if (!name) return '—';
     const key = name.trim().toLowerCase();
     const map: Record<string, string> = {
-      'categories': 'Question Banks',
-      'category': 'Question Banks',
+      categories: 'Question Banks',
+      category: 'Question Banks',
       'question bank': 'Question Banks',
       'question banks': 'Question Banks',
-      'exams': 'Manage test',
-      'exam': 'Manage test',
+      exams: 'Manage test',
+      exam: 'Manage test',
       'manage test': 'Manage test',
-      'test': 'Manage test',
-      'tests': 'Manage test',
+      test: 'Manage test',
+      tests: 'Manage test',
       'schedule exam': 'Schedule Test',
-      'schedule': 'Schedule Test',
+      schedule: 'Schedule Test',
       'schedule test': 'Schedule Test',
       'scheduled tests': 'Schedule Test',
       'exam reports': 'Test Reports',
       'test reports': 'Test Reports',
-      'users': 'Users',
-      'user': 'Users',
-      'questions': 'Questions',
-      'question': 'Questions'
+      users: 'Users',
+      user: 'Users',
+      questions: 'Questions',
+      question: 'Questions',
     };
     return map[key] || name;
   }

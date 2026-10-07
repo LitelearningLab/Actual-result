@@ -844,6 +844,17 @@ def get_user_details(request):
         if inst_items:
             inst_objs = session.query(Institute).filter(or_(
                 Institute.institute_id.in_(inst_items),
+                Institute.name.in_(inst_items)
+            )).all()
+            target_ids = list(set([i.institute_id for i in inst_objs] + inst_items))
+            filter.append(User.institute_id.in_(target_ids))
+            inst_id_val = inst_objs[0].institute_id if inst_objs else inst_items[0]
+
+        inst_val = str(args.get("institute_id")).strip()
+        inst_items = [i.strip() for i in inst_val.split(',') if i.strip()]
+        if inst_items:
+            inst_objs = session.query(Institute).filter(or_(
+                Institute.institute_id.in_(inst_items),
                 Institute.name.in_(inst_items),
                 or_(*[Institute.name.ilike(f"%{i}%") for i in inst_items])
             )).all()

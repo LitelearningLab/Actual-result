@@ -18,7 +18,10 @@ import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { FormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
+import {
+  getInstituteTerminology,
+  InstituteTerminology,
+} from 'src/app/shared/services/institute-terminology.service';
 
 @Component({
   selector: 'app-category-create',
@@ -76,7 +79,9 @@ export class CategoryCreateComponent {
 
   get terminology(): InstituteTerminology {
     let ind = '';
-    const instId = this.institute || (this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes[0] : '');
+    const instId =
+      this.institute ||
+      (this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes[0] : '');
     if (instId && this.institutesList && this.institutesList.length) {
       const inst = this.institutesList.find((i: any) => String(i.id) === String(instId));
       if (inst && (inst.industry || (inst as any).industry_type)) {
@@ -222,9 +227,12 @@ export class CategoryCreateComponent {
     this.type = c.type || '';
     this.whoInputs = c.answer_by || c.who_inputs || '';
     this.evaluation = c.evaluation || '';
-    this.status = (typeof c.active_status !== 'undefined' && c.active_status !== null) ? String(c.active_status) : (c.status || 'true');
+    this.status =
+      typeof c.active_status !== 'undefined' && c.active_status !== null
+        ? String(c.active_status)
+        : c.status || 'true';
     this.markForEachQuestion =
-      (typeof c.mark_each_question !== 'undefined' && c.mark_each_question !== null)
+      typeof c.mark_each_question !== 'undefined' && c.mark_each_question !== null
         ? c.mark_each_question
         : (c.mark_for_each_question ?? 1);
     this.publicAccess = !!c.public_access;
@@ -404,6 +412,26 @@ export class CategoryCreateComponent {
     if (!this.type) {
       this.loader.hide();
       this.snack.open('Type is required.', 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
+      return;
+    }
+
+    if (this.isDepartmentInvalid()) {
+      this.loader.hide();
+      this.snack.open(`${this.terminology.deptLabel} is required.`, 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
+      return;
+    }
+
+    if (this.isTeamInvalid()) {
+      this.loader.hide();
+      this.snack.open(`${this.terminology.teamLabel} is required.`, 'Close', {
         duration: 4000,
         horizontalPosition: 'right',
         verticalPosition: 'top',
@@ -1130,6 +1158,22 @@ export class CategoryCreateComponent {
 
   goToReviewStep(stepper: any): void {
     this.accessInfoSubmitted = true;
+    if (this.isDepartmentInvalid()) {
+      this.snack.open(`${this.terminology.deptLabel} is required.`, 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
+      return;
+    }
+    if (this.isTeamInvalid()) {
+      this.snack.open(`${this.terminology.teamLabel} is required.`, 'Close', {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
+      return;
+    }
     if (this.isMarkInvalid() || this.isStatusInvalid()) {
       return;
     }
@@ -1153,6 +1197,15 @@ export class CategoryCreateComponent {
     return this.markForEachQuestion === null || isNaN(Number(this.markForEachQuestion));
   }
 
+  isDepartmentInvalid(): boolean {
+    return !this.selectedDepartments || this.selectedDepartments.length === 0;
+  }
+
+  isTeamInvalid(): boolean {
+    return !this.selectedTeams || this.selectedTeams.length === 0;
+  }
+
+
   get departmentSelectValue(): string[] {
     return this.withAllOption(this.selectedDepartments, this.departments);
   }
@@ -1165,9 +1218,10 @@ export class CategoryCreateComponent {
   }> {
     let list = this.teams || [];
 
-    const deptsArr: string[] = (Array.isArray(this.selectedDepartments)
-      ? this.selectedDepartments
-      : [this.selectedDepartments]
+    const deptsArr: string[] = (
+      Array.isArray(this.selectedDepartments)
+        ? this.selectedDepartments
+        : [this.selectedDepartments]
     )
       .filter(Boolean)
       .map((v: any) => String(v));
