@@ -145,7 +145,7 @@
                   <div
                     class="audio-limit-badge"
                     [class.unlimited]="getAudioPlayLimit(m) === 0"
-                    [class.warning]="getAudioPlayLimit(m) > 0 && getAudioPlaysRemaining(q, m) === 1"
+                    [class.warning]="getAudioPlayLimit(m) > 0 && getAudioPlaysRemaining(q, m) <= 1 && !isAudioLocked(q, m)"
                     [class.locked]="isAudioLocked(q, m)"
                   >
                     <mat-icon class="badge-icon">

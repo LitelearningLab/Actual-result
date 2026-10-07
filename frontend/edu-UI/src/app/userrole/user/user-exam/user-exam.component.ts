@@ -119,6 +119,11 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     if (this.testStopped || this.submitting || this.isSubmitted) return false;
     const limit = this.getAudioPlayLimit(m);
     if (limit === 0) return false;
+    const key = this.getMediaKey(q, m);
+    // Don't lock or destroy the audio element while actively playing the final attempt
+    if (this.activeAudioSessions[key]) {
+      return false;
+    }
     return this.getAudioPlayedCount(q, m) >= limit;
   }
 
@@ -128,7 +133,8 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     const limit = this.getAudioPlayLimit(m);
     const currentCount = this.audioPlayCounts[key] || 0;
 
-    if (limit > 0 && currentCount >= limit) {
+    // Validate that quota is available before initiating a new playback session
+    if (limit > 0 && currentCount >= limit && !this.activeAudioSessions[key]) {
       if (audioEl) {
         audioEl.pause();
         audioEl.currentTime = 0;
