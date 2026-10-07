@@ -345,7 +345,7 @@ def review_user_exam(request, current_user=None):
                     rng.shuffle(opt_list_copy)
 
                 q_media = session.query(QuestionMedia).filter(QuestionMedia.question_id == qid, QuestionMedia.active_status == 1).order_by(QuestionMedia.order_number.asc()).all()
-                media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption} for m in q_media]
+                media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption, "play_limit": getattr(m, 'play_limit', 0) or 0} for m in q_media]
 
                 if qid in latest_answers_by_qid:
                     question_answer = latest_answers_by_qid[qid]

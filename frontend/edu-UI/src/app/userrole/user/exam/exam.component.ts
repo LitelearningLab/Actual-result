@@ -1288,7 +1288,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       question?: string;
       correct_option?: string;
       options?: Array<{ is_correct?: number; option_text?: string; text?: string; image_url?: string; gcs_path?: string; id?: string }>;
-      media?: Array<{ media_id?: string; media_type?: string; file_url?: string; url?: string; original_filename?: string; caption?: string }>;
+      media?: Array<{ media_id?: string; media_type?: string; file_url?: string; url?: string; original_filename?: string; caption?: string; play_limit?: number }>;
       question_type?: string;
       selected_option?: string[];
       is_correct?: boolean | number;

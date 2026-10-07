@@ -630,8 +630,43 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
       }
     }
 
-    .view-media-audio {
-      height: 32px;
+    .view-media-audio-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .view-media-audio {
+        height: 32px;
+      }
+
+      .audio-limit-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.2rem 0.5rem;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #475569;
+
+        .mat-icon {
+          font-size: 13px;
+          width: 13px;
+          height: 13px;
+        }
+
+        &.limited {
+          background: #eff6ff;
+          border-color: #93c5fd;
+          color: #1d4ed8;
+
+          .mat-icon {
+            color: #2563eb;
+          }
+        }
+      }
     }
   }
 }

@@ -808,7 +808,8 @@ def get_exam_analytics(request):
                         'url': m.file_url,
                         'gcs_path': m.gcs_path,
                         'caption': m.caption,
-                        'original_filename': m.original_filename
+                        'original_filename': m.original_filename,
+                        'play_limit': getattr(m, 'play_limit', 0) or 0
                     })
             except Exception as m_err:
                 print(f"Error fetching question media for analytics: {m_err}")
@@ -1114,7 +1115,8 @@ def get_question_wrong_answers(request):
                     'url': m.file_url,
                     'gcs_path': m.gcs_path,
                     'caption': m.caption,
-                    'original_filename': m.original_filename
+                    'original_filename': m.original_filename,
+                    'play_limit': getattr(m, 'play_limit', 0) or 0
                 })
         except Exception as qm_err:
             print(f"Error fetching QuestionMedia in get_question_wrong_answers: {qm_err}")

@@ -88,6 +88,68 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   private cropDragStartY = 0;
   private cropDragStartBox = { x: 5, y: 5, width: 90, height: 90 };
 
+  // ── Audio Playback Limit State & Tracking ──
+  audioPlayCounts: { [mediaKey: string]: number } = {};
+  activeAudioSessions: { [mediaKey: string]: boolean } = {};
+
+  getMediaKey(q: any, m: any): string {
+    if (!m) return '';
+    return String(m.media_id || m.gcs_path || m.file_url || m.url || ('q_' + (q?.id || '') + '_' + (m.original_filename || 'audio')));
+  }
+
+  getAudioPlayLimit(m: any): number {
+    if (!m || m.play_limit == null) return 0;
+    const lim = Number(m.play_limit);
+    return isNaN(lim) || lim < 0 ? 0 : lim;
+  }
+
+  getAudioPlayedCount(q: any, m: any): number {
+    const key = this.getMediaKey(q, m);
+    return this.audioPlayCounts[key] || 0;
+  }
+
+  getAudioPlaysRemaining(q: any, m: any): number {
+    const limit = this.getAudioPlayLimit(m);
+    if (limit === 0) return 999;
+    const played = this.getAudioPlayedCount(q, m);
+    return Math.max(0, limit - played);
+  }
+
+  isAudioLocked(q: any, m: any): boolean {
+    if (this.testStopped || this.submitting || this.isSubmitted) return false;
+    const limit = this.getAudioPlayLimit(m);
+    if (limit === 0) return false;
+    return this.getAudioPlayedCount(q, m) >= limit;
+  }
+
+  onAudioPlay(q: any, m: any, audioEl?: HTMLAudioElement): void {
+    if (this.testStopped || this.submitting || this.isSubmitted) return;
+    const key = this.getMediaKey(q, m);
+    const limit = this.getAudioPlayLimit(m);
+    const currentCount = this.audioPlayCounts[key] || 0;
+
+    if (limit > 0 && currentCount >= limit) {
+      if (audioEl) {
+        audioEl.pause();
+        audioEl.currentTime = 0;
+      }
+      notify('You have reached the maximum allowed plays for this audio track.', 'error');
+      return;
+    }
+
+    if (!this.activeAudioSessions[key]) {
+      this.activeAudioSessions[key] = true;
+      this.audioPlayCounts[key] = currentCount + 1;
+      this.persistExamState();
+    }
+  }
+
+  onAudioEnded(q: any, m: any): void {
+    const key = this.getMediaKey(q, m);
+    this.activeAudioSessions[key] = false;
+    this.persistExamState();
+  }
+
   getTextAnswer(questionId: string | number): string {
     const key = questionId !== undefined && questionId !== null && questionId !== '' ? questionId : '';
     const ans = this.answers[key] !== undefined ? this.answers[key] : (this.answers[String(key)] !== undefined ? this.answers[String(key)] : '');
@@ -798,6 +860,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       sessionStorage.setItem('launched_exam', JSON.stringify(this.exam));
       if (this.attempt_id) {
         localStorage.setItem('exam_answers_' + this.attempt_id, JSON.stringify(this.answers));
+        localStorage.setItem('exam_audio_plays_' + this.attempt_id, JSON.stringify(this.audioPlayCounts));
         localStorage.setItem('exam_state_' + this.attempt_id, JSON.stringify({
           test_start_time: examDetail.test_start_time,
           test_end_time: examDetail.test_end_time,
@@ -815,6 +878,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       sessionStorage.removeItem('launched_exam');
       if (this.attempt_id) {
         localStorage.removeItem('exam_answers_' + this.attempt_id);
+        localStorage.removeItem('exam_audio_plays_' + this.attempt_id);
         localStorage.removeItem('exam_state_' + this.attempt_id);
       }
     } catch (e) {}
@@ -849,7 +913,10 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         question: q.question_text || q.question || '',
         text: q.question_text || q.question || '',
         type: q.question_type || q.type,
-        media: Array.isArray(q.media) ? q.media : [],
+        media: (Array.isArray(q.media) ? q.media : []).map((m: any) => ({
+          ...m,
+          play_limit: m.play_limit != null ? Number(m.play_limit) : 0
+        })),
         options: (Array.isArray(q.options) ? q.options : []).map((o: any) => {
           if (typeof o === 'string') {
             const cleanStr = (o === "''" || o === '""') ? '' : o;
@@ -866,6 +933,19 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         }),
         marks: q.marks !== undefined && q.marks !== null ? Number(q.marks) : (q.points !== undefined && q.points !== null ? Number(q.points) : 1)
       }));
+
+      // Restore saved audio play counts from localStorage to prevent refresh exploit
+      if (this.attempt_id) {
+        try {
+          const rawAudioPlays = localStorage.getItem('exam_audio_plays_' + this.attempt_id);
+          if (rawAudioPlays) {
+            const parsedAudioPlays = JSON.parse(rawAudioPlays);
+            if (parsedAudioPlays && typeof parsedAudioPlays === 'object') {
+              this.audioPlayCounts = parsedAudioPlays;
+            }
+          }
+        } catch (e) {}
+      }
 
       // 1. Restore saved answers from all available storage levels
       let restoredAnswers: any = {};

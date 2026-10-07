@@ -51,6 +51,14 @@ def ensure_question_media_schema(session):
         END
         """
         session.execute(text(add_opt_gcs_sql))
+
+        add_qm_play_limit_sql = """
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('QuestionMedia') AND name = 'play_limit')
+        BEGIN
+            ALTER TABLE QuestionMedia ADD play_limit INT DEFAULT 0;
+        END
+        """
+        session.execute(text(add_qm_play_limit_sql))
         session.commit()
     except Exception as e:
         session.rollback()
@@ -232,6 +240,11 @@ def add_question(request):
                     guessed_m_type = m_item.get("media_type")
                     if not guessed_m_type:
                         guessed_m_type = "audio" if any(str(m_url).lower().endswith(ext) for ext in [".mp3", ".wav", ".ogg", ".webm", ".m4a", ".aac"]) else "image"
+                    try:
+                        raw_play_limit = m_item.get("play_limit")
+                        play_limit_val = int(raw_play_limit) if raw_play_limit is not None else 0
+                    except Exception:
+                        play_limit_val = 0
                     qm = QuestionMedia(
                         question_id=question_data.question_id,
                         media_type=guessed_m_type,
@@ -242,6 +255,7 @@ def add_question(request):
                         file_size=m_item.get("file_size"),
                         caption=m_item.get("caption"),
                         order_number=m_idx + 1,
+                        play_limit=play_limit_val,
                         created_by=created_by
                     )
                     session.add(qm)
@@ -523,7 +537,8 @@ def get_questions_details(request):
                     "mime_type": m.mime_type,
                     "file_size": m.file_size,
                     "caption": m.caption,
-                    "order_number": m.order_number
+                    "order_number": m.order_number,
+                    "play_limit": getattr(m, 'play_limit', 0) if getattr(m, 'play_limit', 0) is not None else 0
                 }
                 for m in q_media
             ]
@@ -623,6 +638,12 @@ def update_question(question_id, request):
                 if not guessed_m_type:
                     guessed_m_type = "audio" if any(str(m_url).lower().endswith(ext) for ext in [".mp3", ".wav", ".ogg", ".webm", ".m4a", ".aac"]) else "image"
 
+                try:
+                    raw_play_limit = m_item.get("play_limit")
+                    play_limit_val = int(raw_play_limit) if raw_play_limit is not None else 0
+                except Exception:
+                    play_limit_val = 0
+
                 if mid and mid in existing_map:
                     kept_media_ids.add(mid)
                     em = existing_map[mid]
@@ -631,6 +652,7 @@ def update_question(question_id, request):
                     em.media_type = guessed_m_type
                     em.caption = m_item.get("caption")
                     em.order_number = idx + 1
+                    em.play_limit = play_limit_val
                     em.active_status = 1
                     em.updated_by = updated_by
                     em.updated_date = datetime.datetime.utcnow()
@@ -645,6 +667,7 @@ def update_question(question_id, request):
                         file_size=m_item.get("file_size"),
                         caption=m_item.get("caption"),
                         order_number=idx + 1,
+                        play_limit=play_limit_val,
                         active_status=1,
                         created_by=updated_by
                     )

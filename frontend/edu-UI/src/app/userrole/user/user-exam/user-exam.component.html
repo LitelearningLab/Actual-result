@@ -122,7 +122,7 @@
 
           <!-- Question Media (Images / Audio) -->
           <div class="user-q-media" *ngIf="q.media && q.media.length">
-            <div class="user-q-media-item" *ngFor="let m of q.media">
+            <div class="user-q-media-item" *ngFor="let m of q.media" [class.media-audio-card]="m.media_type === 'audio'">
               <img
                 *ngIf="m.media_type === 'image'"
                 [src]="resolveMediaUrl(m.file_url || m.url)"
@@ -132,7 +132,54 @@
                 matTooltip="Click to view full image"
                 style="cursor: pointer;"
               />
-              <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)" class="user-q-media-audio"></audio>
+              
+              <!-- Managed Audio Player Card -->
+              <div *ngIf="m.media_type === 'audio'" class="user-audio-player" [class.audio-locked]="isAudioLocked(q, m)">
+                <div class="audio-player-meta">
+                  <div class="audio-info">
+                    <mat-icon class="audio-icon">{{ isAudioLocked(q, m) ? 'lock' : 'volume_up' }}</mat-icon>
+                    <span class="audio-title">{{ m.original_filename || 'Listening Comprehension Audio' }}</span>
+                  </div>
+
+                  <!-- Play count indicator badge -->
+                  <div
+                    class="audio-limit-badge"
+                    [class.unlimited]="getAudioPlayLimit(m) === 0"
+                    [class.warning]="getAudioPlayLimit(m) > 0 && getAudioPlaysRemaining(q, m) === 1"
+                    [class.locked]="isAudioLocked(q, m)"
+                  >
+                    <mat-icon class="badge-icon">
+                      {{ getAudioPlayLimit(m) === 0 ? 'all_inclusive' : (isAudioLocked(q, m) ? 'lock' : 'repeat') }}
+                    </mat-icon>
+                    <span *ngIf="getAudioPlayLimit(m) === 0">Unlimited Plays</span>
+                    <span *ngIf="getAudioPlayLimit(m) > 0 && !isAudioLocked(q, m)">
+                      Plays left: <strong>{{ getAudioPlaysRemaining(q, m) }}</strong> / {{ getAudioPlayLimit(m) }}
+                    </span>
+                    <span *ngIf="getAudioPlayLimit(m) > 0 && isAudioLocked(q, m)">
+                      Limit reached (0/{{ getAudioPlayLimit(m) }} plays left)
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Active audio player or locked overlay -->
+                <div class="audio-controls-wrap">
+                  <audio
+                    #audioEl
+                    *ngIf="!isAudioLocked(q, m)"
+                    controls
+                    controlsList="nodownload"
+                    [src]="resolveMediaUrl(m.file_url || m.url)"
+                    class="user-q-media-audio"
+                    (play)="onAudioPlay(q, m, audioEl)"
+                    (ended)="onAudioEnded(q, m)"
+                  ></audio>
+
+                  <div *ngIf="isAudioLocked(q, m)" class="audio-exhausted-box">
+                    <mat-icon class="lock-icon">block</mat-icon>
+                    <span>Playback limit reached. Audio playback is locked for this question.</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

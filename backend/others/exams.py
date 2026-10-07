@@ -1530,7 +1530,7 @@ def get_exam_details(request):
                                 cat_name = cat_obj.name
 
                         q_media = session.query(QuestionMedia).filter_by(question_id=q_obj.question_id, active_status=1).order_by(QuestionMedia.order_number.asc()).all()
-                        media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption} for m in q_media]
+                        media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption, "play_limit": getattr(m, 'play_limit', 0) or 0} for m in q_media]
                         q_opts = session.query(Option).filter_by(question_id=q_obj.question_id, active_status=1).all()
                         opt_list = [{"id": opt.options_id, "text": opt.option_text, "image_url": opt.image_url, "url": opt.image_url, "is_correct": opt.is_correct} for opt in q_opts]
 
@@ -2568,6 +2568,7 @@ def launch_exam_details(schedule_id, user_id):
                     "gcs_path": m.gcs_path,
                     "original_filename": m.original_filename,
                     "caption": m.caption,
+                    "play_limit": getattr(m, 'play_limit', 0) or 0,
                 }
                 for m in q_media
             ]
@@ -3044,7 +3045,7 @@ def get_student_evaluation_details(request, current_user=None):
                     student_written_text = ans.written_answer or ""
 
             q_media = session.query(QuestionMedia).filter_by(question_id=q.question_id, active_status=1).order_by(QuestionMedia.order_number.asc()).all()
-            media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption} for m in q_media]
+            media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption, "play_limit": getattr(m, 'play_limit', 0) or 0} for m in q_media]
             q_options_list = [{"id": opt.options_id, "text": opt.option_text, "image_url": opt.image_url, "url": opt.image_url, "is_correct": opt.is_correct} for opt in options]
 
             questions_data.append({

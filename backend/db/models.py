@@ -364,6 +364,7 @@ class QuestionMedia(Base):
      file_size = Column(Integer, nullable=True)
      caption = Column(String(500), nullable=True)
      order_number = Column(Integer, default=1)
+     play_limit = Column(Integer, default=0)
      active_status = Column(Integer, default=1)
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)

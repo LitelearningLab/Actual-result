@@ -1019,6 +1019,23 @@
                       <mat-icon>volume_up</mat-icon>
                       <audio controls [src]="resolveMediaUrl(m.file_url || m.url)"></audio>
                     </div>
+                    <div class="media-audio-limit-ctrl" *ngIf="m.media_type === 'audio'">
+                      <label class="limit-ctrl-label" title="Allowed audio play count for students">
+                        <mat-icon class="limit-icon">repeat</mat-icon>
+                        <span>Plays:</span>
+                      </label>
+                      <select
+                        class="audio-limit-select"
+                        [(ngModel)]="m.play_limit"
+                        [name]="'audio_play_limit_' + qi + '_' + mi"
+                        matTooltip="Maximum times a student can play this audio during an exam"
+                      >
+                        <option [ngValue]="0">Unlimited (Infinity)</option>
+                        <option [ngValue]="1">1 time</option>
+                        <option [ngValue]="2">2 times</option>
+                        <option [ngValue]="3">3 times</option>
+                      </select>
+                    </div>
                     <span
                       class="media-filename"
                       [title]="m.original_filename || (m.media_type | uppercase)"

@@ -2766,7 +2766,11 @@ export class AdminQuestionsComponent {
       next: (res) => {
         q._uploadingMedia = false;
         if (res && res.status && res.data) {
-          q.media.push(res.data);
+          const mediaItem = {
+            ...res.data,
+            play_limit: res.data.play_limit != null ? Number(res.data.play_limit) : 0
+          };
+          q.media.push(mediaItem);
           try {
             notify(`${mediaType === 'audio' ? 'Audio' : 'Image'} uploaded successfully`, 'success');
           } catch (e) {}

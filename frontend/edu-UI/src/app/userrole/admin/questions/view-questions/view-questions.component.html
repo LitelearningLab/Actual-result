@@ -758,7 +758,13 @@
                           (click)="openImageModal(m.file_url || m.url, m.original_filename || 'Question Image')"
                           matTooltip="Click to view full image"
                         />
-                        <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)" class="view-media-audio"></audio>
+                        <div class="view-media-audio-wrap" *ngIf="m.media_type === 'audio'">
+                          <audio controls [src]="resolveMediaUrl(m.file_url || m.url)" class="view-media-audio"></audio>
+                          <span class="audio-limit-badge" [class.limited]="(m.play_limit || 0) > 0">
+                            <mat-icon>repeat</mat-icon>
+                            <span>{{ (m.play_limit || 0) > 0 ? ('Limit: ' + m.play_limit + (m.play_limit === 1 ? ' play' : ' plays')) : 'Unlimited plays' }}</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>

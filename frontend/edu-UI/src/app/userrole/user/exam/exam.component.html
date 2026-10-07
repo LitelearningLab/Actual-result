@@ -671,7 +671,13 @@
                         <div class="review-q-media" *ngIf="q.media && q.media.length">
                            <div class="review-q-media-item" *ngFor="let m of q.media">
                               <img *ngIf="m.media_type === 'image'" [src]="resolveMediaUrl(m.file_url || m.url)" [alt]="m.original_filename || 'Question Image'" class="review-media-img" />
-                              <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)" class="review-media-audio"></audio>
+                              <div class="review-media-audio-wrap" *ngIf="m.media_type === 'audio'">
+                                 <audio controls [src]="resolveMediaUrl(m.file_url || m.url)" class="review-media-audio"></audio>
+                                 <span class="audio-limit-badge" [class.limited]="(m.play_limit || 0) > 0">
+                                    <mat-icon>repeat</mat-icon>
+                                    <span>{{ (m.play_limit || 0) > 0 ? ('Limit: ' + m.play_limit + (m.play_limit === 1 ? ' play' : ' plays')) : 'Unlimited plays' }}</span>
+                                 </span>
+                              </div>
                            </div>
                         </div>
 
