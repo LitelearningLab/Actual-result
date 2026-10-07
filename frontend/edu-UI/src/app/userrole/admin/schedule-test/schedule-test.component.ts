@@ -382,6 +382,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
     showExplanations: true,
     enableMicrophone: true,
     enableScanText: true,
+    enableCamera: true,
     // initialize categories so UI can bind reliably
     categories: [] as Array<{ name: string; questions: number }>,
   };
@@ -4498,6 +4499,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       show_explanations: boolean;
       enable_microphone: boolean;
       enable_scan_text: boolean;
+      enable_camera: boolean;
       timezone?: string;
       schedule_id?: any;
       updated_by?: any;
@@ -4535,6 +4537,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       show_explanations: !!this.model.showExplanations,
       enable_microphone: !!this.model.enableMicrophone,
       enable_scan_text: !!this.model.enableScanText,
+      enable_camera: !!this.model.enableCamera,
     };
 
     // If editing an existing schedule, call update endpoint, otherwise create
@@ -4964,6 +4967,7 @@ export class AdminScheduleTestComponent implements OnInit, OnDestroy {
       ['showExplanations', 'show_explanations', 'showExplanations'],
       ['enableMicrophone', 'enable_microphone', 'enableMicrophone'],
       ['enableScanText', 'enable_scan_text', 'enableScanText'],
+      ['enableCamera', 'enable_camera', 'enableCamera'],
     ];
     contentFields.forEach(([modelField, apiField, alternateField]) => {
       const fieldValue =

@@ -21,6 +21,8 @@ interface QuestionOption {
   text?: string;
   option_text?: string;
   image_url?: string;
+  url?: string;
+  image?: string;
   gcs_path?: string;
   [key: string]: any;
 }
@@ -58,6 +60,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   baseAnswerBeforeRecording = '';
   enableMicrophone = true;
   enableScanText = true;
+  enableCamera = true;
 
   // Answer Image & Camera properties
   extractingQuestionId: string | number | null = null;
@@ -456,7 +459,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
   // ── Camera Snapshot Capture Methods ──
   async openCamera(questionId: string | number, nativeFallbackInput?: HTMLInputElement) {
-    if (this.testStopped || this.submitting || this.isSubmitted) return;
+    if (this.testStopped || this.submitting || this.isSubmitted || !this.enableCamera) return;
 
     // Check if WebRTC getUserMedia is supported in the current browsing context (requires HTTPS or localhost)
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -787,8 +790,10 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       this.exam.test_start_time = examDetail.test_start_time;
       this.exam.enable_microphone = this.enableMicrophone;
       this.exam.enable_scan_text = this.enableScanText;
+      this.exam.enable_camera = this.enableCamera;
       examDetail.enable_microphone = this.enableMicrophone;
       examDetail.enable_scan_text = this.enableScanText;
+      examDetail.enable_camera = this.enableCamera;
 
       sessionStorage.setItem('launched_exam', JSON.stringify(this.exam));
       if (this.attempt_id) {
@@ -835,6 +840,9 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
       const scanVal = wrapper?.enable_scan_text ?? examDetail?.enable_scan_text ?? this.exam?.enable_scan_text ?? wrapper?.enableScanText ?? examDetail?.enableScanText ?? this.exam?.enableScanText;
       this.enableScanText = scanVal !== undefined && scanVal !== null ? (scanVal === true || scanVal === 1 || String(scanVal).toLowerCase() === 'true') : true;
+
+      const camVal = wrapper?.enable_camera ?? examDetail?.enable_camera ?? this.exam?.enable_camera ?? wrapper?.enableCamera ?? examDetail?.enableCamera ?? this.exam?.enableCamera;
+      this.enableCamera = camVal !== undefined && camVal !== null ? (camVal === true || camVal === 1 || String(camVal).toLowerCase() === 'true') : true;
       const rawQs = Array.isArray(wrapper?.questions) ? wrapper.questions : (Array.isArray(this.exam.questions) ? this.exam.questions : []);
       this.questions = rawQs.map((q: any) => ({
         id: q.question_id || q.id,
@@ -1056,6 +1064,38 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       return txt.trim();
     }
     return '';
+  }
+
+  getOptImage(o: any): string {
+    if (!o || typeof o !== 'object') return '';
+    const imgUrl = (o as any).image_url || (o as any).url || (o as any).image;
+    return imgUrl ? this.resolveMediaUrl(imgUrl) : '';
+  }
+
+  isChoiceQuestion(q: any): boolean {
+    if (!q) return false;
+    const t = String(q.type || q.question_type || '').trim().toLowerCase();
+    return t === 'choose' || t === 'mcq' || t === 'single' || t === 'single_choice';
+  }
+
+  isMultiQuestion(q: any): boolean {
+    if (!q) return false;
+    const t = String(q.type || q.question_type || '').trim().toLowerCase();
+    return t === 'multi' || t === 'multiple' || t === 'multiple_choice';
+  }
+
+  isFillQuestion(q: any): boolean {
+    if (!q) return false;
+    const t = String(q.type || q.question_type || '').trim().toLowerCase();
+    return t === 'fill' || t === 'fill_in_the_blank' || t === 'fill in the blank';
+  }
+
+  isDescriptiveQuestion(q: any): boolean {
+    if (!q) return false;
+    if (this.isChoiceQuestion(q) || this.isMultiQuestion(q) || this.isFillQuestion(q)) {
+      return false;
+    }
+    return true;
   }
 
   resolveMediaUrl(url: string | null | undefined): string {

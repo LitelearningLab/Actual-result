@@ -752,13 +752,13 @@
                       <div class="view-q-media-item" *ngFor="let m of viewedQuestion.media">
                         <img
                           *ngIf="m.media_type === 'image'"
-                          [src]="resolveMediaUrl(m.file_url)"
+                          [src]="resolveMediaUrl(m.file_url || m.url)"
                           [alt]="m.original_filename || 'Question Image'"
                           class="view-media-img"
-                          (click)="openImageModal(m.file_url, m.original_filename || 'Question Image')"
+                          (click)="openImageModal(m.file_url || m.url, m.original_filename || 'Question Image')"
                           matTooltip="Click to view full image"
                         />
-                        <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url)" class="view-media-audio"></audio>
+                        <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)" class="view-media-audio"></audio>
                       </div>
                     </div>
                   </div>
@@ -801,11 +801,11 @@
                             >
                             <span class="opt-text" *ngIf="getOptionText(o)">{{ getOptionText(o) }}</span>
                             <img
-                              *ngIf="o?.image_url"
-                              [src]="resolveMediaUrl(o.image_url)"
+                              *ngIf="o?.image_url || o?.url"
+                              [src]="resolveMediaUrl(o.image_url || o.url)"
                               class="opt-view-img"
                               alt="Option Image"
-                              (click)="openImageModal(o.image_url, 'Option ' + ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[idx] || idx + 1) + ' Image')"
+                              (click)="openImageModal(o.image_url || o.url, 'Option ' + ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[idx] || idx + 1) + ' Image')"
                               matTooltip="Click to view full image"
                             />
                           </div>

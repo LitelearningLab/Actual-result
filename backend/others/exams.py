@@ -1760,6 +1760,7 @@ def get_user_exam_details(request):
                     ExamSchedule.updated_date,
                     ExamSchedule.enable_microphone,
                     ExamSchedule.enable_scan_text,
+                    ExamSchedule.enable_camera,
                 )
             )
             .join(Exam, ExamSchedule.exam_id == Exam.exam_id)
@@ -2178,6 +2179,7 @@ def get_user_exam_details(request):
                     "updated_date": getattr(schedule_obj, "updated_date", None),
                     "enable_microphone": True if getattr(schedule_obj, "enable_microphone", None) is None else bool(schedule_obj.enable_microphone),
                     "enable_scan_text": True if getattr(schedule_obj, "enable_scan_text", None) is None else bool(schedule_obj.enable_scan_text),
+                    "enable_camera": True if getattr(schedule_obj, "enable_camera", None) is None else bool(schedule_obj.enable_camera),
                     "type": type,
                 }
             )
@@ -2519,6 +2521,7 @@ def launch_exam_details(schedule_id, user_id):
 
         enable_mic = bool(exam_schedule.enable_microphone) if (exam_schedule and hasattr(exam_schedule, "enable_microphone") and exam_schedule.enable_microphone is not None) else True
         enable_scan = bool(exam_schedule.enable_scan_text) if (exam_schedule and hasattr(exam_schedule, "enable_scan_text") and exam_schedule.enable_scan_text is not None) else True
+        enable_cam = bool(exam_schedule.enable_camera) if (exam_schedule and hasattr(exam_schedule, "enable_camera") and exam_schedule.enable_camera is not None) else True
 
         schedule_title = (
             exam_schedule.title
@@ -2542,6 +2545,7 @@ def launch_exam_details(schedule_id, user_id):
             "saved_answers": saved_answers,
             "enable_microphone": enable_mic,
             "enable_scan_text": enable_scan,
+            "enable_camera": enable_cam,
         }
 
         # get all the Questions and options for exam id
@@ -2613,6 +2617,7 @@ def launch_exam_details(schedule_id, user_id):
                 "questions": question_list,
                 "enable_microphone": enable_mic,
                 "enable_scan_text": enable_scan,
+                "enable_camera": enable_cam,
             },
         }
         return json_data, 200

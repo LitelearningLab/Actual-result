@@ -304,6 +304,7 @@ class ExamSchedule(Base):
      show_explanations = Column(Boolean, default=True)
      enable_microphone = Column(Boolean, nullable=False, default=True)
      enable_scan_text = Column(Boolean, nullable=False, default=True)
+     enable_camera = Column(Boolean, nullable=False, default=True)
      timezone = Column(String(100), nullable=True)
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)

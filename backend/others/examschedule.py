@@ -25,7 +25,9 @@ def _ensure_timezone_column(session):
         session.execute(
             text(
                 "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('ExamSchedules') AND name = 'timezone') "
-                "ALTER TABLE ExamSchedules ADD timezone NVARCHAR(100) NULL"
+                "ALTER TABLE ExamSchedules ADD timezone NVARCHAR(100) NULL;"
+                "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('ExamSchedules') AND name = 'enable_camera') "
+                "ALTER TABLE ExamSchedules ADD enable_camera BIT NOT NULL CONSTRAINT DF_ExamSchedules_enable_camera DEFAULT (1) WITH VALUES;"
             )
         )
         session.commit()
@@ -153,6 +155,9 @@ def _review_settings(data, defaults=None):
         "enable_scan_text": _as_bool(
             data.get("enable_scan_text"), defaults.get("enable_scan_text", True)
         ),
+        "enable_camera": _as_bool(
+            data.get("enable_camera"), defaults.get("enable_camera", True)
+        ),
     }
 
 
@@ -264,6 +269,7 @@ def add_exam_schedule(request):
             show_explanations=review_settings["show_explanations"],
             enable_microphone=review_settings["enable_microphone"],
             enable_scan_text=review_settings["enable_scan_text"],
+            enable_camera=review_settings["enable_camera"],
             duration_mins=duration_mins,
             total_questions=total_questions,
             created_by=created_by,
@@ -455,6 +461,7 @@ def update_exam_schedule(request):
             "show_explanations",
             "enable_microphone",
             "enable_scan_text",
+            "enable_camera",
         }
         if review_keys.intersection(data):
             try:
@@ -471,6 +478,7 @@ def update_exam_schedule(request):
                         "show_explanations": sched.show_explanations,
                         "enable_microphone": sched.enable_microphone if hasattr(sched, "enable_microphone") else True,
                         "enable_scan_text": sched.enable_scan_text if hasattr(sched, "enable_scan_text") else True,
+                        "enable_camera": sched.enable_camera if hasattr(sched, "enable_camera") else True,
                     },
                 )
             except ValueError as error:
@@ -487,6 +495,7 @@ def update_exam_schedule(request):
             sched.show_explanations = settings["show_explanations"]
             sched.enable_microphone = settings["enable_microphone"]
             sched.enable_scan_text = settings["enable_scan_text"]
+            sched.enable_camera = settings["enable_camera"]
 
             access_just_enabled = (
                 sched.review_mode in ("manual", "no_review")
@@ -956,6 +965,11 @@ def get_exam_schedule_details(request):
                         True
                         if getattr(schedule, "enable_scan_text", None) is None
                         else bool(schedule.enable_scan_text)
+                    ),
+                    "enable_camera": (
+                        True
+                        if getattr(schedule, "enable_camera", None) is None
+                        else bool(schedule.enable_camera)
                     ),
                     "has_attendance": has_attendance,
                     # Count distinct students so retakes do not inflate the unpublish warning.

@@ -1927,6 +1927,15 @@ export class ViewScheduleExamComponent implements OnInit, OnDestroy, AfterViewIn
     return details.length ? details.join(', ') : 'No result details selected';
   }
 
+  getFeatureControlsLabel(schedule: any): string {
+    const controls = [
+      (schedule?.enable_microphone !== false && schedule?.enableMicrophone !== false) ? 'Microphone' : '',
+      (schedule?.enable_scan_text !== false && schedule?.enableScanText !== false) ? 'Upload Photos' : '',
+      (schedule?.enable_camera !== false && schedule?.enableCamera !== false) ? 'Camera' : '',
+    ].filter(Boolean);
+    return controls.length ? controls.join(', ') : 'No test feature controls enabled';
+  }
+
   formatDate(v: any) {
     if (!v) return '';
     try {

@@ -98,14 +98,14 @@
             <div class="q-number">
               <span class="num">{{ i+1 }}</span>
               <span class="type-badge" [ngClass]="{
-                'mcq': q.type === 'choose' || q.type === 'Choose' || q.type === 'MCQ',
-                'multi': q.type === 'multi' || q.type === 'Multi',
-                'fill': q.type === 'fill' || q.type === 'Fill',
-                'desc': q.type === 'descriptive' || q.type === 'Paragraph'
+                'mcq': isChoiceQuestion(q),
+                'multi': isMultiQuestion(q),
+                'fill': isFillQuestion(q),
+                'desc': isDescriptiveQuestion(q)
               }">
-                {{ q.type === 'choose' || q.type === 'Choose' || q.type === 'MCQ' ? 'Single Choice' : 
-                   q.type === 'multi' || q.type === 'Multi' ? 'Multiple Choice' : 
-                   q.type === 'fill' || q.type === 'Fill' ? 'Fill Blank' : 'Long Answer' }}
+                {{ isChoiceQuestion(q) ? 'Single Choice' : 
+                   isMultiQuestion(q) ? 'Multiple Choice' : 
+                   isFillQuestion(q) ? 'Fill Blank' : 'Long Answer' }}
               </span>
               <span class="marks-badge" *ngIf="q.marks != null">
                 {{ q.marks }} {{ q.marks === 1 ? 'Mark' : 'Marks' }}
@@ -137,7 +137,7 @@
           </div>
 
           <!-- Single choice -->
-          <div *ngIf="q.type === 'choose' || q.type === 'Choose' || q.type === 'MCQ'" class="q-options" role="radiogroup" aria-label="Select one answer">
+          <div *ngIf="isChoiceQuestion(q)" class="q-options" role="radiogroup" aria-label="Select one answer">
             <label class="opt" *ngFor="let o of q.options; let oi = index" 
               [class.selected]="answers[q.id || i] === getOptVal(o)">
               <span class="opt-letter">{{ 'ABCDEFGH'[oi] }}</span>
@@ -145,11 +145,11 @@
                 (change)="selectOne(q.id || i, getOptVal(o))" />
               <span class="opt-text" *ngIf="getOptText(o)">{{ getOptText(o) }}</span>
               <img
-                *ngIf="o?.image_url"
-                [src]="resolveMediaUrl(o.image_url)"
+                *ngIf="getOptImage(o)"
+                [src]="getOptImage(o)"
                 class="opt-choice-img"
                 alt="Option Image"
-                (click)="openSingleImagePreview(o.image_url); $event.stopPropagation()"
+                (click)="openSingleImagePreview(getOptImage(o)); $event.stopPropagation()"
                 matTooltip="Click to view full image"
                 style="cursor: pointer;"
               />
@@ -158,7 +158,7 @@
           </div>
 
           <!-- Multiple choice -->
-          <div *ngIf="q.type === 'multi' || q.type === 'Multi'" class="q-options" role="group" aria-label="Select all that apply">
+          <div *ngIf="isMultiQuestion(q)" class="q-options" role="group" aria-label="Select all that apply">
             <label class="opt" *ngFor="let o of q.options; let oi = index"
               [class.selected]="isMultiSelected(q.id || i, getOptVal(o))">
               <span class="opt-letter">{{ 'ABCDEFGH'[oi] }}</span>
@@ -166,11 +166,11 @@
                 [checked]="isMultiSelected(q.id || i, getOptVal(o))" />
               <span class="opt-text" *ngIf="getOptText(o)">{{ getOptText(o) }}</span>
               <img
-                *ngIf="o?.image_url"
-                [src]="resolveMediaUrl(o.image_url)"
+                *ngIf="getOptImage(o)"
+                [src]="getOptImage(o)"
                 class="opt-choice-img"
                 alt="Option Image"
-                (click)="openSingleImagePreview(o.image_url); $event.stopPropagation()"
+                (click)="openSingleImagePreview(getOptImage(o)); $event.stopPropagation()"
                 matTooltip="Click to view full image"
                 style="cursor: pointer;"
               />
@@ -179,7 +179,7 @@
           </div>
 
           <!-- Fill in the blank -->
-          <div *ngIf="q.type === 'fill' || q.type === 'Fill'" class="q-input">
+          <div *ngIf="isFillQuestion(q)" class="q-input">
             <label class="sr-only" [for]="'fill-' + i">Your answer</label>
             <div class="input-wrapper">
               <mat-icon class="input-icon">edit</mat-icon>
@@ -189,7 +189,7 @@
           </div>
 
           <!-- Descriptive -->
-          <div *ngIf="q.type === 'descriptive' || q.type === 'Paragraph'" class="q-input descriptive-input">
+          <div *ngIf="isDescriptiveQuestion(q)" class="q-input descriptive-input">
             <!-- Hidden file input accessible across the entire descriptive card -->
             <input type="file" #imageInput [id]="'file-input-' + i" multiple accept="image/*" style="display:none;" (change)="onImageSelected($event, q.id || i)" />
             <!-- Native camera capture fallback for mobile or non-HTTPS contexts -->
@@ -220,7 +220,7 @@
                     <mat-icon>close</mat-icon>
                   </button>
                 </div>
-                <button type="button" class="btn-add-more-thumb" (click)="imageInput.click()" [disabled]="testStopped || submitting || isSubmitted" title="Add more photos">
+                <button type="button" class="btn-add-more-thumb" *ngIf="enableScanText" (click)="imageInput.click()" [disabled]="testStopped || submitting || isSubmitted" title="Add more photos">
                   <mat-icon>add_photo_alternate</mat-icon>
                   <span>+ Add Photos</span>
                 </button>
@@ -267,7 +267,7 @@
                 </div>
 
                 <!-- Camera Action Button -->
-                <div class="camera-controls">
+                <div class="camera-controls" *ngIf="enableCamera">
                   <button type="button" class="camera-action-btn" [disabled]="testStopped || submitting || isSubmitted"
                     (click)="openCamera(q.id || i, cameraNativeInput)"
                     aria-label="Take photo with camera"
@@ -382,10 +382,10 @@
         <div class="lightbox-header">
           <div class="lightbox-title-group">
             <mat-icon>image</mat-icon>
-            <span id="lightbox-title" class="lightbox-title">Answer Photo {{ previewActiveIndex + 1 }} of {{ previewImages.length }}</span>
+            <span id="lightbox-title" class="lightbox-title">{{ previewQuestionId !== null ? ('Answer Photo ' + (previewActiveIndex + 1) + ' of ' + previewImages.length) : 'Question Image' }}</span>
           </div>
           <div class="lightbox-header-actions" style="display:flex; align-items:center; gap:0.5rem;">
-            <button type="button" class="btn btn-outline btn-sm" (click)="openCropModal(previewImages[previewActiveIndex], previewQuestionId, previewActiveIndex); closeImagePreview()" [disabled]="testStopped || submitting || isSubmitted" title="Crop or rotate this photo">
+            <button *ngIf="previewQuestionId !== null" type="button" class="btn btn-outline btn-sm" (click)="openCropModal(previewImages[previewActiveIndex], previewQuestionId, previewActiveIndex); closeImagePreview()" [disabled]="testStopped || submitting || isSubmitted" title="Crop or rotate this photo">
               <mat-icon>crop</mat-icon>
               <span>Crop / Rotate</span>
             </button>
@@ -396,27 +396,27 @@
         </div>
 
         <div class="lightbox-body">
-          <button type="button" class="lightbox-nav-btn prev" (click)="prevPreviewImage()" [disabled]="previewImages.length <= 1" aria-label="Previous photo">
+          <button *ngIf="previewImages.length > 1" type="button" class="lightbox-nav-btn prev" (click)="prevPreviewImage()" aria-label="Previous photo">
             <mat-icon>chevron_left</mat-icon>
           </button>
           
           <div class="lightbox-img-wrapper">
-            <img [src]="previewImages[previewActiveIndex]" [alt]="'Answer Photo ' + (previewActiveIndex + 1)" class="lightbox-img" />
+            <img [src]="previewImages[previewActiveIndex]" [alt]="previewQuestionId !== null ? ('Answer Photo ' + (previewActiveIndex + 1)) : 'Question Image'" class="lightbox-img" />
           </div>
 
-          <button type="button" class="lightbox-nav-btn next" (click)="nextPreviewImage()" [disabled]="previewImages.length <= 1" aria-label="Next photo">
+          <button *ngIf="previewImages.length > 1" type="button" class="lightbox-nav-btn next" (click)="nextPreviewImage()" aria-label="Next photo">
             <mat-icon>chevron_right</mat-icon>
           </button>
         </div>
 
-        <div class="lightbox-footer">
+        <div class="lightbox-footer" *ngIf="previewImages.length > 1">
           <span class="lightbox-counter">Page {{ previewActiveIndex + 1 }} of {{ previewImages.length }}</span>
           <div class="lightbox-nav-buttons">
-            <button type="button" class="btn btn-outline btn-sm" (click)="prevPreviewImage()" [disabled]="previewImages.length <= 1">
+            <button type="button" class="btn btn-outline btn-sm" (click)="prevPreviewImage()">
               <mat-icon>arrow_back</mat-icon>
               <span>Previous</span>
             </button>
-            <button type="button" class="btn btn-outline btn-sm" (click)="nextPreviewImage()" [disabled]="previewImages.length <= 1">
+            <button type="button" class="btn btn-outline btn-sm" (click)="nextPreviewImage()">
               <span>Next</span>
               <mat-icon>arrow_forward</mat-icon>
             </button>

@@ -2742,7 +2742,7 @@ export class AdminQuestionsComponent {
   resolveMediaUrl = resolveMediaUrl;
 
   getOptImage(opt: any): string {
-    if (opt && typeof opt === 'object') return resolveMediaUrl(opt.image_url);
+    if (opt && typeof opt === 'object') return resolveMediaUrl(opt.image_url || opt.url || opt.image);
     return '';
   }
 

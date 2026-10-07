@@ -1349,13 +1349,13 @@
                 <div class="eval-q-media-item" *ngFor="let m of q.media">
                   <img
                     *ngIf="m.media_type === 'image'"
-                    [src]="resolveMediaUrl(m.file_url)"
+                    [src]="resolveMediaUrl(m.file_url || m.url)"
                     [alt]="m.original_filename || 'Question Image'"
                     class="eval-q-media-img"
-                    (click)="openImageModal(m.file_url, m.original_filename || 'Question Image')"
+                    (click)="openImageModal(m.file_url || m.url, m.original_filename || 'Question Image')"
                     matTooltip="Click to view full image"
                   />
-                  <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url)" class="eval-q-media-audio"></audio>
+                  <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)" class="eval-q-media-audio"></audio>
                 </div>
               </div>
 
@@ -1365,11 +1365,11 @@
                   <span class="eval-opt-badge">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi] }}</span>
                   <span class="eval-opt-text" *ngIf="opt.text">{{ opt.text }}</span>
                   <img
-                    *ngIf="opt.image_url"
-                    [src]="resolveMediaUrl(opt.image_url)"
+                    *ngIf="opt.image_url || opt.url"
+                    [src]="resolveMediaUrl(opt.image_url || opt.url)"
                     class="eval-opt-img"
                     alt="Option Image"
-                    (click)="openImageModal(opt.image_url, 'Option ' + ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi]) + ' Image')"
+                    (click)="openImageModal(opt.image_url || opt.url, 'Option ' + ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi]) + ' Image')"
                     matTooltip="Click to view full image"
                   />
                 </div>
