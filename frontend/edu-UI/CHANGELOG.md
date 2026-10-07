@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2] - 2026-10-07
+
+### Patch Fixes
+- **Question & Department Form Validation & Scoping**: Enhanced institute context handling, department validation, and question editor stability.
+
+---
+
 ## [2.0.1] - 2026-10-06
 
 ### Patch Fixes
