@@ -167,6 +167,11 @@ def initialize_jwt_validator(request):
     jwt_validator = JWTValidator(jwt_secret)
     return jwt_validator.token_validation(request)
 
+def handle_auth_validation_error(validation_result):
+    if validation_result in ("Database connection error", "Database connection failed"):
+        return jsonify({"status": False, "statusMessage": "Database service is temporarily unavailable. Please try again."}), 503
+    return jsonify({"status": False, "statusMessage": validation_result}), 401
+
 def jwt_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -174,7 +179,7 @@ def jwt_required(f):
             return jsonify({}), 200
         validation_result = initialize_jwt_validator(request)
         if validation_result != "Access granted":
-            return jsonify({"status": False, "statusMessage": validation_result}), 401
+            return handle_auth_validation_error(validation_result)
         scope_result = normalize_global_scope_request()
         if scope_result is not None:
             return scope_result
@@ -189,7 +194,7 @@ def admin_required(f):
             return jsonify({}), 200
         validation_result = initialize_jwt_validator(request)
         if validation_result != "Access granted":
-            return jsonify({"status": False, "statusMessage": validation_result}), 401
+            return handle_auth_validation_error(validation_result)
         scope_result = normalize_global_scope_request()
         if scope_result is not None:
             return scope_result
@@ -206,7 +211,7 @@ def super_admin_required(f):
             return jsonify({}), 200
         validation_result = initialize_jwt_validator(request)
         if validation_result != "Access granted":
-            return jsonify({"status": False, "statusMessage": validation_result}), 401
+            return handle_auth_validation_error(validation_result)
         scope_result = normalize_global_scope_request()
         if scope_result is not None:
             return scope_result

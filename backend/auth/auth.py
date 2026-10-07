@@ -332,8 +332,13 @@ class JWTValidator:
                 return "Access granted"
             finally:
                 session.close()
+        except jwt.ExpiredSignatureError:
+            return "Session expired"
+        except jwt.InvalidTokenError:
+            return "Invalid token"
         except Exception as e:
-            return str(e)
+            print(f"[Auth.token_validation] Internal/Database error during token validation: {e}", flush=True)
+            return "Database connection error"
 
     def login(self, data):
         session = None

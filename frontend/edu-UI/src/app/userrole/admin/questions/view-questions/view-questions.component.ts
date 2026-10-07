@@ -7,6 +7,7 @@ import {
   ElementRef,
   TemplateRef,
   ViewContainerRef,
+  HostListener,
 } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { startWith, map } from 'rxjs/operators';
@@ -2819,4 +2820,48 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     this.loadInstitutes();
     this.loadCategories();
   }
+
+  // Image Preview Modal
+  previewModalImage: { url: string; title: string } | null = null;
+  imageZoom: number = 1;
+
+  openImageModal(url: string | null | undefined, title?: string) {
+    if (!url) return;
+    const resolved = this.resolveMediaUrl(url);
+    if (!resolved) return;
+    this.imageZoom = 1;
+    this.previewModalImage = {
+      url: resolved,
+      title: title || 'Image Preview'
+    };
+  }
+
+  closeImageModal() {
+    this.previewModalImage = null;
+    this.imageZoom = 1;
+  }
+
+  zoomIn() {
+    if (this.imageZoom < 3) {
+      this.imageZoom = Math.min(3, +(this.imageZoom + 0.25).toFixed(2));
+    }
+  }
+
+  zoomOut() {
+    if (this.imageZoom > 0.5) {
+      this.imageZoom = Math.max(0.5, +(this.imageZoom - 0.25).toFixed(2));
+    }
+  }
+
+  resetZoom() {
+    this.imageZoom = 1;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.previewModalImage) {
+      this.closeImageModal();
+    }
+  }
 }
+

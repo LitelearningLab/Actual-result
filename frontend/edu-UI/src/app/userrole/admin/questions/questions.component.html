@@ -1004,14 +1004,39 @@
                 <!-- Media Preview Cards -->
                 <div class="media-preview-cards" *ngIf="q.media && q.media.length">
                   <div class="media-card-item" *ngFor="let m of q.media; let mi = index">
-                    <div class="media-preview-thumb" *ngIf="m.media_type === 'image'">
+                    <div
+                      class="media-preview-thumb"
+                      *ngIf="m.media_type === 'image'"
+                      (click)="openImageModal(m.file_url, m.original_filename || 'Question Image')"
+                      matTooltip="Click to view full image"
+                    >
                       <img [src]="resolveMediaUrl(m.file_url)" [alt]="m.original_filename || 'Question Image'" />
+                      <div class="media-thumb-overlay">
+                        <mat-icon>zoom_in</mat-icon>
+                      </div>
                     </div>
                     <div class="media-preview-audio" *ngIf="m.media_type === 'audio'">
                       <mat-icon>volume_up</mat-icon>
                       <audio controls [src]="resolveMediaUrl(m.file_url)"></audio>
                     </div>
-                    <span class="media-filename" [title]="m.original_filename">{{ m.original_filename || (m.media_type | uppercase) }}</span>
+                    <span
+                      class="media-filename"
+                      [title]="m.original_filename || (m.media_type | uppercase)"
+                      [class.clickable]="m.media_type === 'image'"
+                      (click)="m.media_type === 'image' ? openImageModal(m.file_url, m.original_filename || 'Question Image') : null"
+                    >
+                      {{ m.original_filename || (m.media_type | uppercase) }}
+                    </span>
+                    <button
+                      *ngIf="m.media_type === 'image'"
+                      type="button"
+                      mat-icon-button
+                      class="media-view-btn"
+                      (click)="openImageModal(m.file_url, m.original_filename || 'Question Image')"
+                      matTooltip="View full image"
+                    >
+                      <mat-icon>visibility</mat-icon>
+                    </button>
                     <button
                       type="button"
                       mat-icon-button
@@ -1068,12 +1093,20 @@
                         <mat-icon>image</mat-icon>
                       </button>
 
-                      <div class="opt-img-preview" *ngIf="getOptImage(opt)">
+                      <div
+                        class="opt-img-preview"
+                        *ngIf="getOptImage(opt)"
+                        (click)="openImageModal(getOptImage(opt), 'Option ' + (i + 1) + ' Image')"
+                        matTooltip="Click to view image"
+                      >
                         <img [src]="getOptImage(opt)" alt="Option Image" />
+                        <div class="opt-img-overlay">
+                          <mat-icon>zoom_in</mat-icon>
+                        </div>
                         <button
                           type="button"
                           class="opt-img-del-btn"
-                          (click)="removeOptionImage(qi, i)"
+                          (click)="removeOptionImage(qi, i); $event.stopPropagation()"
                           matTooltip="Remove option image"
                         >
                           <mat-icon>close</mat-icon>
@@ -1123,12 +1156,20 @@
                         <mat-icon>image</mat-icon>
                       </button>
 
-                      <div class="opt-img-preview" *ngIf="getOptImage(opt)">
+                      <div
+                        class="opt-img-preview"
+                        *ngIf="getOptImage(opt)"
+                        (click)="openImageModal(getOptImage(opt), 'Option ' + (i + 1) + ' Image')"
+                        matTooltip="Click to view image"
+                      >
                         <img [src]="getOptImage(opt)" alt="Option Image" />
+                        <div class="opt-img-overlay">
+                          <mat-icon>zoom_in</mat-icon>
+                        </div>
                         <button
                           type="button"
                           class="opt-img-del-btn"
-                          (click)="removeOptionImage(qi, i)"
+                          (click)="removeOptionImage(qi, i); $event.stopPropagation()"
                           matTooltip="Remove option image"
                         >
                           <mat-icon>close</mat-icon>
@@ -1238,3 +1279,82 @@
     </div>
   </div>
 </div>
+
+<!-- ═══ Image Lightbox Preview Modal ═══ -->
+<div
+  *ngIf="previewModalImage"
+  class="img-preview-backdrop"
+  (click)="closeImageModal()"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="img-preview-title"
+>
+  <div class="img-preview-dialog" (click)="$event.stopPropagation()">
+    <div class="img-preview-header">
+      <div class="img-preview-title-group">
+        <mat-icon class="title-icon">image</mat-icon>
+        <span id="img-preview-title" class="img-preview-title" [title]="previewModalImage.title">
+          {{ previewModalImage.title }}
+        </span>
+      </div>
+      <div class="img-preview-actions">
+        <button
+          type="button"
+          mat-icon-button
+          (click)="zoomOut()"
+          [disabled]="imageZoom <= 0.5"
+          matTooltip="Zoom out"
+        >
+          <mat-icon>zoom_out</mat-icon>
+        </button>
+        <button
+          type="button"
+          class="zoom-reset-btn"
+          (click)="resetZoom()"
+          [disabled]="imageZoom === 1"
+          matTooltip="Reset zoom"
+        >
+          {{ (imageZoom * 100) | number : '1.0-0' }}%
+        </button>
+        <button
+          type="button"
+          mat-icon-button
+          (click)="zoomIn()"
+          [disabled]="imageZoom >= 3"
+          matTooltip="Zoom in"
+        >
+          <mat-icon>zoom_in</mat-icon>
+        </button>
+        <a
+          [href]="previewModalImage.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          mat-icon-button
+          matTooltip="Open original in new tab"
+        >
+          <mat-icon>open_in_new</mat-icon>
+        </a>
+        <button
+          type="button"
+          mat-icon-button
+          class="close-btn"
+          (click)="closeImageModal()"
+          matTooltip="Close (Esc)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="img-preview-body">
+      <div class="img-preview-viewport">
+        <img
+          [src]="previewModalImage.url"
+          [alt]="previewModalImage.title"
+          [style.transform]="'scale(' + imageZoom + ')'"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+

@@ -1347,7 +1347,14 @@
               <!-- Question Media (Images & Audio) -->
               <div class="eval-q-media" *ngIf="q.media && q.media.length">
                 <div class="eval-q-media-item" *ngFor="let m of q.media">
-                  <img *ngIf="m.media_type === 'image'" [src]="resolveMediaUrl(m.file_url)" [alt]="m.original_filename || 'Question Image'" class="eval-q-media-img" />
+                  <img
+                    *ngIf="m.media_type === 'image'"
+                    [src]="resolveMediaUrl(m.file_url)"
+                    [alt]="m.original_filename || 'Question Image'"
+                    class="eval-q-media-img"
+                    (click)="openImageModal(m.file_url, m.original_filename || 'Question Image')"
+                    matTooltip="Click to view full image"
+                  />
                   <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url)" class="eval-q-media-audio"></audio>
                 </div>
               </div>
@@ -1357,7 +1364,14 @@
                 <div class="eval-opt-row" *ngFor="let opt of q.options; let oi = index">
                   <span class="eval-opt-badge">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi] }}</span>
                   <span class="eval-opt-text" *ngIf="opt.text">{{ opt.text }}</span>
-                  <img *ngIf="opt.image_url" [src]="resolveMediaUrl(opt.image_url)" class="eval-opt-img" alt="Option Image" />
+                  <img
+                    *ngIf="opt.image_url"
+                    [src]="resolveMediaUrl(opt.image_url)"
+                    class="eval-opt-img"
+                    alt="Option Image"
+                    (click)="openImageModal(opt.image_url, 'Option ' + ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi]) + ' Image')"
+                    matTooltip="Click to view full image"
+                  />
                 </div>
               </div>
 
@@ -1916,5 +1930,84 @@
     </div>
   </div>
 </div>
+
+<!-- ═══ Image Lightbox Preview Modal ═══ -->
+<div
+  *ngIf="previewModalImage"
+  class="img-preview-backdrop"
+  (click)="closeImageModal()"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="eval-img-preview-title"
+>
+  <div class="img-preview-dialog" (click)="$event.stopPropagation()">
+    <div class="img-preview-header">
+      <div class="img-preview-title-group">
+        <mat-icon class="title-icon">image</mat-icon>
+        <span id="eval-img-preview-title" class="img-preview-title" [title]="previewModalImage.title">
+          {{ previewModalImage.title }}
+        </span>
+      </div>
+      <div class="img-preview-actions">
+        <button
+          type="button"
+          mat-icon-button
+          (click)="modalZoomOut()"
+          [disabled]="imageZoom <= 0.5"
+          matTooltip="Zoom out"
+        >
+          <mat-icon>zoom_out</mat-icon>
+        </button>
+        <button
+          type="button"
+          class="zoom-reset-btn"
+          (click)="modalResetZoom()"
+          [disabled]="imageZoom === 1"
+          matTooltip="Reset zoom"
+        >
+          {{ (imageZoom * 100) | number : '1.0-0' }}%
+        </button>
+        <button
+          type="button"
+          mat-icon-button
+          (click)="modalZoomIn()"
+          [disabled]="imageZoom >= 3"
+          matTooltip="Zoom in"
+        >
+          <mat-icon>zoom_in</mat-icon>
+        </button>
+        <a
+          [href]="previewModalImage.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          mat-icon-button
+          matTooltip="Open original in new tab"
+        >
+          <mat-icon>open_in_new</mat-icon>
+        </a>
+        <button
+          type="button"
+          mat-icon-button
+          class="close-btn"
+          (click)="closeImageModal()"
+          matTooltip="Close (Esc)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="img-preview-body">
+      <div class="img-preview-viewport">
+        <img
+          [src]="previewModalImage.url"
+          [alt]="previewModalImage.title"
+          [style.transform]="'scale(' + imageZoom + ')'"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+
 
 

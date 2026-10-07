@@ -6,6 +6,7 @@ import {
   AfterViewInit,
   TemplateRef,
   ViewContainerRef,
+  HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
@@ -3361,4 +3362,48 @@ export class AdminQuestionsComponent {
         }
       });
   }
+
+  // Image Preview Modal
+  previewModalImage: { url: string; title: string } | null = null;
+  imageZoom: number = 1;
+
+  openImageModal(url: string | null | undefined, title?: string) {
+    if (!url) return;
+    const resolved = this.resolveMediaUrl(url);
+    if (!resolved) return;
+    this.imageZoom = 1;
+    this.previewModalImage = {
+      url: resolved,
+      title: title || 'Image Preview'
+    };
+  }
+
+  closeImageModal() {
+    this.previewModalImage = null;
+    this.imageZoom = 1;
+  }
+
+  zoomIn() {
+    if (this.imageZoom < 3) {
+      this.imageZoom = Math.min(3, +(this.imageZoom + 0.25).toFixed(2));
+    }
+  }
+
+  zoomOut() {
+    if (this.imageZoom > 0.5) {
+      this.imageZoom = Math.max(0.5, +(this.imageZoom - 0.25).toFixed(2));
+    }
+  }
+
+  resetZoom() {
+    this.imageZoom = 1;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.previewModalImage) {
+      this.closeImageModal();
+    }
+  }
 }
+

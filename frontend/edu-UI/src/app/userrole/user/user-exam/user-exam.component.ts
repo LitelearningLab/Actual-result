@@ -733,6 +733,16 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   }
 
   // ── Lightbox Preview Methods ──
+  openSingleImagePreview(url: string | null | undefined) {
+    if (!url) return;
+    const resolved = this.resolveMediaUrl(url);
+    if (!resolved) return;
+    this.previewQuestionId = null;
+    this.previewImages = [resolved];
+    this.previewActiveIndex = 0;
+    this.showImagePreviewModal = true;
+  }
+
   openImagePreview(questionId: string | number, index: number) {
     this.previewQuestionId = questionId;
     this.previewImages = this.getAnswerImages(questionId);

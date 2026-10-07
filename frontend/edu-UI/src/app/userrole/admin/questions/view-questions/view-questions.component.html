@@ -750,7 +750,14 @@
                     <!-- Question media display -->
                     <div class="view-q-media" *ngIf="viewedQuestion?.media && viewedQuestion.media.length">
                       <div class="view-q-media-item" *ngFor="let m of viewedQuestion.media">
-                        <img *ngIf="m.media_type === 'image'" [src]="resolveMediaUrl(m.file_url)" [alt]="m.original_filename || 'Question Image'" class="view-media-img" />
+                        <img
+                          *ngIf="m.media_type === 'image'"
+                          [src]="resolveMediaUrl(m.file_url)"
+                          [alt]="m.original_filename || 'Question Image'"
+                          class="view-media-img"
+                          (click)="openImageModal(m.file_url, m.original_filename || 'Question Image')"
+                          matTooltip="Click to view full image"
+                        />
                         <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url)" class="view-media-audio"></audio>
                       </div>
                     </div>
@@ -793,7 +800,14 @@
                               >{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[idx] || idx + 1 }}.</span
                             >
                             <span class="opt-text" *ngIf="getOptionText(o)">{{ getOptionText(o) }}</span>
-                            <img *ngIf="o?.image_url" [src]="resolveMediaUrl(o.image_url)" class="opt-view-img" alt="Option Image" />
+                            <img
+                              *ngIf="o?.image_url"
+                              [src]="resolveMediaUrl(o.image_url)"
+                              class="opt-view-img"
+                              alt="Option Image"
+                              (click)="openImageModal(o.image_url, 'Option ' + ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[idx] || idx + 1) + ' Image')"
+                              matTooltip="Click to view full image"
+                            />
                           </div>
                           <div class="opt-right">
                             <span
@@ -852,3 +866,82 @@
     </div>
   </div>
 </div>
+
+<!-- ═══ Image Lightbox Preview Modal ═══ -->
+<div
+  *ngIf="previewModalImage"
+  class="img-preview-backdrop"
+  (click)="closeImageModal()"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="view-img-preview-title"
+>
+  <div class="img-preview-dialog" (click)="$event.stopPropagation()">
+    <div class="img-preview-header">
+      <div class="img-preview-title-group">
+        <mat-icon class="title-icon">image</mat-icon>
+        <span id="view-img-preview-title" class="img-preview-title" [title]="previewModalImage.title">
+          {{ previewModalImage.title }}
+        </span>
+      </div>
+      <div class="img-preview-actions">
+        <button
+          type="button"
+          mat-icon-button
+          (click)="zoomOut()"
+          [disabled]="imageZoom <= 0.5"
+          matTooltip="Zoom out"
+        >
+          <mat-icon>zoom_out</mat-icon>
+        </button>
+        <button
+          type="button"
+          class="zoom-reset-btn"
+          (click)="resetZoom()"
+          [disabled]="imageZoom === 1"
+          matTooltip="Reset zoom"
+        >
+          {{ (imageZoom * 100) | number : '1.0-0' }}%
+        </button>
+        <button
+          type="button"
+          mat-icon-button
+          (click)="zoomIn()"
+          [disabled]="imageZoom >= 3"
+          matTooltip="Zoom in"
+        >
+          <mat-icon>zoom_in</mat-icon>
+        </button>
+        <a
+          [href]="previewModalImage.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          mat-icon-button
+          matTooltip="Open original in new tab"
+        >
+          <mat-icon>open_in_new</mat-icon>
+        </a>
+        <button
+          type="button"
+          mat-icon-button
+          class="close-btn"
+          (click)="closeImageModal()"
+          matTooltip="Close (Esc)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="img-preview-body">
+      <div class="img-preview-viewport">
+        <img
+          [src]="previewModalImage.url"
+          [alt]="previewModalImage.title"
+          [style.transform]="'scale(' + imageZoom + ')'"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+

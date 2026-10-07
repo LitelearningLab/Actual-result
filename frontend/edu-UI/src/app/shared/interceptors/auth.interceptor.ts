@@ -50,8 +50,11 @@ export class AuthInterceptor implements HttpInterceptor {
           // some APIs return 200 with { status: false, statusMessage: 'Signature has expired' }
           const body = event && event.body ? event.body : null;
           if (body && (body.status === false || body.status === 'false')) {
-            const msg = body.statusMessage || body.message || body.error || '';
-            if (msg && /expire|not active|unauthorized/i.test(msg)) {
+            const msg = typeof (body.statusMessage || body.message || body.error) === 'string'
+              ? (body.statusMessage || body.message || body.error)
+              : '';
+            const isDatabaseOrServerError = /pyodbc|operationalerror|communication link failure|database service|database connection/i.test(msg);
+            if (!isDatabaseOrServerError && msg && /expire|not active|unauthorized/i.test(msg)) {
               console.debug('[AuthInterceptor] detected session invalidation in 200 response:', msg);
               try {
                 window.dispatchEvent(new CustomEvent('sessionExpired', { detail: { message: msg || 'Session expired' } }));
@@ -68,16 +71,24 @@ export class AuthInterceptor implements HttpInterceptor {
           }
           const status = err && (err.status || err.statusCode);
           const body = err && err.error ? err.error : err;
-          const message = body && (body.statusMessage || body.message || body.error);
+          const rawMessage = typeof (body && (body.statusMessage || body.message || body.error)) === 'string'
+            ? (body.statusMessage || body.message || body.error)
+            : '';
+
+          // Do NOT trigger sessionExpired if this is a database/server 5xx error
+          const isDatabaseOrServerError = /pyodbc|operationalerror|communication link failure|database service|database connection/i.test(rawMessage) || status >= 500;
 
           // If token expired, invalid, or revoked due to another device login
-          if (status === 401 || (message && /expire|not active|unauthorized/i.test(message))) {
+          if (!isDatabaseOrServerError && (status === 401 || (rawMessage && /expire|not active|unauthorized/i.test(rawMessage)))) {
+            const displayMsg = rawMessage && !/pyodbc|operationalerror|sql server/i.test(rawMessage)
+              ? rawMessage
+              : 'Your session has expired';
             try {
-              window.dispatchEvent(new CustomEvent('sessionExpired', { detail: { message: message || 'Session is no longer active' } }));
+              window.dispatchEvent(new CustomEvent('sessionExpired', { detail: { message: displayMsg } }));
             } catch (e) {}
           }
           else {
-            console.debug('[AuthInterceptor] non-auth error status:', status, 'message:', message);
+            console.debug('[AuthInterceptor] non-auth error status:', status, 'message:', rawMessage);
           }
         } catch (e) {
           // ignore

@@ -42,7 +42,10 @@ export class SessionService {
 
     window.addEventListener('sessionExpired', (ev: any) => {
       if (this.isLoggingOut || !this.hasLoggedInSession()) return;
-      const msg = ev && ev.detail && ev.detail.message ? ev.detail.message : 'Your session has expired';
+      let msg = ev && ev.detail && ev.detail.message ? String(ev.detail.message) : 'Your session has expired';
+      if (/pyodbc|operationalerror|sql server|tcp provider|sqlalchemy|traceback/i.test(msg)) {
+        msg = 'Your session has expired';
+      }
       if (/another device|logged in from another|active on another/i.test(msg)) {
         this.ngZone.run(() => this.promptSingleDeviceLogout('Your account was logged in from another device. Please log in again if needed.'));
       } else {

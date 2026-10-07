@@ -123,7 +123,15 @@
           <!-- Question Media (Images / Audio) -->
           <div class="user-q-media" *ngIf="q.media && q.media.length">
             <div class="user-q-media-item" *ngFor="let m of q.media">
-              <img *ngIf="m.media_type === 'image'" [src]="resolveMediaUrl(m.file_url || m.url)" [alt]="m.original_filename || 'Question Image'" class="user-q-media-img" />
+              <img
+                *ngIf="m.media_type === 'image'"
+                [src]="resolveMediaUrl(m.file_url || m.url)"
+                [alt]="m.original_filename || 'Question Image'"
+                class="user-q-media-img"
+                (click)="openSingleImagePreview(m.file_url || m.url)"
+                matTooltip="Click to view full image"
+                style="cursor: pointer;"
+              />
               <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)" class="user-q-media-audio"></audio>
             </div>
           </div>
@@ -136,7 +144,15 @@
               <input type="radio" name="q-{{q.id || i}}" [value]="getOptVal(o)" [(ngModel)]="answers[q.id || i]" [disabled]="testStopped || submitting || isSubmitted"
                 (change)="selectOne(q.id || i, getOptVal(o))" />
               <span class="opt-text" *ngIf="getOptText(o)">{{ getOptText(o) }}</span>
-              <img *ngIf="o?.image_url" [src]="resolveMediaUrl(o.image_url)" class="opt-choice-img" alt="Option Image" />
+              <img
+                *ngIf="o?.image_url"
+                [src]="resolveMediaUrl(o.image_url)"
+                class="opt-choice-img"
+                alt="Option Image"
+                (click)="openSingleImagePreview(o.image_url); $event.stopPropagation()"
+                matTooltip="Click to view full image"
+                style="cursor: pointer;"
+              />
               <mat-icon class="opt-check" *ngIf="answers[q.id || i] === getOptVal(o)">check_circle</mat-icon>
             </label>
           </div>
@@ -149,7 +165,15 @@
               <input type="checkbox" [value]="getOptVal(o)" (change)="toggleMulti(q.id || i, getOptVal(o))" [disabled]="testStopped || submitting || isSubmitted"
                 [checked]="isMultiSelected(q.id || i, getOptVal(o))" />
               <span class="opt-text" *ngIf="getOptText(o)">{{ getOptText(o) }}</span>
-              <img *ngIf="o?.image_url" [src]="resolveMediaUrl(o.image_url)" class="opt-choice-img" alt="Option Image" />
+              <img
+                *ngIf="o?.image_url"
+                [src]="resolveMediaUrl(o.image_url)"
+                class="opt-choice-img"
+                alt="Option Image"
+                (click)="openSingleImagePreview(o.image_url); $event.stopPropagation()"
+                matTooltip="Click to view full image"
+                style="cursor: pointer;"
+              />
               <mat-icon class="opt-check" *ngIf="isMultiSelected(q.id || i, getOptVal(o))">check_circle</mat-icon>
             </label>
           </div>

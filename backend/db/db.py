@@ -57,7 +57,16 @@ class SQLiteDB:
 
         print(f"Connecting to SQL Server at {server}, database {database}")
 
-        self.engine = create_engine(db_url, echo=False, future=True)
+        self.engine = create_engine(
+            db_url,
+            echo=False,
+            future=True,
+            pool_pre_ping=True,
+            pool_recycle=300,
+            pool_size=10,
+            max_overflow=20,
+            pool_timeout=30
+        )
         self.Session = sessionmaker(bind=self.engine)
         self.session = None
 
@@ -69,6 +78,7 @@ class SQLiteDB:
             return self.session
         except Exception as e:
             print(f"Error connecting to the database: {e}")
+            self.session = None
             return None
 
     def execute_query(self, query, params=None):
@@ -90,10 +100,17 @@ class SQLiteDB:
                 return None
         except Exception as e:
             print(f"Error executing query: {e}")
-            self.session.rollback()
+            try:
+                self.session.rollback()
+            except Exception:
+                pass
+            self.close()
             return None
 
     def close(self):
         if self.session:
-            self.session.close()
+            try:
+                self.session.close()
+            except Exception:
+                pass
             self.session = None
