@@ -27,13 +27,15 @@ import { PermissionGuard } from './guards/permission.guard';
 import { IconModule } from './icons/icon.module';
 import { DateRangePickerDialogComponent } from './components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { LocalizedDatePipe } from './pipes/localized-date.pipe';
+import { MathRenderComponent } from './components/math-render/math-render.component';
+import { MathRenderPipe } from './pipes/math.pipe';
 
 @NgModule({
   imports: [
-    CommonModule, HttpClientModule, RouterModule, MatChipsModule, MatSnackBarModule, MatDialogModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, FormsModule, DirectivesModule, IconModule
+    CommonModule, HttpClientModule, RouterModule, MatChipsModule, MatSnackBarModule, MatDialogModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, FormsModule, DirectivesModule, IconModule, MathRenderComponent, MathRenderPipe
   ],
   exports: [
-    MatChipsModule, MatIconModule, MatSnackBarModule, MatDialogModule, HttpClientModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, FormsModule, DirectivesModule, UnauthorizedComponent, DateRangePickerDialogComponent, LocalizedDatePipe
+    MatChipsModule, MatIconModule, MatSnackBarModule, MatDialogModule, HttpClientModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, FormsModule, DirectivesModule, UnauthorizedComponent, DateRangePickerDialogComponent, LocalizedDatePipe, MathRenderComponent, MathRenderPipe
   ],
   declarations: [UnauthorizedComponent, ConfirmDialogComponent, DateRangePickerDialogComponent, LocalizedDatePipe],
   providers: [PermissionGuard]

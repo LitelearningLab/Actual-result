@@ -523,7 +523,7 @@
                                                 </thead>
                                                 <tbody>
                                                     <tr *ngFor="let q of c.questions">
-                                                        <td>{{ q.question_text || q.text || q.title || '-' }}</td>
+                                                        <td><app-math-render [text]="q.question_text || q.text || q.title || '-'"></app-math-render></td>
                                                         <td>{{ q.question_type || q.type || '—' }}</td>
                                                         <td>{{ q.marks ?? q.points ?? '-' }}</td>
                                                     </tr>

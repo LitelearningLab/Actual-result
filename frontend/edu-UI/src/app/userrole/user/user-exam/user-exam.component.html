@@ -118,7 +118,9 @@
           </div>
 
           <!-- Question Text -->
-          <p class="q-text" [id]="'q-text-' + i">{{ q.question || q.text }}</p>
+          <p class="q-text" [id]="'q-text-' + i">
+            <app-math-render [text]="q.question || q.text"></app-math-render>
+          </p>
 
           <!-- Question Media (Images / Audio) -->
           <div class="user-q-media" *ngIf="q.media && q.media.length">
@@ -190,7 +192,7 @@
               <span class="opt-letter">{{ 'ABCDEFGH'[oi] }}</span>
               <input type="radio" name="q-{{q.id || i}}" [value]="getOptVal(o)" [(ngModel)]="answers[q.id || i]" [disabled]="testStopped || submitting || isSubmitted"
                 (change)="selectOne(q.id || i, getOptVal(o))" />
-              <span class="opt-text" *ngIf="getOptText(o)">{{ getOptText(o) }}</span>
+              <span class="opt-text" *ngIf="getOptText(o)"><app-math-render [text]="getOptText(o)"></app-math-render></span>
               <img
                 *ngIf="getOptImage(o)"
                 [src]="getOptImage(o)"
@@ -211,7 +213,7 @@
               <span class="opt-letter">{{ 'ABCDEFGH'[oi] }}</span>
               <input type="checkbox" [value]="getOptVal(o)" (change)="toggleMulti(q.id || i, getOptVal(o))" [disabled]="testStopped || submitting || isSubmitted"
                 [checked]="isMultiSelected(q.id || i, getOptVal(o))" />
-              <span class="opt-text" *ngIf="getOptText(o)">{{ getOptText(o) }}</span>
+              <span class="opt-text" *ngIf="getOptText(o)"><app-math-render [text]="getOptText(o)"></app-math-render></span>
               <img
                 *ngIf="getOptImage(o)"
                 [src]="getOptImage(o)"

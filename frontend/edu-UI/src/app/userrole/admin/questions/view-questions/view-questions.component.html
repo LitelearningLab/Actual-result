@@ -630,9 +630,9 @@
             <div class="item-cell">
               <!-- <div class="item-avatar item-avatar--question">{{ (q.question || '?').charAt(0).toUpperCase() }}</div> -->
               <div class="item-info">
-                <span class="item-name q-title">{{
-                  q.question || q.question_text || q.text || '—'
-                }}</span>
+                <span class="item-name q-title">
+                  <app-math-render [text]="q.question || q.question_text || q.text || '—'"></app-math-render>
+                </span>
               </div>
             </div>
           </td>
@@ -720,7 +720,7 @@
                         {{ (viewedQuestion?.question || '?').charAt(0).toUpperCase() }}
                     </div> -->
           <div class="modal-header-text">
-            <h1 class="modal-item-name">{{ viewedQuestion?.question }}</h1>
+            <h1 class="modal-item-name"><app-math-render [text]="viewedQuestion?.question"></app-math-render></h1>
             <div class="modal-item-meta">
               <span class="modal-type-badge">{{
                 formatQuestionType(viewedQuestion?.originalType || viewedQuestion?.type)
@@ -746,7 +746,7 @@
                 <div class="detail-grid">
                   <div class="label">Question</div>
                   <div class="value">
-                    <div>{{ viewedQuestion?.question }}</div>
+                    <div><app-math-render [text]="viewedQuestion?.question"></app-math-render></div>
                     <!-- Question media display -->
                     <div class="view-q-media" *ngIf="viewedQuestion?.media && viewedQuestion.media.length">
                       <div class="view-q-media-item" *ngFor="let m of viewedQuestion.media">
@@ -791,7 +791,7 @@
                   </div>
                   <div class="value">
                     <div *ngIf="isAnswerType(viewedQuestion?.originalType || viewedQuestion?.type)">
-                      {{ getAnswerText(viewedQuestion) }}
+                      <app-math-render [text]="getAnswerText(viewedQuestion)"></app-math-render>
                     </div>
                     <div
                       *ngIf="!isAnswerType(viewedQuestion?.originalType || viewedQuestion?.type)"
@@ -805,7 +805,7 @@
                             <span class="opt-label"
                               >{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[idx] || idx + 1 }}.</span
                             >
-                            <span class="opt-text" *ngIf="getOptionText(o)">{{ getOptionText(o) }}</span>
+                            <span class="opt-text" *ngIf="getOptionText(o)"><app-math-render [text]="getOptionText(o)"></app-math-render></span>
                             <img
                               *ngIf="o?.image_url || o?.url"
                               [src]="resolveMediaUrl(o.image_url || o.url)"

@@ -689,12 +689,12 @@
                                 <div class="paper-question-item" *ngIf="item.type === 'question' && item.question">
                                     <div class="paper-q-header">
                                         <span class="paper-q-num">{{ item.globalQuestionIndex }}.</span>
-                                        <span class="paper-q-text">{{ item.question.question }}</span>
+                                        <span class="paper-q-text"><app-math-render [text]="item.question.question"></app-math-render></span>
                                         <span class="paper-q-marks">[{{ item.question.marks || 1 }}]</span>
                                     </div>
                                     <div class="paper-q-options-grid" *ngIf="item.question.options && item.question.options.length > 0 && !isDescriptiveQuestion(item.question, item.sectionIndex)">
                                         <div class="paper-q-option" *ngFor="let opt of item.question.options; let optIdx = index">
-                                            {{ formatOptionText(opt, optIdx) }}
+                                            <app-math-render [text]="formatOptionText(opt, optIdx)"></app-math-render>
                                         </div>
                                     </div>
                                 </div>
@@ -789,12 +789,12 @@
                                 <div class="paper-question-item" *ngIf="item.type === 'question' && item.question">
                                     <div class="paper-q-header">
                                         <span class="paper-q-num">{{ item.globalQuestionIndex }}.</span>
-                                        <span class="paper-q-text">{{ item.question.question }}</span>
+                                        <span class="paper-q-text"><app-math-render [text]="item.question.question"></app-math-render></span>
                                         <span class="paper-q-marks">[{{ item.question.marks || 1 }}]</span>
                                     </div>
                                     <div class="paper-q-answer">
                                         <span class="ans-badge">Ans:</span>
-                                        <span class="ans-value" *ngIf="getCorrectAnswerText(item.question)">{{ getCorrectAnswerText(item.question) }}</span>
+                                        <span class="ans-value" *ngIf="getCorrectAnswerText(item.question)"><app-math-render [text]="getCorrectAnswerText(item.question)"></app-math-render></span>
                                         <em class="no-answer" *ngIf="!getCorrectAnswerText(item.question)">Answer not set yet</em>
                                     </div>
                                 </div>

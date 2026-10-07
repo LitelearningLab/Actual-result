@@ -84,6 +84,8 @@ export interface PaperPage {
   items: PaperPageItem[];
 }
 
+import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
+
 @Component({
   selector: 'app-create-question-paper',
   standalone: true,
@@ -106,6 +108,7 @@ export interface PaperPage {
     MatStepperModule,
     OverlayModule,
     PortalModule,
+    MathRenderComponent,
   ],
   templateUrl: './create-question-paper.component.html',
   styleUrls: ['./create-question-paper.component.scss'],

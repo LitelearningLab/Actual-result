@@ -43,6 +43,8 @@ import {
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
+import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
+
 @Component({
   selector: 'app-admin-questions',
   standalone: true,
@@ -65,6 +67,7 @@ import {
     MatDialogModule,
     MatTooltipModule,
     OverlayModule,
+    MathRenderComponent,
   ],
   templateUrl: './questions.component.html',
   styleUrls: ['./questions.component.scss'],

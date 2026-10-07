@@ -46,9 +46,9 @@
             <tbody>
               <tr *ngFor="let q of result?.questions; let i = index" [class.correct]="q.marks_awarded && q.marks_awarded>0">
                 <td data-label="#">{{ i + 1 }}</td>
-                <td data-label="Question">{{ q.question }}</td>
-                <td data-label="Your answer">{{ q.answer }}</td>
-                <td data-label="Correct answer">{{ q.correct_answer }}</td>
+                <td data-label="Question"><app-math-render [text]="q.question"></app-math-render></td>
+                <td data-label="Your answer"><app-math-render [text]="q.answer"></app-math-render></td>
+                <td data-label="Correct answer"><app-math-render [text]="q.correct_answer"></app-math-render></td>
                 <td data-label="Marks">{{ q.marks_awarded || 0 }} / {{ q.marks || 0 }}</td>
               </tr>
             </tbody>

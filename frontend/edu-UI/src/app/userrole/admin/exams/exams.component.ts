@@ -48,6 +48,8 @@ import {
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
+import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
+
 @Component({
   selector: 'app-admin-exams',
   standalone: true,
@@ -73,6 +75,7 @@ import {
     OverlayModule,
     PortalModule,
     DirectivesModule,
+    MathRenderComponent,
   ],
   templateUrl: './exams.component.html',
   styleUrls: ['./exams.component.scss'],

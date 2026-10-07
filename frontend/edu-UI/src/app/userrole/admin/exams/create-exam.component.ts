@@ -39,6 +39,8 @@ import {
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
 
+import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
+
 @Component({
   selector: 'app-create-exam',
   standalone: true,
@@ -60,6 +62,7 @@ import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/se
     MatStepperModule,
     OverlayModule,
     PortalModule,
+    MathRenderComponent,
   ],
   templateUrl: './create-exam.component.html',
   styleUrls: ['./create-exam.component.scss'],

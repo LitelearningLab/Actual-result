@@ -19,6 +19,7 @@ import { notify } from 'src/app/shared/global-notify';
 import { Subscription, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
+import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
 
 export interface ScannedPageItem {
   id: string;
@@ -83,7 +84,8 @@ export interface BulkFileItem {
     MatInputModule,
     MatButtonModule,
     OverlayModule,
-    PortalModule
+    PortalModule,
+    MathRenderComponent,
   ],
   templateUrl: './test-evaluation.component.html',
   styleUrls: ['./test-evaluation.component.scss']

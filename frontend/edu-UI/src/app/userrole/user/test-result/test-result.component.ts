@@ -3,10 +3,12 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { notify } from 'src/app/shared/global-notify';
 
+import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
+
 @Component({
   selector: 'app-user-test-result',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MathRenderComponent],
   templateUrl: './test-result.component.html',
   styleUrls: ['./test-result.component.scss']
 })

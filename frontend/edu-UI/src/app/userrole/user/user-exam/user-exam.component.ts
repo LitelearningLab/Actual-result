@@ -37,10 +37,12 @@ interface Question {
   media?: Array<any>;
 }
 
+import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
+
 @Component({
   selector: 'app-user-exam-runner',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatIconModule, MathRenderComponent],
   templateUrl: './user-exam.component.html',
   styleUrls: ['./user-exam.component.scss']
 })

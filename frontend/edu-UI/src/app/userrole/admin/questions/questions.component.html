@@ -896,7 +896,7 @@
                 <div class="question-left">
                   <div class="q-title">Question {{ qi + 1 }}</div>
                   <div class="q-snippet">
-                    {{ q.text ? (q.text | slice: 0 : 80) : 'No question text yet' }}
+                    <app-math-render [text]="(q.text | slice: 0 : 80) || 'No question text yet'"></app-math-render>
                   </div>
                 </div>
                 <div class="question-right">

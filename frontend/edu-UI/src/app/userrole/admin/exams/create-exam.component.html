@@ -550,7 +550,7 @@
                                         <mat-list-item *ngFor="let q of questionsForCategory" class="question-row">
                                             <mat-checkbox [checked]="selectedQuestionIds.indexOf(q.id+'')>=0"
                                                 [disabled]="readOnly || isActiveQuestionBankRandomized()"
-                                                (change)="toggleQuestionSelection(q.id, $event.checked)">{{q.question}}</mat-checkbox>
+                                                (change)="toggleQuestionSelection(q.id, $event.checked)"><app-math-render [text]="q.question"></app-math-render></mat-checkbox>
                                         </mat-list-item>
                                     </mat-list>
                                     <div *ngIf="!questionsForCategory.length" class="muted">Select a question bank

@@ -1341,7 +1341,7 @@
 
               <!-- Question Text -->
               <div class="q-text">
-                {{ q.question_text }}
+                <app-math-render [text]="q.question_text"></app-math-render>
               </div>
 
               <!-- Question Media (Images & Audio) -->
@@ -1363,7 +1363,7 @@
               <div class="eval-q-options" *ngIf="q.options && q.options.length && q.question_type !== 'DESCRIPTIVE'">
                 <div class="eval-opt-row" *ngFor="let opt of q.options; let oi = index">
                   <span class="eval-opt-badge">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi] }}</span>
-                  <span class="eval-opt-text" *ngIf="opt.text">{{ opt.text }}</span>
+                  <span class="eval-opt-text" *ngIf="opt.text"><app-math-render [text]="opt.text"></app-math-render></span>
                   <img
                     *ngIf="opt.image_url || opt.url"
                     [src]="resolveMediaUrl(opt.image_url || opt.url)"
