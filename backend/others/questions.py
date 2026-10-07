@@ -1,4 +1,4 @@
-from db.models import Question, Option, QuestionMapping, QuestionMedia, Categories, CategoriesDepartments, CategoriesTeams, User, openai_requests
+from db.models import Question, Option, QuestionMapping, QuestionMedia, Categories, CategoriesDepartments, CategoriesTeams, User, openai_requests, InstituteDepartment
 from db.db import SQLiteDB
 from sqlalchemy import func, or_, text
 import sys
@@ -450,11 +450,24 @@ def get_questions_details(request):
             question_list = [q.question_id for q in mappingdata]
             filter.append(Question.question_id.in_(question_list if question_list else ['__none__']))
         if args.get("departments"):
-            department_ids = [d.strip() for d in args.get("departments").split(",") if d.strip()]
-            if department_ids:
-                dept_cat_ids = [d.category_id for d in session.query(CategoriesDepartments).filter(CategoriesDepartments.department_id.in_(department_ids)).all()]
+            raw_depts = [d.strip() for d in args.get("departments").split(",") if d.strip()]
+            if raw_depts:
+                dept_records = session.query(InstituteDepartment).filter(or_(
+                    InstituteDepartment.department_id.in_(raw_depts),
+                    InstituteDepartment.name.in_(raw_depts)
+                )).all()
+                resolved_dept_ids = list(set([d.department_id for d in dept_records] + [d.name for d in dept_records] + raw_depts))
+
+                dept_cat_ids = [
+                    d.category_id for d in session.query(CategoriesDepartments).filter(
+                        CategoriesDepartments.department_id.in_(resolved_dept_ids)
+                    ).all()
+                ]
                 all_dept_cat_ids = [c[0] for c in session.query(CategoriesDepartments.category_id).distinct().all()]
-                cat_query = session.query(Categories.category_id).filter(or_(Categories.category_id.in_(dept_cat_ids), ~Categories.category_id.in_(all_dept_cat_ids)), active_cat_filter)
+                cat_query = session.query(Categories.category_id).filter(
+                    or_(Categories.category_id.in_(dept_cat_ids), ~Categories.category_id.in_(all_dept_cat_ids)),
+                    active_cat_filter
+                )
                 category_list = [c[0] for c in cat_query.all()]
                 mappingdata = session.query(QuestionMapping).filter(QuestionMapping.category_id.in_(category_list)).all()
                 question_list = [q.question_id for q in mappingdata]

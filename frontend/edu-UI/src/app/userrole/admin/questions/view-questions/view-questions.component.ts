@@ -811,13 +811,22 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     }
 
     // Institute
-    if (this.selectedInstitutes && this.selectedInstitutes.length) {
+    if (this.isGlobalInstituteActive && this.globalInstituteContext?.activeInstituteId) {
+      const activeId = this.globalInstituteContext.activeInstituteId;
+      const instName = this.getInstituteLabel(activeId);
+      chips.push({
+        key: 'institute',
+        label: `Institute: ${instName}`,
+        removable: false,
+        tooltip: instName,
+      });
+    } else if (this.selectedInstitutes && this.selectedInstitutes.length) {
       if (this.selectedInstitutes.length === 1) {
         const instName = this.getInstituteLabel(this.selectedInstitutes[0]);
         chips.push({
           key: 'institute',
           label: `Institute: ${instName}`,
-          removable: this.isSuperAdmin && !this.isGlobalInstituteActive,
+          removable: this.isSuperAdmin,
           tooltip: instName,
         });
       } else {
@@ -827,11 +836,11 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         chips.push({
           key: 'institute',
           label: `Institutes: ${this.selectedInstitutes.length} selected`,
-          removable: this.isSuperAdmin && !this.isGlobalInstituteActive,
+          removable: this.isSuperAdmin,
           tooltip: instNames.join(', '),
         });
       }
-    } else if (this.selectedInstitute && !this.isGlobalInstituteActive) {
+    } else if (this.selectedInstitute) {
       const instName = this.getInstituteLabel(this.selectedInstitute);
       if (instName) {
         chips.push({
@@ -1034,12 +1043,30 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
 
   private getScopedInstituteId(instId?: string): string {
+    if (this.isGlobalInstituteActive && this.globalInstituteContext?.activeInstituteId) {
+      return this.globalInstituteContext.activeInstituteId;
+    }
+    if (instId) {
+      return String(instId);
+    }
     if (this.selectedInstitutes && this.selectedInstitutes.length) {
       return this.selectedInstitutes.join(',');
     }
-    if (!this.isSuperAdmin && this.loginInstituteId) return String(this.loginInstituteId);
-    return String(instId || this.selectedInstitute || '');
+    if (this.selectedInstitute) {
+      return this.selectedInstitute;
+    }
+    if (!this.isSuperAdmin && this.loginInstituteId) {
+      return String(this.loginInstituteId);
+    }
+    return String(
+      sessionStorage.getItem('global_institute_id') ||
+        sessionStorage.getItem('institute_id') ||
+        ''
+    );
   }
+
+
+
 
   private getItemInstituteId(item: any): string {
     return String(
@@ -1105,6 +1132,11 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
   openFiltersOverlay() {
     if (!this.filtersBtn) return;
+    if (this.isGlobalInstituteActive && this.globalInstituteContext?.activeInstituteId) {
+      const activeId = this.globalInstituteContext.activeInstituteId;
+      this.selectedInstitute = activeId;
+      this.selectedInstitutes = [activeId];
+    }
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
@@ -2682,13 +2714,18 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       this.filterCity = state?.filterCity || '';
       this.filterIndustry = state?.filterIndustry || '';
       this.filterSector = state?.filterSector || '';
-      this.selectedInstitute = state?.selectedInstitute || '';
-      this.selectedInstitutes =
-        Array.isArray(state?.selectedInstitutes) && state.selectedInstitutes.length
-          ? state.selectedInstitutes
-          : this.selectedInstitute
-            ? [this.selectedInstitute]
-            : [];
+      if (this.isGlobalInstituteActive && activeInstituteId) {
+        this.selectedInstitute = activeInstituteId;
+        this.selectedInstitutes = [activeInstituteId];
+      } else {
+        this.selectedInstitute = state?.selectedInstitute || '';
+        this.selectedInstitutes =
+          Array.isArray(state?.selectedInstitutes) && state.selectedInstitutes.length
+            ? state.selectedInstitutes
+            : this.selectedInstitute
+              ? [this.selectedInstitute]
+              : [];
+      }
       this.selectedCountries = Array.isArray(state?.selectedCountries)
         ? state.selectedCountries
         : [];
@@ -2752,6 +2789,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   private resetForInstituteChange(instituteId: string): void {
     this.activeInstituteId = instituteId;
     this.selectedInstitute = instituteId;
+    this.selectedInstitutes = instituteId ? [instituteId] : [];
     // Clear institute-specific state immediately to prevent cross-institute data leakage.
     this.questions = [];
     this.dataSource.data = [];
