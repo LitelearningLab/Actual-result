@@ -6,13 +6,14 @@ import {
   ViewContainerRef,
   OnInit,
   OnDestroy,
+  HostListener,
 } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { Observable, of, Subscription, forkJoin } from 'rxjs';
 import { startWith, map, catchError } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
-import { API_BASE } from 'src/app/shared/api.config';
+import { API_BASE, resolveMediaUrl } from 'src/app/shared/api.config';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
@@ -487,7 +488,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   innerAnalyticsTabIndex = 0;
   userFilterOpen = false;
   isGlobalInstituteActive = false;
-  showLocationAndIndustryFilters: boolean = true;
+  get showLocationAndIndustryFilters(): boolean {
+    return this.isSuperAdmin && !this.isGlobalInstituteActive;
+  }
   hasAppliedFilters: boolean = false;
 
   get appliedFilterChips(): Array<{ key: string; label: string; removable: boolean }> {
@@ -4516,6 +4519,76 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         .replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST')
         .trim();
     }
+  }
+
+  resolveMediaUrl = resolveMediaUrl;
+
+  // Image Preview Lightbox Modal
+  previewModalImage: { url: string; title: string } | null = null;
+  imageZoom: number = 1;
+
+  openImageModal(url: string | null | undefined, title?: string) {
+    if (!url) return;
+    const resolved = this.resolveMediaUrl(url);
+    if (!resolved) return;
+    this.imageZoom = 1;
+    this.previewModalImage = {
+      url: resolved,
+      title: title || 'Image Preview'
+    };
+  }
+
+  closeImageModal() {
+    this.previewModalImage = null;
+    this.imageZoom = 1;
+  }
+
+  zoomIn() {
+    if (this.imageZoom < 3) {
+      this.imageZoom = Math.min(3, +(this.imageZoom + 0.25).toFixed(2));
+    }
+  }
+
+  zoomOut() {
+    if (this.imageZoom > 0.5) {
+      this.imageZoom = Math.max(0.5, +(this.imageZoom - 0.25).toFixed(2));
+    }
+  }
+
+  resetZoom() {
+    this.imageZoom = 1;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.previewModalImage) {
+      this.closeImageModal();
+    }
+  }
+
+  getQuestionMediaList(q: any): any[] {
+    if (!q) return [];
+    if (Array.isArray(q.media) && q.media.length) return q.media;
+    if (Array.isArray(q.question_media) && q.question_media.length) return q.question_media;
+    if (this.descriptiveAnalysisData?.question?.media && Array.isArray(this.descriptiveAnalysisData.question.media)) {
+      return this.descriptiveAnalysisData.question.media;
+    }
+    if (q.media_url || q.image_url || q.file_url || q.image) {
+      return [{
+        media_type: 'image',
+        file_url: q.media_url || q.image_url || q.file_url || q.image,
+        original_filename: 'Question Image'
+      }];
+    }
+    return [];
+  }
+
+  isImageMedia(m: any): boolean {
+    if (!m) return false;
+    const type = (m.media_type || '').toLowerCase();
+    if (type === 'image' || type === 'img') return true;
+    const url = (m.file_url || m.url || '').toLowerCase();
+    return /\.(png|jpe?g|webp|gif|svg|bmp|avif)(\?.*)?$/i.test(url);
   }
 
   toTitleCase(str: string | null | undefined): string {

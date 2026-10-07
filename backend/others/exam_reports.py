@@ -1,5 +1,5 @@
 from db.db import SQLiteDB
-from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, ExamScheduleMapping, MarksHistory, ExamReviewComments, ExamReviewCommentsHistory, InstituteDepartment, InstituteTeam, InstituteCampus, Country, State, City
+from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, QuestionMedia, ExamScheduleMapping, MarksHistory, ExamReviewComments, ExamReviewCommentsHistory, InstituteDepartment, InstituteTeam, InstituteCampus, Country, State, City
 from sqlalchemy import func, or_, and_, String
 from datetime import datetime
 from others.llm import openai_client, analyze_wrong_answers_ai, generate_ai_subtopics
@@ -789,6 +789,30 @@ def get_exam_analytics(request):
 
         # Build question_summary array in memory
         t_calc_start = time.perf_counter()
+        media_map = {}
+        if question_ids:
+            try:
+                all_media = session.query(QuestionMedia).filter(
+                    (QuestionMedia.question_id.in_(question_ids)) |
+                    (func.cast(QuestionMedia.question_id, String).in_([str(q) for q in question_ids])),
+                    QuestionMedia.active_status == 1
+                ).order_by(QuestionMedia.order_number.asc()).all()
+                for m in all_media:
+                    sqid = str(m.question_id)
+                    if sqid not in media_map:
+                        media_map[sqid] = []
+                    media_map[sqid].append({
+                        'media_id': str(m.media_id),
+                        'media_type': m.media_type,
+                        'file_url': m.file_url,
+                        'url': m.file_url,
+                        'gcs_path': m.gcs_path,
+                        'caption': m.caption,
+                        'original_filename': m.original_filename
+                    })
+            except Exception as m_err:
+                print(f"Error fetching question media for analytics: {m_err}")
+
         question_summary = []
         for idx, qid in enumerate(question_ids, start=1):
             sqid = str(qid)
@@ -818,6 +842,7 @@ def get_exam_analytics(request):
                 'category_name': category_name,
                 'question_text': qobj.question_text,
                 'question_type': qobj.question_type,
+                'media': media_map.get(sqid, []),
                 'user_attempts': int(user_attempts),
                 'attempts': int(total_attempts),
                 'mistakes': int(mistakes),
@@ -1068,8 +1093,31 @@ def get_question_wrong_answers(request):
                 'option_id': str(opt.options_id),
                 'option_text': opt.option_text,
                 'option_number': idx,
-                'is_correct': int(opt.is_correct or 0)
+                'is_correct': int(opt.is_correct or 0),
+                'image_url': getattr(opt, 'image_url', None),
+                'gcs_path': getattr(opt, 'gcs_path', None)
             })
+
+        # Fetch QuestionMedia for this question
+        q_media_list = []
+        try:
+            q_media = session.query(QuestionMedia).filter(
+                (QuestionMedia.question_id == target_qid) |
+                (func.cast(QuestionMedia.question_id, String) == str(target_qid)),
+                QuestionMedia.active_status == 1
+            ).order_by(QuestionMedia.order_number.asc()).all()
+            for m in q_media:
+                q_media_list.append({
+                    'media_id': str(m.media_id),
+                    'media_type': m.media_type,
+                    'file_url': m.file_url,
+                    'url': m.file_url,
+                    'gcs_path': m.gcs_path,
+                    'caption': m.caption,
+                    'original_filename': m.original_filename
+                })
+        except Exception as qm_err:
+            print(f"Error fetching QuestionMedia in get_question_wrong_answers: {qm_err}")
 
         raw_qtype = (getattr(qobj, 'question_type', '') or '').strip().lower()
         if raw_qtype in ['multi', 'multiple']:
@@ -1088,6 +1136,7 @@ def get_question_wrong_answers(request):
             'question_text': getattr(qobj, 'question_text', None) or '',
             'question_type': q_type,
             'category_name': cat_name,
+            'media': q_media_list,
             'options': opts_data
         }
 
@@ -1553,7 +1602,8 @@ def get_question_wrong_answers(request):
                                 "question_id": str(target_qid),
                                 "question_text": getattr(qobj, 'question_text', '') or '',
                                 "category_name": cat_name or 'Descriptive Question Bank',
-                                "question_type": q_type
+                                "question_type": q_type,
+                                "media": q_media_list
                             },
                             "summary": {
                                 "total_attempts": total_attempts,
@@ -1640,7 +1690,8 @@ def get_question_wrong_answers(request):
                         "question_id": str(target_qid),
                         "question_text": getattr(qobj, 'question_text', '') or '',
                         "category_name": cat_name or 'Descriptive Question Bank',
-                        "question_type": q_type
+                        "question_type": q_type,
+                        "media": q_media_list
                     },
                     "summary": {
                         "total_attempts": total_attempts,

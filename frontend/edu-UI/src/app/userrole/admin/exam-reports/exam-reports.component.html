@@ -2803,12 +2803,57 @@
               </div>
             </div>
 
-            <!-- Question Banner Box -->
-            <div class="desc-question-banner">
-              <strong class="q-banner-label">Question:</strong>
-              <span class="q-banner-text">
-                {{ selectedQuestionForWrongSummary.question_text || selectedQuestionForWrongSummary.text || descriptiveAnalysisData?.question?.question_text || '' }}
-              </span>
+            <!-- Question & Media Card (Responsive Two-Column Layout) -->
+            <div
+              class="desc-question-card"
+              [class.has-media]="getQuestionMediaList(selectedQuestionForWrongSummary).length > 0"
+            >
+              <!-- Left/Main: Question Content -->
+              <div class="desc-question-left">
+                <div class="desc-q-badge-wrap">
+                  <span class="desc-q-badge">Question</span>
+                </div>
+                <div class="desc-q-text">
+                  {{ selectedQuestionForWrongSummary.question_text || selectedQuestionForWrongSummary.text || descriptiveAnalysisData?.question?.question_text || '' }}
+                </div>
+              </div>
+
+              <!-- Right: Image / Media Preview Frame -->
+              <div
+                class="desc-question-right"
+                *ngIf="getQuestionMediaList(selectedQuestionForWrongSummary).length"
+              >
+                <div
+                  class="desc-media-preview-card"
+                  *ngFor="let m of getQuestionMediaList(selectedQuestionForWrongSummary)"
+                >
+                  <div
+                    class="desc-media-img-frame"
+                    *ngIf="m.media_type === 'image' || isImageMedia(m)"
+                    (click)="openImageModal(m.file_url || m.url, m.original_filename || m.caption || 'Question Image')"
+                    matTooltip="Click to view full image"
+                    role="button"
+                    tabindex="0"
+                  >
+                    <img
+                      [src]="resolveMediaUrl(m.file_url || m.url)"
+                      [alt]="m.original_filename || m.caption || 'Question Image'"
+                      class="desc-media-img"
+                    />
+                    <div class="desc-media-zoom-overlay">
+                      <mat-icon class="zoom-icon">zoom_in</mat-icon>
+                      <span>Click to enlarge</span>
+                    </div>
+                  </div>
+                  <audio
+                    *ngIf="m.media_type === 'audio'"
+                    controls
+                    [src]="resolveMediaUrl(m.file_url || m.url)"
+                    class="desc-media-audio"
+                  ></audio>
+                  <div *ngIf="m.caption" class="desc-media-caption">{{ m.caption }}</div>
+                </div>
+              </div>
             </div>
 
 
@@ -3070,6 +3115,22 @@
                   selectedQuestionForWrongSummary.name ||
                   ''
               }}
+
+              <!-- Question Media / Images -->
+              <div class="report-q-media-wrap" *ngIf="getQuestionMediaList(selectedQuestionForWrongSummary).length">
+                <div class="report-q-media-item" *ngFor="let m of getQuestionMediaList(selectedQuestionForWrongSummary)">
+                  <img
+                    *ngIf="m.media_type === 'image' || isImageMedia(m)"
+                    [src]="resolveMediaUrl(m.file_url || m.url)"
+                    [alt]="m.original_filename || m.caption || 'Question Image'"
+                    class="report-q-media-img"
+                    (click)="openImageModal(m.file_url || m.url, m.original_filename || m.caption || 'Question Image')"
+                    matTooltip="Click to view full image"
+                  />
+                  <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)" class="report-q-media-audio"></audio>
+                  <div *ngIf="m.caption" class="report-q-media-caption">{{ m.caption }}</div>
+                </div>
+              </div>
             </div>
 
             <!-- Normal Blue Loading State for Objective -->
@@ -3105,6 +3166,15 @@
                       <span class="q-option-text-val" [class.is-correct-text]="isCorrectOption(opt)">
                         {{ opt.option_text || opt.text || opt.answer }}
                       </span>
+                      <div *ngIf="opt?.image_url || opt?.url" class="report-opt-media-wrap">
+                        <img
+                          [src]="resolveMediaUrl(opt.image_url || opt.url)"
+                          alt="Option Image"
+                          class="report-opt-img"
+                          (click)="openImageModal(opt.image_url || opt.url, 'Option ' + (idx + 1) + ' Image')"
+                          matTooltip="Click to view full image"
+                        />
+                      </div>
                     </td>
                     <td class="opt-col-status">
                       <span *ngIf="isCorrectOption(opt)" class="q-correct-tag-badge">
@@ -3220,6 +3290,84 @@
         <button mat-stroked-button class="desc-close-btn" (click)="closeWrongAnswerSummary()">
           Close
         </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Image Lightbox Preview Modal ═══ -->
+<div
+  *ngIf="previewModalImage"
+  class="img-preview-backdrop"
+  (click)="closeImageModal()"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="report-img-preview-title"
+>
+  <div class="img-preview-dialog" (click)="$event.stopPropagation()">
+    <div class="img-preview-header">
+      <div class="img-preview-title-group">
+        <mat-icon class="title-icon">image</mat-icon>
+        <span id="report-img-preview-title" class="img-preview-title" [title]="previewModalImage.title">
+          {{ previewModalImage.title }}
+        </span>
+      </div>
+      <div class="img-preview-actions">
+        <button
+          type="button"
+          mat-icon-button
+          (click)="zoomOut()"
+          [disabled]="imageZoom <= 0.5"
+          matTooltip="Zoom out"
+        >
+          <mat-icon>zoom_out</mat-icon>
+        </button>
+        <button
+          type="button"
+          class="zoom-reset-btn"
+          (click)="resetZoom()"
+          [disabled]="imageZoom === 1"
+          matTooltip="Reset zoom"
+        >
+          {{ (imageZoom * 100) | number : '1.0-0' }}%
+        </button>
+        <button
+          type="button"
+          mat-icon-button
+          (click)="zoomIn()"
+          [disabled]="imageZoom >= 3"
+          matTooltip="Zoom in"
+        >
+          <mat-icon>zoom_in</mat-icon>
+        </button>
+        <a
+          [href]="previewModalImage.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          mat-icon-button
+          matTooltip="Open original in new tab"
+        >
+          <mat-icon>open_in_new</mat-icon>
+        </a>
+        <button
+          type="button"
+          mat-icon-button
+          class="close-btn"
+          (click)="closeImageModal()"
+          matTooltip="Close (Esc)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="img-preview-body">
+      <div class="img-preview-viewport">
+        <img
+          [src]="previewModalImage.url"
+          [alt]="previewModalImage.title"
+          [style.transform]="'scale(' + imageZoom + ')'"
+        />
       </div>
     </div>
   </div>
