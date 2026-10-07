@@ -1100,39 +1100,48 @@
                         accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
                         (change)="onOptionImageSelected(qi, i, $event)"
                       />
-                      <button
-                        type="button"
-                        mat-icon-button
-                        class="opt-attach-btn"
-                        (click)="optImgInput.click()"
-                        matTooltip="Attach image to option"
-                      >
-                        <mat-icon>image</mat-icon>
-                      </button>
 
-                      <div
-                        class="opt-img-preview"
-                        *ngIf="getOptImage(opt)"
-                        (click)="openImageModal(getOptImage(opt), 'Option ' + (i + 1) + ' Image')"
-                        matTooltip="Click to view image"
-                      >
-                        <img [src]="getOptImage(opt)" alt="Option Image" />
-                        <div class="opt-img-overlay">
-                          <mat-icon>zoom_in</mat-icon>
-                        </div>
+                      <div class="option-actions">
                         <button
                           type="button"
-                          class="opt-img-del-btn"
-                          (click)="removeOptionImage(qi, i); $event.stopPropagation()"
-                          matTooltip="Remove option image"
+                          mat-icon-button
+                          class="opt-attach-btn"
+                          (click)="optImgInput.click()"
+                          matTooltip="Attach image to option"
                         >
-                          <mat-icon>close</mat-icon>
+                          <mat-icon>image</mat-icon>
+                        </button>
+
+                        <div
+                          class="opt-img-preview"
+                          *ngIf="getOptImage(opt)"
+                          (click)="openImageModal(getOptImage(opt), 'Option ' + (i + 1) + ' Image')"
+                          matTooltip="Click to view image"
+                        >
+                          <img [src]="getOptImage(opt)" alt="Option Image" />
+                          <div class="opt-img-overlay">
+                            <mat-icon>zoom_in</mat-icon>
+                          </div>
+                          <button
+                            type="button"
+                            class="opt-img-del-btn"
+                            (click)="removeOptionImage(qi, i); $event.stopPropagation()"
+                            matTooltip="Remove option image"
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          mat-icon-button
+                          class="opt-delete-btn"
+                          (click)="removeOption(qi, i)"
+                          matTooltip="Delete option"
+                        >
+                          <mat-icon color="warn">delete</mat-icon>
                         </button>
                       </div>
-
-                      <button type="button" class="btn small" (click)="removeOption(qi, i)">
-                        <mat-icon>delete</mat-icon>
-                      </button>
                     </div>
                   </mat-radio-group>
 
@@ -1152,6 +1161,7 @@
                           [ngModel]="getOptText(opt)"
                           (ngModelChange)="setOptText(qi, i, $event)"
                           [ngModelOptions]="{ standalone: true }"
+                          class="option-input"
                           placeholder="Option {{ i + 1 }} text (optional if image attached)"
                         />
                       </mat-form-field>
@@ -1163,43 +1173,52 @@
                         accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
                         (change)="onOptionImageSelected(qi, i, $event)"
                       />
-                      <button
-                        type="button"
-                        mat-icon-button
-                        class="opt-attach-btn"
-                        (click)="optImgInputMulti.click()"
-                        matTooltip="Attach image to option"
-                      >
-                        <mat-icon>image</mat-icon>
-                      </button>
 
-                      <div
-                        class="opt-img-preview"
-                        *ngIf="getOptImage(opt)"
-                        (click)="openImageModal(getOptImage(opt), 'Option ' + (i + 1) + ' Image')"
-                        matTooltip="Click to view image"
-                      >
-                        <img [src]="getOptImage(opt)" alt="Option Image" />
-                        <div class="opt-img-overlay">
-                          <mat-icon>zoom_in</mat-icon>
-                        </div>
+                      <div class="option-actions">
                         <button
                           type="button"
-                          class="opt-img-del-btn"
-                          (click)="removeOptionImage(qi, i); $event.stopPropagation()"
-                          matTooltip="Remove option image"
+                          mat-icon-button
+                          class="opt-attach-btn"
+                          (click)="optImgInputMulti.click()"
+                          matTooltip="Attach image to option"
                         >
-                          <mat-icon>close</mat-icon>
+                          <mat-icon>image</mat-icon>
+                        </button>
+
+                        <div
+                          class="opt-img-preview"
+                          *ngIf="getOptImage(opt)"
+                          (click)="openImageModal(getOptImage(opt), 'Option ' + (i + 1) + ' Image')"
+                          matTooltip="Click to view image"
+                        >
+                          <img [src]="getOptImage(opt)" alt="Option Image" />
+                          <div class="opt-img-overlay">
+                            <mat-icon>zoom_in</mat-icon>
+                          </div>
+                          <button
+                            type="button"
+                            class="opt-img-del-btn"
+                            (click)="removeOptionImage(qi, i); $event.stopPropagation()"
+                            matTooltip="Remove option image"
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          mat-icon-button
+                          class="opt-delete-btn"
+                          (click)="removeOption(qi, i)"
+                          matTooltip="Delete option"
+                        >
+                          <mat-icon color="warn">delete</mat-icon>
                         </button>
                       </div>
-
-                      <button type="button" class="btn small" (click)="removeOption(qi, i)">
-                        <mat-icon color="warn">delete</mat-icon>
-                      </button>
                     </div>
                   </div>
 
-                  <button type="button" class="btn" (click)="addOption(qi)">Add option</button>
+                  <button type="button" class="btn btn-add-option" (click)="addOption(qi)">Add option</button>
                 </div>
                 <div class="hint muted" *ngIf="q.type === 'choose'">Select one correct option</div>
                 <div class="hint muted" *ngIf="q.type === 'multi'">
