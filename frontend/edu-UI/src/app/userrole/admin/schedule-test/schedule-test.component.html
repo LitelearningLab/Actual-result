@@ -367,9 +367,13 @@
                 <div class="review-settings-panel feature-controls-panel" style="margin-top: 1.25rem;">
                   <h3>Test Feature Controls</h3>
                   <div class="review-content-options">
-                    <mat-checkbox [(ngModel)]="model.enableMicrophone" name="enableMicrophone" [disabled]="readOnly">Enable Microphone</mat-checkbox>
-                    <mat-checkbox [(ngModel)]="model.enableScanText" name="enableScanText" [disabled]="readOnly">Enable Upload Photos</mat-checkbox>
-                    <mat-checkbox [(ngModel)]="model.enableCamera" name="enableCamera" [disabled]="readOnly">Enable Camera</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.enableMicrophone" name="enableMicrophone" [disabled]="readOnly || isEditMode">Enable Microphone</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.enableScanText" name="enableScanText" [disabled]="readOnly || isEditMode">Enable Upload Photos</mat-checkbox>
+                    <mat-checkbox [(ngModel)]="model.enableCamera" name="enableCamera" [disabled]="readOnly || isEditMode">Enable Camera</mat-checkbox>
+                  </div>
+                  <div *ngIf="isEditMode" class="review-preview" style="margin-top: 0.5rem;" role="status" aria-live="polite">
+                    <mat-icon>lock</mat-icon>
+                    <span>Feature controls cannot be modified once the test is scheduled.</span>
                   </div>
                 </div>
               </div>
