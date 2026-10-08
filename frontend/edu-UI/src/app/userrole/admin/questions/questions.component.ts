@@ -2766,6 +2766,35 @@ export class AdminQuestionsComponent {
     });
   }
 
+  onQuestionTypeSelected(q: any, newType: string) {
+    if (!q) return;
+    q.type = newType;
+    if (newType === 'choose' || newType === 'multi') {
+      if (!Array.isArray(q.options) || q.options.length < 2) {
+        const existingTexts = (q.options || [])
+          .map((o: any) => this.getOptText(o))
+          .filter((t: string) => t && t.trim());
+        if (existingTexts.length === 0 && q.answerText && String(q.answerText).trim()) {
+          existingTexts.push(String(q.answerText).trim());
+        }
+        while (existingTexts.length < 4) {
+          existingTexts.push('');
+        }
+        q.options = existingTexts.map((txt: string) => ({ text: txt, image_url: '', gcs_path: '' }));
+      }
+      if (newType === 'choose' && Array.isArray(q.correct)) {
+        q.correct = q.correct.length ? q.correct[0] : null;
+      } else if (newType === 'multi' && typeof q.correct === 'number') {
+        q.correct = [q.correct];
+      }
+    } else if (newType === 'descriptive' || newType === 'fill') {
+      if (!q.answerText && Array.isArray(q.options) && q.options.length > 0) {
+        q.answerText = this.getOptText(q.options[0]);
+      }
+      q.options = [{ text: '', image_url: '', gcs_path: '' }];
+    }
+  }
+
   addOption(qIndex: number) {
     this.questions[qIndex].options.push('');
   }
@@ -3207,10 +3236,24 @@ export class AdminQuestionsComponent {
 
     // Submit all questions as a batch; basic validation per question
     for (let q of validQuestions) {
-      const optionCount = Array.isArray(q.options) ? q.options.length : 0;
+      const validOptionList = (Array.isArray(q.options) ? q.options : []).filter((o: any) => {
+        if (typeof o === 'object' && o !== null) {
+          return !!(o.text?.trim() || o.image_url || o.url || o.image);
+        }
+        return !!String(o || '').trim();
+      });
+
+      if (q.type === 'choose' || q.type === 'multi') {
+        if (validOptionList.length < 2) {
+          try {
+            notify('Choice questions (Single/Multiple choice) must have at least 2 options filled in.', 'error');
+          } catch (e) {}
+          return;
+        }
+      }
+
       if (
         q.type === 'choose' &&
-        optionCount > 0 &&
         (q.correct === null || q.correct === undefined)
       ) {
         try {
@@ -3223,7 +3266,6 @@ export class AdminQuestionsComponent {
       }
       if (
         q.type === 'multi' &&
-        optionCount > 0 &&
         (!Array.isArray(q.correct) || (q.correct as number[]).length === 0)
       ) {
         try {

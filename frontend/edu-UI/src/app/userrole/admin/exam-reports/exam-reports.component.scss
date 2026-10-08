@@ -5689,7 +5689,7 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
 
     .report-q-media-img {
       max-height: 180px;
-      max-width: 340px;
+      max-width: 100%;
       width: auto;
       height: auto;
       object-fit: contain;
@@ -5710,7 +5710,8 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
 
     .report-q-media-audio {
       height: 36px;
-      max-width: 320px;
+      max-width: 100%;
+      width: 100%;
     }
 
     .report-q-media-caption {

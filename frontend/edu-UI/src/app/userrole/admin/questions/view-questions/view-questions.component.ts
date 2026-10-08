@@ -1107,14 +1107,20 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
   private getCategoryLabel(id: any): string {
     if (!id) return '';
+    const strId = String(id);
     const found = (this.categories || []).find(
-      (c: any) => String(c.category_id || c.id || c._id) === String(id)
+      (c: any) => String(c.category_id || c.id || c._id) === strId
     );
-    return (
-      found?.name ||
-      found?.category_name ||
-      (this.categories && this.categories.length ? String(id || '') : '')
+    if (found?.name || found?.category_name) {
+      return found.name || found.category_name;
+    }
+    const fromQuestions = (this.questions || []).find(
+      (q: any) => String(q.category_id || q.categoryId) === strId && q.category
     );
+    if (fromQuestions?.category) {
+      return fromQuestions.category;
+    }
+    return strId;
   }
   private getSelectedName(list: any[], selectedId: any): string {
     if (!selectedId || !list || !list.length) return '';

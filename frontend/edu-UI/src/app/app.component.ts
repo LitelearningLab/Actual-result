@@ -7,6 +7,7 @@ import { filter } from 'rxjs/operators';
 import { AuthService } from './home/service/auth.service';
 import { SessionService } from './shared/services/session.service';
 import { GlobalInstituteContextService } from './shared/services/global-institute-context.service';
+import { LoaderService } from './shared/services/loader.service';
 
 @Component({
   selector: 'app-root',
@@ -27,6 +28,7 @@ export class AppComponent implements OnDestroy {
     private auth: AuthService,
     private sessionService: SessionService,
     public globalInstituteContext: GlobalInstituteContextService,
+    private loaderService: LoaderService,
     private router: Router,
     @Inject(DOCUMENT) private document: Document
   ) {
@@ -42,6 +44,9 @@ export class AppComponent implements OnDestroy {
       filter((event): event is NavigationEnd => event instanceof NavigationEnd)
     ).subscribe((event: NavigationEnd) => {
       this.checkIsAuthRoute(event.urlAfterRedirects || event.url);
+      try {
+        this.loaderService.hide();
+      } catch (e) {}
     });
   }
 

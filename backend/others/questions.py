@@ -236,6 +236,15 @@ def add_question(request):
 
         for data in valid_questions:
             question_type = data.get("type")
+            if question_type in ['choose', 'multi']:
+                opts = data.get("options") or []
+                valid_opts = [o for o in opts if (isinstance(o, dict) and (str(o.get("text") or o.get("option_text") or "").strip() or o.get("image_url") or o.get("url"))) or (not isinstance(o, dict) and str(o).strip())]
+                if len(valid_opts) < 2:
+                    return {
+                        "statusMessage": f"Choice question '{str(data.get('text', '')).strip()}' must have at least 2 options.",
+                        "status": False
+                    }, 400
+
             question_text = data.get("text")
             marks = data.get("marks")
             created_by = created_by
@@ -775,6 +784,14 @@ def update_question(question_id, request):
                 new_opt = Option(question_id=question_id, option_text=val, is_correct=1, active_status=1)
                 session.add(new_opt)
         else:
+            if 'options' in data:
+                opts = data.get("options") or []
+                valid_opts = [o for o in opts if (isinstance(o, dict) and (str(o.get("text") or o.get("option_text") or "").strip() or o.get("image_url") or o.get("url"))) or (not isinstance(o, dict) and str(o).strip())]
+                if len(valid_opts) < 2:
+                    return {
+                        "statusMessage": "Choice questions (Single/Multiple choice) must have at least 2 options.",
+                        "status": False
+                    }, 400
             # Update options: update overlapping options by index, append new ones, delete surplus
             if 'options' in data:
                 new_options = data.get('options') or []

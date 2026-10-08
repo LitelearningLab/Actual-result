@@ -508,6 +508,10 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
         String(currentAuthUser?.role || '').toLowerCase()
       );
 
+    try {
+      this.loader.hide();
+    } catch (e) {}
+
     if (this.isSuperAdmin) this.loadInstitutes();
     if (this.instituteId || this.isSuperAdmin || this.currentUserId) this.loadExams();
   }
@@ -1728,6 +1732,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    try {
+      this.loader.hide();
+    } catch (e) {}
     this.pageMeta.setMeta('Test Inbox', 'Explore and manage your tests');
     // Refresh server-calculated review availability without interrupting the student UI (every 3s for instant updates).
     this.reviewRefreshTimer = setInterval(() => this.loadExams(false), 3000);
@@ -1762,6 +1769,9 @@ formatSeconds(sec: number | null | undefined): string {
   }
 
   loadExams(showLoader = true) {
+    try {
+      this.loader.hide();
+    } catch (e) {}
     // Extract session user data as payload for query string
     const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
     let userObj: any = null;
@@ -2181,7 +2191,6 @@ formatSeconds(sec: number | null | undefined): string {
     const userId = userRaw ? JSON.parse(userRaw)?.user_id || JSON.parse(userRaw)?.id || '' : '';
     const url = `${this.launchUrl}?schedule_id=${encodeURIComponent(String(scheduleId))}&user_id=${encodeURIComponent(String(userId))}`;
     
-    this.loader.show();
     // call launch API and navigate to user-exam page with payload
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -2198,13 +2207,11 @@ formatSeconds(sec: number | null | undefined): string {
           }
           sessionStorage.setItem('launched_exam', JSON.stringify(payload));
         } catch (e) {}
-        this.loader.hide();
         // navigate to user exam page
         // window.location.href = '/user-exam';
         this.router.navigate(['/user/exam/run']);
       },
       error: (err) => {
-        this.loader.hide();
         console.warn('Failed to launch exam', err);
         const message = err?.error?.statusMessage || err?.error?.message || 'Could not launch test';
         try {

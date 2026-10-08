@@ -946,7 +946,7 @@
                 <mat-form-field appearance="outline" class="field-full">
                   <mat-icon matPrefix>category</mat-icon>
                   <mat-label>Type</mat-label>
-                  <mat-select id="q-type-{{ qi }}" title="Question type" [(ngModel)]="q.type">
+                  <mat-select id="q-type-{{ qi }}" title="Question type" [(ngModel)]="q.type" (selectionChange)="onQuestionTypeSelected(q, $event.value)">
                     <mat-option value="">Select type</mat-option>
                     <mat-option *ngFor="let t of getQuestionTypeOptions(q)" [value]="t.value">{{
                       t.label

@@ -818,13 +818,15 @@ button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min
 
     .media-card-item {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.5rem 0.75rem;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 0.5rem;
       padding: 0.4rem 0.6rem;
       max-width: 100%;
+      box-sizing: border-box;
 
       .media-preview-thumb {
         position: relative;
@@ -876,8 +878,10 @@ button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min
 
       .media-preview-audio {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 0.5rem;
+        max-width: 100%;
         
         .mat-icon {
           color: #2563eb;
@@ -885,7 +889,8 @@ button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min
 
         audio {
           height: 32px;
-          max-width: 200px;
+          max-width: 100%;
+          min-width: 180px;
         }
       }
 
