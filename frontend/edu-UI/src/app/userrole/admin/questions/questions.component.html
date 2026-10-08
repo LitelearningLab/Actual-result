@@ -882,15 +882,6 @@
             <h2 class="section-heading">Questions</h2>
             <p class="section-desc">Add and configure your questions below.</p>
           </div>
-          <button
-            type="button"
-            mat-stroked-button
-            color="primary"
-            (click)="addQuestion()"
-            *ngIf="mode === 'manual' && !isEditing && !aiMode && !bulkMode"
-          >
-            <mat-icon>add</mat-icon> Add Question
-          </button>
         </div>
 
         <div
@@ -1412,6 +1403,19 @@
             </div>
           </mat-expansion-panel>
         </mat-accordion>
+
+        <!-- ═══ Add Question Button (Under Questions) ═══ -->
+        <div class="questions-bottom-actions" *ngIf="mode === 'manual' && !isEditing && !aiMode && !bulkMode">
+          <button
+            type="button"
+            mat-stroked-button
+            color="primary"
+            class="add-question-btn"
+            (click)="addQuestion()"
+          >
+            <mat-icon>add</mat-icon> Add Question
+          </button>
+        </div>
       </div>
     </div>
 

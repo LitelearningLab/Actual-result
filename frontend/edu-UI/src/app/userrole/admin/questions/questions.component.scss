@@ -1565,4 +1565,39 @@ button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min
   }
 }
 
+/* ── Bottom Add Question Button Container ── */
+.questions-bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: 0.75rem;
+
+  .add-question-btn {
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 0.5rem;
+    padding: 0 1.25rem;
+    height: 2.5rem;
+    transition: all 0.2s ease;
+    border: 1px solid var(--button-1, #3b82f6);
+    color: var(--button-1, #3b82f6);
+    background: transparent;
+
+    mat-icon {
+      font-size: 1.2rem;
+      width: 1.2rem;
+      height: 1.2rem;
+    }
+
+    &:hover {
+      background: rgba(59, 130, 246, 0.08);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);
+    }
+  }
+}
+
+
 
