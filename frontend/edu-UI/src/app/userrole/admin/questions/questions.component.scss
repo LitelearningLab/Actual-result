@@ -38,7 +38,90 @@ $shadow-md: 0 4px 12px rgba(0,0,0,0.06);
 /* ── Legacy styles ── */
 .card-body { overflow:auto; padding:1rem; display:flex; flex-direction:column; }
 .form-row { display:flex; flex-direction:column; margin-top:1rem; }
-.questions-section { gap:1rem; }
+.questions-section {
+  position: relative;
+  gap: 1rem;
+  min-height: 12rem;
+}
+
+/* ── Scoped Loading Overlay (Test Inbox professional loader) ── */
+.questions-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(2px);
+  border-radius: inherit;
+
+  :host-context(.dark-theme) &,
+  :host-context([data-theme="dark"]) &,
+  :host-context(.dark) & {
+    background: rgba(15, 23, 42, 0.65);
+
+    .professional-loader-container .loader-text-group {
+      .loader-main-text {
+        color: #f8fafc;
+      }
+      .loader-sub-text {
+        color: #94a3b8;
+      }
+    }
+  }
+
+  .professional-loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    background: radial-gradient(circle at center, rgba(56, 189, 248, 0.04) 0%, rgba(255, 255, 255, 0) 70%);
+
+    .loader-spinner-ring {
+      width: 3.25rem;
+      height: 3.25rem;
+      border: 3.5px solid rgba(14, 165, 233, 0.15);
+      border-top-color: #0284c7;
+      border-right-color: #38bdf8;
+      border-radius: 50%;
+      animation: ring-spin 0.85s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 0 1rem rgba(14, 165, 233, 0.18);
+    }
+
+    .loader-text-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+
+      .loader-main-text {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: #0f172a;
+        letter-spacing: -0.015em;
+        margin: 0;
+        font-family: inherit;
+      }
+
+      .loader-sub-text {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #64748b;
+        margin: 0;
+        letter-spacing: -0.005em;
+      }
+    }
+  }
+}
+
+@keyframes ring-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
 /* ── Options layout ── */
 .options-section {

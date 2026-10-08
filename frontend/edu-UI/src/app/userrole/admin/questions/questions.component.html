@@ -442,12 +442,14 @@
                           (input)="stopFilterSearchEvent($event)"
                         />
                       </mat-option>
-                      <mat-option
-                        *ngFor="let category of filteredCategories"
-                        [value]="category.category_id"
-                      >
-                        {{ category.name }}
-                      </mat-option>
+                      <ng-container *ngIf="!categoriesLoading">
+                        <mat-option
+                          *ngFor="let category of filteredCategories"
+                          [value]="category.category_id"
+                        >
+                          {{ category.name }}
+                        </mat-option>
+                      </ng-container>
                     </mat-select>
                   </mat-form-field>
                 </div>
@@ -859,7 +861,21 @@
       </div>
 
       <!-- ═══ Manual Questions Section ═══ -->
-      <div class="section-block questions-section" *ngIf="activeMode == 'manual'">
+      <div class="section-block questions-section relative" *ngIf="activeMode == 'manual'">
+        <!-- Scoped Loader Overlay for Questions Section -->
+        <div
+          *ngIf="isQuestionsLoading"
+          class="questions-loading-overlay absolute inset-0 z-10 flex items-center justify-center bg-white/75 dark:bg-black/50"
+        >
+          <div class="professional-loader-container">
+            <div class="loader-spinner-ring"></div>
+            <div class="loader-text-group">
+              <h5 class="loader-main-text">Loading Questions</h5>
+              <p class="loader-sub-text">Fetching question configuration...</p>
+            </div>
+          </div>
+        </div>
+
         <div class="section-header">
           <mat-icon class="section-icon">quiz</mat-icon>
           <div class="section-header-text">
@@ -896,7 +912,7 @@
                 <div class="question-left">
                   <div class="q-title">Question {{ qi + 1 }}</div>
                   <div class="q-snippet">
-                    <app-math-render [text]="(q.text | slice: 0 : 80) || 'No question text yet'"></app-math-render>
+                    <app-math-render [text]="q.text || 'No question text yet'"></app-math-render>
                   </div>
                 </div>
                 <div class="question-right">

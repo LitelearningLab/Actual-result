@@ -145,6 +145,7 @@ export class AdminQuestionsComponent {
   savedQuestionTexts: Set<string> = new Set<string>();
   private aiAnswerGenerationPending = false;
   showPreview: boolean = true;
+  isQuestionsLoading: boolean = false;
 
   // convenience boolean binding for a compact checkbox UI in the template
   get bulkMode(): boolean {
@@ -1233,8 +1234,10 @@ export class AdminQuestionsComponent {
   }
 
   private isAllowedCategoryForInstitute(item: any, scopedInstitute: string): boolean {
-    if (this.isSuperAdmin || !scopedInstitute) return true;
-    return this.getCategoryInstituteId(item) === String(scopedInstitute);
+    if (!scopedInstitute) return true;
+    const itemInst = this.getCategoryInstituteId(item);
+    if (!itemInst) return true;
+    return String(itemInst) === String(scopedInstitute);
   }
   private resolveCityId(cityName: string): string {
     const name = String(cityName || '')
@@ -1872,6 +1875,7 @@ export class AdminQuestionsComponent {
         // Keep the active question bank visible in the dropdown even if a filter refresh
         // returns a list that doesn't include it.
         if (
+          preserveActiveCategory &&
           currentCategory &&
           !mapped.some((c: any) => String(c.category_id) === String(currentCategory?.category_id))
         ) {
@@ -2032,6 +2036,7 @@ export class AdminQuestionsComponent {
     if (instId) {
       this.loadDepartments(instId);
       this.loadTeams(instId);
+      this.loadCategories(instId, false, false);
     }
     const positionStrategy = this.overlay
       .position()
@@ -2087,7 +2092,7 @@ export class AdminQuestionsComponent {
       this.loadCategorySettings(selectedQuestionBank.category_id);
     }
     this.refreshInstituteScope();
-    this.loadCategories(this.filterInstituteId, true);
+    this.loadCategories(this.filterInstituteId, false);
 
     // Close the popup after applying
     this.closeFiltersOverlay();
@@ -2336,7 +2341,7 @@ export class AdminQuestionsComponent {
       try {
         this.categoryCtrl.setValue('');
       } catch (e) {}
-      this.loadCategories(this.questions?.[0]?.institute_id || '', true);
+      this.loadCategories(this.questions?.[0]?.institute_id || '', false);
     }
     // Keep the popup open while an institute selection resets dependent filters.
     if (closePanel) this.closeFiltersOverlay();
@@ -2372,26 +2377,27 @@ export class AdminQuestionsComponent {
   }
 
   openFilterQuestionBankSearch(): void {
-    const instId = this.filterInstituteId;
+    const instId = this.filterInstituteId || this.getScopedInstituteId(this.questions?.[0]?.institute_id || '');
     this.categorySearchText = '';
     if (!instId) {
       this.categories = [];
       this.allCategories = [];
       return;
     }
-    this.categorySearchText = '';
     this.loadCategories(instId, false, false);
   }
 
   onFilterInstituteChange(instId: string): void {
-    this.filterInstituteId = this.getScopedInstituteId(instId);
+    this.filterInstituteId = instId;
     this.filterQuestionBankId = '';
     this.categorySearchText = '';
     this.categories = [];
     this.allCategories = [];
-    this.loadDepartments(this.filterInstituteId);
-    this.loadTeams(this.filterInstituteId);
-    if (this.filterInstituteId) this.loadCategories(this.filterInstituteId, false, false);
+    if (this.filterInstituteId) {
+      this.loadDepartments(this.filterInstituteId);
+      this.loadTeams(this.filterInstituteId);
+      this.loadCategories(this.filterInstituteId, false, false);
+    }
   }
 
   onFilterQuestionBankChange(categoryId: string): void {
@@ -2534,9 +2540,11 @@ export class AdminQuestionsComponent {
 
   private loadCategorySettings(categoryId: any) {
     if (!categoryId) return;
+    this.isQuestionsLoading = true;
     const url = `${this.categoryDetailsUrl}?category_id=${encodeURIComponent(String(categoryId))}&_ts=${Date.now()}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
+        this.isQuestionsLoading = false;
         const items = Array.isArray(res) ? res : res?.data || [];
         const detail =
           Array.isArray(items) && items.length
@@ -2570,7 +2578,11 @@ export class AdminQuestionsComponent {
         this.syncQuestionMarksToCategory();
       },
       error: (err) => {
+        this.isQuestionsLoading = false;
         console.warn('Failed to load category settings', err);
+      },
+      complete: () => {
+        this.isQuestionsLoading = false;
       },
     });
   }
