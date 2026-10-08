@@ -480,7 +480,8 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   // --- Question Bank Multi-Select & Sorting Logic ---
   get filteredCategoriesForFilter(): Array<any> {
     const term = (this.categorySearch || '').trim().toLowerCase();
-    let list = this.categories || [];
+    const scopedInstitute = this.getScopedInstituteId();
+    let list = (this.categories || []).filter((c: any) => this.isAllowedForInstitute(c, scopedInstitute));
     if (term) {
       list = list.filter(
         (c) =>
@@ -1081,13 +1082,14 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
 
   private isAllowedForInstitute(item: any, scopedInstitute: string): boolean {
-    if (this.isSuperAdmin || !scopedInstitute) return true;
+    if (!scopedInstitute) return true;
     const itemInstId = this.getItemInstituteId(item);
+    if (!itemInstId) return false;
     if (scopedInstitute.includes(',')) {
       const allowed = scopedInstitute.split(',').map((s) => s.trim());
       return allowed.includes(String(itemInstId));
     }
-    return itemInstId === String(scopedInstitute);
+    return String(itemInstId) === String(scopedInstitute);
   }
   private getInstituteLabel(id: any): string {
     if (!id) return '';
@@ -2224,6 +2226,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
           .map((c: any) => ({
             name: c.name || c.category_name || '',
             category_id: c.category_id || c.id || c._id,
+            institute_id: c.institute_id || c.institute?.institute_id || c.instituteId || '',
+            institute: c.institute || { institute_id: c.institute_id || c.instituteId || null },
+            type: c.type || '',
             mark_each_question:
               typeof c.mark_each_question !== 'undefined'
                 ? c.mark_each_question

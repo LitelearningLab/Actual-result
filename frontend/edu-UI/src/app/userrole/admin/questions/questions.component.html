@@ -575,6 +575,7 @@
           </div>
           <div class="template-actions">
             <button
+              *ngIf="!selectedCategory?.type || selectedCategory?.type === 'objective'"
               mat-stroked-button
               color="accent"
               type="button"
@@ -584,6 +585,7 @@
               <span>Objective Template</span>
             </button>
             <button
+              *ngIf="!selectedCategory?.type || selectedCategory?.type === 'descriptive'"
               mat-stroked-button
               color="accent"
               type="button"

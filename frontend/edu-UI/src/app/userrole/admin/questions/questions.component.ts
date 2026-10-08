@@ -2623,7 +2623,7 @@ export class AdminQuestionsComponent {
     const cached = this.questionTypeOptionsCache.get(key);
     if (cached) return cached;
 
-    const options = this.isEditing ? [...this.questionTypes] : [...this.filteredQuestionTypes];
+    const options = [...this.filteredQuestionTypes];
     if (qType && !options.some((t) => t.value === qType)) {
       const found = (this.questionTypes || []).find((t) => t.value === qType);
       if (found) options.unshift(found);

@@ -184,11 +184,27 @@ def add_question(request):
             if q and q.get("type") and str(q.get("text", "")).strip()
         ]
         if not valid_questions:
-            json_data = {
-                "statusMessage": "Please add at least one question before saving.",
-                "status": False
-            }
-            return json_data, 400
+            return {"statusMessage": "Please add at least one question before saving.", "status": False}, 400
+
+        category = session.query(Categories).filter_by(category_id=category_id).first()
+        if not category:
+            return {"statusMessage": "Selected Question Bank was not found.", "status": False}, 400
+
+        cat_type = str(getattr(category, 'type', '') or '').strip().lower()
+        if cat_type:
+            for q in valid_questions:
+                q_type = str(q.get("type", "")).strip().lower()
+                if cat_type == "objective" and q_type in ["descriptive", "paragraph", "subjective", "essay", "long_answer"]:
+                    return {
+                        "statusMessage": f"Cannot add Descriptive question to an Objective question bank ('{category.name}').",
+                        "status": False
+                    }, 400
+                elif cat_type == "descriptive" and q_type in ["choose", "choice", "multi", "single", "fill"]:
+                    return {
+                        "statusMessage": f"Cannot add Objective question to a Descriptive question bank ('{category.name}').",
+                        "status": False
+                    }, 400
+
 
         # Duplicate Question Checks
         seen_in_batch = set()
@@ -347,6 +363,27 @@ def bulk_upload_questions(request):
                 pass
         return indices
     
+    category = session.query(Categories).filter_by(category_id=category_id).first()
+    if not category:
+        return {"statusMessage": "Selected Question Bank was not found.", "status": False}, 400
+
+    cat_type = str(getattr(category, 'type', '') or '').strip().lower()
+
+    # Pre-validate all rows against Question Bank type
+    if cat_type:
+        for idx, row in df.iterrows():
+            raw_t = str(row.get("Type", "")).strip().lower() if not pd.isna(row.get("Type", "")) else ""
+            if cat_type == "objective" and raw_t in ["descriptive", "paragraph", "subjective", "essay", "long_answer"]:
+                return {
+                    "statusMessage": f"Row {idx + 1} contains a Descriptive question, but Question Bank '{category.name}' is Objective.",
+                    "status": False
+                }, 400
+            elif cat_type == "descriptive" and raw_t in ["choose", "choice", "multi", "single", "fill"]:
+                return {
+                    "statusMessage": f"Row {idx + 1} contains an Objective question, but Question Bank '{category.name}' is Descriptive.",
+                    "status": False
+                }, 400
+
     for index, row in df.iterrows():
         uploaded_type = row.get("Type", "")
         question_type = str(uploaded_type).strip().lower() if not pd.isna(uploaded_type) else ""
@@ -635,7 +672,19 @@ def update_question(question_id, request):
             return {"statusMessage": "Question not found", "status": False}, 404
 
         # Update basic fields
-        if 'type' in data: q.question_type = data.get('type')
+        if 'type' in data:
+            new_type = str(data.get('type') or '').strip().lower()
+            # Validate against mapped category type
+            mapping = session.query(QuestionMapping).filter_by(question_id=question_id).first()
+            if mapping and mapping.category_id:
+                cat = session.query(Categories).filter_by(category_id=mapping.category_id).first()
+                if cat and cat.type:
+                    cat_type = str(cat.type).strip().lower()
+                    if cat_type == 'objective' and new_type in ['descriptive', 'paragraph', 'subjective', 'essay', 'long_answer']:
+                        return {"statusMessage": f"Cannot set question type to Descriptive in an Objective Question Bank ('{cat.name}').", "status": False}, 400
+                    if cat_type == 'descriptive' and new_type in ['choose', 'multi', 'single', 'fill']:
+                        return {"statusMessage": f"Cannot set question type to Objective in a Descriptive Question Bank ('{cat.name}').", "status": False}, 400
+            q.question_type = data.get('type')
         if 'text' in data: q.question_text = data.get('text')
         if 'marks' in data:
             try:

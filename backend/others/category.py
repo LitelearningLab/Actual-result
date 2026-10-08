@@ -217,11 +217,20 @@ def get_category_details(request):
         if "descriptive" in types:
             q_types.extend(["descriptive", "paragraph"])
 
-        matching_cat_ids = [
-            r[0] for r in session.query(QuestionMapping.category_id)
+        matching_cat_query = (
+            session.query(QuestionMapping.category_id)
             .join(Question, Question.question_id == QuestionMapping.question_id)
-            .filter(Question.question_type.in_(q_types)).all()
-        ]
+            .filter(Question.question_type.in_(q_types))
+        )
+        if institute_id:
+            inst_val = str(institute_id).strip()
+            if ',' in inst_val:
+                inst_list = [i.strip() for i in inst_val.split(',') if i.strip()]
+                matching_cat_query = matching_cat_query.join(Categories, Categories.category_id == QuestionMapping.category_id).filter(Categories.institute_id.in_(inst_list))
+            else:
+                matching_cat_query = matching_cat_query.join(Categories, Categories.category_id == QuestionMapping.category_id).filter(Categories.institute_id == inst_val)
+
+        matching_cat_ids = [r[0] for r in matching_cat_query.all()]
 
         type_conditions = [Categories.type.ilike(f"%{tp}%") for tp in types]
         if matching_cat_ids:
@@ -452,6 +461,28 @@ def update_category(category_id, request):
             valid_team_ids = {row[0] for row in valid_teams}
             if any(t not in valid_team_ids for t in team_ids):
                 return {"statusMessage": "One or more selected teams are invalid for this institute.", "status": False}, 400
+
+        # Check if category type change is compatible with existing questions
+        new_type = str(data.get('type', category.type) or '').strip().lower()
+        old_type = str(category.type or '').strip().lower()
+        if new_type and new_type != old_type:
+            existing_questions = (
+                session.query(Question.question_type)
+                .join(QuestionMapping, Question.question_id == QuestionMapping.question_id)
+                .filter(QuestionMapping.category_id == category_id)
+                .all()
+            )
+            q_types = [str(r[0]).strip().lower() for r in existing_questions if r[0]]
+            if new_type == "objective" and any(t in ['descriptive', 'paragraph', 'subjective', 'essay', 'long_answer'] for t in q_types):
+                return {
+                    "statusMessage": f"Cannot change Question Bank type to Objective because it contains {len(q_types)} questions with Descriptive format. Please reassign or delete them first.",
+                    "status": False
+                }, 400
+            elif new_type == "descriptive" and any(t in ['choose', 'choice', 'multi', 'fill', 'single'] for t in q_types):
+                return {
+                    "statusMessage": f"Cannot change Question Bank type to Descriptive because it contains {len(q_types)} questions with Objective format. Please reassign or delete them first.",
+                    "status": False
+                }, 400
 
         # update fields
         category.name = data.get('name', category.name)
