@@ -1126,8 +1126,9 @@ export class AdminQuestionsComponent {
     // collapse other panels and expand newly added one
     if (this.questions && this.questions.length)
       this.questions.forEach((q) => (q._expanded = false));
+    const defaultType = this.filteredQuestionTypes?.[0]?.value || 'choose';
     this.questions.push({
-      type: '',
+      type: defaultType,
       text: '',
       marks: this.getCategoryQuestionMark() || 1,
       options: ['', ''],
@@ -1157,9 +1158,10 @@ export class AdminQuestionsComponent {
       this.questions[0].institute_id = sessionStorage.getItem('global_institute_id') || '';
       this.questions[0].exam_id = '';
     }
+    const defaultType = this.filteredQuestionTypes?.[0]?.value || 'choose';
     this.questions = [
       {
-        type: '',
+        type: defaultType,
         text: '',
         marks: this.getCategoryQuestionMark() || 1,
         options: ['', ''],
@@ -3463,6 +3465,43 @@ export class AdminQuestionsComponent {
         }
       }
     }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // Question Preview & In-Place Edit Methods
+  // ══════════════════════════════════════════════════════
+  isQuestionTextEditing(q: any, qi: number): boolean {
+    if (q._isEditingText === undefined) {
+      // By default, questions with text render in read-only preview; new empty questions start in edit mode
+      return !q.text || !q.text.trim();
+    }
+    return !!q._isEditingText;
+  }
+
+  startEditingQuestionText(q: any, qi: number): void {
+    q._prevText = q.text || '';
+    q._isEditingText = true;
+    setTimeout(() => {
+      const el = document.getElementById(`q-textarea-${qi}`) as HTMLTextAreaElement;
+      if (el) {
+        el.focus();
+        this.autoResize(el);
+        this.setActiveTarget(el, `Question ${qi + 1}`, qi, 'question');
+      }
+    }, 50);
+  }
+
+  saveEditingQuestionText(q: any, qi: number): void {
+    q._isEditingText = false;
+    delete q._prevText;
+  }
+
+  cancelEditingQuestionText(q: any, qi: number): void {
+    if (q._prevText !== undefined) {
+      q.text = q._prevText;
+      delete q._prevText;
+    }
+    q._isEditingText = false;
   }
 
   hasMathSyntax(text: string | null | undefined): boolean {

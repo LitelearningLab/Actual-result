@@ -933,7 +933,7 @@
             </mat-expansion-panel-header>
 
             <div class="panel-body">
-              <div class="field-row" *ngIf="!aiMode && hasCategorySettings()">
+              <div class="field-row" *ngIf="!aiMode">
                 <mat-form-field appearance="outline" class="field-full">
                   <mat-icon matPrefix>category</mat-icon>
                   <mat-label>Type</mat-label>
@@ -947,31 +947,85 @@
               </div>
 
               <div class="field-row">
-                <div class="field-with-math-preview">
-                  <mat-form-field appearance="outline" class="field-full">
-                    <mat-label>Question</mat-label>
-                    <textarea
-                      #qTextarea
-                      matInput
-                      (input)="autoResize($event.target)"
-                      (focus)="setActiveTarget($event.target, 'Question ' + (qi + 1), qi, 'question')"
-                      (click)="setActiveTarget($event.target, 'Question ' + (qi + 1), qi, 'question')"
-                      [(ngModel)]="q.text"
-                      rows="1"
-                      class="aimodel-textarea"
-                      placeholder="Write the question (or use Math Tools floating toolbar)..."
-                    ></textarea>
-                  </mat-form-field>
+                <!-- Unified Question Preview & In-Place Edit Card -->
+                <div class="question-preview-section">
+                  <!-- 1. Read-Only Question Preview Card (Default State) -->
+                  <div class="question-preview-card" *ngIf="!isQuestionTextEditing(q, qi)">
+                    <div class="qp-card-header">
+                      <div class="qp-card-title-group">
+                        <span class="qp-card-title">Question {{ qi + 1 }}</span>
+                        <span class="qp-card-badge">Preview</span>
+                      </div>
+                      <button
+                        type="button"
+                        mat-stroked-button
+                        class="qp-edit-btn"
+                        (click)="startEditingQuestionText(q, qi)"
+                        matTooltip="Edit question text"
+                      >
+                        <mat-icon>edit</mat-icon>
+                        <span>Edit</span>
+                      </button>
+                    </div>
 
-                  <!-- Live Question Math Preview -->
-                  <div class="field-math-live-preview" *ngIf="hasMathSyntax(q.text)">
-                    <div class="preview-badge">
-                      <mat-icon>functions</mat-icon>
-                      <span>Math Preview</span>
+                    <div class="qp-card-body" (dblclick)="startEditingQuestionText(q, qi)">
+                      <div class="qp-rendered-content" *ngIf="q.text && q.text.trim()">
+                        <app-math-render [text]="q.text"></app-math-render>
+                      </div>
+                      <div class="qp-empty-placeholder" *ngIf="!q.text || !q.text.trim()" (click)="startEditingQuestionText(q, qi)">
+                        <mat-icon>edit_note</mat-icon>
+                        <span>No question text yet. Click <strong>Edit</strong> to write the question.</span>
+                      </div>
                     </div>
-                    <div class="preview-content">
-                      <app-math-render [text]="q.text"></app-math-render>
+                  </div>
+
+                  <!-- 2. In-Place Edit Mode (Same outer width & appearance as Answer box) -->
+                  <div class="question-edit-section" *ngIf="isQuestionTextEditing(q, qi)">
+                    <div class="qe-top-bar">
+                      <div class="qe-label-group">
+                        <span class="qe-title">Question {{ qi + 1 }}</span>
+                        <span class="qe-badge">Editing</span>
+                      </div>
+                      <div class="qe-actions">
+                        <button
+                          type="button"
+                          mat-button
+                          class="qe-cancel-btn"
+                          (click)="cancelEditingQuestionText(q, qi)"
+                          matTooltip="Discard changes"
+                        >
+                          <mat-icon>close</mat-icon>
+                          <span>Cancel</span>
+                        </button>
+                        <button
+                          type="button"
+                          mat-flat-button
+                          color="primary"
+                          class="qe-save-btn"
+                          (click)="saveEditingQuestionText(q, qi)"
+                          matTooltip="Save and preview question"
+                        >
+                          <mat-icon>check</mat-icon>
+                          <span>Done</span>
+                        </button>
+                      </div>
                     </div>
+
+                    <mat-form-field appearance="outline" class="field-full">
+                      <mat-label>Question Text</mat-label>
+                      <textarea
+                        id="q-textarea-{{ qi }}"
+                        #qTextarea
+                        matInput
+                        (input)="autoResize($event.target)"
+                        (focus)="setActiveTarget($event.target, 'Question ' + (qi + 1), qi, 'question')"
+                        (click)="setActiveTarget($event.target, 'Question ' + (qi + 1), qi, 'question')"
+                        [(ngModel)]="q.text"
+                        rows="3"
+                        class="aimodel-textarea"
+                        placeholder="Write the question text, formulas, matrices, symbols..."
+                      ></textarea>
+                    </mat-form-field>
                   </div>
                 </div>
               </div>

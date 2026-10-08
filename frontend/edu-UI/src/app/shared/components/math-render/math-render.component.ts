@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SafeHtml } from '@angular/platform-browser';
 import { MathService } from '../../services/math.service';
@@ -33,16 +33,24 @@ import { MathService } from '../../services/math.service';
     `,
   ],
 })
-export class MathRenderComponent implements OnChanges {
+export class MathRenderComponent implements OnInit, OnChanges {
   @Input() text: any = '';
 
   safeContent: SafeHtml = '';
 
   constructor(private mathService: MathService) {}
 
+  ngOnInit(): void {
+    this.updateContent();
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['text']) {
-      this.safeContent = this.mathService.renderSafe(this.text);
+      this.updateContent();
     }
+  }
+
+  private updateContent(): void {
+    this.safeContent = this.mathService.renderSafe(this.text);
   }
 }

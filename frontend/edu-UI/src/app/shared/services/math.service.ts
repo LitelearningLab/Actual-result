@@ -38,64 +38,184 @@ export class MathService {
   private hasMathIndicators(text: string): boolean {
     return (
       text.includes('$') ||
-      text.includes('\\(') ||
-      text.includes('\\[') ||
-      text.includes('\\begin{') ||
-      /\\[a-zA-Z]+/.test(text)
+      text.includes('\\') ||
+      text.includes('{') ||
+      text.includes('^') ||
+      text.includes('_')
     );
   }
 
-  private parseAndRenderMixed(text: string): string {
-    const mathRegex = /(?:\$\$([\s\S]*?)\$\$)|(?:\\\[([\s\S]*?)\\\])|(?:\\\(([\s\S]*?)\\\))|(?:\$([^\$\r\n]+?)\$)|(\\begin\{(?:pmatrix|bmatrix|vmatrix|Vmatrix|matrix|cases|aligned|align\*?|array|equation\*?|gather\*?)\}[\s\S]*?\\end\{(?:pmatrix|bmatrix|vmatrix|Vmatrix|matrix|cases|aligned|align\*?|array|equation\*?|gather\*?)\})/g;
+  private isSeparateLine(text: string, matchIndex: number, matchLength: number): boolean {
+    const prevNewline = text.lastIndexOf('\n', matchIndex - 1);
+    const textBeforeOnLine =
+      prevNewline === -1
+        ? text.substring(0, matchIndex)
+        : text.substring(prevNewline + 1, matchIndex);
 
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-    let result = '';
-
-    while ((match = mathRegex.exec(text)) !== null) {
-      const textBefore = text.substring(lastIndex, match.index);
-      if (textBefore) {
-        result += this.renderNonDelimitedSegment(textBefore);
-      }
-
-      if (match[1] !== undefined) {
-        result += this.renderKaTeX(match[1], true);
-      } else if (match[2] !== undefined) {
-        result += this.renderKaTeX(match[2], true);
-      } else if (match[3] !== undefined) {
-        result += this.renderKaTeX(match[3], false);
-      } else if (match[4] !== undefined) {
-        result += this.renderKaTeX(match[4], false);
-      } else if (match[5] !== undefined) {
-        result += this.renderKaTeX(match[5], true);
-      }
-
-      lastIndex = mathRegex.lastIndex;
+    if (textBeforeOnLine.trim().length > 0) {
+      return false;
     }
 
+    const matchEnd = matchIndex + matchLength;
+    const nextNewline = text.indexOf('\n', matchEnd);
+    const textAfterOnLine =
+      nextNewline === -1
+        ? text.substring(matchEnd)
+        : text.substring(matchEnd, nextNewline);
+
+    if (textAfterOnLine.trim().length > 0) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private parseAndRenderMixed(text: string): string {
+    // Priority order:
+    // 1. $$ ... $$ (display math or inline if text on same line)
+    // 2. \[ ... \] (display math or inline if text on same line)
+    // 3. \( ... \) (inline math)
+    // 4. $ ... $ (inline math)
+    // 5. \begin{env} ... \end{env} (e.g. pmatrix, bmatrix, vmatrix, cases, aligned, etc.)
+    // 6. Raw LaTeX command with arguments or scripts: \frac{...}{...}, \sqrt{...}, etc.
+    // 7. Standalone LaTeX symbol/command: \alpha, \beta, \pm, \times, etc.
+    const mathRegex = /(?:\$\$([\s\S]*?)\$\$)|(?:\\\[([\s\S]*?)\\\])|(?:\\\(([\s\S]*?)\\\))|(?:\$([^\$]+?)\$)|(\\begin\{([a-zA-Z\*]+)\}[\s\S]*?\\end\{\6\})|(\\[a-zA-Z]+(?:\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}|\[[^\[\]]*\]|\^[a-zA-Z0-9]+|_[a-zA-Z0-9]+|\^\{[^{}]*\}|_\{[^{}]*\})+)|(\\[a-zA-Z]+)/g;
+
+    interface ParsedMatch {
+      startIndex: number;
+      endIndex: number;
+      isSeparateLine: boolean;
+      displayMode: boolean;
+      renderedHtml: string;
+    }
+
+    const matches: ParsedMatch[] = [];
+    let match: RegExpExecArray | null;
+
+    while ((match = mathRegex.exec(text)) !== null) {
+      const startIndex = match.index;
+      const rawMatch = match[0];
+      const endIndex = startIndex + rawMatch.length;
+
+      let mathContent = '';
+      let isExplicitDisplayDelim = false;
+      let isEnv = false;
+      let isRawCmd = false;
+
+      if (match[1] !== undefined) {
+        // $$...$$
+        mathContent = match[1];
+        isExplicitDisplayDelim = true;
+      } else if (match[2] !== undefined) {
+        // \[...\]
+        mathContent = match[2];
+        isExplicitDisplayDelim = true;
+      } else if (match[3] !== undefined) {
+        // \(...\)
+        mathContent = match[3];
+      } else if (match[4] !== undefined) {
+        // $...$
+        mathContent = match[4];
+      } else if (match[5] !== undefined) {
+        // \begin{env}...\end{env}
+        mathContent = match[5];
+        isEnv = true;
+      } else if (match[7] !== undefined || match[8] !== undefined) {
+        // Raw LaTeX command
+        mathContent = match[7] || match[8];
+        isRawCmd = true;
+      }
+
+      // Check if this math match is on its own separate line
+      const onSeparateLine = this.isSeparateLine(text, startIndex, rawMatch.length);
+
+      // Display mode is true ONLY when on a separate line AND (explicit display delimiter or standalone environment)
+      // When text is on the same line, displayMode MUST be false so equation stays inline beside text!
+      const displayMode = onSeparateLine && (isExplicitDisplayDelim || isEnv);
+
+      let renderedHtml = '';
+      if (isRawCmd) {
+        // Verify raw command with KaTeX
+        try {
+          renderedHtml = katex.renderToString(mathContent.trim(), {
+            displayMode: false,
+            throwOnError: true,
+            output: 'htmlAndMathml',
+          });
+        } catch (e) {
+          // Not a valid LaTeX command (e.g. \Users, \note), ignore and treat as text
+          continue;
+        }
+      } else {
+        renderedHtml = this.renderKaTeX(mathContent, displayMode);
+      }
+
+      matches.push({
+        startIndex,
+        endIndex,
+        isSeparateLine: onSeparateLine,
+        displayMode,
+        renderedHtml,
+      });
+    }
+
+    if (matches.length === 0) {
+      return this.escapeHtml(text).replace(/\r?\n/g, '<br/>');
+    }
+
+    let result = '';
+    let lastIndex = 0;
+
+    for (let i = 0; i < matches.length; i++) {
+      const m = matches[i];
+      let textBefore = text.substring(lastIndex, m.startIndex);
+
+      // If the upcoming equation is a block display (displayMode: true),
+      // remove ONE trailing newline from textBefore to preserve clean spacing without double blank lines
+      if (m.displayMode && textBefore.endsWith('\n')) {
+        if (textBefore.endsWith('\r\n')) {
+          textBefore = textBefore.substring(0, textBefore.length - 2);
+        } else {
+          textBefore = textBefore.substring(0, textBefore.length - 1);
+        }
+      }
+
+      // If the preceding equation was a block display (displayMode: true),
+      // remove ONE leading newline from textBefore to preserve clean spacing without double blank lines
+      const prevMatch = i > 0 ? matches[i - 1] : null;
+      if (prevMatch && prevMatch.displayMode) {
+        if (textBefore.startsWith('\r\n')) {
+          textBefore = textBefore.substring(2);
+        } else if (textBefore.startsWith('\n')) {
+          textBefore = textBefore.substring(1);
+        }
+      }
+
+      if (textBefore) {
+        result += this.escapeHtml(textBefore).replace(/\r?\n/g, '<br/>');
+      }
+
+      result += m.renderedHtml;
+      lastIndex = m.endIndex;
+    }
+
+    // Process remaining trailing text
     if (lastIndex < text.length) {
-      const remaining = text.substring(lastIndex);
-      result += this.renderNonDelimitedSegment(remaining);
+      let remaining = text.substring(lastIndex);
+      const lastMatch = matches[matches.length - 1];
+      if (lastMatch && lastMatch.displayMode) {
+        if (remaining.startsWith('\r\n')) {
+          remaining = remaining.substring(2);
+        } else if (remaining.startsWith('\n')) {
+          remaining = remaining.substring(1);
+        }
+      }
+      if (remaining) {
+        result += this.escapeHtml(remaining).replace(/\r?\n/g, '<br/>');
+      }
     }
 
     return result;
-  }
-
-  private renderNonDelimitedSegment(text: string): string {
-    const trimmed = text.trim();
-    if (trimmed && /^\\[a-zA-Z]+/.test(trimmed)) {
-      try {
-        const rendered = katex.renderToString(trimmed, {
-          displayMode: false,
-          throwOnError: true,
-        });
-        return rendered;
-      } catch (e) {
-        // Fallback to normal escaped text if not valid LaTeX
-      }
-    }
-
-    return this.escapeHtml(text).replace(/\r?\n/g, '<br/>');
   }
 
   public renderKaTeX(latex: string, displayMode: boolean): string {
@@ -108,6 +228,17 @@ export class MathService {
         output: 'htmlAndMathml',
       });
     } catch (e) {
+      if (!displayMode) {
+        try {
+          return katex.renderToString(clean, {
+            displayMode: true,
+            throwOnError: false,
+            output: 'htmlAndMathml',
+          });
+        } catch (e2) {
+          // ignore
+        }
+      }
       return `<span class="katex-error">${this.escapeHtml(clean)}</span>`;
     }
   }
