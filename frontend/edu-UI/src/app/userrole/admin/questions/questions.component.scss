@@ -1090,4 +1090,91 @@ mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:
   to { transform: scale(1); opacity: 1; }
 }
 
+/* ── Math Live Preview & Option Layout Styles ── */
+.field-with-math-preview {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  .mat-form-field {
+    width: 100%;
+    margin-bottom: 0;
+  }
+}
+
+.option-input-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  .option-field {
+    width: 100%;
+    margin-bottom: 0;
+  }
+}
+
+.field-math-live-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.85rem;
+  background: var(--bg-1, #ffffff);
+  border: 1px solid rgba(79, 70, 229, 0.2);
+  border-left: 3px solid var(--button-1, #4f46e5);
+  border-radius: 0.5rem;
+  margin-top: 0.15rem;
+  margin-bottom: 0.5rem;
+  animation: fadeIn 0.15s ease;
+
+  .preview-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--button-1, #4f46e5);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+
+    mat-icon {
+      font-size: 0.85rem;
+      width: 0.85rem;
+      height: 0.85rem;
+    }
+  }
+
+  .preview-content {
+    font-size: 0.95rem;
+    color: var(--theme-3-text-1, #0f172a);
+    overflow-x: auto;
+    word-break: break-word;
+  }
+}
+
+.option-math-live-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--bg-1, #ffffff);
+  border: 1px solid rgba(79, 70, 229, 0.15);
+  border-left: 2px solid var(--button-1, #4f46e5);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--theme-3-text-1, #0f172a);
+  overflow-x: auto;
+  animation: fadeIn 0.15s ease;
+
+  .preview-mini-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--button-1, #4f46e5);
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+}
+
 

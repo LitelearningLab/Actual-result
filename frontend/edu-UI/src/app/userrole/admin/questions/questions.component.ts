@@ -44,6 +44,7 @@ import {
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
+import { MathQuickToolsComponent } from 'src/app/shared/components/math-quick-tools/math-quick-tools.component';
 
 @Component({
   selector: 'app-admin-questions',
@@ -68,6 +69,7 @@ import { MathRenderComponent } from 'src/app/shared/components/math-render/math-
     MatTooltipModule,
     OverlayModule,
     MathRenderComponent,
+    MathQuickToolsComponent,
   ],
   templateUrl: './questions.component.html',
   styleUrls: ['./questions.component.scss'],
@@ -3411,6 +3413,62 @@ export class AdminQuestionsComponent {
     if (this.previewModalImage) {
       this.closeImageModal();
     }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // Math / LaTeX Quick Tools Handler Methods
+  // ══════════════════════════════════════════════════════
+  activeMathTargetElement: HTMLInputElement | HTMLTextAreaElement | null = null;
+  activeMathTargetLabel: string = '';
+  activeMathCurrentValue: string = '';
+  activeMathQuestionIndex: number | null = null;
+  activeMathOptionIndex: number | null = null;
+  activeMathFieldType: 'question' | 'option' | 'answer' | null = null;
+
+  setActiveTarget(
+    targetInput: any,
+    label: string,
+    qIndex?: number,
+    fieldType?: 'question' | 'option' | 'answer',
+    optIndex?: number
+  ) {
+    this.activeMathTargetElement = targetInput || null;
+    this.activeMathTargetLabel = label || '';
+    this.activeMathCurrentValue = targetInput ? targetInput.value : '';
+    this.activeMathQuestionIndex = qIndex !== undefined ? qIndex : null;
+    this.activeMathOptionIndex = optIndex !== undefined ? optIndex : null;
+    this.activeMathFieldType = fieldType || null;
+  }
+
+  onMathToolInserted(event: { latex: string; targetElement: HTMLInputElement | HTMLTextAreaElement | null }) {
+    if (event.targetElement) {
+      this.activeMathCurrentValue = event.targetElement.value;
+    }
+    // Sync model bindings if needed
+    if (this.activeMathQuestionIndex !== null && this.questions[this.activeMathQuestionIndex]) {
+      const q = this.questions[this.activeMathQuestionIndex];
+      if (this.activeMathFieldType === 'question' && event.targetElement) {
+        q.text = event.targetElement.value;
+        this.autoResize(event.targetElement);
+      } else if (
+        this.activeMathFieldType === 'option' &&
+        this.activeMathOptionIndex !== null &&
+        event.targetElement
+      ) {
+        this.setOptText(this.activeMathQuestionIndex, this.activeMathOptionIndex, event.targetElement.value);
+      } else if (this.activeMathFieldType === 'answer' && event.targetElement) {
+        q.answerText = event.targetElement.value;
+        if (event.targetElement.tagName && event.targetElement.tagName.toLowerCase() === 'textarea') {
+          this.autoResize(event.targetElement);
+        }
+      }
+    }
+  }
+
+  hasMathSyntax(text: string | null | undefined): boolean {
+    if (!text) return false;
+    const str = String(text);
+    return str.includes('$') || str.includes('\\') || str.includes('{') || str.includes('^') || str.includes('_');
   }
 }
 

@@ -947,17 +947,33 @@
               </div>
 
               <div class="field-row">
-                <mat-form-field appearance="outline" class="field-full">
-                  <mat-label>Question</mat-label>
-                  <textarea
-                    matInput
-                    (input)="autoResize($event.target)"
-                    [(ngModel)]="q.text"
-                    rows="1"
-                    class="aimodel-textarea"
-                    placeholder="Write the question..."
-                  ></textarea>
-                </mat-form-field>
+                <div class="field-with-math-preview">
+                  <mat-form-field appearance="outline" class="field-full">
+                    <mat-label>Question</mat-label>
+                    <textarea
+                      #qTextarea
+                      matInput
+                      (input)="autoResize($event.target)"
+                      (focus)="setActiveTarget($event.target, 'Question ' + (qi + 1), qi, 'question')"
+                      (click)="setActiveTarget($event.target, 'Question ' + (qi + 1), qi, 'question')"
+                      [(ngModel)]="q.text"
+                      rows="1"
+                      class="aimodel-textarea"
+                      placeholder="Write the question (or use Math Tools floating toolbar)..."
+                    ></textarea>
+                  </mat-form-field>
+
+                  <!-- Live Question Math Preview -->
+                  <div class="field-math-live-preview" *ngIf="hasMathSyntax(q.text)">
+                    <div class="preview-badge">
+                      <mat-icon>functions</mat-icon>
+                      <span>Math Preview</span>
+                    </div>
+                    <div class="preview-content">
+                      <app-math-render [text]="q.text"></app-math-render>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Question Media Upload & Preview Section -->
@@ -1081,17 +1097,28 @@
                       class="option-row"
                       *ngFor="let opt of q.options; let i = index; trackBy: trackByIndex"
                     >
-                      <mat-radio-button [value]="i" class="option-radio"></mat-radio-button>
-                      <mat-form-field appearance="outline" class="option-field">
-                        <input
-                          matInput
-                          [ngModel]="getOptText(opt)"
-                          (ngModelChange)="setOptText(qi, i, $event)"
-                          [ngModelOptions]="{ standalone: true }"
-                          class="option-input"
-                          placeholder="Option {{ i + 1 }} text (optional if image attached)"
-                        />
-                      </mat-form-field>
+                      <mat-radio-button [value]="i" class="option-radio" [title]="'Mark Option ' + (i + 1) + ' as correct'"></mat-radio-button>
+                      <div class="option-input-wrapper">
+                        <mat-form-field appearance="outline" class="option-field">
+                          <input
+                            #chooseOptInput
+                            matInput
+                            [ngModel]="getOptText(opt)"
+                            (ngModelChange)="setOptText(qi, i, $event)"
+                            (focus)="setActiveTarget($event.target, 'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')', qi, 'option', i)"
+                            (click)="setActiveTarget($event.target, 'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')', qi, 'option', i)"
+                            [ngModelOptions]="{ standalone: true }"
+                            class="option-input"
+                            placeholder="Option {{ i + 1 }} text (optional if image attached)"
+                          />
+                        </mat-form-field>
+
+                        <!-- Option Live Math Preview -->
+                        <div class="option-math-live-preview" *ngIf="hasMathSyntax(getOptText(opt))">
+                          <span class="preview-mini-badge">Preview:</span>
+                          <app-math-render [text]="getOptText(opt)"></app-math-render>
+                        </div>
+                      </div>
 
                       <input
                         type="file"
@@ -1154,17 +1181,29 @@
                         [checked]="isOptionCorrect(qi, i)"
                         (change)="toggleMultiCorrect(qi, i, $event.checked)"
                         class="option-checkbox"
+                        [title]="'Mark Option ' + (i + 1) + ' as correct'"
                       ></mat-checkbox>
-                      <mat-form-field appearance="outline" class="option-field">
-                        <input
-                          matInput
-                          [ngModel]="getOptText(opt)"
-                          (ngModelChange)="setOptText(qi, i, $event)"
-                          [ngModelOptions]="{ standalone: true }"
-                          class="option-input"
-                          placeholder="Option {{ i + 1 }} text (optional if image attached)"
-                        />
-                      </mat-form-field>
+                      <div class="option-input-wrapper">
+                        <mat-form-field appearance="outline" class="option-field">
+                          <input
+                            #multiOptInput
+                            matInput
+                            [ngModel]="getOptText(opt)"
+                            (ngModelChange)="setOptText(qi, i, $event)"
+                            (focus)="setActiveTarget($event.target, 'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')', qi, 'option', i)"
+                            (click)="setActiveTarget($event.target, 'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')', qi, 'option', i)"
+                            [ngModelOptions]="{ standalone: true }"
+                            class="option-input"
+                            placeholder="Option {{ i + 1 }} text (optional if image attached)"
+                          />
+                        </mat-form-field>
+
+                        <!-- Option Live Math Preview -->
+                        <div class="option-math-live-preview" *ngIf="hasMathSyntax(getOptText(opt))">
+                          <span class="preview-mini-badge">Preview:</span>
+                          <app-math-render [text]="getOptText(opt)"></app-math-render>
+                        </div>
+                      </div>
 
                       <input
                         type="file"
@@ -1227,36 +1266,54 @@
               </div>
 
               <div *ngIf="q.type === 'fill'" class="field-row">
-                <mat-form-field appearance="outline" class="field-full">
-                  <mat-label>Answer</mat-label>
-                  <input
-                    matInput
-                    id="q-answer-{{ qi }}"
-                    [(ngModel)]="q.answerText"
-                    title="Answer"
-                    placeholder="Correct answer"
-                  />
-                </mat-form-field>
+                <div class="field-with-math-preview">
+                  <mat-form-field appearance="outline" class="field-full">
+                    <mat-label>Answer</mat-label>
+                    <input
+                      #fillAnsInput
+                      matInput
+                      id="q-answer-{{ qi }}"
+                      [(ngModel)]="q.answerText"
+                      (focus)="setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')"
+                      (click)="setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')"
+                      title="Answer"
+                      placeholder="Correct answer (or LaTeX math)"
+                    />
+                  </mat-form-field>
+                  <div class="field-math-live-preview" *ngIf="hasMathSyntax(q.answerText)">
+                    <div class="preview-badge"><mat-icon>functions</mat-icon> <span>Math Preview</span></div>
+                    <div class="preview-content"><app-math-render [text]="q.answerText"></app-math-render></div>
+                  </div>
+                </div>
               </div>
 
               <div *ngIf="q.type === 'descriptive'" class="field-row">
-                <mat-form-field appearance="outline" class="field-full">
-                  <mat-label>Answer</mat-label>
-                  <textarea
-                    matInput
-                    (input)="autoResize($event.target)"
-                    id="q-answer-par-{{ qi }}"
-                    [(ngModel)]="q.answerText"
-                    rows="1"
-                    class="aimodel-textarea"
-                    title="Model answer"
-                    placeholder="Model answer (max 1000 chars)"
-                  ></textarea>
-                  <mat-hint
-                    >Words: {{ countWords(q.answerText) }} | Characters:
-                    {{ q.answerText?.length || 0 }}</mat-hint
-                  >
-                </mat-form-field>
+                <div class="field-with-math-preview">
+                  <mat-form-field appearance="outline" class="field-full">
+                    <mat-label>Answer</mat-label>
+                    <textarea
+                      #descAnsTextarea
+                      matInput
+                      (input)="autoResize($event.target)"
+                      (focus)="setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')"
+                      (click)="setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')"
+                      id="q-answer-par-{{ qi }}"
+                      [(ngModel)]="q.answerText"
+                      rows="1"
+                      class="aimodel-textarea"
+                      title="Model answer"
+                      placeholder="Model answer (max 1000 chars)"
+                    ></textarea>
+                    <mat-hint
+                      >Words: {{ countWords(q.answerText) }} | Characters:
+                      {{ q.answerText?.length || 0 }}</mat-hint
+                    >
+                  </mat-form-field>
+                  <div class="field-math-live-preview" *ngIf="hasMathSyntax(q.answerText)">
+                    <div class="preview-badge"><mat-icon>functions</mat-icon> <span>Math Preview</span></div>
+                    <div class="preview-content"><app-math-render [text]="q.answerText"></app-math-render></div>
+                  </div>
+                </div>
               </div>
 
               <!-- AI fine-tuning -->
@@ -1393,4 +1450,12 @@
     </div>
   </div>
 </div>
+
+<!-- One Floating Draggable Math Tools Toolbar -->
+<app-math-quick-tools
+  [targetElement]="activeMathTargetElement"
+  [targetLabel]="activeMathTargetLabel"
+  [currentFieldValue]="activeMathCurrentValue"
+  (inserted)="onMathToolInserted($event)"
+></app-math-quick-tools>
 
