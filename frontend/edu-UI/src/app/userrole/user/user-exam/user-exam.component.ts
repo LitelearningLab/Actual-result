@@ -914,8 +914,11 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       this.enableScanText = scanVal !== undefined && scanVal !== null ? (scanVal === true || scanVal === 1 || String(scanVal).toLowerCase() === 'true') : true;
 
       const camVal = wrapper?.enable_camera ?? examDetail?.enable_camera ?? this.exam?.enable_camera ?? wrapper?.enableCamera ?? examDetail?.enableCamera ?? this.exam?.enableCamera;
-      this.enableCamera = camVal !== undefined && camVal !== null ? (camVal === true || camVal === 1 || String(camVal).toLowerCase() === 'true') : true;
-      const rawQs = Array.isArray(wrapper?.questions) ? wrapper.questions : (Array.isArray(this.exam.questions) ? this.exam.questions : []);
+      let rawQs = Array.isArray(wrapper?.questions) ? wrapper.questions : (Array.isArray(this.exam.questions) ? this.exam.questions : []);
+      const totalQCount = Number(examDetail?.total_questions || wrapper?.total_questions || this.exam?.total_questions || 0);
+      if (totalQCount > 0 && rawQs.length > totalQCount) {
+        rawQs = rawQs.slice(0, totalQCount);
+      }
       this.questions = rawQs.map((q: any) => ({
         id: q.question_id || q.id,
         question: q.question_text || q.question || '',

@@ -2390,31 +2390,59 @@ def launch_exam_details(schedule_id, user_id):
                     session.query(ExamQuestionMapping.question_id)
                     .filter(
                         ExamQuestionMapping.exam_id == exam_schedule.exam_id,
-                        ExamQuestionMapping.category_id == mapping.category_id,
+                        or_(
+                            ExamQuestionMapping.category_id == mapping.category_id,
+                            ExamQuestionMapping.category_id == None,
+                        )
                     )
+                    .order_by(ExamQuestionMapping.order_number.asc())
                     .all()
                 )
                 fixed_question_ids = [q.question_id for q in predefined_questions]
-                non_randomized_question_ids.extend(
-                    _resolve_fixed_question_ids(
-                        session,
-                        mapping.category_id,
-                        mapping.number_of_questions or len(fixed_question_ids),
-                        fixed_question_ids,
-                    )
+                target_count = (
+                    mapping.number_of_questions
+                    if (mapping.number_of_questions and mapping.number_of_questions > 0)
+                    else len(fixed_question_ids)
                 )
+                resolved_ids = _resolve_fixed_question_ids(
+                    session,
+                    mapping.category_id,
+                    target_count,
+                    fixed_question_ids,
+                )
+                if target_count and len(resolved_ids) > target_count:
+                    resolved_ids = resolved_ids[:target_count]
+                non_randomized_question_ids.extend(resolved_ids)
 
         # Combine both randomized and non-randomized questions
         question_ids = randomized_question_ids + non_randomized_question_ids
 
+        # Deduplicate while strictly preserving insertion order
+        unique_qids = list(dict.fromkeys(question_ids))
+
+        # Enforce global total_questions ceiling from schedule or exam if configured
+        effective_total_questions = (
+            getattr(exam_schedule, "total_questions", None)
+            or getattr(exam_data, "total_questions", None)
+        )
+        if effective_total_questions and effective_total_questions > 0:
+            if len(unique_qids) > effective_total_questions:
+                unique_qids = unique_qids[:effective_total_questions]
+
         questions = (
-            session.query(Question).filter(Question.question_id.in_(question_ids)).all()
+            session.query(Question).filter(Question.question_id.in_(unique_qids)).all()
         )
         if not questions:
             return {
                 "statusMessage": "No questions found for this test",
                 "status": False,
             }, 404
+
+        # Preserve the exact ordering of unique_qids and enforce total_questions count
+        qid_order_map = {str(qid): idx for idx, qid in enumerate(unique_qids)}
+        questions.sort(key=lambda q: qid_order_map.get(str(q.question_id), 999999))
+        if effective_total_questions and effective_total_questions > 0:
+            questions = questions[:effective_total_questions]
 
         # Check for existing in-progress attempt for this schedule and user
         existing_attempt = (
