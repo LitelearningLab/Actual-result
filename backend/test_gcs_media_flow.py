@@ -46,12 +46,12 @@ def run_tests():
     res = gcs_storage.upload_media(
         file_bytes=fake_img_data,
         filename="test_diagram.png",
-        folder_prefix="questions/test-q-1/images",
+        folder_prefix="questions/images/test-q-1",
         expected_type="image"
     )
     assert res is not None, "Upload returned None"
     assert res.get("url"), "url is missing"
-    assert res.get("gcs_path").startswith("questions/test-q-1/images/"), f"Unexpected gcs_path: {res.get('gcs_path')}"
+    assert res.get("gcs_path").startswith("questions/images/test-q-1/"), f"Unexpected gcs_path: {res.get('gcs_path')}"
     print(f"  [PASS] Uploaded media URL: {res.get('url')}")
     print(f"  [PASS] GCS object path: {res.get('gcs_path')}")
 

@@ -5,6 +5,7 @@ import sys
 import pandas as pd
 import json
 import datetime
+import uuid
 from others.llm import descriptive_evaluation, openai_client
 from others.gcs_service import gcs_storage
 
@@ -82,11 +83,20 @@ def upload_question_media(request):
     if not file_bytes:
         return {"status": False, "statusMessage": "Uploaded file is empty"}, 400
 
-    expected_type = request.form.get("expected_type", "any")
-    question_id = request.form.get("question_id", "temp")
-    media_category = request.form.get("category", "question")  # 'question' or 'option'
+    media_type = request.form.get("media_type") or request.form.get("expected_type") or "any"
+    expected_type = request.form.get("expected_type") or media_type or "any"
+    raw_qid = (request.form.get("question_id") or "").strip()
+    question_id = raw_qid if (raw_qid and raw_qid.lower() != "temp") else str(uuid.uuid4())
+    folder = request.form.get("folder") or request.form.get("category") or "question"
 
-    folder_prefix = f"questions/{question_id}/{'options' if media_category == 'option' else ('audio' if expected_type == 'audio' else 'images')}"
+    if folder in ("options", "option"):
+        subfolder = "options"
+    elif media_type == "audio" or folder == "audio" or expected_type == "audio":
+        subfolder = "audio"
+    else:
+        subfolder = "images"
+
+    folder_prefix = f"questions/{subfolder}"
 
     try:
         res = gcs_storage.upload_media(

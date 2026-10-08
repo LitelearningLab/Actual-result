@@ -2565,13 +2565,6 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     } catch (e) {
       this.viewedQuestion = q || null;
     }
-    try {
-      notify(`Q: ${q.question}\nType: ${q.type}\nAnswer: ${q.answer || '—'}`, 'info');
-    } catch (e) {
-      try {
-        console.warn(`Q: ${q.question}\nType: ${q.type}\nAnswer: ${q.answer || '—'}`);
-      } catch (_) {}
-    }
   }
 
   closeViewModal() {

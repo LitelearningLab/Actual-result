@@ -2804,6 +2804,7 @@ export class AdminQuestionsComponent {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('media_type', mediaType);
+    fd.append('expected_type', mediaType);
     fd.append('folder', mediaType === 'audio' ? 'audio' : 'images');
     if (q.id || q.question_id) {
       fd.append('question_id', String(q.id || q.question_id));
@@ -2862,6 +2863,8 @@ export class AdminQuestionsComponent {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('media_type', 'image');
+    fd.append('expected_type', 'image');
+    fd.append('category', 'option');
     fd.append('folder', 'options');
     if (q.id || q.question_id) {
       fd.append('question_id', String(q.id || q.question_id));

@@ -31,7 +31,7 @@ def run_production_lifecycle_validation():
     res_a = gcs_storage.upload_media(
         file_bytes=img_a_data,
         filename="diagram_version_A.png",
-        folder_prefix=f"questions/{test_qid}/images",
+        folder_prefix=f"questions/images/{test_qid}",
         expected_type="image"
     )
     path_a = res_a.get("gcs_path")
@@ -43,7 +43,7 @@ def run_production_lifecycle_validation():
     res_b = gcs_storage.upload_media(
         file_bytes=img_b_data,
         filename="diagram_version_B.png",
-        folder_prefix=f"questions/{test_qid}/images",
+        folder_prefix=f"questions/images/{test_qid}",
         expected_type="image"
     )
     path_b = res_b.get("gcs_path")
@@ -70,11 +70,11 @@ def run_production_lifecycle_validation():
     res_opt = gcs_storage.upload_media(
         file_bytes=opt_img_data,
         filename="option_diagram.png",
-        folder_prefix=f"questions/{test_qid}/options",
+        folder_prefix=f"questions/options/{test_qid}",
         expected_type="image"
     )
     opt_path = res_opt.get("gcs_path")
-    assert opt_path.startswith(f"questions/{test_qid}/options/"), f"Unexpected option GCS path: {opt_path}"
+    assert opt_path.startswith(f"questions/options/{test_qid}/"), f"Unexpected option GCS path: {opt_path}"
     print(f"  -> Uploaded Option Image: {opt_path}")
 
     # Delete Option Image
@@ -91,11 +91,11 @@ def run_production_lifecycle_validation():
     res_audio = gcs_storage.upload_media(
         file_bytes=audio_data,
         filename="comprehension_listening.mp3",
-        folder_prefix=f"questions/{test_qid}/audio",
+        folder_prefix=f"questions/audio/{test_qid}",
         expected_type="audio"
     )
     audio_path = res_audio.get("gcs_path")
-    assert audio_path.startswith(f"questions/{test_qid}/audio/"), f"Unexpected audio GCS path: {audio_path}"
+    assert audio_path.startswith(f"questions/audio/{test_qid}/"), f"Unexpected audio GCS path: {audio_path}"
     print(f"  -> Uploaded Audio: {audio_path} (MIME: {res_audio.get('mime_type')})")
 
     # Clean audio

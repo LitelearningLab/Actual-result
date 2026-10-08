@@ -852,7 +852,7 @@ export class MathQuickToolsComponent implements OnInit, OnChanges {
   @ViewChild('toolbarElement') toolbarElement!: ElementRef;
   @ViewChild('searchInput') searchInputElement?: ElementRef<HTMLInputElement>;
 
-  isVisible = true;
+  @Input() isVisible = false;
   isMinimized = false;
   showNoTargetHint = false;
   searchQuery = '';
