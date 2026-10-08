@@ -45,4 +45,5 @@ patches/
 *gcp*.json
 *credentials*.json
 *.key
-backend/static/uploads/
+backend/static/uploads/
+gcp-key.json
