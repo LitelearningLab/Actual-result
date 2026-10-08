@@ -56,19 +56,20 @@ export interface MathToolItem {
       (mousedown)="bringToFront()"
     >
       <!-- Minimized State Bar -->
-      <div class="minimized-bar" *ngIf="isMinimized" (mousedown)="onDragStart($event)">
+      <div class="minimized-bar" *ngIf="isMinimized" (mousedown)="onDragStart($event)" matTooltip="Click or press Alt + M to expand Math Tools">
         <div class="minimized-content">
           <span class="drag-grip" title="Drag to move"><mat-icon>drag_indicator</mat-icon></span>
           <span class="math-symbol-badge">&sum;</span>
           <span class="min-title">Math Tools</span>
+          <span class="shortcut-tag">Alt + M</span>
           <span class="min-target" *ngIf="targetLabel" [title]="'Target: ' + targetLabel">({{ targetLabel }})</span>
           <span class="min-no-target" *ngIf="!targetLabel">(No input focused)</span>
         </div>
         <div class="min-actions">
-          <button type="button" class="tool-ctrl-btn" (click)="toggleMinimize(); $event.stopPropagation()" title="Expand Math Tools">
+          <button type="button" class="tool-ctrl-btn" (click)="toggleMinimize(); $event.stopPropagation()" matTooltip="Expand Math Tools (Alt + M)" title="Expand Math Tools">
             <mat-icon>open_in_full</mat-icon>
           </button>
-          <button type="button" class="tool-ctrl-btn close" (click)="hideToolbar(); $event.stopPropagation()" title="Close Toolbar">
+          <button type="button" class="tool-ctrl-btn close" (click)="hideToolbar(); $event.stopPropagation()" matTooltip="Close Toolbar" title="Close Toolbar">
             <mat-icon>close</mat-icon>
           </button>
         </div>
@@ -80,12 +81,13 @@ export interface MathToolItem {
         <div class="toolbar-header" (mousedown)="onDragStart($event)">
           <div class="header-left">
             <span class="drag-grip" title="Drag toolbar to move"><mat-icon>drag_indicator</mat-icon></span>
-            <div class="panel-icon-badge">
+            <div class="panel-icon-badge" matTooltip="Math & LaTeX Tools (Shortcut: Alt + M)">
               <span class="symbol-icon">&sum;</span>
             </div>
             <div class="panel-title-group">
               <div class="panel-title-row">
                 <span class="panel-title">Math & LaTeX Tools</span>
+                <span class="header-shortcut-pill" matTooltip="Press Alt + M to toggle toolbar">Alt + M</span>
                 <span class="target-badge" [class.has-target]="!!targetLabel" [class.no-target]="!targetLabel">
                   <mat-icon>{{ targetLabel ? 'edit' : 'info_outline' }}</mat-icon>
                   <span class="badge-text">{{ targetLabel ? targetLabel : 'Click any question or option to target' }}</span>
@@ -98,7 +100,8 @@ export interface MathToolItem {
               type="button"
               class="tool-ctrl-btn"
               (click)="toggleMinimize(); $event.stopPropagation()"
-              title="Minimize Toolbar"
+              matTooltip="Minimize Toolbar (Alt + M)"
+              title="Minimize Toolbar (Alt + M)"
               aria-label="Minimize"
             >
               <mat-icon>close_fullscreen</mat-icon>
@@ -107,6 +110,7 @@ export interface MathToolItem {
               type="button"
               class="tool-ctrl-btn close"
               (click)="hideToolbar(); $event.stopPropagation()"
+              matTooltip="Hide Toolbar (Alt + M to reopen)"
               title="Hide Toolbar"
               aria-label="Close"
             >
@@ -126,6 +130,7 @@ export interface MathToolItem {
           <div class="search-box">
             <mat-icon class="search-icon">search</mat-icon>
             <input
+              #searchInput
               type="text"
               class="search-input"
               [(ngModel)]="searchQuery"
@@ -237,11 +242,12 @@ export interface MathToolItem {
       type="button"
       class="reopen-math-tools-btn"
       (click)="showToolbar()"
-      matTooltip="Open Math / LaTeX Quick Tools"
-      aria-label="Open Math Tools"
+      matTooltip="LaTeX Tools (Alt + M)"
+      aria-label="LaTeX Tools (Alt + M)"
     >
       <span class="bubble-symbol">&sum;</span>
       <span class="bubble-label">Math Tools</span>
+      <span class="bubble-shortcut">Alt + M</span>
       <span class="bubble-target-dot" *ngIf="targetLabel" title="Target active"></span>
     </button>
   `,
@@ -360,6 +366,32 @@ export interface MathToolItem {
         font-weight: 700;
         color: var(--theme-3-text-1, #0f172a);
         white-space: nowrap;
+      }
+
+      .header-shortcut-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.1rem 0.38rem;
+        background: rgba(79, 70, 229, 0.08);
+        border: 1px solid rgba(79, 70, 229, 0.22);
+        border-radius: 0.25rem;
+        font-size: 0.685rem;
+        font-weight: 700;
+        color: var(--button-1, #4f46e5);
+        letter-spacing: 0.02em;
+        cursor: default;
+      }
+
+      .shortcut-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.08rem 0.35rem;
+        background: rgba(79, 70, 229, 0.12);
+        border-radius: 0.25rem;
+        font-size: 0.675rem;
+        font-weight: 700;
+        color: var(--button-1, #4f46e5);
+        cursor: default;
       }
 
       .target-badge {
@@ -785,6 +817,15 @@ export interface MathToolItem {
         border: 1px solid #ffffff;
       }
 
+      .bubble-shortcut {
+        font-size: 0.7rem;
+        padding: 0.1rem 0.35rem;
+        background: rgba(255, 255, 255, 0.25);
+        border-radius: 0.25rem;
+        font-weight: 600;
+        margin-left: 0.15rem;
+      }
+
       .custom-scrollbar::-webkit-scrollbar {
         width: 5px;
         height: 5px;
@@ -809,6 +850,7 @@ export class MathQuickToolsComponent implements OnInit, OnChanges {
   @Output() inserted = new EventEmitter<{ latex: string; targetElement: HTMLInputElement | HTMLTextAreaElement | null }>();
 
   @ViewChild('toolbarElement') toolbarElement!: ElementRef;
+  @ViewChild('searchInput') searchInputElement?: ElementRef<HTMLInputElement>;
 
   isVisible = true;
   isMinimized = false;
@@ -1414,5 +1456,32 @@ export class MathQuickToolsComponent implements OnInit, OnChanges {
   @HostListener('document:mouseup')
   onMouseUp(): void {
     this.isDragging = false;
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  onGlobalKeyDown(event: KeyboardEvent): void {
+    // Alt + M or Alt + m shortcut to toggle Math Quick Tools
+    if (event.altKey && (event.key === 'm' || event.key === 'M' || event.code === 'KeyM')) {
+      event.preventDefault();
+      this.toggleToolbarWithShortcut();
+    }
+  }
+
+  toggleToolbarWithShortcut(): void {
+    if (!this.isVisible) {
+      this.isVisible = true;
+      this.isMinimized = false;
+      setTimeout(() => {
+        this.searchInputElement?.nativeElement?.focus();
+      }, 50);
+    } else if (this.isMinimized) {
+      this.isMinimized = false;
+      setTimeout(() => {
+        this.searchInputElement?.nativeElement?.focus();
+      }, 50);
+    } else {
+      // If already open and expanded, minimize
+      this.isMinimized = true;
+    }
   }
 }

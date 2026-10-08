@@ -292,11 +292,31 @@ button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min
 
 /* ── Question accordion ── */
 .questions-accordion { margin-top:0.875rem; }
-.question-header { display:flex; align-items:center; justify-content:space-between; width:100%; gap:1rem; }
-.question-left { display:flex; flex-direction:column; gap:0.375rem; max-width:65%; }
-.q-title { font:700 1rem/1.4 inherit; color:var(--theme-3-text-1); }
-.q-snippet { font:500 0.8125rem/1.4 inherit; color:var(--theme-3-text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.question-right { display:flex; align-items:center; gap:0.625rem; }
+.question-header { display:flex; align-items:center; justify-content:space-between; width:100%; gap:1rem; min-height:2.75rem; height:auto; }
+.question-left { display:flex; flex-direction:column; gap:0.375rem; max-width:65%; min-width:0; flex:1; }
+.q-title { font:700 1rem/1.4 inherit; color:var(--theme-3-text-1); flex-shrink:0; }
+.q-snippet {
+  font: 500 0.8125rem/1.5 inherit;
+  color: var(--theme-3-text-3);
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  overflow: visible;
+}
+.q-snippet app-math-render {
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 100%;
+}
+.q-snippet ::ng-deep .katex-display {
+  margin: 0.2rem 0 !important;
+  overflow: visible !important;
+}
+.question-right { display:flex; align-items:center; gap:0.625rem; flex-shrink:0; }
 .badge { padding:0.375rem 0.625rem; border-radius:2rem; font:600 0.8125rem/1 inherit; }
 .badge.type { background:rgba(31,123,255,0.08); color:var(--button-1); border:1px solid var(--theme-3-border); }
 .badge.marks { background:var(--bg-2); border:1px solid var(--theme-3-border); }
@@ -304,11 +324,32 @@ button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min
 .question-panel:hover { box-shadow:$shadow-md; border-color:var(--button-1); }
 
 /* ── Expansion panel overrides ── */
-:host ::ng-deep .mat-expansion-panel-header { margin:0.875rem 1rem!important; padding-left:1rem; padding-right:1rem; border-radius:0.75rem!important; transition:all 0.25s $ease; }
+:host ::ng-deep .mat-expansion-panel-header {
+  height: auto !important;
+  min-height: 3.5rem !important;
+  padding: 0.75rem 1rem !important;
+  margin: 0.875rem 1rem !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.25s $ease;
+}
 :host ::ng-deep .mat-expansion-panel-header:hover { background:var(--theme-3-hanover-bg)!important; }
-:host ::ng-deep .mat-expansion-panel-header.mat-expanded { background:rgba(31,123,255,0.06)!important; margin:0.875rem 1rem!important; border-radius:0.75rem!important; }
-.panel-body { display:grid; gap:1rem; margin-top:1rem; }
-mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:0.875rem; width:100%; }
+:host ::ng-deep .mat-expansion-panel-header.mat-expanded {
+  height: auto !important;
+  min-height: 3.5rem !important;
+  padding: 0.75rem 1rem !important;
+  background: rgba(31,123,255,0.06) !important;
+  margin: 0.875rem 1rem !important;
+  border-radius: 0.75rem !important;
+}
+:host ::ng-deep .mat-expansion-panel-header .mat-content {
+  height: auto !important;
+  overflow: visible !important;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+}
+.panel-body { display:grid; gap:1.25rem; margin-top:0.5rem; }
 .mat-expansion-indicator { margin-left:0.625rem; }
 .summary-type { font:700 0.9375rem/1 inherit; text-transform:capitalize; color:var(--theme-3-text-1); }
 .summary-marks { color:var(--theme-3-text-3); margin-left:0.625rem; font:500 0.875rem/1 inherit; }
@@ -1264,7 +1305,7 @@ mat-expansion-panel-header .mat-content { display:flex; align-items:center; gap:
       line-height: 1.6;
       color: var(--theme-3-text-1, #0f172a);
       word-break: break-word;
-      overflow-x: auto;
+      overflow-wrap: break-word;
     }
 
     .qp-empty-placeholder {

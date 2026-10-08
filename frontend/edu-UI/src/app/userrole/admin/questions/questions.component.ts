@@ -33,7 +33,7 @@ import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
 import {
   getInstituteTerminology,
   InstituteTerminology,
@@ -2092,7 +2092,7 @@ export class AdminQuestionsComponent {
       this.loadCategorySettings(selectedQuestionBank.category_id);
     }
     this.refreshInstituteScope();
-    this.loadCategories(this.filterInstituteId, false);
+    this.loadCategories(this.filterInstituteId, false, false);
 
     // Close the popup after applying
     this.closeFiltersOverlay();
@@ -2538,13 +2538,28 @@ export class AdminQuestionsComponent {
     }, 0);
   }
 
+  private loadingCategoryId: string | null = null;
+  private categorySettingsSub?: Subscription;
+  private questionTypeOptionsCache = new Map<string, Array<{ label: string; value: string }>>();
+
   private loadCategorySettings(categoryId: any) {
     if (!categoryId) return;
+    const catIdStr = String(categoryId);
+    // Guard against duplicate in-flight requests for the same category
+    if (this.loadingCategoryId === catIdStr && this.isQuestionsLoading) {
+      return;
+    }
+
+    if (this.categorySettingsSub) {
+      this.categorySettingsSub.unsubscribe();
+      this.categorySettingsSub = undefined;
+    }
+
+    this.loadingCategoryId = catIdStr;
     this.isQuestionsLoading = true;
-    const url = `${this.categoryDetailsUrl}?category_id=${encodeURIComponent(String(categoryId))}&_ts=${Date.now()}`;
-    this.http.get<any>(url).subscribe({
+    const url = `${this.categoryDetailsUrl}?category_id=${encodeURIComponent(catIdStr)}&_ts=${Date.now()}`;
+    this.categorySettingsSub = this.http.get<any>(url).subscribe({
       next: (res) => {
-        this.isQuestionsLoading = false;
         const items = Array.isArray(res) ? res : res?.data || [];
         const detail =
           Array.isArray(items) && items.length
@@ -2578,11 +2593,17 @@ export class AdminQuestionsComponent {
         this.syncQuestionMarksToCategory();
       },
       error: (err) => {
-        this.isQuestionsLoading = false;
+        if (this.loadingCategoryId === catIdStr) {
+          this.loadingCategoryId = null;
+          this.isQuestionsLoading = false;
+        }
         console.warn('Failed to load category settings', err);
       },
       complete: () => {
-        this.isQuestionsLoading = false;
+        if (this.loadingCategoryId === catIdStr) {
+          this.loadingCategoryId = null;
+          this.isQuestionsLoading = false;
+        }
       },
     });
   }
@@ -2593,13 +2614,21 @@ export class AdminQuestionsComponent {
     return this.questionTypes;
   }
 
-  getQuestionTypeOptions(q: any) {
+  getQuestionTypeOptions(q: any): Array<{ label: string; value: string }> {
+    const isEdit = this.isEditing ? '1' : '0';
+    const catType = this.normalizeCategoryType(this.selectedCategory?.type);
+    const qType = q?.type ? this.normalizeQuestionType(q.type, q) : '';
+    const key = `${isEdit}_${catType}_${qType}`;
+
+    const cached = this.questionTypeOptionsCache.get(key);
+    if (cached) return cached;
+
     const options = this.isEditing ? [...this.questionTypes] : [...this.filteredQuestionTypes];
-    const currentType = q?.type ? this.normalizeQuestionType(q.type, q) : '';
-    if (currentType && !options.some((t) => t.value === currentType)) {
-      const found = (this.questionTypes || []).find((t) => t.value === currentType);
+    if (qType && !options.some((t) => t.value === qType)) {
+      const found = (this.questionTypes || []).find((t) => t.value === qType);
       if (found) options.unshift(found);
     }
+    this.questionTypeOptionsCache.set(key, options);
     return options;
   }
 
