@@ -660,9 +660,8 @@ def validate_answers(attempt_id):
                 ans.ai_confidence = ai_confidence
 
                 if answer_images:
-                    # Keep database lightweight: Discard heavy base64 images after AI evaluation and store only the extracted text/snippet
-                    extracted_snippet = evaluation.get("student_answer_snippet") or student_text or ""
-                    ans.written_answer = extracted_snippet if extracted_snippet else (student_text or f"[{len(answer_images)} handwritten page(s) evaluated]")
+                    # Keep database lightweight: Discard heavy base64 images after AI evaluation and store standardized label
+                    ans.written_answer = "Handwritten answer uploaded"
 
                 session.add(ans)
 
