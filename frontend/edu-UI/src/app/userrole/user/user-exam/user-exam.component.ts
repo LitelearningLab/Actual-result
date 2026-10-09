@@ -699,10 +699,16 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     const rect = containerEl.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
 
-    const deltaXPercent = ((clientX - this.cropDragStartX) / rect.width) * 100;
-    const deltaYPercent = ((clientY - this.cropDragStartY) / rect.height) * 100;
+    // Calculate raw screen deltas
+    const rawDx = ((clientX - this.cropDragStartX) / rect.width) * 100;
+    const rawDy = ((clientY - this.cropDragStartY) / rect.height) * 100;
 
-    const minSize = 10;
+    // Transform screen delta into local rotated image coordinates
+    const rad = (-this.cropRotation * Math.PI) / 180;
+    const deltaXPercent = rawDx * Math.cos(rad) - rawDy * Math.sin(rad);
+    const deltaYPercent = rawDx * Math.sin(rad) + rawDy * Math.cos(rad);
+
+    const minSize = 8;
     let newX = this.cropDragStartBox.x;
     let newY = this.cropDragStartBox.y;
     let newWidth = this.cropDragStartBox.width;
@@ -727,6 +733,16 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     } else if (this.activeCropDragHandle === 'se') {
       newWidth = Math.max(minSize, Math.min(100 - this.cropDragStartBox.x, this.cropDragStartBox.width + deltaXPercent));
       newHeight = Math.max(minSize, Math.min(100 - this.cropDragStartBox.y, this.cropDragStartBox.height + deltaYPercent));
+    } else if (this.activeCropDragHandle === 'n') {
+      newY = Math.max(0, Math.min(this.cropDragStartBox.y + this.cropDragStartBox.height - minSize, this.cropDragStartBox.y + deltaYPercent));
+      newHeight = (this.cropDragStartBox.y + this.cropDragStartBox.height) - newY;
+    } else if (this.activeCropDragHandle === 's') {
+      newHeight = Math.max(minSize, Math.min(100 - this.cropDragStartBox.y, this.cropDragStartBox.height + deltaYPercent));
+    } else if (this.activeCropDragHandle === 'w') {
+      newX = Math.max(0, Math.min(this.cropDragStartBox.x + this.cropDragStartBox.width - minSize, this.cropDragStartBox.x + deltaXPercent));
+      newWidth = (this.cropDragStartBox.x + this.cropDragStartBox.width) - newX;
+    } else if (this.activeCropDragHandle === 'e') {
+      newWidth = Math.max(minSize, Math.min(100 - this.cropDragStartBox.x, this.cropDragStartBox.width + deltaXPercent));
     }
 
     this.cropBox = {
@@ -744,41 +760,45 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      // Step 1: Create canvas with rotation
-      const rotCanvas = document.createElement('canvas');
-      const rotCtx = rotCanvas.getContext('2d');
-      if (!rotCtx) return;
+      const origW = img.naturalWidth || img.width;
+      const origH = img.naturalHeight || img.height;
 
-      const angle = (this.cropRotation % 360 + 360) % 360;
-      if (angle === 90 || angle === 270) {
-        rotCanvas.width = img.height;
-        rotCanvas.height = img.width;
-      } else {
-        rotCanvas.width = img.width;
-        rotCanvas.height = img.height;
-      }
+      // Extract sub-rectangle corresponding to cropBox percentages in unrotated image coords
+      const cropPxX = Math.max(0, Math.round((this.cropBox.x / 100) * origW));
+      const cropPxY = Math.max(0, Math.round((this.cropBox.y / 100) * origH));
+      const cropPxW = Math.min(origW - cropPxX, Math.max(1, Math.round((this.cropBox.width / 100) * origW)));
+      const cropPxH = Math.min(origH - cropPxY, Math.max(1, Math.round((this.cropBox.height / 100) * origH)));
 
-      rotCtx.translate(rotCanvas.width / 2, rotCanvas.height / 2);
-      rotCtx.rotate((angle * Math.PI) / 180);
-      rotCtx.drawImage(img, -img.width / 2, -img.height / 2);
+      // Step 1: Crop the region from raw image
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = cropPxW;
+      cropCanvas.height = cropPxH;
+      const cropCtx = cropCanvas.getContext('2d');
+      if (!cropCtx) return;
 
-      // Step 2: Extract sub-rectangle corresponding to cropBox percentages
-      const cropPxX = Math.round((this.cropBox.x / 100) * rotCanvas.width);
-      const cropPxY = Math.round((this.cropBox.y / 100) * rotCanvas.height);
-      const cropPxW = Math.round((this.cropBox.width / 100) * rotCanvas.width);
-      const cropPxH = Math.round((this.cropBox.height / 100) * rotCanvas.height);
+      cropCtx.drawImage(
+        img,
+        cropPxX, cropPxY, cropPxW, cropPxH,
+        0, 0, cropPxW, cropPxH
+      );
 
+      // Step 2: Apply final rotation to the cropped region so output matches what user saw on screen
+      const angle = ((this.cropRotation % 360) + 360) % 360;
       const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = Math.max(1, cropPxW);
-      finalCanvas.height = Math.max(1, cropPxH);
       const finalCtx = finalCanvas.getContext('2d');
       if (!finalCtx) return;
 
-      finalCtx.drawImage(
-        rotCanvas,
-        cropPxX, cropPxY, cropPxW, cropPxH,
-        0, 0, finalCanvas.width, finalCanvas.height
-      );
+      if (angle === 90 || angle === 270) {
+        finalCanvas.width = cropPxH;
+        finalCanvas.height = cropPxW;
+      } else {
+        finalCanvas.width = cropPxW;
+        finalCanvas.height = cropPxH;
+      }
+
+      finalCtx.translate(finalCanvas.width / 2, finalCanvas.height / 2);
+      finalCtx.rotate((angle * Math.PI) / 180);
+      finalCtx.drawImage(cropCanvas, -cropPxW / 2, -cropPxH / 2);
 
       const croppedDataUrl = finalCanvas.toDataURL('image/jpeg', 0.92);
 
