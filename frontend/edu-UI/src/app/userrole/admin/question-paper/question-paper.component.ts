@@ -49,6 +49,7 @@ import {
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
+import { MathService } from 'src/app/shared/services/math.service';
 
 @Component({
   selector: 'app-question-paper',
@@ -187,7 +188,8 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     private router: Router,
     private route: ActivatedRoute,
     private globalInstituteContext: GlobalInstituteContextService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private mathService: MathService
   ) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
@@ -897,6 +899,8 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           `;
           (s.questions || []).forEach((q: any, qIdx: number) => {
             const marks = q.marks ? `[${q.marks} Mark${q.marks > 1 ? 's' : ''}]` : '';
+            const rawQText = q.question_text || q.text || q.question || 'Question text';
+            const qText = this.mathService.render(rawQText);
             let optionsHtml = '';
             const questionType = String(
               q.type || q.question_type || s.question_type || ''
@@ -914,7 +918,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
                   .map(
                     (opt: any, optIdx: number) => `
                   <div style="font-size: 13px; color: #334155;">
-                    ${String.fromCharCode(65 + optIdx)}. ${opt.option_text || opt.text || opt}
+                    ${String.fromCharCode(65 + optIdx)}. ${this.mathService.render(opt.option_text || opt.text || opt)}
                   </div>
                 `
                   )
@@ -924,7 +928,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
             sectionsHtml += `
               <div class="question-item" style="margin: 16px 0; padding-left: 8px;">
                 <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 500; color: #0f172a;">
-                  <span>${qIdx + 1}. ${q.question_text || q.text || q.question || 'Question text'}</span>
+                  <span>${qIdx + 1}. ${qText}</span>
                   <span style="color: #64748b; font-size: 13px;">${marks}</span>
                 </div>
                 ${optionsHtml}
@@ -941,6 +945,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
         <html>
           <head>
             <title>${title} - Question Paper</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
             <style>
               @page { size: A4 portrait; margin: 15mm 20mm; }
               * { box-sizing: border-box; }
@@ -1024,16 +1029,22 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
               if (correctOpt) correctAns = correctOpt.option_text || correctOpt.text;
             }
             if (!correctAns) correctAns = 'Refer to model answer rubric';
+            const rawQText = q.question_text || q.text || q.question || 'Question';
+            const qText = this.mathService.render(rawQText);
+            const ansText = this.mathService.render(correctAns);
+            const explanationHtml = q.explanation
+              ? `<div style="margin-top: 6px; font-size: 12px; color: #64748b;"><strong>Explanation:</strong> ${this.mathService.render(q.explanation)}</div>`
+              : '';
             sectionsHtml += `
               <div style="margin: 16px 0; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
                 <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 500; color: #0f172a;">
-                  <span>${qIdx + 1}. ${q.question_text || q.text || q.question || 'Question'}</span>
+                  <span>${qIdx + 1}. ${qText}</span>
                   <span style="color: #64748b; font-size: 13px;">${marks}</span>
                 </div>
                 <div style="margin-top: 8px; font-size: 13px; color: #15803d; font-weight: 600;">
-                  ✓ Correct Answer / Key: <span style="font-weight: 400; color: #0f172a;">${correctAns}</span>
+                  ✓ Correct Answer / Key: <span style="font-weight: 400; color: #0f172a;">${ansText}</span>
                 </div>
-                ${q.explanation ? `<div style="margin-top: 6px; font-size: 12px; color: #64748b;"><strong>Explanation:</strong> ${q.explanation}</div>` : ''}
+                ${explanationHtml}
               </div>
             `;
           });
@@ -1047,6 +1058,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
         <html>
           <head>
             <title>${title} - Answer Key</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
             <style>
               @page { size: A4; margin: 0mm; }
               body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.5; margin: 0; }

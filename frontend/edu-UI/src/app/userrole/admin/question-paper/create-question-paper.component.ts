@@ -85,6 +85,7 @@ export interface PaperPage {
 }
 
 import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
+import { MathService } from 'src/app/shared/services/math.service';
 
 @Component({
   selector: 'app-create-question-paper',
@@ -723,7 +724,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     private vcr: ViewContainerRef,
     private loader: LoaderService,
     private dialog: MatDialog,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private mathService: MathService
   ) {
     try {
       this._subs = this.auth.user$.subscribe((user: any) => {
@@ -2689,7 +2691,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           } else if (item.type === 'question' && item.question) {
             const q = item.question;
             const qNum = item.globalQuestionIndex;
-            const qText = q.question || (q as any).question_text || (q as any).text || 'Question text';
+            const rawQText = q.question || (q as any).question_text || (q as any).text || 'Question text';
+            const qText = this.mathService.render(rawQText);
             const marks = q.marks ? `[${q.marks}]` : '[1]';
 
             let optionsOrAnswerHtml = '';
@@ -2699,7 +2702,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
                 const optionsItems = q.options
                   .map((opt: any, optIdx: number) => {
                     const optFormatted = this.formatOptionText(opt, optIdx);
-                    return `<div class="paper-q-option">${optFormatted}</div>`;
+                    return `<div class="paper-q-option">${this.mathService.render(optFormatted)}</div>`;
                   })
                   .join('');
                 optionsOrAnswerHtml = `<div class="paper-q-options-grid">${optionsItems}</div>`;
@@ -2707,7 +2710,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             } else {
               const ansText = this.getCorrectAnswerText(q);
               const ansDisplay = ansText
-                ? `<span class="ans-value">${ansText}</span>`
+                ? `<span class="ans-value">${this.mathService.render(ansText)}</span>`
                 : `<em class="no-answer">Answer not set yet</em>`;
               optionsOrAnswerHtml = `
                 <div class="paper-q-answer">
@@ -2755,6 +2758,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         <head>
           <meta charset="utf-8">
           <title>${docTitle}</title>
+          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
           <style>
             @page {
               size: A4 portrait;
