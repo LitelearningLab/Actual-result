@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.3] - 2026-10-09
+
+### Patch Fixes
+- **Handwritten Descriptive Vision Evaluation**: Enhanced vision OCR pipeline, multimodal evaluation flow, and response handling for handwritten submissions.
+
+---
+
 ## [2.0.2] - 2026-10-07
 
 ### Patch Fixes
