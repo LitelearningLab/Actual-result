@@ -88,7 +88,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/view-questions': 'Questions',
     '/questions': 'Questions',
     '/exams': 'Create/Edit test',
-    '/create-exam': 'Create/Edit test test',
+    '/create-exam': 'Create/Edit test',
     '/view-schedule-exam': 'Schedule Test',
     '/schedule-exam': 'Schedule Test',
     '/view-institutes': 'Institutes',
