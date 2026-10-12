@@ -805,14 +805,10 @@ export class AdminQuestionsComponent {
     const parseLetterOrTextIndex = (valStr: string): number => {
       if (!valStr || typeof valStr !== 'string') return -1;
       const trimmed = valStr.trim();
-      const exactIdx = cleanOptions.findIndex(
-        (opt) => opt.toLowerCase() === trimmed.toLowerCase()
-      );
+      const exactIdx = cleanOptions.findIndex((opt) => opt.toLowerCase() === trimmed.toLowerCase());
       if (exactIdx >= 0) return exactIdx;
 
-      const clean = trimmed
-        .replace(/^(correct\s*answer\s*:?\s*|option\s*)/i, '')
-        .trim();
+      const clean = trimmed.replace(/^(correct\s*answer\s*:?\s*|option\s*)/i, '').trim();
       if (/^[A-E]$/i.test(clean)) {
         const idx = clean.toUpperCase().charCodeAt(0) - 65;
         if (idx >= 0 && idx < cleanOptions.length) return idx;
@@ -827,7 +823,11 @@ export class AdminQuestionsComponent {
     };
 
     if (normType === 'choose') {
-      if (typeof correctValue === 'number' && correctValue >= 0 && correctValue < cleanOptions.length) {
+      if (
+        typeof correctValue === 'number' &&
+        correctValue >= 0 &&
+        correctValue < cleanOptions.length
+      ) {
         return correctValue;
       }
       if (typeof correctValue === 'string') {
@@ -835,7 +835,8 @@ export class AdminQuestionsComponent {
         if (parsed >= 0) return parsed;
       }
       if (Array.isArray(correctValue) && correctValue.length > 0) {
-        return this.resolveGeneratedCorrectValue(normType, cleanOptions, correctValue[0]) as number | null;
+        return this.resolveGeneratedCorrectValue(normType, cleanOptions, correctValue[0]) as
+          number | null;
       }
       return null;
     }
@@ -864,7 +865,10 @@ export class AdminQuestionsComponent {
         } else {
           const trimmed = correctValue.trim();
           if (!addIdx(trimmed)) {
-            const parts = trimmed.split(/[,|\n]/).map((s) => s.trim()).filter(Boolean);
+            const parts = trimmed
+              .split(/[,|\n]/)
+              .map((s) => s.trim())
+              .filter(Boolean);
             parts.forEach((p) => addIdx(p));
           }
         }
@@ -1045,7 +1049,16 @@ export class AdminQuestionsComponent {
                   r.correctAnswer ??
                   r.correct ??
                   this.getCorrectFromGeneratedOptions(r.options),
-                answerText: r.explanation || r.answer_text || r.answerText || r.answer || '',
+                answerText:
+                  r.explanation ||
+                  r.answer_text ||
+                  r.answerText ||
+                  r.answer ||
+                  r.correct_answer ||
+                  r.correctAnswer ||
+                  r.model_answer ||
+                  r.sample_answer ||
+                  '',
               };
             });
             this.generatedQuestions = normalized;
@@ -1434,9 +1447,10 @@ export class AdminQuestionsComponent {
     let list = this.teams || [];
 
     // Filter by selected departments if any are selected in filter
-    const deptsArr: string[] = (Array.isArray(this.selectedDepartments)
-      ? this.selectedDepartments
-      : [this.selectedDepartments]
+    const deptsArr: string[] = (
+      Array.isArray(this.selectedDepartments)
+        ? this.selectedDepartments
+        : [this.selectedDepartments]
     )
       .filter(Boolean)
       .map((v: any) => String(v));
@@ -1466,7 +1480,10 @@ export class AdminQuestionsComponent {
     }
 
     if (!term) return list;
-    return list.filter((t) => (t.name || '').toLowerCase().includes(term) || (this.selectedTeams || []).includes(t.id));
+    return list.filter(
+      (t) =>
+        (t.name || '').toLowerCase().includes(term) || (this.selectedTeams || []).includes(t.id)
+    );
   }
 
   isAllTeamsSelected(): boolean {
@@ -2235,13 +2252,21 @@ export class AdminQuestionsComponent {
         (id) =>
           this.departments.find((department) => String(department.id) === String(id))?.name || id
       );
-      chips.push({ key: 'department', label: `${this.terminology.deptLabel}: ${names.join(', ')}`, removable: true });
+      chips.push({
+        key: 'department',
+        label: `${this.terminology.deptLabel}: ${names.join(', ')}`,
+        removable: true,
+      });
     }
     if (this.selectedTeams.length) {
       const names = this.selectedTeams.map(
         (id) => this.teams.find((team) => String(team.id) === String(id))?.name || id
       );
-      chips.push({ key: 'team', label: `${this.terminology.teamLabel}: ${names.join(', ')}`, removable: true });
+      chips.push({
+        key: 'team',
+        label: `${this.terminology.teamLabel}: ${names.join(', ')}`,
+        removable: true,
+      });
     }
     const createdAfter = this.formatFilterDate(this.filterCreationDateAfter);
     const createdBefore = this.formatFilterDate(this.filterCreationDate);
@@ -2377,7 +2402,8 @@ export class AdminQuestionsComponent {
   }
 
   openFilterQuestionBankSearch(): void {
-    const instId = this.filterInstituteId || this.getScopedInstituteId(this.questions?.[0]?.institute_id || '');
+    const instId =
+      this.filterInstituteId || this.getScopedInstituteId(this.questions?.[0]?.institute_id || '');
     this.categorySearchText = '';
     if (!instId) {
       this.categories = [];
@@ -2504,7 +2530,6 @@ export class AdminQuestionsComponent {
     this.generatedQuestions = [];
     this.plaintextEditor = false;
 
-
     // 2. Reset Bulk Upload Details
     this.selectedBulkFile = null;
     this.dragActive = false;
@@ -2512,16 +2537,15 @@ export class AdminQuestionsComponent {
     // 3. Reset Manual Questions List to a fresh single question matching the category
     const defaultMark = this.getCategoryQuestionMark(selectedCat) ?? 1;
     const defaultType: string =
-      catType === 'objective'
-        ? 'choose'
-        : catType === 'descriptive'
-          ? 'descriptive'
-          : '';
-
+      catType === 'objective' ? 'choose' : catType === 'descriptive' ? 'descriptive' : '';
 
     this.questions = [
       {
-        institute_id: this.filterInstituteId || this.loginInstituteId || this.questions?.[0]?.institute_id || '',
+        institute_id:
+          this.filterInstituteId ||
+          this.loginInstituteId ||
+          this.questions?.[0]?.institute_id ||
+          '',
         category_id: selectedCat?.category_id || '',
         type: defaultType,
         text: '',
@@ -2712,7 +2736,6 @@ export class AdminQuestionsComponent {
     } catch (e) {}
   }
 
-
   private clearQuestionTypes() {
     try {
       this.aiQuestionType = '';
@@ -2795,7 +2818,11 @@ export class AdminQuestionsComponent {
         while (existingTexts.length < 4) {
           existingTexts.push('');
         }
-        q.options = existingTexts.map((txt: string) => ({ text: txt, image_url: '', gcs_path: '' }));
+        q.options = existingTexts.map((txt: string) => ({
+          text: txt,
+          image_url: '',
+          gcs_path: '',
+        }));
       }
       if (newType === 'choose' && Array.isArray(q.correct)) {
         q.correct = q.correct.length ? q.correct[0] : null;
@@ -2834,7 +2861,8 @@ export class AdminQuestionsComponent {
   resolveMediaUrl = resolveMediaUrl;
 
   getOptImage(opt: any): string {
-    if (opt && typeof opt === 'object') return resolveMediaUrl(opt.image_url || opt.url || opt.image);
+    if (opt && typeof opt === 'object')
+      return resolveMediaUrl(opt.image_url || opt.url || opt.image);
     return '';
   }
 
@@ -2861,7 +2889,7 @@ export class AdminQuestionsComponent {
         if (res && res.status && res.data) {
           const mediaItem = {
             ...res.data,
-            play_limit: res.data.play_limit != null ? Number(res.data.play_limit) : 0
+            play_limit: res.data.play_limit != null ? Number(res.data.play_limit) : 0,
           };
           q.media.push(mediaItem);
           try {
@@ -2937,7 +2965,10 @@ export class AdminQuestionsComponent {
       error: (err) => {
         this.loader.hide();
         console.error('Option image upload error', err);
-        notify(err?.error?.statusMessage || err?.error?.message || 'Failed to upload option image', 'error');
+        notify(
+          err?.error?.statusMessage || err?.error?.message || 'Failed to upload option image',
+          'error'
+        );
         event.target.value = '';
       },
     });
@@ -2949,10 +2980,12 @@ export class AdminQuestionsComponent {
     const opt = q.options[optIndex];
     if (typeof opt === 'object' && opt !== null) {
       if (opt.gcs_path) {
-        this.http.post<any>(`${API_BASE}/questions/delete-media`, { gcs_path: opt.gcs_path }).subscribe({
-          next: () => {},
-          error: (e) => console.warn('Could not clean option media', e),
-        });
+        this.http
+          .post<any>(`${API_BASE}/questions/delete-media`, { gcs_path: opt.gcs_path })
+          .subscribe({
+            next: () => {},
+            error: (e) => console.warn('Could not clean option media', e),
+          });
       }
       opt.image_url = '';
       opt.gcs_path = '';
@@ -3261,16 +3294,16 @@ export class AdminQuestionsComponent {
       if (q.type === 'choose' || q.type === 'multi') {
         if (validOptionList.length < 2) {
           try {
-            notify('Choice questions (Single/Multiple choice) must have at least 2 options filled in.', 'error');
+            notify(
+              'Choice questions (Single/Multiple choice) must have at least 2 options filled in.',
+              'error'
+            );
           } catch (e) {}
           return;
         }
       }
 
-      if (
-        q.type === 'choose' &&
-        (q.correct === null || q.correct === undefined)
-      ) {
+      if (q.type === 'choose' && (q.correct === null || q.correct === undefined)) {
         try {
           notify(
             'Please select the correct option for single choice in all question blocks',
@@ -3355,7 +3388,7 @@ export class AdminQuestionsComponent {
       ) {
         p.correct_indices = [q.correct];
         const opt = p.options[q.correct];
-        p.correct_values = [typeof opt === 'string' ? opt : (opt.text || opt.image_url || '')];
+        p.correct_values = [typeof opt === 'string' ? opt : opt.text || opt.image_url || ''];
       } else if (q.type === 'choose') {
         p.correct_indices = [];
         p.correct_values = [];
@@ -3365,7 +3398,7 @@ export class AdminQuestionsComponent {
         p.correct_indices = validCorrect;
         p.correct_values = validCorrect.map((i: number) => {
           const opt = p.options[i];
-          return typeof opt === 'string' ? opt : (opt.text || opt.image_url || '');
+          return typeof opt === 'string' ? opt : opt.text || opt.image_url || '';
         });
       } else if (q.type === 'multi') {
         p.correct_indices = [];
@@ -3486,7 +3519,7 @@ export class AdminQuestionsComponent {
     this.imageZoom = 1;
     this.previewModalImage = {
       url: resolved,
-      title: title || 'Image Preview'
+      title: title || 'Image Preview',
     };
   }
 
@@ -3543,7 +3576,10 @@ export class AdminQuestionsComponent {
     this.activeMathFieldType = fieldType || null;
   }
 
-  onMathToolInserted(event: { latex: string; targetElement: HTMLInputElement | HTMLTextAreaElement | null }) {
+  onMathToolInserted(event: {
+    latex: string;
+    targetElement: HTMLInputElement | HTMLTextAreaElement | null;
+  }) {
     if (event.targetElement) {
       this.activeMathCurrentValue = event.targetElement.value;
     }
@@ -3558,10 +3594,17 @@ export class AdminQuestionsComponent {
         this.activeMathOptionIndex !== null &&
         event.targetElement
       ) {
-        this.setOptText(this.activeMathQuestionIndex, this.activeMathOptionIndex, event.targetElement.value);
+        this.setOptText(
+          this.activeMathQuestionIndex,
+          this.activeMathOptionIndex,
+          event.targetElement.value
+        );
       } else if (this.activeMathFieldType === 'answer' && event.targetElement) {
         q.answerText = event.targetElement.value;
-        if (event.targetElement.tagName && event.targetElement.tagName.toLowerCase() === 'textarea') {
+        if (
+          event.targetElement.tagName &&
+          event.targetElement.tagName.toLowerCase() === 'textarea'
+        ) {
           this.autoResize(event.targetElement);
         }
       }
@@ -3608,7 +3651,12 @@ export class AdminQuestionsComponent {
   hasMathSyntax(text: string | null | undefined): boolean {
     if (!text) return false;
     const str = String(text);
-    return str.includes('$') || str.includes('\\') || str.includes('{') || str.includes('^') || str.includes('_');
+    return (
+      str.includes('$') ||
+      str.includes('\\') ||
+      str.includes('{') ||
+      str.includes('^') ||
+      str.includes('_')
+    );
   }
 }
-
