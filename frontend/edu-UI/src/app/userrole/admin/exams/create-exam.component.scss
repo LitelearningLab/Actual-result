@@ -681,7 +681,7 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 
 /* ── Updated Question Bank details row & input field styling ── */
 .row.small.small-grid.question-bank-details-row {
-  grid-template-columns: minmax(16rem, 2fr) minmax(9rem, 1fr) minmax(9rem, 1fr) 19rem;
+  grid-template-columns: minmax(12rem, 2.5fr) minmax(7.5rem, 1fr) minmax(7.5rem, 1fr) minmax(10rem, 1.5fr);
   align-items: flex-start;
   /* <-- ADD THIS LINE to keep all boxes aligned at the top */
   background: #ffffff !important;
@@ -744,6 +744,25 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 .row.small.small-grid.question-bank-details-row .marks-col {
   min-width: 0;
 }
+
+.row.small.small-grid.question-bank-details-row > .col {
+  min-width: 0;
+}
+
+/* When zoomed in or on narrower screens, wrap into 2 columns */
+@media (max-width: 68rem) {
+  .row.small.small-grid.question-bank-details-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* On small screens or heavy zoom, stack into 1 column */
+@media (max-width: 42rem) {
+  .row.small.small-grid.question-bank-details-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 
 @media (max-width:45rem) {
   .section-header {
