@@ -1924,7 +1924,13 @@ export class AdminQuestionsComponent {
               } catch (e) {}
               this.enforceQuestionTypeForSelectedCategory();
               this.syncQuestionMarksToCategory();
-              this.loadCategorySettings(found.category_id);
+              // Don't re-trigger if this category's settings are already loaded or in progress
+              if (
+                String(this.selectedCategory?.category_id) !== String(found.category_id) ||
+                !this.selectedCategory?.type
+              ) {
+                this.loadCategorySettings(found.category_id);
+              }
             }
           }
         } catch (e) {}
@@ -2111,8 +2117,6 @@ export class AdminQuestionsComponent {
       this.syncQuestionMarksToCategory();
       this.loadCategorySettings(selectedQuestionBank.category_id);
     }
-    this.refreshInstituteScope();
-    this.loadCategories(this.filterInstituteId, false, false);
 
     // Close the popup after applying
     this.closeFiltersOverlay();
