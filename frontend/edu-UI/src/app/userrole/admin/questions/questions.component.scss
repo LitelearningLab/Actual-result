@@ -274,8 +274,28 @@ $shadow-md: 0 4px 12px rgba(0,0,0,0.06);
 .question-card .option-field .mat-form-field-infix { padding:0.5rem 0.625rem; }
 .question-card .option-input { font:500 0.8125rem/1.4 inherit; }
 button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min-height:2.25rem; padding:0.5rem 0.875rem; display:inline-flex; align-items:center; gap:0.5rem; }
-.fine-tune-btn { color:var(--button-1)!important; background:rgba(31,123,255,0.08); border-radius:0.5rem; }
-.fine-tune-btn:hover { background:rgba(31,123,255,0.12); }
+.fine-tune-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--button-1) !important;
+  background: rgba(31, 123, 255, 0.08);
+  border-radius: 0.5rem;
+}
+.fine-tune-btn:hover {
+  background: rgba(31, 123, 255, 0.12);
+}
+
+/* Masks the black PNG using the app's exact primary blue color (#1f7bff) */
+.ai-custom-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background-color: var(--button-1, #1f7bff);
+  -webkit-mask: url('/assets/images/ai_icon.png') no-repeat center / contain;
+  mask: url('/assets/images/ai_icon.png') no-repeat center / contain;
+}
+
 
 /* ── Mode select & bulk ── */
 .mode-select { margin-top:0.875rem; }

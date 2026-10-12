@@ -35,13 +35,18 @@
         <div class="section-header question-bank-header">
           <mat-icon class="section-icon">school</mat-icon>
           <div class="section-header-text">
-            <h2 class="section-heading">{{ isSuperAdmin ? 'Institute & Question Bank' : 'Question Bank' }}</h2>
-            <p class="section-desc">Select the {{ isSuperAdmin ? 'institute and ' : '' }}question bank for your questions.</p>
+            <h2 class="section-heading">
+              {{ isSuperAdmin ? 'Institute & Question Bank' : 'Question Bank' }}
+            </h2>
+            <p class="section-desc">
+              Select the {{ isSuperAdmin ? 'institute and ' : '' }}question bank for your questions.
+            </p>
           </div>
 
           <!-- Filter Anchor Button & Popup -->
           <div class="question-bank-filter-anchor" (click)="$event.stopPropagation()">
-            <button #filtersBtn
+            <button
+              #filtersBtn
               mat-stroked-button
               color="primary"
               type="button"
@@ -53,456 +58,557 @@
             </button>
 
             <ng-template #filtersPanel>
-            <!-- Filter Popup Panel -->
-            <div
-              class="question-bank-filter-panel filters-panel category-filters-panel"
-              [class.admin-two-column]="!showLocationAndIndustryFilters"
-              (click)="$event.stopPropagation()"
-            >
-              <div class="filters-panel-header">
-                <h4><mat-icon>tune</mat-icon> Filters</h4>
-              </div>
-
-              <div class="filter-block filter-grid">
-                <!-- Institute Filter -->
-                <div class="filter-col-full" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
-                  <mat-form-field appearance="outline" class="filter-item mandatory-field">
-                    <mat-label>Institute</mat-label>
-                    <mat-select
-                      [(ngModel)]="filterInstituteId"
-                      (selectionChange)="onFilterInstituteChange($event.value)"
-                    >
-                      <mat-option *ngIf="institutesLoading" disabled>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                          <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
-                          <span>Loading institutes...</span>
-                        </div>
-                      </mat-option>
-                      <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!institutesLoading">
-                        <input
-                          matInput
-                          class="select-search-input"
-                          placeholder="Search institute"
-                          [(ngModel)]="instituteSearch"
-                          [ngModelOptions]="{ standalone: true }"
-                          (click)="$event.stopPropagation()"
-                          (keydown)="stopFilterSearchEvent($event)"
-                          (keyup)="stopFilterSearchEvent($event)"
-                          (input)="stopFilterSearchEvent($event)"
-                        />
-                      </mat-option>
-                      <mat-option
-                        *ngFor="let institute of filteredInstitutes()"
-                        [value]="institute.institute_id"
-                      >
-                        {{ institute.name }}
-                      </mat-option>
-                    </mat-select>
-                  </mat-form-field>
+              <!-- Filter Popup Panel -->
+              <div
+                class="question-bank-filter-panel filters-panel category-filters-panel"
+                [class.admin-two-column]="!showLocationAndIndustryFilters"
+                (click)="$event.stopPropagation()"
+              >
+                <div class="filters-panel-header">
+                  <h4><mat-icon>tune</mat-icon> Filters</h4>
                 </div>
 
-                <!-- Left Column: Country, Industry, Type, Department -->
-                <div class="filter-col">
-                  <!-- Country Filter -->
-                  <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
-                    <mat-label>Country</mat-label>
-                    <mat-select
-                      multiple
-                      [(ngModel)]="selectedCountries"
-                      placeholder="Select Country"
-                      (openedChange)="onFilterSelectOpened($event, 'country')"
-                      (selectionChange)="onCountryFilterChange()"
-                    >
-                      <mat-option *ngIf="countriesLoading" disabled>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                          <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
-                          <span>Loading countries...</span>
-                        </div>
-                      </mat-option>
-                      <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!countriesLoading">
-                        <input
-                          matInput
-                          class="select-search-input"
-                          placeholder="Search country"
-                          [(ngModel)]="countrySearch"
-                          [ngModelOptions]="{ standalone: true }"
-                          (click)="$event.stopPropagation()"
-                          (keydown)="stopFilterSearchEvent($event)"
-                          (keyup)="stopFilterSearchEvent($event)"
-                          (input)="stopFilterSearchEvent($event)"
-                        />
-                      </mat-option>
-                      <mat-option
-                        class="select-all-option"
-                        *ngIf="!countriesLoading && filteredCountries.length && !countrySearch?.trim()"
-                        (click)="toggleSelectAllCountries()"
+                <div class="filter-block filter-grid">
+                  <!-- Institute Filter -->
+                  <div class="filter-col-full" *ngIf="isSuperAdmin && !isGlobalInstituteActive">
+                    <mat-form-field appearance="outline" class="filter-item mandatory-field">
+                      <mat-label>Institute</mat-label>
+                      <mat-select
+                        [(ngModel)]="filterInstituteId"
+                        (selectionChange)="onFilterInstituteChange($event.value)"
                       >
-                        <mat-icon
-                          class="select-all-checkbox-icon"
-                          [style.color]="isAllCountriesSelected() ? '#2563eb' : '#64748b'"
-                        >
-                          {{ isAllCountriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                        </mat-icon>
-                        <strong>Select All</strong>
-                      </mat-option>
-                      <mat-option *ngFor="let c of filteredCountries" [value]="c.code">{{
-                        c.name
-                      }}</mat-option>
-                    </mat-select>
-                  </mat-form-field>
-
-                  <!-- Industry Filter -->
-                  <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
-                    <mat-label>Industry</mat-label>
-                    <mat-select
-                      multiple
-                      [(ngModel)]="selectedIndustries"
-                      placeholder="Select Industry"
-                      (openedChange)="onFilterSelectOpened($event, 'industry')"
-                      (selectionChange)="onIndustryFilterChange()"
-                    >
-                      <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                        <input
-                          matInput
-                          class="select-search-input"
-                          placeholder="Search industry"
-                          [(ngModel)]="industrySearch"
-                          [ngModelOptions]="{ standalone: true }"
-                          (click)="$event.stopPropagation()"
-                          (keydown)="stopFilterSearchEvent($event)"
-                          (keyup)="stopFilterSearchEvent($event)"
-                          (input)="stopFilterSearchEvent($event)"
-                        />
-                      </mat-option>
-                      <mat-option
-                        class="select-all-option"
-                        *ngIf="filteredIndustryTypes.length && !industrySearch?.trim()"
-                        (click)="toggleSelectAllIndustries()"
-                      >
-                        <mat-icon
-                          class="select-all-checkbox-icon"
-                          [style.color]="isAllIndustriesSelected() ? '#2563eb' : '#64748b'"
-                        >
-                          {{ isAllIndustriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                        </mat-icon>
-                        <strong>Select All</strong>
-                      </mat-option>
-                      <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{
-                        t
-                      }}</mat-option>
-                    </mat-select>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="filter-item">
-                    <mat-label>Type</mat-label>
-                    <mat-select
-                      multiple
-                      [(ngModel)]="selectedCategoryTypes"
-                      placeholder="Select Type"
-                      (selectionChange)="onQuestionBankFilterChange()"
-                    >
-                      <mat-option value="objective">Objective</mat-option>
-                      <mat-option value="descriptive">Descriptive</mat-option>
-                    </mat-select>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="filter-item">
-                    <mat-label>{{ terminology.deptLabel }}</mat-label>
-                    <mat-select
-                      multiple
-                      [(ngModel)]="selectedDepartments"
-                      [placeholder]="'Select ' + terminology.deptLabel.toLowerCase()"
-                      [disabled]="!filterInstituteId"
-                      (selectionChange)="onDepartmentFilterChange()"
-                    >
-                      <mat-option *ngIf="departmentsLoading" disabled>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                          <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
-                          <span>Loading {{ terminology.deptPluralLabel.toLowerCase() }}...</span>
-                        </div>
-                      </mat-option>
-                      <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!departmentsLoading">
-                        <input
-                          matInput
-                          class="select-search-input"
-                          [placeholder]="'Search ' + terminology.deptLabel.toLowerCase()"
-                          [(ngModel)]="departmentFilterSearch"
-                          [ngModelOptions]="{ standalone: true }"
-                          (click)="$event.stopPropagation()"
-                          (keydown)="stopFilterSearchEvent($event)"
-                          (keyup)="stopFilterSearchEvent($event)"
-                          (input)="stopFilterSearchEvent($event)"
-                        />
-                      </mat-option>
-                      <mat-option
-                        class="select-all-option"
-                        *ngIf="!departmentsLoading && filteredDepartmentsForFilter.length && !departmentFilterSearch?.trim()"
-                        (click)="toggleSelectAllDepartments()"
-                      >
-                        <mat-icon
-                          class="select-all-checkbox-icon"
-                          [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'"
-                        >
-                          {{ isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                        </mat-icon>
-                        <strong>Select All</strong>
-                      </mat-option>
-                      <mat-option *ngFor="let department of filteredDepartmentsForFilter" [value]="department.id">
-                        {{ department.name }}
-                      </mat-option>
-                    </mat-select>
-                  </mat-form-field>
-                </div>
-
-                <!-- Right Column: City, Sector, Created Date, Team -->
-                <div class="filter-col">
-                  <!-- City Filter -->
-                  <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
-                    <mat-label>City</mat-label>
-                    <mat-select
-                      multiple
-                      [(ngModel)]="selectedCities"
-                      placeholder="Select City"
-                      [disabled]="!selectedCountries.length && !filterCountry"
-                      (openedChange)="onFilterSelectOpened($event, 'city')"
-                      (selectionChange)="onCityFilterChange()"
-                    >
-                      <mat-option *ngIf="citiesLoading" disabled>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                          <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
-                          <span>Loading cities...</span>
-                        </div>
-                      </mat-option>
-                      <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!citiesLoading">
-                        <input
-                          matInput
-                          class="select-search-input"
-                          placeholder="Search city"
-                          [(ngModel)]="citySearch"
-                          [ngModelOptions]="{ standalone: true }"
-                          (click)="$event.stopPropagation()"
-                          (keydown)="stopFilterSearchEvent($event)"
-                          (keyup)="stopFilterSearchEvent($event)"
-                          (input)="stopFilterSearchEvent($event)"
-                        />
-                      </mat-option>
-                      <mat-option
-                        class="select-all-option"
-                        *ngIf="!citiesLoading && filteredCities.length && !citySearch?.trim()"
-                        (click)="toggleSelectAllCities()"
-                      >
-                        <mat-icon
-                          class="select-all-checkbox-icon"
-                          [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'"
-                        >
-                          {{ isAllCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                        </mat-icon>
-                        <strong>Select All</strong>
-                      </mat-option>
-                      <mat-option *ngIf="!citiesLoading && !filteredCities.length" disabled>No cities available</mat-option>
-                      <mat-option *ngFor="let city of filteredCities" [value]="city.name">
-                        {{ city.name }}
-                      </mat-option>
-                    </mat-select>
-                  </mat-form-field>
-
-                  <!-- Sector Filter -->
-                  <mat-form-field appearance="outline" class="filter-item" *ngIf="showLocationAndIndustryFilters">
-                    <mat-label>Sector</mat-label>
-                    <mat-select
-                      multiple
-                      [(ngModel)]="selectedSectors"
-                      placeholder="Select Sector"
-                      [disabled]="!selectedIndustries.length"
-                      (openedChange)="onFilterSelectOpened($event, 'sector')"
-                      (selectionChange)="onSectorFilterChange()"
-                    >
-                      <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                        <input
-                          matInput
-                          class="select-search-input"
-                          placeholder="Search sector"
-                          [(ngModel)]="sectorSearch"
-                          [ngModelOptions]="{ standalone: true }"
-                          (click)="$event.stopPropagation()"
-                          (keydown)="stopFilterSearchEvent($event)"
-                          (keyup)="stopFilterSearchEvent($event)"
-                          (input)="stopFilterSearchEvent($event)"
-                        />
-                      </mat-option>
-                      <mat-option
-                        class="select-all-option"
-                        *ngIf="filteredSectors.length && !sectorSearch?.trim()"
-                        (click)="toggleSelectAllSectors()"
-                      >
-                        <mat-icon
-                          class="select-all-checkbox-icon"
-                          [style.color]="isAllSectorsSelected() ? '#2563eb' : '#64748b'"
-                        >
-                          {{ isAllSectorsSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                        </mat-icon>
-                        <strong>Select All</strong>
-                      </mat-option>
-                      <mat-option *ngFor="let s of filteredSectors" [value]="s">{{ s }}</mat-option>
-                    </mat-select>
-                  </mat-form-field>
-
-                  <!-- Created Date Range Field -->
-                  <mat-form-field
-                    appearance="outline"
-                    class="filter-item date-range-field"
-                    (click)="openCreatedDateRangePicker()"
-                    style="cursor: pointer;"
-                  >
-                    <mat-label>Created Date</mat-label>
-                    <input
-                      matInput
-                      readonly
-                      [value]="getCreatedDateRangeDisplay()"
-                      placeholder="Select date range"
-                      style="cursor: pointer;"
-                    />
-                    <mat-icon matSuffix style="cursor: pointer; color: #0284c7;">calendar_today</mat-icon>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="filter-item">
-                    <mat-label>{{ terminology.teamLabel }}</mat-label>
-                    <mat-select
-                      multiple
-                      [(ngModel)]="selectedTeams"
-                      [placeholder]="'Select ' + terminology.teamLabel.toLowerCase()"
-                      [disabled]="!filterInstituteId || !selectedDepartments.length"
-                      (selectionChange)="onQuestionBankFilterChange()"
-                    >
-                      <mat-option *ngIf="teamsLoading" disabled>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                          <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
-                          <span>Loading {{ terminology.teamPluralLabel.toLowerCase() }}...</span>
-                        </div>
-                      </mat-option>
-                      <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!teamsLoading">
-                        <input
-                          matInput
-                          class="select-search-input"
-                          [placeholder]="'Search ' + terminology.teamLabel.toLowerCase()"
-                          [(ngModel)]="teamFilterSearch"
-                          [ngModelOptions]="{ standalone: true }"
-                          (click)="$event.stopPropagation()"
-                          (keydown)="stopFilterSearchEvent($event)"
-                          (keyup)="stopFilterSearchEvent($event)"
-                          (input)="stopFilterSearchEvent($event)"
-                        />
-                      </mat-option>
-                      <mat-option
-                        class="select-all-option"
-                        *ngIf="!teamsLoading && filteredTeamsForFilter.length && !teamFilterSearch?.trim()"
-                        (click)="toggleSelectAllTeams()"
-                      >
-                        <mat-icon
-                          class="select-all-checkbox-icon"
-                          [style.color]="isAllTeamsSelected() ? '#2563eb' : '#64748b'"
-                        >
-                          {{ isAllTeamsSelected() ? 'check_box' : 'check_box_outline_blank' }}
-                        </mat-icon>
-                        <strong>Select All</strong>
-                      </mat-option>
-                      <mat-option *ngFor="let team of filteredTeamsForFilter" [value]="team.id">
-                        {{ team.name }}
-                      </mat-option>
-                    </mat-select>
-                  </mat-form-field>
-                </div>
-
-                <!-- Full width Question Bank Filter -->
-                <div class="filter-col-full">
-                  <mat-form-field appearance="outline" class="filter-item mandatory-field">
-                    <mat-label>Question Bank Name <span class="required-star">*</span></mat-label>
-                    <mat-select
-                      [(ngModel)]="filterQuestionBankId"
-                      [disabled]="!filterInstituteId"
-                      (openedChange)="$event && openFilterQuestionBankSearch()"
-                      (selectionChange)="onFilterQuestionBankChange($event.value)"
-                    >
-                      <mat-option *ngIf="categoriesLoading" disabled>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                          <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
-                          <span>Loading question banks...</span>
-                        </div>
-                      </mat-option>
-                      <mat-option class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!categoriesLoading">
-                        <input
-                          matInput
-                          class="select-search-input"
-                          placeholder="Search question bank"
-                          [(ngModel)]="categorySearchText"
-                          [ngModelOptions]="{ standalone: true }"
-                          (click)="$event.stopPropagation()"
-                          (keydown)="stopFilterSearchEvent($event)"
-                          (keyup)="stopFilterSearchEvent($event)"
-                          (input)="stopFilterSearchEvent($event)"
-                        />
-                      </mat-option>
-                      <ng-container *ngIf="!categoriesLoading">
-                        <mat-option
-                          *ngFor="let category of filteredCategories"
-                          [value]="category.category_id"
-                        >
-                          {{ category.name }}
+                        <mat-option *ngIf="institutesLoading" disabled>
+                          <div
+                            style="display: flex; align-items: center; gap: 0.5rem; color: #64748b"
+                          >
+                            <mat-icon
+                              class="rotating-spinner"
+                              style="font-size: 16px; width: 16px; height: 16px"
+                              >sync</mat-icon
+                            >
+                            <span>Loading institutes...</span>
+                          </div>
                         </mat-option>
-                      </ng-container>
-                    </mat-select>
-                  </mat-form-field>
+                        <mat-option
+                          class="select-search-option"
+                          (click)="$event.stopPropagation()"
+                          *ngIf="!institutesLoading"
+                        >
+                          <input
+                            matInput
+                            class="select-search-input"
+                            placeholder="Search institute"
+                            [(ngModel)]="instituteSearch"
+                            [ngModelOptions]="{ standalone: true }"
+                            (click)="$event.stopPropagation()"
+                            (keydown)="stopFilterSearchEvent($event)"
+                            (keyup)="stopFilterSearchEvent($event)"
+                            (input)="stopFilterSearchEvent($event)"
+                          />
+                        </mat-option>
+                        <mat-option
+                          *ngFor="let institute of filteredInstitutes()"
+                          [value]="institute.institute_id"
+                        >
+                          {{ institute.name }}
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+
+                  <!-- Left Column: Country, Industry, Type, Department -->
+                  <div class="filter-col">
+                    <!-- Country Filter -->
+                    <mat-form-field
+                      appearance="outline"
+                      class="filter-item"
+                      *ngIf="showLocationAndIndustryFilters"
+                    >
+                      <mat-label>Country</mat-label>
+                      <mat-select
+                        multiple
+                        [(ngModel)]="selectedCountries"
+                        placeholder="Select Country"
+                        (openedChange)="onFilterSelectOpened($event, 'country')"
+                        (selectionChange)="onCountryFilterChange()"
+                      >
+                        <mat-option *ngIf="countriesLoading" disabled>
+                          <div
+                            style="display: flex; align-items: center; gap: 0.5rem; color: #64748b"
+                          >
+                            <mat-icon
+                              class="rotating-spinner"
+                              style="font-size: 16px; width: 16px; height: 16px"
+                              >sync</mat-icon
+                            >
+                            <span>Loading countries...</span>
+                          </div>
+                        </mat-option>
+                        <mat-option
+                          class="select-search-option"
+                          (click)="$event.stopPropagation()"
+                          *ngIf="!countriesLoading"
+                        >
+                          <input
+                            matInput
+                            class="select-search-input"
+                            placeholder="Search country"
+                            [(ngModel)]="countrySearch"
+                            [ngModelOptions]="{ standalone: true }"
+                            (click)="$event.stopPropagation()"
+                            (keydown)="stopFilterSearchEvent($event)"
+                            (keyup)="stopFilterSearchEvent($event)"
+                            (input)="stopFilterSearchEvent($event)"
+                          />
+                        </mat-option>
+                        <mat-option
+                          class="select-all-option"
+                          *ngIf="
+                            !countriesLoading && filteredCountries.length && !countrySearch?.trim()
+                          "
+                          (click)="toggleSelectAllCountries()"
+                        >
+                          <mat-icon
+                            class="select-all-checkbox-icon"
+                            [style.color]="isAllCountriesSelected() ? '#2563eb' : '#64748b'"
+                          >
+                            {{ isAllCountriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                          </mat-icon>
+                          <strong>Select All</strong>
+                        </mat-option>
+                        <mat-option *ngFor="let c of filteredCountries" [value]="c.code">{{
+                          c.name
+                        }}</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+
+                    <!-- Industry Filter -->
+                    <mat-form-field
+                      appearance="outline"
+                      class="filter-item"
+                      *ngIf="showLocationAndIndustryFilters"
+                    >
+                      <mat-label>Industry</mat-label>
+                      <mat-select
+                        multiple
+                        [(ngModel)]="selectedIndustries"
+                        placeholder="Select Industry"
+                        (openedChange)="onFilterSelectOpened($event, 'industry')"
+                        (selectionChange)="onIndustryFilterChange()"
+                      >
+                        <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                          <input
+                            matInput
+                            class="select-search-input"
+                            placeholder="Search industry"
+                            [(ngModel)]="industrySearch"
+                            [ngModelOptions]="{ standalone: true }"
+                            (click)="$event.stopPropagation()"
+                            (keydown)="stopFilterSearchEvent($event)"
+                            (keyup)="stopFilterSearchEvent($event)"
+                            (input)="stopFilterSearchEvent($event)"
+                          />
+                        </mat-option>
+                        <mat-option
+                          class="select-all-option"
+                          *ngIf="filteredIndustryTypes.length && !industrySearch?.trim()"
+                          (click)="toggleSelectAllIndustries()"
+                        >
+                          <mat-icon
+                            class="select-all-checkbox-icon"
+                            [style.color]="isAllIndustriesSelected() ? '#2563eb' : '#64748b'"
+                          >
+                            {{
+                              isAllIndustriesSelected() ? 'check_box' : 'check_box_outline_blank'
+                            }}
+                          </mat-icon>
+                          <strong>Select All</strong>
+                        </mat-option>
+                        <mat-option *ngFor="let t of filteredIndustryTypes" [value]="t">{{
+                          t
+                        }}</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="filter-item">
+                      <mat-label>Type</mat-label>
+                      <mat-select
+                        multiple
+                        [(ngModel)]="selectedCategoryTypes"
+                        placeholder="Select Type"
+                        (selectionChange)="onQuestionBankFilterChange()"
+                      >
+                        <mat-option value="objective">Objective</mat-option>
+                        <mat-option value="descriptive">Descriptive</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="filter-item">
+                      <mat-label>{{ terminology.deptLabel }}</mat-label>
+                      <mat-select
+                        multiple
+                        [(ngModel)]="selectedDepartments"
+                        [placeholder]="'Select ' + terminology.deptLabel.toLowerCase()"
+                        [disabled]="!filterInstituteId"
+                        (selectionChange)="onDepartmentFilterChange()"
+                      >
+                        <mat-option *ngIf="departmentsLoading" disabled>
+                          <div
+                            style="display: flex; align-items: center; gap: 0.5rem; color: #64748b"
+                          >
+                            <mat-icon
+                              class="rotating-spinner"
+                              style="font-size: 16px; width: 16px; height: 16px"
+                              >sync</mat-icon
+                            >
+                            <span>Loading {{ terminology.deptPluralLabel.toLowerCase() }}...</span>
+                          </div>
+                        </mat-option>
+                        <mat-option
+                          class="select-search-option"
+                          (click)="$event.stopPropagation()"
+                          *ngIf="!departmentsLoading"
+                        >
+                          <input
+                            matInput
+                            class="select-search-input"
+                            [placeholder]="'Search ' + terminology.deptLabel.toLowerCase()"
+                            [(ngModel)]="departmentFilterSearch"
+                            [ngModelOptions]="{ standalone: true }"
+                            (click)="$event.stopPropagation()"
+                            (keydown)="stopFilterSearchEvent($event)"
+                            (keyup)="stopFilterSearchEvent($event)"
+                            (input)="stopFilterSearchEvent($event)"
+                          />
+                        </mat-option>
+                        <mat-option
+                          class="select-all-option"
+                          *ngIf="
+                            !departmentsLoading &&
+                            filteredDepartmentsForFilter.length &&
+                            !departmentFilterSearch?.trim()
+                          "
+                          (click)="toggleSelectAllDepartments()"
+                        >
+                          <mat-icon
+                            class="select-all-checkbox-icon"
+                            [style.color]="isAllDepartmentsSelected() ? '#2563eb' : '#64748b'"
+                          >
+                            {{
+                              isAllDepartmentsSelected() ? 'check_box' : 'check_box_outline_blank'
+                            }}
+                          </mat-icon>
+                          <strong>Select All</strong>
+                        </mat-option>
+                        <mat-option
+                          *ngFor="let department of filteredDepartmentsForFilter"
+                          [value]="department.id"
+                        >
+                          {{ department.name }}
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+
+                  <!-- Right Column: City, Sector, Created Date, Team -->
+                  <div class="filter-col">
+                    <!-- City Filter -->
+                    <mat-form-field
+                      appearance="outline"
+                      class="filter-item"
+                      *ngIf="showLocationAndIndustryFilters"
+                    >
+                      <mat-label>City</mat-label>
+                      <mat-select
+                        multiple
+                        [(ngModel)]="selectedCities"
+                        placeholder="Select City"
+                        [disabled]="!selectedCountries.length && !filterCountry"
+                        (openedChange)="onFilterSelectOpened($event, 'city')"
+                        (selectionChange)="onCityFilterChange()"
+                      >
+                        <mat-option *ngIf="citiesLoading" disabled>
+                          <div
+                            style="display: flex; align-items: center; gap: 0.5rem; color: #64748b"
+                          >
+                            <mat-icon
+                              class="rotating-spinner"
+                              style="font-size: 16px; width: 16px; height: 16px"
+                              >sync</mat-icon
+                            >
+                            <span>Loading cities...</span>
+                          </div>
+                        </mat-option>
+                        <mat-option
+                          class="select-search-option"
+                          (click)="$event.stopPropagation()"
+                          *ngIf="!citiesLoading"
+                        >
+                          <input
+                            matInput
+                            class="select-search-input"
+                            placeholder="Search city"
+                            [(ngModel)]="citySearch"
+                            [ngModelOptions]="{ standalone: true }"
+                            (click)="$event.stopPropagation()"
+                            (keydown)="stopFilterSearchEvent($event)"
+                            (keyup)="stopFilterSearchEvent($event)"
+                            (input)="stopFilterSearchEvent($event)"
+                          />
+                        </mat-option>
+                        <mat-option
+                          class="select-all-option"
+                          *ngIf="!citiesLoading && filteredCities.length && !citySearch?.trim()"
+                          (click)="toggleSelectAllCities()"
+                        >
+                          <mat-icon
+                            class="select-all-checkbox-icon"
+                            [style.color]="isAllCitiesSelected() ? '#2563eb' : '#64748b'"
+                          >
+                            {{ isAllCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                          </mat-icon>
+                          <strong>Select All</strong>
+                        </mat-option>
+                        <mat-option *ngIf="!citiesLoading && !filteredCities.length" disabled
+                          >No cities available</mat-option
+                        >
+                        <mat-option *ngFor="let city of filteredCities" [value]="city.name">
+                          {{ city.name }}
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+
+                    <!-- Sector Filter -->
+                    <mat-form-field
+                      appearance="outline"
+                      class="filter-item"
+                      *ngIf="showLocationAndIndustryFilters"
+                    >
+                      <mat-label>Sector</mat-label>
+                      <mat-select
+                        multiple
+                        [(ngModel)]="selectedSectors"
+                        placeholder="Select Sector"
+                        [disabled]="!selectedIndustries.length"
+                        (openedChange)="onFilterSelectOpened($event, 'sector')"
+                        (selectionChange)="onSectorFilterChange()"
+                      >
+                        <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                          <input
+                            matInput
+                            class="select-search-input"
+                            placeholder="Search sector"
+                            [(ngModel)]="sectorSearch"
+                            [ngModelOptions]="{ standalone: true }"
+                            (click)="$event.stopPropagation()"
+                            (keydown)="stopFilterSearchEvent($event)"
+                            (keyup)="stopFilterSearchEvent($event)"
+                            (input)="stopFilterSearchEvent($event)"
+                          />
+                        </mat-option>
+                        <mat-option
+                          class="select-all-option"
+                          *ngIf="filteredSectors.length && !sectorSearch?.trim()"
+                          (click)="toggleSelectAllSectors()"
+                        >
+                          <mat-icon
+                            class="select-all-checkbox-icon"
+                            [style.color]="isAllSectorsSelected() ? '#2563eb' : '#64748b'"
+                          >
+                            {{ isAllSectorsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                          </mat-icon>
+                          <strong>Select All</strong>
+                        </mat-option>
+                        <mat-option *ngFor="let s of filteredSectors" [value]="s">{{
+                          s
+                        }}</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+
+                    <!-- Created Date Range Field -->
+                    <mat-form-field
+                      appearance="outline"
+                      class="filter-item date-range-field"
+                      (click)="openCreatedDateRangePicker()"
+                      style="cursor: pointer"
+                    >
+                      <mat-label>Created Date</mat-label>
+                      <input
+                        matInput
+                        readonly
+                        [value]="getCreatedDateRangeDisplay()"
+                        placeholder="Select date range"
+                        style="cursor: pointer"
+                      />
+                      <mat-icon matSuffix style="cursor: pointer; color: #0284c7"
+                        >calendar_today</mat-icon
+                      >
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="filter-item">
+                      <mat-label>{{ terminology.teamLabel }}</mat-label>
+                      <mat-select
+                        multiple
+                        [(ngModel)]="selectedTeams"
+                        [placeholder]="'Select ' + terminology.teamLabel.toLowerCase()"
+                        [disabled]="!filterInstituteId || !selectedDepartments.length"
+                        (selectionChange)="onQuestionBankFilterChange()"
+                      >
+                        <mat-option *ngIf="teamsLoading" disabled>
+                          <div
+                            style="display: flex; align-items: center; gap: 0.5rem; color: #64748b"
+                          >
+                            <mat-icon
+                              class="rotating-spinner"
+                              style="font-size: 16px; width: 16px; height: 16px"
+                              >sync</mat-icon
+                            >
+                            <span>Loading {{ terminology.teamPluralLabel.toLowerCase() }}...</span>
+                          </div>
+                        </mat-option>
+                        <mat-option
+                          class="select-search-option"
+                          (click)="$event.stopPropagation()"
+                          *ngIf="!teamsLoading"
+                        >
+                          <input
+                            matInput
+                            class="select-search-input"
+                            [placeholder]="'Search ' + terminology.teamLabel.toLowerCase()"
+                            [(ngModel)]="teamFilterSearch"
+                            [ngModelOptions]="{ standalone: true }"
+                            (click)="$event.stopPropagation()"
+                            (keydown)="stopFilterSearchEvent($event)"
+                            (keyup)="stopFilterSearchEvent($event)"
+                            (input)="stopFilterSearchEvent($event)"
+                          />
+                        </mat-option>
+                        <mat-option
+                          class="select-all-option"
+                          *ngIf="
+                            !teamsLoading &&
+                            filteredTeamsForFilter.length &&
+                            !teamFilterSearch?.trim()
+                          "
+                          (click)="toggleSelectAllTeams()"
+                        >
+                          <mat-icon
+                            class="select-all-checkbox-icon"
+                            [style.color]="isAllTeamsSelected() ? '#2563eb' : '#64748b'"
+                          >
+                            {{ isAllTeamsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                          </mat-icon>
+                          <strong>Select All</strong>
+                        </mat-option>
+                        <mat-option *ngFor="let team of filteredTeamsForFilter" [value]="team.id">
+                          {{ team.name }}
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+
+                  <!-- Full width Question Bank Filter -->
+                  <div class="filter-col-full">
+                    <mat-form-field appearance="outline" class="filter-item mandatory-field">
+                      <mat-label>Question Bank Name <span class="required-star">*</span></mat-label>
+                      <mat-select
+                        [(ngModel)]="filterQuestionBankId"
+                        [disabled]="!filterInstituteId"
+                        (openedChange)="$event && openFilterQuestionBankSearch()"
+                        (selectionChange)="onFilterQuestionBankChange($event.value)"
+                      >
+                        <mat-option *ngIf="categoriesLoading" disabled>
+                          <div
+                            style="display: flex; align-items: center; gap: 0.5rem; color: #64748b"
+                          >
+                            <mat-icon
+                              class="rotating-spinner"
+                              style="font-size: 16px; width: 16px; height: 16px"
+                              >sync</mat-icon
+                            >
+                            <span>Loading question banks...</span>
+                          </div>
+                        </mat-option>
+                        <mat-option
+                          class="select-search-option"
+                          (click)="$event.stopPropagation()"
+                          *ngIf="!categoriesLoading"
+                        >
+                          <input
+                            matInput
+                            class="select-search-input"
+                            placeholder="Search question bank"
+                            [(ngModel)]="categorySearchText"
+                            [ngModelOptions]="{ standalone: true }"
+                            (click)="$event.stopPropagation()"
+                            (keydown)="stopFilterSearchEvent($event)"
+                            (keyup)="stopFilterSearchEvent($event)"
+                            (input)="stopFilterSearchEvent($event)"
+                          />
+                        </mat-option>
+                        <ng-container *ngIf="!categoriesLoading">
+                          <mat-option
+                            *ngFor="let category of filteredCategories"
+                            [value]="category.category_id"
+                          >
+                            {{ category.name }}
+                          </mat-option>
+                        </ng-container>
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Checkboxes -->
-              <div class="filter-subsection-title">Access &amp; Ownership</div>
-              <div class="filter-checks">
-                <mat-checkbox
-                  [(ngModel)]="filterCreatedByMe"
-                  (change)="onQuestionBankFilterChange()"
-                >Created by me</mat-checkbox>
-                <mat-checkbox
-                  [(ngModel)]="filterPublicAccess"
-                  (change)="onQuestionBankFilterChange()"
-                >Public access</mat-checkbox>
-              </div>
+                <!-- Checkboxes -->
+                <div class="filter-subsection-title">Access &amp; Ownership</div>
+                <div class="filter-checks">
+                  <mat-checkbox
+                    [(ngModel)]="filterCreatedByMe"
+                    (change)="onQuestionBankFilterChange()"
+                    >Created by me</mat-checkbox
+                  >
+                  <mat-checkbox
+                    [(ngModel)]="filterPublicAccess"
+                    (change)="onQuestionBankFilterChange()"
+                    >Public access</mat-checkbox
+                  >
+                </div>
 
-              <!-- Action Buttons: Reset & Apply -->
-              <div class="filter-panel-actions">
-                <div
-                  [matTooltip]="!filterQuestionBankId ? 'Please select a Question Bank Name' : ''"
-                  matTooltipPosition="above"
-                  style="display: inline-block;"
-                >
+                <!-- Action Buttons: Reset & Apply -->
+                <div class="filter-panel-actions">
+                  <div
+                    [matTooltip]="!filterQuestionBankId ? 'Please select a Question Bank Name' : ''"
+                    matTooltipPosition="above"
+                    style="display: inline-block"
+                  >
+                    <button
+                      mat-flat-button
+                      type="button"
+                      class="filter-apply-btn"
+                      [disabled]="!filterQuestionBankId"
+                      (click)="applyQuestionBankFilters()"
+                    >
+                      <mat-icon>check</mat-icon>
+                      <span>Apply</span>
+                    </button>
+                  </div>
                   <button
                     mat-flat-button
                     type="button"
-                    class="filter-apply-btn"
-                    [disabled]="!filterQuestionBankId"
-                    (click)="applyQuestionBankFilters()"
+                    class="filter-reset-btn"
+                    (click)="resetQuestionBankFilters()"
                   >
-                    <mat-icon>check</mat-icon>
-                    <span>Apply</span>
+                    <mat-icon>refresh</mat-icon>
+                    <span>Reset</span>
                   </button>
                 </div>
-                <button
-                  mat-flat-button
-                  type="button"
-                  class="filter-reset-btn"
-                  (click)="resetQuestionBankFilters()"
-                >
-                  <mat-icon>refresh</mat-icon>
-                  <span>Reset</span>
-                </button>
               </div>
-            </div>
             </ng-template>
           </div>
         </div>
 
         <!-- Applied Filters Chips Bar -->
-        <div class="applied-filters" *ngIf="appliedFilterChips.length" style="margin-bottom: 1rem;">
+        <div class="applied-filters" *ngIf="appliedFilterChips.length" style="margin-bottom: 1rem">
           <span class="applied-filters-title">Applied filters</span>
           <button
             type="button"
@@ -839,11 +945,7 @@
           </mat-form-field>
 
           <div class="editor-actions">
-            <button
-              mat-stroked-button
-              type="button"
-              (click)="clearAIPrompts()"
-            >
+            <button mat-stroked-button type="button" (click)="clearAIPrompts()">
               <mat-icon>clear_all</mat-icon>
               <span>Clear</span>
             </button>
@@ -852,11 +954,25 @@
               color="primary"
               type="button"
               (click)="handlePrimaryAIGenerateClick()"
-              [disabled]="isGenerating || (!hasGeneratedQuestionsWithoutAnswers && !sourceText.trim() && !aiPrompt.trim() && !selectedSourceFile)"
+              [disabled]="
+                isGenerating ||
+                (!hasGeneratedQuestionsWithoutAnswers &&
+                  !sourceText.trim() &&
+                  !aiPrompt.trim() &&
+                  !selectedSourceFile)
+              "
             >
-              <mat-icon>{{ hasGeneratedQuestionsWithoutAnswers ? 'question_answer' : 'auto_awesome' }}</mat-icon>
-              <span *ngIf="isGenerating">{{ hasGeneratedQuestionsWithoutAnswers ? 'Generating Answers...' : 'Generating Questions...' }}</span>
-              <span *ngIf="!isGenerating">{{ hasGeneratedQuestionsWithoutAnswers ? 'Generate Answers' : 'Generate Questions' }}</span>
+              <mat-icon>{{
+                hasGeneratedQuestionsWithoutAnswers ? 'question_answer' : 'auto_awesome'
+              }}</mat-icon>
+              <span *ngIf="isGenerating">{{
+                hasGeneratedQuestionsWithoutAnswers
+                  ? 'Generating Answers...'
+                  : 'Generating Questions...'
+              }}</span>
+              <span *ngIf="!isGenerating">{{
+                hasGeneratedQuestionsWithoutAnswers ? 'Generate Answers' : 'Generate Questions'
+              }}</span>
             </button>
           </div>
         </div>
@@ -918,8 +1034,9 @@
                     title="AI Fine-tuning for this question"
                     class="fine-tune-btn"
                   >
-                    <mat-icon svgIcon="brain"></mat-icon>
+                    <span class="ai-custom-icon"></span>
                   </button>
+
                   <span class="badge type-label" *ngIf="hasCategorySettings()">
                     {{ getQuestionTypeLabel(q.type) }}
                   </span>
@@ -946,7 +1063,12 @@
                 <mat-form-field appearance="outline" class="field-full">
                   <mat-icon matPrefix>category</mat-icon>
                   <mat-label>Type</mat-label>
-                  <mat-select id="q-type-{{ qi }}" title="Question type" [(ngModel)]="q.type" (selectionChange)="onQuestionTypeSelected(q, $event.value)">
+                  <mat-select
+                    id="q-type-{{ qi }}"
+                    title="Question type"
+                    [(ngModel)]="q.type"
+                    (selectionChange)="onQuestionTypeSelected(q, $event.value)"
+                  >
                     <mat-option value="">Select type</mat-option>
                     <mat-option *ngFor="let t of getQuestionTypeOptions(q)" [value]="t.value">{{
                       t.label
@@ -981,9 +1103,16 @@
                       <div class="qp-rendered-content" *ngIf="q.text && q.text.trim()">
                         <app-math-render [text]="q.text"></app-math-render>
                       </div>
-                      <div class="qp-empty-placeholder" *ngIf="!q.text || !q.text.trim()" (click)="startEditingQuestionText(q, qi)">
+                      <div
+                        class="qp-empty-placeholder"
+                        *ngIf="!q.text || !q.text.trim()"
+                        (click)="startEditingQuestionText(q, qi)"
+                      >
                         <mat-icon>edit_note</mat-icon>
-                        <span>No question text yet. Click <strong>Edit</strong> to write the question.</span>
+                        <span
+                          >No question text yet. Click <strong>Edit</strong> to write the
+                          question.</span
+                        >
                       </div>
                     </div>
                   </div>
@@ -1027,8 +1156,12 @@
                         #qTextarea
                         matInput
                         (input)="autoResize($event.target)"
-                        (focus)="setActiveTarget($event.target, 'Question ' + (qi + 1), qi, 'question')"
-                        (click)="setActiveTarget($event.target, 'Question ' + (qi + 1), qi, 'question')"
+                        (focus)="
+                          setActiveTarget($event.target, 'Question ' + (qi + 1), qi, 'question')
+                        "
+                        (click)="
+                          setActiveTarget($event.target, 'Question ' + (qi + 1), qi, 'question')
+                        "
                         [(ngModel)]="q.text"
                         rows="3"
                         class="aimodel-textarea"
@@ -1065,7 +1198,7 @@
                     [disabled]="q._uploadingMedia"
                   >
                     <mat-icon>add_photo_alternate</mat-icon>
-                    <span>Add Question Image</span>
+                    <span>Add Image</span>
                   </button>
                   <button
                     type="button"
@@ -1076,7 +1209,7 @@
                     [disabled]="q._uploadingMedia"
                   >
                     <mat-icon>audiotrack</mat-icon>
-                    <span>Add Question Audio</span>
+                    <span>Add Audio</span>
                   </button>
                 </div>
 
@@ -1086,10 +1219,15 @@
                     <div
                       class="media-preview-thumb"
                       *ngIf="m.media_type === 'image'"
-                      (click)="openImageModal(m.file_url || m.url, m.original_filename || 'Question Image')"
+                      (click)="
+                        openImageModal(m.file_url || m.url, m.original_filename || 'Question Image')
+                      "
                       matTooltip="Click to view full image"
                     >
-                      <img [src]="resolveMediaUrl(m.file_url || m.url)" [alt]="m.original_filename || 'Question Image'" />
+                      <img
+                        [src]="resolveMediaUrl(m.file_url || m.url)"
+                        [alt]="m.original_filename || 'Question Image'"
+                      />
                       <div class="media-thumb-overlay">
                         <mat-icon>zoom_in</mat-icon>
                       </div>
@@ -1119,7 +1257,14 @@
                       class="media-filename"
                       [title]="m.original_filename || (m.media_type | uppercase)"
                       [class.clickable]="m.media_type === 'image'"
-                      (click)="m.media_type === 'image' ? openImageModal(m.file_url || m.url, m.original_filename || 'Question Image') : null"
+                      (click)="
+                        m.media_type === 'image'
+                          ? openImageModal(
+                              m.file_url || m.url,
+                              m.original_filename || 'Question Image'
+                            )
+                          : null
+                      "
                     >
                       {{ m.original_filename || (m.media_type | uppercase) }}
                     </span>
@@ -1128,7 +1273,9 @@
                       type="button"
                       mat-icon-button
                       class="media-view-btn"
-                      (click)="openImageModal(m.file_url || m.url, m.original_filename || 'Question Image')"
+                      (click)="
+                        openImageModal(m.file_url || m.url, m.original_filename || 'Question Image')
+                      "
                       matTooltip="View full image"
                     >
                       <mat-icon>visibility</mat-icon>
@@ -1160,7 +1307,11 @@
                       class="option-row"
                       *ngFor="let opt of q.options; let i = index; trackBy: trackByIndex"
                     >
-                      <mat-radio-button [value]="i" class="option-radio" [title]="'Mark Option ' + (i + 1) + ' as correct'"></mat-radio-button>
+                      <mat-radio-button
+                        [value]="i"
+                        class="option-radio"
+                        [title]="'Mark Option ' + (i + 1) + ' as correct'"
+                      ></mat-radio-button>
                       <div class="option-input-wrapper">
                         <mat-form-field appearance="outline" class="option-field">
                           <input
@@ -1168,8 +1319,24 @@
                             matInput
                             [ngModel]="getOptText(opt)"
                             (ngModelChange)="setOptText(qi, i, $event)"
-                            (focus)="setActiveTarget($event.target, 'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')', qi, 'option', i)"
-                            (click)="setActiveTarget($event.target, 'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')', qi, 'option', i)"
+                            (focus)="
+                              setActiveTarget(
+                                $event.target,
+                                'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')',
+                                qi,
+                                'option',
+                                i
+                              )
+                            "
+                            (click)="
+                              setActiveTarget(
+                                $event.target,
+                                'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')',
+                                qi,
+                                'option',
+                                i
+                              )
+                            "
                             [ngModelOptions]="{ standalone: true }"
                             class="option-input"
                             placeholder="Option {{ i + 1 }} text (optional if image attached)"
@@ -1177,7 +1344,10 @@
                         </mat-form-field>
 
                         <!-- Option Live Math Preview -->
-                        <div class="option-math-live-preview" *ngIf="hasMathSyntax(getOptText(opt))">
+                        <div
+                          class="option-math-live-preview"
+                          *ngIf="hasMathSyntax(getOptText(opt))"
+                        >
                           <span class="preview-mini-badge">Preview:</span>
                           <app-math-render [text]="getOptText(opt)"></app-math-render>
                         </div>
@@ -1253,8 +1423,24 @@
                             matInput
                             [ngModel]="getOptText(opt)"
                             (ngModelChange)="setOptText(qi, i, $event)"
-                            (focus)="setActiveTarget($event.target, 'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')', qi, 'option', i)"
-                            (click)="setActiveTarget($event.target, 'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')', qi, 'option', i)"
+                            (focus)="
+                              setActiveTarget(
+                                $event.target,
+                                'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')',
+                                qi,
+                                'option',
+                                i
+                              )
+                            "
+                            (click)="
+                              setActiveTarget(
+                                $event.target,
+                                'Option ' + (i + 1) + ' (Q' + (qi + 1) + ')',
+                                qi,
+                                'option',
+                                i
+                              )
+                            "
                             [ngModelOptions]="{ standalone: true }"
                             class="option-input"
                             placeholder="Option {{ i + 1 }} text (optional if image attached)"
@@ -1262,7 +1448,10 @@
                         </mat-form-field>
 
                         <!-- Option Live Math Preview -->
-                        <div class="option-math-live-preview" *ngIf="hasMathSyntax(getOptText(opt))">
+                        <div
+                          class="option-math-live-preview"
+                          *ngIf="hasMathSyntax(getOptText(opt))"
+                        >
                           <span class="preview-mini-badge">Preview:</span>
                           <app-math-render [text]="getOptText(opt)"></app-math-render>
                         </div>
@@ -1320,7 +1509,9 @@
                     </div>
                   </div>
 
-                  <button type="button" class="btn btn-add-option" (click)="addOption(qi)">Add option</button>
+                  <button type="button" class="btn btn-add-option" (click)="addOption(qi)">
+                    Add option
+                  </button>
                 </div>
                 <div class="hint muted" *ngIf="q.type === 'choose'">Select one correct option</div>
                 <div class="hint muted" *ngIf="q.type === 'multi'">
@@ -1337,15 +1528,23 @@
                       matInput
                       id="q-answer-{{ qi }}"
                       [(ngModel)]="q.answerText"
-                      (focus)="setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')"
-                      (click)="setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')"
+                      (focus)="
+                        setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')
+                      "
+                      (click)="
+                        setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')
+                      "
                       title="Answer"
                       placeholder="Correct answer (or LaTeX math)"
                     />
                   </mat-form-field>
                   <div class="field-math-live-preview" *ngIf="hasMathSyntax(q.answerText)">
-                    <div class="preview-badge"><mat-icon>functions</mat-icon> <span>Math Preview</span></div>
-                    <div class="preview-content"><app-math-render [text]="q.answerText"></app-math-render></div>
+                    <div class="preview-badge">
+                      <mat-icon>functions</mat-icon> <span>Math Preview</span>
+                    </div>
+                    <div class="preview-content">
+                      <app-math-render [text]="q.answerText"></app-math-render>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1358,8 +1557,12 @@
                       #descAnsTextarea
                       matInput
                       (input)="autoResize($event.target)"
-                      (focus)="setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')"
-                      (click)="setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')"
+                      (focus)="
+                        setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')
+                      "
+                      (click)="
+                        setActiveTarget($event.target, 'Answer (Q' + (qi + 1) + ')', qi, 'answer')
+                      "
                       id="q-answer-par-{{ qi }}"
                       [(ngModel)]="q.answerText"
                       rows="1"
@@ -1373,8 +1576,12 @@
                     >
                   </mat-form-field>
                   <div class="field-math-live-preview" *ngIf="hasMathSyntax(q.answerText)">
-                    <div class="preview-badge"><mat-icon>functions</mat-icon> <span>Math Preview</span></div>
-                    <div class="preview-content"><app-math-render [text]="q.answerText"></app-math-render></div>
+                    <div class="preview-badge">
+                      <mat-icon>functions</mat-icon> <span>Math Preview</span>
+                    </div>
+                    <div class="preview-content">
+                      <app-math-render [text]="q.answerText"></app-math-render>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1407,7 +1614,10 @@
         </mat-accordion>
 
         <!-- ═══ Add Question Button (Under Questions) ═══ -->
-        <div class="questions-bottom-actions" *ngIf="mode === 'manual' && !isEditing && !aiMode && !bulkMode">
+        <div
+          class="questions-bottom-actions"
+          *ngIf="mode === 'manual' && !isEditing && !aiMode && !bulkMode"
+        >
           <button
             type="button"
             mat-stroked-button
@@ -1483,7 +1693,7 @@
           [disabled]="imageZoom === 1"
           matTooltip="Reset zoom"
         >
-          {{ (imageZoom * 100) | number : '1.0-0' }}%
+          {{ imageZoom * 100 | number: '1.0-0' }}%
         </button>
         <button
           type="button"
@@ -1534,4 +1744,3 @@
   [currentFieldValue]="activeMathCurrentValue"
   (inserted)="onMathToolInserted($event)"
 ></app-math-quick-tools>
-
