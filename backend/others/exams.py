@@ -137,7 +137,11 @@ def _replace_attempt_answers(session, exam_attempt, answers):
                 )
             )
         elif isinstance(answer_value, list):
-            is_option_list = all(isinstance(v, str) and len(v) == 36 and "-" in v for v in answer_value if v)
+            is_option_list = all(
+                isinstance(v, str) and len(v) == 36 and "-" in v
+                for v in answer_value
+                if v
+            )
             if is_option_list and answer_value:
                 for opt_id in answer_value:
                     if opt_id:
@@ -316,7 +320,9 @@ def ensure_exam_columns(session):
             session.commit()
         except Exception as section_schema_err:
             session.rollback()
-            print(f"Error ensuring ExamSections columns: {section_schema_err}", flush=True)
+            print(
+                f"Error ensuring ExamSections columns: {section_schema_err}", flush=True
+            )
 
         # Check and add section_id to exam_question_mapping
         try:
@@ -353,7 +359,10 @@ def ensure_exam_columns(session):
             session.commit()
         except Exception as assignment_schema_err:
             session.rollback()
-            print(f"Error ensuring paper assignment table: {assignment_schema_err}", flush=True)
+            print(
+                f"Error ensuring paper assignment table: {assignment_schema_err}",
+                flush=True,
+            )
     except Exception as e:
         session.rollback()
 
@@ -444,26 +453,40 @@ def add_exam(request):
                 )
 
         if test_mode == "paper" and "assigned_user_ids" in data:
-            requested_user_ids = list(dict.fromkeys(
-                str(user_id) for user_id in (data.get("assigned_user_ids") or []) if user_id
-            ))
+            requested_user_ids = list(
+                dict.fromkeys(
+                    str(user_id)
+                    for user_id in (data.get("assigned_user_ids") or [])
+                    if user_id
+                )
+            )
             valid_users = []
             if requested_user_ids:
-                valid_users = session.query(User).filter(
-                    func.cast(User.user_id, String).in_(requested_user_ids),
-                    func.cast(User.institute_id, String) == str(institute_id),
-                    func.lower(User.user_role).in_(["user", "candidate", "student"]),
-                    or_(User.active_status == 1, User.active_status == None),
-                    or_(User.is_deleted == 0, User.is_deleted == None),
-                ).all()
+                valid_users = (
+                    session.query(User)
+                    .filter(
+                        func.cast(User.user_id, String).in_(requested_user_ids),
+                        func.cast(User.institute_id, String) == str(institute_id),
+                        func.lower(User.user_role).in_(
+                            ["user", "candidate", "student"]
+                        ),
+                        or_(User.active_status == 1, User.active_status == None),
+                        or_(User.is_deleted == 0, User.is_deleted == None),
+                    )
+                    .all()
+                )
             valid_ids = {str(user.user_id).lower() for user in valid_users}
             requested_ids_lower = {uid.lower() for uid in requested_user_ids}
             if len(valid_ids) != len(requested_ids_lower):
-                fallback_users = session.query(User).filter(
-                    func.cast(User.user_id, String).in_(requested_user_ids),
-                    func.cast(User.institute_id, String) == str(institute_id),
-                    or_(User.is_deleted == 0, User.is_deleted == None),
-                ).all()
+                fallback_users = (
+                    session.query(User)
+                    .filter(
+                        func.cast(User.user_id, String).in_(requested_user_ids),
+                        func.cast(User.institute_id, String) == str(institute_id),
+                        or_(User.is_deleted == 0, User.is_deleted == None),
+                    )
+                    .all()
+                )
                 valid_ids = {str(user.user_id).lower() for user in fallback_users}
                 if len(valid_ids) != len(requested_ids_lower):
                     session.rollback()
@@ -472,11 +495,13 @@ def add_exam(request):
                         "status": False,
                     }, 400
             for user_id in requested_user_ids:
-                session.add(QuestionPaperUserAssignment(
-                    exam_id=exam_id,
-                    user_id=user_id,
-                    created_by=created_by,
-                ))
+                session.add(
+                    QuestionPaperUserAssignment(
+                        exam_id=exam_id,
+                        user_id=user_id,
+                        created_by=created_by,
+                    )
+                )
 
         sections_list = data.get("sections", [])
         if sections_list:
@@ -488,7 +513,9 @@ def add_exam(request):
                     exam_id=exam_id,
                     name=sec_name,
                     sub_heading=sec.get("sub_heading") or sec.get("instructions") or "",
-                    instructions=sec.get("instructions") or sec.get("sub_heading") or "",
+                    instructions=sec.get("instructions")
+                    or sec.get("sub_heading")
+                    or "",
                     question_type=sec_type,
                     target_count=sec.get("target_count") or sec.get("targetCount"),
                     order_number=sec.get("order_number") or sec_idx,
@@ -502,7 +529,11 @@ def add_exam(request):
                         continue
                     cat_id = q_item.get("category_id")
                     if not cat_id:
-                        q_map = session.query(QuestionMapping).filter_by(question_id=qid).first()
+                        q_map = (
+                            session.query(QuestionMapping)
+                            .filter_by(question_id=qid)
+                            .first()
+                        )
                         if q_map:
                             cat_id = q_map.category_id
 
@@ -534,7 +565,11 @@ def add_exam(request):
                 category_id = category.get("category_id")
                 if not category_id:
                     continue
-                raw_noq = category.get("number_of_questions") if category.get("number_of_questions") is not None else category.get("questions", 0)
+                raw_noq = (
+                    category.get("number_of_questions")
+                    if category.get("number_of_questions") is not None
+                    else category.get("questions", 0)
+                )
                 try:
                     number_of_questions = int(raw_noq or 0)
                 except (ValueError, TypeError):
@@ -577,7 +612,11 @@ def add_exam(request):
                         session.add(add_exam_question_mapping)
 
         session.commit()
-        json_data = {"statusMessage": "Exam inserted successfully", "status": True, "exam_id": exam_id}
+        json_data = {
+            "statusMessage": "Exam inserted successfully",
+            "status": True,
+            "exam_id": exam_id,
+        }
         return json_data, 200
     except Exception as e:
         session.rollback()
@@ -631,7 +670,11 @@ def update_exam(request):
         if "subject_name" in data:
             exam.subject_name = data.get("subject_name")
         elif data.get("subject_id"):
-            subj_obj = session.query(Subject).filter_by(subject_id=data.get("subject_id")).first()
+            subj_obj = (
+                session.query(Subject)
+                .filter_by(subject_id=data.get("subject_id"))
+                .first()
+            )
             if subj_obj:
                 exam.subject_name = subj_obj.subject_name
 
@@ -668,9 +711,9 @@ def update_exam(request):
         session.query(ExamQuestionMapping).filter(
             ExamQuestionMapping.exam_id == exam_id
         ).delete(synchronize_session=False)
-        session.query(ExamSection).filter(
-            ExamSection.exam_id == exam_id
-        ).delete(synchronize_session=False)
+        session.query(ExamSection).filter(ExamSection.exam_id == exam_id).delete(
+            synchronize_session=False
+        )
         session.query(ExamsDepartments).filter(
             ExamsDepartments.exam_id == exam_id
         ).delete(synchronize_session=False)
@@ -704,26 +747,40 @@ def update_exam(request):
                 )
 
         if getattr(exam, "test_mode", None) == "paper" and "assigned_user_ids" in data:
-            requested_user_ids = list(dict.fromkeys(
-                str(user_id) for user_id in (data.get("assigned_user_ids") or []) if user_id
-            ))
+            requested_user_ids = list(
+                dict.fromkeys(
+                    str(user_id)
+                    for user_id in (data.get("assigned_user_ids") or [])
+                    if user_id
+                )
+            )
             valid_users = []
             if requested_user_ids:
-                valid_users = session.query(User).filter(
-                    func.cast(User.user_id, String).in_(requested_user_ids),
-                    func.cast(User.institute_id, String) == str(exam.institute_id),
-                    func.lower(User.user_role).in_(["user", "candidate", "student"]),
-                    or_(User.active_status == 1, User.active_status == None),
-                    or_(User.is_deleted == 0, User.is_deleted == None),
-                ).all()
+                valid_users = (
+                    session.query(User)
+                    .filter(
+                        func.cast(User.user_id, String).in_(requested_user_ids),
+                        func.cast(User.institute_id, String) == str(exam.institute_id),
+                        func.lower(User.user_role).in_(
+                            ["user", "candidate", "student"]
+                        ),
+                        or_(User.active_status == 1, User.active_status == None),
+                        or_(User.is_deleted == 0, User.is_deleted == None),
+                    )
+                    .all()
+                )
             valid_ids = {str(user.user_id).lower() for user in valid_users}
             requested_ids_lower = {uid.lower() for uid in requested_user_ids}
             if len(valid_ids) != len(requested_ids_lower):
-                fallback_users = session.query(User).filter(
-                    func.cast(User.user_id, String).in_(requested_user_ids),
-                    func.cast(User.institute_id, String) == str(exam.institute_id),
-                    or_(User.is_deleted == 0, User.is_deleted == None),
-                ).all()
+                fallback_users = (
+                    session.query(User)
+                    .filter(
+                        func.cast(User.user_id, String).in_(requested_user_ids),
+                        func.cast(User.institute_id, String) == str(exam.institute_id),
+                        or_(User.is_deleted == 0, User.is_deleted == None),
+                    )
+                    .all()
+                )
                 valid_ids = {str(user.user_id).lower() for user in fallback_users}
                 if len(valid_ids) != len(requested_ids_lower):
                     session.rollback()
@@ -732,11 +789,13 @@ def update_exam(request):
                         "status": False,
                     }, 400
             for user_id in requested_user_ids:
-                session.add(QuestionPaperUserAssignment(
-                    exam_id=exam_id,
-                    user_id=user_id,
-                    created_by=updated_by_user,
-                ))
+                session.add(
+                    QuestionPaperUserAssignment(
+                        exam_id=exam_id,
+                        user_id=user_id,
+                        created_by=updated_by_user,
+                    )
+                )
 
         sections_list = data.get("sections", [])
         if sections_list:
@@ -748,7 +807,9 @@ def update_exam(request):
                     exam_id=exam_id,
                     name=sec_name,
                     sub_heading=sec.get("sub_heading") or sec.get("instructions") or "",
-                    instructions=sec.get("instructions") or sec.get("sub_heading") or "",
+                    instructions=sec.get("instructions")
+                    or sec.get("sub_heading")
+                    or "",
                     question_type=sec_type,
                     target_count=sec.get("target_count") or sec.get("targetCount"),
                     order_number=sec.get("order_number") or sec_idx,
@@ -762,7 +823,11 @@ def update_exam(request):
                         continue
                     cat_id = q_item.get("category_id")
                     if not cat_id:
-                        q_map = session.query(QuestionMapping).filter_by(question_id=qid).first()
+                        q_map = (
+                            session.query(QuestionMapping)
+                            .filter_by(question_id=qid)
+                            .first()
+                        )
                         if q_map:
                             cat_id = q_map.category_id
 
@@ -794,7 +859,11 @@ def update_exam(request):
                 category_id = category.get("category_id")
                 if not category_id:
                     continue
-                raw_noq = category.get("number_of_questions") if category.get("number_of_questions") is not None else category.get("questions", 0)
+                raw_noq = (
+                    category.get("number_of_questions")
+                    if category.get("number_of_questions") is not None
+                    else category.get("questions", 0)
+                )
                 try:
                     number_of_questions = int(raw_noq or 0)
                 except (ValueError, TypeError):
@@ -911,7 +980,10 @@ def publish_exam(request):
     except Exception as e:
         session.rollback()
         print(f"Error publishing exam {exam_id}: {e}", flush=True)
-        return {"statusMessage": f"Error publishing question paper: {str(e)}", "status": False}, 500
+        return {
+            "statusMessage": f"Error publishing question paper: {str(e)}",
+            "status": False,
+        }, 500
 
 
 def get_exam_details(request):
@@ -932,9 +1004,11 @@ def get_exam_details(request):
                 filter.append(Exam.institute_id == inst_val)
         else:
             try:
-                current_user = getattr(g, 'current_user', None)
-                if current_user and getattr(current_user, 'user_role', '').lower() not in ('super_admin', 'superadmin', 'super-admin'):
-                    if getattr(current_user, 'institute_id', None):
+                current_user = getattr(g, "current_user", None)
+                if current_user and getattr(
+                    current_user, "user_role", ""
+                ).lower() not in ("super_admin", "superadmin", "super-admin"):
+                    if getattr(current_user, "institute_id", None):
                         filter.append(Exam.institute_id == current_user.institute_id)
             except Exception:
                 pass
@@ -943,20 +1017,22 @@ def get_exam_details(request):
         if args.get("created_before", None):
             try:
                 cb_val = str(args["created_before"]).strip()
-                created_before = datetime.fromisoformat(
-                    cb_val.replace("Z", "+00:00")
-                )
-                if len(cb_val) <= 10 or (created_before.hour == 0 and created_before.minute == 0 and created_before.second == 0):
-                    created_before = created_before.replace(hour=23, minute=59, second=59, microsecond=999999)
+                created_before = datetime.fromisoformat(cb_val.replace("Z", "+00:00"))
+                if len(cb_val) <= 10 or (
+                    created_before.hour == 0
+                    and created_before.minute == 0
+                    and created_before.second == 0
+                ):
+                    created_before = created_before.replace(
+                        hour=23, minute=59, second=59, microsecond=999999
+                    )
                 filter.append(Exam.created_date <= created_before)
             except Exception as e:
                 print(f"Error parsing created_before date in exams: {e}", flush=True)
         if args.get("created_after", None):
             try:
                 ca_val = str(args["created_after"]).strip()
-                created_after = datetime.fromisoformat(
-                    ca_val.replace("Z", "+00:00")
-                )
+                created_after = datetime.fromisoformat(ca_val.replace("Z", "+00:00"))
                 filter.append(Exam.created_date >= created_after)
             except Exception as e:
                 print(f"Error parsing created_after date in exams: {e}", flush=True)
@@ -978,17 +1054,29 @@ def get_exam_details(request):
         test_mode_arg = args.get("test_mode", None) or args.get("exam_type_mode", None)
         if test_mode_arg:
             tm_val = str(test_mode_arg).strip().lower()
-            if tm_val == 'paper':
+            if tm_val == "paper":
                 # Question papers are a separate workflow from online tests.
                 # Legacy rows without a mode belong to the online-test flow and
                 # must not leak into the question-paper list.
-                filter.append(Exam.test_mode == 'paper')
-            elif tm_val == 'online':
-                filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
-            elif tm_val == 'all':
+                filter.append(Exam.test_mode == "paper")
+            elif tm_val == "online":
+                filter.append(
+                    or_(
+                        Exam.test_mode == "online",
+                        Exam.test_mode == None,
+                        Exam.test_mode == "",
+                    )
+                )
+            elif tm_val == "all":
                 pass
         elif not has_specific_exam_id:
-            filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
+            filter.append(
+                or_(
+                    Exam.test_mode == "online",
+                    Exam.test_mode == None,
+                    Exam.test_mode == "",
+                )
+            )
 
         published_arg = args.get("published", None)
         if published_arg is not None:
@@ -997,19 +1085,22 @@ def get_exam_details(request):
             elif str(published_arg).lower() in ("0", "false"):
                 filter.append(or_(Exam.published == 0, Exam.published == None))
 
-
         dept_arg = args.get("departments", None) or args.get("department", None)
         if dept_arg:
             dept_ids = [d.strip() for d in str(dept_arg).split(",") if d.strip()]
             if dept_ids:
                 resolved_dept_keys = set(dept_ids)
                 try:
-                    dept_objs = session.query(InstituteDepartment).filter(
-                        or_(
-                            InstituteDepartment.department_id.in_(dept_ids),
-                            InstituteDepartment.name.in_(dept_ids)
+                    dept_objs = (
+                        session.query(InstituteDepartment)
+                        .filter(
+                            or_(
+                                InstituteDepartment.department_id.in_(dept_ids),
+                                InstituteDepartment.name.in_(dept_ids),
+                            )
                         )
-                    ).all()
+                        .all()
+                    )
                     for d in dept_objs:
                         if d.department_id:
                             resolved_dept_keys.add(str(d.department_id))
@@ -1060,7 +1151,13 @@ def get_exam_details(request):
                     .all()
                 ]
                 matching_exam_ids = list(
-                    set(exam_dept_ids + cat_exam_ids + user_exam_ids + sched_exam_ids + assigned_exam_ids)
+                    set(
+                        exam_dept_ids
+                        + cat_exam_ids
+                        + user_exam_ids
+                        + sched_exam_ids
+                        + assigned_exam_ids
+                    )
                 )
                 filter.append(
                     Exam.exam_id.in_(
@@ -1112,12 +1209,16 @@ def get_exam_details(request):
             if team_ids:
                 resolved_team_keys = set(team_ids)
                 try:
-                    team_objs = session.query(InstituteTeam).filter(
-                        or_(
-                            InstituteTeam.team_id.in_(team_ids),
-                            InstituteTeam.name.in_(team_ids)
+                    team_objs = (
+                        session.query(InstituteTeam)
+                        .filter(
+                            or_(
+                                InstituteTeam.team_id.in_(team_ids),
+                                InstituteTeam.name.in_(team_ids),
+                            )
                         )
-                    ).all()
+                        .all()
+                    )
                     for t in team_objs:
                         if t.team_id:
                             resolved_team_keys.add(str(t.team_id))
@@ -1168,7 +1269,13 @@ def get_exam_details(request):
                     .all()
                 ]
                 matching_exam_ids = list(
-                    set(exam_team_ids + cat_exam_ids + user_exam_ids + sched_exam_ids + assigned_exam_ids)
+                    set(
+                        exam_team_ids
+                        + cat_exam_ids
+                        + user_exam_ids
+                        + sched_exam_ids
+                        + assigned_exam_ids
+                    )
                 )
                 filter.append(
                     Exam.exam_id.in_(
@@ -1384,30 +1491,52 @@ def get_exam_details(request):
                     exam_id_str = str(exam.exam_id)
                     assignment_rows = (
                         session.query(QuestionPaperUserAssignment, User)
-                        .join(User, func.cast(User.user_id, String) == func.cast(QuestionPaperUserAssignment.user_id, String))
-                        .filter(func.cast(QuestionPaperUserAssignment.exam_id, String) == exam_id_str)
+                        .join(
+                            User,
+                            func.cast(User.user_id, String)
+                            == func.cast(QuestionPaperUserAssignment.user_id, String),
+                        )
+                        .filter(
+                            func.cast(QuestionPaperUserAssignment.exam_id, String)
+                            == exam_id_str
+                        )
                         .order_by(User.full_name.asc())
                         .all()
                     )
 
                     sched_ids = [
                         str(r[0])
-                        for r in session.query(func.cast(ExamSchedule.schedule_id, String))
+                        for r in session.query(
+                            func.cast(ExamSchedule.schedule_id, String)
+                        )
                         .filter(func.cast(ExamSchedule.exam_id, String) == exam_id_str)
                         .all()
                     ]
-                    valid_sched_ids = list(set([exam_id_str] + [s for s in sched_ids if s]))
+                    valid_sched_ids = list(
+                        set([exam_id_str] + [s for s in sched_ids if s])
+                    )
 
                     from others.settings import get_ai_confidence_threshold
+
                     conf_threshold = get_ai_confidence_threshold(session)
 
                     for _, user in assignment_rows:
                         u_id = str(user.user_id)
                         # Resolve student attempt(s) for this paper exam
-                        all_u_attempts = session.query(Exam_Attempt).filter(
-                            func.cast(Exam_Attempt.user_id, String) == u_id,
-                            func.cast(Exam_Attempt.schedule_id, String).in_(valid_sched_ids)
-                        ).order_by(Exam_Attempt.started_date.desc(), Exam_Attempt.submitted_date.desc()).all()
+                        all_u_attempts = (
+                            session.query(Exam_Attempt)
+                            .filter(
+                                func.cast(Exam_Attempt.user_id, String) == u_id,
+                                func.cast(Exam_Attempt.schedule_id, String).in_(
+                                    valid_sched_ids
+                                ),
+                            )
+                            .order_by(
+                                Exam_Attempt.started_date.desc(),
+                                Exam_Attempt.submitted_date.desc(),
+                            )
+                            .all()
+                        )
 
                         u_pages_count = 0
                         u_status = "Not Evaluated"
@@ -1416,37 +1545,75 @@ def get_exam_details(request):
 
                         if all_u_attempts:
                             att_ids = [str(a.attempt_id) for a in all_u_attempts]
-                            u_pages_count = session.query(AnswerSheetPage).filter(
-                                func.cast(AnswerSheetPage.attempt_id, String).in_(att_ids)
-                            ).count()
+                            u_pages_count = (
+                                session.query(AnswerSheetPage)
+                                .filter(
+                                    func.cast(AnswerSheetPage.attempt_id, String).in_(
+                                        att_ids
+                                    )
+                                )
+                                .count()
+                            )
 
                             target_att = all_u_attempts[0]
                             has_manual_edits = False
-                            
+
                             # Check if any answer has manual edits / teacher overrides
-                            ans_ids = [str(r[0]) for r in session.query(Answer.answer_id).filter(
-                                func.cast(Answer.attempt_id, String).in_(att_ids)
-                            ).all()]
-                            
+                            ans_ids = [
+                                str(r[0])
+                                for r in session.query(Answer.answer_id)
+                                .filter(
+                                    func.cast(Answer.attempt_id, String).in_(att_ids)
+                                )
+                                .all()
+                            ]
+
                             has_need_to_check = False
                             if ans_ids:
-                                mh_count = session.query(MarksHistory).filter(
-                                    MarksHistory.answer_id.in_(ans_ids),
-                                    or_(
-                                        (MarksHistory.edit_reason.isnot(None) & (MarksHistory.edit_reason != '')),
-                                        (MarksHistory.updated_by.isnot(None) & (MarksHistory.updated_by != '') & (MarksHistory.updated_by != 'SYSTEM') & (MarksHistory.updated_by != 'System') & (MarksHistory.updated_by != 'cac37fab-4de6-4792-969b-96e57e3c910a'))
+                                mh_count = (
+                                    session.query(MarksHistory)
+                                    .filter(
+                                        MarksHistory.answer_id.in_(ans_ids),
+                                        or_(
+                                            (
+                                                MarksHistory.edit_reason.isnot(None)
+                                                & (MarksHistory.edit_reason != "")
+                                            ),
+                                            (
+                                                MarksHistory.updated_by.isnot(None)
+                                                & (MarksHistory.updated_by != "")
+                                                & (MarksHistory.updated_by != "SYSTEM")
+                                                & (MarksHistory.updated_by != "System")
+                                                & (
+                                                    MarksHistory.updated_by
+                                                    != "cac37fab-4de6-4792-969b-96e57e3c910a"
+                                                )
+                                            ),
+                                        ),
                                     )
-                                ).count()
+                                    .count()
+                                )
                                 if mh_count > 0:
                                     has_manual_edits = True
 
-                                need_check_count = session.query(Answer).filter(
-                                    Answer.answer_id.in_(ans_ids),
-                                    or_(
-                                        Answer.manual_review_required == 1,
-                                        (Answer.ai_confidence.isnot(None) & (Answer.ai_confidence > 0) & (Answer.ai_confidence < conf_threshold))
+                                need_check_count = (
+                                    session.query(Answer)
+                                    .filter(
+                                        Answer.answer_id.in_(ans_ids),
+                                        or_(
+                                            Answer.manual_review_required == 1,
+                                            (
+                                                Answer.ai_confidence.isnot(None)
+                                                & (Answer.ai_confidence > 0)
+                                                & (
+                                                    Answer.ai_confidence
+                                                    < conf_threshold
+                                                )
+                                            ),
+                                        ),
                                     )
-                                ).count()
+                                    .count()
+                                )
                                 if need_check_count > 0:
                                     has_need_to_check = True
 
@@ -1454,41 +1621,61 @@ def get_exam_details(request):
                                 u_status = "Manual Reviewed"
                             elif has_need_to_check:
                                 u_status = "Need to Check"
-                            elif u_pages_count > 0 or target_att.status in ("in_progress", "submitted", "evaluated"):
+                            elif u_pages_count > 0 or target_att.status in (
+                                "in_progress",
+                                "submitted",
+                                "evaluated",
+                            ):
                                 u_status = "AI Evaluated"
                             else:
                                 u_status = "Not Evaluated"
 
                             # Calculate score from Answers or attempt.score
-                            ans_sum = session.query(func.sum(Answer.marks_awarded)).filter(
-                                func.cast(Answer.attempt_id, String).in_(att_ids)
-                            ).scalar()
+                            ans_sum = (
+                                session.query(func.sum(Answer.marks_awarded))
+                                .filter(
+                                    func.cast(Answer.attempt_id, String).in_(att_ids)
+                                )
+                                .scalar()
+                            )
 
                             if ans_sum is not None:
                                 u_score = round(float(ans_sum), 1)
                             elif target_att.score is not None and target_att.score > 0:
                                 u_score = round(float(target_att.score), 1)
 
-                            if u_score is not None and getattr(exam, "total_marks", None) and float(exam.total_marks) > 0:
-                                u_pct = round((u_score / float(exam.total_marks)) * 100, 1)
+                            if (
+                                u_score is not None
+                                and getattr(exam, "total_marks", None)
+                                and float(exam.total_marks) > 0
+                            ):
+                                u_pct = round(
+                                    (u_score / float(exam.total_marks)) * 100, 1
+                                )
 
-                        assigned_users.append({
-                            "user_id": u_id,
-                            "full_name": user.full_name,
-                            "email": user.email,
-                            "user_name": getattr(user, "user_name", "") or "",
-                            "roll_no": getattr(user, "user_name", "") or "",
-                            "department_id": getattr(user, "department_id", "") or "",
-                            "team_id": getattr(user, "team_id", "") or "",
-                            "pages_count": u_pages_count,
-                            "evaluation_status": u_status,
-                            "status": u_status,
-                            "score": u_score,
-                            "marks_awarded": u_score,
-                            "percentage": u_pct
-                        })
+                        assigned_users.append(
+                            {
+                                "user_id": u_id,
+                                "full_name": user.full_name,
+                                "email": user.email,
+                                "user_name": getattr(user, "user_name", "") or "",
+                                "roll_no": getattr(user, "user_name", "") or "",
+                                "department_id": getattr(user, "department_id", "")
+                                or "",
+                                "team_id": getattr(user, "team_id", "") or "",
+                                "pages_count": u_pages_count,
+                                "evaluation_status": u_status,
+                                "status": u_status,
+                                "score": u_score,
+                                "marks_awarded": u_score,
+                                "percentage": u_pct,
+                            }
+                        )
                 except Exception as assignment_err:
-                    print(f"Error querying paper assignments for exam {exam.exam_id}: {assignment_err}", flush=True)
+                    print(
+                        f"Error querying paper assignments for exam {exam.exam_id}: {assignment_err}",
+                        flush=True,
+                    )
 
             sections_data = []
             try:
@@ -1507,59 +1694,109 @@ def get_exam_details(request):
                             or_(
                                 ExamQuestionMapping.section_id == sec_id_str,
                                 ExamQuestionMapping.section_id == sec.section_id,
-                                func.cast(ExamQuestionMapping.section_id, String) == sec_id_str,
-                            )
+                                func.cast(ExamQuestionMapping.section_id, String)
+                                == sec_id_str,
+                            ),
                         )
                         .order_by(ExamQuestionMapping.order_number.asc())
                         .all()
                     )
                     sec_questions = []
                     for eqm in eq_mappings:
-                        q_obj = session.query(Question).filter(
-                            or_(
-                                Question.question_id == eqm.question_id,
-                                func.cast(Question.question_id, String) == str(eqm.question_id),
+                        q_obj = (
+                            session.query(Question)
+                            .filter(
+                                or_(
+                                    Question.question_id == eqm.question_id,
+                                    func.cast(Question.question_id, String)
+                                    == str(eqm.question_id),
+                                )
                             )
-                        ).first()
+                            .first()
+                        )
                         if not q_obj:
                             continue
                         cat_name = ""
                         if eqm.category_id:
-                            cat_obj = session.query(Categories).filter_by(category_id=eqm.category_id).first()
+                            cat_obj = (
+                                session.query(Categories)
+                                .filter_by(category_id=eqm.category_id)
+                                .first()
+                            )
                             if cat_obj:
                                 cat_name = cat_obj.name
 
-                        q_media = session.query(QuestionMedia).filter_by(question_id=q_obj.question_id, active_status=1).order_by(QuestionMedia.order_number.asc()).all()
-                        media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption, "play_limit": getattr(m, 'play_limit', 0) or 0} for m in q_media]
-                        q_opts = session.query(Option).filter_by(question_id=q_obj.question_id, active_status=1).all()
-                        opt_list = [{"id": opt.options_id, "text": opt.option_text, "image_url": opt.image_url, "url": opt.image_url, "is_correct": opt.is_correct} for opt in q_opts]
+                        q_media = (
+                            session.query(QuestionMedia)
+                            .filter_by(question_id=q_obj.question_id, active_status=1)
+                            .order_by(QuestionMedia.order_number.asc())
+                            .all()
+                        )
+                        media_list = [
+                            {
+                                "media_id": str(m.media_id),
+                                "media_type": m.media_type,
+                                "file_url": m.file_url,
+                                "url": m.file_url,
+                                "gcs_path": m.gcs_path,
+                                "caption": m.caption,
+                                "play_limit": getattr(m, "play_limit", 0) or 0,
+                            }
+                            for m in q_media
+                        ]
+                        q_opts = (
+                            session.query(Option)
+                            .filter_by(question_id=q_obj.question_id, active_status=1)
+                            .all()
+                        )
+                        opt_list = [
+                            {
+                                "id": opt.options_id,
+                                "text": opt.option_text,
+                                "image_url": opt.image_url,
+                                "url": opt.image_url,
+                                "is_correct": opt.is_correct,
+                            }
+                            for opt in q_opts
+                        ]
 
-                        sec_questions.append({
-                            "question_id": str(q_obj.question_id),
-                            "id": str(q_obj.question_id),
-                            "question_text": q_obj.question_text,
-                            "question": q_obj.question_text,
-                            "question_type": q_obj.question_type,
-                            "marks": q_obj.marks,
-                            "media": media_list,
-                            "options": opt_list,
-                            "category_id": eqm.category_id,
-                            "category_name": cat_name,
-                            "order_number": eqm.order_number,
-                        })
-                    sections_data.append({
-                        "section_id": str(sec.section_id),
-                        "id": str(sec.section_id),
-                        "name": sec.name,
-                        "question_type": sec.question_type,
-                        "sub_heading": getattr(sec, "sub_heading", "") or getattr(sec, "instructions", "") or "",
-                        "instructions": getattr(sec, "instructions", "") or getattr(sec, "sub_heading", "") or "",
-                        "target_count": getattr(sec, "target_count", None),
-                        "order_number": sec.order_number,
-                        "questions": sec_questions,
-                    })
+                        sec_questions.append(
+                            {
+                                "question_id": str(q_obj.question_id),
+                                "id": str(q_obj.question_id),
+                                "question_text": q_obj.question_text,
+                                "question": q_obj.question_text,
+                                "question_type": q_obj.question_type,
+                                "marks": q_obj.marks,
+                                "media": media_list,
+                                "options": opt_list,
+                                "category_id": eqm.category_id,
+                                "category_name": cat_name,
+                                "order_number": eqm.order_number,
+                            }
+                        )
+                    sections_data.append(
+                        {
+                            "section_id": str(sec.section_id),
+                            "id": str(sec.section_id),
+                            "name": sec.name,
+                            "question_type": sec.question_type,
+                            "sub_heading": getattr(sec, "sub_heading", "")
+                            or getattr(sec, "instructions", "")
+                            or "",
+                            "instructions": getattr(sec, "instructions", "")
+                            or getattr(sec, "sub_heading", "")
+                            or "",
+                            "target_count": getattr(sec, "target_count", None),
+                            "order_number": sec.order_number,
+                            "questions": sec_questions,
+                        }
+                    )
             except Exception as sec_err:
-                print(f"Error querying sections for exam {exam.exam_id}: {sec_err}", flush=True)
+                print(
+                    f"Error querying sections for exam {exam.exam_id}: {sec_err}",
+                    flush=True,
+                )
                 sections_data = []
 
             exam_list.append(
@@ -1682,8 +1919,12 @@ def get_user_exam_details(request):
 
         if user_id:
             user_obj = session.query(User).filter_by(user_id=user_id).first()
-            user_dept_id = department_id or (getattr(user_obj, "department_id", None) if user_obj else None)
-            user_team_id = team_id or (getattr(user_obj, "team_id", None) if user_obj else None)
+            user_dept_id = department_id or (
+                getattr(user_obj, "department_id", None) if user_obj else None
+            )
+            user_team_id = team_id or (
+                getattr(user_obj, "team_id", None) if user_obj else None
+            )
             user_campus_id = getattr(user_obj, "campus_id", None) if user_obj else None
 
             mapping_conds = [ExamScheduleMapping.user_id == user_id]
@@ -1697,11 +1938,11 @@ def get_user_exam_details(request):
             # 1. Mapped schedules for this user, their department, team, or campus
             mapped_rows = (
                 session.query(ExamScheduleMapping.schedule_id)
-                .join(ExamSchedule, ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id)
-                .filter(
-                    ExamSchedule.published == 1,
-                    or_(*mapping_conds)
+                .join(
+                    ExamSchedule,
+                    ExamScheduleMapping.schedule_id == ExamSchedule.schedule_id,
                 )
+                .filter(ExamSchedule.published == 1, or_(*mapping_conds))
                 .distinct()
                 .all()
             )
@@ -1842,7 +2083,9 @@ def get_user_exam_details(request):
                 try:
                     validate_answers(finalized_id)
                 except Exception as eval_err:
-                    print(f"AI evaluation warning for attempt {finalized_id}: {eval_err}")
+                    print(
+                        f"AI evaluation warning for attempt {finalized_id}: {eval_err}"
+                    )
 
             # Re-read attempts after finalization
             submitted_attempts = [
@@ -1919,7 +2162,9 @@ def get_user_exam_details(request):
             exam_total_marks, _ = get_exam_total_marks(
                 session,
                 exam_id=getattr(exam_obj, "exam_id", None) if exam_obj else None,
-                schedule_id=getattr(schedule_obj, "schedule_id", None) if schedule_obj else None,
+                schedule_id=(
+                    getattr(schedule_obj, "schedule_id", None) if schedule_obj else None
+                ),
             )
             if not exam_total_marks:
                 exam_total_marks = float(getattr(exam_obj, "total_marks", 0) or 0)
@@ -1937,7 +2182,8 @@ def get_user_exam_details(request):
                 or (
                     getattr(a, "score", None) is not None
                     and exam_total_marks > 0
-                    and (float(a.score) / float(exam_total_marks) * 100) >= effective_pass_mark
+                    and (float(a.score) / float(exam_total_marks) * 100)
+                    >= effective_pass_mark
                 )
                 for a in attempts
             )
@@ -1983,7 +2229,9 @@ def get_user_exam_details(request):
                         and att_score is not None
                         and exam_total_marks > 0
                     ):
-                        att_pct = round((float(att_score) / float(exam_total_marks)) * 100, 2)
+                        att_pct = round(
+                            (float(att_score) / float(exam_total_marks)) * 100, 2
+                        )
                     raw_result = getattr(att, "feedback", None) or getattr(
                         att, "result", None
                     )
@@ -2022,7 +2270,11 @@ def get_user_exam_details(request):
                         active_answered_count = answered_count
                     elif att_pct is not None:
                         att_result = "Passed" if att_pct >= att_pass_mark else "Failed"
-                        if att.percentage is None or att.percentage != att_pct or att.feedback != att_result:
+                        if (
+                            att.percentage is None
+                            or att.percentage != att_pct
+                            or att.feedback != att_result
+                        ):
                             try:
                                 att.percentage = att_pct
                                 att.feedback = att_result
@@ -2078,7 +2330,11 @@ def get_user_exam_details(request):
                             "remaining_seconds": remaining_seconds,
                             "answered_count": answered_count,
                             "is_in_progress": is_in_progress,
-                            "review_opened_at": safe_utc_isoformat(att_review_opened) if att_review_opened else None,
+                            "review_opened_at": (
+                                safe_utc_isoformat(att_review_opened)
+                                if att_review_opened
+                                else None
+                            ),
                             "review_viewed": att_review_viewed,
                             "review_consumed": att_review_viewed and not is_multi,
                             "review_available": att_review_available,
@@ -2086,9 +2342,7 @@ def get_user_exam_details(request):
                     )
 
             disp_score = (
-                getattr(displayed_attempt, "score", None)
-                if displayed_attempt
-                else None
+                getattr(displayed_attempt, "score", None) if displayed_attempt else None
             )
             disp_raw_result = getattr(displayed_attempt, "feedback", None) or getattr(
                 displayed_attempt, "result", None
@@ -2139,8 +2393,10 @@ def get_user_exam_details(request):
                     "mapping_id": None,
                     "schedule_id": getattr(schedule_obj, "schedule_id", None),
                     "schedule_title": getattr(schedule_obj, "title", None),
-                    "title": getattr(schedule_obj, "title", None) or getattr(exam_obj, "title", None),
-                    "name": getattr(schedule_obj, "title", None) or getattr(exam_obj, "title", None),
+                    "title": getattr(schedule_obj, "title", None)
+                    or getattr(exam_obj, "title", None),
+                    "name": getattr(schedule_obj, "title", None)
+                    or getattr(exam_obj, "title", None),
                     "institute_id": getattr(schedule_obj, "institute_id", None),
                     "exam_id": getattr(exam_obj, "exam_id", None),
                     "exam_title": getattr(exam_obj, "title", None),
@@ -2177,9 +2433,21 @@ def get_user_exam_details(request):
                     ),
                     "updated_by": getattr(schedule_obj, "updated_by", None),
                     "updated_date": getattr(schedule_obj, "updated_date", None),
-                    "enable_microphone": True if getattr(schedule_obj, "enable_microphone", None) is None else bool(schedule_obj.enable_microphone),
-                    "enable_scan_text": True if getattr(schedule_obj, "enable_scan_text", None) is None else bool(schedule_obj.enable_scan_text),
-                    "enable_camera": True if getattr(schedule_obj, "enable_camera", None) is None else bool(schedule_obj.enable_camera),
+                    "enable_microphone": (
+                        True
+                        if getattr(schedule_obj, "enable_microphone", None) is None
+                        else bool(schedule_obj.enable_microphone)
+                    ),
+                    "enable_scan_text": (
+                        True
+                        if getattr(schedule_obj, "enable_scan_text", None) is None
+                        else bool(schedule_obj.enable_scan_text)
+                    ),
+                    "enable_camera": (
+                        True
+                        if getattr(schedule_obj, "enable_camera", None) is None
+                        else bool(schedule_obj.enable_camera)
+                    ),
                     "type": type,
                 }
             )
@@ -2220,20 +2488,22 @@ def get_exam_list(request):
         if args.get("created_after", None):
             try:
                 ca_val = str(args["created_after"]).strip()
-                created_after = datetime.fromisoformat(
-                    ca_val.replace("Z", "+00:00")
-                )
+                created_after = datetime.fromisoformat(ca_val.replace("Z", "+00:00"))
                 filter.append(Exam.created_date >= created_after)
             except Exception as e:
                 print(f"Error parsing created_after date in exams: {e}", flush=True)
         if args.get("created_before", None):
             try:
                 cb_val = str(args["created_before"]).strip()
-                created_before = datetime.fromisoformat(
-                    cb_val.replace("Z", "+00:00")
-                )
-                if len(cb_val) <= 10 or (created_before.hour == 0 and created_before.minute == 0 and created_before.second == 0):
-                    created_before = created_before.replace(hour=23, minute=59, second=59, microsecond=999999)
+                created_before = datetime.fromisoformat(cb_val.replace("Z", "+00:00"))
+                if len(cb_val) <= 10 or (
+                    created_before.hour == 0
+                    and created_before.minute == 0
+                    and created_before.second == 0
+                ):
+                    created_before = created_before.replace(
+                        hour=23, minute=59, second=59, microsecond=999999
+                    )
                 filter.append(Exam.created_date <= created_before)
             except Exception as e:
                 print(f"Error parsing created_before date in exams: {e}", flush=True)
@@ -2243,12 +2513,24 @@ def get_exam_list(request):
         test_mode_arg = args.get("test_mode", None)
         if test_mode_arg:
             tm_val = str(test_mode_arg).strip().lower()
-            if tm_val == 'paper':
-                filter.append(Exam.test_mode == 'paper')
-            elif tm_val == 'online':
-                filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
+            if tm_val == "paper":
+                filter.append(Exam.test_mode == "paper")
+            elif tm_val == "online":
+                filter.append(
+                    or_(
+                        Exam.test_mode == "online",
+                        Exam.test_mode == None,
+                        Exam.test_mode == "",
+                    )
+                )
         else:
-            filter.append(or_(Exam.test_mode == 'online', Exam.test_mode == None, Exam.test_mode == ''))
+            filter.append(
+                or_(
+                    Exam.test_mode == "online",
+                    Exam.test_mode == None,
+                    Exam.test_mode == "",
+                )
+            )
 
         exams = session.query(Exam).filter(*filter).all()
         if exams is None or len(exams) == 0:
@@ -2305,23 +2587,31 @@ def launch_exam_details(schedule_id, user_id):
 
         # Verify that the student is authorized/assigned to this test or is an admin
         user_obj = session.query(User).filter_by(user_id=user_id).first()
-        is_user_admin = user_obj and str(getattr(user_obj, "user_role", "") or "").lower() in ("admin", "super_admin", "superadmin", "super-admin")
+        is_user_admin = user_obj and str(
+            getattr(user_obj, "user_role", "") or ""
+        ).lower() in ("admin", "super_admin", "superadmin", "super-admin")
 
         if not is_user_admin:
             mapping_conditions = [ExamScheduleMapping.user_id == user_id]
             if user_obj:
                 if getattr(user_obj, "department_id", None):
-                    mapping_conditions.append(ExamScheduleMapping.department_id == user_obj.department_id)
+                    mapping_conditions.append(
+                        ExamScheduleMapping.department_id == user_obj.department_id
+                    )
                 if getattr(user_obj, "team_id", None):
-                    mapping_conditions.append(ExamScheduleMapping.team_id == user_obj.team_id)
+                    mapping_conditions.append(
+                        ExamScheduleMapping.team_id == user_obj.team_id
+                    )
                 if getattr(user_obj, "campus_id", None):
-                    mapping_conditions.append(ExamScheduleMapping.campus_id == user_obj.campus_id)
+                    mapping_conditions.append(
+                        ExamScheduleMapping.campus_id == user_obj.campus_id
+                    )
 
             is_assigned = (
                 session.query(ExamScheduleMapping)
                 .filter(
                     ExamScheduleMapping.schedule_id == schedule_id,
-                    or_(*mapping_conditions)
+                    or_(*mapping_conditions),
                 )
                 .first()
             )
@@ -2340,7 +2630,10 @@ def launch_exam_details(schedule_id, user_id):
                 }, 403
 
             # Check if exam schedule has not started yet
-            if exam_schedule.start_time and datetime.utcnow() < exam_schedule.start_time:
+            if (
+                exam_schedule.start_time
+                and datetime.utcnow() < exam_schedule.start_time
+            ):
                 return {
                     "statusMessage": "This exam has not started yet",
                     "status": False,
@@ -2393,7 +2686,7 @@ def launch_exam_details(schedule_id, user_id):
                         or_(
                             ExamQuestionMapping.category_id == mapping.category_id,
                             ExamQuestionMapping.category_id == None,
-                        )
+                        ),
                     )
                     .order_by(ExamQuestionMapping.order_number.asc())
                     .all()
@@ -2421,10 +2714,9 @@ def launch_exam_details(schedule_id, user_id):
         unique_qids = list(dict.fromkeys(question_ids))
 
         # Enforce global total_questions ceiling from schedule or exam if configured
-        effective_total_questions = (
-            getattr(exam_schedule, "total_questions", None)
-            or getattr(exam_data, "total_questions", None)
-        )
+        effective_total_questions = getattr(
+            exam_schedule, "total_questions", None
+        ) or getattr(exam_data, "total_questions", None)
         if effective_total_questions and effective_total_questions > 0:
             if len(unique_qids) > effective_total_questions:
                 unique_qids = unique_qids[:effective_total_questions]
@@ -2496,8 +2788,20 @@ def launch_exam_details(schedule_id, user_id):
             )
             max_allowed_attempts = (
                 exam_schedule.number_of_attempts
-                if (exam_schedule and exam_schedule.number_of_attempts is not None and exam_schedule.number_of_attempts > 0)
-                else (exam_data.number_of_attempts if (exam_data and exam_data.number_of_attempts is not None and exam_data.number_of_attempts > 0) else 1)
+                if (
+                    exam_schedule
+                    and exam_schedule.number_of_attempts is not None
+                    and exam_schedule.number_of_attempts > 0
+                )
+                else (
+                    exam_data.number_of_attempts
+                    if (
+                        exam_data
+                        and exam_data.number_of_attempts is not None
+                        and exam_data.number_of_attempts > 0
+                    )
+                    else 1
+                )
             )
             if attempt_number > max_allowed_attempts:
                 return {
@@ -2547,13 +2851,42 @@ def launch_exam_details(schedule_id, user_id):
                 if not isinstance(saved_answers[qid], list):
                     saved_answers[qid] = [saved_answers[qid]]
 
-        enable_mic = bool(exam_schedule.enable_microphone) if (exam_schedule and hasattr(exam_schedule, "enable_microphone") and exam_schedule.enable_microphone is not None) else True
-        enable_scan = bool(exam_schedule.enable_scan_text) if (exam_schedule and hasattr(exam_schedule, "enable_scan_text") and exam_schedule.enable_scan_text is not None) else True
-        enable_cam = bool(exam_schedule.enable_camera) if (exam_schedule and hasattr(exam_schedule, "enable_camera") and exam_schedule.enable_camera is not None) else True
+        enable_mic = (
+            bool(exam_schedule.enable_microphone)
+            if (
+                exam_schedule
+                and hasattr(exam_schedule, "enable_microphone")
+                and exam_schedule.enable_microphone is not None
+            )
+            else True
+        )
+        enable_scan = (
+            bool(exam_schedule.enable_scan_text)
+            if (
+                exam_schedule
+                and hasattr(exam_schedule, "enable_scan_text")
+                and exam_schedule.enable_scan_text is not None
+            )
+            else True
+        )
+        enable_cam = (
+            bool(exam_schedule.enable_camera)
+            if (
+                exam_schedule
+                and hasattr(exam_schedule, "enable_camera")
+                and exam_schedule.enable_camera is not None
+            )
+            else True
+        )
 
         schedule_title = (
             exam_schedule.title
-            if (exam_schedule and hasattr(exam_schedule, "title") and exam_schedule.title and str(exam_schedule.title).strip())
+            if (
+                exam_schedule
+                and hasattr(exam_schedule, "title")
+                and exam_schedule.title
+                and str(exam_schedule.title).strip()
+            )
             else None
         )
 
@@ -2596,13 +2929,15 @@ def launch_exam_details(schedule_id, user_id):
                     "gcs_path": m.gcs_path,
                     "original_filename": m.original_filename,
                     "caption": m.caption,
-                    "play_limit": getattr(m, 'play_limit', 0) or 0,
+                    "play_limit": getattr(m, "play_limit", 0) or 0,
                 }
                 for m in q_media
             ]
 
             options = (
-                session.query(Option).filter_by(question_id=question.question_id, active_status=1).all()
+                session.query(Option)
+                .filter_by(question_id=question.question_id, active_status=1)
+                .all()
             )
             option_list = [
                 {
@@ -2610,7 +2945,7 @@ def launch_exam_details(schedule_id, user_id):
                     "text": opt.option_text,
                     "image_url": opt.image_url,
                     "url": opt.image_url,
-                    "gcs_path": opt.gcs_path
+                    "gcs_path": opt.gcs_path,
                 }
                 for opt in options
             ]
@@ -2873,16 +3208,27 @@ def get_student_evaluation_details(request, current_user=None):
 
         if not exam_id and not attempt_id:
             session.close()
-            return {"statusMessage": "exam_id or attempt_id is required", "status": False}, 400
+            return {
+                "statusMessage": "exam_id or attempt_id is required",
+                "status": False,
+            }, 400
 
         # Resolve Attempt
         attempt = None
         if attempt_id:
-            attempt = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id == attempt_id).first()
+            attempt = (
+                session.query(Exam_Attempt)
+                .filter(Exam_Attempt.attempt_id == attempt_id)
+                .first()
+            )
             if attempt and not user_id:
                 user_id = str(attempt.user_id)
             if attempt and not exam_id:
-                sched = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == attempt.schedule_id).first()
+                sched = (
+                    session.query(ExamSchedule)
+                    .filter(ExamSchedule.schedule_id == attempt.schedule_id)
+                    .first()
+                )
                 exam_id = str(sched.exam_id) if sched else str(attempt.schedule_id)
 
         if not attempt and exam_id and user_id:
@@ -2894,10 +3240,17 @@ def get_student_evaluation_details(request, current_user=None):
             ]
             valid_sched_ids = list(set([str(exam_id)] + [s for s in sched_ids if s]))
 
-            attempt = session.query(Exam_Attempt).filter(
-                func.cast(Exam_Attempt.user_id, String) == str(user_id),
-                func.cast(Exam_Attempt.schedule_id, String).in_(valid_sched_ids)
-            ).order_by(Exam_Attempt.started_date.desc(), Exam_Attempt.submitted_date.desc()).first()
+            attempt = (
+                session.query(Exam_Attempt)
+                .filter(
+                    func.cast(Exam_Attempt.user_id, String) == str(user_id),
+                    func.cast(Exam_Attempt.schedule_id, String).in_(valid_sched_ids),
+                )
+                .order_by(
+                    Exam_Attempt.started_date.desc(), Exam_Attempt.submitted_date.desc()
+                )
+                .first()
+            )
 
         # Resolve Exam
         exam = session.query(Exam).filter(Exam.exam_id == exam_id).first()
@@ -2906,25 +3259,41 @@ def get_student_evaluation_details(request, current_user=None):
             return {"statusMessage": "Exam not found", "status": False}, 404
 
         # Resolve Student User
-        student = session.query(User).filter(User.user_id == user_id).first() if user_id else None
+        student = (
+            session.query(User).filter(User.user_id == user_id).first()
+            if user_id
+            else None
+        )
 
         # Fetch Answer Sheet Pages (strictly unique by page_number)
         pages_data = []
         if attempt:
-            pages = session.query(AnswerSheetPage).filter(
-                AnswerSheetPage.attempt_id == attempt.attempt_id
-            ).order_by(AnswerSheetPage.page_number.asc(), AnswerSheetPage.created_date.desc()).all()
+            pages = (
+                session.query(AnswerSheetPage)
+                .filter(AnswerSheetPage.attempt_id == attempt.attempt_id)
+                .order_by(
+                    AnswerSheetPage.page_number.asc(),
+                    AnswerSheetPage.created_date.desc(),
+                )
+                .all()
+            )
             seen_page_nums = set()
             for p in pages:
                 if p.page_number not in seen_page_nums:
                     seen_page_nums.add(p.page_number)
                     img_path = p.image_path or ""
-                    img_url = img_path if img_path.startswith("http") else f"/edu/api/uploads/answer_sheets/{img_path}"
-                    pages_data.append({
-                        "page_id": str(p.page_id),
-                        "page_number": p.page_number,
-                        "image_url": img_url
-                    })
+                    img_url = (
+                        img_path
+                        if img_path.startswith("http")
+                        else f"/edu/api/uploads/answer_sheets/{img_path}"
+                    )
+                    pages_data.append(
+                        {
+                            "page_id": str(p.page_id),
+                            "page_number": p.page_number,
+                            "image_url": img_url,
+                        }
+                    )
             pages_data.sort(key=lambda x: x["page_number"])
 
         # Fetch Questions & Answer Keys in exact sequential section/question order
@@ -2943,14 +3312,18 @@ def get_student_evaluation_details(request, current_user=None):
                 sec_id_str = str(sec.section_id)
                 sec_eqms = (
                     session.query(ExamQuestionMapping, Question)
-                    .join(Question, Question.question_id == ExamQuestionMapping.question_id)
+                    .join(
+                        Question,
+                        Question.question_id == ExamQuestionMapping.question_id,
+                    )
                     .filter(
                         ExamQuestionMapping.exam_id == exam_id,
                         or_(
                             ExamQuestionMapping.section_id == sec_id_str,
                             ExamQuestionMapping.section_id == sec.section_id,
-                            func.cast(ExamQuestionMapping.section_id, String) == sec_id_str,
-                        )
+                            func.cast(ExamQuestionMapping.section_id, String)
+                            == sec_id_str,
+                        ),
                     )
                     .order_by(ExamQuestionMapping.order_number.asc())
                     .all()
@@ -2982,8 +3355,12 @@ def get_student_evaluation_details(request, current_user=None):
             calculated_total_possible += q_marks
 
             # Resolve Model Answer from Options
-            options = session.query(Option).filter(Option.question_id == q.question_id).all()
-            correct_opts = [opt for opt in options if str(opt.is_correct).lower() in ("1", "true")]
+            options = (
+                session.query(Option).filter(Option.question_id == q.question_id).all()
+            )
+            correct_opts = [
+                opt for opt in options if str(opt.is_correct).lower() in ("1", "true")
+            ]
             model_answer = ""
             if correct_opts:
                 model_answer = correct_opts[0].option_text or ""
@@ -2993,36 +3370,66 @@ def get_student_evaluation_details(request, current_user=None):
             # Resolve Existing Answer Record
             ans = None
             if attempt:
-                ans = session.query(Answer).filter(
-                    Answer.attempt_id == attempt.attempt_id,
-                    Answer.question_id == q.question_id
-                ).first()
+                ans = (
+                    session.query(Answer)
+                    .filter(
+                        Answer.attempt_id == attempt.attempt_id,
+                        Answer.question_id == q.question_id,
+                    )
+                    .first()
+                )
 
             marks_awarded = float(ans.marks_awarded or 0.0) if ans else 0.0
-            ai_marks = float(ans.ai_marks) if (ans and ans.ai_marks is not None) else None
-            ai_confidence = ans.ai_confidence if (ans and ans.ai_confidence is not None) else None
+            ai_marks = (
+                float(ans.ai_marks) if (ans and ans.ai_marks is not None) else None
+            )
+            ai_confidence = (
+                ans.ai_confidence if (ans and ans.ai_confidence is not None) else None
+            )
             feedback = ans.feedback if ans else ""
-            manual_marks = float(ans.manual_marks) if (ans and ans.manual_marks is not None) else None
+            manual_marks = (
+                float(ans.manual_marks)
+                if (ans and ans.manual_marks is not None)
+                else None
+            )
             manual_review_required = bool(ans.manual_review_required) if ans else False
 
             # Resolve Review Comments (Points Missed, Incorrect, Incomplete)
             review_comments = []
             if attempt:
-                rc_rows = session.query(ExamReviewComments).filter(
-                    ExamReviewComments.attempt_id == attempt.attempt_id,
-                    ExamReviewComments.question_id == q.question_id,
-                    or_(ExamReviewComments.is_deleted == 0, ExamReviewComments.is_deleted.is_(None))
-                ).order_by(ExamReviewComments.created_date.asc()).all()
+                rc_rows = (
+                    session.query(ExamReviewComments)
+                    .filter(
+                        ExamReviewComments.attempt_id == attempt.attempt_id,
+                        ExamReviewComments.question_id == q.question_id,
+                        or_(
+                            ExamReviewComments.is_deleted == 0,
+                            ExamReviewComments.is_deleted.is_(None),
+                        ),
+                    )
+                    .order_by(ExamReviewComments.created_date.asc())
+                    .all()
+                )
                 for rc in rc_rows:
-                    review_comments.append({
-                        "comment_id": str(rc.comment_id),
-                        "comment_text": rc.comment_text,
-                        "category": rc.category or "missing",
-                        "action": rc.action,
-                        "updated_by": rc.updated_by or rc.created_by,
-                        "updated_date": rc.updated_date.isoformat() if rc.updated_date else (rc.created_date.isoformat() if rc.created_date else None),
-                        "edit_reason": rc.edit_reason
-                    })
+                    review_comments.append(
+                        {
+                            "comment_id": str(rc.comment_id),
+                            "comment_text": rc.comment_text,
+                            "category": rc.category or "missing",
+                            "action": rc.action,
+                            "updated_by": rc.updated_by or rc.created_by,
+                            "updated_date": (
+                                rc.updated_date.isoformat()
+                                if rc.updated_date
+                                else (
+                                    rc.created_date.isoformat()
+                                    if rc.created_date
+                                    else None
+                                )
+                            ),
+                            "edit_reason": rc.edit_reason,
+                        }
+                    )
 
             # Resolve Marks History & Current Evaluator Info
             marks_history = []
@@ -3032,38 +3439,64 @@ def get_student_evaluation_details(request, current_user=None):
 
             if ans:
                 if ans.created_by:
-                    ans_user = session.query(User).filter(User.user_id == ans.created_by).first()
+                    ans_user = (
+                        session.query(User)
+                        .filter(User.user_id == ans.created_by)
+                        .first()
+                    )
                     if ans_user:
                         current_updater_name = ans_user.full_name or ans_user.user_name
                     elif str(ans.created_by).lower() in ("system", "ai", "auto"):
                         current_updater_name = "SYSTEM"
                     else:
                         current_updater_name = "SYSTEM"
-                
-                current_updated_date = ans.created_date.isoformat() if ans.created_date else None
-                current_edit_reason = getattr(ans, 'edit_reason', None)
 
-                mh_rows = session.query(MarksHistory).filter(
-                    MarksHistory.answer_id == ans.answer_id
-                ).order_by(MarksHistory.updated_date.desc()).all()
+                current_updated_date = (
+                    ans.created_date.isoformat() if ans.created_date else None
+                )
+                current_edit_reason = getattr(ans, "edit_reason", None)
+
+                mh_rows = (
+                    session.query(MarksHistory)
+                    .filter(MarksHistory.answer_id == ans.answer_id)
+                    .order_by(MarksHistory.updated_date.desc())
+                    .all()
+                )
                 for mh in mh_rows:
-                    updater = session.query(User).filter(User.user_id == mh.updated_by).first() if mh.updated_by else None
-                    updater_name = updater.full_name or updater.user_name if updater else (mh.updated_by or "SYSTEM")
-                    marks_history.append({
-                        "history_id": str(mh.history_id),
-                        "marks_awarded": float(mh.marks_awarded or 0.0),
-                        "source": mh.source or "manual",
-                        "edit_reason": mh.edit_reason or "Marks updated",
-                        "updated_by": updater_name,
-                        "updated_date": mh.updated_date.isoformat() if mh.updated_date else None
-                    })
+                    updater = (
+                        session.query(User)
+                        .filter(User.user_id == mh.updated_by)
+                        .first()
+                        if mh.updated_by
+                        else None
+                    )
+                    updater_name = (
+                        updater.full_name or updater.user_name
+                        if updater
+                        else (mh.updated_by or "SYSTEM")
+                    )
+                    marks_history.append(
+                        {
+                            "history_id": str(mh.history_id),
+                            "marks_awarded": float(mh.marks_awarded or 0.0),
+                            "source": mh.source or "manual",
+                            "edit_reason": mh.edit_reason or "Marks updated",
+                            "updated_by": updater_name,
+                            "updated_date": (
+                                mh.updated_date.isoformat() if mh.updated_date else None
+                            ),
+                        }
+                    )
 
             # Extract real detected pages from ans.written_answer metadata
             detected_pages = []
             student_written_text = ""
             if ans and ans.written_answer:
                 try:
-                    if ans.written_answer.startswith("{") and "detected_pages" in ans.written_answer:
+                    if (
+                        ans.written_answer.startswith("{")
+                        and "detected_pages" in ans.written_answer
+                    ):
                         meta = json.loads(ans.written_answer)
                         detected_pages = meta.get("detected_pages", [])
                         student_written_text = meta.get("student_answer", "")
@@ -3072,56 +3505,94 @@ def get_student_evaluation_details(request, current_user=None):
                 except Exception:
                     student_written_text = ans.written_answer or ""
 
-            q_media = session.query(QuestionMedia).filter_by(question_id=q.question_id, active_status=1).order_by(QuestionMedia.order_number.asc()).all()
-            media_list = [{"media_id": str(m.media_id), "media_type": m.media_type, "file_url": m.file_url, "url": m.file_url, "gcs_path": m.gcs_path, "caption": m.caption, "play_limit": getattr(m, 'play_limit', 0) or 0} for m in q_media]
-            q_options_list = [{"id": opt.options_id, "text": opt.option_text, "image_url": opt.image_url, "url": opt.image_url, "is_correct": opt.is_correct} for opt in options]
+            q_media = (
+                session.query(QuestionMedia)
+                .filter_by(question_id=q.question_id, active_status=1)
+                .order_by(QuestionMedia.order_number.asc())
+                .all()
+            )
+            media_list = [
+                {
+                    "media_id": str(m.media_id),
+                    "media_type": m.media_type,
+                    "file_url": m.file_url,
+                    "url": m.file_url,
+                    "gcs_path": m.gcs_path,
+                    "caption": m.caption,
+                    "play_limit": getattr(m, "play_limit", 0) or 0,
+                }
+                for m in q_media
+            ]
+            q_options_list = [
+                {
+                    "id": opt.options_id,
+                    "text": opt.option_text,
+                    "image_url": opt.image_url,
+                    "url": opt.image_url,
+                    "is_correct": opt.is_correct,
+                }
+                for opt in options
+            ]
 
-            questions_data.append({
-                "question_id": str(q.question_id),
-                "answer_id": str(ans.answer_id) if ans else None,
-                "question_number": idx + 1,
-                "section_name": sec_name or "General",
-                "section_id": str(eqm.section_id) if eqm.section_id else None,
-                "question_text": q.question_text,
-                "question_type": q.question_type,
-                "max_marks": q_marks,
-                "media": media_list,
-                "options": q_options_list,
-                "model_answer": model_answer,
-                "student_answer": student_written_text,
-                "ai_marks": ai_marks,
-                "marks_awarded": marks_awarded,
-                "ai_confidence": ai_confidence,
-                "feedback": feedback,
-                "manual_marks": manual_marks,
-                "manual_review_required": manual_review_required,
-                "detected_on_page": detected_pages,
-                "review_comments": review_comments,
-                "updated_by": current_updater_name,
-                "updated_date": current_updated_date,
-                "edit_reason": current_edit_reason,
-                "marks_history": marks_history
-            })
+            questions_data.append(
+                {
+                    "question_id": str(q.question_id),
+                    "answer_id": str(ans.answer_id) if ans else None,
+                    "question_number": idx + 1,
+                    "section_name": sec_name or "General",
+                    "section_id": str(eqm.section_id) if eqm.section_id else None,
+                    "question_text": q.question_text,
+                    "question_type": q.question_type,
+                    "max_marks": q_marks,
+                    "media": media_list,
+                    "options": q_options_list,
+                    "model_answer": model_answer,
+                    "student_answer": student_written_text,
+                    "ai_marks": ai_marks,
+                    "marks_awarded": marks_awarded,
+                    "ai_confidence": ai_confidence,
+                    "feedback": feedback,
+                    "manual_marks": manual_marks,
+                    "manual_review_required": manual_review_required,
+                    "detected_on_page": detected_pages,
+                    "review_comments": review_comments,
+                    "updated_by": current_updater_name,
+                    "updated_date": current_updated_date,
+                    "edit_reason": current_edit_reason,
+                    "marks_history": marks_history,
+                }
+            )
 
         if total_exam_marks <= 0:
             total_exam_marks = calculated_total_possible or 1.0
 
         current_score = sum(q["marks_awarded"] for q in questions_data)
-        percentage = round((current_score / total_exam_marks * 100), 2) if total_exam_marks > 0 else 0.0
+        percentage = (
+            round((current_score / total_exam_marks * 100), 2)
+            if total_exam_marks > 0
+            else 0.0
+        )
         attempt_status = attempt.status if attempt else "not_started"
 
         from others.settings import get_ai_confidence_threshold
+
         conf_threshold = get_ai_confidence_threshold(session)
 
         has_manual_review = any(
-            (q.get("marks_history") and len(q["marks_history"]) > 0) or
-            (q.get("edit_reason")) or
-            (q.get("manual_marks") is not None and q.get("manual_marks") != q.get("ai_marks"))
+            (q.get("marks_history") and len(q["marks_history"]) > 0)
+            or (q.get("edit_reason"))
+            or (
+                q.get("manual_marks") is not None
+                and q.get("manual_marks") != q.get("ai_marks")
+            )
             for q in questions_data
         )
         has_need_to_check = any(
-            q.get("manual_review_required") or
-            (q.get("ai_confidence") is not None and 0 < q.get("ai_confidence") < conf_threshold)
+            q.get("manual_review_required")
+            or (
+                q.get("ai_confidence") is not None
+                and 0 < q.get("ai_confidence") < conf_threshold
+            )
             for q in questions_data
         )
         if has_manual_review:
@@ -3138,8 +3609,14 @@ def get_student_evaluation_details(request, current_user=None):
             "exam_title": exam.title,
             "subject_name": exam.subject_name or "",
             "user_id": str(student.user_id) if student else (user_id or ""),
-            "student_name": student.full_name or student.user_name if student else "Student",
-            "roll_no": getattr(student, "roll_no", None) or getattr(student, "user_name", "") if student else "",
+            "student_name": (
+                student.full_name or student.user_name if student else "Student"
+            ),
+            "roll_no": (
+                getattr(student, "roll_no", None) or getattr(student, "user_name", "")
+                if student
+                else ""
+            ),
             "attempt_id": str(attempt.attempt_id) if attempt else None,
             "status_code_name": attempt_status,
             "pages": pages_data,
@@ -3149,9 +3626,13 @@ def get_student_evaluation_details(request, current_user=None):
                 "marks_awarded": current_score,
                 "percentage": percentage,
                 "total_questions": len(questions_data),
-                "evaluated_questions": sum(1 for q in questions_data if q["marks_awarded"] > 0 or q["ai_marks"] is not None),
-                "status": display_status
-            }
+                "evaluated_questions": sum(
+                    1
+                    for q in questions_data
+                    if q["marks_awarded"] > 0 or q["ai_marks"] is not None
+                ),
+                "status": display_status,
+            },
         }
 
         session.close()
@@ -3160,8 +3641,13 @@ def get_student_evaluation_details(request, current_user=None):
     except Exception as e:
         session.rollback()
         session.close()
-        print(f"Error in get_student_evaluation_details: {str(e)} - line {sys.exc_info()[-1].tb_lineno}")
-        return {"statusMessage": f"Error retrieving student evaluation details: {str(e)}", "status": False}, 500
+        print(
+            f"Error in get_student_evaluation_details: {str(e)} - line {sys.exc_info()[-1].tb_lineno}"
+        )
+        return {
+            "statusMessage": f"Error retrieving student evaluation details: {str(e)}",
+            "status": False,
+        }, 500
 
 
 def finalize_student_evaluation(request, current_user=None):
@@ -3182,7 +3668,11 @@ def finalize_student_evaluation(request, current_user=None):
 
         attempt = None
         if attempt_id:
-            attempt = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id == attempt_id).first()
+            attempt = (
+                session.query(Exam_Attempt)
+                .filter(Exam_Attempt.attempt_id == attempt_id)
+                .first()
+            )
         if not attempt and exam_id and user_id:
             sched_ids = [
                 str(r[0])
@@ -3192,25 +3682,47 @@ def finalize_student_evaluation(request, current_user=None):
             ]
             valid_sched_ids = list(set([str(exam_id)] + [s for s in sched_ids if s]))
 
-            attempt = session.query(Exam_Attempt).filter(
-                func.cast(Exam_Attempt.user_id, String) == str(user_id),
-                func.cast(Exam_Attempt.schedule_id, String).in_(valid_sched_ids)
-            ).order_by(Exam_Attempt.started_date.desc(), Exam_Attempt.submitted_date.desc()).first()
+            attempt = (
+                session.query(Exam_Attempt)
+                .filter(
+                    func.cast(Exam_Attempt.user_id, String) == str(user_id),
+                    func.cast(Exam_Attempt.schedule_id, String).in_(valid_sched_ids),
+                )
+                .order_by(
+                    Exam_Attempt.started_date.desc(), Exam_Attempt.submitted_date.desc()
+                )
+                .first()
+            )
 
         if not attempt:
             session.close()
-            return {"statusMessage": "Exam attempt not found to finalize", "status": False}, 404
+            return {
+                "statusMessage": "Exam attempt not found to finalize",
+                "status": False,
+            }, 404
 
         # Recalculate score from all Answer records
-        answers = session.query(Answer).filter(func.cast(Answer.attempt_id, String) == str(attempt.attempt_id)).all()
+        answers = (
+            session.query(Answer)
+            .filter(func.cast(Answer.attempt_id, String) == str(attempt.attempt_id))
+            .all()
+        )
         total_score = sum(float(a.marks_awarded or 0.0) for a in answers)
 
-        exam = session.query(Exam).filter(Exam.exam_id == exam_id).first() if exam_id else None
+        exam = (
+            session.query(Exam).filter(Exam.exam_id == exam_id).first()
+            if exam_id
+            else None
+        )
         total_possible = float(exam.total_marks or 0) if exam else 0.0
         if total_possible <= 0:
             total_possible = sum(float(a.marks_awarded or 0.0) for a in answers) or 1.0
 
-        percentage = round((total_score / total_possible * 100), 2) if total_possible > 0 else 0.0
+        percentage = (
+            round((total_score / total_possible * 100), 2)
+            if total_possible > 0
+            else 0.0
+        )
         pass_mark = float(exam.pass_mark or 40.0) if exam else 40.0
         feedback_str = "Pass" if percentage >= pass_mark else "Failed"
         final_attempt_id = str(attempt.attempt_id)
@@ -3233,15 +3745,20 @@ def finalize_student_evaluation(request, current_user=None):
                 "status": "evaluated",
                 "score": total_score,
                 "percentage": percentage,
-                "feedback": feedback_str
-            }
+                "feedback": feedback_str,
+            },
         }, 200
 
     except Exception as e:
         session.rollback()
         session.close()
-        print(f"Error in finalize_student_evaluation: {str(e)} - line {sys.exc_info()[-1].tb_lineno}")
-        return {"statusMessage": f"Error finalizing student evaluation: {str(e)}", "status": False}, 500
+        print(
+            f"Error in finalize_student_evaluation: {str(e)} - line {sys.exc_info()[-1].tb_lineno}"
+        )
+        return {
+            "statusMessage": f"Error finalizing student evaluation: {str(e)}",
+            "status": False,
+        }, 500
 
 
 def upload_answer_sheet(request, current_user=None):
@@ -3261,7 +3778,10 @@ def upload_answer_sheet(request, current_user=None):
     user_id = request.form.get("user_id")
 
     if not exam_id or not user_id:
-        return {"statusMessage": "exam_id and user_id are required", "status": False}, 400
+        return {
+            "statusMessage": "exam_id and user_id are required",
+            "status": False,
+        }, 400
 
     if "file" not in request.files and "files" not in request.files:
         return {"statusMessage": "No file uploaded in request", "status": False}, 400
@@ -3271,7 +3791,14 @@ def upload_answer_sheet(request, current_user=None):
         return {"statusMessage": "No files found in upload", "status": False}, 400
 
     # Base upload directory: backend/static/uploads/answer_sheets/<exam_id>/<user_id>/
-    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads", "answer_sheets", str(exam_id), str(user_id))
+    static_dir = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "static",
+        "uploads",
+        "answer_sheets",
+        str(exam_id),
+        str(user_id),
+    )
     os.makedirs(static_dir, exist_ok=True)
 
     # 1. Rasterize / Save all files to disk first (zero DB locking during disk I/O)
@@ -3289,6 +3816,7 @@ def upload_answer_sheet(request, current_user=None):
             rendered_pdf = False
             try:
                 import fitz
+
                 doc = fitz.open(stream=file_bytes, filetype="pdf")
                 for page_idx in range(len(doc)):
                     page = doc[page_idx]
@@ -3296,7 +3824,9 @@ def upload_answer_sheet(request, current_user=None):
                     page_filename = f"page_{curr_page_num}.jpg"
                     page_filepath = os.path.join(static_dir, page_filename)
                     pix.save(page_filepath)
-                    saved_page_files.append((curr_page_num, f"{exam_id}/{user_id}/{page_filename}"))
+                    saved_page_files.append(
+                        (curr_page_num, f"{exam_id}/{user_id}/{page_filename}")
+                    )
                     curr_page_num += 1
                 doc.close()
                 rendered_pdf = True
@@ -3306,12 +3836,15 @@ def upload_answer_sheet(request, current_user=None):
             if not rendered_pdf:
                 try:
                     from pdf2image import convert_from_bytes
+
                     images = convert_from_bytes(file_bytes, dpi=200)
                     for img in images:
                         page_filename = f"page_{curr_page_num}.jpg"
                         page_filepath = os.path.join(static_dir, page_filename)
                         img.save(page_filepath, "JPEG")
-                        saved_page_files.append((curr_page_num, f"{exam_id}/{user_id}/{page_filename}"))
+                        saved_page_files.append(
+                            (curr_page_num, f"{exam_id}/{user_id}/{page_filename}")
+                        )
                         curr_page_num += 1
                     rendered_pdf = True
                 except Exception as p2i_err:
@@ -3322,14 +3855,18 @@ def upload_answer_sheet(request, current_user=None):
                 page_filepath = os.path.join(static_dir, page_filename)
                 with open(page_filepath, "wb") as f:
                     f.write(file_bytes)
-                saved_page_files.append((curr_page_num, f"{exam_id}/{user_id}/{page_filename}"))
+                saved_page_files.append(
+                    (curr_page_num, f"{exam_id}/{user_id}/{page_filename}")
+                )
                 curr_page_num += 1
         else:
             page_filename = f"page_{curr_page_num}.jpg"
             page_filepath = os.path.join(static_dir, page_filename)
             with open(page_filepath, "wb") as f:
                 f.write(file_bytes)
-            saved_page_files.append((curr_page_num, f"{exam_id}/{user_id}/{page_filename}"))
+            saved_page_files.append(
+                (curr_page_num, f"{exam_id}/{user_id}/{page_filename}")
+            )
             curr_page_num += 1
 
     # 2. Database transaction with retry on deadlock (40001 / 1205)
@@ -3338,29 +3875,42 @@ def upload_answer_sheet(request, current_user=None):
         db = SQLiteDB()
         session = db.connect()
         if not session:
-            return {"statusMessage": "Error connecting to database", "status": False}, 500
+            return {
+                "statusMessage": "Error connecting to database",
+                "status": False,
+            }, 500
 
         try:
             # Ensure or create Exam_Attempt for this user and paper exam
-            attempt = session.query(Exam_Attempt).filter(
-                Exam_Attempt.user_id == user_id,
-                or_(
-                    Exam_Attempt.schedule_id == exam_id,
-                    Exam_Attempt.schedule_id.in_(
-                        session.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam_id)
-                    )
+            attempt = (
+                session.query(Exam_Attempt)
+                .filter(
+                    Exam_Attempt.user_id == user_id,
+                    or_(
+                        Exam_Attempt.schedule_id == exam_id,
+                        Exam_Attempt.schedule_id.in_(
+                            session.query(ExamSchedule.schedule_id).filter(
+                                ExamSchedule.exam_id == exam_id
+                            )
+                        ),
+                    ),
                 )
-            ).first()
+                .first()
+            )
 
             if not attempt:
-                sched = session.query(ExamSchedule).filter(ExamSchedule.exam_id == exam_id).first()
+                sched = (
+                    session.query(ExamSchedule)
+                    .filter(ExamSchedule.exam_id == exam_id)
+                    .first()
+                )
                 schedule_id = str(sched.schedule_id) if sched else str(exam_id)
                 attempt = Exam_Attempt(
                     attempt_id=str(uuid.uuid4()),
                     user_id=user_id,
                     schedule_id=schedule_id,
                     status="in_progress",
-                    started_date=datetime.utcnow()
+                    started_date=datetime.utcnow(),
                 )
                 session.add(attempt)
                 session.flush()
@@ -3368,15 +3918,21 @@ def upload_answer_sheet(request, current_user=None):
             attempt_id = str(attempt.attempt_id)
 
             # Clean up old duplicate answer sheet pages for all attempts of this student and exam
-            all_attempt_rows = session.query(Exam_Attempt.attempt_id).filter(
-                Exam_Attempt.user_id == user_id,
-                or_(
-                    Exam_Attempt.schedule_id == exam_id,
-                    Exam_Attempt.schedule_id.in_(
-                        session.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam_id)
-                    )
+            all_attempt_rows = (
+                session.query(Exam_Attempt.attempt_id)
+                .filter(
+                    Exam_Attempt.user_id == user_id,
+                    or_(
+                        Exam_Attempt.schedule_id == exam_id,
+                        Exam_Attempt.schedule_id.in_(
+                            session.query(ExamSchedule.schedule_id).filter(
+                                ExamSchedule.exam_id == exam_id
+                            )
+                        ),
+                    ),
                 )
-            ).all()
+                .all()
+            )
             all_att_ids = [str(r[0]) for r in all_attempt_rows if r[0]]
             if attempt_id not in all_att_ids:
                 all_att_ids.append(attempt_id)
@@ -3393,20 +3949,24 @@ def upload_answer_sheet(request, current_user=None):
                     attempt_id=attempt.attempt_id,
                     page_number=pnum,
                     image_path=rel_img_path,
-                    created_date=datetime.utcnow()
+                    created_date=datetime.utcnow(),
                 )
                 session.add(page_obj)
-                created_pages.append({
-                    "page_id": str(page_obj.page_id),
-                    "page_number": pnum,
-                    "image_url": f"/edu/api/uploads/answer_sheets/{rel_img_path}"
-                })
+                created_pages.append(
+                    {
+                        "page_id": str(page_obj.page_id),
+                        "page_number": pnum,
+                        "image_url": f"/edu/api/uploads/answer_sheets/{rel_img_path}",
+                    }
+                )
 
             # Build question blueprint & rubric for AI visual evaluation
             sec_rows = (
                 session.query(ExamSection)
                 .filter(ExamSection.exam_id == exam_id)
-                .order_by(ExamSection.order_number.asc(), ExamSection.created_date.asc())
+                .order_by(
+                    ExamSection.order_number.asc(), ExamSection.created_date.asc()
+                )
                 .all()
             )
             rubric_sections = []
@@ -3417,14 +3977,18 @@ def upload_answer_sheet(request, current_user=None):
                     sec_id_str = str(sec.section_id)
                     sec_eqms = (
                         session.query(ExamQuestionMapping, Question)
-                        .join(Question, Question.question_id == ExamQuestionMapping.question_id)
+                        .join(
+                            Question,
+                            Question.question_id == ExamQuestionMapping.question_id,
+                        )
                         .filter(
                             ExamQuestionMapping.exam_id == exam_id,
                             or_(
                                 ExamQuestionMapping.section_id == sec_id_str,
                                 ExamQuestionMapping.section_id == sec.section_id,
-                                func.cast(ExamQuestionMapping.section_id, String) == sec_id_str,
-                            )
+                                func.cast(ExamQuestionMapping.section_id, String)
+                                == sec_id_str,
+                            ),
                         )
                         .order_by(ExamQuestionMapping.order_number.asc())
                         .all()
@@ -3433,42 +3997,65 @@ def upload_answer_sheet(request, current_user=None):
                     for eqm, q in sec_eqms:
                         if str(q.question_id) not in seen_qids_rubric:
                             seen_qids_rubric.add(str(q.question_id))
-                            options = session.query(Option).filter(Option.question_id == q.question_id).all()
-                            correct_opts = [opt for opt in options if str(opt.is_correct).lower() in ("1", "true")]
-                            model_ans = correct_opts[0].option_text if correct_opts else (options[0].option_text if options else "")
+                            options = (
+                                session.query(Option)
+                                .filter(Option.question_id == q.question_id)
+                                .all()
+                            )
+                            correct_opts = [
+                                opt
+                                for opt in options
+                                if str(opt.is_correct).lower() in ("1", "true")
+                            ]
+                            model_ans = (
+                                correct_opts[0].option_text
+                                if correct_opts
+                                else (options[0].option_text if options else "")
+                            )
                             q_entry = {
                                 "question_id": str(q.question_id),
                                 "question_number": len(seen_qids_rubric),
                                 "question_text": q.question_text,
                                 "question_type": q.question_type,
                                 "max_marks": float(q.marks or 1.0),
-                                "model_answer": model_ans
+                                "model_answer": model_ans,
                             }
-                            if q.question_type in ("choose", "multi", "scq", "mcq") and options:
+                            if (
+                                q.question_type in ("choose", "multi", "scq", "mcq")
+                                and options
+                            ):
                                 formatted_options = []
                                 correct_letters = []
                                 correct_texts = []
                                 for idx, opt in enumerate(options):
-                                    letter = chr(ord('a') + idx)
+                                    letter = chr(ord("a") + idx)
                                     opt_text = opt.option_text or ""
-                                    formatted_options.append({
-                                        "letter": letter,
-                                        "text": opt_text
-                                    })
-                                    if str(getattr(opt, 'is_correct', 0)).lower() in ("1", "true"):
+                                    formatted_options.append(
+                                        {"letter": letter, "text": opt_text}
+                                    )
+                                    if str(getattr(opt, "is_correct", 0)).lower() in (
+                                        "1",
+                                        "true",
+                                    ):
                                         correct_letters.append(letter)
                                         correct_texts.append(opt_text)
                                 q_entry["options"] = formatted_options
                                 if correct_letters:
-                                    q_entry["correct_option_letter"] = ", ".join(correct_letters)
+                                    q_entry["correct_option_letter"] = ", ".join(
+                                        correct_letters
+                                    )
                                 if correct_texts:
-                                    q_entry["correct_option_text"] = ", ".join(correct_texts)
+                                    q_entry["correct_option_text"] = ", ".join(
+                                        correct_texts
+                                    )
                             sec_q_list.append(q_entry)
                     if sec_q_list:
-                        rubric_sections.append({
-                            "section_name": sec.name or "Section",
-                            "questions": sec_q_list
-                        })
+                        rubric_sections.append(
+                            {
+                                "section_name": sec.name or "Section",
+                                "questions": sec_q_list,
+                            }
+                        )
 
             rem_eqms = (
                 session.query(ExamQuestionMapping, Question)
@@ -3481,47 +4068,59 @@ def upload_answer_sheet(request, current_user=None):
             for eqm, q in rem_eqms:
                 if str(q.question_id) not in seen_qids_rubric:
                     seen_qids_rubric.add(str(q.question_id))
-                    options = session.query(Option).filter(Option.question_id == q.question_id).all()
-                    correct_opts = [opt for opt in options if str(opt.is_correct).lower() in ("1", "true")]
-                    model_ans = correct_opts[0].option_text if correct_opts else (options[0].option_text if options else "")
+                    options = (
+                        session.query(Option)
+                        .filter(Option.question_id == q.question_id)
+                        .all()
+                    )
+                    correct_opts = [
+                        opt
+                        for opt in options
+                        if str(opt.is_correct).lower() in ("1", "true")
+                    ]
+                    model_ans = (
+                        correct_opts[0].option_text
+                        if correct_opts
+                        else (options[0].option_text if options else "")
+                    )
                     q_entry = {
                         "question_id": str(q.question_id),
                         "question_number": len(seen_qids_rubric),
                         "question_text": q.question_text,
                         "question_type": q.question_type,
                         "max_marks": float(q.marks or 1.0),
-                        "model_answer": model_ans
+                        "model_answer": model_ans,
                     }
                     if q.question_type in ("choose", "multi", "scq", "mcq") and options:
                         formatted_options = []
                         correct_letters = []
                         correct_texts = []
                         for idx, opt in enumerate(options):
-                            letter = chr(ord('a') + idx)
+                            letter = chr(ord("a") + idx)
                             opt_text = opt.option_text or ""
-                            formatted_options.append({
-                                "letter": letter,
-                                "text": opt_text
-                            })
-                            if str(getattr(opt, 'is_correct', 0)).lower() in ("1", "true"):
+                            formatted_options.append(
+                                {"letter": letter, "text": opt_text}
+                            )
+                            if str(getattr(opt, "is_correct", 0)).lower() in (
+                                "1",
+                                "true",
+                            ):
                                 correct_letters.append(letter)
                                 correct_texts.append(opt_text)
                         q_entry["options"] = formatted_options
                         if correct_letters:
-                            q_entry["correct_option_letter"] = ", ".join(correct_letters)
+                            q_entry["correct_option_letter"] = ", ".join(
+                                correct_letters
+                            )
                         if correct_texts:
                             q_entry["correct_option_text"] = ", ".join(correct_texts)
                     rem_q_list.append(q_entry)
             if rem_q_list:
-                rubric_sections.append({
-                    "section_name": "General",
-                    "questions": rem_q_list
-                })
+                rubric_sections.append(
+                    {"section_name": "General", "questions": rem_q_list}
+                )
 
-            exam_rubric = {
-                "exam_id": str(exam_id),
-                "sections": rubric_sections
-            }
+            exam_rubric = {"exam_id": str(exam_id), "sections": rubric_sections}
 
             # Absolute paths of saved page images for AI visual analysis
             page_image_paths = [
@@ -3547,27 +4146,34 @@ def upload_answer_sheet(request, current_user=None):
             pages_by_qnum = {}
 
             try:
-                from others.llm import vision_detect_question_anchors, vision_evaluate_answersheet, openai_client
+                from others.llm import (
+                    vision_detect_question_anchors,
+                    vision_evaluate_answersheet,
+                    openai_client,
+                )
+
                 client = openai_client()
 
                 # Phase 1: Visually detect physically written question numbers
                 detection_result = vision_detect_question_anchors(
-                    client,
-                    page_image_paths,
-                    exam_question_numbers=all_exam_q_nums
+                    client, page_image_paths, exam_question_numbers=all_exam_q_nums
                 )
 
                 uncertain_q_nums_set = set()
                 if detection_result and detection_result.get("status"):
                     for p in detection_result.get("pages", []):
                         p_num = p.get("page_number", 1)
-                        for q_entry in (p.get("questions") or p.get("detected_questions") or []):
+                        for q_entry in (
+                            p.get("questions") or p.get("detected_questions") or []
+                        ):
                             q_num = q_entry.get("question_number")
                             q_status = str(q_entry.get("status", "detected")).lower()
                             if q_num is not None:
                                 try:
                                     q_num_int = int(q_num)
-                                    pages_by_qnum.setdefault(q_num_int, []).append(p_num)
+                                    pages_by_qnum.setdefault(q_num_int, []).append(
+                                        p_num
+                                    )
                                     detected_q_nums_set.add(q_num_int)
                                     if q_status == "uncertain":
                                         uncertain_q_nums_set.add(q_num_int)
@@ -3588,21 +4194,26 @@ def upload_answer_sheet(request, current_user=None):
                 filtered_sections = []
                 for sec in rubric_sections:
                     filtered_qs = [
-                        q for q in sec.get("questions", [])
+                        q
+                        for q in sec.get("questions", [])
                         if int(q.get("question_number", 0)) in detected_q_nums_set
                     ]
                     if filtered_qs:
-                        filtered_sections.append({
-                            "section_name": sec.get("section_name", "Section"),
-                            "questions": filtered_qs
-                        })
+                        filtered_sections.append(
+                            {
+                                "section_name": sec.get("section_name", "Section"),
+                                "questions": filtered_qs,
+                            }
+                        )
 
                 if filtered_sections:
                     eval_rubric = {
                         "exam_id": str(exam_id),
-                        "sections": filtered_sections
+                        "sections": filtered_sections,
                     }
-                    ai_eval_result = vision_evaluate_answersheet(client, eval_rubric, page_image_paths)
+                    ai_eval_result = vision_evaluate_answersheet(
+                        client, eval_rubric, page_image_paths
+                    )
                     if ai_eval_result and ai_eval_result.get("status"):
                         for ev in ai_eval_result.get("evaluations", []):
                             if ev.get("question_id"):
@@ -3610,9 +4221,13 @@ def upload_answer_sheet(request, current_user=None):
                                 evaluations_by_qid[qid] = ev
                                 q_num_val = exam_q_num_by_qid.get(qid)
                                 if q_num_val and q_num_val in pages_by_qnum:
-                                    detected_pages_by_qid[qid] = pages_by_qnum[q_num_val]
+                                    detected_pages_by_qid[qid] = pages_by_qnum[
+                                        q_num_val
+                                    ]
                                 elif ev.get("detected_on_pages"):
-                                    detected_pages_by_qid[qid] = ev.get("detected_on_pages")
+                                    detected_pages_by_qid[qid] = ev.get(
+                                        "detected_on_pages"
+                                    )
 
             except Exception as eval_err:
                 print(f"AI evaluation warning in upload_answer_sheet: {eval_err}")
@@ -3624,17 +4239,29 @@ def upload_answer_sheet(request, current_user=None):
 
             # Persist genuine evaluation results without hardcoded defaults
             for qid_str in seen_qids_rubric:
-                q_obj = session.query(Question).filter(func.cast(Question.question_id, String) == qid_str).first()
+                q_obj = (
+                    session.query(Question)
+                    .filter(func.cast(Question.question_id, String) == qid_str)
+                    .first()
+                )
                 q_marks = float(q_obj.marks or 1.0) if q_obj else 1.0
 
-                existing_ans = session.query(Answer).filter(
-                    Answer.attempt_id == attempt.attempt_id,
-                    func.cast(Answer.question_id, String) == qid_str
-                ).first()
+                existing_ans = (
+                    session.query(Answer)
+                    .filter(
+                        Answer.attempt_id == attempt.attempt_id,
+                        func.cast(Answer.question_id, String) == qid_str,
+                    )
+                    .first()
+                )
 
                 q_num = exam_q_num_by_qid.get(qid_str)
-                is_detected = (q_num in detected_q_nums_set) if detected_q_nums_set else False
-                is_uncertain = (q_num in uncertain_q_nums_set) if uncertain_q_nums_set else False
+                is_detected = (
+                    (q_num in detected_q_nums_set) if detected_q_nums_set else False
+                )
+                is_uncertain = (
+                    (q_num in uncertain_q_nums_set) if uncertain_q_nums_set else False
+                )
                 manual_review = 1 if is_uncertain else 0
                 ev = evaluations_by_qid.get(qid_str) if is_detected else None
 
@@ -3644,31 +4271,75 @@ def upload_answer_sheet(request, current_user=None):
                     fb = ev.get("feedback") or ""
                     if is_uncertain:
                         conf = min(conf, 75)
-                    is_corr = int(ev.get("is_correct", 1 if awarded >= q_marks and q_marks > 0 else 0))
+                    is_corr = int(
+                        ev.get(
+                            "is_correct", 1 if awarded >= q_marks and q_marks > 0 else 0
+                        )
+                    )
                     is_val = 1
-                    detected_pages = detected_pages_by_qid.get(qid_str) or pages_by_qnum.get(q_num) or ev.get("detected_on_pages") or []
+                    detected_pages = (
+                        detected_pages_by_qid.get(qid_str)
+                        or pages_by_qnum.get(q_num)
+                        or ev.get("detected_on_pages")
+                        or []
+                    )
 
                     # Deterministic fallback check for objective MCQ/SCQ questions
-                    if q_obj and q_obj.question_type in ("choose", "multi", "scq", "mcq"):
-                        options = session.query(Option).filter(Option.question_id == q_obj.question_id).all()
-                        correct_opts = [opt for opt in options if str(getattr(opt, "is_correct", 0)).lower() in ("1", "true")]
-                        student_snippet_clean = (ev.get("student_answer_snippet") or "").strip().lower()
+                    if q_obj and q_obj.question_type in (
+                        "choose",
+                        "multi",
+                        "scq",
+                        "mcq",
+                    ):
+                        options = (
+                            session.query(Option)
+                            .filter(Option.question_id == q_obj.question_id)
+                            .all()
+                        )
+                        correct_opts = [
+                            opt
+                            for opt in options
+                            if str(getattr(opt, "is_correct", 0)).lower()
+                            in ("1", "true")
+                        ]
+                        student_snippet_clean = (
+                            (ev.get("student_answer_snippet") or "").strip().lower()
+                        )
 
                         if correct_opts and student_snippet_clean:
                             for idx, opt in enumerate(options):
-                                if str(getattr(opt, "is_correct", 0)).lower() in ("1", "true"):
-                                    letter = chr(ord('a') + idx)
+                                if str(getattr(opt, "is_correct", 0)).lower() in (
+                                    "1",
+                                    "true",
+                                ):
+                                    letter = chr(ord("a") + idx)
                                     opt_text = (opt.option_text or "").strip().lower()
-                                    letter_patterns = [letter, f"{letter})", f"({letter})", f"{letter}."]
+                                    letter_patterns = [
+                                        letter,
+                                        f"{letter})",
+                                        f"({letter})",
+                                        f"{letter}.",
+                                    ]
 
                                     is_match = False
                                     if student_snippet_clean in letter_patterns:
                                         is_match = True
                                     elif opt_text and student_snippet_clean == opt_text:
                                         is_match = True
-                                    elif opt_text and any(student_snippet_clean.startswith(pat) and opt_text in student_snippet_clean for pat in letter_patterns):
+                                    elif opt_text and any(
+                                        student_snippet_clean.startswith(pat)
+                                        and opt_text in student_snippet_clean
+                                        for pat in letter_patterns
+                                    ):
                                         is_match = True
-                                    elif opt_text and student_snippet_clean.endswith(opt_text) and any(student_snippet_clean.startswith(pat) for pat in letter_patterns):
+                                    elif (
+                                        opt_text
+                                        and student_snippet_clean.endswith(opt_text)
+                                        and any(
+                                            student_snippet_clean.startswith(pat)
+                                            for pat in letter_patterns
+                                        )
+                                    ):
                                         is_match = True
 
                                     if is_match:
@@ -3688,10 +4359,12 @@ def upload_answer_sheet(request, current_user=None):
                     manual_review = 0
 
                 student_snippet = ev.get("student_answer_snippet", "") if ev else ""
-                meta_payload = json.dumps({
-                    "detected_pages": detected_pages,
-                    "student_answer": student_snippet
-                })
+                meta_payload = json.dumps(
+                    {
+                        "detected_pages": detected_pages,
+                        "student_answer": student_snippet,
+                    }
+                )
 
                 if existing_ans:
                     existing_ans.marks_awarded = awarded
@@ -3716,7 +4389,7 @@ def upload_answer_sheet(request, current_user=None):
                         manual_review_required=manual_review,
                         feedback=fb,
                         is_validated=is_val,
-                        is_correct=is_corr
+                        is_correct=is_corr,
                     )
                     session.add(ans)
 
@@ -3726,14 +4399,17 @@ def upload_answer_sheet(request, current_user=None):
                         if val and val.lower() not in ("none", "null", "n/a", ""):
                             for c_item in val.split("|"):
                                 c_item_clean = c_item.strip()
-                                if c_item_clean and c_item_clean.lower() not in ("none", "null"):
+                                if c_item_clean and c_item_clean.lower() not in (
+                                    "none",
+                                    "null",
+                                ):
                                     rc = ExamReviewComments(
                                         comment_id=str(uuid.uuid4()),
                                         attempt_id=attempt.attempt_id,
                                         question_id=qid_str,
                                         comment_text=c_item_clean,
                                         category=cat,
-                                        reviewer_id=None
+                                        reviewer_id=None,
                                     )
                                     session.add(rc)
 
@@ -3747,20 +4423,27 @@ def upload_answer_sheet(request, current_user=None):
                 "data": {
                     "attempt_id": attempt_id,
                     "pages": created_pages,
-                    "total_pages": len(created_pages)
-                }
+                    "total_pages": len(created_pages),
+                },
             }, 200
 
         except Exception as e:
             session.rollback()
             session.close()
             err_str = str(e)
-            is_deadlock = "deadlock" in err_str.lower() or "1205" in err_str or "40001" in err_str
+            is_deadlock = (
+                "deadlock" in err_str.lower() or "1205" in err_str or "40001" in err_str
+            )
             if is_deadlock and attempt_retry < max_retries - 1:
                 time.sleep(0.3 * (attempt_retry + 1))
                 continue
-            print(f"Error in upload_answer_sheet: {err_str} - line {sys.exc_info()[-1].tb_lineno}")
-            return {"statusMessage": f"Error uploading answer sheet: {err_str}", "status": False}, 500
+            print(
+                f"Error in upload_answer_sheet: {err_str} - line {sys.exc_info()[-1].tb_lineno}"
+            )
+            return {
+                "statusMessage": f"Error uploading answer sheet: {err_str}",
+                "status": False,
+            }, 500
 
 
 def identify_student_from_answer_sheet(request, current_user=None):
@@ -3776,7 +4459,10 @@ def identify_student_from_answer_sheet(request, current_user=None):
     from others.llm import openai_client
 
     if "file" not in request.files and "files" not in request.files:
-        return {"statusMessage": "No file provided for identification", "status": False}, 400
+        return {
+            "statusMessage": "No file provided for identification",
+            "status": False,
+        }, 400
 
     uploaded_file = request.files.get("file") or request.files.get("files")
     if not uploaded_file or not uploaded_file.filename:
@@ -3798,18 +4484,22 @@ def identify_student_from_answer_sheet(request, current_user=None):
         session = db.connect()
         if session:
             try:
-                assigned_users = session.query(User).filter(
-                    User.user_id.in_(
-                        session.query(QuestionPaperUserAssignment.user_id).filter(
-                            QuestionPaperUserAssignment.exam_id == exam_id
+                assigned_users = (
+                    session.query(User)
+                    .filter(
+                        User.user_id.in_(
+                            session.query(QuestionPaperUserAssignment.user_id).filter(
+                                QuestionPaperUserAssignment.exam_id == exam_id
+                            )
                         )
                     )
-                ).all()
+                    .all()
+                )
                 students_roster = [
                     {
                         "user_id": str(u.user_id),
                         "name": u.full_name or u.user_name or "",
-                        "roll_no": getattr(u, "roll_no", "") or u.user_name or ""
+                        "roll_no": getattr(u, "roll_no", "") or u.user_name or "",
                     }
                     for u in assigned_users
                 ]
@@ -3829,6 +4519,7 @@ def identify_student_from_answer_sheet(request, current_user=None):
     if filename.endswith(".pdf"):
         try:
             import fitz
+
             doc = fitz.open(stream=file_bytes, filetype="pdf")
             for p_idx in range(len(doc)):
                 page = doc[p_idx]
@@ -3843,7 +4534,11 @@ def identify_student_from_answer_sheet(request, current_user=None):
         page_images.append((1, file_bytes, ""))
 
     if not page_images:
-        return {"status": True, "matched": False, "statusMessage": "No readable pages found in file"}, 200
+        return {
+            "status": True,
+            "matched": False,
+            "statusMessage": "No readable pages found in file",
+        }, 200
 
     # Step 1: Check text layer first if any (instant match)
     if students_roster:
@@ -3853,8 +4548,9 @@ def identify_student_from_answer_sheet(request, current_user=None):
                 for st in students_roster:
                     st_name = (st.get("name") or "").lower().strip()
                     st_roll = (st.get("roll_no") or "").lower().strip()
-                    if (st_name and len(st_name) >= 3 and st_name in norm_text) or \
-                       (st_roll and len(st_roll) >= 3 and st_roll in norm_text):
+                    if (st_name and len(st_name) >= 3 and st_name in norm_text) or (
+                        st_roll and len(st_roll) >= 3 and st_roll in norm_text
+                    ):
                         return {
                             "status": True,
                             "matched": True,
@@ -3863,14 +4559,18 @@ def identify_student_from_answer_sheet(request, current_user=None):
                             "student_name": st.get("name"),
                             "user_id": st.get("user_id"),
                             "roll_no": st.get("roll_no"),
-                            "confidence": 98
+                            "confidence": 98,
                         }, 200
 
     # Step 2: Use OpenAI Vision to visually inspect each page sequentially
     client = openai_client()
     if client.api_key:
         roster_summary = [
-            {"user_id": str(s.get("user_id")), "name": s.get("name"), "roll_no": s.get("roll_no")}
+            {
+                "user_id": str(s.get("user_id")),
+                "name": s.get("name"),
+                "roll_no": s.get("roll_no"),
+            }
             for s in students_roster
         ]
 
@@ -3881,9 +4581,9 @@ def identify_student_from_answer_sheet(request, current_user=None):
             "Instructions:\n"
             "1. Match the handwriting or text against the Candidate Students Roster.\n"
             "2. If you identify a student from the roster, return a JSON object:\n"
-            "   {\"matched\": true, \"student_name\": \"<Full Name>\", \"roll_no\": \"<Roll No>\", \"user_id\": \"<user_id>\", \"confidence\": 90, \"detected_text\": \"<text found>\"}\n"
+            '   {"matched": true, "student_name": "<Full Name>", "roll_no": "<Roll No>", "user_id": "<user_id>", "confidence": 90, "detected_text": "<text found>"}\n'
             "3. If this page has no student identity details or does not match the roster, return:\n"
-            "   {\"matched\": false, \"detected_text\": \"\"}\n"
+            '   {"matched": false, "detected_text": ""}\n'
             "4. Return ONLY the raw JSON object without markdown code blocks."
         )
 
@@ -3895,12 +4595,9 @@ def identify_student_from_answer_sheet(request, current_user=None):
                 user_content = [
                     {
                         "type": "text",
-                        "text": f"Inspect Page {page_num} of this answer sheet for student name or roll number matching the roster."
+                        "text": f"Inspect Page {page_num} of this answer sheet for student name or roll number matching the roster.",
                     },
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": data_uri}
-                    }
+                    {"type": "image_url", "image_url": {"url": data_uri}},
                 ]
 
                 response = client.chat_completion(
@@ -3908,14 +4605,16 @@ def identify_student_from_answer_sheet(request, current_user=None):
                     InputData=user_content,
                     aimodel=1,
                     max_tokens=300,
-                    temperature=0.1
+                    temperature=0.1,
                 )
 
                 if response.status_code == 200:
                     resp_data = response.json()
                     choices = resp_data.get("choices", [])
                     if choices:
-                        raw_content = choices[0].get("message", {}).get("content", "").strip()
+                        raw_content = (
+                            choices[0].get("message", {}).get("content", "").strip()
+                        )
                         if raw_content.startswith("```"):
                             lines = raw_content.splitlines()
                             if lines[0].startswith("```"):
@@ -3943,7 +4642,7 @@ def identify_student_from_answer_sheet(request, current_user=None):
                                 "user_id": parsed.get("user_id"),
                                 "roll_no": parsed.get("roll_no"),
                                 "confidence": parsed.get("confidence", 90),
-                                "detected_text": parsed.get("detected_text", "")
+                                "detected_text": parsed.get("detected_text", ""),
                             }, 200
             except Exception as page_vision_err:
                 print(f"Vision inspection error on page {page_num}: {page_vision_err}")
@@ -3952,7 +4651,5 @@ def identify_student_from_answer_sheet(request, current_user=None):
     return {
         "status": True,
         "matched": False,
-        "statusMessage": "No student identity recognized on any page of this document."
+        "statusMessage": "No student identity recognized on any page of this document.",
     }, 200
-
-

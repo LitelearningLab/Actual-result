@@ -302,7 +302,7 @@
                 appearance="outline"
                 [ngClass]="isSuperAdmin ? 'field-half' : 'field-full'"
               >
-                <mat-label>Name</mat-label>
+                <mat-label>Question Bank Name</mat-label>
                 <mat-icon matPrefix>edit</mat-icon>
                 <input
                   matInput
@@ -343,9 +343,10 @@
               </mat-form-field>
             </div>
 
-            <!-- Subject Field -->
+            <!-- Subject and Type Row -->
             <div class="field-row">
-              <mat-form-field appearance="outline" class="field-full">
+              <!-- Subject Field -->
+              <mat-form-field appearance="outline" class="field-half">
                 <mat-label>Subject</mat-label>
                 <mat-icon matPrefix>menu_book</mat-icon>
                 <mat-select
@@ -378,27 +379,10 @@
                   Please select an institute to load its subjects
                 </mat-hint>
               </mat-form-field>
-            </div>
 
-            <div class="field-row">
-              <div class="field-half">
-                <mat-form-field appearance="outline" class="field-full">
-                  <mat-label>Description</mat-label>
-                  <mat-icon matPrefix>description</mat-icon>
-                  <textarea
-                    matInput
-                    [value]="description"
-                    maxlength="150"
-                    rows="3"
-                    (input)="setDescription($any($event.target).value)"
-                    placeholder="Optional description"
-                  ></textarea>
-                  <mat-hint align="end">{{ (description || '').length }}/150</mat-hint>
-                </mat-form-field>
-              </div>
-
+              <!-- Type Field -->
               <mat-form-field appearance="outline" class="field-half">
-                <mat-label>Type</mat-label>
+                <mat-label>Question Type</mat-label>
                 <mat-icon matPrefix>category</mat-icon>
                 <mat-select
                   required
@@ -411,8 +395,25 @@
                 <mat-hint
                   class="field-error"
                   *ngIf="(formSubmitted || categoryInfoSubmitted) && isTypeInvalid()"
-                  >Type is required.</mat-hint
+                  >Question Type is required.</mat-hint
                 >
+              </mat-form-field>
+            </div>
+
+            <!-- Description Field -->
+            <div class="field-row">
+              <mat-form-field appearance="outline" class="field-full">
+                <mat-label>Description</mat-label>
+                <mat-icon matPrefix>description</mat-icon>
+                <textarea
+                  matInput
+                  [value]="description"
+                  maxlength="150"
+                  rows="3"
+                  (input)="setDescription($any($event.target).value)"
+                  placeholder="Optional description"
+                ></textarea>
+                <mat-hint align="end">{{ (description || '').length }}/150</mat-hint>
               </mat-form-field>
             </div>
           </div>
