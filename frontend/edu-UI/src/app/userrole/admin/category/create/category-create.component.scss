@@ -50,7 +50,7 @@ $shadow-md: 0 4px 12px rgba(0,0,0,0.06);
 }
 
 /* ── Step actions ── */
-.prev-btn,.next-btn { display:inline-flex; align-items:center; gap:0.375rem; font:500 0.85rem/1 inherit; border-radius:0.5rem; padding:0.5rem 1rem; transition:all 0.25s $ease; }
+.prev-btn,.next-btn,.btn-cancel { display:inline-flex; align-items:center; gap:0.375rem; font:500 0.85rem/1 inherit; border-radius:0.5rem !important; padding:0.5rem 1rem; transition:all 0.25s $ease; }
 .prev-btn:hover,.next-btn:hover { background:var(--theme-3-hanover-bg); }
 .next-btn { color:var(--button-1); }
 .submit-btn { display:inline-flex; align-items:center; gap:0.375rem; font:600 0.9rem/1 inherit; border-radius:0.5rem; padding:0 1.25rem; min-height:2.5rem; }

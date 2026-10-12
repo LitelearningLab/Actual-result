@@ -1,14 +1,5 @@
 <div class="page category-create">
-  <!-- ── Top Toolbar ── -->
-  <div class="toolbar">
-    <div class="title"></div>
-    <div class="form-actions">
-      <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="cancel()">
-        <mat-icon>arrow_back</mat-icon>
-        <span>Cancel</span>
-      </button>
-    </div>
-  </div>
+
 
   <!-- ── Form Card ── -->
   <div class="form-card">
@@ -420,11 +411,17 @@
 
           <div class="form-actions">
             <span></span>
-            <button mat-button type="button" class="next-btn" (click)="goToAccessStep(stepper)">
-              <span>Next</span>
-              <mat-icon>arrow_forward</mat-icon>
-            </button>
-          </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="cancel()">
+                <mat-icon>arrow_back</mat-icon>
+                <span>Cancel</span>
+              </button>
+              <button mat-button type="button" class="next-btn" (click)="goToAccessStep(stepper)">
+                <span>Next</span>
+                <mat-icon>arrow_forward</mat-icon>
+              </button>
+            </div>
+          </div>        
         </div>
       </mat-step>
 
@@ -585,9 +582,7 @@
                   >Status is required.</mat-hint
                 >
               </mat-form-field>
-            </div>
 
-            <div class="field-row">
               <mat-form-field appearance="outline" class="field-half">
                 <mat-label>Access</mat-label>
                 <mat-icon matPrefix>public</mat-icon>
@@ -596,8 +591,8 @@
                   <mat-option [value]="false">Limited</mat-option>
                 </mat-select>
               </mat-form-field>
-              <div class="field-half"></div>
             </div>
+
           </div>
 
           <div class="form-actions">
@@ -605,11 +600,18 @@
               <mat-icon>arrow_back</mat-icon>
               <span>Back</span>
             </button>
-            <button mat-button type="button" class="next-btn" (click)="goToReviewStep(stepper)">
-              <span>Next</span>
-              <mat-icon>arrow_forward</mat-icon>
-            </button>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="cancel()">
+                <mat-icon>arrow_back</mat-icon>
+                <span>Cancel</span>
+              </button>
+              <button mat-button type="button" class="next-btn" (click)="goToReviewStep(stepper)">
+                <span>Next</span>
+                <mat-icon>arrow_forward</mat-icon>
+              </button>
+            </div>
           </div>
+
         </div>
       </mat-step>
 
@@ -692,17 +694,24 @@
               <mat-icon>arrow_back</mat-icon>
               <span>Back</span>
             </button>
-            <button
-              mat-flat-button
-              color="primary"
-              (click)="save()"
-              type="button"
-              class="submit-btn"
-            >
-              <mat-icon>save</mat-icon>
-              <span>{{ isEditing ? 'Update' : 'Create Question Bank' }}</span>
-            </button>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="cancel()">
+                <mat-icon>arrow_back</mat-icon>
+                <span>Cancel</span>
+              </button>
+              <button
+                mat-flat-button
+                color="primary"
+                (click)="save()"
+                type="button"
+                class="submit-btn"
+              >
+                <mat-icon>save</mat-icon>
+                <span>{{ isEditing ? 'Update' : 'Create Question Bank' }}</span>
+              </button>
+            </div>
           </div>
+
         </div>
       </mat-step>
     </mat-horizontal-stepper>
