@@ -1737,6 +1737,61 @@
   </div>
 </div>
 
+<!-- ═══ Post-Save Action Popup ═══ -->
+<div
+  *ngIf="showPostSavePopup"
+  class="post-save-modal-backdrop"
+  (click)="onCloseSavedQuestions()"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="post-save-modal-title"
+>
+  <div class="post-save-modal-card" (click)="$event.stopPropagation()">
+    <div class="post-save-header">
+      <div class="post-save-icon-circle">
+        <mat-icon>check_circle</mat-icon>
+      </div>
+      <h3 id="post-save-modal-title" class="post-save-title">Questions Saved Successfully</h3>
+      <p class="post-save-subtitle">
+        Your questions have been successfully saved to the Question Bank. Please choose an action below:
+      </p>
+    </div>
+
+    <div class="post-save-actions">
+      <button
+        type="button"
+        mat-flat-button
+        color="primary"
+        class="post-save-btn btn-create-test"
+        (click)="onCreateTest()"
+      >
+        <mat-icon>assignment_add</mat-icon>
+        <span>Create Test</span>
+      </button>
+
+      <button
+        type="button"
+        mat-stroked-button
+        class="post-save-btn btn-preview"
+        (click)="onPreviewSavedQuestions()"
+      >
+        <mat-icon>visibility</mat-icon>
+        <span>Preview</span>
+      </button>
+
+      <button
+        type="button"
+        mat-button
+        class="post-save-btn btn-close"
+        (click)="onCloseSavedQuestions()"
+      >
+        <mat-icon>close</mat-icon>
+        <span>Close</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- One Floating Draggable Math Tools Toolbar -->
 <app-math-quick-tools
   [targetElement]="activeMathTargetElement"

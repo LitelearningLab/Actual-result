@@ -142,6 +142,8 @@ export class AdminQuestionsComponent {
   aiPrompt: string = '';
   // live preview / generated content
   generatedQuestions: Array<any> = [];
+  isAiGeneratedFlow: boolean = false;
+  showPostSavePopup: boolean = false;
   savedQuestionTexts: Set<string> = new Set<string>();
   private aiAnswerGenerationPending = false;
   showPreview: boolean = true;
@@ -1062,6 +1064,7 @@ export class AdminQuestionsComponent {
               };
             });
             this.generatedQuestions = normalized;
+            this.isAiGeneratedFlow = true;
             // Also immediately load generated questions into the editable questions list so they appear in the questions-list
             try {
               const selectedInstituteId = this.questions?.[0]?.institute_id || '';
@@ -3473,6 +3476,7 @@ export class AdminQuestionsComponent {
                     const normText = (q.text || '').trim().toLowerCase();
                     if (normText) this.savedQuestionTexts.add(normText);
                   });
+                  this.showPostSavePopup = true;
                 }
               } catch (e) {}
               // Keep questions intact on screen after saving
@@ -3549,6 +3553,26 @@ export class AdminQuestionsComponent {
     if (this.previewModalImage) {
       this.closeImageModal();
     }
+    if (this.showPostSavePopup) {
+      this.showPostSavePopup = false;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // Post-Save Action Handlers (Create Test, Preview, Close)
+  // ══════════════════════════════════════════════════════
+  onCreateTest(): void {
+    this.showPostSavePopup = false;
+    this.router.navigate(['/create-exam']);
+  }
+
+  onPreviewSavedQuestions(): void {
+    this.showPostSavePopup = false;
+  }
+
+  onCloseSavedQuestions(): void {
+    this.showPostSavePopup = false;
+    this.goBackToQuestions();
   }
 
   // ══════════════════════════════════════════════════════
