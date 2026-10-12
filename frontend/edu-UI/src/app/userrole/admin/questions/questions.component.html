@@ -978,8 +978,11 @@
         </div>
       </div>
 
-      <!-- ═══ Manual Questions Section ═══ -->
-      <div class="section-block questions-section relative" *ngIf="activeMode == 'manual'">
+      <!-- ═══ Questions Section ═══ -->
+      <div
+        class="section-block questions-section relative"
+        *ngIf="activeMode == 'manual' || (activeMode == 'ai' && (generatedQuestions?.length || isAiGeneratedFlow))"
+      >
         <!-- Scoped Loader Overlay for Questions Section -->
         <div
           *ngIf="isQuestionsLoading"

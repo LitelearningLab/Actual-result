@@ -1091,8 +1091,8 @@ export class AdminQuestionsComponent {
               this.aiAnswerGenerationPending = true;
               this.hasGeneratedQuestionsWithoutAnswers = true;
               this.mode = 'manual';
-              // this.aiMode = false;
-              this.activeMode = 'manual';
+              this.aiMode = true;
+              this.activeMode = 'ai';
               // ensure new question textareas resize to fit generated content
               setTimeout(() => {
                 try {
@@ -2535,6 +2535,7 @@ export class AdminQuestionsComponent {
     this.isGenerating = false;
     this.hasGeneratedQuestionsWithoutAnswers = false;
     this.generatedQuestions = [];
+    this.isAiGeneratedFlow = false;
     this.plaintextEditor = false;
 
     // 2. Reset Bulk Upload Details
