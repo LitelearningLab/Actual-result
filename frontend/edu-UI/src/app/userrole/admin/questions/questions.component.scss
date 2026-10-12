@@ -279,22 +279,27 @@ button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min
   align-items: center;
   justify-content: center;
   color: var(--button-1) !important;
-  background: rgba(31, 123, 255, 0.08);
+  background: transparent !important; /* Removes the light blue background */
+  padding: 0 !important;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
   border-radius: 0.5rem;
 }
 .fine-tune-btn:hover {
-  background: rgba(31, 123, 255, 0.12);
+  background: rgba(31, 123, 255, 0.08) !important; /* Subtle hover effect (or change to 'transparent !important' if you want no hover background at all) */
 }
 
 /* Masks the black PNG using the app's exact primary blue color (#1f7bff) */
 .ai-custom-icon {
   display: inline-block;
-  width: 20px;
-  height: 20px;
+  width: 30px;  /* Increased size (can be adjusted to 28px if needed) */
+  height: 30px;
   background-color: var(--button-1, #1f7bff);
   -webkit-mask: url('/assets/images/ai_icon.png') no-repeat center / contain;
   mask: url('/assets/images/ai_icon.png') no-repeat center / contain;
 }
+
 
 
 /* ── Mode select & bulk ── */
