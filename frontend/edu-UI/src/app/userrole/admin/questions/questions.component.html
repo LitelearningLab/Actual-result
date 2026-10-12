@@ -706,7 +706,7 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="field-half" *ngIf="hasCategorySettings()">
-              <mat-label>Quiz Type</mat-label>
+              <mat-label>Question Type</mat-label>
               <mat-select [(ngModel)]="aiQuestionType">
                 <mat-option value="">Select type</mat-option>
                 <mat-option *ngFor="let t of filteredQuestionTypes" [value]="t.value">{{

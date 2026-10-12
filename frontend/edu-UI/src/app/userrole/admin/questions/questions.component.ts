@@ -2497,10 +2497,13 @@ export class AdminQuestionsComponent {
     this.aiUserRole = '';
     this.aiTargetUsers = '';
     this.aiQuestionNumber = 5;
+    const catType = this.normalizeCategoryType(selectedCat?.type);
+    this.aiQuestionType = catType === 'descriptive' ? 'descriptive' : '';
     this.isGenerating = false;
     this.hasGeneratedQuestionsWithoutAnswers = false;
     this.generatedQuestions = [];
     this.plaintextEditor = false;
+
 
     // 2. Reset Bulk Upload Details
     this.selectedBulkFile = null;
@@ -2508,13 +2511,13 @@ export class AdminQuestionsComponent {
 
     // 3. Reset Manual Questions List to a fresh single question matching the category
     const defaultMark = this.getCategoryQuestionMark(selectedCat) ?? 1;
-    const catType = this.normalizeCategoryType(selectedCat?.type);
     const defaultType: string =
       catType === 'objective'
         ? 'choose'
         : catType === 'descriptive'
           ? 'descriptive'
           : '';
+
 
     this.questions = [
       {
@@ -2689,14 +2692,26 @@ export class AdminQuestionsComponent {
     } catch (e) {}
   }
   private enforceQuestionTypeForSelectedCategory() {
+    const catType = this.normalizeCategoryType(this.selectedCategory?.type);
     const allowed = new Set(this.filteredQuestionTypes.map((t) => t.value));
     try {
-      if (this.aiQuestionType && !allowed.has(this.aiQuestionType)) this.aiQuestionType = '';
+      if (catType === 'descriptive') {
+        this.aiQuestionType = 'descriptive';
+      } else if (this.aiQuestionType && !allowed.has(this.aiQuestionType)) {
+        this.aiQuestionType = '';
+      }
       (this.questions || []).forEach((q: any) => {
-        if (!this.isEditing && q?.type && !allowed.has(q.type)) q.type = '';
+        if (!this.isEditing) {
+          if (catType === 'descriptive') {
+            q.type = 'descriptive';
+          } else if (q?.type && !allowed.has(q.type)) {
+            q.type = '';
+          }
+        }
       });
     } catch (e) {}
   }
+
 
   private clearQuestionTypes() {
     try {
