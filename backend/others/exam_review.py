@@ -842,7 +842,13 @@ def validate_answers(attempt_id):
                         written_text=student_text
                     )
                 else:
-                    evaluation = descriptive_evaluation(openai_client_instance, question_mark, expected_answer, student_text or raw_answer)
+                    evaluation = descriptive_evaluation(
+                        openai_client_instance,
+                        question_mark,
+                        expected_answer,
+                        student_text or raw_answer,
+                        question_text=question.question_text if question else ""
+                    )
 
                 if not evaluation.get("status", False):
                     # Keep the answer retryable, but persist a visible diagnostic instead
@@ -886,6 +892,13 @@ def validate_answers(attempt_id):
                     ans.written_answer = json.dumps(parsed_ans)
 
                 session.add(ans)
+
+                # Clear prior automated review comments for this question and attempt
+                session.query(ExamReviewComments).filter(
+                    ExamReviewComments.attempt_id == attempt_id,
+                    ExamReviewComments.question_id == question_id,
+                    ExamReviewComments.reviewer_id == 'cac37fab-4de6-4792-969b-96e57e3c910a'
+                ).delete(synchronize_session=False)
 
                 # update ExamReviewComments table category wise comments
                 for key in ["missing", "incomplete", "incorrect"]:

@@ -68,34 +68,43 @@ class openai_client:
         except httpx.RequestError as exc:
             response = _ErrorResponse(502, str(exc))
         return response
-def descriptive_evaluation(api_client, question_mark, expected_answer, student_answer):
+def descriptive_evaluation(api_client, question_mark, expected_answer, student_answer, question_text=""):
     system_message = '''You are an automated, impartial, and expert academic answer evaluator. Always respond ONLY with a single, valid JSON object (no markdown, no surrounding text). Follow these rules:
         1. Output exactly the JSON object described in the user instructions and nothing else.
-        2. QUESTION INTENT & REQUIRED CONCEPTS (HIGHEST PRIORITY):
-           - Evaluate whether the student's answer ACTUALLY ANSWERS THE QUESTION, not merely discusses the general subject or topic.
-           - Do NOT award marks merely because the student discusses the general topic or uses domain keywords if the specific question is not answered.
-           - Full marks require directly addressing the question intent and covering ~90% or more of the required answer concepts.
-           - If the answer is topic-related but does not address the required answer concepts, award 0 or minimal partial marks.
-        3. Semantic meaning, not exact wording: Accept synonyms, alternative valid phrasing, and simple language when the intended meaning is correct.
-        4. For lists (missing, incomplete, incorrect) return either "None" or a pipe-separated string '|' of short phrases.
-        5. The `feedback` must be concise (1-2 short sentences):
-           - Fully correct: state what concept was correctly explained.
-           - Partially correct: state what was correct and what specific required concept was missing.
-           - Topic-related but unanswered: explain that it discusses the broad topic without answering the specific question, and state what was required.
-           - Incorrect: state what was incorrect and briefly give the correct concept.
-        6. Include an integer field `ai_confidence` in the JSON output (0-100) representing confidence in this evaluation.'''
+        2. QUESTION INTENT & GROUNDING (HIGHEST PRIORITY):
+           - Evaluate the candidate's answer against the specific Question Asked.
+           - Ensure the student addresses the specific question prompt, not merely the broad topic.
+           - Full marks require directly fulfilling the core requirements asked by the question.
+        3. ILLUSTRATIVE REFERENCE SOLUTIONS VS MANDATORY IDENTIFIERS:
+           - The "Expected Answer Key Points / Reference Solution" often provides ONE illustrative sample solution (e.g. using specific class names like `Dog`, method names like `bark()`, or specific variable names).
+           - Unless the Question Asked EXPLICITLY mandates a specific class name, method name, or example, ANY valid, functionally correct implementation (e.g., using `Student`, `Car`, `Calculator`, or any custom class/method names) that demonstrates the required concept MUST be accepted and awarded full marks for that concept.
+           - NEVER penalize a student, mark points as missing/incomplete/incorrect, or claim in feedback that specific class names, method names, or illustrative examples from the reference answer (such as `Dog` or `bark()`) are missing or required, unless the Question Asked explicitly demanded them.
+        4. SEMANTIC EVALUATION & ALTERNATIVE VALID APPROACHES:
+           - Evaluate semantic understanding and correctness, not verbatim keyword matching.
+           - Accept valid alternative approaches, synonyms, and different but correct programming examples.
+        5. POINT CATEGORIZATION (STRICT SEPARATION):
+           - "missing": List ONLY essential concepts or requirements directly demanded by the Question (or fundamental to the concept) that the student completely omitted. Return "None" if nothing essential is missing.
+           - "incomplete": List ONLY concepts that the student actually attempted and wrote about, but explained partially, vaguely, or left unfinished. Do NOT list completely omitted concepts here. Return "None" if nothing is incomplete.
+           - "incorrect": List ONLY statements, logic, or syntax that are factually wrong, buggy, or invalid. Do NOT treat using a different valid example/class name as incorrect. Return "None" if nothing is incorrect.
+           - Separate distinct points with a pipe character '|'. Do NOT combine multiple distinct points into one phrase.
+        6. FEEDBACK:
+           - Concise (1-2 sentences), student-friendly feedback explaining what was correct and what (if anything) was missing or incorrect.
+           - Feedback MUST be strictly consistent with the actual Question Asked and candidate's answer. Never mention unrequested reference example details (like a Dog class or bark method).
+        7. CONFIDENCE:
+           - Include an integer field `ai_confidence` in the JSON output (0-100) representing confidence in this evaluation.'''
     
+    q_section = f"**Question Asked:** {question_text}\n        " if question_text else ""
     user_message = f'''
-        Evaluate the candidate's answer for the following topic:
-        **Question Marking Scheme / Max Marks:** {question_mark}
-        **Expected Answer Key Points & Rubric:** {expected_answer}
+        Evaluate the candidate's answer for the following question:
+        {q_section}**Question Marking Scheme / Max Marks:** {question_mark}
+        **Expected Answer Key Points / Reference Solution:** {expected_answer}
         **Candidate's Answer:** {student_answer}
         
-        Evaluate in this sequence:
-        1. Identify the specific question intent and required answer concepts.
-        2. Check if candidate's answer directly answers the question or merely mentions the topic.
-        3. Determine coverage of required concepts (~90%+ for full marks, proportional for partial, 0 if off-target/topic-only).
-        4. Provide crisp feedback and confidence.
+        Evaluation instructions:
+        1. Check if the candidate's answer satisfies the core requirements asked in the Question.
+        2. Treat the Reference Solution as an illustrative guide: accept any valid equivalent example or implementation unless the Question explicitly mandated specific names or examples.
+        3. Award marks proportionally based on demonstrated correctness and understanding.
+        4. Categorize any genuine issues strictly into missing, incomplete, or incorrect.
         
         Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
         {{
@@ -678,8 +687,10 @@ PHASE 2 QUESTION-SPECIFIC EVALUATION RULES:
    - NEVER use or borrow content written under adjacent questions to award marks.
 
 3. INDEPENDENT POINT-BY-POINT RUBRIC EVALUATION:
-   - Break down the question's model answer / rubric into its distinct, individual credit-bearing points/criteria.
-   - Evaluate the student's handwritten answer against each distinct rubric point independently.
+   - Break down the question's core concepts from the question prompt and rubric into distinct, credit-bearing points.
+   - ILLUSTRATIVE EXAMPLES VS MANDATORY REQUIREMENTS:
+     * If the model answer or rubric provides a sample example (e.g., a specific class like Dog, a specific method like bark(), or specific variable names), do NOT require those specific names unless the Question Text explicitly asked for them.
+     * Any valid, functionally correct example or approach (e.g. Student, Car, etc.) that demonstrates the requested concept must be awarded full credit for that concept.
    - Each question has a maximum of 2 marks (or max_marks specified in rubric).
    - "suggested_marks": Award numeric marks between 0.0 and max_marks strictly proportional to the demonstrated rubric points:
      * Full marks (e.g. 2.0/2.0): All essential rubric concepts are clearly and correctly addressed.
@@ -689,7 +700,8 @@ PHASE 2 QUESTION-SPECIFIC EVALUATION RULES:
 4. STRICT CATEGORIZATION OF REVIEW POINTS (PIPE-SEPARATED FORMAT):
 
    A. "missing" (Points Missed):
-      - Must contain EVERY distinct rubric point/concept that the student completely failed to mention.
+      - Must contain EVERY distinct required concept/criterion that the student completely failed to mention.
+      - Do NOT list illustrative sample names from the model answer (such as 'Dog class' or 'bark method') as missing if the student provided another valid example demonstrating the concept.
       - ATOMIZE distinct concepts: Each missing point must be a separate, standalone item separated by the pipe character '|'.
       - CRITICAL: NEVER group or combine multiple distinct concepts into one umbrella/generic phrase.
         * CORRECT example: "Encapsulation|Abstraction|Inheritance|Polymorphism"
@@ -701,11 +713,13 @@ PHASE 2 QUESTION-SPECIFIC EVALUATION RULES:
    B. "incomplete" (Points Incomplete):
       - Include ONLY concepts or steps that the student actually attempted and wrote about, but left partially explained, unfinished, or lacking critical detail.
       - Do NOT place completely omitted concepts here (those belong exclusively in "missing").
+      - Do NOT mark a valid alternative example as incomplete merely because it differs from the sample answer.
       - Return distinct incomplete points separated by '|'.
       - If no points are incomplete, return exactly "None".
 
    C. "incorrect" (Points Incorrect):
       - Include ONLY statements or calculations written by the student that are factually wrong, contradictory, or invalid.
+      - Do NOT treat using a different valid class name or method name (e.g. 'Class name is Car instead of Dog') as incorrect unless the Question explicitly mandated that specific name.
       - Do NOT put missing concepts or omitted steps into "incorrect".
       - Return distinct incorrect statements separated by '|'.
       - If there are no incorrect statements, return exactly "None".
