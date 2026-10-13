@@ -2094,9 +2094,17 @@
                                         <div class="ri-left">
                                           <span class="ri-icon missed">{{ rci + 1 }}</span>
                                         </div>
-                                        <span class="review-text deleted">{{
-                                          toTitleCase(h.comment_text || h.comment || '')
-                                        }}</span>
+                                        <div class="review-point-content deleted">
+                                          <ng-container *ngIf="parseCard(h.comment_text || h.comment) as card; else plainHMissed">
+                                            <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                                            <div class="point-solution">
+                                              {{ card.label }} : <span>{{ card.solution }}</span>
+                                            </div>
+                                          </ng-container>
+                                          <ng-template #plainHMissed>
+                                            <span class="review-text deleted">{{ formatCardText(h.comment_text || h.comment) }}</span>
+                                          </ng-template>
+                                        </div>
                                       </div>
                                       <div *ngIf="h._editing" class="review-text-missed editing">
                                         <div class="ri-left">
@@ -2175,9 +2183,17 @@
                                   <div class="ri-left">
                                     <span class="ri-icon missed">{{ rci + 1 }}</span>
                                   </div>
-                                  <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{
-                                    toTitleCase(rc.comment_text || rc.comment || '')
-                                  }}</span>
+                                  <div class="review-point-content" [class.deleted]="rc.is_deleted == 1">
+                                    <ng-container *ngIf="parseCard(rc.comment_text || rc.comment) as card; else plainRcMissed">
+                                      <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                                      <div class="point-solution">
+                                        {{ card.label }} : <span>{{ card.solution }}</span>
+                                      </div>
+                                    </ng-container>
+                                    <ng-template #plainRcMissed>
+                                      <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{ formatCardText(rc.comment_text || rc.comment) }}</span>
+                                    </ng-template>
+                                  </div>
                                 </div>
                                 <div *ngIf="rc._editing" class="review-text-missed editing">
                                   <div class="ri-left">
@@ -2271,9 +2287,17 @@
                                         <div class="ri-left">
                                           <span class="ri-icon incorrect">{{ hi + 1 }}</span>
                                         </div>
-                                        <span class="review-text deleted">{{
-                                          toTitleCase(h.comment_text || h.comment || '')
-                                        }}</span>
+                                        <div class="review-point-content deleted">
+                                          <ng-container *ngIf="parseCard(h.comment_text || h.comment) as card; else plainHIncorr">
+                                            <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                                            <div class="point-solution">
+                                              {{ card.label }} : <span>{{ card.solution }}</span>
+                                            </div>
+                                          </ng-container>
+                                          <ng-template #plainHIncorr>
+                                            <span class="review-text deleted">{{ formatCardText(h.comment_text || h.comment) }}</span>
+                                          </ng-template>
+                                        </div>
                                       </div>
                                       <div *ngIf="h._editing" class="review-text-incorrect editing">
                                         <div class="ri-left">
@@ -2352,9 +2376,17 @@
                                   <div class="ri-left">
                                     <span class="ri-icon incorrect">{{ rci + 1 }}</span>
                                   </div>
-                                  <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{
-                                    toTitleCase(rc.comment_text || rc.comment || '')
-                                  }}</span>
+                                  <div class="review-point-content" [class.deleted]="rc.is_deleted == 1">
+                                    <ng-container *ngIf="parseCard(rc.comment_text || rc.comment) as card; else plainRcIncorr">
+                                      <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                                      <div class="point-solution">
+                                        {{ card.label }} : <span>{{ card.solution }}</span>
+                                      </div>
+                                    </ng-container>
+                                    <ng-template #plainRcIncorr>
+                                      <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{ formatCardText(rc.comment_text || rc.comment) }}</span>
+                                    </ng-template>
+                                  </div>
                                 </div>
                                 <div *ngIf="rc._editing" class="review-text-incorrect editing">
                                   <div class="ri-left">
@@ -2446,9 +2478,17 @@
                                         <div class="ri-left">
                                           <span class="ri-icon incomplete">{{ hi + 1 }}</span>
                                         </div>
-                                        <span class="review-text deleted">{{
-                                          toTitleCase(h.comment_text || h.comment || '')
-                                        }}</span>
+                                        <div class="review-point-content deleted">
+                                          <ng-container *ngIf="parseCard(h.comment_text || h.comment) as card; else plainHIncomp">
+                                            <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                                            <div class="point-solution">
+                                              {{ card.label }} : <span>{{ card.solution }}</span>
+                                            </div>
+                                          </ng-container>
+                                          <ng-template #plainHIncomp>
+                                            <span class="review-text deleted">{{ formatCardText(h.comment_text || h.comment) }}</span>
+                                          </ng-template>
+                                        </div>
                                       </div>
                                       <div
                                         *ngIf="h._editing"
@@ -2530,9 +2570,17 @@
                                   <div class="ri-left">
                                     <span class="ri-icon incomplete">{{ rci + 1 }}</span>
                                   </div>
-                                  <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{
-                                    toTitleCase(rc.comment_text || rc.comment || '')
-                                  }}</span>
+                                  <div class="review-point-content" [class.deleted]="rc.is_deleted == 1">
+                                    <ng-container *ngIf="parseCard(rc.comment_text || rc.comment) as card; else plainRcIncomp">
+                                      <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                                      <div class="point-solution">
+                                        {{ card.label }} : <span>{{ card.solution }}</span>
+                                      </div>
+                                    </ng-container>
+                                    <ng-template #plainRcIncomp>
+                                      <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{ formatCardText(rc.comment_text || rc.comment) }}</span>
+                                    </ng-template>
+                                  </div>
                                 </div>
                                 <div *ngIf="rc._editing" class="review-text-incomplete editing">
                                   <div class="ri-left">

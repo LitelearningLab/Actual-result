@@ -1469,7 +1469,15 @@
                         </div>
                         <div class="ri-body">
                           <div class="comment-text-display" *ngIf="!rc._editing">
-                            {{ rc.comment_text }}
+                            <ng-container *ngIf="parseCard(rc.comment_text) as card; else plainRcMissed">
+                              <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;">
+                                {{ card.label }} : <span style="font-weight: 400;">{{ card.solution }}</span>
+                              </div>
+                            </ng-container>
+                            <ng-template #plainRcMissed>
+                              {{ formatCardText(rc.comment_text) }}
+                            </ng-template>
                           </div>
                           <div class="comment-edit-form" *ngIf="rc._editing">
                             <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>
@@ -1504,7 +1512,58 @@
                         </div>
                         <div class="ri-body">
                           <div class="comment-text-display" *ngIf="!rc._editing">
-                            {{ rc.comment_text }}
+                            <ng-container *ngIf="parseCard(rc.comment_text) as card; else plainRcIncorr">
+                              <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;">
+                                {{ card.label }} : <span style="font-weight: 400;">{{ card.solution }}</span>
+                              </div>
+                            </ng-container>
+                            <ng-template #plainRcIncorr>
+                              {{ formatCardText(rc.comment_text) }}
+                            </ng-template>
+                          </div>
+                          <div class="comment-edit-form" *ngIf="rc._editing">
+                            <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>
+                          </div>
+                          <div class="comment-actions-links">
+                            <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing" (click)="startEditComment(rc)">
+                              <mat-icon>edit</mat-icon> Edit
+                            </a>
+                            <a href="javascript:void(0)" class="link-delete" *ngIf="!rc._editing" (click)="confirmDeleteComment(rc, q)">
+                              <mat-icon>delete</mat-icon> Delete
+                            </a>
+                            <a href="javascript:void(0)" class="link-save" *ngIf="rc._editing" (click)="saveReviewComment(rc)">
+                              <mat-icon>check</mat-icon> Save
+                            </a>
+                            <a href="javascript:void(0)" class="link-cancel" *ngIf="rc._editing" (click)="cancelEditComment(rc)">
+                              <mat-icon>close</mat-icon> Cancel
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Column: Points Incomplete -->
+                    <div class="col incomplete" *ngIf="hasReviewComments(q, 'incomplete')">
+                      <div class="col-header">
+                        <span class="dot yellow"></span>
+                        <h4>Points Incomplete</h4>
+                      </div>
+                      <div class="review-item" *ngFor="let rc of getReviewComments(q, 'incomplete'); let rci = index">
+                        <div class="ri-left">
+                          <span class="ri-icon incomplete">{{ rci + 1 }}</span>
+                        </div>
+                        <div class="ri-body">
+                          <div class="comment-text-display" *ngIf="!rc._editing">
+                            <ng-container *ngIf="parseCard(rc.comment_text) as card; else plainRcIncomp">
+                              <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;">
+                                {{ card.label }} : <span style="font-weight: 400;">{{ card.solution }}</span>
+                              </div>
+                            </ng-container>
+                            <ng-template #plainRcIncomp>
+                              {{ formatCardText(rc.comment_text) }}
+                            </ng-template>
                           </div>
                           <div class="comment-edit-form" *ngIf="rc._editing">
                             <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>

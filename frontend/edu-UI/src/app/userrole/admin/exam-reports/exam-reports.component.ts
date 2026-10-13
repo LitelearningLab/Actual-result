@@ -4604,4 +4604,32 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
     );
   }
+
+  /**
+   * Format review comment point for UI rendering:
+   * Splits into student issue (Line 1) and correction/needed/complete (Line 2 in green).
+   */
+  parseCard(pointText: string | null | undefined): { issue: string; label: string; solution: string } | null {
+    if (!pointText) return null;
+    let clean = String(pointText).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    clean = clean.replace(/^(Incorrect|Incomplete|Missed)\s*:\s*/i, '').trim();
+
+    const match = clean.match(/^(.*?)\s*(Correct|Needed|Complete)\s*:\s*(.*)$/i);
+    if (match && (match[1].trim() || match[3].trim())) {
+      const rawLabel = match[2].trim();
+      const label = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1).toLowerCase();
+      return {
+        issue: match[1].trim(),
+        label: label,
+        solution: match[3].trim()
+      };
+    }
+    return null;
+  }
+
+  formatCardText(pointText: string | null | undefined): string {
+    if (!pointText) return '';
+    let clean = String(pointText).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    return clean.replace(/^(Incorrect|Incomplete|Missed)\s*:\s*/i, '').trim();
+  }
 }

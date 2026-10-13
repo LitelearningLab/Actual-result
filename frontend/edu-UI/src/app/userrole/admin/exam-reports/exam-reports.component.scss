@@ -3508,6 +3508,36 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
   gap: 0.625rem;
   width: 100%;
 
+  .review-point-content {
+    flex: 1;
+    min-width: 0;
+
+    &.deleted {
+      opacity: 0.7;
+      text-decoration: line-through;
+    }
+
+    .point-issue {
+      font-size: 0.875rem;
+      line-height: 1.45;
+      color: #1e293b;
+      word-break: break-word;
+    }
+
+    .point-solution {
+      color: #16a34a;
+      font-weight: 600;
+      margin-top: 6px;
+      font-size: 0.875rem;
+      line-height: 1.45;
+      word-break: break-word;
+
+      span {
+        font-weight: 400;
+      }
+    }
+  }
+
   &.deleted {
     opacity: 0.6;
     .review-text {
