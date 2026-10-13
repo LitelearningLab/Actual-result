@@ -73,27 +73,26 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         1. Output exactly the JSON object described in the user instructions and nothing else.
         2. QUESTION INTENT & GROUNDING (HIGHEST PRIORITY):
            - Evaluate the candidate's answer against the specific Question Asked.
-           - Ensure the student addresses the specific question prompt, not merely the broad topic.
            - Full marks require directly fulfilling the core requirements asked by the question.
         3. ILLUSTRATIVE REFERENCE SOLUTIONS VS MANDATORY IDENTIFIERS:
-           - The "Expected Answer Key Points / Reference Solution" often provides ONE illustrative sample solution (e.g. using specific class names like `Dog`, method names like `bark()`, or specific variable names).
-           - Unless the Question Asked EXPLICITLY mandates a specific class name, method name, or example, ANY valid, functionally correct implementation (e.g., using `Student`, `Car`, `Calculator`, or any custom class/method names) that demonstrates the required concept MUST be accepted and awarded full marks for that concept.
-           - NEVER penalize a student, mark points as missing/incomplete/incorrect, or claim in feedback that specific class names, method names, or illustrative examples from the reference answer (such as `Dog` or `bark()`) are missing or required, unless the Question Asked explicitly demanded them.
-        4. SEMANTIC EVALUATION & ALTERNATIVE VALID APPROACHES:
+           - Unless the Question Asked EXPLICITLY mandates a specific class name, method name, or example, ANY valid, functionally correct implementation demonstrating the concept must receive full credit.
+        4. SEMANTIC EVALUATION:
            - Evaluate semantic understanding and correctness, not verbatim keyword matching.
-           - Accept valid alternative approaches, synonyms, and different but correct programming examples.
-        5. POINT CATEGORIZATION (STRICT SEPARATION):
-           - "missing": List ONLY essential concepts or requirements directly demanded by the Question (or fundamental to the concept) that the student completely omitted. Return "None" if nothing essential is missing.
-           - "incomplete": List ONLY concepts that the student actually attempted and wrote about, but explained partially, vaguely, or left unfinished. Do NOT list completely omitted concepts here. Return "None" if nothing is incomplete.
-           - "incorrect": List ONLY statements, logic, or syntax that are factually wrong, buggy, or invalid. Do NOT treat using a different valid example/class name as incorrect. Return "None" if nothing is incorrect.
-           - Separate distinct points with a pipe character '|'. Do NOT combine multiple distinct points into one phrase.
+        5. CRISP & ACTIONABLE POINT CATEGORIZATION (STRICT FORMAT):
+           - Keep every point strictly under 25 words.
+           - DO NOT include prefixes like "Incorrect:", "Incomplete:", or "Missed:". State the student's statement or omitted item directly.
+           - Insert an HTML break tag `<br>` before the second line so it starts on a new line.
+           - "missing": State the omitted point, followed by `<br><span style="color: #16a34a; font-weight: 600;">Needed :</span> ` and what was needed. If none, return "None".
+           - "incomplete": State the partially written point, followed by `<br><span style="color: #16a34a; font-weight: 600;">Complete :</span> ` and how to complete it. If none, return "None".
+           - "incorrect": State the student's incorrect statement directly, followed by `<br><span style="color: #16a34a; font-weight: 600;">Correct :</span> ` and the accurate fact. If none, return "None".
+           - CRITICAL: If issues exist, list ONLY the issues separated by '|'. NEVER write 'None' alongside actual issues. Return "None" ONLY if that entire category has zero issues.
         6. FEEDBACK:
-           - Concise (1-2 sentences), student-friendly feedback explaining what was correct and what (if anything) was missing or incorrect.
-           - Feedback MUST be strictly consistent with the actual Question Asked and candidate's answer. Never mention unrequested reference example details (like a Dog class or bark method).
+           - 1-2 sentence student-friendly summary explaining overall performance and the primary improvement needed.
         7. CONFIDENCE:
-           - Include an integer field `ai_confidence` in the JSON output (0-100) representing confidence in this evaluation.'''
+           - Include an integer field `ai_confidence` in the JSON output (0-100).'''
     
     q_section = f"**Question Asked:** {question_text}\n        " if question_text else ""
+    
     user_message = f'''
         Evaluate the candidate's answer for the following question:
         {q_section}**Question Marking Scheme / Max Marks:** {question_mark}
@@ -101,18 +100,62 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         **Candidate's Answer:** {student_answer}
         
         Evaluation instructions:
-        1. Check if the candidate's answer satisfies the core requirements asked in the Question.
-        2. Treat the Reference Solution as an illustrative guide: accept any valid equivalent example or implementation unless the Question explicitly mandated specific names or examples.
-        3. Award marks proportionally based on demonstrated correctness and understanding.
-        4. Categorize any genuine issues strictly into missing, incomplete, or incorrect.
+        - Do NOT include labels like 'Incorrect:', 'Incomplete:', or 'Missed:'.
+        - Put the fix on the next line using: `<br><span style="color: #16a34a; font-weight: 600;">Correct :</span> ` (or Needed / Complete).
+        - If issues exist, separate them with '|' and do NOT include 'None'. If no issues exist, return exactly "None".
         
         Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
         {{
         "score": <number between 0 and {question_mark}>,
-        "missing": "<pipe-separated list of missing required concepts or 'None'>",
-        "incomplete": "<pipe-separated list of incomplete points or 'None'>",
-        "incorrect": "<pipe-separated list of incorrect statements or 'None'>",
-        "feedback": "<clear 1-2 sentence student-friendly feedback explaining what was correct, what was missing/incorrect, and what should be improved>",
+        "missing": "<Omitted concept><br><span style=\\"color: #16a34a; font-weight: 600;\\">Needed :</span> <needed concept> | <Next Point>",
+        "incomplete": "<Attempted point><br><span style=\\"color: #16a34a; font-weight: 600;\\">Complete :</span> <fix> | <Next Point>",
+        "incorrect": "<Student statement><br><span style=\\"color: #16a34a; font-weight: 600;\\">Correct :</span> <correction> | <Next Point>",
+        "feedback": "<clear 1-2 sentence student-friendly feedback>",
+        "ai_confidence": <integer between 0-100>
+        }}
+        '''
+    system_message = '''You are an automated, impartial, and expert academic answer evaluator. Always respond ONLY with a single, valid JSON object (no markdown, no surrounding text). Follow these rules:
+        1. Output exactly the JSON object described in the user instructions and nothing else.
+        2. QUESTION INTENT & GROUNDING (HIGHEST PRIORITY):
+           - Evaluate the candidate's answer against the specific Question Asked.
+           - Full marks require directly fulfilling the core requirements asked by the question.
+        3. ILLUSTRATIVE REFERENCE SOLUTIONS VS MANDATORY IDENTIFIERS:
+           - Unless the Question Asked EXPLICITLY mandates a specific class name, method name, or example, ANY valid, functionally correct implementation demonstrating the concept must receive full credit.
+        4. SEMANTIC EVALUATION:
+           - Evaluate semantic understanding and correctness, not verbatim keyword matching.
+        5. CRISP & ACTIONABLE POINT CATEGORIZATION (STRICT FORMAT):
+           - Keep every point strictly under 25 words (maximum 1-2 punchy sentences). No filler words.
+           - "missing": State the omitted concept and provide the required code/concept. Format: "Missed: <omitted concept>. Needed: <required concept or syntax>". If no points were missed, return exactly "None".
+           - "incomplete": State what was partially written and how to complete it. Format: "Incomplete: <attempted point>. Complete: <exact missing detail to finish it>". If nothing is incomplete, return exactly "None".
+           - "incorrect": Quote the student's mistake and give the factual correction. Format: "Incorrect: <student's statement>. Correct: <factual rule or syntax>". If nothing is incorrect, return exactly "None".
+           - CRITICAL RULE: If a category has issues, list ONLY those issues separated by '|'. NEVER write 'None' alongside real issues. Return "None" ONLY when the entire category has zero issues.
+           - Separate distinct points with a pipe character '|'. Do NOT combine multiple points into one phrase.
+        6. FEEDBACK:
+           - 1-2 sentence student-friendly summary explaining overall performance and the primary improvement needed.
+        7. CONFIDENCE:
+           - Include an integer field `ai_confidence` in the JSON output (0-100).'''
+    
+    q_section = f"**Question Asked:** {question_text}\n        " if question_text else ""
+    
+    user_message = f'''
+        Evaluate the candidate's answer for the following question:
+        {q_section}**Question Marking Scheme / Max Marks:** {question_mark}
+        **Expected Answer Key Points / Reference Solution:** {expected_answer}
+        **Candidate's Answer:** {student_answer}
+        
+        Evaluation instructions:
+        - Output must be extremely crisp: maximum 1-2 short sentences per point (under 25 words).
+        - Follow the exact label prefixes: "Missed: ... Needed: ...", "Incomplete: ... Complete: ...", "Incorrect: ... Correct: ...".
+        - If issues exist, separate multiple points using '|' and DO NOT include 'None'.
+        - If NO issues exist in a category, return exactly "None".
+        
+        Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
+        {{
+        "score": <number between 0 and {question_mark}>,
+        "missing": "<Missed: ... Needed: ... | next point> or 'None'",
+        "incomplete": "<Incomplete: ... Complete: ... | next point> or 'None'",
+        "incorrect": "<Incorrect: ... Correct: ... | next point> or 'None'",
+        "feedback": "<clear 1-2 sentence student-friendly feedback>",
         "ai_confidence": <integer between 0-100>
         }}
         '''
@@ -137,12 +180,99 @@ def descriptive_evaluation(api_client, question_mark, expected_answer, student_a
         if isinstance(ai_conf, int) and 0 <= ai_conf <= 100:
             result['ai_confidence'] = ai_conf
         else:
-            # Fallback: derive confidence from numeric score if possible
             try:
                 max_marks = int(question_mark) if str(question_mark).isdigit() else None
                 score = result.get('score')
                 if max_marks and isinstance(score, (int, float)):
-                    # Map score in [0, max_marks] -> confidence in [0,100]
+                    conf = int(round(100.0 * float(score) / float(max_marks)))
+                    result['ai_confidence'] = max(0, min(100, conf))
+                else:
+                    result['ai_confidence'] = 0
+            except Exception:
+                result['ai_confidence'] = 0
+        result['status'] = True
+    except Exception as e:
+        print(f"Error in evaluate_topic_answer: {str(e)}" + " - Line # : " + str(e.__traceback__.tb_lineno))
+        result = {
+            "status": False,
+            "error": str(e),
+            "score": 0,
+            "missing": "Error in evaluation",
+            "incomplete": "Error in evaluation",
+            "incorrect": "Error in evaluation",
+            "feedback": "Unable to parse evaluation results",
+            "ai_confidence": 0
+        }
+    
+    return result
+    system_message = '''You are an automated, impartial, and expert academic answer evaluator. Always respond ONLY with a single, valid JSON object (no markdown, no surrounding text). Follow these rules:
+        1. Output exactly the JSON object described in the user instructions and nothing else.
+        2. QUESTION INTENT & GROUNDING (HIGHEST PRIORITY):
+           - Evaluate the candidate's answer against the specific Question Asked.
+           - Full marks require directly fulfilling the core requirements asked by the question.
+        3. ILLUSTRATIVE REFERENCE SOLUTIONS VS MANDATORY IDENTIFIERS:
+           - Unless the Question Asked EXPLICITLY mandates a specific class name, method name, or example, ANY valid, functionally correct implementation demonstrating the concept must receive full credit.
+        4. SEMANTIC EVALUATION:
+           - Evaluate semantic understanding and correctness, not verbatim keyword matching.
+        5. CRISP & ACTIONABLE POINT CATEGORIZATION (STRICT FORMAT):
+           - Keep every point strictly under 25 words (maximum 1-2 punchy sentences). No filler words.
+           - "missing": State the omitted concept and provide the required code/concept. Format: "Missed: <omitted concept>. Needed: <required concept or syntax>". If none, return "None".
+           - "incomplete": State what was partially written and how to complete it. Format: "Incomplete: <attempted point>. Complete: <exact missing detail to finish it>". If none, return "None".
+           - "incorrect": Quote the student's mistake and give the factual correction. Format: "Incorrect: <student's statement>. Correct: <factual rule or syntax>". If none, return "None".
+           - Separate distinct points with a pipe character '|'. Do NOT combine multiple points into one phrase.
+        6. FEEDBACK:
+           - 1-2 sentence student-friendly summary explaining overall performance and the primary improvement needed.
+        7. CONFIDENCE:
+           - Include an integer field `ai_confidence` in the JSON output (0-100).'''
+    
+    q_section = f"**Question Asked:** {question_text}\n        " if question_text else ""
+    
+    user_message = f'''
+        Evaluate the candidate's answer for the following question:
+        {q_section}**Question Marking Scheme / Max Marks:** {question_mark}
+        **Expected Answer Key Points / Reference Solution:** {expected_answer}
+        **Candidate's Answer:** {student_answer}
+        
+        Evaluation instructions:
+        - Output must be extremely crisp: maximum 1-2 short sentences per point (under 25 words).
+        - Follow the exact label prefixes: "Missed: ... Needed: ...", "Incomplete: ... Complete: ...", "Incorrect: ... Correct: ...".
+        - Separate distinct points using '|'.
+        
+        Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
+        {{
+        "score": <number between 0 and {question_mark}>,
+        "missing": "Missed: <omitted concept>. Needed: <required syntax/concept> | <Next Point> or 'None'",
+        "incomplete": "Incomplete: <attempted point>. Complete: <fix/completion> | <Next Point> or 'None'",
+        "incorrect": "Incorrect: <student claim>. Correct: <factual correction> | <Next Point> or 'None'",
+        "feedback": "<clear 1-2 sentence student-friendly feedback>",
+        "ai_confidence": <integer between 0-100>
+        }}
+        '''
+    try:
+        response = api_client.chat_completion(system_message, user_message)
+        response_json = response.json()
+        if response.status_code != 200:
+            result = {"status": False, "error": response_json.get("error", "Unknown error")}
+            return result
+        result_text = response_json['choices'][0]['message']['content'].strip()
+        
+        # Remove markdown code blocks if present
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+            result_text = result_text.strip()
+        
+        result = json.loads(result_text)
+        # Ensure ai_confidence exists and is an int between 0 and 100
+        ai_conf = result.get('ai_confidence')
+        if isinstance(ai_conf, int) and 0 <= ai_conf <= 100:
+            result['ai_confidence'] = ai_conf
+        else:
+            try:
+                max_marks = int(question_mark) if str(question_mark).isdigit() else None
+                score = result.get('score')
+                if max_marks and isinstance(score, (int, float)):
                     conf = int(round(100.0 * float(score) / float(max_marks)))
                     result['ai_confidence'] = max(0, min(100, conf))
                 else:
