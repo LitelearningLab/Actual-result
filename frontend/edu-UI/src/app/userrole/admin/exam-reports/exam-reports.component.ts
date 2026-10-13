@@ -2058,7 +2058,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           }
 
           this.userReviewAttempts = (attempts || []).map((a) => {
-            const reviewList = a.review || a.questions || a.attempt_review || [];
+            const reviewList = a.review || a.items || a.questions || a.attempt_review || [];
             const normalizedReview = (Array.isArray(reviewList) ? reviewList : []).map((q: any, qi: number) => {
               try {
                 if (q.sno == null && q.qno == null) {
@@ -4563,6 +4563,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   onEscapeKey() {
     if (this.previewModalImage) {
       this.closeImageModal();
+    }
+  }
+
+  onAnswerImageError(event: any, img: any) {
+    if (img) {
+      img._loadError = true;
     }
   }
 

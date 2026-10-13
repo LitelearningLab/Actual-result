@@ -239,8 +239,11 @@ class TestHandwrittenDescriptiveVisionEvaluation(unittest.TestCase):
         t_call_args = mock_desc_eval.call_args
         self.assertEqual(t_call_args[0][3], "Polymorphism allows objects to take multiple forms.")
 
-        # Verify ans1.written_answer was stored as 'Handwritten answer uploaded'
-        self.assertEqual(ans1.written_answer, "Handwritten answer uploaded")
+        # Verify ans1.written_answer is preserved and NOT overwritten with 'Handwritten answer uploaded'
+        self.assertNotEqual(ans1.written_answer, "Handwritten answer uploaded")
+        parsed_ans1 = json.loads(ans1.written_answer)
+        self.assertIn("images", parsed_ans1)
+        self.assertEqual(len(parsed_ans1["images"]), 1)
 
 
 if __name__ == "__main__":

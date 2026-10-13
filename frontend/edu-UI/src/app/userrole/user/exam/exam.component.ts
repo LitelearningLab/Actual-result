@@ -27,6 +27,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from 'src/app/home/service/auth.service';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import {
@@ -417,6 +418,7 @@ export class ConfirmInstantReviewDialogComponent {}
     MatDatepickerModule,
     MatCheckboxModule,
     MatAutocompleteModule,
+    MatTooltipModule,
     ConfirmStartTestDialogComponent,
     ConfirmInstantReviewDialogComponent,
   ],
@@ -1288,6 +1290,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
     title?: string;
     attempt_number: number;
     items: Array<{
+      title?: string;
       question_text?: string;
       question?: string;
       correct_option?: string;
@@ -1295,11 +1298,25 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       media?: Array<{ media_id?: string; media_type?: string; file_url?: string; url?: string; original_filename?: string; caption?: string; play_limit?: number }>;
       question_type?: string;
       selected_option?: string[];
-      is_correct?: boolean | number;
+      is_correct?: boolean | number | null;
       marks_awarded?: number;
       question_marks?: number;
-      feedback?: string;
-      review_comment?: { comments?: any[] };
+      feedback?: string | null;
+      review_comment?: { comments?: any[] } | null;
+      student_text?: string;
+      answer_images?: Array<{
+        signed_url?: string;
+        gcs_path?: string;
+        url?: string;
+        file_url?: string;
+        order?: number;
+        filename?: string;
+        original_filename?: string;
+        mime_type?: string;
+        _loadError?: boolean;
+        [key: string]: any;
+      }>;
+      [key: string]: any;
     }>;
     score?: number;
     started_date?: string;
@@ -1609,6 +1626,8 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
                           : 0,
                     feedback: it.feedback || null,
                     review_comment: it.review_comment || it.reviewComment || null,
+                    answer_images: Array.isArray(it.answer_images) ? it.answer_images : [],
+                    student_text: it.student_text || '',
                   } as any;
                 });
                 return {
@@ -2320,6 +2339,57 @@ formatSeconds(sec: number | null | undefined): string {
         .replace(/^On\s+/i, '')
         .replace(/GMT[+-]?\d*(:\d+)?|\bGMT\b|\bUTC\b/gi, 'IST')
         .trim();
+    }
+  }
+
+  // Image Preview Lightbox Modal
+  previewModalImage: { url: string; title: string; filename?: string; mime_type?: string } | null = null;
+  imageZoom: number = 1;
+
+  openImageModal(url: string | null | undefined, title?: string, filename?: string, mime?: string) {
+    if (!url) return;
+    const resolved = this.resolveMediaUrl(url);
+    if (!resolved) return;
+    this.imageZoom = 1;
+    this.previewModalImage = {
+      url: resolved,
+      title: title || 'Image Preview',
+      filename: filename || '',
+      mime_type: mime || '',
+    };
+  }
+
+  closeImageModal() {
+    this.previewModalImage = null;
+    this.imageZoom = 1;
+  }
+
+  zoomIn() {
+    if (this.imageZoom < 3) {
+      this.imageZoom = Math.min(3, +(this.imageZoom + 0.25).toFixed(2));
+    }
+  }
+
+  zoomOut() {
+    if (this.imageZoom > 0.5) {
+      this.imageZoom = Math.max(0.5, +(this.imageZoom - 0.25).toFixed(2));
+    }
+  }
+
+  resetZoom() {
+    this.imageZoom = 1;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.previewModalImage) {
+      this.closeImageModal();
+    }
+  }
+
+  onAnswerImageError(event: any, img: any) {
+    if (img) {
+      img._loadError = true;
     }
   }
 }

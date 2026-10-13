@@ -37,12 +37,15 @@ import os
 import json
 import time
 import uuid
+import base64
+import hashlib
 from datetime import datetime, timezone
 from db.models import Institute, InstituteCampus, User
 from sqlalchemy import func, or_, String, text
 from sqlalchemy.orm import load_only
 import random
 from flask import g
+from others.gcs_service import gcs_storage, build_student_answer_object_path
 
 
 def _to_naive_utc_datetime(val):
@@ -117,70 +120,472 @@ def safe_utc_isoformat(val):
     return value
 
 
-def _replace_attempt_answers(session, exam_attempt, answers):
-    """Persist the latest browser answer snapshot without creating duplicates."""
-    session.query(Answer).filter(Answer.attempt_id == exam_attempt.attempt_id).delete(
-        synchronize_session=False
-    )
-    for question_id, answer_value in (answers or {}).items():
-        if answer_value is None or answer_value == "":
-            continue
-        if isinstance(answer_value, dict):
-            session.add(
-                Answer(
-                    user_id=exam_attempt.user_id,
-                    schedule_id=exam_attempt.schedule_id,
-                    question_id=question_id,
-                    attempt_id=exam_attempt.attempt_id,
-                    selected_option_id=None,
-                    written_answer=json.dumps(answer_value),
+def _extract_handwritten_image_components(answer_val):
+    """
+    Extracts student typed text and candidate image payloads from incoming answer value.
+    Returns (student_text, image_list, is_handwritten_structure).
+    """
+    if isinstance(answer_val, dict):
+        has_img_key = any(
+            k in answer_val for k in ("images", "answerImages", "answer_images")
+        )
+        student_text = (
+            answer_val.get("text")
+            or answer_val.get("textAnswer")
+            or answer_val.get("written_answer")
+            or ""
+        )
+        if has_img_key:
+            raw_imgs = (
+                answer_val.get("images")
+                or answer_val.get("answerImages")
+                or answer_val.get("answer_images")
+                or []
+            )
+            if not isinstance(raw_imgs, list):
+                raw_imgs = [raw_imgs] if raw_imgs else []
+            return str(student_text or ""), raw_imgs, True
+        return None, None, False
+
+    if isinstance(answer_val, list):
+        is_opt_list = all(
+            isinstance(v, str) and len(v) == 36 and "-" in v for v in answer_val if v
+        )
+        if is_opt_list:
+            return None, None, False
+
+        has_imgs = any(
+            (
+                isinstance(v, str)
+                and (
+                    v.startswith("data:image/")
+                    or v.startswith("student_answers/")
+                    or v.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
                 )
             )
-        elif isinstance(answer_value, list):
-            is_option_list = all(
-                isinstance(v, str) and len(v) == 36 and "-" in v
-                for v in answer_value
-                if v
+            or (
+                isinstance(v, dict)
+                and (
+                    "gcs_path" in v or "image_id" in v or "data" in v or "dataUrl" in v
+                )
             )
-            if is_option_list and answer_value:
-                for opt_id in answer_value:
-                    if opt_id:
-                        session.add(
-                            Answer(
-                                user_id=exam_attempt.user_id,
-                                schedule_id=exam_attempt.schedule_id,
-                                question_id=question_id,
-                                attempt_id=exam_attempt.attempt_id,
-                                selected_option_id=opt_id,
-                                written_answer=None,
-                            )
-                        )
+            for v in answer_val
+        )
+        if has_imgs:
+            return "", answer_val, True
+        return None, None, False
+
+    if isinstance(answer_val, str) and answer_val.startswith("data:image/"):
+        return "", [answer_val], True
+
+    return None, None, False
+
+
+def _process_handwritten_answer_images(
+    session,
+    exam_attempt,
+    question_id,
+    student_text,
+    raw_images,
+    existing_img_map,
+    newly_uploaded_paths,
+    orphaned_old_paths,
+):
+    """
+    Validates, uploads new/modified images to GCS, reuses unchanged images,
+    and returns the standardized Answer metadata dictionary.
+    """
+    existing_for_q = existing_img_map.get(str(question_id), [])
+    existing_by_hash = {
+        img.get("sha256"): img
+        for img in existing_for_q
+        if isinstance(img, dict) and img.get("sha256")
+    }
+    existing_by_path = {
+        img.get("gcs_path"): img
+        for img in existing_for_q
+        if isinstance(img, dict) and img.get("gcs_path")
+    }
+
+    sched = None
+    try:
+        sched = (
+            session.query(ExamSchedule)
+            .filter(ExamSchedule.schedule_id == exam_attempt.schedule_id)
+            .first()
+        )
+    except Exception:
+        pass
+
+    sched_exam_id = str(
+        getattr(sched, "exam_id", None) or getattr(exam_attempt, "schedule_id", "exam")
+    )
+    sched_inst_id = str(getattr(sched, "institute_id", None) or "global")
+    attempt_id = str(exam_attempt.attempt_id)
+
+    final_images = []
+    used_old_paths = set()
+
+    for idx, item in enumerate(raw_images, start=1):
+        if isinstance(item, dict) and item.get("gcs_path"):
+            existing_path = item.get("gcs_path")
+            used_old_paths.add(existing_path)
+            final_images.append(
+                {
+                    "image_id": item.get("image_id") or str(uuid.uuid4()),
+                    "gcs_path": existing_path,
+                    "storage_provider": item.get("storage_provider", "gcs"),
+                    "mime_type": item.get("mime_type", "image/jpeg"),
+                    "file_size": item.get("file_size", 0),
+                    "sha256": item.get("sha256"),
+                    "order": idx,
+                    "original_filename": item.get("original_filename")
+                    or f"page_{idx}.jpg",
+                    "uploaded_at": item.get("uploaded_at")
+                    or datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            continue
+
+        b64_str = ""
+        orig_filename = None
+        if isinstance(item, dict):
+            b64_str = (
+                item.get("data")
+                or item.get("dataUrl")
+                or item.get("image_base64")
+                or item.get("base64")
+                or ""
+            )
+            orig_filename = item.get("filename") or item.get("original_filename")
+        elif isinstance(item, str):
+            b64_str = item
+
+        if not b64_str or not isinstance(b64_str, str):
+            continue
+
+        if not b64_str.startswith("data:") and (
+            b64_str.startswith("student_answers/")
+            or ("/" in b64_str and not b64_str.startswith("/9j/"))
+        ):
+            used_old_paths.add(b64_str)
+            final_images.append(
+                {
+                    "image_id": str(uuid.uuid4()),
+                    "gcs_path": b64_str,
+                    "storage_provider": "gcs",
+                    "mime_type": "image/jpeg",
+                    "file_size": 0,
+                    "order": idx,
+                    "uploaded_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            continue
+
+        mime_type = "image/jpeg"
+        if b64_str.startswith("data:"):
+            parts = b64_str.split(",", 1)
+            if len(parts) == 2:
+                header, raw_b64 = parts
+                mime_type = header.split(";")[0].replace("data:", "").strip().lower()
+                b64_payload = raw_b64
             else:
+                b64_payload = b64_str
+        else:
+            b64_payload = b64_str
+
+        try:
+            file_bytes = base64.b64decode(b64_payload)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid Base64 image payload for question {question_id}: {e}"
+            )
+
+        if not file_bytes:
+            continue
+
+        content_sha256 = hashlib.sha256(file_bytes).hexdigest()
+
+        if content_sha256 in existing_by_hash:
+            matched_existing = existing_by_hash[content_sha256]
+            matched_path = matched_existing.get("gcs_path")
+            used_old_paths.add(matched_path)
+            final_images.append(
+                {
+                    "image_id": matched_existing.get("image_id") or str(uuid.uuid4()),
+                    "gcs_path": matched_path,
+                    "storage_provider": matched_existing.get("storage_provider", "gcs"),
+                    "mime_type": matched_existing.get("mime_type", mime_type),
+                    "file_size": matched_existing.get("file_size", len(file_bytes)),
+                    "sha256": content_sha256,
+                    "order": idx,
+                    "original_filename": matched_existing.get("original_filename")
+                    or (orig_filename or f"page_{idx}.jpg"),
+                    "uploaded_at": matched_existing.get("uploaded_at")
+                    or datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            continue
+
+        ext = ".jpg"
+        if "png" in mime_type:
+            ext = ".png"
+        elif "webp" in mime_type:
+            ext = ".webp"
+        elif "gif" in mime_type:
+            ext = ".gif"
+
+        image_uuid = str(uuid.uuid4())
+        object_path = build_student_answer_object_path(
+            institute_id=sched_inst_id,
+            exam_id=sched_exam_id,
+            attempt_id=attempt_id,
+            question_id=str(question_id),
+            image_uuid=image_uuid,
+            extension=ext,
+        )
+
+        safe_filename = orig_filename or f"{image_uuid}{ext}"
+
+        upload_res = gcs_storage.upload_media(
+            file_bytes=file_bytes,
+            filename=safe_filename,
+            exact_object_path=object_path,
+            expected_type="image",
+            is_private=True,
+        )
+
+        newly_uploaded_paths.append(object_path)
+
+        final_images.append(
+            {
+                "image_id": image_uuid,
+                "gcs_path": object_path,
+                "storage_provider": upload_res.get("storage_provider", "gcs"),
+                "mime_type": upload_res.get("mime_type", mime_type),
+                "file_size": upload_res.get("file_size", len(file_bytes)),
+                "sha256": content_sha256,
+                "order": idx,
+                "original_filename": safe_filename,
+                "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
+    for old_img in existing_for_q:
+        if isinstance(old_img, dict):
+            old_path = old_img.get("gcs_path")
+            if old_path and old_path not in used_old_paths:
+                orphaned_old_paths.append(old_path)
+
+    return {
+        "version": 2,
+        "text": student_text or "",
+        "images": final_images,
+    }
+
+
+def _replace_attempt_answers(session, exam_attempt, answers):
+    """Persist the latest browser answer snapshot without creating duplicates, offloading images to GCS."""
+    existing_img_map = {}
+    try:
+        existing_answers = (
+            session.query(Answer)
+            .filter(Answer.attempt_id == exam_attempt.attempt_id)
+            .all()
+        )
+        if isinstance(existing_answers, (list, tuple)):
+            for old_ans in existing_answers:
+                if old_ans.written_answer:
+                    try:
+                        parsed = json.loads(old_ans.written_answer)
+                        if isinstance(parsed, dict) and parsed.get("images"):
+                            existing_img_map[str(old_ans.question_id)] = parsed[
+                                "images"
+                            ]
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    newly_uploaded_paths = []
+    orphaned_old_paths = []
+
+    try:
+        session.query(Answer).filter(
+            Answer.attempt_id == exam_attempt.attempt_id
+        ).delete(synchronize_session=False)
+        for question_id, answer_value in (answers or {}).items():
+            if answer_value is None or answer_value == "":
+                continue
+
+            student_text, raw_imgs, is_hw = _extract_handwritten_image_components(
+                answer_value
+            )
+            if is_hw and raw_imgs:
+                payload_dict = _process_handwritten_answer_images(
+                    session=session,
+                    exam_attempt=exam_attempt,
+                    question_id=question_id,
+                    student_text=student_text,
+                    raw_images=raw_imgs,
+                    existing_img_map=existing_img_map,
+                    newly_uploaded_paths=newly_uploaded_paths,
+                    orphaned_old_paths=orphaned_old_paths,
+                )
                 session.add(
                     Answer(
                         user_id=exam_attempt.user_id,
                         schedule_id=exam_attempt.schedule_id,
-                        question_id=question_id,
+                        question_id=str(question_id),
+                        attempt_id=exam_attempt.attempt_id,
+                        selected_option_id=None,
+                        written_answer=json.dumps(payload_dict),
+                    )
+                )
+            elif is_hw and not raw_imgs:
+                payload_dict = {
+                    "version": 2,
+                    "text": student_text or "",
+                    "images": [],
+                }
+                session.add(
+                    Answer(
+                        user_id=exam_attempt.user_id,
+                        schedule_id=exam_attempt.schedule_id,
+                        question_id=str(question_id),
+                        attempt_id=exam_attempt.attempt_id,
+                        selected_option_id=None,
+                        written_answer=json.dumps(payload_dict),
+                    )
+                )
+                for old_img in existing_img_map.get(str(question_id), []):
+                    old_path = (
+                        old_img.get("gcs_path")
+                        if isinstance(old_img, dict)
+                        else (
+                            old_img
+                            if isinstance(old_img, str)
+                            and old_img.startswith("student_answers/")
+                            else None
+                        )
+                    )
+                    if old_path and old_path not in orphaned_old_paths:
+                        orphaned_old_paths.append(old_path)
+            elif isinstance(answer_value, dict):
+                session.add(
+                    Answer(
+                        user_id=exam_attempt.user_id,
+                        schedule_id=exam_attempt.schedule_id,
+                        question_id=str(question_id),
                         attempt_id=exam_attempt.attempt_id,
                         selected_option_id=None,
                         written_answer=json.dumps(answer_value),
                     )
                 )
-        else:
-            value = str(answer_value)
-            if not value.strip():
-                continue
-            is_option = len(value) == 36 and "-" in value
-            session.add(
-                Answer(
-                    user_id=exam_attempt.user_id,
-                    schedule_id=exam_attempt.schedule_id,
-                    question_id=question_id,
-                    attempt_id=exam_attempt.attempt_id,
-                    selected_option_id=value if is_option else None,
-                    written_answer=None if is_option else value,
+            elif isinstance(answer_value, list):
+                is_option_list = all(
+                    isinstance(v, str) and len(v) == 36 and "-" in v
+                    for v in answer_value
+                    if v
                 )
-            )
+                if is_option_list and answer_value:
+                    for opt_id in answer_value:
+                        if opt_id:
+                            session.add(
+                                Answer(
+                                    user_id=exam_attempt.user_id,
+                                    schedule_id=exam_attempt.schedule_id,
+                                    question_id=str(question_id),
+                                    attempt_id=exam_attempt.attempt_id,
+                                    selected_option_id=opt_id,
+                                    written_answer=None,
+                                )
+                            )
+                else:
+                    session.add(
+                        Answer(
+                            user_id=exam_attempt.user_id,
+                            schedule_id=exam_attempt.schedule_id,
+                            question_id=str(question_id),
+                            attempt_id=exam_attempt.attempt_id,
+                            selected_option_id=None,
+                            written_answer=json.dumps(answer_value),
+                        )
+                    )
+            else:
+                value = str(answer_value)
+                if not value.strip():
+                    continue
+                is_option = len(value) == 36 and "-" in value
+                session.add(
+                    Answer(
+                        user_id=exam_attempt.user_id,
+                        schedule_id=exam_attempt.schedule_id,
+                        question_id=str(question_id),
+                        attempt_id=exam_attempt.attempt_id,
+                        selected_option_id=value if is_option else None,
+                        written_answer=None if is_option else value,
+                    )
+                )
+                if not is_option and str(question_id) in existing_img_map:
+                    for old_img in existing_img_map.get(str(question_id), []):
+                        old_path = (
+                            old_img.get("gcs_path")
+                            if isinstance(old_img, dict)
+                            else (
+                                old_img
+                                if isinstance(old_img, str)
+                                and old_img.startswith("student_answers/")
+                                else None
+                            )
+                        )
+                        if old_path and old_path not in orphaned_old_paths:
+                            orphaned_old_paths.append(old_path)
+
+        # Collect unreferenced images from questions that were completely omitted or cleared
+        retained_paths = set(newly_uploaded_paths)
+        for added_ans in getattr(session, "new", []):
+            if isinstance(added_ans, Answer) and added_ans.written_answer:
+                try:
+                    p = json.loads(added_ans.written_answer)
+                    if isinstance(p, dict) and p.get("images"):
+                        for im in p["images"]:
+                            if isinstance(im, dict) and im.get("gcs_path"):
+                                retained_paths.add(im["gcs_path"])
+                            elif isinstance(im, str) and (im.startswith("student_answers/") or "/" in im):
+                                retained_paths.add(im)
+                except Exception:
+                    pass
+
+        processed_qids = {str(qid) for qid in (answers or {}).keys() if (answers or {}).get(qid)}
+        for old_qid, old_imgs in existing_img_map.items():
+            if old_qid not in processed_qids:
+                for old_im in old_imgs:
+                    p = (
+                        old_im.get("gcs_path")
+                        if isinstance(old_im, dict)
+                        else (
+                            old_im
+                            if isinstance(old_im, str)
+                            and old_im.startswith("student_answers/")
+                            else None
+                        )
+                    )
+                    if p and p not in retained_paths and p not in orphaned_old_paths:
+                        orphaned_old_paths.append(p)
+
+        orphaned_old_paths = [
+            p for p in dict.fromkeys(orphaned_old_paths)
+            if p not in retained_paths
+        ]
+        return newly_uploaded_paths, orphaned_old_paths
+    except Exception as e:
+        for p in newly_uploaded_paths:
+            try:
+                gcs_storage.delete_media(p)
+            except Exception:
+                pass
+        raise
 
 
 def _category_pool_question_ids(session, category_id):
@@ -3074,7 +3479,9 @@ def autosave_exam_answers(data, authenticated_user_id=None):
                 "statusMessage": "Attempt is already finalized",
                 "status": False,
             }, 409
-        _replace_attempt_answers(session, attempt, data.get("answers", {}))
+        newly_uploaded, orphaned_old = _replace_attempt_answers(
+            session, attempt, data.get("answers", {})
+        )
         rem_sec = data.get("remaining_seconds")
         if rem_sec is not None:
             try:
@@ -3082,6 +3489,11 @@ def autosave_exam_answers(data, authenticated_user_id=None):
             except (ValueError, TypeError):
                 pass
         session.commit()
+        for old_p in orphaned_old or []:
+            try:
+                gcs_storage.delete_media(old_p)
+            except Exception:
+                pass
         return {"statusMessage": "Answers saved", "status": True}, 200
     except Exception as e:
         session.rollback()
@@ -3160,11 +3572,16 @@ def submit_exam_answers(data, authenticated_user_id=None):
         schedule_id = attempt_schedule_id
 
         # Save the final snapshot and status atomically so retries cannot duplicate answers.
-        _replace_attempt_answers(session, exam_attempt, answers)
+        newly_uploaded, orphaned_old = _replace_attempt_answers(session, exam_attempt, answers)
         exam_attempt.submitted_date = submitted_date
         exam_attempt.remaining_seconds = 0
         exam_attempt.status = "submitted"
         session.commit()
+        for old_p in (orphaned_old or []):
+            try:
+                gcs_storage.delete_media(old_p)
+            except Exception:
+                pass
         session.close()
         try:
             validate_answers(attempt_id)

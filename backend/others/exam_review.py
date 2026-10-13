@@ -8,6 +8,30 @@ from db.db import SQLiteDB
 from db.models import User, Exam, ExamSchedule, Question, QuestionMedia, Option, Answer, Exam_Attempt, ExamScheduleMapping, ExamReviewComments, ExamReviewCommentsHistory, MarksHistory, ExamMapping, ExamQuestionMapping, QuestionMapping
 from others.settings import get_ai_confidence_threshold
 from others.llm import descriptive_evaluation, vision_evaluate_question_images, openai_client
+from others.gcs_service import gcs_storage
+
+
+def _validate_student_answer_gcs_path(gcs_path, attempt_id, question_id, exam_id=None, institute_id=None):
+    """
+    Validates that a GCS path strictly adheres to the canonical student answer structure:
+    student_answers/{institute_id}/{exam_id}/{attempt_id}/{question_id}/{filename}
+    Ensures no path traversal and matches the authoritative attempt_id and question_id.
+    """
+    if not gcs_path or not isinstance(gcs_path, str):
+        return False
+    if ".." in gcs_path or "\\" in gcs_path:
+        return False
+    clean_path = gcs_path.strip("/ ")
+    parts = clean_path.split("/")
+    if len(parts) < 6:
+        return False
+    if parts[0] != "student_answers":
+        return False
+    if str(parts[3]) != str(attempt_id):
+        return False
+    if str(parts[4]) != str(question_id):
+        return False
+    return True
 
 def get_exam_question_ids(session, exam_id=None, schedule_id=None, attempt_id=None):
     """
@@ -184,6 +208,13 @@ def review_user_exam(request, current_user=None):
         if not exam_schedule:
             return {"statusMessage": "Schedule not found", "status": False}, 404
 
+        # Enforce institute boundary for non-superadmin instructors/admins
+        if not is_student_request and current_user and getattr(current_user, "institute_id", None):
+            cur_inst = str(current_user.institute_id).strip()
+            sched_inst = str(getattr(exam_schedule, "institute_id", None) or "").strip()
+            if cur_inst and sched_inst and cur_inst != sched_inst and current_user_role not in ("superadmin", "super_admin"):
+                session.close()
+                return {"statusMessage": "Access denied for this institute", "status": False}, 403
 
         finalized_ids = finalize_expired_attempts(session, exam_schedule, attempts)
         for finalized_id in finalized_ids:
@@ -203,6 +234,8 @@ def review_user_exam(request, current_user=None):
             )
             if not requested_attempt:
                 return {"statusMessage": "Submitted attempt not found", "status": False}, 404
+            if is_student_request and str(requested_attempt.user_id) != str(getattr(current_user, "user_id", "")):
+                return {"statusMessage": "Access denied for this attempt", "status": False}, 403
         elif is_student_request and completed_attempts:
             # Older student clients do not send attempt_id. Select one eligible
             # attempt so another attempt in the schedule remains independent.
@@ -350,6 +383,8 @@ def review_user_exam(request, current_user=None):
                 if qid in latest_answers_by_qid:
                     question_answer = latest_answers_by_qid[qid]
                     review_comment_dict = {}
+                    answer_images_list = []
+                    student_typed_text = ""
                     if question_type in ["fill", 'choose']:
                         selected_option = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).first()
                         correct_answer_data = selected_option.option_text if selected_option else ""
@@ -358,9 +393,100 @@ def review_user_exam(request, current_user=None):
                             selected_data = session.query(Option).filter(Option.options_id == question_answer.selected_option_id, Option.active_status == 1).first()
                             selected_option = selected_data.option_text if selected_data else ""
                     elif question_type == "descriptive":
-                        selected_option = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).first()
-                        correct_answer_data = selected_option.option_text if selected_option else ""
-                        selected_option = question_answer.written_answer
+                        selected_option_rec = session.query(Option).filter(Option.question_id == question_answer.question_id, Option.is_correct == 1, Option.active_status == 1).first()
+                        correct_answer_data = selected_option_rec.option_text if selected_option_rec else ""
+
+                        raw_w_ans = question_answer.written_answer or ""
+                        parsed_w_meta = None
+                        try:
+                            parsed_w_meta = json.loads(raw_w_ans)
+                        except Exception:
+                            pass
+
+                        if isinstance(parsed_w_meta, dict):
+                            student_typed_text = parsed_w_meta.get("text") or parsed_w_meta.get("textAnswer") or ""
+                            raw_img_list = parsed_w_meta.get("images") or parsed_w_meta.get("answerImages") or parsed_w_meta.get("answer_images") or []
+                            if isinstance(raw_img_list, list):
+                                def _img_ord(it, def_i):
+                                    if isinstance(it, dict):
+                                        v = it.get("order") or it.get("page_number")
+                                        if v is not None:
+                                            try:
+                                                return int(v)
+                                            except (ValueError, TypeError):
+                                                pass
+                                    return def_i
+
+                                sorted_raw_imgs = sorted(list(enumerate(raw_img_list, start=1)), key=lambda p: _img_ord(p[1], p[0]))
+                                for def_i, im_entry in sorted_raw_imgs:
+                                    if isinstance(im_entry, dict):
+                                        gcs_p = im_entry.get("gcs_path")
+                                        orig_file_name = (
+                                            im_entry.get("filename")
+                                            or im_entry.get("original_filename")
+                                            or f"page_{def_i}.jpg"
+                                        )
+                                        if gcs_p and show_student_answers:
+                                            if _validate_student_answer_gcs_path(gcs_p, attempt.attempt_id, question_answer.question_id):
+                                                s_url = gcs_storage.generate_signed_url(gcs_p, expiration_minutes=60)
+                                                answer_images_list.append({
+                                                    "image_id": im_entry.get("image_id") or str(uuid.uuid4()),
+                                                    "url": s_url,
+                                                    "file_url": s_url,
+                                                    "signed_url": s_url,
+                                                    "gcs_path": gcs_p,
+                                                    "order": im_entry.get("order") or def_i,
+                                                    "filename": orig_file_name,
+                                                    "original_filename": orig_file_name,
+                                                    "mime_type": im_entry.get("mime_type") or "image/jpeg",
+                                                    "file_size": im_entry.get("file_size", 0),
+                                                })
+                                        elif im_entry.get("url") or im_entry.get("dataUrl"):
+                                            u = im_entry.get("url") or im_entry.get("dataUrl")
+                                            answer_images_list.append({
+                                                "image_id": im_entry.get("image_id") or str(uuid.uuid4()),
+                                                "url": u,
+                                                "file_url": u,
+                                                "signed_url": u,
+                                                "order": im_entry.get("order") or def_i,
+                                                "filename": orig_file_name,
+                                                "original_filename": orig_file_name,
+                                                "mime_type": im_entry.get("mime_type") or "image/jpeg",
+                                            })
+                        elif isinstance(parsed_w_meta, list):
+                            for def_i, im_str in enumerate(parsed_w_meta, start=1):
+                                if isinstance(im_str, str) and show_student_answers:
+                                    if im_str.startswith("student_answers/"):
+                                        if _validate_student_answer_gcs_path(im_str, attempt.attempt_id, question_answer.question_id):
+                                            s_url = gcs_storage.generate_signed_url(im_str, expiration_minutes=60)
+                                            answer_images_list.append({
+                                                "url": s_url,
+                                                "file_url": s_url,
+                                                "signed_url": s_url,
+                                                "gcs_path": im_str,
+                                                "order": def_i,
+                                                "filename": f"page_{def_i}.jpg",
+                                                "original_filename": f"page_{def_i}.jpg",
+                                            })
+                                    elif im_str.startswith(("http://", "https://", "data:image/")):
+                                        answer_images_list.append({
+                                            "url": im_str,
+                                            "file_url": im_str,
+                                            "signed_url": im_str,
+                                            "order": def_i,
+                                            "filename": f"page_{def_i}.jpg",
+                                            "original_filename": f"page_{def_i}.jpg",
+                                        })
+                        else:
+                            student_typed_text = raw_w_ans
+
+                        # Format selected_option cleanly without leaking raw JSON
+                        if student_typed_text:
+                            selected_option = student_typed_text
+                        elif answer_images_list:
+                            selected_option = "Handwritten answer attached"
+                        else:
+                            selected_option = raw_w_ans if not (raw_w_ans.startswith("{") and "images" in raw_w_ans) else ""
 
                         review_comments = session.query(ExamReviewComments).filter( 
                             ExamReviewComments.attempt_id == attempt.attempt_id,
@@ -441,6 +567,8 @@ def review_user_exam(request, current_user=None):
                         "media": media_list,
                         "options": [{"id": opt.options_id, "option_text": opt.option_text, "text": opt.option_text, "image_url": opt.image_url, "url": opt.image_url, "is_correct": opt.is_correct if show_correct_answers else 0} for opt in options_list],
                         "selected_option": ([selected_option] if isinstance(selected_option, str) else selected_option) if show_student_answers else [],
+                        "student_text": student_typed_text if show_student_answers else "",
+                        "answer_images": answer_images_list if show_student_answers else [],
                         "correct_option": correct_answer_data if show_correct_answers else None,
                         "review_comment": review_comment_dict if show_explanations else {},
                         "is_correct": q_is_correct if show_correct_answers else None,
@@ -451,7 +579,7 @@ def review_user_exam(request, current_user=None):
                         "question_marks": question_marks if show_score else None,
                         "ai_marks": (question_answer.ai_marks if question_answer.ai_marks is not None else 0) if show_explanations else None,
                         "ai_confidence": question_answer.ai_confidence if show_explanations else None,
-                        "needs_manual_review": (question_answer.ai_confidence is not None and question_answer.ai_confidence < ai_confidence_threshold) if show_explanations and question_type == 'descriptive' else False,
+                        "needs_manual_review": (isinstance(question_answer.ai_confidence, (int, float)) and question_answer.ai_confidence < ai_confidence_threshold) if show_explanations and question_type == 'descriptive' else False,
                         "ai_confidence_threshold": ai_confidence_threshold if show_explanations and question_type == 'descriptive' else None,
                         "manual_review_required": (True if question_answer.manual_review_required == 1 else False) if show_explanations else None,
                         "manual_marks": (question_answer.manual_marks if question_answer.manual_marks is not None else 0) if show_explanations else None,
@@ -521,6 +649,7 @@ def review_user_exam(request, current_user=None):
             if rng and review_data["review"]:
                 rng.shuffle(review_data["review"])
 
+            review_data["items"] = review_data["review"]
             attempt_reviews.append(review_data)
 
         if is_student_request:
@@ -543,6 +672,13 @@ def validate_answers(attempt_id):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
     
     evaluation_failures = 0
+
+    # Retrieve authoritative attempt and schedule metadata for object path authorization
+    attempt_rec = session.query(Exam_Attempt).filter_by(attempt_id=attempt_id).first()
+    sched_rec = session.query(ExamSchedule).filter_by(schedule_id=attempt_rec.schedule_id).first() if attempt_rec else None
+    auth_exam_id = str(sched_rec.exam_id) if (sched_rec and getattr(sched_rec, 'exam_id', None)) else None
+    auth_inst_id = str(sched_rec.institute_id) if (sched_rec and getattr(sched_rec, 'institute_id', None)) else None
+    download_cache = {}
 
     # get answer records
     answers = session.query(Answer).filter_by(attempt_id=attempt_id).all()
@@ -588,6 +724,7 @@ def validate_answers(attempt_id):
                 # Check if answer contains handwritten answer images
                 answer_images = []
                 student_text = ""
+                parsed_ans = None
                 if raw_answer:
                     try:
                         parsed_ans = json.loads(raw_answer)
@@ -605,6 +742,91 @@ def validate_answers(attempt_id):
                             student_text = raw_answer
 
                 if answer_images:
+                    # Sort images by 'order' or 'page_number' to preserve original student submission sequence
+                    def _get_img_order(item, default_idx):
+                        if isinstance(item, dict):
+                            val = item.get("order") or item.get("page_number")
+                            if val is not None:
+                                try:
+                                    return int(val)
+                                except (ValueError, TypeError):
+                                    pass
+                        return default_idx
+
+                    sorted_images = sorted(
+                        list(enumerate(answer_images, start=1)),
+                        key=lambda pair: _get_img_order(pair[1], pair[0])
+                    )
+
+                    prepared_images = []
+                    gcs_download_error = None
+
+                    for default_idx, img_item in sorted_images:
+                        if isinstance(img_item, dict):
+                            gcs_path = img_item.get("gcs_path")
+                            if gcs_path:
+                                if not _validate_student_answer_gcs_path(
+                                    gcs_path, attempt_id, question_id, auth_exam_id, auth_inst_id
+                                ):
+                                    gcs_download_error = f"Unauthorized or malformed GCS path for question {question_id}"
+                                    break
+                                try:
+                                    if gcs_path in download_cache:
+                                        img_bytes = download_cache[gcs_path]
+                                    else:
+                                        img_bytes = gcs_storage.download_media_bytes(gcs_path)
+                                        download_cache[gcs_path] = img_bytes
+                                    prepared_images.append({
+                                        "image_bytes": img_bytes,
+                                        "mime_type": img_item.get("mime_type") or "image/jpeg",
+                                        "order": img_item.get("order") or default_idx,
+                                        "image_id": img_item.get("image_id"),
+                                        "gcs_path": gcs_path,
+                                    })
+                                except Exception as dl_err:
+                                    gcs_download_error = f"Failed to retrieve image from storage: {dl_err}"
+                                    break
+                            else:
+                                # Legacy image dict with Base64 / data / dataUrl
+                                prepared_images.append(img_item)
+                        elif isinstance(img_item, str):
+                            if img_item.startswith("student_answers/"):
+                                if not _validate_student_answer_gcs_path(
+                                    img_item, attempt_id, question_id, auth_exam_id, auth_inst_id
+                                ):
+                                    gcs_download_error = f"Unauthorized or malformed GCS path for question {question_id}"
+                                    break
+                                try:
+                                    if img_item in download_cache:
+                                        img_bytes = download_cache[img_item]
+                                    else:
+                                        img_bytes = gcs_storage.download_media_bytes(img_item)
+                                        download_cache[img_item] = img_bytes
+                                    prepared_images.append({
+                                        "image_bytes": img_bytes,
+                                        "mime_type": "image/jpeg",
+                                        "order": default_idx,
+                                        "gcs_path": img_item,
+                                    })
+                                except Exception as dl_err:
+                                    gcs_download_error = f"Failed to retrieve image: {dl_err}"
+                                    break
+                            else:
+                                # Legacy Base64 string or file path
+                                prepared_images.append(img_item)
+                        elif isinstance(img_item, bytes):
+                            prepared_images.append(img_item)
+
+                    if gcs_download_error:
+                        # Do NOT falsely mark as unattempted or give 0 marks; keep retryable
+                        evaluation_failures += 1
+                        print(f"AI evaluation halted for answer {ans.answer_id}: {gcs_download_error}")
+                        ans.feedback = "AI evaluation could not be completed because an answer image could not be retrieved from storage. Please retry."
+                        ans.ai_confidence = None
+                        ans.is_validated = 0
+                        session.add(ans)
+                        continue
+
                     # Direct Visual Inspection (No OCR)
                     q_dict = {
                         "question_id": str(question.question_id),
@@ -616,7 +838,7 @@ def validate_answers(attempt_id):
                     evaluation = vision_evaluate_question_images(
                         openai_client_instance,
                         q_dict,
-                        answer_images,
+                        prepared_images,
                         written_text=student_text
                     )
                 else:
@@ -659,9 +881,9 @@ def validate_answers(attempt_id):
                 ai_confidence = evaluation.get("ai_confidence", 0)
                 ans.ai_confidence = ai_confidence
 
-                if answer_images:
-                    # Keep database lightweight: Discard heavy base64 images after AI evaluation and store standardized label
-                    ans.written_answer = "Handwritten answer uploaded"
+                # Preserve student answer images and lightweight metadata: Do NOT overwrite with "Handwritten answer uploaded"
+                if isinstance(parsed_ans, dict):
+                    ans.written_answer = json.dumps(parsed_ans)
 
                 session.add(ans)
 

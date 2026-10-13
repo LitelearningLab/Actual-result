@@ -42,6 +42,20 @@ def sanitize_filename(filename: str) -> str:
     return clean or "media_file"
 
 
+def build_student_answer_object_path(institute_id: str, exam_id: str, attempt_id: str, question_id: str, image_uuid: str, extension: str = "jpg") -> str:
+    """
+    Builds the standardized canonical GCS object path for student answer images:
+    student_answers/{institute_id}/{exam_id}/{attempt_id}/{question_id}/{image_uuid}.{extension}
+    """
+    clean_inst = sanitize_filename(str(institute_id or "global"))
+    clean_exam = sanitize_filename(str(exam_id))
+    clean_att = sanitize_filename(str(attempt_id))
+    clean_qid = sanitize_filename(str(question_id))
+    clean_uuid = sanitize_filename(str(image_uuid))
+    ext = f".{extension.lstrip('.')}" if extension else ".jpg"
+    return f"student_answers/{clean_inst}/{clean_exam}/{clean_att}/{clean_qid}/{clean_uuid}{ext}"
+
+
 class GCSStorageService:
     def __init__(self):
         self.bucket_name = os.getenv("GCS_BUCKET_NAME", "").strip()
@@ -135,22 +149,27 @@ class GCSStorageService:
 
         return True, None, media_type, mime_type
 
-    def upload_media(self, file_bytes: bytes, filename: str, folder_prefix: str = "questions", expected_type: str = "any", custom_object_id: str = None, is_private: bool = False) -> dict:
+    def upload_media(self, file_bytes: bytes, filename: str, folder_prefix: str = "questions", expected_type: str = "any", custom_object_id: str = None, is_private: bool = False, exact_object_path: str = None) -> dict:
         """
         Uploads media to GCS (or local fallback storage if GCS not configured).
+        If exact_object_path is given, uses that canonical path directly.
         Returns metadata dictionary with URL, GCS path, MIME type, file size.
         """
         valid, err_msg, media_type, mime_type = self.validate_media(filename, file_bytes, expected_type)
         if not valid:
             raise ValueError(err_msg)
 
-        safe_name = sanitize_filename(filename)
-        file_ext = os.path.splitext(safe_name)[1].lower()
-        obj_uid = custom_object_id or str(uuid.uuid4())
-        unique_filename = f"{obj_uid}_{safe_name}"
-
-        clean_folder = folder_prefix.strip("/\\")
-        gcs_object_path = f"{clean_folder}/{unique_filename}"
+        if exact_object_path:
+            gcs_object_path = exact_object_path.strip("/\\").replace("\\", "/")
+            clean_folder = os.path.dirname(gcs_object_path).replace("\\", "/")
+            unique_filename = os.path.basename(gcs_object_path)
+            safe_name = sanitize_filename(filename or unique_filename)
+        else:
+            safe_name = sanitize_filename(filename)
+            obj_uid = custom_object_id or str(uuid.uuid4())
+            unique_filename = f"{obj_uid}_{safe_name}"
+            clean_folder = folder_prefix.strip("/\\")
+            gcs_object_path = f"{clean_folder}/{unique_filename}"
 
         file_size = len(file_bytes)
 
@@ -187,11 +206,41 @@ class GCSStorageService:
         if self.bucket_name and not self.allow_local_fallback:
             raise RuntimeError("Google Cloud Storage is configured but not connected. Local fallback is disabled in production.")
 
-        local_dir = os.path.join(_backend_dir, "static", "uploads", clean_folder.replace("/", os.sep))
-        os.makedirs(local_dir, exist_ok=True)
-        local_file_path = os.path.join(local_dir, unique_filename)
+        # Validate local fallback destination path to prevent directory traversal
+        target_path = exact_object_path if exact_object_path else gcs_object_path
+        if (
+            ".." in target_path
+            or target_path.startswith(("/", "\\"))
+            or os.path.isabs(target_path)
+            or bool(re.match(r'^[a-zA-Z]:', target_path))
+            or bool(os.path.splitdrive(target_path)[0])
+            or (folder_prefix and (".." in folder_prefix or folder_prefix.startswith(("/", "\\")) or os.path.isabs(folder_prefix) or bool(re.match(r'^[a-zA-Z]:', folder_prefix)) or bool(os.path.splitdrive(folder_prefix)[0])))
+            or ".." in gcs_object_path
+            or gcs_object_path.startswith(("/", "\\"))
+            or os.path.isabs(gcs_object_path)
+            or bool(re.match(r'^[a-zA-Z]:', gcs_object_path))
+            or bool(os.path.splitdrive(gcs_object_path)[0])
+        ):
+            raise ValueError(f"Directory traversal detected for '{exact_object_path or gcs_object_path}'")
 
-        with open(local_file_path, "wb") as f:
+        uploads_root = os.path.abspath(os.path.join(_backend_dir, "static", "uploads"))
+        resolved_dir = os.path.abspath(os.path.join(uploads_root, clean_folder.replace("/", os.sep)))
+        resolved_file = os.path.abspath(os.path.join(resolved_dir, unique_filename))
+
+        try:
+            if os.path.commonpath([uploads_root, resolved_dir]) != uploads_root:
+                raise ValueError(f"Directory traversal detected for '{gcs_object_path}'")
+            if os.path.commonpath([uploads_root, resolved_file]) != uploads_root:
+                raise ValueError(f"Directory traversal detected for '{gcs_object_path}'")
+            real_root = os.path.realpath(uploads_root)
+            real_file = os.path.realpath(resolved_file)
+            if os.path.commonpath([real_root, real_file]) != real_root:
+                raise ValueError(f"Directory traversal detected for '{gcs_object_path}'")
+        except ValueError:
+            raise ValueError(f"Directory traversal detected for '{gcs_object_path}'")
+
+        os.makedirs(resolved_dir, exist_ok=True)
+        with open(resolved_file, "wb") as f:
             f.write(file_bytes)
 
         media_url = f"/edu/api/uploads/media/{clean_folder}/{unique_filename}"
@@ -208,10 +257,60 @@ class GCSStorageService:
             "is_private": False
         }
 
+    def download_media_bytes(self, gcs_path: str) -> bytes:
+        """
+        Downloads media bytes from Google Cloud Storage or local fallback storage.
+        Returns the raw binary bytes of the file.
+        Raises FileNotFoundError or RuntimeError on failure.
+        """
+        if not gcs_path:
+            raise ValueError("gcs_path is required")
+
+        if ".." in gcs_path or gcs_path.startswith(("/", "\\")):
+            raise ValueError(f"Directory traversal detected for '{gcs_path}'")
+
+        cleaned_path = gcs_path.strip("/\\").replace("\\", "/")
+
+        # 1. Try GCS if active
+        if self.is_gcs_active():
+            try:
+                blob = self.bucket.blob(cleaned_path)
+                if blob.exists():
+                    return blob.download_as_bytes()
+                if not self.allow_local_fallback:
+                    raise FileNotFoundError(f"Object '{cleaned_path}' not found in Google Cloud Storage.")
+            except FileNotFoundError:
+                raise
+            except Exception as e:
+                if not self.allow_local_fallback:
+                    raise RuntimeError(f"Failed to download '{cleaned_path}' from Google Cloud Storage: {e}")
+                print(f"[GCSStorageService] GCS download failed for '{cleaned_path}', checking local fallback: {e}")
+
+        # 2. Check local fallback storage
+        uploads_root = os.path.abspath(os.path.join(_backend_dir, "static", "uploads"))
+        resolved_file = os.path.abspath(os.path.join(uploads_root, cleaned_path.replace("/", os.sep)))
+        try:
+            if os.path.commonpath([uploads_root, resolved_file]) != uploads_root:
+                raise ValueError(f"Directory traversal detected for '{cleaned_path}'")
+        except ValueError:
+            raise ValueError(f"Directory traversal detected for '{cleaned_path}'")
+
+        if os.path.exists(resolved_file):
+            try:
+                with open(resolved_file, "rb") as f:
+                    return f.read()
+            except Exception as e:
+                raise RuntimeError(f"Failed to read local fallback file '{resolved_file}': {e}")
+
+        raise FileNotFoundError(f"Media file '{cleaned_path}' not found in GCS or local storage.")
+
     def delete_media(self, gcs_path: str) -> bool:
         """Deletes media file from GCS and/or local fallback storage."""
         if not gcs_path:
             return True
+
+        if ".." in gcs_path or gcs_path.startswith(("/", "\\")):
+            raise ValueError(f"Directory traversal detected for '{gcs_path}'")
 
         cleaned_path = gcs_path.strip("/\\").replace("\\", "/")
         deleted = False
@@ -227,9 +326,10 @@ class GCSStorageService:
 
         # Also remove from local fallback if exists
         try:
-            local_file = os.path.join(_backend_dir, "static", "uploads", cleaned_path.replace("/", os.sep))
-            if os.path.exists(local_file):
-                os.remove(local_file)
+            uploads_root = os.path.abspath(os.path.join(_backend_dir, "static", "uploads"))
+            resolved_file = os.path.abspath(os.path.join(uploads_root, cleaned_path.replace("/", os.sep)))
+            if os.path.commonpath([uploads_root, resolved_file]) == uploads_root and os.path.exists(resolved_file):
+                os.remove(resolved_file)
                 deleted = True
         except Exception as e:
             print(f"[GCSStorageService] Error deleting local fallback {cleaned_path}: {e}")
@@ -259,3 +359,4 @@ class GCSStorageService:
 
 # Singleton instance
 gcs_storage = GCSStorageService()
+

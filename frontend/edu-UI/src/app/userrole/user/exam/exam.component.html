@@ -851,7 +851,46 @@
                         </div>
                         <div *ngIf="(q.question_type || '') === 'descriptive'" class="desc-student" [class.desc-student--full]="(q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) >= (q.question_marks || 0)">
                            <div class="student-label">Student's Answer</div>
-                           <div class="answer-text">{{ (q.selected_option || []).join(' ') || '-' }}</div>
+                           <div class="answer-text" *ngIf="q.student_text">{{ q.student_text }}</div>
+                           <div class="answer-text" *ngIf="!q.student_text && (!q.answer_images || q.answer_images.length === 0)">{{ (q.selected_option || []).join(' ') || '-' }}</div>
+
+                           <!-- Handwritten Answer Pages Gallery -->
+                           <div class="hw-gallery-container" *ngIf="q.answer_images && q.answer_images.length > 0">
+                              <div class="hw-gallery-header">
+                                 <span class="hw-gallery-title">
+                                    <mat-icon class="hw-icon">draw</mat-icon>
+                                    Handwritten Pages ({{ q.answer_images.length }})
+                                 </span>
+                                 <span class="hw-gallery-hint">Click an image to zoom and inspect handwriting</span>
+                              </div>
+                              <div class="hw-gallery-grid">
+                                 <div *ngFor="let img of q.answer_images; let imgIdx = index"
+                                      class="hw-thumb-card"
+                                      (click)="openImageModal(img.signed_url || img.url || img.file_url || img.gcs_path, 'Page ' + (img.order || (imgIdx + 1)) + (img.filename ? ' - ' + img.filename : ''))">
+                                    <div class="hw-thumb-badge">
+                                       <span>Page {{ img.order || (imgIdx + 1) }}</span>
+                                    </div>
+                                    <div class="hw-thumb-img-wrapper" *ngIf="!img._loadError">
+                                       <img [src]="resolveMediaUrl(img.signed_url || img.url || img.file_url || img.gcs_path)"
+                                            [alt]="'Handwritten Answer Page ' + (img.order || (imgIdx + 1))"
+                                            class="hw-thumb-img"
+                                            (error)="onAnswerImageError($event, img)"
+                                            loading="lazy" />
+                                       <div class="hw-zoom-overlay">
+                                          <mat-icon>zoom_in</mat-icon>
+                                          <span>Enlarge</span>
+                                       </div>
+                                    </div>
+                                    <div class="hw-thumb-error" *ngIf="img._loadError">
+                                       <mat-icon>broken_image</mat-icon>
+                                       <span>Unable to load image (link may have expired)</span>
+                                    </div>
+                                    <div class="hw-thumb-meta" *ngIf="img.filename">
+                                       <span class="hw-filename" [title]="img.filename">{{ img.filename }}</span>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
                         </div>
 
                         <!-- <div class="desc-model">
@@ -884,4 +923,82 @@
          <div *ngIf="!reviewLoading && !reviewAttempts.length" class="muted">No review data available.</div>
       </div>
    </div>
+</div>
+
+<!-- ═══ Image Lightbox Preview Modal ═══ -->
+<div
+  *ngIf="previewModalImage"
+  class="img-preview-backdrop"
+  (click)="closeImageModal()"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="student-img-preview-title"
+>
+  <div class="img-preview-dialog" (click)="$event.stopPropagation()">
+    <div class="img-preview-header">
+      <div class="img-preview-title-group">
+        <mat-icon class="title-icon">image</mat-icon>
+        <span id="student-img-preview-title" class="img-preview-title" [title]="previewModalImage.title">
+          {{ previewModalImage.title }}
+        </span>
+      </div>
+      <div class="img-preview-actions">
+        <button
+          type="button"
+          mat-icon-button
+          (click)="zoomOut()"
+          [disabled]="imageZoom <= 0.5"
+          matTooltip="Zoom out"
+        >
+          <mat-icon>zoom_out</mat-icon>
+        </button>
+        <button
+          type="button"
+          class="zoom-reset-btn"
+          (click)="resetZoom()"
+          [disabled]="imageZoom === 1"
+          matTooltip="Reset zoom"
+        >
+          {{ (imageZoom * 100) | number : '1.0-0' }}%
+        </button>
+        <button
+          type="button"
+          mat-icon-button
+          (click)="zoomIn()"
+          [disabled]="imageZoom >= 3"
+          matTooltip="Zoom in"
+        >
+          <mat-icon>zoom_in</mat-icon>
+        </button>
+        <a
+          [href]="previewModalImage.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          mat-icon-button
+          matTooltip="Open original in new tab"
+        >
+          <mat-icon>open_in_new</mat-icon>
+        </a>
+        <button
+          type="button"
+          mat-icon-button
+          class="close-btn"
+          (click)="closeImageModal()"
+          matTooltip="Close (Esc)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="img-preview-body">
+      <div class="img-preview-viewport">
+        <img
+          [src]="previewModalImage.url"
+          [alt]="previewModalImage.title"
+          [style.transform]="'scale(' + imageZoom + ')'"
+        />
+      </div>
+    </div>
+  </div>
 </div>
