@@ -137,44 +137,55 @@ or logical errors. Do not stop after finding the first error.
 Keep this comparison out of the returned JSON. Use it to verify every
 feedback point.
 
-3. CLASSIFY EACH SPECIFIC DEFICIENCY
-INCORRECT:
-<Incorrect claim> Correction: <Correct information>
-INCOMPLETE:
-<Criterion> Incomplete: You stated <what is correct or attempted>; add <specific missing detail>.
-MISSING:
-<Missing criterion> Missing: Include <specific required content>.
-Format: <Attempted criterion> Complete: You stated <brief evidence>; add <required detail>
-Evaluate distinct claims and criteria independently. An error in one claim does not invalidate correct evidence or other valid findings. List every verified, distinct deficiency as a separate item under its category, one item per output entry.
-4. REMOVE DUPLICATION AND UNSUPPORTED REQUIREMENTS
-Report each distinct deficiency once. Remove or combine findings only when they describe the same underlying deficiency and the same correction resolves them.
-Do not remove a finding merely because it shares a topic, keywords, or overlapping wording with another finding. Preserve independently justified deficiencies, including multiple findings within the same category.
-Before retaining a finding, verify that it is supported by the assessment material and student answer, is correctly classified, and is not genuinely redundant. Do not invent requirements or demand optional details.
-When uncertain whether two findings are duplicates, preserve both unless their equivalence is clear.
+3. CLASSIFY EACH SPECIFIC DEFICIENCY (COMPREHENSIVE MULTI-POINT EVALUATION)
+
+Evaluate the student's answer thoroughly sentence by sentence. Identify and list ALL distinct deficiencies. Do NOT limit your output to a single point. If an answer has multiple issues, report every single one of them.
+
+CRITICAL RULE FOR TOPIC LABELS:
+Never use broad generic single-word labels like "Structure:", "Function:", "Overview:", or "General:". Always use specific descriptive concept names (e.g., "Chlorophyll Function", "Base-Pairing Mechanism", "DNA Replication & Hereditary Mechanism").
+
+INCORRECT (stored in "incorrect"):
+List every distinct false claim, contradiction, or scientific error made by the student.
+Format each point as:
+**<Exact false student claim> Correction:** <Explain the accurate scientific fact>
+Example:
+**Adenine pairs with guanine, while thymine pairs with cytosine Correction:** Adenine pairs with thymine via two hydrogen bonds, and guanine pairs with cytosine via three hydrogen bonds.
+
+INCOMPLETE (stored in "incomplete"):
+List every concept the student correctly introduced or touched upon, but omitted necessary technical depth, stages, or mechanisms.
+Format each point strictly on two lines with a newline before **Add:**:
+**<Specific Concept Name> Incomplete: ** You stated <brief student evidence>.
+**Add:** <specific missing detail or mechanism needed to complete it>
+Example:
+**Chlorophyll Function Incomplete:** You stated chlorophyll absorbs sunlight.
+**Add:** how this absorbed light excites electrons to split water molecules and release oxygen.
+
+MISSING (stored in "missing"):
+List every core required stage, concept, or curriculum requirement that was completely omitted from the answer.
+Format each point as:
+**<Specific Concept Name> Missing:** Include <specific required stage/mechanism/detail>.
+Example:
+**DNA Replication & Hereditary Mechanism Missing:** Include how the semi-conservative replication process copies genetic code to pass identical traits to daughter cells.
+4. PRESERVE ALL DISTINCT FINDINGS
+- Do NOT merge or collapse separate errors into a single summary sentence.
+- Report each distinct issue as its own entry separated by " | ".
+- Only use "None" if a category has zero verified issues.
 
 5. SCORE AND SUMMARIZE
+- Award marks fairly within zero and the supplied maximum marks based on the proportion of valid content provided.
+- Write "feedback" as 1-2 constructive sentences summarizing overall performance and key areas to revise.
+- Set "ai_confidence" as an integer between 0 and 100.
 
-Award marks according to the supplied marking instructions and requirements
-satisfied, within zero and the supplied maximum marks.
-
-Do not deduct marks for absent optional details or valid alternative approaches.
-
-Write "feedback" as one or two concise, student-friendly sentences identifying
-supported strengths and the main verified deficiency. Do not introduce new
-requirements or contradict the category feedback.
-
-Set "ai_confidence" to an integer from 0 to 100 representing confidence in the
-evaluation. Reflect uncertainty in the supplied material or its interpretation.
-
-6. RETURN THE EXISTING JSON FORMAT
-
-Return exactly:
-- "score": a number between zero and the supplied maximum marks.
-- "missing": a string.
-- "incomplete": a string.
-- "incorrect": a string.
-- "feedback": a string.
-- "ai_confidence": an integer between 0 and 100.
+6. RETURN JSON FORMAT
+Return ONLY one valid JSON object. Every category containing multiple points MUST join them with " | ":
+{
+  "score": <number>,
+  "missing": "<Topic 1>: Missing: Include <...> | <Topic 2>: Missing: Include <...>",
+  "incomplete": "<Topic 1>: Incomplete: You stated <...>; add <...> | <Topic 2>: Incomplete: You stated <...>; add <...>",
+  "incorrect": "<Topic 1>: Correction: <...> | <Topic 2>: Correction: <...>",
+  "feedback": "<1-2 summary sentences>",
+  "ai_confidence": <0-100>
+}
 
 For each category, use exactly "None" when there are no verified issues.
 Otherwise join points with " | ". Do not use arrays or JSON null.
@@ -218,28 +229,6 @@ working, or text outside the JSON object.'''
             result_text = result_text.strip()
         
         result = json.loads(result_text)
-
-        # -------------------------------------------------------------
-        # POST-PROCESSING: Clean up unwanted prefixes and duplicates
-        # -------------------------------------------------------------
-        for key in ["missing", "incomplete", "incorrect"]:
-            text_val = result.get(key, "None")
-            if not text_val or str(text_val).strip().lower() in ("none", "null", "n/a"):
-                result[key] = "None"
-                continue
-
-            points = [p.strip() for p in str(text_val).split('|') if p.strip() and p.strip().lower() not in ('none', 'null', 'n/a')]
-            cleaned_points = []
-            seen = set()
-            for p in points:
-                # Remove prefixes like "Incorrect: ", "Incomplete: ", "Missed: ", "Missing: " from the start
-                p = re.sub(r'^(Incorrect|Incomplete|Missed|Missing)\s*:\s*', '', p, flags=re.IGNORECASE).strip()
-                p_norm = p.lower()
-                if p and p_norm not in seen:
-                    seen.add(p_norm)
-                    cleaned_points.append(p)
-            
-            result[key] = " | ".join(cleaned_points) if cleaned_points else "None"
 
        
         ai_conf = result.get('ai_confidence')

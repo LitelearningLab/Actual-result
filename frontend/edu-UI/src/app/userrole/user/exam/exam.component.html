@@ -747,7 +747,7 @@
                                                    </div>
                                                 </ng-container>
                                                 <ng-template #plainRcMissed>
-                                                   <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{ formatCardText(rc.comment_text || rc.comment) }}</span>
+                                                   <span class="review-text" [class.deleted]="rc.is_deleted == 1" [innerHTML]="formatCardText(rc.comment_text || rc.comment)"></span>
                                                 </ng-template>
                                              </div>
                                           </div>
@@ -810,7 +810,7 @@
                                                    </div>
                                                 </ng-container>
                                                 <ng-template #plainRcIncorr>
-                                                   <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{ formatCardText(rc.comment_text || rc.comment) }}</span>
+                                                   <span class="review-text" [class.deleted]="rc.is_deleted == 1" [innerHTML]="formatCardText(rc.comment_text || rc.comment)"></span>
                                                 </ng-template>
                                              </div>
                                           </div>
@@ -872,7 +872,7 @@
                                                    </div>
                                                 </ng-container>
                                                 <ng-template #plainRcIncomp>
-                                                   <span class="review-text" [class.deleted]="rc.is_deleted == 1">{{ formatCardText(rc.comment_text || rc.comment) }}</span>
+                                                   <span class="review-text" [class.deleted]="rc.is_deleted == 1" [innerHTML]="formatCardText(rc.comment_text || rc.comment)"></span>
                                                 </ng-template>
                                              </div>
                                           </div>
