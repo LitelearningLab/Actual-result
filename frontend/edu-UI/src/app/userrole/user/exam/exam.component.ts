@@ -1537,8 +1537,11 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       this.reviewSelectedAttempt = 0;
       this.http.get<any>(url).subscribe({
         next: (res) => {
+          // ================= ADD THIS CONSOLE LOG =================
+          console.log('🎯 FULL EVALUATION & REVIEW JSON:', res);
+          console.log('📋 QUESTIONS & AI COMMENTS:', res?.review || res?.data);
+          // ========================================================
           try {
-            // API may return attempts as an array in res.data
             const attempts = Array.isArray(res?.data)
               ? res.data
               : Array.isArray(res?.attempts)
@@ -1755,21 +1758,36 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
    * Splits into student issue (Line 1) and correction/needed/complete (Line 2 in green).
    */
 // Replace lines 1757 - 1773 with:
-  parseCard(pointText: string | null | undefined): any {
-    return null; // Disables the (Correct|Needed|Complete) split completely
+  parseCard(pointText: string | null | undefined): { issue: string; label: string; solution: string } | null {
+    // OLD CODE COMMENTED OUT:
+    // return null; 
+    // NEW ACTIVE CODE:
+    if (!pointText) return null;
+    const clean = String(pointText).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const match = clean.match(/^(.*?)\s*(Correct(?:\s+point)?|Needed(?:\s+point)?|Complete(?:\s+point)?)\s*:\s*(.*)$/i);
+    if (match && (match[1].trim() || match[3].trim())) {
+      const rawLabel = match[2].trim();
+      const label = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1).toLowerCase();
+      return {
+        issue: match[1].trim(),
+        label: label,
+        solution: match[3].trim()
+      };
+    }
+    return null;
   }
 
 
   // Replace formatCardText (lines 1775 - 1779) with:
-  formatCardText(pointText: string | null | undefined): string {
+   formatCardText(pointText: string | null | undefined): string {
     if (!pointText) return '';
     let str = String(pointText).trim();
-    // Convert markdown **text** to <strong>text</strong>
     str = str.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    // Convert newlines to <br/>
     str = str.replace(/\n/g, '<br/>');
+    str = str.replace(/(?:<br\s*\/?>\s*){2,}/gi, '<br/>');
     return str;
   }
+
 
 
   ngOnInit(): void {

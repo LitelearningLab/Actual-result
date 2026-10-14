@@ -1,4 +1,3 @@
-
 import json
 import os
 import re
@@ -16,19 +15,37 @@ class _ErrorResponse:
     def json(self):
         return {"error": self._message}
 
+
 class openai_client:
-    def __init__(self,api_key=None,  model=None):
+    def __init__(self, api_key=None, model=None):
         # Resolve the file relative to this module so configuration does not
         # depend on the directory from which Flask was started. Environment
         # variables take precedence in deployed environments.
         env_file = Path(__file__).resolve().parents[1] / ".env"
         config = dotenv_values(env_file)
 
-        self.api_key = (api_key or os.getenv("OPENAI_API_KEY") or
-                        os.getenv("api_key") or config.get("OPENAI_API_KEY") or
-                        config.get("api_key") or "").strip()
-        configured_model1 = os.getenv("OPENAI_MODEL_1") or os.getenv("model1") or config.get("OPENAI_MODEL_1") or config.get("model1") or "gpt-4o-mini"
-        configured_model2 = os.getenv("OPENAI_MODEL_2") or os.getenv("model2") or config.get("OPENAI_MODEL_2") or config.get("model2") or configured_model1
+        self.api_key = (
+            api_key
+            or os.getenv("OPENAI_API_KEY")
+            or os.getenv("api_key")
+            or config.get("OPENAI_API_KEY")
+            or config.get("api_key")
+            or ""
+        ).strip()
+        configured_model1 = (
+            os.getenv("OPENAI_MODEL_1")
+            or os.getenv("model1")
+            or config.get("OPENAI_MODEL_1")
+            or config.get("model1")
+            or "gpt-4o-mini"
+        )
+        configured_model2 = (
+            os.getenv("OPENAI_MODEL_2")
+            or os.getenv("model2")
+            or config.get("OPENAI_MODEL_2")
+            or config.get("model2")
+            or configured_model1
+        )
         self.model1 = (model or configured_model1).strip()
         self.model2 = (model or configured_model2).strip()
 
@@ -38,11 +55,19 @@ class openai_client:
             "Content-Type": "application/json",
         }
 
-    def chat_completion(self, system_message, InputData, aimodel =1, max_tokens: int = 5200, temperature: float = 0.2, timeout: float = 30.0):
+    def chat_completion(
+        self,
+        system_message,
+        InputData,
+        aimodel=1,
+        max_tokens: int = 5200,
+        temperature: float = 0.2,
+        timeout: float = 30.0,
+    ):
         if not self.api_key:
             return _ErrorResponse(
                 503,
-                "OpenAI API key is not configured. Set OPENAI_API_KEY on the backend service."
+                "OpenAI API key is not configured. Set OPENAI_API_KEY on the backend service.",
             )
 
         messages = []
@@ -53,25 +78,34 @@ class openai_client:
         if not model:
             return _ErrorResponse(
                 503,
-                "OpenAI model is not configured. Set OPENAI_MODEL_1 and OPENAI_MODEL_2 on the backend service."
+                "OpenAI model is not configured. Set OPENAI_MODEL_1 and OPENAI_MODEL_2 on the backend service.",
             )
         payload = {
             "model": model,
             "messages": messages,
             "temperature": temperature,
-            "max_tokens": max_tokens
+            "max_tokens": max_tokens,
         }
 
         try:
-            response = httpx.post(self.url, headers=self.headers, json=payload, verify=False, timeout=timeout)
+            response = httpx.post(
+                self.url,
+                headers=self.headers,
+                json=payload,
+                verify=False,
+                timeout=timeout,
+            )
         except httpx.ReadTimeout:
             response = _ErrorResponse(504, "OpenAI request timed out")
         except httpx.RequestError as exc:
             response = _ErrorResponse(502, str(exc))
         return response
 
-def descriptive_evaluation(api_client, question_mark, expected_answer, student_answer, question_text=""):
-    system_message = '''You are an expert academic evaluator. Evaluate the student's descriptive
+
+def descriptive_evaluation(
+    api_client, question_mark, expected_answer, student_answer, question_text=""
+):
+    system_message = """You are an expert academic evaluator. Evaluate the student's descriptive
 answer fairly and accurately against the supplied question, expected answer,
 and any explicit marking instructions.
 
@@ -141,31 +175,21 @@ feedback point.
 
 Evaluate the student's answer thoroughly sentence by sentence. Identify and list ALL distinct deficiencies. Do NOT limit your output to a single point. If an answer has multiple issues, report every single one of them.
 
-CRITICAL RULE FOR TOPIC LABELS:
-Never use broad generic single-word labels like "Structure:", "Function:", "Overview:", or "General:". Always use specific descriptive concept names (e.g., "Chlorophyll Function", "Base-Pairing Mechanism", "DNA Replication & Hereditary Mechanism").
-
 INCORRECT (stored in "incorrect"):
 List every distinct false claim, contradiction, or scientific error made by the student.
 Format each point as:
-**<Exact false student claim> Correction:** <Explain the accurate scientific fact>
-Example:
-**Adenine pairs with guanine, while thymine pairs with cytosine Correction:** Adenine pairs with thymine via two hydrogen bonds, and guanine pairs with cytosine via three hydrogen bonds.
+(<Topic>): <what was incorrect> Correct: <accurate scientific correction>
 
 INCOMPLETE (stored in "incomplete"):
 List every concept the student correctly introduced or touched upon, but omitted necessary technical depth, stages, or mechanisms.
-Format each point strictly on two lines with a newline before **Add:**:
-**<Specific Concept Name> Incomplete: ** You stated <brief student evidence>.
-**Add:** <specific missing detail or mechanism needed to complete it>
-Example:
-**Chlorophyll Function Incomplete:** You stated chlorophyll absorbs sunlight.
-**Add:** how this absorbed light excites electrons to split water molecules and release oxygen.
+Format each point as:
+(<Topic>): <what was incomplete> Complete: <what is needed to complete it>
 
 MISSING (stored in "missing"):
 List every core required stage, concept, or curriculum requirement that was completely omitted from the answer.
 Format each point as:
-**<Specific Concept Name> Missing:** Include <specific required stage/mechanism/detail>.
-Example:
-**DNA Replication & Hereditary Mechanism Missing:** Include how the semi-conservative replication process copies genetic code to pass identical traits to daughter cells.
+(<Topic>): <what was missed> Needed: <what should be included>
+
 4. PRESERVE ALL DISTINCT FINDINGS
 - Do NOT merge or collapse separate errors into a single summary sentence.
 - Report each distinct issue as its own entry separated by " | ".
@@ -180,12 +204,13 @@ Example:
 Return ONLY one valid JSON object. Every category containing multiple points MUST join them with " | ":
 {
   "score": <number>,
-  "missing": "<Topic 1>: Missing: Include <...> | <Topic 2>: Missing: Include <...>",
-  "incomplete": "<Topic 1>: Incomplete: You stated <...>; add <...> | <Topic 2>: Incomplete: You stated <...>; add <...>",
-  "incorrect": "<Topic 1>: Correction: <...> | <Topic 2>: Correction: <...>",
+  "missing": "(<Topic>): <what was missed> Needed: <what should be included> | ...",
+  "incomplete": "(<Topic>): <what was incomplete> Complete: <what is needed to complete it> | ...",
+  "incorrect": "(<Topic>): <what was incorrect> Correct: <accurate scientific correction> | ...",
   "feedback": "<1-2 summary sentences>",
-  "ai_confidence": <0-100>
+  "ai_confidence": <number from 0 to 100>
 }
+
 
 For each category, use exactly "None" when there are no verified issues.
 Otherwise join points with " | ". Do not use arrays or JSON null.
@@ -197,11 +222,13 @@ Do not start points with "Missing:", "Missed:", "Incomplete:", or "Incorrect:".
 Keep "Needed:", "Complete:", and "Correct:" within the prescribed formats.
 
 Use valid JSON escaping. Do not include markdown, extra keys, assessment
-working, or text outside the JSON object.'''
-    
-    q_section = f"**Question Asked:** {question_text}\n        " if question_text else ""
-    
-    user_message = f'''
+working, or text outside the JSON object."""
+
+    q_section = (
+        f"**Question Asked:** {question_text}\n        " if question_text else ""
+    )
+
+    user_message = f"""
         Evaluate the following answer using the system's assessment instructions.
 
         {q_section}**Maximum Marks:** {question_mark}
@@ -214,40 +241,44 @@ working, or text outside the JSON object.'''
 
         Compare every required criterion with evidence from the candidate's actual
         answer before generating feedback. Return only the specified JSON object.
-        '''
+        """
     try:
         response = api_client.chat_completion(system_message, user_message)
         response_json = response.json()
         if response.status_code != 200:
-            return {"status": False, "error": response_json.get("error", "Unknown error")}
-        
-        result_text = response_json['choices'][0]['message']['content'].strip()
-        if result_text.startswith('```'):
-            result_text = result_text.split('```')[1]
-            if result_text.startswith('json'):
+            return {
+                "status": False,
+                "error": response_json.get("error", "Unknown error"),
+            }
+
+        result_text = response_json["choices"][0]["message"]["content"].strip()
+        if result_text.startswith("```"):
+            result_text = result_text.split("```")[1]
+            if result_text.startswith("json"):
                 result_text = result_text[4:]
             result_text = result_text.strip()
-        
+
         result = json.loads(result_text)
 
-       
-        ai_conf = result.get('ai_confidence')
+        ai_conf = result.get("ai_confidence")
         if isinstance(ai_conf, int) and 0 <= ai_conf <= 100:
-            result['ai_confidence'] = ai_conf
+            result["ai_confidence"] = ai_conf
         else:
             try:
                 max_marks = int(question_mark) if str(question_mark).isdigit() else None
-                score = result.get('score')
+                score = result.get("score")
                 if max_marks and isinstance(score, (int, float)):
                     conf = int(round(100.0 * float(score) / float(max_marks)))
-                    result['ai_confidence'] = max(0, min(100, conf))
+                    result["ai_confidence"] = max(0, min(100, conf))
                 else:
-                    result['ai_confidence'] = 0
+                    result["ai_confidence"] = 0
             except Exception:
-                result['ai_confidence'] = 0
-        result['status'] = True
+                result["ai_confidence"] = 0
+        result["status"] = True
     except Exception as e:
-        print(f"Error in evaluate_topic_answer: {str(e)} - Line # : {str(e.__traceback__.tb_lineno)}")
+        print(
+            f"Error in evaluate_topic_answer: {str(e)} - Line # : {str(e.__traceback__.tb_lineno)}"
+        )
         result = {
             "status": False,
             "error": str(e),
@@ -256,13 +287,15 @@ working, or text outside the JSON object.'''
             "incomplete": "Error in evaluation",
             "incorrect": "Error in evaluation",
             "feedback": "Unable to parse evaluation results",
-            "ai_confidence": 0
+            "ai_confidence": 0,
         }
-    
+
     return result
 
 
-def analyze_wrong_answers_ai(api_client, question_text, question_type, expected_answer, wrong_answers_list):
+def analyze_wrong_answers_ai(
+    api_client, question_text, question_type, expected_answer, wrong_answers_list
+):
     """
     Analyzes student incorrect/sub-optimal answers using LLM to provide:
     - Relevance classification: Relevant but Incorrect vs. Completely Irrelevant and Incorrect
@@ -276,14 +309,10 @@ def analyze_wrong_answers_ai(api_client, question_text, question_type, expected_
             "diagnostic_summary": "No incorrect answers recorded for this question.",
             "recommendations": "No remediation required.",
             "categories": {
-                "relevant_but_incorrect": {
-                    "clusters": []
-                },
-                "completely_irrelevant_and_incorrect": {
-                    "answer_ids": []
-                }
+                "relevant_but_incorrect": {"clusters": []},
+                "completely_irrelevant_and_incorrect": {"answer_ids": []},
             },
-            "clusters": []
+            "clusters": [],
         }
 
     system_message = """You are an expert educational evaluator, assessment specialist, and pedagogical data analyst.
@@ -353,10 +382,12 @@ Output Format:
     # Prepare sanitized input payload
     items = []
     for idx, item in enumerate(wrong_answers_list):
-        items.append({
-            "answer_id": str(item.get("answer_id") or f"ans_{idx}"),
-            "student_answer": (item.get("written_answer") or "").strip()
-        })
+        items.append(
+            {
+                "answer_id": str(item.get("answer_id") or f"ans_{idx}"),
+                "student_answer": (item.get("written_answer") or "").strip(),
+            }
+        )
 
     user_message = f"""Question Type: {question_type}
 Question: {question_text}
@@ -368,25 +399,30 @@ Incorrect Student Submissions to Analyze ({len(items)} submissions):
 Please classify relevance, cluster misconceptions, and provide the diagnostic summary."""
 
     try:
-        response = api_client.chat_completion(system_message, user_message, max_tokens=3500, temperature=0.2, timeout=12.0)
+        response = api_client.chat_completion(
+            system_message, user_message, max_tokens=3500, temperature=0.2, timeout=12.0
+        )
         response_json = response.json()
         if response.status_code != 200:
-            return {"status": False, "error": response_json.get("error", "AI service returned error")}
+            return {
+                "status": False,
+                "error": response_json.get("error", "AI service returned error"),
+            }
 
-        result_text = response_json['choices'][0]['message']['content'].strip()
-        if result_text.startswith('```'):
-            result_text = result_text.split('```')[1]
-            if result_text.startswith('json'):
+        result_text = response_json["choices"][0]["message"]["content"].strip()
+        if result_text.startswith("```"):
+            result_text = result_text.split("```")[1]
+            if result_text.startswith("json"):
                 result_text = result_text[4:]
             result_text = result_text.strip()
 
         parsed = json.loads(result_text)
-        
+
         # Normalize and ensure categories structure
         categories = parsed.get("categories") or {}
         rel_cat = categories.get("relevant_but_incorrect") or {}
         irrel_cat = categories.get("completely_irrelevant_and_incorrect") or {}
-        
+
         rel_clusters = rel_cat.get("clusters") or parsed.get("clusters") or []
         irrel_answer_ids = irrel_cat.get("answer_ids") or []
 
@@ -395,37 +431,31 @@ Please classify relevance, cluster misconceptions, and provide the diagnostic su
             "diagnostic_summary": parsed.get("diagnostic_summary", ""),
             "recommendations": parsed.get("recommendations", ""),
             "categories": {
-                "relevant_but_incorrect": {
-                    "clusters": rel_clusters
-                },
-                "completely_irrelevant_and_incorrect": {
-                    "answer_ids": irrel_answer_ids
-                }
+                "relevant_but_incorrect": {"clusters": rel_clusters},
+                "completely_irrelevant_and_incorrect": {"answer_ids": irrel_answer_ids},
             },
-            "clusters": rel_clusters
+            "clusters": rel_clusters,
         }
     except Exception as e:
-        print(f"Error in analyze_wrong_answers_ai: {str(e)} - Line # : {getattr(e, '__traceback__', None) and e.__traceback__.tb_lineno}")
+        print(
+            f"Error in analyze_wrong_answers_ai: {str(e)} - Line # : {getattr(e, '__traceback__', None) and e.__traceback__.tb_lineno}"
+        )
         return {
             "status": False,
             "error": str(e),
             "diagnostic_summary": "Automatic AI analysis could not be generated at this time.",
             "recommendations": "Review individual student answers manually.",
             "categories": {
-                "relevant_but_incorrect": {
-                    "clusters": []
-                },
-                "completely_irrelevant_and_incorrect": {
-                    "answer_ids": []
-                }
+                "relevant_but_incorrect": {"clusters": []},
+                "completely_irrelevant_and_incorrect": {"answer_ids": []},
             },
-            "clusters": []
+            "clusters": [],
         }
 
 
 def generate_ai_subtopics(api_client, questions_list, category_name=""):
     """
-    Uses OpenAI AI to dynamically analyze a list of questions (and category context) 
+    Uses OpenAI AI to dynamically analyze a list of questions (and category context)
     and infer a concise, high-level Subtopic for each question (max 20 characters per subtopic).
     Returns a dictionary mapping question_id -> subtopic_name.
     """
@@ -453,22 +483,24 @@ CRITICAL RULES:
         "questions": [
             {
                 "question_id": str(q.get("question_id")),
-                "question_text": q.get("question_text", "")
+                "question_text": q.get("question_text", ""),
             }
             for q in questions_list
-        ]
+        ],
     }
 
     user_message = f"Please analyze and categorize these {len(questions_list)} questions into subtopics:\n{json.dumps(input_payload, ensure_ascii=False, indent=2)}"
 
     try:
-        response = api_client.chat_completion(system_message, user_message, max_tokens=1500, temperature=0.2, timeout=10.0)
-        if response and getattr(response, 'status_code', None) == 200:
+        response = api_client.chat_completion(
+            system_message, user_message, max_tokens=1500, temperature=0.2, timeout=10.0
+        )
+        if response and getattr(response, "status_code", None) == 200:
             res_json = response.json()
-            result_text = res_json['choices'][0]['message']['content'].strip()
-            if result_text.startswith('```'):
-                result_text = result_text.split('```')[1]
-                if result_text.startswith('json'):
+            result_text = res_json["choices"][0]["message"]["content"].strip()
+            if result_text.startswith("```"):
+                result_text = result_text.split("```")[1]
+                if result_text.startswith("json"):
                     result_text = result_text[4:]
                 result_text = result_text.strip()
 
@@ -485,19 +517,21 @@ CRITICAL RULES:
     return {}
 
 
-def vision_detect_question_anchors(api_client, page_images, exam_question_numbers=None, timeout=45.0):
+def vision_detect_question_anchors(
+    api_client, page_images, exam_question_numbers=None, timeout=45.0
+):
     """
     Phase 1: Question Detection Engine.
     Scans answer sheet page images to identify which question numbers / question labels
     are PHYSICALLY WRITTEN or LABELED on each page.
     Does NOT evaluate or grade content.
-    
+
     Parameters:
       - api_client: openai_client instance
       - page_images: list of file paths or dicts containing image data
       - exam_question_numbers: optional list of expected question numbers (e.g. [1, 2, ..., 15])
       - timeout: float HTTP request timeout in seconds
-      
+
     Returns structured JSON:
       {
         "status": True/False,
@@ -526,7 +560,7 @@ def vision_detect_question_anchors(api_client, page_images, exam_question_number
             "status": False,
             "error": "No answer sheet page images provided for question detection.",
             "pages": [],
-            "all_detected_question_numbers": []
+            "all_detected_question_numbers": [],
         }
 
     expected_q_text = ""
@@ -609,27 +643,30 @@ OUTPUT ONLY THIS JSON:
                 data_uri = f"data:image/jpeg;base64,{page}"
             page_num = idx
         elif isinstance(page, dict):
-            b64_data = page.get("image_base64") or page.get("data") or page.get("dataUrl") or ""
+            b64_data = (
+                page.get("image_base64")
+                or page.get("data")
+                or page.get("dataUrl")
+                or ""
+            )
             page_num = page.get("page_number", idx)
             if b64_data.startswith("data:image"):
                 data_uri = b64_data
             elif os.path.isfile(b64_data):
                 with open(b64_data, "rb") as img_f:
                     raw_b64 = base64.b64encode(img_f.read()).decode("utf-8")
-                mime = "image/png" if b64_data.lower().endswith(".png") else "image/jpeg"
+                mime = (
+                    "image/png" if b64_data.lower().endswith(".png") else "image/jpeg"
+                )
                 data_uri = f"data:{mime};base64,{raw_b64}"
             else:
                 data_uri = f"data:{mime};base64,{b64_data}"
         else:
             continue
 
-        user_content.append({
-            "type": "image_url",
-            "image_url": {
-                "url": data_uri,
-                "detail": "high"
-            }
-        })
+        user_content.append(
+            {"type": "image_url", "image_url": {"url": data_uri, "detail": "high"}}
+        )
 
     try:
         response = api_client.chat_completion(
@@ -638,7 +675,7 @@ OUTPUT ONLY THIS JSON:
             aimodel=1,
             max_tokens=2000,
             temperature=0.0,
-            timeout=timeout
+            timeout=timeout,
         )
 
         if not response or getattr(response, "status_code", None) != 200:
@@ -651,11 +688,16 @@ OUTPUT ONLY THIS JSON:
                 "pages": [],
                 "all_detected_question_numbers": [],
                 "detected_question_numbers": [],
-                "uncertain_question_numbers": []
+                "uncertain_question_numbers": [],
             }
 
         resp_json = response.json()
-        raw_content = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        raw_content = (
+            resp_json.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
+            .strip()
+        )
 
         clean_json = raw_content
         if clean_json.startswith("```"):
@@ -673,7 +715,7 @@ OUTPUT ONLY THIS JSON:
 
         for p in pages_detected:
             p_q_nums = []
-            for q_entry in (p.get("questions") or p.get("detected_questions") or []):
+            for q_entry in p.get("questions") or p.get("detected_questions") or []:
                 q_num = q_entry.get("question_number")
                 q_status = str(q_entry.get("status", "detected")).lower()
                 if q_num is not None:
@@ -708,18 +750,21 @@ OUTPUT ONLY THIS JSON:
             "all_detected_question_numbers": all_q_nums,
             "detected_question_numbers": sorted(list(detected_q_nums)),
             "uncertain_question_numbers": sorted(list(uncertain_q_nums)),
-            "detection_notes": parsed.get("detection_notes", "Question detection completed.")
+            "detection_notes": parsed.get(
+                "detection_notes", "Question detection completed."
+            ),
         }
 
     except Exception as e:
         print(f"Error in vision_detect_question_anchors: {e}")
         import traceback
+
         traceback.print_exc()
         return {
             "status": False,
             "error": str(e),
             "pages": [],
-            "all_detected_question_numbers": []
+            "all_detected_question_numbers": [],
         }
 
 
@@ -727,7 +772,7 @@ def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60
     """
     Evaluates student handwritten answer sheet page images directly using OpenAI Vision API.
     Does NOT use OCR or text extraction as an intermediate step.
-    
+
     Parameters:
       - api_client: openai_client instance
       - exam_rubric: dict containing exam metadata and question-by-question marking schemes/rubrics
@@ -735,7 +780,7 @@ def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60
           [{'page_number': 1, 'image_base64': '...', 'mime_type': 'image/jpeg'}, ...]
           OR list of file paths.
       - timeout: float HTTP request timeout in seconds
-      
+
     Returns structured JSON:
       {
         "status": True/False,
@@ -764,7 +809,7 @@ def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60
         return {
             "status": False,
             "error": "No answer sheet page images provided for evaluation.",
-            "evaluations": []
+            "evaluations": [],
         }
 
     system_prompt = """You are an expert academic evaluator, assessment specialist, and visual answer sheet grader.
@@ -908,12 +953,18 @@ OUTPUT JSON STRUCTURE:
                     data_uri = str(b64_data)
                 elif str(b64_data).startswith(("http://", "https://")):
                     data_uri = str(b64_data)
-                elif page.get("url") and str(page["url"]).startswith(("http://", "https://")):
+                elif page.get("url") and str(page["url"]).startswith(
+                    ("http://", "https://")
+                ):
                     data_uri = str(page["url"])
                 elif os.path.isfile(str(b64_data)):
                     with open(str(b64_data), "rb") as img_f:
                         raw_b64 = base64.b64encode(img_f.read()).decode("utf-8")
-                    mime = "image/png" if str(b64_data).lower().endswith(".png") else "image/jpeg"
+                    mime = (
+                        "image/png"
+                        if str(b64_data).lower().endswith(".png")
+                        else "image/jpeg"
+                    )
                     data_uri = f"data:{mime};base64,{raw_b64}"
                 elif b64_data:
                     data_uri = f"data:{mime};base64,{b64_data}"
@@ -923,17 +974,12 @@ OUTPUT JSON STRUCTURE:
         if not data_uri:
             continue
 
-        user_content.append({
-            "type": "text",
-            "text": f"--- ANSWER SHEET PAGE {page_num} ---"
-        })
-        user_content.append({
-            "type": "image_url",
-            "image_url": {
-                "url": data_uri,
-                "detail": "high"
-            }
-        })
+        user_content.append(
+            {"type": "text", "text": f"--- ANSWER SHEET PAGE {page_num} ---"}
+        )
+        user_content.append(
+            {"type": "image_url", "image_url": {"url": data_uri, "detail": "high"}}
+        )
 
     try:
         response = api_client.chat_completion(
@@ -942,21 +988,22 @@ OUTPUT JSON STRUCTURE:
             aimodel=1,
             max_tokens=4000,
             temperature=0.15,
-            timeout=timeout
+            timeout=timeout,
         )
 
         if not response or getattr(response, "status_code", None) != 200:
             err_msg = "Failed to connect to AI vision service."
             if hasattr(response, "json"):
                 err_msg = response.json().get("error", err_msg)
-            return {
-                "status": False,
-                "error": err_msg,
-                "evaluations": []
-            }
+            return {"status": False, "error": err_msg, "evaluations": []}
 
         resp_json = response.json()
-        raw_content = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        raw_content = (
+            resp_json.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
+            .strip()
+        )
 
         # Clean markdown code fences if present
         clean_json = raw_content
@@ -978,18 +1025,22 @@ OUTPUT JSON STRUCTURE:
         for ev in evaluations:
             qid = str(ev.get("question_id", ""))
             matched_q = q_rubrics.get(qid)
-            max_m = float(matched_q.get("max_marks", 1.0)) if matched_q else float(ev.get("max_marks", 1.0))
+            max_m = (
+                float(matched_q.get("max_marks", 1.0))
+                if matched_q
+                else float(ev.get("max_marks", 1.0))
+            )
             ev["max_marks"] = max_m
-            
+
             try:
                 s_marks = float(ev.get("suggested_marks", 0.0))
             except (ValueError, TypeError):
                 s_marks = 0.0
-            
+
             # Clamp suggested marks between 0.0 and max_marks
             ev["suggested_marks"] = max(0.0, min(max_m, round(s_marks, 2)))
             ev["is_correct"] = 1 if ev["suggested_marks"] >= max_m and max_m > 0 else 0
-            
+
             try:
                 conf = int(ev.get("ai_confidence", 80))
             except (ValueError, TypeError):
@@ -1004,46 +1055,59 @@ OUTPUT JSON STRUCTURE:
                 elif ev["suggested_marks"] > 0:
                     ev["relevance_classification"] = "Partially answers question"
                 else:
-                    ev["relevance_classification"] = "Relevant topic but does not answer question"
+                    ev["relevance_classification"] = (
+                        "Relevant topic but does not answer question"
+                    )
 
             # Post-process missing, incomplete, and incorrect fields
             for key in ["missing", "incomplete", "incorrect"]:
                 text_val = ev.get(key, "None")
-                if not text_val or str(text_val).strip().lower() in ("none", "null", "n/a"):
+                if not text_val or str(text_val).strip().lower() in (
+                    "none",
+                    "null",
+                    "n/a",
+                ):
                     ev[key] = "None"
                     continue
 
-                points = [p.strip() for p in str(text_val).split('|') if p.strip() and p.strip().lower() not in ('none', 'null', 'n/a')]
+                points = [
+                    p.strip()
+                    for p in str(text_val).split("|")
+                    if p.strip() and p.strip().lower() not in ("none", "null", "n/a")
+                ]
                 cleaned_points = []
                 seen = set()
                 for p in points:
-                    p = re.sub(r'^(Incorrect|Incomplete|Missed|Missing)\s*:\s*', '', p, flags=re.IGNORECASE).strip()
+                    p = re.sub(
+                        r"^(Incorrect|Incomplete|Missed|Missing)\s*:\s*",
+                        "",
+                        p,
+                        flags=re.IGNORECASE,
+                    ).strip()
                     p_norm = p.lower()
                     if p and p_norm not in seen:
                         seen.add(p_norm)
                         cleaned_points.append(p)
                 ev[key] = " | ".join(cleaned_points) if cleaned_points else "None"
 
-        
         return {
             "status": True,
             "evaluations": evaluations,
             "overall_summary": parsed.get("overall_summary", "Evaluation completed."),
-            "evaluation_notes": parsed.get("evaluation_notes", "Clear scan.")
+            "evaluation_notes": parsed.get("evaluation_notes", "Clear scan."),
         }
 
     except Exception as e:
         print(f"Error in vision_evaluate_answersheet: {e}")
         import traceback
+
         traceback.print_exc()
-        return {
-            "status": False,
-            "error": str(e),
-            "evaluations": []
-        }
+        return {"status": False, "error": str(e), "evaluations": []}
 
 
-def vision_evaluate_question_images(api_client, question_dict, answer_images, written_text=None, timeout=60.0):
+def vision_evaluate_question_images(
+    api_client, question_dict, answer_images, written_text=None, timeout=60.0
+):
     """
     Evaluates one question's handwritten answer images (and optional typed text)
     directly using OpenAI Vision API without OCR.
@@ -1054,12 +1118,16 @@ def vision_evaluate_question_images(api_client, question_dict, answer_images, wr
             "error": "No answer images provided",
             "score": 0.0,
             "ai_confidence": 0,
-            "feedback": "No answer images provided."
+            "feedback": "No answer images provided.",
         }
 
     qid = str(question_dict.get("question_id") or "q1")
-    max_marks = float(question_dict.get("marks") or question_dict.get("max_marks") or 1.0)
-    expected_ans = question_dict.get("expected_answer") or question_dict.get("model_answer") or ""
+    max_marks = float(
+        question_dict.get("marks") or question_dict.get("max_marks") or 1.0
+    )
+    expected_ans = (
+        question_dict.get("expected_answer") or question_dict.get("model_answer") or ""
+    )
     q_text = question_dict.get("question_text") or question_dict.get("question") or ""
 
     rubric_entry = {
@@ -1076,13 +1144,12 @@ def vision_evaluate_question_images(api_client, question_dict, answer_images, wr
     exam_rubric = {
         "exam_id": "question_evaluation",
         "sections": [
-            {
-                "section_name": "Question Evaluation",
-                "questions": [rubric_entry]
-            }
-        ]
+            {"section_name": "Question Evaluation", "questions": [rubric_entry]}
+        ],
     }
-    res = vision_evaluate_answersheet(api_client, exam_rubric, answer_images, timeout=timeout)
+    res = vision_evaluate_answersheet(
+        api_client, exam_rubric, answer_images, timeout=timeout
+    )
     if res and res.get("status"):
         evals = res.get("evaluations", [])
         if evals:
@@ -1097,14 +1164,12 @@ def vision_evaluate_question_images(api_client, question_dict, answer_images, wr
                 "incorrect": ev.get("incorrect", "None"),
                 "feedback": ev.get("feedback", ""),
                 "student_answer_snippet": ev.get("student_answer_snippet", ""),
-                "raw_evaluation": ev
+                "raw_evaluation": ev,
             }
     return {
         "status": False,
         "error": res.get("error", "Vision evaluation failed"),
         "score": 0.0,
         "ai_confidence": 0,
-        "feedback": "AI vision evaluation could not be completed."
+        "feedback": "AI vision evaluation could not be completed.",
     }
-
-

@@ -1419,6 +1419,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
 
     return this.http.post<any>(this.submitUrl, payload).pipe(
       tap(res => {
+        console.log('🚀 SUBMIT EXAM RESPONSE:', res);
         this.handleSuccessfulSubmit(res);
       }),
       catchError(err => {
