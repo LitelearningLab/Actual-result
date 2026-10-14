@@ -70,121 +70,6 @@ class openai_client:
             response = _ErrorResponse(502, str(exc))
         return response
 
-
-def _filter_redundant_incomplete_points(inc_val, err_val):
-    """
-    Cross-category deduplication safety net:
-    If an item in 'incomplete' merely repeats the same error, clarification of an error,
-    or correction already flagged in 'incorrect', remove that redundant incomplete item.
-    Preserves valid separate deficiencies (e.g., factual mistake on activation energy direction
-    vs. separate missing kinetics mechanism, or active transport error vs. separate channel protein requirement).
-    """
-    if not inc_val or str(inc_val).strip().lower() in ("none", "null", "n/a"):
-        return "None"
-    if not err_val or str(err_val).strip().lower() in ("none", "null", "n/a"):
-        return inc_val
-
-    inc_points = [p.strip() for p in str(inc_val).split('|') if p.strip() and p.strip().lower() != 'none']
-    err_points = [p.strip() for p in str(err_val).split('|') if p.strip() and p.strip().lower() != 'none']
-
-    if not inc_points or not err_points:
-        return inc_val
-
-    stop_words = {
-        'a', 'an', 'the', 'of', 'in', 'to', 'for', 'with', 'is', 'was', 'are', 'were',
-        'that', 'this', 'does', 'not', 'but', 'as', 'its', 'it', 'from', 'by', 'at', 'on',
-        'be', 'or', 'and', 'needs', 'needed', 'explain', 'detail', 'student', 'answer',
-        'provide', 'include', 'mention', 'mentioned', 'state', 'stated', 'discuss', 'more', 'how'
-    }
-
-    meta_clarification_pattern = re.compile(
-        r'\b(clarif(y|ication)|correct(ion)?|not all|reconsider|distinguish|instead of|rather than|differen(t|ce))\b',
-        re.IGNORECASE
-    )
-
-    def _extract_words(text):
-        return {w for w in re.findall(r'\b[a-z]{3,}\b', text.lower()) if w not in stop_words}
-
-    def _words_match(w1, w2):
-        if w1 == w2:
-            return True
-        if len(w1) >= 4 and len(w2) >= 4:
-            prefix_len = min(min(len(w1), len(w2)), 4)
-            if w1[:prefix_len] == w2[:prefix_len]:
-                return True
-        return False
-
-    def _set_overlap_count(set1, set2):
-        count = 0
-        for w1 in set1:
-            if any(_words_match(w1, w2) for w2 in set2):
-                count += 1
-        return count
-
-    filtered_inc = []
-    for ip in inc_points:
-        inc_parts = re.split(r'\s+Complete\s*:\s*', ip, flags=re.IGNORECASE)
-        inc_topic = inc_parts[0].strip().lower()
-        inc_detail = inc_parts[1].strip().lower() if len(inc_parts) > 1 else ""
-
-        inc_topic_words = _extract_words(inc_topic)
-        inc_detail_words = _extract_words(inc_detail)
-
-        is_duplicate = False
-        for ep in err_points:
-            err_parts = re.split(r'\s+Correct\s*:\s*', ep, flags=re.IGNORECASE)
-            err_claim = err_parts[0].strip().lower()
-            err_fix = err_parts[1].strip().lower() if len(err_parts) > 1 else ""
-
-            # 1. Exact or near-identical text match of the claim
-            if inc_topic == err_claim:
-                if not inc_detail or not err_fix or inc_detail == err_fix:
-                    is_duplicate = True
-                    break
-
-            err_claim_words = _extract_words(err_claim)
-            err_fix_words = _extract_words(err_fix)
-            combined_err_words = err_claim_words | err_fix_words
-
-            # Check if topic words overlap with the error claim (using stem prefix matching)
-            topic_has_overlap = False
-            overlap_count = _set_overlap_count(inc_topic_words, err_claim_words)
-            if len(inc_topic_words) >= 2:
-                if (overlap_count / len(inc_topic_words)) >= 0.50:
-                    topic_has_overlap = True
-            elif len(inc_topic_words) == 1 and overlap_count >= 1:
-                topic_has_overlap = True
-
-            if topic_has_overlap:
-                # 2. Case A: inc_detail uses meta-clarification language targeting the error
-                # e.g., "Clarification that not all water transport is active" or "Clarify that oxygen is released"
-                if meta_clarification_pattern.search(inc_detail):
-                    overlap_with_error = _set_overlap_count(inc_detail_words, combined_err_words)
-                    if overlap_with_error >= 1:
-                        is_duplicate = True
-                        break
-
-                # 3. Case B: inc_detail introduces NO new domain concepts beyond err_claim and err_fix
-                # (i.e. all detail words are already in the claim/correction or generic stop words)
-                new_domain_words = {w for w in inc_detail_words if not any(_words_match(w, ew) for ew in combined_err_words)}
-                if inc_detail_words and len(new_domain_words) == 0:
-                    is_duplicate = True
-                    break
-
-                # 4. Case C: inc_detail heavily repeats err_fix without introducing new domain concepts
-                if inc_detail_words and err_fix_words and len(new_domain_words) <= 1:
-                    fix_match_count = _set_overlap_count(inc_detail_words, err_fix_words)
-                    detail_overlap = fix_match_count / max(len(inc_detail_words), 1)
-                    if detail_overlap >= 0.65:
-                        is_duplicate = True
-                        break
-
-        if not is_duplicate:
-            filtered_inc.append(ip)
-
-    return " | ".join(filtered_inc) if filtered_inc else "None"
-
-
 def descriptive_evaluation(api_client, question_mark, expected_answer, student_answer, question_text=""):
     system_message = '''You are an expert academic evaluator. Evaluate the student's descriptive
 answer fairly and accurately against the supplied question, expected answer,
@@ -253,76 +138,19 @@ Keep this comparison out of the returned JSON. Use it to verify every
 feedback point.
 
 3. CLASSIFY EACH SPECIFIC DEFICIENCY
-
-CORRECT:
-When the student satisfies a criterion, credit it. Do not include it in
-"missing", "incomplete", or "incorrect". Correct content may be acknowledged
-in the summary feedback.
-
 INCORRECT:
-Use "incorrect" for an actual false claim, contradiction, invalid calculation,
-or unjustified overgeneralization made by the student.
-
-Quote or faithfully paraphrase the specific claim and give an accurate
-correction. Preserve context and qualifications such as "always" or "slightly"
-when they determine why the claim is wrong.
-
-A missing explanation alone is not a factual error. Do not invent a false
-claim from something the student did not say.
-
-Format:
-"<Actual false student claim> Correct: <Accurate correction>"
-
+<Incorrect claim> Correction: <Correct information>
 INCOMPLETE:
-Use "incomplete" when the student correctly names or partially explains a
-specific required concept but omits detail needed to satisfy that criterion.
-
-Identify what the student actually stated and the exact required detail
-still needed. Naming a concept is sufficient when the question only requires
-naming it.
-
-Do not describe a wholly absent independent criterion as incomplete.
-Do not use incomplete feedback to restate the correction of a false claim.
-
-Format:
-"<Attempted criterion> Complete: You stated <brief evidence>; add <required detail>"
-
+<Criterion> Incomplete: You stated <what is correct or attempted>; add <specific missing detail>.
 MISSING:
-Use "missing" only when a specific required criterion is unmentioned and
-unattempted after checking the entire answer for equivalent meaning.
-
-Do not mark a criterion missing when it has been correctly addressed,
-partially attempted, or answered with a false claim already classified
-under "incorrect".
-
-Format:
-"<Absent required criterion> Needed: <Specific required content>"
-
-A sentence may contain several distinct claims. Evaluate them separately.
-An error in one claim does not erase correct evidence for another criterion.
-
+<Missing criterion> Missing: Include <specific required content>.
+Format: <Attempted criterion> Complete: You stated <brief evidence>; add <required detail>
+Evaluate distinct claims and criteria independently. An error in one claim does not invalidate correct evidence or other valid findings. List every verified, distinct deficiency as a separate item under its category, one item per output entry.
 4. REMOVE DUPLICATION AND UNSUPPORTED REQUIREMENTS
-
-Report each specific deficiency once.
-
-Do not repeat an incorrect claim's correction as a missing or incomplete
-point. If providing that correction would also resolve a proposed second
-comment, combine them into the incorrect point.
-
-Separate deficiencies within the same broad topic may both be reported only
-when they concern independently justified requirements and need different
-remedies. Classify each using its own student evidence.
-
-Before retaining any missing or incomplete point, verify that:
-- The requested content is required by the supplied assessment material.
-- The student's answer does not already provide it or an equivalent.
-- Its category follows the evidence for that specific criterion.
-- It is not another description of an issue already reported.
-
-Do not demand optional examples, advanced mechanisms, extra terminology,
-or greater detail merely to make the answer more comprehensive.
-
-Report all verified distinct issues without requiring a fixed number of points.
+Report each distinct deficiency once. Remove or combine findings only when they describe the same underlying deficiency and the same correction resolves them.
+Do not remove a finding merely because it shares a topic, keywords, or overlapping wording with another finding. Preserve independently justified deficiencies, including multiple findings within the same category.
+Before retaining a finding, verify that it is supported by the assessment material and student answer, is correctly classified, and is not genuinely redundant. Do not invent requirements or demand optional details.
+When uncertain whether two findings are duplicates, preserve both unless their equivalence is clear.
 
 5. SCORE AND SUMMARIZE
 
@@ -413,13 +241,7 @@ working, or text outside the JSON object.'''
             
             result[key] = " | ".join(cleaned_points) if cleaned_points else "None"
 
-        # Cross-category deduplication safety net:
-        # If an item in 'incomplete' merely repeats a claim/correction already flagged in 'incorrect',
-        # remove that redundant incomplete item while preserving valid distinct points.
-        inc_val = result.get("incomplete", "None")
-        err_val = result.get("incorrect", "None")
-        result["incomplete"] = _filter_redundant_incomplete_points(inc_val, err_val)
-
+       
         ai_conf = result.get('ai_confidence')
         if isinstance(ai_conf, int) and 0 <= ai_conf <= 100:
             result['ai_confidence'] = ai_conf
@@ -1213,11 +1035,7 @@ OUTPUT JSON STRUCTURE:
                         cleaned_points.append(p)
                 ev[key] = " | ".join(cleaned_points) if cleaned_points else "None"
 
-            # Deduplication safety net: remove incomplete items duplicating incorrect items while preserving valid distinct points
-            inc_val = ev.get("incomplete", "None")
-            err_val = ev.get("incorrect", "None")
-            ev["incomplete"] = _filter_redundant_incomplete_points(inc_val, err_val)
-
+        
         return {
             "status": True,
             "evaluations": evaluations,

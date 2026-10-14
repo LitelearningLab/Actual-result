@@ -623,6 +623,8 @@ def autosave_exam_route():
     response_data, status_code = autosave_exam_answers(request.json or {}, current_user.user_id)
     return jsonify(response_data), status_code
 
+
+# 6th steps
 @edu_blueprint.route('/submit-exam', methods=['POST'])
 @jwt_required
 def submit_exam_route():

@@ -264,6 +264,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
   submitting = false;
   testStopped = false;
   private statusIntervalRef: any = null;
+  //5th step
   private submitUrl = `${API_BASE}/submit-exam`;
   private autosaveUrl = `${API_BASE}/autosave-exam`;
   private autosaveTimer: any = null;
@@ -1317,6 +1318,8 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     return `Test Scheduled Name: ${raw}`;
   }
 
+
+  //Opening the confirm dialog box and also It checks if (this.testStopped) return;, counts answered vs. unanswered questions, and displays the confirmation dialog via confirmService.confirm({...}).= 1st step
   openConfirm() {
     if (this.testStopped) return;
     const total = this.questions.length;
@@ -1341,6 +1344,19 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+
+  //4th step builds the JSON payload for the /submit-exam POST request by collecting:
+  // exam_id :The ID of the exam,
+  // user_id: from sessionStorage The logged-in student's identifier,
+  // attempt_id: The ID of the attempt,
+  // time_remaining: The time left for the exam,
+  // test_id: The ID of the test,
+  // schedule_id: The ID of the schedule,
+  // answers: The answers to the questions,
+  //submitted_at: The ISO timestamp when the user submitted the test.
+  //time_taken_mins: The time taken by the user to complete the test, in minutes.
+
 
   private buildSubmitPayload(): any {
     const userRaw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user') || sessionStorage.getItem('user_info');
@@ -1391,6 +1407,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     this.stopSpeechRecognition();
   }
 
+  //// 3rd step When the student confirms submission (ok === true), submit() calls executeSubmit(), which sets submitting = true to disable buttons and lock the UI, stops the exam countdown timer using stopTimer(), stops the 4-second status heartbeat interval using stopStatusPolling(), displays the loading overlay using loader.show(), and calls buildSubmitPayload() to collect the exam submission data before sending the POST /submit-exam request.
   executeSubmit(): Observable<any> {
     if (this.submitting || this.testStopped) return of(null);
     this.showConfirm = false;
@@ -1423,6 +1440,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     );
   }
 
+  //2rd step
   submit() {
     this.executeSubmit().subscribe({
       next: () => {
