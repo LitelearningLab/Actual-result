@@ -242,15 +242,12 @@ $shadow-panel: 0 1.5rem 3.75rem rgba(5,18,40,0.22), 0 0.375rem 1rem rgba(5,18,40
 .tab-table { display: flex; flex-direction: column; width: 100%; position: relative; }
 .table-responsive {
   width: 100%;
-  max-height: calc(100vh - 270px);
-  min-height: 200px;
+  max-height: calc(100vh - 355px);
+  min-height: 180px;
   overflow: auto;
   position: relative;
-
-  @media (max-height: 768px) {
-    max-height: calc(100vh - 240px);
-  }
 }
+
 
 
 // ── Tab styling (::ng-deep) ──
@@ -718,8 +715,23 @@ tr.exam-detail-row {
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    gap: 0.25rem;
+
+    .mat-mdc-icon-button {
+      color: #1e293b !important;
+
+      &:disabled {
+        color: #cbd5e1 !important;
+        opacity: 0.5 !important;
+      }
+
+      &:hover:not(:disabled) {
+        background-color: #f1f5f9;
+      }
+    }
   }
 }
+
 
 
 .no-tests-table-empty {
