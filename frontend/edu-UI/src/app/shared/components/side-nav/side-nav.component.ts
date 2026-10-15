@@ -87,17 +87,17 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/category-create': 'Question Banks',
     '/view-questions': 'Questions',
     '/questions': 'Questions',
-    '/exams': 'Create/Edit test',
-    '/create-exam': 'Create/Edit test',
+    '/exams': 'Create/Edit Test',
+    '/create-exam': 'Create/Edit Test',
     '/view-schedule-exam': 'Schedule Test',
     '/schedule-exam': 'Schedule Test',
     '/view-institutes': 'Institutes',
     '/institute-register': 'Institutes',
     '/admin/exam-reports': 'Test Reports',
     '/user/exam/run': 'Test Inbox',
-    '/question-papers': 'Create Question Paper',
-    '/create-question-paper': 'Create Question Paper',
-    '/test-evaluation': 'Test Evaluation',
+    '/question-papers': 'Paper Question',
+    '/create-question-paper': 'Paper Question',
+    '/test-evaluation': 'Paper Evaluation',
   };
 
   /** Updates selectedMenu by finding which menu path matches the current URL */
@@ -228,7 +228,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
       this.menus.push({ label: 'Users', path: '/view-users', icon: 'users' });
       this.menus.push({ label: 'Question Banks', path: '/category', icon: 'category' });
       this.menus.push({ label: 'Questions', path: '/view-questions', icon: 'quiz' });
-      this.menus.push({ label: 'Create/Edit test', path: '/exams', icon: 'exam' });
+      this.menus.push({ label: 'Create/Edit Test', path: '/exams', icon: 'exam' });
       this.menus.push({ label: 'Schedule Test', path: '/view-schedule-exam', icon: 'calendar' });
       this.menus.push({ label: 'Test Reports', path: '/admin/exam-reports', icon: 'report' });
     }
@@ -241,8 +241,8 @@ export class SideNavComponent implements OnInit, OnDestroy {
 
     if (role === 'admin' || role === 'super_admin' || role === 'super-admin') {
       // Separate Question Paper module placed after Test Inbox
-      this.menus.push({ label: 'Create Question Paper', path: '/question-papers', icon: 'exam' });
-      this.menus.push({ label: 'Test Evaluation', path: '/test-evaluation', icon: 'assignment' });
+      this.menus.push({ label: 'Paper Question', path: '/question-papers', icon: 'exam' });
+      this.menus.push({ label: 'Paper Evalution', path: '/test-evaluation', icon: 'assignment' });
     }
 
     // After menus are set, update selected menu based on current URL
