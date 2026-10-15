@@ -29,7 +29,7 @@
                                 </div>
 
                                 <div class="field-row">
-                                    <mat-form-field appearance="outline" class="field-half local-institute-field">
+                                    <mat-form-field appearance="outline" class="field-half local-institute-field" *ngIf="isSuperAdmin">
                                         <mat-icon matPrefix>apartment</mat-icon>
                                         <mat-label>Institute</mat-label>
                                         <mat-select [(ngModel)]="institute"
@@ -55,7 +55,7 @@
 
                                     </mat-form-field>
 
-                                    <mat-form-field appearance="outline" class="field-half"
+                                    <mat-form-field appearance="outline" [ngClass]="isSuperAdmin ? 'field-half' : 'field-full'"
                                         [class.mat-form-field-invalid]="step1Submitted && !title.trim()">
                                         <mat-icon matPrefix>edit</mat-icon>
                                         <mat-label>Title <span class="required-star">*</span></mat-label>
