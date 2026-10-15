@@ -33,7 +33,7 @@
     --theme-3-hanover-bg: rgba(15, 35, 55, 0.06);
 
     /* Global layout variables (sidebar width is global so % values work across components) */
-    --sidenav-width: 20rem; /* 300px ÷ 16 */
+    --sidenav-width: 16.25rem; /* 260px nominal */
     --sidenav-max: 45.25rem;   /* 660px ÷ 16 */
     --sidenav-collapsed: 4.5rem; /* collapsed width (approx 72px at 16px root) */
     --control-radius: 0.5rem;
@@ -141,6 +141,11 @@
   /* ---------- Form ---------- */
   --form-grid-columns: repeat(2, minmax(0, 1fr));
 
+}
+@media (min-width: 993px) and (max-width: 1366px) {
+  :root {
+    --sidenav-width: 13rem;
+  }
 }
 
 // Import Inter font (variable weights) with font-display=swap

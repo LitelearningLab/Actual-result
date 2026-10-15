@@ -347,6 +347,29 @@ $shadow-panel: 0 1.5rem 3.75rem rgba(5,18,40,0.22), 0 0.375rem 1rem rgba(5,18,40
   text-align: center;
 }
 
+/* Responsive adjustment for small laptop screens (993px - 1366px) */
+@media (min-width: 993px) and (max-width: 1366px) {
+  .page {
+    padding: 0 0.5rem 0.75rem;
+  }
+
+  .premium-table {
+    th.mat-header-cell,
+    td.mat-cell {
+      padding: 0.55rem 0.625rem !important;
+    }
+
+    .mat-column-title {
+      min-width: 11rem;
+    }
+
+    .mat-column-sno {
+      width: 3rem;
+      // max-width: 3rem;
+    }
+  }
+}
+
 .schedule-date-range {
   font-size: 0.75rem;
   color: var(--theme-3-text-2, #64748b);

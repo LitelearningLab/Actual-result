@@ -4,6 +4,13 @@
   --sidenav-collapsed: 4.5rem; /* collapsed width (approx 72px at 16px root) */
 }
 
+/* On smaller laptops and displays (993px - 1366px), slightly reduce sidebar width so table columns fit without horizontal scroll */
+@media (min-width: 993px) and (max-width: 1366px) {
+  :root {
+    --sidenav-width: 13rem;
+  }
+}
+
 /* box sizing */
 * { box-sizing: border-box; }
 
@@ -137,6 +144,10 @@ html, body { width:100%; margin:0; padding:0; min-height:100%; background-color:
   height: auto;
   position: relative;
   /* No z-index to avoid stacking context issues */
+
+  @media (min-width: 993px) and (max-width: 1366px) {
+    padding: 0.75rem 0.75rem;
+  }
 }
 
 // 
