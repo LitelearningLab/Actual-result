@@ -481,6 +481,9 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
   private currentUserId = '';
 
   @ViewChild(MatSort) sort!: MatSort;
+  @ViewChild('activePaginator') activePaginator!: MatPaginator;
+  @ViewChild('completePaginator') completePaginator!: MatPaginator;
+
 
   private examsUrl = `${API_BASE}/get-user-exams-details`;
   private launchUrl = `${API_BASE}/launch-exam`;
@@ -610,11 +613,19 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Expandable row state & methods
   expandedRows: Set<string> = new Set<string>();
-
   selectTab(index: number): void {
     this.selectedTabIndex = index;
     this.applyFilter();
+    setTimeout(() => {
+      if (index === 0 && this.activePaginator) {
+        this.activeSource.paginator = this.activePaginator;
+      } else if (index === 1 && this.completePaginator) {
+        this.completeSource.paginator = this.completePaginator;
+      }
+    });
   }
+
+
 
   get mobileCardsData(): UserTestRow[] {
     const src = this.selectedTabIndex === 0 ? this.activeSource : this.completeSource;
@@ -2106,16 +2117,27 @@ formatSeconds(sec: number | null | undefined): string {
 
     // Active tab includes in-progress attempts, active schedules, and upcoming schedules (excluding completed/passed tests)
     this.activeSource.data = this.exams
-      .filter((e) => {
-        if (isComplete(e) && !Boolean(e.has_in_progress)) return false;
-        return Boolean(e.has_in_progress) || isActive(e.type) || isUpcoming(e.type);
-      })
-      .sort(byScheduleDate);
+    .filter((e) => {
+      if (isComplete(e) && !Boolean(e.has_in_progress)) return false;
+      return Boolean(e.has_in_progress) || isActive(e.type) || isUpcoming(e.type);
+    })
+    .sort(byScheduleDate);
 
     this.completeSource.data = this.exams.filter(isComplete).sort(byScheduleDate);
+
+        // Bind paginators
+    setTimeout(() => {
+      if (this.activePaginator) {
+        this.activeSource.paginator = this.activePaginator;
+      }
+      if (this.completePaginator) {
+        this.completeSource.paginator = this.completePaginator;
+      }
+    });
   }
 
   isUpcomingTest(type?: string): boolean {
+
     return ['upcoming', 'scheduled', 'pending', 'upcomming'].includes(
       (type || '').toString().toLowerCase()
     );
@@ -2440,6 +2462,10 @@ formatSeconds(sec: number | null | undefined): string {
   onEscapeKey() {
     if (this.previewModalImage) {
       this.closeImageModal();
+      return;
+    }
+    if (this.reviewOpen) {
+      this.closeReview();
     }
   }
 

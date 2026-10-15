@@ -33,7 +33,7 @@ $shadow-panel: 0 1.5rem 3.75rem rgba(5,18,40,0.22), 0 0.375rem 1rem rgba(5,18,40
 :host ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
 
 // ── Page & toolbar ──
-.page { padding: 0 1rem 3rem; }
+.page { padding: 0 1rem 1rem; }
 .user-exam { position: relative; display: flex; flex-direction: column; gap: 0.875rem; }
 
 // ── Sticky Header Container ──
@@ -240,7 +240,18 @@ $shadow-panel: 0 1.5rem 3.75rem rgba(5,18,40,0.22), 0 0.375rem 1rem rgba(5,18,40
 .list-card { background: #fff; border: 0.0625rem solid #e2e8f0; border-radius: $radius; box-shadow: $shadow-md; overflow: hidden; position: relative; }
 .list-wrapper { overflow: hidden; position: relative; }
 .tab-table { display: flex; flex-direction: column; width: 100%; position: relative; }
-.table-responsive { width: 100%; max-height: 65vh; overflow: auto; position: relative; }
+.table-responsive {
+  width: 100%;
+  max-height: calc(100vh - 270px);
+  min-height: 200px;
+  overflow: auto;
+  position: relative;
+
+  @media (max-height: 768px) {
+    max-height: calc(100vh - 240px);
+  }
+}
+
 
 // ── Tab styling (::ng-deep) ──
 :host ::ng-deep .exam-tabs {
@@ -686,7 +697,30 @@ tr.exam-detail-row {
 .upcoming-label { font-size: 0.75rem; font-weight: 600; color: #64748b; font-style: italic; }
 
 .launch-badge { display: inline-block; padding: 0.1875rem 0.625rem; border-radius: 1rem; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; background: var(--green-bg); color: var(--green-text); border: 0.0625rem solid var(--bgreen-border); }
-.custom-paginator { border-top: 0.0625rem solid #e2e8f0; width: 100%; flex-shrink: 0; box-sizing: border-box; }
+.custom-paginator {
+  border-top: 0.0625rem solid #e2e8f0;
+  width: 100%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  display: block;
+  background: #ffffff;
+
+  ::ng-deep .mat-mdc-paginator-container {
+    display: flex;
+    flex-wrap: nowrap !important;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0.75rem !important;
+    min-height: 3rem;
+  }
+
+  ::ng-deep .mat-mdc-paginator-range-actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+}
+
 
 .no-tests-table-empty {
   display: flex;
@@ -734,31 +768,32 @@ tr.exam-detail-row {
   width: 100dvw;
   height: 100vh;
   height: 100dvh;
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 41, 59, 0.7) 100%);
-  -webkit-backdrop-filter: blur(0.75rem);
-  backdrop-filter: blur(0.75rem);
+  background: var(--bg-1);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   z-index: 1400;
-  padding: 1.5rem;
-  padding: max(1.5rem, env(safe-area-inset-top, 0px)) max(1.5rem, env(safe-area-inset-right, 0px)) max(1.5rem, env(safe-area-inset-bottom, 0px)) max(1.5rem, env(safe-area-inset-left, 0px));
+  padding: 0;
+  margin: 0;
   box-sizing: border-box;
-  animation: fadeIn 0.25s $ease;
+  animation: fadeIn 0.2s $ease;
 }
 .review-panel {
-  width: min(72rem, 94vw);
-  max-height: 88vh;
-  max-height: 88dvh;
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
-  border-radius: 1.25rem;
-  box-shadow: 0 1.5rem 3.75rem var(--theme-3-hanover-bg);
-  border: 0.0625rem solid var(--theme-3-border);
-  animation: slideUp 0.35s $ease-bounce;
-  margin: auto;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  margin: 0;
+  box-sizing: border-box;
 
   mat-tab-group {
     flex: 1;
@@ -773,6 +808,8 @@ tr.exam-detail-row {
     border-bottom: 0.0625rem solid var(--theme-3-border);
     flex-shrink: 0;
     z-index: 2;
+    padding-left: max(1.75rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.75rem, env(safe-area-inset-right, 0px));
   }
 
   ::ng-deep .mat-tab-body-wrapper {
@@ -796,7 +833,10 @@ tr.exam-detail-row {
     overflow-y: auto !important;
     overflow-x: hidden !important;
     min-height: 0;
-    padding: 1rem 1.25rem;
+    padding: 1.25rem 2rem;
+    padding-left: max(2rem, env(safe-area-inset-left, 0px));
+    padding-right: max(2rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(2rem, calc(1.25rem + env(safe-area-inset-bottom, 0px)));
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
@@ -810,14 +850,18 @@ tr.exam-detail-row {
   }
 }
 
-// ── Review Header (Compact Layout) ──
+// ── Review Header (Full-Width Layout) ──
 .review-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  padding: 0.875rem 1.25rem 0.625rem;
+  align-items: center;
+  padding: 0.875rem 2rem 0.75rem;
+  padding-top: max(0.875rem, env(safe-area-inset-top, 0px));
+  padding-left: max(2rem, env(safe-area-inset-left, 0px));
+  padding-right: max(2rem, env(safe-area-inset-right, 0px));
   background: var(--bg-2);
   border-bottom: 0.0625rem solid var(--theme-3-border);
+  border-radius: 0;
   flex-shrink: 0;
 }
 
@@ -1637,37 +1681,38 @@ tr.exam-detail-row {
   .q-descriptive .desc-header { flex-direction:column; align-items:flex-start; }
   .q-descriptive .desc-header .desc-score { width:100%; flex:none; margin-top:0.5rem; }
   .review-panel {
-    width: 96vw;
-    max-height: calc(90vh - env(safe-area-inset-bottom, 0px));
-    max-height: calc(90dvh - env(safe-area-inset-bottom, 0px));
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
+    border-radius: 0;
   }
 }
 
 @media (max-width: 45rem) {
   .review-backdrop {
-    padding: 0.5rem;
-    padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
-    padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
-    padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+    padding: 0;
+    margin: 0;
   }
   .review-panel {
-    width: min(100%, calc(100vw - 1rem));
-    max-height: calc(100vh - 1.5rem);
-    max-height: calc(100dvh - 1.5rem - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
-    border-radius: 1.25rem !important;
-    margin: auto;
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
+    border-radius: 0 !important;
+    border: none;
+    margin: 0;
     overflow: hidden;
 
     ::ng-deep .mat-tab-body-content {
-      padding: 0.75rem 0.625rem;
+      padding: 0.75rem 0.75rem;
       padding-bottom: max(1.5rem, calc(0.75rem + env(safe-area-inset-bottom, 0px)));
     }
   }
   .review-header {
     padding: 0.75rem 0.875rem;
-    border-top-left-radius: 1.25rem;
-    border-top-right-radius: 1.25rem;
+    padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+    border-radius: 0;
   }
   .review-exam-title {
     font-size: 1rem;

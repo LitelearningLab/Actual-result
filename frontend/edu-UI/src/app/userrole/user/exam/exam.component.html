@@ -230,7 +230,8 @@
                   </tr>
                </table>
             </div>
-            <mat-paginator *ngIf="!loading" [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+               <mat-paginator #activePaginator *ngIf="!loading" [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+
          </div>
 
          <!-- Completed Tab Table -->
@@ -350,7 +351,8 @@
                   </tr>
                </table>
             </div>
-            <mat-paginator *ngIf="!loading" [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+               <mat-paginator #completePaginator *ngIf="!loading" [pageSizeOptions]="[25,50,100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+
          </div>
 
          <div *ngIf="loading && (!exams || exams.length === 0)" class="professional-loader-container" style="padding: 3rem 1rem;">
