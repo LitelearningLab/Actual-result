@@ -461,8 +461,15 @@ class ExamReviewComments(Base):
     attempt_id = Column(String, ForeignKey('Exam_Attempts.attempt_id'), nullable=False)
     question_id = Column(String, ForeignKey('Questions.question_id'), nullable=False)
     reviewer_id = Column(String)
-    comment_text = Column(Text, nullable=False)
-    category = Column(String)
+    
+    # ── YOUR NEW STRUCTURED MODEL FIELDS ──
+    topic = Column(String)         # e.g., "Enzyme Classification"
+    issue = Column(Text)           # e.g., "Stated that enzymes are classified as carbohydrates"
+    label = Column(String)         # e.g., "Correct" / "Needed" / "Complete"
+    statement = Column(Text)       # e.g., "Enzymes are typically proteins, not carbohydrates."
+    
+    comment_text = Column(Text, nullable=False) # kept for backwards compatibility
+    category = Column(String)      # "missing" | "incorrect" | "incomplete"
     action = Column(String)
     is_deleted = Column(Integer, default=0)
     created_by = Column(String, ForeignKey('Users.user_id'), default='cac37fab-4de6-4792-969b-96e57e3c910a')
@@ -472,6 +479,7 @@ class ExamReviewComments(Base):
     edit_reason = Column(Text)
     edited_by = Column(String, ForeignKey('Users.user_id'))
     edited_at = Column(DateTime)
+
 
 class ExamReviewCommentsHistory(Base):
      __tablename__ = 'ExamReviewCommentsHistory'

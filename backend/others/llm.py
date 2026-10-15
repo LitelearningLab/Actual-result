@@ -201,18 +201,39 @@ Format each point as:
 - Set "ai_confidence" as an integer between 0 and 100.
 
 6. RETURN JSON FORMAT
-Return ONLY one valid JSON object. Every category containing multiple points MUST join them with " | ":
+Return ONLY one valid JSON object. Each category ("missing", "incomplete", "incorrect") MUST be a list of objects with "topic", "issue", "label", and "statement":
 {
   "score": <number>,
-  "missing": "(<Topic>): <what was missed> Needed: <what should be included> | ...",
-  "incomplete": "(<Topic>): <what was incomplete> Complete: <what is needed to complete it> | ...",
-  "incorrect": "(<Topic>): <what was incorrect> Correct: <accurate scientific correction> | ...",
+  "missing": [
+    {
+      "topic": "<Specific Topic/Concept>",
+      "issue": "<what was missed in this topic>",
+      "label": "Needed",
+      "statement": "<what statement/concept was needed>"
+    }
+  ],
+  "incomplete": [
+    {
+      "topic": "<Specific Topic/Concept>",
+      "issue": "<what was incomplete in this topic>",
+      "label": "Complete",
+      "statement": "<what statement completes the concept>"
+    }
+  ],
+  "incorrect": [
+    {
+      "topic": "<Specific Topic/Concept>",
+      "issue": "<what statement student got incorrect>",
+      "label": "Correct",
+      "statement": "<accurate scientific correction statement>"
+    }
+  ],
   "feedback": "<1-2 summary sentences>",
   "ai_confidence": <number from 0 to 100>
 }
 
+If a category has no issues, return an empty list [].
 
-For each category, use exactly "None" when there are no verified issues.
 Otherwise join points with " | ". Do not use arrays or JSON null.
 
 Use the category-specific formats above. Keep each point within 25 words

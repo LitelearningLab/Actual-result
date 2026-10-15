@@ -740,15 +740,15 @@
                                              <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span>
                                              </div>
                                              <div class="review-point-content" [class.deleted]="rc.is_deleted == 1">
-                                                <ng-container *ngIf="parseCard(rc.comment_text || rc.comment) as card; else plainRcMissed">
-                                                   <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
-                                                   <div class="point-solution">
-                                                      {{ card.label }} : <span>{{ card.solution }}</span>
-                                                   </div>
-                                                </ng-container>
-                                                <ng-template #plainRcMissed>
-                                                   <span class="review-text" [class.deleted]="rc.is_deleted == 1" [innerHTML]="formatCardText(rc.comment_text || rc.comment)"></span>
-                                                </ng-template>
+                                                <!-- Line 1: Topic + Issue -->
+                                                <div class="point-issue">
+                                                   <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
+                                                   <span>{{ rc.issue || rc.comment_text }}</span>
+                                                </div>
+                                                <!-- Line 2: Needed : Statement -->
+                                                <div class="point-solution" *ngIf="rc.statement">
+                                                   {{ rc.label || 'Needed' }} : <span>{{ rc.statement }}</span>
+                                                </div>
                                              </div>
                                           </div>
                                           <div class="review-meta small-muted">
@@ -803,15 +803,15 @@
                                              <div class="ri-left"><span class="ri-icon incorrect">{{ rci + 1 }}</span>
                                              </div>
                                              <div class="review-point-content" [class.deleted]="rc.is_deleted == 1">
-                                                <ng-container *ngIf="parseCard(rc.comment_text || rc.comment) as card; else plainRcIncorr">
-                                                   <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
-                                                   <div class="point-solution">
-                                                      {{ card.label }} : <span>{{ card.solution }}</span>
-                                                   </div>
-                                                </ng-container>
-                                                <ng-template #plainRcIncorr>
-                                                   <span class="review-text" [class.deleted]="rc.is_deleted == 1" [innerHTML]="formatCardText(rc.comment_text || rc.comment)"></span>
-                                                </ng-template>
+                                                <!-- Line 1: Topic + Issue -->
+                                                <div class="point-issue">
+                                                   <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
+                                                   <span>{{ rc.issue || rc.comment_text }}</span>
+                                                </div>
+                                                <!-- Line 2: Correct : Statement -->
+                                                <div class="point-solution" *ngIf="rc.statement">
+                                                   {{ rc.label || 'Correct' }} : <span>{{ rc.statement }}</span>
+                                                </div>
                                              </div>
                                           </div>
                                           <div class="review-meta small-muted">
@@ -865,16 +865,17 @@
                                              <div class="ri-left"><span class="ri-icon incomplete">{{ rci + 1 }}</span>
                                              </div>
                                              <div class="review-point-content" [class.deleted]="rc.is_deleted == 1">
-                                                <ng-container *ngIf="parseCard(rc.comment_text || rc.comment) as card; else plainRcIncomp">
-                                                   <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
-                                                   <div class="point-solution">
-                                                      {{ card.label }} : <span>{{ card.solution }}</span>
-                                                   </div>
-                                                </ng-container>
-                                                <ng-template #plainRcIncomp>
-                                                   <span class="review-text" [class.deleted]="rc.is_deleted == 1" [innerHTML]="formatCardText(rc.comment_text || rc.comment)"></span>
-                                                </ng-template>
+                                                <!-- Line 1: Topic + Issue -->
+                                                <div class="point-issue">
+                                                   <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
+                                                   <span>{{ rc.issue || rc.comment_text }}</span>
+                                                </div>
+                                                <!-- Line 2: Complete : Statement -->
+                                                <div class="point-solution" *ngIf="rc.statement">
+                                                   {{ rc.label || 'Complete' }} : <span>{{ rc.statement }}</span>
+                                                </div>
                                              </div>
+
                                           </div>
                                           <div class="review-meta small-muted">
                                              <span *ngIf="rc.is_deleted == 1" class="deleted-by">Deleted</span>

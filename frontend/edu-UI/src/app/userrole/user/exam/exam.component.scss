@@ -1447,6 +1447,11 @@ tr.exam-detail-row {
       line-height: 1.45;
       color: var(--theme-3-text-1, #1F2937);
       word-break: break-word;
+
+      strong {
+        font-weight: 700;
+        color: #0f172a; /* Bold dark topic title */
+      }
     }
 
     .point-solution {
@@ -1457,8 +1462,13 @@ tr.exam-detail-row {
       line-height: 1.45;
       word-break: break-word;
 
+       strong {
+        font-weight: 700;   /* Bold for 'Correct :' / 'Needed :' */
+        color: #16a34a;     /* Bold green */
+      }
       span {
-        font-weight: 400;
+        font-weight: 400;   /* Regular font weight for statement */
+        color: #16a34a;     /* Regular green */
       }
     }
 

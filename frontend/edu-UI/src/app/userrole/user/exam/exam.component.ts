@@ -72,6 +72,22 @@ export interface UserTestRow {
   user_result?: string | null;
 }
 
+export interface ReviewCommentModel {
+  comment_id: string;
+  category: 'missing' | 'incomplete' | 'incorrect' | string;
+  
+  // ── STRUCTURED CARD MODEL ──
+  topic: string;        // Line 1: Topic heading
+  issue: string;        // Line 1: What was missed / incorrect
+  label: string;        // Line 2: "Correct", "Needed", or "Complete"
+  statement: string;    // Line 2: The explanation / answer
+  
+  comment_text?: string;
+  is_deleted?: number;
+  history?: any[];
+}
+
+
 @Component({
   selector: 'app-confirm-start-test-dialog',
   standalone: true,

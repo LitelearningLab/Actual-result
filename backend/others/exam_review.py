@@ -523,6 +523,15 @@ def review_user_exam(request, current_user=None):
                             review_comment_dict_item['comment_id'] = comment.comment_id
                             review_comment_dict_item['category'] = comment.category
                             review_comment_dict_item['comment_text'] = comment.comment_text
+
+                             # ── ADD THESE 4 LINES ──
+                            review_comment_dict_item['topic'] = comment.topic
+                            review_comment_dict_item['issue'] = comment.issue
+                            review_comment_dict_item['label'] = comment.label
+                            review_comment_dict_item['statement'] = comment.statement
+
+
+
                             review_comment_dict_item['action'] = comment.action
                             review_comment_dict_item['is_deleted'] = comment.is_deleted
                             review_comment_dict_item['created_by'] = (created_by.full_name or created_by.user_name) if created_by else (comment.created_by or 'Admin User')
@@ -900,21 +909,33 @@ def validate_answers(attempt_id):
                     ExamReviewComments.reviewer_id == 'cac37fab-4de6-4792-969b-96e57e3c910a'
                 ).delete(synchronize_session=False)
 
-                # update ExamReviewComments table category wise comments
+                               # update ExamReviewComments table category wise comments
                 for key in ["missing", "incomplete", "incorrect"]:
-                    comment = str(evaluation.get(key) or "").strip()
-                    if comment and comment.lower() not in {"none", "null", "n/a"}:
-                        for commt in (part.strip() for part in comment.split('|')):
-                            if not commt:
+                    items = evaluation.get(key) or []
+                    if isinstance(items, dict):
+                        items = [items]
+                    if isinstance(items, list):
+                        for item in items:
+                            if not isinstance(item, dict):
                                 continue
+                            top = item.get("topic", "").strip()
+                            iss = item.get("issue", "").strip()
+                            lbl = item.get("label", "Correct" if key == "incorrect" else ("Needed" if key == "missing" else "Complete"))
+                            stmt = item.get("statement", "").strip()
                             review_comment = ExamReviewComments(
                                 attempt_id=attempt_id,
                                 question_id=question_id,
-                                comment_text=commt,
                                 category=key,
-                                reviewer_id='cac37fab-4de6-4792-969b-96e57e3c910a'  # or some system user id
+                                topic=top,
+                                issue=iss,
+                                label=lbl,
+                                statement=stmt,
+                                comment_text=f"({top}): {iss} {lbl}: {stmt}" if top else f"{iss} {lbl}: {stmt}",
+                                reviewer_id='cac37fab-4de6-4792-969b-96e57e3c910a'
                             )
                             session.add(review_comment)
+
+
         else:
             # get the correct options for the question
             all_q_options = session.query(Option).filter_by(question_id=question_id).all()
