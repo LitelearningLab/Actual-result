@@ -350,9 +350,53 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
         min-width: 0;
       }
 
+      .mat-mdc-form-field-flex {
+        align-items: center !important;
+      }
+
+      .mat-mdc-form-field-icon-prefix {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding-right: 0 !important;
+
+        mat-icon {
+          margin-right: 0.5rem !important;
+        }
+      }
+
       .mat-mdc-form-field-infix {
         min-width: 0 !important;
         width: auto !important;
+      }
+
+      /* Native number input spinner spacing */
+      input[type='number']::-webkit-inner-spin-button,
+      input[type='number']::-webkit-outer-spin-button {
+        margin-left: 0.375rem;
+        margin-right: 0.375rem;
+        cursor: pointer;
+      }
+
+      /* Percentage suffix container and label */
+      .mat-mdc-form-field-text-suffix,
+      .mat-mdc-form-field-icon-suffix {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding-left: 0.25rem !important;
+        padding-right: 0.75rem !important;
+      }
+
+      .percent-suffix {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--theme-3-text-2, #64748b);
+        user-select: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
       }
     }
   }

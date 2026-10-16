@@ -163,13 +163,13 @@
                                             name="durationMinutes" min="5" placeholder="Minutes"
                                             aria-label="Duration in minutes" />
                                     </mat-form-field>
-                                    <mat-form-field appearance="outline" class="field-half">
+                                    <mat-form-field appearance="outline" class="field-half pass-percentage-field">
                                         <mat-icon matPrefix>check_circle</mat-icon>
                                         <mat-label>Pass Percentage</mat-label>
                                         <input matInput id="passMark" type="number" [(ngModel)]="passMark"
                                             (input)="onPassMarkInput($event)" (ngModelChange)="onPassMarkChange($event)"
                                             name="passMark" placeholder="e.g. 50" min="0" max="100" />
-                                        <span matSuffix>%</span>
+                                        <span matSuffix class="percent-suffix">%</span>
                                     </mat-form-field>
                                 </div>
 
