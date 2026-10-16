@@ -120,7 +120,7 @@ export class AdminQuestionsComponent {
   aiMarksPerQuestion: number = 5;
   aiQuestionComplexity: string = '';
   // optional AI UI fields used by template
-  aiQuestionLanguage: string = '';
+  aiQuestionLanguage: string = 'English';
   languages: Array<{ value: string; label: string }> = [
     { value: 'en', label: 'English' },
     { value: 'fr', label: 'French' },
@@ -2524,7 +2524,7 @@ export class AdminQuestionsComponent {
     this.sourceText = '';
     this.aiPrompt = '';
     this.selectedSourceFile = null;
-    this.aiQuestionLanguage = '';
+    this.aiQuestionLanguage = 'English';
     this.aiQuestionComplexity = '';
     this.aiIndustry = '';
     this.aiUserRole = '';
