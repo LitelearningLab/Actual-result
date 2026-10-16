@@ -122,6 +122,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
   @ViewChild('stepper') stepper!: MatStepper;
   step1Submitted = false;
+  showSuccessModal: boolean = false;
 
   private _docClickHandler: ((ev: any) => void) | null = null;
   private _randomBlockClickHandler: ((ev: any) => void) | null = null;
@@ -2290,15 +2291,19 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loader.show();
     this.http.post<any>(url, payload).subscribe({
       next: (res) => {
-        try {
-          const msg = res?.statusMessage || res?.message || 'Test created';
-          const ok = typeof res?.status === 'undefined' ? true : !!res.status;
-          notify(msg, ok ? 'success' : 'error');
-        } catch (e) {}
-        try {
-          sessionStorage.removeItem('edit_exam');
-        } catch (e) {}
-        this.router.navigate(['/exams']);
+        const ok = typeof res?.status === 'undefined' ? true : !!res.status;
+        if (ok) {
+          try {
+            sessionStorage.removeItem('edit_exam');
+          } catch (e) {}
+          this.loader.hide();
+          this.showSuccessModal = true;
+        } else {
+          try {
+            const msg = res?.statusMessage || res?.message || 'Failed to create test';
+            notify(msg, 'error');
+          } catch (e) {}
+        }
       },
       error: (err) => {
         console.error('Failed to create exam', err);
@@ -2336,6 +2341,15 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
       sessionStorage.setItem('exams_return_state', 'true');
     } catch (e) {}
     this.router.navigate(['/exams']);
+  }
+
+  onCreateScheduleTest(): void {
+    this.showSuccessModal = false;
+    this.router.navigate(['/schedule-exam']);
+  }
+
+  onCloseSuccessModal(): void {
+    this.showSuccessModal = false;
   }
 
   get isStep1Valid(): boolean {
