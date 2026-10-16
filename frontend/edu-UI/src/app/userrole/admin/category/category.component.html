@@ -167,7 +167,7 @@
 
                         <!-- Row 5 Left: Department -->
                         <mat-form-field appearance="outline" class="filter-item">
-                            <mat-label>{{ terminology.deptLabel }} <span class="required-star">*</span></mat-label>
+                            <mat-label>{{ terminology.deptLabel }}</mat-label>
                             <mat-select multiple [(ngModel)]="selectedDepartments" [placeholder]="terminology.selectDeptPlaceholder"
                                 [disabled]="!isInstituteSelected"
                                 (openedChange)="onFilterDepartmentOpenedChange($event)"
