@@ -62,6 +62,7 @@ export class CategoryCreateComponent {
   formSubmitted = false;
   categoryInfoSubmitted = false;
   accessInfoSubmitted = false;
+  showSuccessModal: boolean = false;
 
   institutesList: Array<{
     id: string;
@@ -516,12 +517,8 @@ export class CategoryCreateComponent {
       const url = `${API_BASE}/add-categories`;
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
-          this.snack.open(res?.message || 'Question Bank saved successfully', 'Close', {
-            duration: 3000,
-            horizontalPosition: 'right',
-            verticalPosition: 'top',
-          });
-          this.router.navigate(['/category']);
+          this.loader.hide();
+          this.showSuccessModal = true;
         },
         complete: () => {
           this.loader.hide();
@@ -569,6 +566,15 @@ export class CategoryCreateComponent {
   cancel() {
     this.router.navigate(['/category']);
   }
+
+  onCreateQuestions(): void {
+    this.showSuccessModal = false;
+    this.router.navigate(['/questions']);
+  }
+  onCloseSuccessModal(): void {
+    this.showSuccessModal = false;
+  }
+
   setName(v: string) {
     this.name = v || '';
   }

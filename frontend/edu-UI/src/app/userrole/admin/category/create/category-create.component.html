@@ -715,5 +715,51 @@
         </div>
       </mat-step>
     </mat-horizontal-stepper>
+
+    <!-- ═══ Question Bank Created Success Modal ═══ -->
+<div
+  *ngIf="showSuccessModal"
+  class="success-modal-backdrop"
+  (click)="onCloseSuccessModal()"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="success-modal-title"
+>
+  <div class="success-modal-card" (click)="$event.stopPropagation()">
+    <div class="success-modal-header">
+      <div class="success-icon-circle">
+        <mat-icon>check_circle</mat-icon>
+      </div>
+      <h3 id="success-modal-title" class="success-modal-title">Saved Successfully</h3>
+      <p class="success-modal-subtitle">
+        The Question Bank has been created successfully.
+      </p>
+    </div>
+
+    <div class="success-modal-actions">
+      <button
+        type="button"
+        mat-stroked-button
+        class="modal-btn btn-cancel"
+        (click)="onCloseSuccessModal()"
+      >
+        <mat-icon>close</mat-icon>
+        <span>Cancel</span>
+      </button>
+
+      <button
+        type="button"
+        mat-flat-button
+        color="primary"
+        class="modal-btn btn-create-questions"
+        (click)="onCreateQuestions()"
+      >
+        <mat-icon>add_circle_outline</mat-icon>
+        <span>Create Questions</span>
+      </button>
+    </div>
+  </div>
+</div>
+
   </div>
 </div>
