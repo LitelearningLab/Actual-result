@@ -742,17 +742,6 @@
               </div>
               <div class="file-actions">
                 <button
-                  mat-flat-button
-                  color="primary"
-                  type="button"
-                  class="upload-btn ready-to-upload"
-                  (click)="importBulkQuestions()"
-                  [disabled]="isParsingBulkFile"
-                >
-                  <mat-icon>{{ isParsingBulkFile ? 'sync' : 'cloud_upload' }}</mat-icon>
-                  <span>{{ isParsingBulkFile ? 'Importing Questions...' : 'Upload File' }}</span>
-                </button>
-                <button
                   mat-button
                   type="button"
                   class="remove-btn"
@@ -766,10 +755,6 @@
               <div class="no-file">No file selected yet. Use the drop zone to upload.</div>
             </ng-template>
           </div>
-        </div>
-        <div class="upload-hint-banner" *ngIf="selectedBulkFile && !isBulkUploadedFlow">
-          <mat-icon class="hint-icon">lightbulb</mat-icon>
-          <span>File selected! Please click <strong>Upload File</strong> to import questions.</span>
         </div>
         <div class="upload-hint-banner upload-success-banner" *ngIf="selectedBulkFile && isBulkUploadedFlow">
           <mat-icon class="hint-icon">check_circle</mat-icon>
@@ -1087,7 +1072,7 @@
         *ngIf="
           activeMode == 'manual' ||
           (activeMode == 'ai' && (generatedQuestions?.length || isAiGeneratedFlow)) ||
-          (activeMode == 'bulk' && isBulkUploadedFlow && questions?.length)
+          ((activeMode == 'bulk' || bulkMode || mode == 'bulk') && isBulkUploadedFlow && questions?.length)
         "
       >
         <!-- Scoped Loader Overlay for Questions Section -->

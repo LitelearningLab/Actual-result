@@ -1310,6 +1310,7 @@ export class AdminQuestionsComponent {
     if (input && input.files && input.files.length) {
       this.selectedBulkFile = input.files[0];
       this.isBulkUploadedFlow = false;
+      this.importBulkQuestions();
     } else {
       this.selectedBulkFile = null;
       this.isBulkUploadedFlow = false;
@@ -1347,6 +1348,7 @@ export class AdminQuestionsComponent {
     if (files && files.length) {
       this.selectedBulkFile = files[0];
       this.isBulkUploadedFlow = false;
+      this.importBulkQuestions();
     }
   }
 
@@ -1354,13 +1356,6 @@ export class AdminQuestionsComponent {
     if (!this.selectedBulkFile) {
       try {
         notify('Please select a CSV or Excel file to upload', 'error');
-      } catch (e) {}
-      return;
-    }
-
-    if (!this.hasCategorySettings()) {
-      try {
-        notify('Please select a Question Bank first', 'error');
       } catch (e) {}
       return;
     }
@@ -1416,14 +1411,15 @@ export class AdminQuestionsComponent {
           );
         }
 
-        this.questions = parsedQuestions;
-        this.isBulkUploadedFlow = true;
-
         setTimeout(() => {
+          this.questions = parsedQuestions;
+          this.isBulkUploadedFlow = true;
+          this.isParsingBulkFile = false;
+          this.loader.hide();
           try {
             this.resizeAll();
           } catch (err) {}
-        }, 50);
+        }, 0);
 
         notify(
           `Successfully imported ${parsedQuestions.length} question${parsedQuestions.length > 1 ? 's' : ''}`,
