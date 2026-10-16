@@ -537,7 +537,7 @@
              </button>
           </div>
 
-          <div *ngIf="reviewLoading" class="professional-loader-container">
+          <div *ngIf="reviewLoading" class="professional-loader-container review-loader-container">
              <div class="loader-spinner-ring"></div>
              <div class="loader-text-group">
                 <h5 class="loader-main-text">Loading Test Review</h5>
@@ -657,9 +657,9 @@
                                     'score-full': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) >= (q.question_marks || 0),
                                     'score-partial': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.question_marks || 0),
                                     'score-zero': (q.marks_awarded || 0) === 0
-                                 }"
-                                 [attr.aria-label]="'Score: ' + (q.marks_awarded != null ? q.marks_awarded : 0) + ' out of ' + (q.question_marks || 0)">
-                                 <span class="score-awarded">{{ q.marks_awarded != null ? q.marks_awarded : 0 }}</span>
+                                 }">
+                                 <span class="score-label">SCORE</span>
+                                 <span class="score-awarded">{{ q.marks_awarded != null ? q.marks_awarded : '-' }}</span>
                                  <span class="score-sep">/</span>
                                  <span class="score-total">{{ q.question_marks || 0 }}</span>
                               </div>
