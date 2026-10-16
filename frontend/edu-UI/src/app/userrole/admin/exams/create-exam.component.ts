@@ -768,28 +768,38 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     const existing = existingIndex >= 0 ? this.model.categories![existingIndex] : null;
     const cat = this.categories.find((c) => String(c.category_id) === String(catId));
     const isDraft = String(catId) === String(this.selectedCategory);
-    const randomizeQuestions = isDraft
+    let randomizeQuestions = isDraft
       ? !!this.newCategory.randomize_questions
       : !!existing?.randomize_questions;
 
+    const availableCount = isDraft
+      ? this.selectedQuestionBankQuestionCount
+      : (this.questionsForCategory.length || this.tempQuestionsForCategory.length || existing?.questions || 0);
+
+    const requestedQuestions = Number(this.newCategory.questions) || 0;
+
+    // If all available questions are selected, force it to be a Fixed set (randomization has no effect)
+    if (availableCount > 0 && requestedQuestions >= availableCount) {
+      randomizeQuestions = false;
+    }
+
     if (isDraft && !this.validateNewCategoryQuestionCount(true)) return;
-    // Fixed (non-randomized) categories can either be hand-picked via the checkbox list,
-    // or left to a plain count — in which case the backend randomly selects that many
-    // questions once at save time and the same fixed set is served to every user.
+
     const manualSelection = !randomizeQuestions && this.selectedQuestionIds.length > 0;
     if (
       !randomizeQuestions &&
       !manualSelection &&
-      !((Number(this.newCategory.questions) || 0) >= 1)
+      !(requestedQuestions >= 1)
     )
       return;
 
-    const selectedIds = manualSelection ? [...this.selectedQuestionIds] : [];
-    const requestedQuestions = randomizeQuestions
-      ? Number(this.newCategory.questions) || 0
-      : manualSelection
-        ? selectedIds.length
-        : Number(this.newCategory.questions) || 0;
+    // Populate question_ids in fixed order when in Fixed set mode
+    const selectedIds = manualSelection
+      ? [...this.selectedQuestionIds]
+      : (!randomizeQuestions && this.tempQuestionsForCategory.length)
+        ? this.tempQuestionsForCategory.slice(0, requestedQuestions).map((q) => String(q.id))
+        : [];
+
     const selectionKey = this.getQuestionSelectionKey(selectedIds);
     const draftName = this.getQuestionBankDraftName();
     const item = {
@@ -2046,7 +2056,7 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (updateMessage) this.questionCountError = message;
     if (message && showNotification && message !== allRandomMessage) notify(message, 'error');
-    return !message;
+    return !message || message === allRandomMessage;
   }
 
   private shouldBlockRandomAllQuestionSelection(): boolean {

@@ -475,8 +475,8 @@
                                                     <span class="attached-bank-name">{{ c.name }}</span>
                                                     <span class="attached-bank-randomize"
                                                         *ngIf="c.randomize_questions">Randomized</span>
-                                                    <span class="attached-bank-fixed"
-                                                        *ngIf="!c.randomize_questions && (!c.question_ids || c.question_ids.length === 0) && c.questions > 0">Fixed</span>
+                                                    <span class="attached-bank-fixed" 
+                                                        *ngIf="!c.randomize_questions && c.questions > 0">Fixed</span>
                                                 </div>
                                                 <div class="attached-bank-cell attached-bank-cell--type"
                                                     data-label="Question Type">
