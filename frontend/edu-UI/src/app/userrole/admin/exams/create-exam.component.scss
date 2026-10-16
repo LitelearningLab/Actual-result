@@ -328,6 +328,42 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
   width: 100%;
 }
 
+.settings-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+  width: 100%;
+
+  .field-half {
+    width: 100%;
+    min-width: 0;
+  }
+
+  mat-form-field {
+    width: 100%;
+    min-width: 0;
+
+    ::ng-deep {
+      .mat-mdc-text-field-wrapper {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .mat-mdc-form-field-infix {
+        min-width: 0 !important;
+        width: auto !important;
+      }
+    }
+  }
+
+  /* When screen or container is narrower, stack Pass Percentage below Duration */
+  @media (max-width: 72rem) {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+
 /* ── Row/col helpers ── */
 .row {
   gap: 0.875rem;
@@ -849,9 +885,18 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 /* ── Two-column layout inside stepper ── */
 .card-body-inner.two-column {
   display: grid;
-  grid-template-columns: 1fr 34rem;
+  grid-template-columns: minmax(0, 1fr) 22rem;
   gap: 1.25rem;
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+
+  .left,
+  .right {
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 .card-body-inner.two-column .right {
@@ -859,7 +904,7 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .card-body-inner.two-column.first-step {
-  grid-template-columns: 1fr 28rem;
+  grid-template-columns: minmax(0, 1fr) 22rem;
 }
 
 .full {
@@ -1070,8 +1115,9 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
   overflow: visible !important;
 }
 
-@media (max-width:61.25rem) {
-  .card-body-inner.two-column {
+@media (max-width: 68rem) {
+  .card-body-inner.two-column,
+  .card-body-inner.two-column.first-step {
     grid-template-columns: 1fr;
   }
 
@@ -1608,12 +1654,18 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
     font-size: 0.8125rem;
     font-weight: 600;
     color: var(--theme-3-text-2, #475467);
+    white-space: nowrap;
 
     .attempts-icon {
       font-size: 1.125rem;
       width: 1.125rem;
       height: 1.125rem;
       color: var(--button-1, #1f7bff);
+      flex-shrink: 0;
+    }
+
+    span {
+      white-space: nowrap;
     }
   }
 
@@ -1621,6 +1673,8 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
     display: flex;
     gap: 0.75rem;
     align-items: center;
+    width: 11rem;
+    max-width: 100%;
 
     .attempt-btn {
       flex: 1;
@@ -1803,12 +1857,18 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
     font-size: 0.8125rem;
     font-weight: 600;
     color: var(--theme-3-text-2, #475467);
+    white-space: nowrap;
 
     .attempts-icon {
       font-size: 1.125rem;
       width: 1.125rem;
       height: 1.125rem;
       color: var(--button-1, #1f7bff);
+      flex-shrink: 0;
+    }
+
+    span {
+      white-space: nowrap;
     }
   }
 
@@ -1816,6 +1876,8 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
     display: flex;
     gap: 0.75rem;
     align-items: center;
+    width: 11rem;
+    max-width: 100%;
 
     .attempt-btn {
       flex: 1;
