@@ -152,7 +152,10 @@ export class AdminQuestionsComponent {
       this.targetUsersSubmitted = false;
     }
   }
+  selectedSourceMode: 'file' | 'text' = 'file';
+  uploadedFiles: File[] = [];
   selectedSourceFile: File | null = null;
+  isSourceDragging: boolean = false;
   sourceText: string = '';
   aiPrompt: string = '';
   // live preview / generated content
@@ -679,6 +682,18 @@ export class AdminQuestionsComponent {
     }
   }
 
+  setSourceMode(mode: 'file' | 'text') {
+    this.selectedSourceMode = mode;
+    if (mode === 'text') {
+      this.plaintextEditor = true;
+      setTimeout(() => {
+        try {
+          this.sourceTextArea?.nativeElement.focus();
+        } catch (e) {}
+      }, 50);
+    }
+  }
+
   focusSourceTextArea() {
     try {
       this.plaintextEditor = true;
@@ -694,9 +709,57 @@ export class AdminQuestionsComponent {
   onSourceFileSelected(ev: Event) {
     const input = ev.target as HTMLInputElement;
     if (input && input.files && input.files.length) {
-      this.selectedSourceFile = input.files[0];
+      const incoming = Array.from(input.files);
+      for (const f of incoming) {
+        if (!this.uploadedFiles.some((existing) => existing.name === f.name && existing.size === f.size)) {
+          this.uploadedFiles.push(f);
+        }
+      }
+      this.selectedSourceFile = this.uploadedFiles[0] || null;
+      input.value = '';
+    }
+  }
+
+  onSourceDragOver(ev: DragEvent) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.isSourceDragging = true;
+  }
+
+  onSourceDragLeave(ev: DragEvent) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.isSourceDragging = false;
+  }
+
+  onSourceDrop(ev: DragEvent) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.isSourceDragging = false;
+    if (ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length) {
+      const allowedExts = ['.pdf', '.docx'];
+      const incoming = Array.from(ev.dataTransfer.files).filter((f) => {
+        const lower = f.name.toLowerCase();
+        return allowedExts.some((ext) => lower.endsWith(ext));
+      });
+      for (const f of incoming) {
+        if (!this.uploadedFiles.some((existing) => existing.name === f.name && existing.size === f.size)) {
+          this.uploadedFiles.push(f);
+        }
+      }
+      this.selectedSourceFile = this.uploadedFiles[0] || null;
+    }
+  }
+
+  removeSourceFile(index?: number) {
+    if (typeof index === 'number' && index >= 0 && index < this.uploadedFiles.length) {
+      this.uploadedFiles.splice(index, 1);
     } else {
-      this.selectedSourceFile = null;
+      this.uploadedFiles = [];
+    }
+    this.selectedSourceFile = this.uploadedFiles[0] || null;
+    if (!this.uploadedFiles.length && this.hiddenSourceFileInput?.nativeElement) {
+      this.hiddenSourceFileInput.nativeElement.value = '';
     }
   }
 
@@ -949,6 +1012,10 @@ export class AdminQuestionsComponent {
     this.activeMode = 'ai';
     this.plaintextEditor = false;
     this.selectedSourceFile = null;
+    this.uploadedFiles = [];
+    if (this.hiddenSourceFileInput?.nativeElement) {
+      this.hiddenSourceFileInput.nativeElement.value = '';
+    }
     this.hasGeneratedQuestionsWithoutAnswers = false;
   }
 
@@ -1008,7 +1075,7 @@ export class AdminQuestionsComponent {
       (this.sourceText || '').trim() ||
       (this.topic || '').trim() ||
       (this.aiPrompt || '').trim();
-    if (!effectiveSourceText && !this.selectedSourceFile && !(this.topic || '').trim()) {
+    if (!effectiveSourceText && !this.selectedSourceFile && !this.uploadedFiles.length && !(this.topic || '').trim()) {
       try {
         notify('Topic or content is required', 'error');
       } catch (e) {}
@@ -1020,8 +1087,14 @@ export class AdminQuestionsComponent {
 
     // Build FormData to support file upload and parameters
     const fd = new FormData();
-    if (this.selectedSourceFile)
+    if (this.uploadedFiles && this.uploadedFiles.length) {
+      this.uploadedFiles.forEach((file) => {
+        fd.append('file', file as Blob, file.name);
+        fd.append('files', file as Blob, file.name);
+      });
+    } else if (this.selectedSourceFile) {
       fd.append('file', this.selectedSourceFile as Blob, (this.selectedSourceFile as File).name);
+    }
     const raw = sessionStorage.getItem('user');
     if (raw) {
       const u = JSON.parse(raw);
@@ -2559,6 +2632,7 @@ export class AdminQuestionsComponent {
     this.sourceText = '';
     this.aiPrompt = '';
     this.selectedSourceFile = null;
+    this.uploadedFiles = [];
     this.aiQuestionLanguage = 'English';
     this.aiQuestionComplexity = '';
     this.aiIndustry = '';

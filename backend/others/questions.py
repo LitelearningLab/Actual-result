@@ -1486,7 +1486,8 @@ def create_question_using_llm(request):
 
     data_json = request.get_json(silent=True) or {}
     form = request.form or {}
-    question_file = request.files.get("file")
+    question_files = request.files.getlist("files") or request.files.getlist("file")
+    question_file = question_files[0] if question_files else request.files.get("file")
 
     def gv(key, default=None):
         # return form value if provided, else json value, else default

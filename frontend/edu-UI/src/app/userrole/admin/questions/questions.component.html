@@ -736,7 +736,7 @@
               <div class="file-meta">
                 <mat-icon>insert_drive_file</mat-icon>
                 <div class="meta-text">
-                  <div class="name">{{ selectedBulkFile.name }}</div>
+                  <div class="name" [title]="selectedBulkFile.name">{{ selectedBulkFile.name }}</div>
                   <div class="size">{{ selectedBulkFile.size || 0 | number }} bytes</div>
                 </div>
               </div>
@@ -751,7 +751,14 @@
                   <mat-icon>cloud_upload</mat-icon>
                   <span>Upload File</span>
                 </button>
-                <button mat-button (click)="clearSelectedBulkFile()">Remove</button>
+                <button
+                  mat-button
+                  type="button"
+                  class="remove-btn"
+                  (click)="clearSelectedBulkFile()"
+                >
+                  Remove
+                </button>
               </div>
             </div>
             <ng-template #noFile>
@@ -920,58 +927,121 @@
           ></textarea>
         </mat-form-field>
 
-        <!-- Source Material -->
-        <div class="source-section">
-          <div class="section-label source-label">Source Material</div>
-          <div class="source-tiles large">
-            <div
-              class="source-tile upload-file"
-              role="button"
-              tabindex="0"
-              (click)="triggerSourceFileSelect()"
-            >
-              <mat-icon>cloud_upload</mat-icon>
-              <div class="tile-label">Upload File</div>
-              <div class="tile-sub">PDF, DOCX</div>
-            </div>
-            <div
-              class="source-tile paste-text selected"
-              role="button"
-              tabindex="0"
-              (click)="focusSourceTextArea()"
-            >
-              <mat-icon>description</mat-icon>
-              <div class="tile-label">Paste Text</div>
-              <div class="tile-sub">Paste source content or excerpts</div>
+        <!-- Source Material Section -->
+        <div class="source-section compact-source-section">
+          <div class="source-header-row">
+            <div class="section-label source-label">Source Material</div>
+
+            <!-- Top Segmented Switcher (Pill Toggle) -->
+            <div class="source-segmented-switch">
+              <button
+                type="button"
+                class="switch-pill-btn"
+                [class.active]="selectedSourceMode === 'file'"
+                (click)="setSourceMode('file')"
+              >
+                <mat-icon>upload_file</mat-icon>
+                <span>Upload Files</span>
+                <span class="file-count-badge" *ngIf="uploadedFiles.length">{{ uploadedFiles.length }}</span>
+              </button>
+              <button
+                type="button"
+                class="switch-pill-btn"
+                [class.active]="selectedSourceMode === 'text'"
+                (click)="setSourceMode('text')"
+              >
+                <mat-icon>description</mat-icon>
+                <span>Paste Text</span>
+              </button>
             </div>
           </div>
+
+          <!-- Hidden multiple file input -->
           <input
             #hiddenSourceFileInput
             type="file"
             class="hidden-file"
             (change)="onSourceFileSelected($event)"
             accept=".pdf,.docx"
+            multiple
           />
-        </div>
 
-        <!-- Editor Panel -->
-        <div class="editor-panel">
-          <mat-form-field appearance="outline" class="field-full" *ngIf="plaintextEditor">
-            <mat-label>Source Text</mat-label>
-            <textarea
-              #sourceTextArea
-              matInput
-              (input)="autoResize($event.target)"
-              [(ngModel)]="sourceText"
-              rows="1"
-              class="source-textarea"
-              placeholder="Enter or paste source material"
-            ></textarea>
-            <mat-hint>Remaining characters: {{ 1000 - (sourceText.length || 0) }}</mat-hint>
-          </mat-form-field>
+          <!-- When 'Upload Files' is selected: Slim Drag & Drop Bar + Multi-file List -->
+          <div class="source-file-pane" *ngIf="selectedSourceMode === 'file'">
+            <div
+              class="slim-upload-bar"
+              [class.drag-over]="isSourceDragging"
+              (click)="triggerSourceFileSelect()"
+              (dragover)="onSourceDragOver($event)"
+              (dragleave)="onSourceDragLeave($event)"
+              (drop)="onSourceDrop($event)"
+              tabindex="0"
+              role="button"
+            >
+              <div class="slim-upload-content">
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  class="slim-choose-btn"
+                  (click)="$event.stopPropagation(); triggerSourceFileSelect()"
+                >
+                  <mat-icon>add</mat-icon>
+                  <span>Upload Files</span>
+                </button>
+                <span class="slim-upload-text">or drag & drop here</span>
+                <span class="slim-upload-format">Supported formats: <strong>PDF, DOCX</strong></span>
+              </div>
+            </div>
 
-          <div class="editor-actions">
-            <button mat-stroked-button type="button" (click)="clearAIPrompts()">
+            <!-- Uploaded Files Chip Grid -->
+            <div class="uploaded-files-grid" *ngIf="uploadedFiles.length">
+              <div
+                class="uploaded-file-chip"
+                *ngFor="let file of uploadedFiles; let i = index"
+                [title]="file.name"
+              >
+                <mat-icon class="chip-file-icon">description</mat-icon>
+                <span class="chip-file-name">
+                  {{ file.name.length > 15 ? (file.name | slice:0:15) + '...' : file.name }}
+                </span>
+                <button
+                  type="button"
+                  class="chip-remove-btn"
+                  (click)="$event.stopPropagation(); removeSourceFile(i)"
+                  title="Remove {{ file.name }}"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- When 'Paste Text' is selected: Textarea -->
+          <div class="source-text-pane" *ngIf="selectedSourceMode === 'text'">
+            <mat-form-field appearance="outline" class="field-full">
+              <mat-label>Source Text</mat-label>
+              <textarea
+                #sourceTextArea
+                matInput
+                (input)="autoResize($event.target)"
+                [(ngModel)]="sourceText"
+                rows="2"
+                class="source-textarea"
+                placeholder="Enter or paste source material excerpts here..."
+              ></textarea>
+              <mat-hint>Remaining characters: {{ 1000 - (sourceText.length || 0) }}</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <!-- Actions Bar (Clear & Generate Questions) -->
+          <div class="editor-actions source-actions-bar">
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="clearAIPrompts()"
+              *ngIf="sourceText.trim() || uploadedFiles.length || aiPrompt.trim()"
+            >
               <mat-icon>clear_all</mat-icon>
               <span>Clear</span>
             </button>
@@ -986,6 +1056,7 @@
                   !sourceText.trim() &&
                   !aiPrompt.trim() &&
                   !topic.trim() &&
+                  !uploadedFiles.length &&
                   !selectedSourceFile)
               "
             >
