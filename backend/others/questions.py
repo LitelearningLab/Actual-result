@@ -1497,6 +1497,7 @@ def create_question_using_llm(request):
     institute_id = gv("institute_id", None)
     user_id = gv("user_id", None)
     language = gv("language", "English")
+    topic = gv("topic", "")
     industry = gv("industry", "Education")
     target_users = gv("target_users", "Students")
     user_role = gv("user_role", "Learner")
@@ -1515,7 +1516,14 @@ def create_question_using_llm(request):
 
     if (
         not str(source_text or "").strip()
+        and str(topic or "").strip()
+    ):
+        source_text = str(topic).strip()
+
+    if (
+        not str(source_text or "").strip()
         and not str(additional_instructions or "").strip()
+        and not str(topic or "").strip()
         and not question_file
     ):
         return {
@@ -1557,6 +1565,7 @@ def create_question_using_llm(request):
     """
     user_message = f"""    Using the following parameters, 
     - Language: {language}
+    - Topic: {topic}
     - Industry: {industry}
     - Target Users: {target_users}
     - User Role: {user_role}

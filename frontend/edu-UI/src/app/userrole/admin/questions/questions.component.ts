@@ -137,6 +137,21 @@ export class AdminQuestionsComponent {
   aiIndustry: string = '';
   aiUserRole: string = '';
   aiTargetUsers: string = '';
+  topic: string = '';
+  targetUsersSubmitted: boolean = false;
+
+  get targetUsers(): string {
+    return this.aiTargetUsers;
+  }
+  set targetUsers(v: string) {
+    this.aiTargetUsers = v;
+  }
+
+  onTargetUsersInput() {
+    if (this.aiTargetUsers && this.aiTargetUsers.trim()) {
+      this.targetUsersSubmitted = false;
+    }
+  }
   selectedSourceFile: File | null = null;
   sourceText: string = '';
   aiPrompt: string = '';
@@ -929,6 +944,8 @@ export class AdminQuestionsComponent {
   clearAIPrompts() {
     this.sourceText = '';
     this.aiPrompt = '';
+    this.topic = '';
+    this.targetUsersSubmitted = false;
     this.activeMode = 'ai';
     this.plaintextEditor = false;
     this.selectedSourceFile = null;
@@ -975,12 +992,23 @@ export class AdminQuestionsComponent {
       return;
     }
 
+    if (!this.aiTargetUsers || !this.aiTargetUsers.trim()) {
+      this.targetUsersSubmitted = true;
+      try {
+        notify('Target Users is required', 'error');
+      } catch (e) {}
+      return;
+    }
+
     if (!this.aiQuestionNumber || this.aiQuestionNumber < 1) {
       this.aiQuestionNumber = 5;
     }
 
-    const effectiveSourceText = (this.sourceText || '').trim() || (this.aiPrompt || '').trim();
-    if (!effectiveSourceText && !this.selectedSourceFile) {
+    const effectiveSourceText =
+      (this.sourceText || '').trim() ||
+      (this.topic || '').trim() ||
+      (this.aiPrompt || '').trim();
+    if (!effectiveSourceText && !this.selectedSourceFile && !(this.topic || '').trim()) {
       try {
         notify('Topic or content is required', 'error');
       } catch (e) {}
@@ -1012,8 +1040,8 @@ export class AdminQuestionsComponent {
         fd.append('user_id', String(userId));
       }
     }
-    // fd.append('language', this.aiQuestionLanguage || 'English');
-    fd.append('language', 'English');
+    fd.append('language', this.aiQuestionLanguage || 'English');
+    fd.append('topic', this.topic || '');
     fd.append('type', this.aiQuestionType);
     fd.append('number_of_questions', String(this.aiQuestionNumber || 1));
     const categoryQuestionMark = this.getCategoryQuestionMark() || this.aiMarksPerQuestion || 5;
