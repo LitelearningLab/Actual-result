@@ -426,12 +426,13 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .prev-btn,
-.next-btn {
+.next-btn,
+.btn-cancel {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   font: 500 0.85rem/1 inherit;
-  border-radius: 0.5rem;
+  border-radius: 0.5rem !important;
   padding: 0.5rem 1rem;
   transition: all 0.25s $ease;
 }
@@ -711,7 +712,8 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 
 .row.small.second-row {
   justify-content: flex-start;
-  gap: 1.5rem;
+  gap: 1rem 1.5rem;
+  margin-top: 1rem;
   align-items: center;
 
   .count-col {
@@ -764,6 +766,7 @@ $shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
   grid-template-columns: minmax(12rem, 2.5fr) minmax(7.5rem, 1fr) minmax(7.5rem, 1fr) minmax(10rem, 1.5fr);
   align-items: flex-start;
   /* <-- ADD THIS LINE to keep all boxes aligned at the top */
+  gap: 1rem 0.875rem;
   background: #ffffff !important;
   /* Removes gray background from container */
   border: 1px solid #e2e8f0;

@@ -1,15 +1,4 @@
 <div class="page create-exam">
-    <!-- ── Top Toolbar ── -->
-    <div class="toolbar">
-        <div class="title"></div>
-        <div class="form-actions">
-            <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="cancel()">
-                <mat-icon>arrow_back</mat-icon>
-                <span>Cancel</span>
-            </button>
-        </div>
-    </div>
-
     <!-- ── Form Card ── -->
     <div class="form-card">
         <mat-horizontal-stepper linear #stepper>
@@ -195,10 +184,16 @@
 
                     <div class="form-actions">
                         <span></span>
-                        <button mat-button type="button" class="next-btn" (click)="validateStep1AndProceed()">
-                            <span>Next</span>
-                            <mat-icon>arrow_forward</mat-icon>
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="cancel()">
+                                <mat-icon>arrow_back</mat-icon>
+                                <span>Cancel</span>
+                            </button>
+                            <button mat-button type="button" class="next-btn" (click)="validateStep1AndProceed()">
+                                <span>Next</span>
+                                <mat-icon>arrow_forward</mat-icon>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </mat-step>
@@ -565,10 +560,16 @@
                             <mat-icon>arrow_back</mat-icon>
                             <span>Back</span>
                         </button>
-                        <button mat-button type="button" class="next-btn" (click)="validateStep2AndProceed()">
-                            <span>Next</span>
-                            <mat-icon>arrow_forward</mat-icon>
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="cancel()">
+                                <mat-icon>arrow_back</mat-icon>
+                                <span>Cancel</span>
+                            </button>
+                            <button mat-button type="button" class="next-btn" (click)="validateStep2AndProceed()">
+                                <span>Next</span>
+                                <mat-icon>arrow_forward</mat-icon>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </mat-step>
@@ -642,11 +643,17 @@
                             <mat-icon>arrow_back</mat-icon>
                             <span>Back</span>
                         </button>
-                        <button mat-flat-button color="primary" (click)="save()" type="button" class="submit-btn">
-                            <mat-icon>save</mat-icon>
-                            <span *ngIf="!editMode">Save</span>
-                            <span *ngIf="editMode">Update</span>
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <button mat-flat-button color="accent" type="button" class="btn-cancel" (click)="cancel()">
+                                <mat-icon>arrow_back</mat-icon>
+                                <span>Cancel</span>
+                            </button>
+                            <button mat-flat-button color="primary" (click)="save()" type="button" class="submit-btn">
+                                <mat-icon>save</mat-icon>
+                                <span *ngIf="!editMode">Save</span>
+                                <span *ngIf="editMode">Update</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </mat-step>
