@@ -1001,10 +1001,16 @@ export class AdminQuestionsComponent {
     });
     this.aiAnswerGenerationPending = false;
     this.hasGeneratedQuestionsWithoutAnswers = false;
+    setTimeout(() => {
+      try {
+        this.resizeAll();
+      } catch (e) {}
+    }, 0);
     try {
       notify('Answers generated for the current questions', 'success');
     } catch (e) {}
     return true;
+
   }
 
   clearAIPrompts() {
