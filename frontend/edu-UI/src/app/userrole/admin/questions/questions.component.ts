@@ -899,10 +899,15 @@ export class AdminQuestionsComponent {
         question
       );
       question.type = qtype;
-      const generatedAnswer =
+            const generatedAnswer =
         generated.answerText || generated.answer || generated.explanation || '';
       const correctValue = generated.correct ?? generated.correct_answer ?? generatedAnswer;
-      if (qtype === 'fill' || qtype === 'descriptive') {
+      if (qtype === 'fill') {
+        const fillVal = (typeof correctValue === 'string' && correctValue.trim())
+          ? correctValue.trim()
+          : (typeof generatedAnswer === 'string' ? generatedAnswer.trim() : '');
+        question.answerText = fillVal;
+      } else if (qtype === 'descriptive') {
         question.answerText =
           generatedAnswer || (typeof correctValue === 'string' ? correctValue : '');
       } else {
@@ -1046,21 +1051,23 @@ export class AdminQuestionsComponent {
                 text: r.question_text || r.questionText || r.question || r.text || '',
                 marks: this.getCategoryQuestionMark() || r.mark || r.marks || 1,
                 options: cleanOpts,
-                correct:
+                                correct:
                   r.correct_answer ??
                   r.correctAnswer ??
                   r.correct ??
                   this.getCorrectFromGeneratedOptions(r.options),
                 answerText:
-                  r.explanation ||
-                  r.answer_text ||
-                  r.answerText ||
-                  r.answer ||
-                  r.correct_answer ||
-                  r.correctAnswer ||
-                  r.model_answer ||
-                  r.sample_answer ||
-                  '',
+                  normType === 'fill'
+                    ? ((r.correct_answer ?? r.correctAnswer ?? r.correct ?? r.answer_text ?? r.answerText ?? r.answer ?? '').toString().trim())
+                    : (r.explanation ||
+                       r.answer_text ||
+                       r.answerText ||
+                       r.answer ||
+                       r.correct_answer ||
+                       r.correctAnswer ||
+                       r.model_answer ||
+                       r.sample_answer ||
+                       ''),
               };
             });
             this.generatedQuestions = normalized;

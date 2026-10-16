@@ -1536,7 +1536,13 @@ def create_question_using_llm(request):
     else:
         recommended_words_count = "as appropriate"
         character_count = 500  # default estimate
+
+    if type == "fill":
+        recommended_words_count = "1-3 words (only the missing word/phrase)"
+        character_count = 50
+
     aimodel = 2 if question_mark < 5 else 1
+
     openai_client_instance = openai_client()
 
     # Token calculation based on number of questions and character count
@@ -1544,7 +1550,7 @@ def create_question_using_llm(request):
 
     system_message = """You are an expert question setter and evaluator. Your task is to create a question and answer based on the provided source text and parameters.
     Note for Question Type : 
-        'fill' --> Filling the blanks
+        'fill' --> Filling the blanks (use '______' for the blank in question_text, and provide ONLY the exact missing word/phrase in correct_answer and answer_text without repeating the full sentence)
         'choose' --> Multiple choice single answer
         'multi' --> Multiple choice multiple answers
         'descriptive' --> Question for descriptive answer, appropriate for the answer character count
