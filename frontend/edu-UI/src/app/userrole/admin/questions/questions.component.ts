@@ -45,6 +45,7 @@ import {
 
 import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
 import { MathQuickToolsComponent } from 'src/app/shared/components/math-quick-tools/math-quick-tools.component';
+import * as XLSX from 'xlsx';
 
 @Component({
   selector: 'app-admin-questions',
@@ -193,6 +194,8 @@ export class AdminQuestionsComponent {
 
   // bulk upload state
   selectedBulkFile: File | null = null;
+  isBulkUploadedFlow: boolean = false;
+  isParsingBulkFile: boolean = false;
   // visual state for drag-over highlight
   dragActive = false;
   private bulkUploadUrl = `${API_BASE}/upload-questions`;
@@ -1306,18 +1309,24 @@ export class AdminQuestionsComponent {
     const input = ev.target as HTMLInputElement;
     if (input && input.files && input.files.length) {
       this.selectedBulkFile = input.files[0];
+      this.isBulkUploadedFlow = false;
     } else {
       this.selectedBulkFile = null;
+      this.isBulkUploadedFlow = false;
     }
   }
 
   clearSelectedBulkFile() {
     this.selectedBulkFile = null;
+    this.isBulkUploadedFlow = false;
     try {
       if (this.hiddenFileInput && this.hiddenFileInput.nativeElement) {
         this.hiddenFileInput.nativeElement.value = '';
       }
     } catch (e) {}
+    if (this.mode === 'bulk') {
+      this.resetAll();
+    }
   }
   // improved drag handling to allow visual feedback
   onDragOver(ev: DragEvent, markActive = true) {
@@ -1337,7 +1346,283 @@ export class AdminQuestionsComponent {
     const files = ev.dataTransfer && ev.dataTransfer.files;
     if (files && files.length) {
       this.selectedBulkFile = files[0];
+      this.isBulkUploadedFlow = false;
     }
+  }
+
+  importBulkQuestions() {
+    if (!this.selectedBulkFile) {
+      try {
+        notify('Please select a CSV or Excel file to upload', 'error');
+      } catch (e) {}
+      return;
+    }
+
+    if (!this.hasCategorySettings()) {
+      try {
+        notify('Please select a Question Bank first', 'error');
+      } catch (e) {}
+      return;
+    }
+
+    const file = this.selectedBulkFile;
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.csv') && !fileName.endsWith('.xlsx')) {
+      try {
+        notify('Only .csv and .xlsx files are supported', 'error');
+      } catch (e) {}
+      return;
+    }
+
+    this.isParsingBulkFile = true;
+    this.loader.show();
+
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) {
+          throw new Error('No sheets found in the uploaded file');
+        }
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: false });
+
+        if (!rawRows || !rawRows.length) {
+          throw new Error('The uploaded file contains no data rows');
+        }
+
+        const selectedInstituteId =
+          this.filterInstituteId ||
+          this.loginInstituteId ||
+          this.questions?.[0]?.institute_id ||
+          sessionStorage.getItem('global_institute_id') ||
+          '';
+        const selectedCategoryId =
+          this.selectedCategory?.category_id ||
+          this.questions?.[0]?.category_id ||
+          '';
+
+        const parsedQuestions = this.mapBulkRowsToQuestions(
+          rawRows,
+          selectedInstituteId,
+          selectedCategoryId
+        );
+
+        if (!parsedQuestions.length) {
+          throw new Error(
+            'No valid questions found in file. Please ensure column headers match the template.'
+          );
+        }
+
+        this.questions = parsedQuestions;
+        this.isBulkUploadedFlow = true;
+
+        setTimeout(() => {
+          try {
+            this.resizeAll();
+          } catch (err) {}
+        }, 50);
+
+        notify(
+          `Successfully imported ${parsedQuestions.length} question${parsedQuestions.length > 1 ? 's' : ''}`,
+          'success'
+        );
+      } catch (err: any) {
+        console.error('Failed to parse bulk questions file', err);
+        try {
+          notify(err?.message || 'Failed to parse file. Please verify format.', 'error');
+        } catch (e) {}
+      } finally {
+        this.isParsingBulkFile = false;
+        this.loader.hide();
+      }
+    };
+
+    reader.onerror = (err) => {
+      console.error('File reading error', err);
+      this.isParsingBulkFile = false;
+      this.loader.hide();
+      try {
+        notify('Failed to read file', 'error');
+      } catch (e) {}
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
+  private getRowField(row: any, ...fieldAliases: string[]): any {
+    const keys = Object.keys(row);
+    for (const alias of fieldAliases) {
+      const cleanAlias = alias.toLowerCase().replace(/[\s_-]+/g, '');
+      const foundKey = keys.find(
+        (k) => k.toLowerCase().replace(/[\s_-]+/g, '') === cleanAlias
+      );
+      if (foundKey !== undefined && row[foundKey] !== undefined && row[foundKey] !== null) {
+        return row[foundKey];
+      }
+    }
+    return '';
+  }
+
+  private extractOptionsFromRow(row: any): string[] {
+    const keys = Object.keys(row);
+    const optionEntries: Array<{ index: number; text: string }> = [];
+    keys.forEach((k) => {
+      const match = k.match(/^opt(?:ion)?[_\s-]?([0-9]+|[a-z])$/i);
+      if (match) {
+        const id = match[1];
+        let idx = 0;
+        if (/^[0-9]+$/.test(id)) {
+          idx = parseInt(id, 10);
+        } else {
+          idx = id.toUpperCase().charCodeAt(0) - 64;
+        }
+        const val = String(row[k] ?? '').trim();
+        if (val) {
+          optionEntries.push({ index: idx, text: val });
+        }
+      }
+    });
+
+    optionEntries.sort((a, b) => a.index - b.index);
+    return optionEntries.map((o) => o.text);
+  }
+
+  private parseCorrectAnswerFromRow(
+    type: string,
+    rawCorrect: any,
+    options: string[]
+  ): { correct: any; answerText: string } {
+    const rawStr = String(rawCorrect ?? '').trim();
+    if (type === 'fill' || type === 'descriptive') {
+      return {
+        correct: null,
+        answerText: rawStr,
+      };
+    }
+
+    if (type === 'choose') {
+      if (!rawStr) return { correct: null, answerText: '' };
+      const optIdx = options.findIndex(
+        (o) => o.toLowerCase().trim() === rawStr.toLowerCase()
+      );
+      if (optIdx !== -1) {
+        return { correct: optIdx, answerText: '' };
+      }
+      if (/^[a-zA-Z]$/.test(rawStr)) {
+        const letterIdx = rawStr.toUpperCase().charCodeAt(0) - 65;
+        if (letterIdx >= 0 && letterIdx < options.length) {
+          return { correct: letterIdx, answerText: '' };
+        }
+      }
+      const num = parseInt(rawStr, 10);
+      if (!isNaN(num)) {
+        if (num >= 1 && num <= options.length) {
+          return { correct: num - 1, answerText: '' };
+        }
+        if (num === 0 && options.length > 0) {
+          return { correct: 0, answerText: '' };
+        }
+      }
+      return { correct: null, answerText: '' };
+    }
+
+    if (type === 'multi') {
+      if (!rawStr) return { correct: [], answerText: '' };
+      const tokens = rawStr.split(/[,;\s]+/).map((t) => t.trim()).filter(Boolean);
+      const correctIndices: number[] = [];
+
+      for (const token of tokens) {
+        const optIdx = options.findIndex(
+          (o) => o.toLowerCase().trim() === token.toLowerCase()
+        );
+        if (optIdx !== -1 && !correctIndices.includes(optIdx)) {
+          correctIndices.push(optIdx);
+          continue;
+        }
+        if (/^[a-zA-Z]$/.test(token)) {
+          const letterIdx = token.toUpperCase().charCodeAt(0) - 65;
+          if (letterIdx >= 0 && letterIdx < options.length && !correctIndices.includes(letterIdx)) {
+            correctIndices.push(letterIdx);
+            continue;
+          }
+        }
+        const num = parseInt(token, 10);
+        if (!isNaN(num)) {
+          const target = num >= 1 && num <= options.length ? num - 1 : num;
+          if (target >= 0 && target < options.length && !correctIndices.includes(target)) {
+            correctIndices.push(target);
+          }
+        }
+      }
+      return { correct: correctIndices, answerText: '' };
+    }
+
+    return { correct: null, answerText: rawStr };
+  }
+
+  private mapBulkRowsToQuestions(
+    rawRows: any[],
+    instituteId: string,
+    categoryId: string
+  ): any[] {
+    const results: any[] = [];
+    const catMark = this.getCategoryQuestionMark();
+
+    for (const row of rawRows) {
+      const qText = String(
+        this.getRowField(row, 'question', 'question_text', 'text') || ''
+      ).trim();
+      if (!qText) continue;
+
+      const rawType = String(
+        this.getRowField(row, 'type', 'question_type') || ''
+      ).trim();
+      const extractedOpts = this.extractOptionsFromRow(row);
+      const qType = this.normalizeQuestionType(
+        rawType || (extractedOpts.length ? 'choose' : 'descriptive')
+      );
+
+      const rawMarks = this.getRowField(row, 'marks', 'mark');
+      const marksVal = Number(rawMarks);
+      const marks = !isNaN(marksVal) && marksVal > 0 ? marksVal : catMark || 1;
+
+      const opts = extractedOpts.slice();
+      if ((qType === 'choose' || qType === 'multi') && opts.length < 2) {
+        while (opts.length < 2) opts.push('');
+      }
+
+      const rawCorrect = this.getRowField(
+        row,
+        'correct_answer',
+        'correct',
+        'answer',
+        'model_answer'
+      );
+      const { correct, answerText } = this.parseCorrectAnswerFromRow(
+        qType,
+        rawCorrect,
+        opts
+      );
+
+      results.push({
+        type: qType,
+        text: qText,
+        marks: marks,
+        options: opts.length ? opts : ['', ''],
+        media: [],
+        correct: correct,
+        answerText: answerText,
+        institute_id: instituteId,
+        category_id: categoryId,
+        _expanded: true,
+        showFineTune: false,
+      });
+    }
+
+    return results;
   }
 
   private getScopedInstituteId(instId?: string): string {
@@ -2649,6 +2934,7 @@ export class AdminQuestionsComponent {
 
     // 2. Reset Bulk Upload Details
     this.selectedBulkFile = null;
+    this.isBulkUploadedFlow = false;
     this.dragActive = false;
 
     // 3. Reset Manual Questions List to a fresh single question matching the category
@@ -3278,54 +3564,14 @@ export class AdminQuestionsComponent {
     } catch (e) {
       /* ignore */
     }
-    if (this.mode === 'bulk') {
-      // use selected file and submit via FormData
+    if (this.mode === 'bulk' && !this.isBulkUploadedFlow) {
       if (!this.selectedBulkFile) {
         try {
-          notify('Please select a file to upload', 'error');
+          notify('Please select a CSV or Excel file to upload', 'error');
         } catch (e) {}
         return;
       }
-      this.confirmService
-        .confirm({
-          title: 'Confirm Bulk Upload',
-          message: 'Are you sure you want to upload this file?',
-          confirmText: 'Upload',
-          cancelText: 'Cancel',
-        })
-        .subscribe((confirmed) => {
-          if (!confirmed) return;
-          this.loader.show();
-          const fd = new FormData();
-          fd.append('file', this.selectedBulkFile!);
-          if (this.questions[0] && this.questions[0].institute_id)
-            fd.append('institute_id', this.questions[0].institute_id);
-          if (this.questions[0] && this.questions[0].category_id)
-            fd.append('category_id', this.questions[0].category_id);
-          this.http.post<any>(this.bulkUploadUrl, fd).subscribe({
-            next: (res) => {
-              try {
-                const msg = res?.statusMessage || res?.message || 'Bulk upload completed';
-                const ok = typeof res?.status === 'undefined' ? true : !!res.status;
-                notify(msg, ok ? 'success' : 'error');
-              } catch (e) {}
-              this.selectedBulkFile = null;
-            },
-            complete: () => {
-              this.loader.hide();
-            },
-            error: (err) => {
-              console.error('Bulk upload failed', err);
-              try {
-                notify(
-                  err?.error?.statusMessage || err?.error?.message || 'Bulk upload failed',
-                  'error'
-                );
-              } catch (e) {}
-              this.loader.hide();
-            },
-          });
-        });
+      this.importBulkQuestions();
       return;
     }
 

@@ -746,10 +746,11 @@
                   color="primary"
                   type="button"
                   class="upload-btn ready-to-upload"
-                  (click)="submit()"
+                  (click)="importBulkQuestions()"
+                  [disabled]="isParsingBulkFile"
                 >
-                  <mat-icon>cloud_upload</mat-icon>
-                  <span>Upload File</span>
+                  <mat-icon>{{ isParsingBulkFile ? 'sync' : 'cloud_upload' }}</mat-icon>
+                  <span>{{ isParsingBulkFile ? 'Importing Questions...' : 'Upload File' }}</span>
                 </button>
                 <button
                   mat-button
@@ -766,9 +767,13 @@
             </ng-template>
           </div>
         </div>
-        <div class="upload-hint-banner" *ngIf="selectedBulkFile">
+        <div class="upload-hint-banner" *ngIf="selectedBulkFile && !isBulkUploadedFlow">
           <mat-icon class="hint-icon">lightbulb</mat-icon>
           <span>File selected! Please click <strong>Upload File</strong> to import questions.</span>
+        </div>
+        <div class="upload-hint-banner upload-success-banner" *ngIf="selectedBulkFile && isBulkUploadedFlow">
+          <mat-icon class="hint-icon">check_circle</mat-icon>
+          <span>Questions imported successfully! You can review, edit, and click <strong>Save All</strong> below.</span>
         </div>
         <input
           #hiddenFileInput
@@ -1079,7 +1084,11 @@
       <!-- ═══ Questions Section ═══ -->
       <div
         class="section-block questions-section relative"
-        *ngIf="activeMode == 'manual' || (activeMode == 'ai' && (generatedQuestions?.length || isAiGeneratedFlow))"
+        *ngIf="
+          activeMode == 'manual' ||
+          (activeMode == 'ai' && (generatedQuestions?.length || isAiGeneratedFlow)) ||
+          (activeMode == 'bulk' && isBulkUploadedFlow && questions?.length)
+        "
       >
         <!-- Scoped Loader Overlay for Questions Section -->
         <div
@@ -1717,7 +1726,7 @@
         <!-- ═══ Add Question Button (Under Questions) ═══ -->
         <div
           class="questions-bottom-actions"
-          *ngIf="mode === 'manual' && !isEditing && !aiMode && !bulkMode"
+          *ngIf="!isEditing && (!aiMode || isAiGeneratedFlow) && (!bulkMode || isBulkUploadedFlow)"
         >
           <button
             type="button"

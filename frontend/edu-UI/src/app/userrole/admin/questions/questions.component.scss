@@ -555,6 +555,8 @@ button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min
 }
 .upload-hint-banner { display:flex; align-items:center; gap:0.5rem; padding:0.625rem 1rem; font:500 0.84rem/1.4 inherit; color:var(--button-1); background:rgba(31,123,255,0.08); border:1px solid rgba(31,123,255,0.25); border-radius:$radius; margin-top:0.75rem; }
 .upload-hint-banner .hint-icon { font-size:1.125rem; width:1.125rem; height:1.125rem; color:var(--button-1); flex-shrink:0; }
+.upload-hint-banner.upload-success-banner { color:#15803d; background:rgba(34,197,94,0.08); border-color:rgba(34,197,94,0.25); }
+.upload-hint-banner.upload-success-banner .hint-icon { color:#15803d; }
 .no-file { color:var(--theme-3-text-3); font-style:italic; font:400 0.875rem/1.4 inherit; }
 @media (max-width:57.5rem) { .bulk-card{flex-direction:column;} .bulk-left,.bulk-right{flex:1 1 100%;} }
 
