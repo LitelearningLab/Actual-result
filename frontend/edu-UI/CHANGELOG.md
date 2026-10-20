@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.1.4] - 2026-10-20
+
+### Patch Fixes
+- **Handwritten & Test Evaluation Engine**: Enhanced evaluation cards UI with handwritten image previews, OCR text handling, and AI misconception breakdown.
+- **Scoring & Dash vs Zero Logic**: Corrected evaluation mark resolution so unattempted questions display dashes (`-`) while attempted evaluated questions properly award numerical scores (`0` or awarded marks).
+- **Exam Runner State & UI**: Improved candidate exam runner reliability, response persistence, and option display during active sessions.
+- **Permission Guards & User Management**: Refined role-based route guards (`PermissionGuard`, `PageAccessService`) and fixed user registration and user view navigation state.
+
+---
+
+
 ## [2.1.3] - 2026-10-16
 
 ---
