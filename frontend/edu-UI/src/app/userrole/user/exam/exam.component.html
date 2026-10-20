@@ -355,7 +355,7 @@
 
          </div>
 
-         <div *ngIf="loading && (!exams || exams.length === 0)" class="professional-loader-container" style="padding: 3rem 1rem;">
+         <div *ngIf="loading" class="professional-loader-container" style="padding: 3rem 1rem;">
             <div class="loader-spinner-ring"></div>
             <div class="loader-text-group">
                <h5 class="loader-main-text">Loading Assessments</h5>
@@ -505,7 +505,7 @@
             </ng-container>
          </div>
 
-         <div *ngIf="loading && (!mobileCardsData || mobileCardsData.length === 0)" class="professional-loader-container" style="padding: 3rem 1rem;">
+         <div *ngIf="loading" class="professional-loader-container" style="padding: 3rem 1rem;">
             <div class="loader-spinner-ring"></div>
             <div class="loader-text-group">
                <h5 class="loader-main-text">Loading Assessments</h5>

@@ -1871,8 +1871,12 @@ formatSeconds(sec: number | null | undefined): string {
     if (!userId && !this.instituteId && !this.isSuperAdmin) return;
     // Skip a polling cycle while another exam-list request is still active (unless user explicitly clicks refresh).
     if (this.isFetchingExams && !showLoader) return;
-    if (showLoader) {
+      if (showLoader) {
       this.loading = true;
+      this.exams = [];
+      this.dataSource.data = [];
+      this.activeSource.data = [];
+      this.completeSource.data = [];
     }
     this.isFetchingExams = true;
 
