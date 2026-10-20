@@ -909,31 +909,64 @@ def validate_answers(attempt_id):
                     ExamReviewComments.reviewer_id == 'cac37fab-4de6-4792-969b-96e57e3c910a'
                 ).delete(synchronize_session=False)
 
-                               # update ExamReviewComments table category wise comments
+                # update ExamReviewComments table category wise comments
+                import re
+
                 for key in ["missing", "incomplete", "incorrect"]:
-                    items = evaluation.get(key) or []
-                    if isinstance(items, dict):
-                        items = [items]
-                    if isinstance(items, list):
-                        for item in items:
-                            if not isinstance(item, dict):
-                                continue
-                            top = item.get("topic", "").strip()
-                            iss = item.get("issue", "").strip()
-                            lbl = item.get("label", "Correct" if key == "incorrect" else ("Needed" if key == "missing" else "Complete"))
-                            stmt = item.get("statement", "").strip()
-                            review_comment = ExamReviewComments(
-                                attempt_id=attempt_id,
-                                question_id=question_id,
-                                category=key,
-                                topic=top,
-                                issue=iss,
-                                label=lbl,
-                                statement=stmt,
-                                comment_text=f"({top}): {iss} {lbl}: {stmt}" if top else f"{iss} {lbl}: {stmt}",
-                                reviewer_id='cac37fab-4de6-4792-969b-96e57e3c910a'
-                            )
-                            session.add(review_comment)
+                    raw_items = evaluation.get(key) or []
+                    items = []
+
+                    # 1. Handle Pipe-Separated String format from Vision Evaluation
+                    if isinstance(raw_items, str):
+                        if raw_items.strip().lower() not in ("none", "null", "n/a", ""):
+                            for pt in raw_items.split("|"):
+                                pt = pt.strip()
+                                if not pt or pt.lower() in ("none", "null", "n/a"):
+                                    continue
+                                default_lbl = "Correct" if key == "incorrect" else ("Needed" if key == "missing" else "Complete")
+                                # Parse format: "<Issue/Concept> Needed/Complete/Correct: <Statement>"
+                                parts = re.split(rf"\b{default_lbl}\s*:\s*", pt, flags=re.IGNORECASE)
+                                if len(parts) == 2:
+                                    issue_text = parts[0].strip()
+                                    stmt_text = parts[1].strip()
+                                else:
+                                    issue_text = pt
+                                    stmt_text = pt
+                                items.append({
+                                    "topic": "",
+                                    "issue": issue_text,
+                                    "label": default_lbl,
+                                    "statement": stmt_text
+                                })
+                    # 2. Handle Dict format
+                    elif isinstance(raw_items, dict):
+                        items = [raw_items]
+                    # 3. Handle List of Dicts format from Typed Descriptive Evaluation
+                    elif isinstance(raw_items, list):
+                        items = raw_items
+
+                    # Save to ExamReviewComments table
+                    for item in items:
+                        if not isinstance(item, dict):
+                            continue
+                        top = item.get("topic", "").strip()
+                        iss = item.get("issue", "").strip()
+                        lbl = item.get("label", "Correct" if key == "incorrect" else ("Needed" if key == "missing" else "Complete"))
+                        stmt = item.get("statement", "").strip()
+                        if not iss and not stmt:
+                            continue
+                        review_comment = ExamReviewComments(
+                            attempt_id=attempt_id,
+                            question_id=question_id,
+                            category=key,
+                            topic=top,
+                            issue=iss,
+                            label=lbl,
+                            statement=stmt,
+                            comment_text=f"({top}): {iss} {lbl}: {stmt}" if top and iss != stmt else (f"{iss} {lbl}: {stmt}" if stmt and iss != stmt else (iss or stmt)),
+                            reviewer_id='cac37fab-4de6-4792-969b-96e57e3c910a'
+                        )
+                        session.add(review_comment)
 
 
         else:
