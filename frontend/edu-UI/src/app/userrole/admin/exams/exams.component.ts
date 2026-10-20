@@ -1063,7 +1063,7 @@ export class AdminExamsComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.pageMeta.setMeta('Manage test', 'Browse and review tests');
+    this.pageMeta.setMeta('Create/Edit Test', 'Browse and review tests');
     this.loadCountries();
     this.loadInstitutes();
     this.loadTestOptions(this.selectedInstitute);

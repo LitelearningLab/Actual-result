@@ -4,8 +4,8 @@ from db.models import Page, UserPageAccess
 PAGE_NAME_MAP = {
     "Categories": "Question Banks",
     "Category": "Question Banks",
-    "Exams": "Manage test",
-    "Exam": "Manage test",
+    "Exams": "Create/Edit Test",
+    "Exam": "Create/Edit Test",
     "Schedule Exam": "Schedule Test",
     "Schedule": "Schedule Test",
     "Exam Reports": "Test Reports"

@@ -10,8 +10,8 @@ from sqlalchemy import or_, and_, func
 PAGE_NAME_MAP = {
     "Categories": "Question Banks",
     "Category": "Question Banks",
-    "Exams": "Manage test",
-    "Exam": "Manage test",
+    "Exams": "Create/Edit Test",
+    "Exam": "Create/Edit Test",
     "Schedule Exam": "Schedule Test",
     "Schedule": "Schedule Test",
     "Exam Reports": "Test Reports"
@@ -19,6 +19,7 @@ PAGE_NAME_MAP = {
 
 REVERSE_PAGE_NAME_MAP = {
     "Question Banks": "Categories",
+    "Create/Edit Test": "Exams",
     "Manage test": "Exams",
     "Schedule Test": "Schedule Exam",
     "Test Reports": "Exam Reports"
