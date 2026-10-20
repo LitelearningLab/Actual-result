@@ -34,6 +34,7 @@ from others.exam_review import (
 )
 import sys
 import os
+import re
 import json
 import time
 import uuid
@@ -3828,10 +3829,39 @@ def get_student_evaluation_details(request, current_user=None):
                     .all()
                 )
                 for rc in rc_rows:
+                    rc_topic = getattr(rc, "topic", "") or ""
+                    rc_issue = getattr(rc, "issue", "") or ""
+                    rc_label = getattr(rc, "label", "") or ""
+                    rc_statement = getattr(rc, "statement", "") or ""
+
+                    # Fallback extraction if topic/statement were not stored separately in older records
+                    if not rc_topic and not rc_statement and rc.comment_text:
+                        raw_txt = rc.comment_text
+                        lbl_pattern = r"\b(Needed|Correct|Complete)\s*:\s*"
+                        parts = re.split(lbl_pattern, raw_txt, flags=re.IGNORECASE)
+                        if len(parts) >= 3:
+                            left_side = parts[0].strip()
+                            rc_label = parts[1].capitalize()
+                            rc_statement = parts[2].strip()
+                            if ":" in left_side:
+                                sub = left_side.split(":", 1)
+                                rc_topic = sub[0].strip("() \t\n\r")
+                                rc_issue = sub[1].strip()
+                            else:
+                                rc_issue = left_side
+                        elif ":" in raw_txt:
+                            sub = raw_txt.split(":", 1)
+                            rc_topic = sub[0].strip("() \t\n\r")
+                            rc_issue = sub[1].strip()
+
                     review_comments.append(
                         {
                             "comment_id": str(rc.comment_id),
                             "comment_text": rc.comment_text,
+                            "topic": rc_topic,
+                            "issue": rc_issue or rc.comment_text,
+                            "label": rc_label or ("Correct" if (rc.category or "").lower() == "incorrect" else ("Needed" if (rc.category or "").lower() == "missing" else "Complete")),
+                            "statement": rc_statement,
                             "category": rc.category or "missing",
                             "action": rc.action,
                             "updated_by": rc.updated_by or rc.created_by,
@@ -3942,7 +3972,7 @@ def get_student_evaluation_details(request, current_user=None):
             ]
             q_options_list = [
                 {
-                    "id": opt.options_id,
+                    "id": str(opt.options_id) if opt.options_id else None,
                     "text": opt.option_text,
                     "image_url": opt.image_url,
                     "url": opt.image_url,
@@ -4812,23 +4842,58 @@ def upload_answer_sheet(request, current_user=None):
 
                 if ev:
                     for cat in ["missing", "incomplete", "incorrect"]:
-                        val = str(ev.get(cat) or "").strip()
-                        if val and val.lower() not in ("none", "null", "n/a", ""):
-                            for c_item in val.split("|"):
-                                c_item_clean = c_item.strip()
-                                if c_item_clean and c_item_clean.lower() not in (
-                                    "none",
-                                    "null",
-                                ):
-                                    rc = ExamReviewComments(
-                                        comment_id=str(uuid.uuid4()),
-                                        attempt_id=attempt.attempt_id,
-                                        question_id=qid_str,
-                                        comment_text=c_item_clean,
-                                        category=cat,
-                                        reviewer_id=None,
-                                    )
-                                    session.add(rc)
+                        raw_cat_val = ev.get(cat)
+                        items = []
+                        default_lbl = "Correct" if cat == "incorrect" else ("Needed" if cat == "missing" else "Complete")
+                        if isinstance(raw_cat_val, str):
+                            if raw_cat_val.strip().lower() not in ("none", "null", "n/a", ""):
+                                for pt in raw_cat_val.split("|"):
+                                    pt = pt.strip()
+                                    if not pt or pt.lower() in ("none", "null", "n/a"):
+                                        continue
+                                    parts = re.split(rf"\b{default_lbl}\s*:\s*", pt, flags=re.IGNORECASE)
+                                    left_side = parts[0].strip() if len(parts) > 0 else pt
+                                    stmt_text = parts[1].strip() if len(parts) > 1 else ""
+                                    if ":" in left_side:
+                                        sub = left_side.split(":", 1)
+                                        top_text, iss_text = sub[0].strip(), sub[1].strip()
+                                        top_text = top_text.strip("() \t\n\r")
+                                    else:
+                                        top_text, iss_text = "", left_side
+                                    items.append({
+                                        "topic": top_text,
+                                        "issue": iss_text,
+                                        "label": default_lbl,
+                                        "statement": stmt_text
+                                    })
+                        elif isinstance(raw_cat_val, dict):
+                            items = [raw_cat_val]
+                        elif isinstance(raw_cat_val, list):
+                            items = raw_cat_val
+
+                        for item in items:
+                            if not isinstance(item, dict):
+                                continue
+                            top = str(item.get("topic") or "").strip().strip("() \t\n\r")
+                            iss = str(item.get("issue") or "").strip()
+                            lbl = str(item.get("label") or default_lbl).strip()
+                            stmt = str(item.get("statement") or "").strip()
+                            if not iss and not stmt and not top:
+                                continue
+                            comment_text = f"({top}): {iss} {lbl}: {stmt}" if top and iss and stmt else (f"{top}: {iss}" if top and not stmt else (f"{iss} {lbl}: {stmt}" if stmt and iss else (iss or stmt or top)))
+                            rc = ExamReviewComments(
+                                comment_id=str(uuid.uuid4()),
+                                attempt_id=attempt.attempt_id,
+                                question_id=qid_str,
+                                topic=top,
+                                issue=iss,
+                                label=lbl,
+                                statement=stmt,
+                                comment_text=comment_text,
+                                category=cat,
+                                reviewer_id=None,
+                            )
+                            session.add(rc)
 
             # Single atomic commit for everything
             session.commit()

@@ -868,25 +868,49 @@ PHASE 2 QUESTION-SPECIFIC EVALUATION RULES:
    A. "missing" (Points Missed):
       - Include ONLY essential required concepts from the rubric that are 100% ABSENT (completely unmentioned).
       - If the student made any mention or attempt, it cannot be in "missing".
-      - Format: "<Exact omitted concept> Needed: <Specific requirement>"
-      - If no points were missed, return exactly "None".
+      - Return as a list of JSON objects:
+        [
+          {
+            "topic": "<Specific Topic / Concept Name>",
+            "issue": "<What was missed in this topic>",
+            "label": "Needed",
+            "statement": "<What statement or concept was needed>"
+          }
+        ]
+      - If no points were missed, return [].
 
    B. "incomplete" (Points Incomplete):
       - Include ONLY concepts the student actually attempted without factual error, but where a specific required mechanism or technical depth is lacking.
       - State the exact narrow missing detail. Do not mark correctly explained details as incomplete.
       - Never put factually wrong statements here; those belong exclusively in "incorrect".
-      - Format: "<Attempted concept> Complete: <Exact detail still needed>"
-      - If no points are incomplete, return exactly "None".
+      - Return as a list of JSON objects:
+        [
+          {
+            "topic": "<Specific Topic / Concept Name>",
+            "issue": "<What was incomplete in this topic>",
+            "label": "Complete",
+            "statement": "<What statement or detail completes the concept>"
+          }
+        ]
+      - If no points are incomplete, return [].
 
    C. "incorrect" (Points Incorrect):
       - Include ONLY statements or calculations written by the student that are FACTUALLY WRONG, scientifically false, or invalid.
       - All factually false assertions MUST be classified here, NEVER in "incomplete".
-      - Format: "<Actual incorrect student statement> Correct: <Accurate correction>"
-      - If there are no incorrect statements, return exactly "None".
+      - Return as a list of JSON objects:
+        [
+          {
+            "topic": "<Specific Topic / Concept Name>",
+            "issue": "<What statement the student got incorrect>",
+            "label": "Correct",
+            "statement": "<Accurate scientific correction statement>"
+          }
+        ]
+      - If there are no incorrect statements, return [].
 
 5. OBJECTIVE / MULTIPLE CHOICE QUESTIONS:
    - Identify option letter (e.g. 'a', 'b') or option text written under the question label.
-   - If it matches the correct option letter or text (case-insensitive), award full marks (suggested_marks = max_marks, is_correct = 1, missing = "None", incomplete = "None", incorrect = "None").
+   - If it matches the correct option letter or text (case-insensitive), award full marks (suggested_marks = max_marks, is_correct = 1, missing = [], incomplete = [], incorrect = []).
    - If incorrect, award 0.0 marks and specify the error.
 
 6. HIGH-LEVEL FEEDBACK:
@@ -894,7 +918,7 @@ PHASE 2 QUESTION-SPECIFIC EVALUATION RULES:
 
 7. UNATTEMPTED QUESTIONS:
    - If a question header or answer is absent from the sheet:
-     set "relevance_classification": "Unattempted", "suggested_marks": 0.0, "is_correct": 0, "detected_on_pages": [], "missing": "Entire question unattempted", "incomplete": "None", "incorrect": "None", "feedback": "Question was not attempted.", "ai_confidence": 95.
+     set "relevance_classification": "Unattempted", "suggested_marks": 0.0, "is_correct": 0, "detected_on_pages": [], "missing": [{"topic": "Unattempted", "issue": "Entire question unattempted", "label": "Needed", "statement": "Student did not attempt this question"}], "incomplete": [], "incorrect": [], "feedback": "Question was not attempted.", "ai_confidence": 95.
 
 8. AI CONFIDENCE (0 to 100):
    - "ai_confidence" must be an integer between 0 and 100 representing evaluation certainty based on scan clarity, handwriting legibility, answer boundary detection, and rubric mapping.
@@ -917,9 +941,30 @@ OUTPUT JSON STRUCTURE:
       "max_marks": <float maximum marks for this question>,
       "is_correct": <1 if full marks awarded, 0 otherwise>,
       "ai_confidence": <integer between 0 and 100>,
-      "missing": "<pipe-separated list of distinct missing rubric concepts or 'None'>",
-      "incomplete": "<pipe-separated list of distinct incomplete attempted concepts or 'None'>",
-      "incorrect": "<pipe-separated list of distinct factually incorrect statements or 'None'>",
+      "missing": [
+        {
+          "topic": "<Specific Topic/Concept>",
+          "issue": "<what was missed in this topic>",
+          "label": "Needed",
+          "statement": "<what statement/concept was needed>"
+        }
+      ],
+      "incomplete": [
+        {
+          "topic": "<Specific Topic/Concept>",
+          "issue": "<what was incomplete in this topic>",
+          "label": "Complete",
+          "statement": "<what statement completes the concept>"
+        }
+      ],
+      "incorrect": [
+        {
+          "topic": "<Specific Topic/Concept>",
+          "issue": "<what statement student got incorrect>",
+          "label": "Correct",
+          "statement": "<accurate scientific correction statement>"
+        }
+      ],
       "feedback": "<concise 1-2 sentence feedback explaining score and strengths/weaknesses>"
     }
   ],
@@ -1082,34 +1127,58 @@ OUTPUT JSON STRUCTURE:
 
             # Post-process missing, incomplete, and incorrect fields
             for key in ["missing", "incomplete", "incorrect"]:
-                text_val = ev.get(key, "None")
-                if not text_val or str(text_val).strip().lower() in (
-                    "none",
-                    "null",
-                    "n/a",
-                ):
-                    ev[key] = "None"
-                    continue
-
-                points = [
-                    p.strip()
-                    for p in str(text_val).split("|")
-                    if p.strip() and p.strip().lower() not in ("none", "null", "n/a")
-                ]
-                cleaned_points = []
-                seen = set()
-                for p in points:
-                    p = re.sub(
-                        r"^(Incorrect|Incomplete|Missed|Missing)\s*:\s*",
-                        "",
-                        p,
-                        flags=re.IGNORECASE,
-                    ).strip()
-                    p_norm = p.lower()
-                    if p and p_norm not in seen:
-                        seen.add(p_norm)
-                        cleaned_points.append(p)
-                ev[key] = " | ".join(cleaned_points) if cleaned_points else "None"
+                raw_val = ev.get(key, [])
+                default_lbl = "Correct" if key == "incorrect" else ("Needed" if key == "missing" else "Complete")
+                normalized_items = []
+                if isinstance(raw_val, list):
+                    for item in raw_val:
+                        if isinstance(item, dict):
+                            top = str(item.get("topic") or "").strip()
+                            iss = str(item.get("issue") or "").strip()
+                            lbl = str(item.get("label") or default_lbl).strip()
+                            stmt = str(item.get("statement") or "").strip()
+                            if iss or stmt or top:
+                                normalized_items.append({
+                                    "topic": top,
+                                    "issue": iss,
+                                    "label": lbl,
+                                    "statement": stmt
+                                })
+                        elif isinstance(item, str) and item.strip() and item.strip().lower() not in ("none", "null", "n/a"):
+                            parts = re.split(rf"\b{default_lbl}\s*:\s*", item, flags=re.IGNORECASE)
+                            left_side = parts[0].strip() if len(parts) > 0 else item
+                            stmt_text = parts[1].strip() if len(parts) > 1 else ""
+                            if ":" in left_side:
+                                sub = left_side.split(":", 1)
+                                top_text, iss_text = sub[0].strip(), sub[1].strip()
+                            else:
+                                top_text, iss_text = "", left_side
+                            normalized_items.append({
+                                "topic": top_text,
+                                "issue": iss_text,
+                                "label": default_lbl,
+                                "statement": stmt_text
+                            })
+                elif isinstance(raw_val, str) and raw_val.strip() and raw_val.strip().lower() not in ("none", "null", "n/a"):
+                    for pt in raw_val.split("|"):
+                        pt = pt.strip()
+                        if not pt or pt.lower() in ("none", "null", "n/a"):
+                            continue
+                        parts = re.split(rf"\b{default_lbl}\s*:\s*", pt, flags=re.IGNORECASE)
+                        left_side = parts[0].strip() if len(parts) > 0 else pt
+                        stmt_text = parts[1].strip() if len(parts) > 1 else ""
+                        if ":" in left_side:
+                            sub = left_side.split(":", 1)
+                            top_text, iss_text = sub[0].strip(), sub[1].strip()
+                        else:
+                            top_text, iss_text = "", left_side
+                        normalized_items.append({
+                            "topic": top_text,
+                            "issue": iss_text,
+                            "label": default_lbl,
+                            "statement": stmt_text
+                        })
+                ev[key] = normalized_items
 
         return {
             "status": True,
@@ -1180,9 +1249,9 @@ def vision_evaluate_question_images(
                 "score": ev.get("suggested_marks", 0.0),
                 "is_correct": ev.get("is_correct", 0),
                 "ai_confidence": ev.get("ai_confidence", 80),
-                "missing": ev.get("missing", "None"),
-                "incomplete": ev.get("incomplete", "None"),
-                "incorrect": ev.get("incorrect", "None"),
+                "missing": ev.get("missing", []),
+                "incomplete": ev.get("incomplete", []),
+                "incorrect": ev.get("incorrect", []),
                 "feedback": ev.get("feedback", ""),
                 "student_answer_snippet": ev.get("student_answer_snippet", ""),
                 "raw_evaluation": ev,

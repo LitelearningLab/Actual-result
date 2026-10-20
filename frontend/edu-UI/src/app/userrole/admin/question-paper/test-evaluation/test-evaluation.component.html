@@ -1469,14 +1469,25 @@
                         </div>
                         <div class="ri-body">
                           <div class="comment-text-display" *ngIf="!rc._editing">
-                            <ng-container *ngIf="parseCard(rc.comment_text) as card; else plainRcMissed">
-                              <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
-                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;">
-                                {{ card.label }} : <span style="font-weight: 400;">{{ card.solution }}</span>
+                            <ng-container *ngIf="rc.topic || rc.statement; else parsedRcMissed">
+                              <div class="point-issue">
+                                <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
+                                <span>{{ rc.issue || rc.comment_text }}</span>
+                              </div>
+                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;" *ngIf="rc.statement">
+                                {{ rc.label || 'Needed' }} : <span style="font-weight: 400;">{{ rc.statement }}</span>
                               </div>
                             </ng-container>
-                            <ng-template #plainRcMissed>
-                              {{ formatCardText(rc.comment_text) }}
+                            <ng-template #parsedRcMissed>
+                              <ng-container *ngIf="parseCard(rc.comment_text) as card; else plainRcMissed">
+                                <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                                <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;">
+                                  {{ card.label }} : <span style="font-weight: 400;">{{ card.solution }}</span>
+                                </div>
+                              </ng-container>
+                              <ng-template #plainRcMissed>
+                                {{ formatCardText(rc.comment_text) }}
+                              </ng-template>
                             </ng-template>
                           </div>
                           <div class="comment-edit-form" *ngIf="rc._editing">
@@ -1512,14 +1523,25 @@
                         </div>
                         <div class="ri-body">
                           <div class="comment-text-display" *ngIf="!rc._editing">
-                            <ng-container *ngIf="parseCard(rc.comment_text) as card; else plainRcIncorr">
-                              <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
-                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;">
-                                {{ card.label }} : <span style="font-weight: 400;">{{ card.solution }}</span>
+                            <ng-container *ngIf="rc.topic || rc.statement; else parsedRcIncorr">
+                              <div class="point-issue">
+                                <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
+                                <span>{{ rc.issue || rc.comment_text }}</span>
+                              </div>
+                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;" *ngIf="rc.statement">
+                                {{ rc.label || 'Correct' }} : <span style="font-weight: 400;">{{ rc.statement }}</span>
                               </div>
                             </ng-container>
-                            <ng-template #plainRcIncorr>
-                              {{ formatCardText(rc.comment_text) }}
+                            <ng-template #parsedRcIncorr>
+                              <ng-container *ngIf="parseCard(rc.comment_text) as card; else plainRcIncorr">
+                                <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                                <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;">
+                                  {{ card.label }} : <span style="font-weight: 400;">{{ card.solution }}</span>
+                                </div>
+                              </ng-container>
+                              <ng-template #plainRcIncorr>
+                                {{ formatCardText(rc.comment_text) }}
+                              </ng-template>
                             </ng-template>
                           </div>
                           <div class="comment-edit-form" *ngIf="rc._editing">
@@ -1555,14 +1577,25 @@
                         </div>
                         <div class="ri-body">
                           <div class="comment-text-display" *ngIf="!rc._editing">
-                            <ng-container *ngIf="parseCard(rc.comment_text) as card; else plainRcIncomp">
-                              <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
-                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;">
-                                {{ card.label }} : <span style="font-weight: 400;">{{ card.solution }}</span>
+                            <ng-container *ngIf="rc.topic || rc.statement; else parsedRcIncomp">
+                              <div class="point-issue">
+                                <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
+                                <span>{{ rc.issue || rc.comment_text }}</span>
+                              </div>
+                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;" *ngIf="rc.statement">
+                                {{ rc.label || 'Complete' }} : <span style="font-weight: 400;">{{ rc.statement }}</span>
                               </div>
                             </ng-container>
-                            <ng-template #plainRcIncomp>
-                              {{ formatCardText(rc.comment_text) }}
+                            <ng-template #parsedRcIncomp>
+                              <ng-container *ngIf="parseCard(rc.comment_text) as card; else plainRcIncomp">
+                                <div class="point-issue" *ngIf="card.issue">{{ card.issue }}</div>
+                                <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;">
+                                  {{ card.label }} : <span style="font-weight: 400;">{{ card.solution }}</span>
+                                </div>
+                              </ng-container>
+                              <ng-template #plainRcIncomp>
+                                {{ formatCardText(rc.comment_text) }}
+                              </ng-template>
                             </ng-template>
                           </div>
                           <div class="comment-edit-form" *ngIf="rc._editing">

@@ -524,11 +524,34 @@ def review_user_exam(request, current_user=None):
                             review_comment_dict_item['category'] = comment.category
                             review_comment_dict_item['comment_text'] = comment.comment_text
 
-                             # ── ADD THESE 4 LINES ──
-                            review_comment_dict_item['topic'] = comment.topic
-                            review_comment_dict_item['issue'] = comment.issue
-                            review_comment_dict_item['label'] = comment.label
-                            review_comment_dict_item['statement'] = comment.statement
+                            t_topic = (getattr(comment, 'topic', '') or "").strip().strip("() \t\n\r")
+                            t_issue = getattr(comment, 'issue', '') or ""
+                            t_label = getattr(comment, 'label', '') or ""
+                            t_stmt = getattr(comment, 'statement', '') or ""
+
+                            if not t_topic and not t_stmt and comment.comment_text:
+                                raw_txt = comment.comment_text
+                                lbl_pattern = r"\b(Needed|Correct|Complete)\s*:\s*"
+                                parts = re.split(lbl_pattern, raw_txt, flags=re.IGNORECASE)
+                                if len(parts) >= 3:
+                                    left_side = parts[0].strip()
+                                    t_label = parts[1].capitalize()
+                                    t_stmt = parts[2].strip()
+                                    if ":" in left_side:
+                                        sub = left_side.split(":", 1)
+                                        t_topic = sub[0].strip("() \t\n\r")
+                                        t_issue = sub[1].strip()
+                                    else:
+                                        t_issue = left_side
+                                elif ":" in raw_txt:
+                                    sub = raw_txt.split(":", 1)
+                                    t_topic = sub[0].strip("() \t\n\r")
+                                    t_issue = sub[1].strip()
+
+                            review_comment_dict_item['topic'] = t_topic
+                            review_comment_dict_item['issue'] = t_issue or comment.comment_text
+                            review_comment_dict_item['label'] = t_label or ("Correct" if (comment.category or "").lower() == "incorrect" else ("Needed" if (comment.category or "").lower() == "missing" else "Complete"))
+                            review_comment_dict_item['statement'] = t_stmt
 
 
 
@@ -924,17 +947,18 @@ def validate_answers(attempt_id):
                                 if not pt or pt.lower() in ("none", "null", "n/a"):
                                     continue
                                 default_lbl = "Correct" if key == "incorrect" else ("Needed" if key == "missing" else "Complete")
-                                # Parse format: "<Issue/Concept> Needed/Complete/Correct: <Statement>"
+                                # Parse format: "<Topic>: <Issue> Needed/Complete/Correct: <Statement>"
                                 parts = re.split(rf"\b{default_lbl}\s*:\s*", pt, flags=re.IGNORECASE)
-                                if len(parts) == 2:
-                                    issue_text = parts[0].strip()
-                                    stmt_text = parts[1].strip()
+                                left_side = parts[0].strip() if len(parts) > 0 else pt
+                                stmt_text = parts[1].strip() if len(parts) > 1 else ""
+                                if ":" in left_side:
+                                    sub = left_side.split(":", 1)
+                                    top_text, iss_text = sub[0].strip(), sub[1].strip()
                                 else:
-                                    issue_text = pt
-                                    stmt_text = pt
+                                    top_text, iss_text = "", left_side
                                 items.append({
-                                    "topic": "",
-                                    "issue": issue_text,
+                                    "topic": top_text,
+                                    "issue": iss_text,
                                     "label": default_lbl,
                                     "statement": stmt_text
                                 })
@@ -949,12 +973,13 @@ def validate_answers(attempt_id):
                     for item in items:
                         if not isinstance(item, dict):
                             continue
-                        top = item.get("topic", "").strip()
-                        iss = item.get("issue", "").strip()
-                        lbl = item.get("label", "Correct" if key == "incorrect" else ("Needed" if key == "missing" else "Complete"))
-                        stmt = item.get("statement", "").strip()
-                        if not iss and not stmt:
+                        top = str(item.get("topic") or "").strip().strip("() \t\n\r")
+                        iss = str(item.get("issue") or "").strip()
+                        lbl = str(item.get("label") or ("Correct" if key == "incorrect" else ("Needed" if key == "missing" else "Complete"))).strip()
+                        stmt = str(item.get("statement") or "").strip()
+                        if not iss and not stmt and not top:
                             continue
+                        comment_text = f"({top}): {iss} {lbl}: {stmt}" if top and iss and stmt else (f"{top}: {iss}" if top and not stmt else (f"{iss} {lbl}: {stmt}" if stmt and iss else (iss or stmt or top)))
                         review_comment = ExamReviewComments(
                             attempt_id=attempt_id,
                             question_id=question_id,
@@ -963,7 +988,7 @@ def validate_answers(attempt_id):
                             issue=iss,
                             label=lbl,
                             statement=stmt,
-                            comment_text=f"({top}): {iss} {lbl}: {stmt}" if top and iss != stmt else (f"{iss} {lbl}: {stmt}" if stmt and iss != stmt else (iss or stmt)),
+                            comment_text=comment_text,
                             reviewer_id='cac37fab-4de6-4792-969b-96e57e3c910a'
                         )
                         session.add(review_comment)
