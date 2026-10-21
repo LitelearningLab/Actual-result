@@ -1137,7 +1137,18 @@ OUTPUT JSON STRUCTURE:
         except json.JSONDecodeError:
             # Fallback for unescaped newlines or control characters inside strings
             parsed = json.loads(clean_json, strict=False)
-        evaluations = parsed.get("evaluations", [])
+        if isinstance(parsed, list):
+            evaluations = parsed
+        elif isinstance(parsed, dict):
+            raw_evals = parsed.get("evaluations", [])
+            if isinstance(raw_evals, dict):
+                evaluations = [raw_evals]
+            elif isinstance(raw_evals, list):
+                evaluations = raw_evals
+            else:
+                evaluations = []
+        else:
+            evaluations = []
 
         # Sanitize and clamp scores to question maximum marks
         q_rubrics = {}
@@ -1146,6 +1157,8 @@ OUTPUT JSON STRUCTURE:
                 q_rubrics[str(q.get("question_id"))] = q
 
         for ev in evaluations:
+            if not isinstance(ev, dict):
+                continue
             qid = str(ev.get("question_id", ""))
             matched_q = q_rubrics.get(qid)
             max_m = (
