@@ -2,6 +2,7 @@ import datetime
 import uuid
 import random
 import json
+import time
 # pyrefly: ignore [missing-import]
 from sqlalchemy import func
 from db.db import SQLiteDB
@@ -694,6 +695,34 @@ def review_user_exam(request, current_user=None):
         session.close()
     return {"statusMessage": "Success", "status": True, "data": attempt_reviews}, 200
 def validate_answers(attempt_id):
+    t_eval_total_start = time.perf_counter()
+    eval_outcome = "unknown"
+    evaluation_failures = 0
+    try:
+        result = _validate_answers_impl(attempt_id)
+        if isinstance(result, tuple) and len(result) == 2:
+            resp_body, status_code = result
+            if isinstance(resp_body, dict):
+                evaluation_failures = resp_body.get("evaluation_failures", 0)
+            if status_code == 200:
+                eval_outcome = "partial_failure" if evaluation_failures else "success"
+            else:
+                eval_outcome = f"failed_http_{status_code}"
+        else:
+            eval_outcome = "completed"
+        return result
+    except Exception as exc:
+        eval_outcome = f"unhandled_exception: {exc}"
+        raise
+    finally:
+        t_eval_total_duration = time.perf_counter() - t_eval_total_start
+        print(
+            f"[PERF] [TOTAL_EVALUATION] attempt_id={attempt_id} outcome={eval_outcome} evaluation_failures={evaluation_failures} total_duration={t_eval_total_duration:.4f}s",
+            flush=True,
+        )
+
+
+def _validate_answers_impl(attempt_id):
     db = SQLiteDB()
     session = db.connect()
 
@@ -706,6 +735,7 @@ def validate_answers(attempt_id):
     evaluation_failures = 0
 
     # Retrieve authoritative attempt and schedule metadata for object path authorization
+    t_db_query_start = time.perf_counter()
     attempt_rec = session.query(Exam_Attempt).filter_by(attempt_id=attempt_id).first()
     sched_rec = session.query(ExamSchedule).filter_by(schedule_id=attempt_rec.schedule_id).first() if attempt_rec else None
     auth_exam_id = str(sched_rec.exam_id) if (sched_rec and getattr(sched_rec, 'exam_id', None)) else None
@@ -714,6 +744,11 @@ def validate_answers(attempt_id):
 
     # get answer records
     answers = session.query(Answer).filter_by(attempt_id=attempt_id).all()
+    t_db_query_duration = time.perf_counter() - t_db_query_start
+    print(
+        f"[PERF] [DB_INITIAL_QUERY] attempt_id={attempt_id} answer_count={len(answers)} duration={t_db_query_duration:.4f}s",
+        flush=True,
+    )
 
     # Group answers by question_id
     answers_by_question = {}
@@ -790,6 +825,7 @@ def validate_answers(attempt_id):
                         key=lambda pair: _get_img_order(pair[1], pair[0])
                     )
 
+                    t_img_prep_start = time.perf_counter()
                     prepared_images = []
                     gcs_download_error = None
 
@@ -867,6 +903,11 @@ def validate_answers(attempt_id):
                         elif isinstance(img_item, bytes):
                             prepared_images.append(img_item)
 
+                    t_img_prep_duration = time.perf_counter() - t_img_prep_start
+                    print(
+                        f"[PERF] [IMAGE_PREPARATION] question_id={question_id} images_prepared={len(prepared_images)} duration={t_img_prep_duration:.4f}s",
+                        flush=True,
+                    )
 
                     if gcs_download_error:
                         # Do NOT falsely mark as unattempted or give 0 marks; keep retryable
@@ -1055,10 +1096,17 @@ def validate_answers(attempt_id):
             ans_rec.marks_awarded = min(float(q_rec.marks), (float(ans_rec.marks_awarded) / 10.0) * float(q_rec.marks) if ans_rec.marks_awarded > q_rec.marks else float(ans_rec.marks_awarded))
             session.add(ans_rec)
 
+    t_commit_ans_start = time.perf_counter()
     session.commit()
+    t_commit_ans_duration = time.perf_counter() - t_commit_ans_start
+    print(
+        f"[PERF] [DB_COMMIT_ANSWERS] attempt_id={attempt_id} duration={t_commit_ans_duration:.4f}s",
+        flush=True,
+    )
     session.close()
 
     # Update exam attempt score
+    t_commit_score_start = time.perf_counter()
     session = db.connect()
     try:
         attempt = session.query(Exam_Attempt).filter_by(attempt_id=attempt_id).first()
@@ -1084,6 +1132,11 @@ def validate_answers(attempt_id):
                 attempt.status = 'evaluated'
             session.add(attempt)
             session.commit()
+        t_commit_score_duration = time.perf_counter() - t_commit_score_start
+        print(
+            f"[PERF] [DB_COMMIT_SCORE] attempt_id={attempt_id} duration={t_commit_score_duration:.4f}s",
+            flush=True,
+        )
     except Exception as e:
         return {"statusMessage": f"Error updating exam attempt score: {str(e)}", "status": False}, 500
     finally:

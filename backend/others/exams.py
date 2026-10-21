@@ -348,12 +348,18 @@ def _process_handwritten_answer_images(
 
         safe_filename = orig_filename or f"{image_uuid}{ext}"
 
+        t_upload_start = time.perf_counter()
         upload_res = gcs_storage.upload_media(
             file_bytes=file_bytes,
             filename=safe_filename,
             exact_object_path=object_path,
             expected_type="image",
             is_private=True,
+        )
+        t_upload_duration = time.perf_counter() - t_upload_start
+        print(
+            f"[PERF] [GCS_UPLOAD] question_id={question_id} image_index={idx} size_bytes={len(file_bytes)} duration={t_upload_duration:.4f}s",
+            flush=True,
         )
 
         newly_uploaded_paths.append(object_path)

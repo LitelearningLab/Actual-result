@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from pathlib import Path
 
 import httpx
@@ -90,6 +91,7 @@ class openai_client:
         if response_format:
             payload["response_format"] = response_format
 
+        t_http_start = time.perf_counter()
         try:
             response = httpx.post(
                 self.url,
@@ -102,6 +104,12 @@ class openai_client:
             response = _ErrorResponse(504, "OpenAI request timed out")
         except httpx.RequestError as exc:
             response = _ErrorResponse(502, str(exc))
+        t_http_duration = time.perf_counter() - t_http_start
+        status_code = getattr(response, "status_code", 500)
+        print(
+            f"[PERF] [OPENAI_HTTP_REQUEST] model={model} status_code={status_code} duration={t_http_duration:.4f}s attempts=1 retries=0 retry_wait_seconds=0.0",
+            flush=True,
+        )
         return response
 
 
@@ -1056,6 +1064,7 @@ OUTPUT JSON STRUCTURE:
             {"type": "image_url", "image_url": {"url": data_uri, "detail": "high"}}
         )
 
+    t_vision_eval_start = time.perf_counter()
     try:
         response = api_client.chat_completion(
             system_message=system_prompt,
@@ -1068,9 +1077,14 @@ OUTPUT JSON STRUCTURE:
         )
 
         if not response or getattr(response, "status_code", None) != 200:
+            t_fail_duration = time.perf_counter() - t_vision_eval_start
             err_msg = "Failed to connect to AI vision service."
             if hasattr(response, "json"):
                 err_msg = response.json().get("error", err_msg)
+            print(
+                f"[PERF] [OPENAI_VISION_EVAL] status=failed duration={t_fail_duration:.4f}s page_count={len(page_images)}",
+                flush=True,
+            )
             return {"status": False, "error": err_msg, "evaluations": []}
 
         resp_json = response.json()
@@ -1081,12 +1095,17 @@ OUTPUT JSON STRUCTURE:
         input_tokens = usage.get("prompt_tokens", 0)
         output_tokens = usage.get("completion_tokens", 0)
         total_tokens = usage.get("total_tokens", 0)
+        t_vision_eval_duration = time.perf_counter() - t_vision_eval_start
 
         print(
             f"[TOKEN AUDIT] model={resp_json.get('model', 'unknown')} | "
             f"input={input_tokens} | output={output_tokens} | "
             f"total={total_tokens}"
         )   
+        print(
+            f"[PERF] [OPENAI_VISION_EVAL] status=success duration={t_vision_eval_duration:.4f}s page_count={len(page_images)} model={resp_json.get('model', 'unknown')} input_tokens={input_tokens} output_tokens={output_tokens} total_tokens={total_tokens}",
+            flush=True,
+        )
 
         raw_content = (
             resp_json.get("choices", [{}])[0]

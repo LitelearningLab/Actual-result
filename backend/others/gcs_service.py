@@ -1,6 +1,7 @@
 import os
 import re
 import uuid
+import time
 import mimetypes
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -344,10 +345,16 @@ class GCSStorageService:
         cleaned_path = gcs_path.strip("/\\").replace("\\", "/")
         try:
             blob = self.bucket.blob(cleaned_path)
+            t_sign_start = time.perf_counter()
             signed_url = blob.generate_signed_url(
                 version="v4",
                 expiration=timedelta(minutes=expiration_minutes),
                 method="GET"
+            )
+            t_sign_duration = time.perf_counter() - t_sign_start
+            print(
+                f"[PERF] [SIGNED_URL_GEN] object_path={cleaned_path} expiration_mins={expiration_minutes} duration={t_sign_duration:.4f}s",
+                flush=True,
             )
             return signed_url
         except Exception as e:
