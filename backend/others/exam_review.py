@@ -710,7 +710,7 @@ def validate_answers(attempt_id):
     sched_rec = session.query(ExamSchedule).filter_by(schedule_id=attempt_rec.schedule_id).first() if attempt_rec else None
     auth_exam_id = str(sched_rec.exam_id) if (sched_rec and getattr(sched_rec, 'exam_id', None)) else None
     auth_inst_id = str(sched_rec.institute_id) if (sched_rec and getattr(sched_rec, 'institute_id', None)) else None
-    download_cache = {}
+    signed_url_cache = {}
 
     # get answer records
     answers = session.query(Answer).filter_by(attempt_id=attempt_id).all()
@@ -803,18 +803,27 @@ def validate_answers(attempt_id):
                                     gcs_download_error = f"Unauthorized or malformed GCS path for question {question_id}"
                                     break
                                 try:
-                                    if gcs_path in download_cache:
-                                        img_bytes = download_cache[gcs_path]
+                                    if gcs_path in signed_url_cache:
+                                        img_ref = signed_url_cache[gcs_path]
                                     else:
-                                        img_bytes = gcs_storage.download_media_bytes(gcs_path)
-                                        download_cache[gcs_path] = img_bytes
-                                    prepared_images.append({
-                                        "image_bytes": img_bytes,
+                                        s_url = gcs_storage.generate_signed_url(gcs_path, expiration_minutes=15)
+                                        if s_url and str(s_url).startswith(("http://", "https://")):
+                                            img_ref = {"url": s_url, "signed_url": s_url}
+                                        elif gcs_storage.allow_local_fallback:
+                                            img_bytes = gcs_storage.download_media_bytes(gcs_path)
+                                            img_ref = {"image_bytes": img_bytes}
+                                        else:
+                                            raise RuntimeError(f"Could not generate signed URL for '{gcs_path}'")
+                                        signed_url_cache[gcs_path] = img_ref
+
+                                    img_payload = {
                                         "mime_type": img_item.get("mime_type") or "image/jpeg",
                                         "order": img_item.get("order") or default_idx,
                                         "image_id": img_item.get("image_id"),
                                         "gcs_path": gcs_path,
-                                    })
+                                    }
+                                    img_payload.update(img_ref)
+                                    prepared_images.append(img_payload)
                                 except Exception as dl_err:
                                     gcs_download_error = f"Failed to retrieve image from storage: {dl_err}"
                                     break
@@ -829,17 +838,26 @@ def validate_answers(attempt_id):
                                     gcs_download_error = f"Unauthorized or malformed GCS path for question {question_id}"
                                     break
                                 try:
-                                    if img_item in download_cache:
-                                        img_bytes = download_cache[img_item]
+                                    if img_item in signed_url_cache:
+                                        img_ref = signed_url_cache[img_item]
                                     else:
-                                        img_bytes = gcs_storage.download_media_bytes(img_item)
-                                        download_cache[img_item] = img_bytes
-                                    prepared_images.append({
-                                        "image_bytes": img_bytes,
+                                        s_url = gcs_storage.generate_signed_url(img_item, expiration_minutes=15)
+                                        if s_url and str(s_url).startswith(("http://", "https://")):
+                                            img_ref = {"url": s_url, "signed_url": s_url}
+                                        elif gcs_storage.allow_local_fallback:
+                                            img_bytes = gcs_storage.download_media_bytes(img_item)
+                                            img_ref = {"image_bytes": img_bytes}
+                                        else:
+                                            raise RuntimeError(f"Could not generate signed URL for '{img_item}'")
+                                        signed_url_cache[img_item] = img_ref
+
+                                    img_payload = {
                                         "mime_type": "image/jpeg",
                                         "order": default_idx,
                                         "gcs_path": img_item,
-                                    })
+                                    }
+                                    img_payload.update(img_ref)
+                                    prepared_images.append(img_payload)
                                 except Exception as dl_err:
                                     gcs_download_error = f"Failed to retrieve image: {dl_err}"
                                     break
@@ -848,6 +866,7 @@ def validate_answers(attempt_id):
                                 prepared_images.append(img_item)
                         elif isinstance(img_item, bytes):
                             prepared_images.append(img_item)
+
 
                     if gcs_download_error:
                         # Do NOT falsely mark as unattempted or give 0 marks; keep retryable

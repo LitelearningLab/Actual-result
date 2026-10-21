@@ -1002,41 +1002,47 @@ OUTPUT JSON STRUCTURE:
                 data_uri = f"data:image/jpeg;base64,{page}"
         elif isinstance(page, dict):
             page_num = page.get("page_number") or page.get("order") or idx
-            raw_bytes = page.get("image_bytes")
-            if raw_bytes and isinstance(raw_bytes, bytes):
-                b64_data = base64.b64encode(raw_bytes).decode("utf-8")
-                mime = page.get("mime_type") or "image/jpeg"
-                data_uri = f"data:{mime};base64,{b64_data}"
+            url_target = (
+                page.get("signed_url")
+                or page.get("url")
+                or page.get("file_url")
+                or ""
+            )
+            if isinstance(url_target, str) and url_target.startswith(("http://", "https://")):
+                data_uri = url_target
             else:
-                b64_data = (
-                    page.get("image_base64")
-                    or page.get("data")
-                    or page.get("dataUrl")
-                    or ""
-                )
-                mime = page.get("mime_type") or "image/jpeg"
-                if isinstance(b64_data, bytes):
-                    b64_str = base64.b64encode(b64_data).decode("utf-8")
-                    data_uri = f"data:{mime};base64,{b64_str}"
-                elif str(b64_data).startswith("data:image"):
-                    data_uri = str(b64_data)
-                elif str(b64_data).startswith(("http://", "https://")):
-                    data_uri = str(b64_data)
-                elif page.get("url") and str(page["url"]).startswith(
-                    ("http://", "https://")
-                ):
-                    data_uri = str(page["url"])
-                elif os.path.isfile(str(b64_data)):
-                    with open(str(b64_data), "rb") as img_f:
-                        raw_b64 = base64.b64encode(img_f.read()).decode("utf-8")
-                    mime = (
-                        "image/png"
-                        if str(b64_data).lower().endswith(".png")
-                        else "image/jpeg"
-                    )
-                    data_uri = f"data:{mime};base64,{raw_b64}"
-                elif b64_data:
+                raw_bytes = page.get("image_bytes")
+                if raw_bytes and isinstance(raw_bytes, bytes):
+                    b64_data = base64.b64encode(raw_bytes).decode("utf-8")
+                    mime = page.get("mime_type") or "image/jpeg"
                     data_uri = f"data:{mime};base64,{b64_data}"
+                else:
+                    b64_data = (
+                        page.get("image_base64")
+                        or page.get("data")
+                        or page.get("dataUrl")
+                        or ""
+                    )
+                    mime = page.get("mime_type") or "image/jpeg"
+                    if isinstance(b64_data, bytes):
+                        b64_str = base64.b64encode(b64_data).decode("utf-8")
+                        data_uri = f"data:{mime};base64,{b64_str}"
+                    elif str(b64_data).startswith("data:image"):
+                        data_uri = str(b64_data)
+                    elif str(b64_data).startswith(("http://", "https://")):
+                        data_uri = str(b64_data)
+                    elif os.path.isfile(str(b64_data)):
+                        with open(str(b64_data), "rb") as img_f:
+                            raw_b64 = base64.b64encode(img_f.read()).decode("utf-8")
+                        mime = (
+                            "image/png"
+                            if str(b64_data).lower().endswith(".png")
+                            else "image/jpeg"
+                        )
+                        data_uri = f"data:{mime};base64,{raw_b64}"
+                    elif b64_data:
+                        data_uri = f"data:{mime};base64,{b64_data}"
+
         else:
             continue
 

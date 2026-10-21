@@ -135,14 +135,15 @@ class TestGCSAiEvaluationPipeline(unittest.TestCase):
              patch("others.exam_review.get_exam_total_marks", return_value=(5.0, None)):
             validate_answers(attempt_id)
 
-        # 1. Download was executed for the canonical GCS path
-        mock_download.assert_called_once_with(f"student_answers/inst-1/exam-1/{attempt_id}/{q_id}/p1.jpg")
+        # 1. Zero backend image downloads performed on normal URL-based evaluation
+        mock_download.assert_not_called()
 
-        # 2. Vision evaluation received raw image bytes
+        # 2. Vision evaluation received signed URL directly
         mock_vision_eval.assert_called_once()
         passed_images = mock_vision_eval.call_args[0][2]
         self.assertEqual(len(passed_images), 1)
-        self.assertEqual(passed_images[0]["image_bytes"], self.sample_png_bytes)
+        self.assertIn("url", passed_images[0])
+        self.assertTrue(passed_images[0]["url"].startswith(("http://", "https://")))
         self.assertEqual(passed_images[0]["order"], 1)
 
         # 3. Vision evaluation received the student typed text context
@@ -229,22 +230,25 @@ class TestGCSAiEvaluationPipeline(unittest.TestCase):
             validate_answers(attempt_id)
 
         # Verify sorted ordering: page 1 must be index 0, page 2 index 1
+        mock_download.assert_not_called()
         mock_vision_eval.assert_called_once()
         passed_images = mock_vision_eval.call_args[0][2]
         self.assertEqual(len(passed_images), 2)
         self.assertEqual(passed_images[0]["order"], 1)
         self.assertEqual(passed_images[0]["image_id"], "img-1")
+        self.assertTrue(passed_images[0]["url"].startswith(("http://", "https://")))
         self.assertEqual(passed_images[1]["order"], 2)
         self.assertEqual(passed_images[1]["image_id"], "img-2")
+        self.assertTrue(passed_images[1]["url"].startswith(("http://", "https://")))
 
     @patch("others.exam_review.openai_client")
     @patch("others.exam_review.SQLiteDB")
-    @patch("others.exam_review.gcs_storage.download_media_bytes")
-    def test_gcs_download_failure_handles_gracefully(self, mock_download, mock_db_cls, mock_openai_client):
+    @patch("others.exam_review.gcs_storage.generate_signed_url")
+    def test_gcs_download_failure_handles_gracefully(self, mock_signed_url, mock_db_cls, mock_openai_client):
         """Verify that GCS failure leaves answer retryable and does NOT mark as 0 marks / unattempted."""
         session_mock = MagicMock()
         mock_db_cls.return_value.connect.return_value = session_mock
-        mock_download.side_effect = FileNotFoundError("Blob not found in Google Cloud Storage")
+        mock_signed_url.side_effect = RuntimeError("Blob not found in Google Cloud Storage")
 
         attempt_id = "att-err-1"
         q_id = "q-err-1"
