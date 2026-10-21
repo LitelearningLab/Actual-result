@@ -38,7 +38,7 @@ class openai_client:
             or os.getenv("model1")
             or config.get("OPENAI_MODEL_1")
             or config.get("model1")
-            or "gpt-4o-mini"
+            or "gpt-6-luna"
         )
         configured_model2 = (
             os.getenv("OPENAI_MODEL_2")
@@ -85,8 +85,7 @@ class openai_client:
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_completion_tokens": max_tokens,
         }
         if response_format:
             payload["response_format"] = response_format

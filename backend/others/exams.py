@@ -4887,6 +4887,7 @@ def upload_answer_sheet(request, current_user=None):
                             if not iss and not stmt and not top:
                                 continue
                             comment_text = f"({top}): {iss} {lbl}: {stmt}" if top and iss and stmt else (f"{top}: {iss}" if top and not stmt else (f"{iss} {lbl}: {stmt}" if stmt and iss else (iss or stmt or top)))
+                            comment_text = comment_text[:255]
                             rc = ExamReviewComments(
                                 comment_id=str(uuid.uuid4()),
                                 attempt_id=attempt.attempt_id,
