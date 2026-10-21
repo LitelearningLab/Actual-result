@@ -63,6 +63,7 @@ class openai_client:
         max_tokens: int = 5200,
         temperature: float = 0.2,
         timeout: float = 30.0,
+        response_format=None,
     ):
         if not self.api_key:
             return _ErrorResponse(
@@ -86,6 +87,8 @@ class openai_client:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        if response_format:
+            payload["response_format"] = response_format
 
         try:
             response = httpx.post(
@@ -1055,6 +1058,7 @@ OUTPUT JSON STRUCTURE:
             max_tokens=4000,
             temperature=0.15,
             timeout=timeout,
+            response_format={"type": "json_object"},
         )
 
         if not response or getattr(response, "status_code", None) != 200:
@@ -1064,6 +1068,20 @@ OUTPUT JSON STRUCTURE:
             return {"status": False, "error": err_msg, "evaluations": []}
 
         resp_json = response.json()
+
+        # Extract token usage from the API response
+        usage = resp_json.get("usage") or {}
+
+        input_tokens = usage.get("prompt_tokens", 0)
+        output_tokens = usage.get("completion_tokens", 0)
+        total_tokens = usage.get("total_tokens", 0)
+
+        print(
+            f"[TOKEN AUDIT] model={resp_json.get('model', 'unknown')} | "
+            f"input={input_tokens} | output={output_tokens} | "
+            f"total={total_tokens}"
+        )   
+
         raw_content = (
             resp_json.get("choices", [{}])[0]
             .get("message", {})
@@ -1072,14 +1090,28 @@ OUTPUT JSON STRUCTURE:
         )
 
         # Clean markdown code fences if present
-        clean_json = raw_content
+        clean_json = raw_content.strip()
         if clean_json.startswith("```"):
             clean_json = clean_json.split("```")[1]
             if clean_json.startswith("json"):
                 clean_json = clean_json[4:]
             clean_json = clean_json.strip()
 
-        parsed = json.loads(clean_json)
+        # Extract between outermost curly braces
+        first_brace = clean_json.find("{")
+        last_brace = clean_json.rfind("}")
+        if first_brace != -1 and last_brace != -1:
+            clean_json = clean_json[first_brace : last_brace + 1]
+
+        # Automatically clean trailing commas before } or ] (fixes line 30 column 5 JSONDecodeError)
+        clean_json = re.sub(r",\s*([\]}])", r"\1", clean_json)
+        clean_json = re.sub(r",\s*([\]}])", r"\1", clean_json)
+
+        try:
+            parsed = json.loads(clean_json)
+        except json.JSONDecodeError:
+            # Fallback for unescaped newlines or control characters inside strings
+            parsed = json.loads(clean_json, strict=False)
         evaluations = parsed.get("evaluations", [])
 
         # Sanitize and clamp scores to question maximum marks
