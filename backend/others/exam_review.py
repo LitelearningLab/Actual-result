@@ -3,6 +3,7 @@ import uuid
 import random
 import json
 import time
+import threading
 # pyrefly: ignore [missing-import]
 from sqlalchemy import func
 from db.db import SQLiteDB
@@ -694,6 +695,92 @@ def review_user_exam(request, current_user=None):
     finally:
         session.close()
     return {"statusMessage": "Success", "status": True, "data": attempt_reviews}, 200
+
+_evaluating_attempts = set()
+_eval_lock = threading.Lock()
+
+def is_attempt_evaluating(attempt_id):
+    with _eval_lock:
+        return str(attempt_id) in _evaluating_attempts
+
+def start_async_evaluation(attempt_id):
+    att_str = str(attempt_id)
+    with _eval_lock:
+        if att_str in _evaluating_attempts:
+            print(f"[ASYNC_EVAL] Attempt {att_str} is already evaluating in background.", flush=True)
+            return False
+        _evaluating_attempts.add(att_str)
+
+    def _worker():
+        try:
+            print(f"[ASYNC_EVAL] Started background AI evaluation for attempt {att_str}", flush=True)
+            validate_answers(att_str)
+            print(f"[ASYNC_EVAL] Finished background AI evaluation for attempt {att_str}", flush=True)
+        except Exception as e:
+            print(f"[ASYNC_EVAL] Error during background evaluation for attempt {att_str}: {e}", flush=True)
+        finally:
+            with _eval_lock:
+                _evaluating_attempts.discard(att_str)
+
+    t = threading.Thread(target=_worker, name=f"ai-eval-{att_str}", daemon=True)
+    t.start()
+    return True
+
+def get_attempt_evaluation_progress(attempt_id, user_id=None):
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Database connection error", "status": False}, 500
+    try:
+        query = session.query(Exam_Attempt).filter(Exam_Attempt.attempt_id == attempt_id)
+        if user_id:
+            query = query.filter(Exam_Attempt.user_id == user_id)
+        attempt = query.first()
+        if not attempt:
+            return {"statusMessage": "Attempt not found", "status": False}, 404
+
+        sched = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == attempt.schedule_id).first()
+        exam = session.query(Exam).filter(Exam.exam_id == sched.exam_id).first() if sched else None
+
+        tot_q = (
+            getattr(exam, "total_questions", 0)
+            or getattr(sched, "total_questions", 0)
+            or (
+                session.query(func.count(func.distinct(Answer.question_id)))
+                .filter(Answer.attempt_id == attempt_id)
+                .scalar()
+                or 0
+            )
+        )
+        evaluated_q = (
+            session.query(func.count(func.distinct(Answer.question_id)))
+            .filter(Answer.attempt_id == attempt_id, Answer.is_validated == 1)
+            .scalar()
+            or 0
+        )
+
+        is_eval = (attempt.status == "submitted")
+        if attempt.status == "evaluated":
+            evaluated_q = max(evaluated_q, tot_q)
+
+        pct = round((evaluated_q / tot_q * 100), 1) if tot_q > 0 else 0
+        return {
+            "statusMessage": "Success",
+            "status": True,
+            "data": {
+                "attempt_id": str(attempt.attempt_id),
+                "status": attempt.status,
+                "is_evaluating": is_eval,
+                "evaluated_questions": evaluated_q,
+                "total_questions": tot_q,
+                "progress_percent": pct,
+            }
+        }, 200
+    except Exception as e:
+        return {"statusMessage": f"Error retrieving progress: {str(e)}", "status": False}, 500
+    finally:
+        session.close()
+
 def validate_answers(attempt_id):
     t_eval_total_start = time.perf_counter()
     eval_outcome = "unknown"
@@ -1089,6 +1176,18 @@ def _validate_answers_impl(attempt_id):
                 print(f"  Missing correct options: {missing_options}")
                 print(f"  Incorrectly selected options: {incorrect_options}")
 
+        # Sanitize marks awarded for this question so far
+        for ans in question_answers:
+            if question and question.marks is not None and ans.marks_awarded is not None and ans.marks_awarded > question.marks:
+                ans.marks_awarded = min(float(question.marks), (float(ans.marks_awarded) / 10.0) * float(question.marks) if ans.marks_awarded > question.marks else float(ans.marks_awarded))
+                session.add(ans)
+
+        # Commit after each evaluated question so evaluation progress updates in real time
+        try:
+            session.commit()
+        except Exception as _commit_err:
+            print(f"[EVAL] Warning committing question {question_id} progress: {_commit_err}", flush=True)
+
     # Sanitize all answer rows for this attempt so marks_awarded never exceeds question marks
     all_ans = session.query(Answer).filter_by(attempt_id=attempt_id).all()
     for ans_rec in all_ans:
@@ -1128,7 +1227,7 @@ def _validate_answers_impl(attempt_id):
             else:
                 attempt.feedback = 'Failed'
             attempt.percentage = round((total_score / total_possible_marks * 100), 2) if total_possible_marks > 0 else 0
-            all_answers_validated = all(getattr(ans, 'is_validated', 0) == 1 for ans in latest_answers_by_qid.values()) if latest_answers_by_qid else False
+            all_answers_validated = all(getattr(ans, 'is_validated', 0) == 1 for ans in latest_answers_by_qid.values()) if latest_answers_by_qid else True
             if all_answers_validated and evaluation_failures == 0:
                 attempt.status = 'evaluated'
             session.add(attempt)

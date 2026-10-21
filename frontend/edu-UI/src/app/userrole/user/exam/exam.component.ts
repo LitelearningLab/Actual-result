@@ -11,7 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { API_BASE, resolveMediaUrl } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -70,6 +70,8 @@ export interface UserTestRow {
   user_percentage?: number | null;
   user_score?: number | null;
   user_result?: string | null;
+  is_evaluating?: boolean;
+  evaluated_questions?: number;
 }
 
 export interface ReviewCommentModel {
@@ -497,6 +499,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
     private pageMeta: PageMetaService,
     private loader: LoaderService,
     private router: Router,
+    private route: ActivatedRoute,
     private dialog: MatDialog,
     private auth: AuthService,
     private globalInstituteContext: GlobalInstituteContextService
@@ -874,7 +877,24 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         const isInProgress = att && (att.status === 'in_progress' || att.is_in_progress);
-        const isAttSubmitted = att && (att.status === 'submitted' || att.status === 'evaluated');
+        const isEvaluating = Boolean(
+          att && (att.status === 'submitted' || att.is_evaluating) && att.status !== 'evaluated'
+        );
+        const isAttEvaluated = Boolean(att && att.status === 'evaluated');
+        const evaluatedCount =
+          att?.evaluated_questions !== undefined && att?.evaluated_questions !== null
+            ? Number(att.evaluated_questions)
+            : att?.evaluated_count !== undefined && att?.evaluated_count !== null
+              ? Number(att.evaluated_count)
+              : 0;
+        const totalQuestionsCount = Number(
+          att?.total_questions || row.total_questions || 0
+        );
+        const evalProgressPercent =
+          totalQuestionsCount > 0
+            ? Math.min(100, Math.round((evaluatedCount / totalQuestionsCount) * 100))
+            : 0;
+
         const isMultipleReview = this.isMultipleReviewEnabled(row);
         const isAttLocallyConsumed =
           !isMultipleReview &&
@@ -888,7 +908,7 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
             row.user_review === false ||
             row.review_available === false);
         const canReviewAttempt = Boolean(
-          isAttSubmitted &&
+          isAttEvaluated &&
             (isMultipleReview
               ? row.user_review !== false &&
                 row.review_available !== false &&
@@ -910,23 +930,35 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
           attemptObj: att,
           scoreDisplay: isInProgress
             ? '—'
-            : att.percentage != null
-              ? Number(att.percentage).toFixed(2) + '%'
-              : att.score != null && (row.total_marks || 0) > 0
-                ? Number((att.score / row.total_marks!) * 100).toFixed(2) + '%'
-                : att.score != null
-                  ? att.score + '%'
-                  : '—',
+            : isEvaluating
+              ? 'Evaluating...'
+              : att.percentage != null
+                ? Number(att.percentage).toFixed(2) + '%'
+                : att.score != null && (row.total_marks || 0) > 0
+                  ? Number((att.score / row.total_marks!) * 100).toFixed(2) + '%'
+                  : att.score != null
+                    ? att.score + '%'
+                    : '—',
           attemptsUsedDisplay: `${usedCount} / ${maxAttempts}`,
           attemptsRemainingDisplay: `${remainingCount} Remaining`,
           progressPercent: Math.min(Math.max(pct, 0), 100),
-          statusType: isInProgress ? 'ACTIVE' : isPassResult ? 'PASS' : 'FAIL',
+          statusType: isInProgress
+            ? 'ACTIVE'
+            : isEvaluating
+              ? 'EVALUATING'
+              : isPassResult
+                ? 'PASS'
+                : 'FAIL',
           canReview: canReviewAttempt,
           showReviewBtn:
-            !isInProgress && (isAttSubmitted || isCompletedTab || row.completed_by_user || row.attempted),
+            !isInProgress && !isEvaluating && isAttEvaluated && canReviewAttempt,
           canStart: false,
           canContinue: isInProgress && !isCompletedTab,
           isInProgress: isInProgress,
+          isEvaluating: isEvaluating,
+          evaluatedCount: evaluatedCount,
+          totalQuestionsCount: totalQuestionsCount,
+          evalProgressPercent: evalProgressPercent,
           remainingSeconds: remSec,
           answeredCount: ansCount,
           totalQuestions: row.total_questions || 0,
@@ -991,6 +1023,14 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       }
 
       const isRowInProgress = Boolean(row.has_in_progress);
+      const isRowEvaluating = Boolean((row as any).is_evaluating);
+      const fallbackEvalCount = Number((row as any).evaluated_questions || 0);
+      const fallbackTotalQCount = Number(row.total_questions || 0);
+      const fallbackEvalPct =
+        fallbackTotalQCount > 0
+          ? Math.min(100, Math.round((fallbackEvalCount / fallbackTotalQCount) * 100))
+          : 0;
+
       rows = [
         {
           attemptNumber: 1,
@@ -998,25 +1038,35 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
           attemptObj: null,
           scoreDisplay: isRowInProgress
             ? '—'
-            : row.user_percentage != null
-              ? Number(row.user_percentage).toFixed(2) + '%'
-              : '—',
+            : isRowEvaluating
+              ? 'Evaluating...'
+              : row.user_percentage != null
+                ? Number(row.user_percentage).toFixed(2) + '%'
+                : '—',
           attemptsUsedDisplay: `${usedCount} / ${maxAttempts}`,
           attemptsRemainingDisplay: `${remainingCount} Remaining`,
           progressPercent: this.getAttemptProgressPercent(row),
           statusType: isUpcoming
             ? 'UPCOMING'
-            : isCompletedTab
-              ? this.isPass(row)
-                ? 'PASS'
-                : 'FAIL'
-              : 'ACTIVE',
-          canReview: canReviewDefault,
+            : isRowEvaluating
+              ? 'EVALUATING'
+              : isCompletedTab
+                ? this.isPass(row)
+                  ? 'PASS'
+                  : 'FAIL'
+                : 'ACTIVE',
+          canReview: !isRowEvaluating && canReviewDefault,
           showReviewBtn:
-            !isRowInProgress && (isCompletedTab || row.completed_by_user || row.attempted),
-          canStart: !isRowInProgress && canStartActive,
+            !isRowInProgress &&
+            !isRowEvaluating &&
+            (isCompletedTab || row.completed_by_user || row.attempted),
+          canStart: !isRowInProgress && !isRowEvaluating && canStartActive,
           canContinue: isRowInProgress && !isCompletedTab,
           isInProgress: isRowInProgress,
+          isEvaluating: isRowEvaluating,
+          evaluatedCount: fallbackEvalCount,
+          totalQuestionsCount: fallbackTotalQCount,
+          evalProgressPercent: fallbackEvalPct,
           remainingSeconds: row.remaining_seconds,
           answeredCount: row.answered_count || 0,
           totalQuestions: row.total_questions || 0,
@@ -1817,13 +1867,33 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
 
 
 
+  private currentPollingInterval = 3000;
+
   ngOnInit(): void {
     try {
       this.loader.hide();
     } catch (e) {}
     this.pageMeta.setMeta('Test Inbox', 'Explore and manage your tests');
+    // Read route query parameters to switch tabs automatically if requested
+    try {
+      this.route.queryParams.subscribe((params) => {
+        if (params['tab'] === 'completed' || params['tab'] === '1') {
+          this.selectTab(1);
+        }
+      });
+    } catch (e) {}
     // Refresh server-calculated review availability without interrupting the student UI (every 3s for instant updates).
     this.reviewRefreshTimer = setInterval(() => this.loadExams(false), 3000);
+  }
+
+  adjustPollingInterval(fast: boolean): void {
+    const targetInterval = fast ? 2000 : 3000;
+    if (this.currentPollingInterval === targetInterval) return;
+    this.currentPollingInterval = targetInterval;
+    if (this.reviewRefreshTimer) {
+      clearInterval(this.reviewRefreshTimer);
+    }
+    this.reviewRefreshTimer = setInterval(() => this.loadExams(false), targetInterval);
   }
 
   ngOnDestroy(): void {
@@ -2024,6 +2094,15 @@ formatSeconds(sec: number | null | undefined): string {
         this.dataSource.data = this.exams;
         // populate per-tab sources
         this.updateTabDataSources();
+        const hasEvaluating = this.exams.some(
+          (e) =>
+            Boolean(e.is_evaluating) ||
+            (Array.isArray(e.attempts_history) &&
+              e.attempts_history.some(
+                (a: any) => (a.status === 'submitted' || a.is_evaluating) && a.status !== 'evaluated'
+              ))
+        );
+        this.adjustPollingInterval(hasEvaluating);
         try {
           const configureSorting = (src: MatTableDataSource<UserTestRow>) => {
             src.sort = this.sort;

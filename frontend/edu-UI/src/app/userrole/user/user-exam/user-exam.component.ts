@@ -1429,7 +1429,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
           this.stopActiveTest();
         } else if (err?.error?.errorCode === 'ALREADY_SUBMITTED' || (err?.status === 400 && String(err?.error?.statusMessage || '').toLowerCase().includes('already submitted'))) {
           this.handleSuccessfulSubmit(err?.error || {});
-          this.ngZone.run(() => this.router.navigate(['/user/exam']));
+          this.ngZone.run(() => this.router.navigate(['/user/exam'], { queryParams: { tab: 'completed' } }));
           return of(err?.error || {});
         } else {
           this.startTimer();
@@ -1446,7 +1446,7 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     this.executeSubmit().subscribe({
       next: () => {
         this.ngZone.run(() => {
-          this.router.navigate(['/user/exam']).then(() => {
+          this.router.navigate(['/user/exam'], { queryParams: { tab: 'completed' } }).then(() => {
             try { this.loader.hide(); } catch (e) {}
           }).catch(() => {
             try { this.loader.hide(); } catch (e) {}

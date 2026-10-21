@@ -2721,7 +2721,45 @@ def get_user_exam_details(request):
                     elif not is_multi and att_review_viewed:
                         att_review_available = False
                     else:
-                        att_review_available = att_status in ("submitted", "evaluated")
+                        att_review_available = att_status == "evaluated"
+
+                    is_eval = (att_status == "submitted")
+                    eval_count = 0
+                    if is_eval:
+                        # Auto-heal: Ensure background evaluation is triggered if attempt was submitted
+                        try:
+                            from others.exam_review import is_attempt_evaluating, start_async_evaluation
+                            if not is_attempt_evaluating(str(att.attempt_id)):
+                                start_async_evaluation(str(att.attempt_id))
+                        except Exception:
+                            pass
+
+                        eval_count = (
+                            session.query(func.count(func.distinct(Answer.question_id)))
+                            .filter(Answer.attempt_id == att.attempt_id, Answer.is_validated == 1)
+                            .scalar()
+                            or 0
+                        )
+                    elif att_status == "evaluated":
+                        eval_count = (
+                            session.query(func.count(func.distinct(Answer.question_id)))
+                            .filter(Answer.attempt_id == att.attempt_id, Answer.is_validated == 1)
+                            .scalar()
+                            or 0
+                        )
+
+                    tot_q_count = (
+                        getattr(exam_obj, "total_questions", 0)
+                        or getattr(schedule_obj, "total_questions", 0)
+                        or (
+                            session.query(func.count(func.distinct(Answer.question_id)))
+                            .filter(Answer.attempt_id == att.attempt_id)
+                            .scalar()
+                            or 0
+                        )
+                    )
+                    if att_status == "evaluated" and eval_count < tot_q_count:
+                        eval_count = tot_q_count
 
                     attempts_history.append(
                         {
@@ -2742,6 +2780,9 @@ def get_user_exam_details(request):
                             "remaining_seconds": remaining_seconds,
                             "answered_count": answered_count,
                             "is_in_progress": is_in_progress,
+                            "is_evaluating": is_eval,
+                            "evaluated_questions": eval_count,
+                            "total_questions": tot_q_count,
                             "review_opened_at": (
                                 safe_utc_isoformat(att_review_opened)
                                 if att_review_opened
@@ -2793,6 +2834,8 @@ def get_user_exam_details(request):
                     "answered_count": active_answered_count,
                     "expired": expired,
                     "user_attempt": user_attempt,
+                    "is_evaluating": any(a.get("is_evaluating") for a in attempts_history) if attempts_history else False,
+                    "evaluated_questions": attempts_history[-1].get("evaluated_questions", 0) if attempts_history else 0,
                     "attempts_history": attempts_history,
                     # Return raw datetimes so Flask serializes them exactly like
                     # the Started/Submitted values in the Test Review API.
@@ -3591,9 +3634,10 @@ def submit_exam_answers(data, authenticated_user_id=None):
                 pass
         session.close()
         try:
-            validate_answers(attempt_id)
+            from others.exam_review import start_async_evaluation
+            start_async_evaluation(attempt_id)
         except Exception as eval_err:
-            print(f"AI evaluation warning for attempt {attempt_id}: {eval_err}")
+            print(f"AI evaluation warning for attempt {attempt_id}: {eval_err}", flush=True)
         json_data = {
             "statusMessage": "Exam answers submitted successfully",
             "status": True,
