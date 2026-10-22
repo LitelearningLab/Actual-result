@@ -105,11 +105,33 @@ class openai_client:
             response = _ErrorResponse(502, str(exc))
         t_http_duration = time.perf_counter() - t_http_start
         status_code = getattr(response, "status_code", 500)
+
+        # Extract token usage from the API response
+        input_tokens = 0
+        output_tokens = 0
+        total_tokens = 0
+        if status_code == 200 and hasattr(response, "json"):
+            try:
+                resp_json = response.json()
+                usage = resp_json.get("usage") or {}
+                input_tokens = usage.get("prompt_tokens", 0)
+                output_tokens = usage.get("completion_tokens", 0)
+                total_tokens = usage.get("total_tokens", 0)
+                print(
+                    f"[TOKEN AUDIT] model={model} | "
+                    f"input={input_tokens} | output={output_tokens} | "
+                    f"total={total_tokens}",
+                    flush=True,
+                )
+            except Exception:
+                pass
+
         print(
             f"[PERF] [OPENAI_HTTP_REQUEST] model={model} status_code={status_code} duration={t_http_duration:.4f}s attempts=1 retries=0 retry_wait_seconds=0.0",
             flush=True,
         )
         return response
+
 
 
 def descriptive_evaluation(
