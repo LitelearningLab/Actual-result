@@ -1086,6 +1086,16 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         &.text-center {
           text-align: center;
         }
+
+        &.col-icon-header {
+          text-align: center;
+          width: 90px;
+        }
+
+        &.col-action-header {
+          text-align: center;
+          width: 140px;
+        }
       }
     }
 
@@ -1103,6 +1113,10 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           font-size: 0.875rem;
           color: #334155;
           vertical-align: middle;
+
+          &.text-center {
+            text-align: center;
+          }
 
           &.col-sno {
             font-weight: 600;
@@ -1248,6 +1262,9 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           }
 
           &.col-icon {
+            text-align: center;
+            width: 90px;
+
             .icon-btn-square,
             .icon-btn-circle {
               background: #f0f4f9;
@@ -1258,6 +1275,7 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
               display: inline-flex;
               align-items: center;
               justify-content: center;
+              margin: 0 auto;
               cursor: pointer;
               color: #334155;
               transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1278,6 +1296,9 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           }
 
           &.col-action {
+            text-align: center;
+            width: 140px;
+
             .btn-outline-blue {
               background: #ffffff;
               border: 1px solid var(--button-1, #1f7bff);
@@ -1287,6 +1308,10 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
               padding: 0.375rem 1rem;
               border-radius: 0.5rem;
               cursor: pointer;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto;
               transition: all 0.2s ease;
 
               &:hover {
@@ -1303,6 +1328,10 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
               padding: 0.375rem 1rem;
               border-radius: 0.5rem;
               cursor: pointer;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto;
               box-shadow: 0 1px 3px rgba(31, 123, 255, 0.2);
               transition: all 0.2s ease;
 
@@ -1320,6 +1349,10 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
               padding: 0.375rem 1rem;
               border-radius: 0.5rem;
               cursor: not-allowed;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto;
             }
           }
 
@@ -4237,6 +4270,43 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         flex-direction: column;
         gap: 0.75rem;
 
+        .desc-student-answer {
+          padding: 0.75rem 1rem;
+          background-color: #f8fafc;
+          border-radius: 0.625rem;
+          border: 1px solid #cbd5e1;
+          border-left: 3px solid #64748b;
+
+          .student-ans-header {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-bottom: 0.25rem;
+
+            .ans-hdr-icon {
+              font-size: 16px;
+              width: 16px;
+              height: 16px;
+              color: #475569;
+            }
+
+            .student-ans-label {
+              font-weight: 700;
+              color: #475569;
+              font-size: 0.75rem;
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+            }
+          }
+
+          .student-ans-text {
+            color: #0f172a;
+            line-height: 1.55;
+            font-size: 0.8125rem;
+            font-weight: 500;
+          }
+        }
+
         .desc-model {
           padding: 0.75rem 1rem;
           background-color: var(--theme-2, #f0f7ff);
@@ -5144,6 +5214,7 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
     border: 1px solid #e2e8f0;
     border-radius: 0.375rem;
     padding: 0.35rem 0.6rem;
+    transition: all 0.15s ease;
 
     .eval-opt-badge {
       width: 20px;
@@ -5162,6 +5233,103 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
     .eval-opt-text {
       font-size: 0.8125rem;
       color: #1e293b;
+      flex: 1;
+    }
+
+    &.is-correct-option {
+      background: #f0fdf4;
+      border-color: #86efac;
+
+      .eval-opt-badge {
+        background: #16a34a;
+        color: #ffffff;
+      }
+
+      .eval-opt-text {
+        color: #14532d;
+        font-weight: 600;
+      }
+    }
+
+    &.is-student-wrong {
+      background: #fef2f2;
+      border-color: #fca5a5;
+
+      .eval-opt-badge {
+        background: #ef4444;
+        color: #ffffff;
+      }
+
+      .eval-opt-text {
+        color: #991b1b;
+      }
+    }
+
+    .eval-opt-status-tags {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+
+      .badge-opt-correct {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.15rem 0.5rem;
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+
+        mat-icon {
+          font-size: 14px;
+          width: 14px;
+          height: 14px;
+          color: #16a34a;
+        }
+      }
+
+      .badge-opt-student {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.15rem 0.5rem;
+        background: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+
+        mat-icon {
+          font-size: 14px;
+          width: 14px;
+          height: 14px;
+          color: #dc2626;
+        }
+      }
+
+      .badge-opt-student-correct {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.15rem 0.5rem;
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #86efac;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 700;
+
+        mat-icon {
+          font-size: 14px;
+          width: 14px;
+          height: 14px;
+          color: #16a34a;
+        }
+      }
     }
 
     .eval-opt-img {

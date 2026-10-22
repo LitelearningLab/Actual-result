@@ -664,9 +664,9 @@
                 <th>ANSWER SHEET</th>
                 <th>EVALUATION STATUS</th>
                 <th>MARKS</th>
-                <th class="text-center">SCAN</th>
-                <th class="text-center">ATTACH</th>
-                <th class="text-center">ACTION</th>
+                <th class="text-center col-icon-header">SCAN</th>
+                <th class="text-center col-icon-header">ATTACH</th>
+                <th class="text-center col-action-header">ACTION</th>
               </tr>
             </thead>
             <tbody>
@@ -923,9 +923,9 @@
               <th>ANSWER SHEET</th>
               <th>EVALUATION STATUS</th>
               <th>MARKS</th>
-              <th class="text-center">SCAN</th>
-              <th class="text-center">ATTACH</th>
-              <th class="text-center">ACTION</th>
+              <th class="text-center col-icon-header">SCAN</th>
+              <th class="text-center col-icon-header">ATTACH</th>
+              <th class="text-center col-action-header">ACTION</th>
             </tr>
           </thead>
           <tbody>
@@ -1395,7 +1395,13 @@
 
               <!-- MCQ Options with Images (if present) -->
               <div class="eval-q-options" *ngIf="q.options && q.options.length && q.question_type !== 'DESCRIPTIVE'">
-                <div class="eval-opt-row" *ngFor="let opt of q.options; let oi = index">
+                <div
+                  class="eval-opt-row"
+                  *ngFor="let opt of q.options; let oi = index"
+                  [class.is-correct-option]="isOptionCorrect(opt)"
+                  [class.is-student-option]="isStudentSelectedOption(q, opt, oi)"
+                  [class.is-student-wrong]="isStudentSelectedOption(q, opt, oi) && !isOptionCorrect(opt)"
+                >
                   <span class="eval-opt-badge">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi] }}</span>
                   <span class="eval-opt-text" *ngIf="opt.text"><app-math-render [text]="opt.text"></app-math-render></span>
                   <img
@@ -1406,6 +1412,21 @@
                     (click)="openImageModal(opt.image_url || opt.url, 'Option ' + ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi]) + ' Image')"
                     matTooltip="Click to view full image"
                   />
+                  <!-- Status Badges -->
+                  <div class="eval-opt-status-tags">
+                    <span class="badge-opt-correct" *ngIf="isOptionCorrect(opt)">
+                      <mat-icon>check_circle</mat-icon>
+                      <span>Correct Answer</span>
+                    </span>
+                    <span class="badge-opt-student" *ngIf="isStudentSelectedOption(q, opt, oi) && !isOptionCorrect(opt)">
+                      <mat-icon>cancel</mat-icon>
+                      <span>Student's Choice</span>
+                    </span>
+                    <span class="badge-opt-student-correct" *ngIf="isStudentSelectedOption(q, opt, oi) && isOptionCorrect(opt)">
+                      <mat-icon>verified</mat-icon>
+                      <span>Student's Choice (Correct)</span>
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1469,13 +1490,24 @@
                 </button>
               </div>
 
-              <!-- Descriptive Section: Model Answer Box & Feedback Box (Exact Test Reports Design) -->
+              <!-- Descriptive Section: Student Answer, Model Answer & Feedback -->
               <div class="q-descriptive">
+                <!-- Student Answer Box (Shows what AI / teacher detected on answer sheet) -->
+                <div class="desc-student-answer" *ngIf="q.student_answer">
+                  <div class="student-ans-header">
+                    <mat-icon class="ans-hdr-icon">edit_note</mat-icon>
+                    <span class="student-ans-label">STUDENT'S ANSWER</span>
+                  </div>
+                  <div class="student-ans-text">
+                    <app-math-render [text]="q.student_answer"></app-math-render>
+                  </div>
+                </div>
+
                 <!-- Model Answer Box -->
                 <div class="desc-model">
                   <div class="model-label">MODEL ANSWER</div>
                   <div class="model-text">
-                    {{ q.model_answer || 'No model answer provided in question paper.' }}
+                    <app-math-render [text]="q.model_answer || 'No model answer provided in question paper.'"></app-math-render>
                   </div>
                 </div>
 

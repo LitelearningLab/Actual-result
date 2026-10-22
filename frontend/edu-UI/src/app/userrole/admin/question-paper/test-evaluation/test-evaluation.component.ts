@@ -1148,6 +1148,34 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     return this.getReviewComments(q, category).length > 0;
   }
 
+  isOptionCorrect(opt: any): boolean {
+    if (!opt) return false;
+    return opt.is_correct === 1 || opt.is_correct === true || opt.is_correct === '1' || opt.is_correct === 'true';
+  }
+
+  isStudentSelectedOption(q: any, opt: any, index: number): boolean {
+    if (!q || !opt) return false;
+    const letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[index];
+    const studentAns = (q.student_answer || '').trim();
+
+    if (studentAns) {
+      if (studentAns.toUpperCase() === letter || studentAns.toUpperCase() === `OPTION ${letter}`) {
+        return true;
+      }
+      if (opt.text && studentAns.toLowerCase() === opt.text.trim().toLowerCase()) {
+        return true;
+      }
+    }
+
+    if (q.selected_option && Array.isArray(q.selected_option)) {
+      if (q.selected_option.includes(opt.id) || q.selected_option.includes(letter) || (opt.text && q.selected_option.includes(opt.text))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   getNonEmptyCategoryCount(q: any): number {
     let count = 0;
     if (this.hasReviewComments(q, 'missing')) count++;
