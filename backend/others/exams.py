@@ -3750,11 +3750,12 @@ def get_student_evaluation_details(request, current_user=None):
                 if p.page_number not in seen_page_nums:
                     seen_page_nums.add(p.page_number)
                     img_path = p.image_path or ""
-                    img_url = (
-                        img_path
-                        if img_path.startswith("http")
-                        else f"/edu/api/uploads/answer_sheets/{img_path}"
-                    )
+                    if img_path.startswith("http"):
+                        img_url = img_path
+                    elif gcs_storage.is_gcs_active():
+                        img_url = gcs_storage.generate_signed_url(img_path)
+                    else:
+                        img_url = f"/edu/api/uploads/answer_sheets/{img_path}"
                     pages_data.append(
                         {
                             "page_id": str(p.page_id),
@@ -4298,9 +4299,10 @@ def upload_answer_sheet(request, current_user=None):
     )
     os.makedirs(static_dir, exist_ok=True)
 
-    # 1. Rasterize / Save all files to disk first (zero DB locking during disk I/O)
+    # 1. Rasterize and upload all pages to GCS under student_answers/test_evaluation/{user_id}/test_id_{exam_id}/page_{n}.jpg
     saved_page_files = []
     curr_page_num = 1
+    gcs_folder_prefix = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}"
 
     for uploaded_file in files:
         if not uploaded_file.filename:
@@ -4321,9 +4323,21 @@ def upload_answer_sheet(request, current_user=None):
                     page_filename = f"page_{curr_page_num}.jpg"
                     page_filepath = os.path.join(static_dir, page_filename)
                     pix.save(page_filepath)
-                    saved_page_files.append(
-                        (curr_page_num, f"{exam_id}/{user_id}/{page_filename}")
-                    )
+
+                    # Upload to GCS: student_answers/test_evaluation/<user_id>/test_id_<exam_id>/page_<n>.jpg
+                    img_bytes = pix.tobytes("jpeg")
+                    gcs_object_path = f"{gcs_folder_prefix}/{page_filename}"
+                    try:
+                        gcs_storage.upload_media(
+                            file_bytes=img_bytes,
+                            filename=page_filename,
+                            exact_object_path=gcs_object_path,
+                            expected_type="image",
+                        )
+                    except Exception as gcs_err:
+                        print(f"[GCS Upload Warning] Page {curr_page_num}: {gcs_err}")
+
+                    saved_page_files.append((curr_page_num, gcs_object_path))
                     curr_page_num += 1
                 doc.close()
                 rendered_pdf = True
@@ -4333,15 +4347,30 @@ def upload_answer_sheet(request, current_user=None):
             if not rendered_pdf:
                 try:
                     from pdf2image import convert_from_bytes
+                    import io
 
                     images = convert_from_bytes(file_bytes, dpi=200)
                     for img in images:
                         page_filename = f"page_{curr_page_num}.jpg"
                         page_filepath = os.path.join(static_dir, page_filename)
                         img.save(page_filepath, "JPEG")
-                        saved_page_files.append(
-                            (curr_page_num, f"{exam_id}/{user_id}/{page_filename}")
-                        )
+
+                        # Save to buffer and upload to GCS
+                        buf = io.BytesIO()
+                        img.save(buf, format="JPEG")
+                        img_bytes = buf.getvalue()
+                        gcs_object_path = f"{gcs_folder_prefix}/{page_filename}"
+                        try:
+                            gcs_storage.upload_media(
+                                file_bytes=img_bytes,
+                                filename=page_filename,
+                                exact_object_path=gcs_object_path,
+                                expected_type="image",
+                            )
+                        except Exception as gcs_err:
+                            print(f"[GCS Upload Warning] Page {curr_page_num}: {gcs_err}")
+
+                        saved_page_files.append((curr_page_num, gcs_object_path))
                         curr_page_num += 1
                     rendered_pdf = True
                 except Exception as p2i_err:
@@ -4352,18 +4381,27 @@ def upload_answer_sheet(request, current_user=None):
                 page_filepath = os.path.join(static_dir, page_filename)
                 with open(page_filepath, "wb") as f:
                     f.write(file_bytes)
-                saved_page_files.append(
-                    (curr_page_num, f"{exam_id}/{user_id}/{page_filename}")
-                )
+                gcs_object_path = f"{gcs_folder_prefix}/{page_filename}"
+                saved_page_files.append((curr_page_num, gcs_object_path))
                 curr_page_num += 1
         else:
             page_filename = f"page_{curr_page_num}.jpg"
             page_filepath = os.path.join(static_dir, page_filename)
             with open(page_filepath, "wb") as f:
                 f.write(file_bytes)
-            saved_page_files.append(
-                (curr_page_num, f"{exam_id}/{user_id}/{page_filename}")
-            )
+
+            gcs_object_path = f"{gcs_folder_prefix}/{page_filename}"
+            try:
+                gcs_storage.upload_media(
+                    file_bytes=file_bytes,
+                    filename=page_filename,
+                    exact_object_path=gcs_object_path,
+                    expected_type="image",
+                )
+            except Exception as gcs_err:
+                print(f"[GCS Upload Warning] Page {curr_page_num}: {gcs_err}")
+
+            saved_page_files.append((curr_page_num, gcs_object_path))
             curr_page_num += 1
 
     # 2. Database transaction with retry on deadlock (40001 / 1205)
@@ -4435,6 +4473,18 @@ def upload_answer_sheet(request, current_user=None):
                 all_att_ids.append(attempt_id)
 
             if request.form.get("replace", "true").lower() in ("true", "1"):
+                # Clean up existing GCS images for these attempts if any
+                old_pages = (
+                    session.query(AnswerSheetPage)
+                    .filter(AnswerSheetPage.attempt_id.in_(all_att_ids))
+                    .all()
+                )
+                for old_p in old_pages:
+                    if old_p.image_path and not old_p.image_path.startswith("http"):
+                        try:
+                            gcs_storage.delete_media(old_p.image_path)
+                        except Exception:
+                            pass
                 session.query(AnswerSheetPage).filter(
                     AnswerSheetPage.attempt_id.in_(all_att_ids)
                 ).delete(synchronize_session=False)
@@ -4449,11 +4499,19 @@ def upload_answer_sheet(request, current_user=None):
                     created_date=datetime.utcnow(),
                 )
                 session.add(page_obj)
+
+                if gcs_storage.is_gcs_active():
+                    page_img_url = gcs_storage.generate_signed_url(rel_img_path)
+                elif rel_img_path.startswith("http"):
+                    page_img_url = rel_img_path
+                else:
+                    page_img_url = f"/edu/api/uploads/answer_sheets/{rel_img_path}"
+
                 created_pages.append(
                     {
                         "page_id": str(page_obj.page_id),
                         "page_number": pnum,
-                        "image_url": f"/edu/api/uploads/answer_sheets/{rel_img_path}",
+                        "image_url": page_img_url,
                     }
                 )
 
