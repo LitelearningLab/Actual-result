@@ -1164,30 +1164,64 @@
               </button>
             </div>
 
-            <!-- Zoom Controls -->
+            <!-- Zoom Controls & Reset Option -->
             <div class="viewer-zoom-controls">
               <button type="button" class="zoom-btn" (click)="zoomOut()" title="Zoom out" [disabled]="zoomLevel <= 50">
                 <mat-icon>remove</mat-icon>
               </button>
-              <button type="button" class="zoom-btn-label" (click)="resetZoom()" title="Reset zoom (100%)">
+              <button type="button" class="zoom-btn-label" (click)="resetImage()" title="Reset image zoom & position">
                 {{ zoomLevel }}%
               </button>
               <button type="button" class="zoom-btn" (click)="zoomIn()" title="Zoom in" [disabled]="zoomLevel >= 250">
                 <mat-icon>add</mat-icon>
               </button>
+              <button
+                type="button"
+                class="zoom-btn reset-image-btn"
+                (click)="resetImage()"
+                title="Reset Image (Center & 100%)"
+                [disabled]="zoomLevel === 100 && panX === 0 && panY === 0"
+              >
+                <mat-icon>restart_alt</mat-icon>
+              </button>
             </div>
           </div>
 
           <!-- Interactive High-Res Page Viewport (Visual Ink / Handwriting / Diagrams) -->
-          <div class="sheet-viewport-container">
-            <div class="sheet-viewport-content" *ngIf="currentSheetPage && !isLoadingEvaluation">
+          <div
+            class="sheet-viewport-container"
+            [class.is-dragging]="isPanningSheet"
+            (mousedown)="startSheetPan($event)"
+            (mousemove)="onSheetPan($event)"
+            (mouseup)="stopSheetPan()"
+            (mouseleave)="stopSheetPan()"
+            (dblclick)="resetImage()"
+          >
+            <div
+              class="sheet-viewport-content"
+              *ngIf="currentSheetPage && !isLoadingEvaluation"
+              [style.transform]="'translate(' + panX + 'px, ' + panY + 'px) scale(' + (zoomLevel / 100) + ')'"
+            >
               <img
                 [src]="getPageImageUrl(currentSheetPage)"
                 alt="Student Answer Sheet Page {{ currentSheetPage.page_number }}"
                 class="sheet-page-rendered-image"
-                [style.transform]="'scale(' + (zoomLevel / 100) + ')'"
+                draggable="false"
+                (dragstart)="$event.preventDefault()"
               />
             </div>
+
+            <!-- Floating Reset Image Option (Visible when image is moved or zoomed) -->
+            <button
+              type="button"
+              class="btn-reset-image-floating"
+              *ngIf="(panX !== 0 || panY !== 0 || zoomLevel !== 100) && currentSheetPage && !isLoadingEvaluation"
+              (click)="resetImage(); $event.stopPropagation()"
+              title="Reset Image to center position and default zoom"
+            >
+              <mat-icon>restart_alt</mat-icon>
+              <span>Reset Image</span>
+            </button>
 
             <!-- Empty / No Pages Uploaded State -->
             <div class="sheet-empty-viewport" *ngIf="evaluationPages.length === 0 && !isLoadingEvaluation">

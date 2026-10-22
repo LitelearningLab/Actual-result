@@ -237,6 +237,13 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   isLoadingEvaluation = false;
   activeSheetPageIndex = 0;
   zoomLevel = 100;
+
+  // ── Drag & Pan (Hand Tool) for Answer Sheet ──
+  isPanningSheet = false;
+  panX = 0;
+  panY = 0;
+  private dragStartX = 0;
+  private dragStartY = 0;
   evaluationCategoryFilter: 'all' | 'needs_attention' | 'reviewed' = 'all';
   aiConfidenceThreshold = 70;
 
@@ -1041,6 +1048,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   selectSheetPage(index: number): void {
     if (index >= 0 && index < this.evaluationPages.length) {
       this.activeSheetPageIndex = index;
+      this.panX = 0;
+      this.panY = 0;
     }
   }
 
@@ -1063,6 +1072,38 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   resetZoom(): void {
     this.zoomLevel = 100;
+    this.panX = 0;
+    this.panY = 0;
+  }
+
+  resetImage(): void {
+    this.resetZoom();
+  }
+
+  // ── Drag / Pan mouse handlers (Translate-based) ──
+  startSheetPan(event: MouseEvent): void {
+    if (event.button !== 0) return;
+    this.isPanningSheet = true;
+    this.dragStartX = event.clientX - this.panX;
+    this.dragStartY = event.clientY - this.panY;
+  }
+
+  onSheetPan(event: MouseEvent): void {
+    if (!this.isPanningSheet) return;
+    event.preventDefault();
+    this.panX = event.clientX - this.dragStartX;
+    this.panY = event.clientY - this.dragStartY;
+  }
+
+  stopSheetPan(): void {
+    this.isPanningSheet = false;
+  }
+
+  @HostListener('window:mouseup')
+  onWindowMouseUp(): void {
+    if (this.isPanningSheet) {
+      this.isPanningSheet = false;
+    }
   }
 
   get evaluationQuestions(): any[] {
