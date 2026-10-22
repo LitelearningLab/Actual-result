@@ -244,9 +244,9 @@
             <!-- Native camera capture fallback for mobile or non-HTTPS contexts -->
             <input type="file" #cameraNativeInput [id]="'camera-native-' + i" accept="image/*" capture="environment" style="display:none;" (change)="onImageSelected($event, q.id || i)" />
 
-            <div class="textarea-wrapper" [class.is-recording]="isRecording(q.id || i)">
+            <div class="textarea-wrapper" [class.is-recording]="isRecording(q.id || i)" [class.limit-reached]="getTextAnswer(q.id || i).length >= getRecommendedCharacters(q)">
               <label class="sr-only" [for]="'desc-' + i">Your answer</label>
-              <textarea [id]="'desc-' + i" rows="5" [ngModel]="getTextAnswer(q.id || i)" (ngModelChange)="setTextAnswer(q.id || i, $event)" [disabled]="testStopped || submitting || isSubmitted" placeholder="Write your detailed answer here or attach handwritten answer photos..."></textarea>
+              <textarea [id]="'desc-' + i" rows="5" [attr.maxlength]="getRecommendedCharacters(q)" [ngModel]="getTextAnswer(q.id || i)" (ngModelChange)="setTextAnswer(q.id || i, $event)" [disabled]="testStopped || submitting || isSubmitted" placeholder="Write your detailed answer here or attach handwritten answer photos..."></textarea>
             </div>
 
             <!-- Answer Images Thumbnails Area -->
@@ -329,17 +329,20 @@
                 </div>
               </div>
 
-              <span class="char-count" *ngIf="isAnswered(q, i)">
+              <span class="char-count" [class.limit-reached]="getTextAnswer(q.id || i).length >= getRecommendedCharacters(q)">
                 <ng-container *ngIf="getAnswerImages(q.id || i).length > 0">
                   <span class="photo-count-pill">
                     <mat-icon>image</mat-icon>
                     {{ getAnswerImages(q.id || i).length }} photo{{ getAnswerImages(q.id || i).length > 1 ? 's' : '' }}
                   </span>
-                  <span *ngIf="getTextAnswer(q.id || i).length > 0" class="text-char-inline"> &bull; {{ getTextAnswer(q.id || i).length }} characters</span>
+                  <span class="text-char-inline"> &bull; {{ getTextAnswer(q.id || i).length }} / {{ getRecommendedCharacters(q) }} characters</span>
                 </ng-container>
                 <ng-container *ngIf="getAnswerImages(q.id || i).length === 0">
-                  {{ getTextAnswer(q.id || i).length }} characters
+                  {{ getTextAnswer(q.id || i).length }} / {{ getRecommendedCharacters(q) }} characters
                 </ng-container>
+                <span *ngIf="getTextAnswer(q.id || i).length >= getRecommendedCharacters(q)" class="limit-alert-text">
+                  &bull; (Limit reached)
+                </span>
               </span>
             </div>
           </div>

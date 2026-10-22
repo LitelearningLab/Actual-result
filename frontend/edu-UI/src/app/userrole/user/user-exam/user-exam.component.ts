@@ -169,16 +169,24 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     return '';
   }
 
+  getRecommendedCharacters(q: any): number {
+    const marks = Number(q?.marks) || 1;
+    return Math.round(marks * 500);
+  }
+
   setTextAnswer(questionId: string | number, text: string) {
     const key = questionId !== undefined && questionId !== null && questionId !== '' ? questionId : '';
+    const q = this.questions.find(item => (item.id || '') === key) || this.questions[Number(key)];
+    const maxChars = this.getRecommendedCharacters(q);
+    const safeText = (text || '').slice(0, maxChars);
     const existingImages = this.getAnswerImages(key);
     if (existingImages.length > 0) {
       this.answers[key] = {
-        text: text,
+        text: safeText,
         images: existingImages
       };
     } else {
-      this.answers[key] = text;
+      this.answers[key] = safeText;
     }
     this.persistExamState();
     this.scheduleAutosave();

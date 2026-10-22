@@ -396,6 +396,7 @@ $ease: cubic-bezier(0.4, 0, 0.2, 1); $ease-bounce: cubic-bezier(0.34, 1.56, 0.64
 .input-actions-group { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
 .descriptive-input .textarea-wrapper { position:relative; width:100%; }
 .descriptive-input .textarea-wrapper.is-recording textarea { border-color:#ef4444; box-shadow:0 0 0 0.1875rem rgba(239,68,68,0.15); }
+.descriptive-input .textarea-wrapper.limit-reached textarea:focus { border-color:#ef4444; box-shadow:0 0 0 0.1875rem rgba(239,68,68,0.15); }
 .textarea-footer { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; margin-top:0.5rem; flex-wrap:wrap; }
 .voice-controls { display:flex; align-items:center; gap:0.625rem; flex-wrap:wrap; }
 .voice-action-btn { display:inline-flex; align-items:center; gap:0.375rem; padding:0.375rem 0.75rem; border-radius:0.5rem; border:0.0625rem solid var(--theme-3-border); background:var(--bg-2); color:var(--theme-3-text-2); font:500 0.8125rem/1 inherit; cursor:pointer; transition:all 0.2s $ease; }
@@ -428,7 +429,10 @@ $ease: cubic-bezier(0.4, 0, 0.2, 1); $ease-bounce: cubic-bezier(0.34, 1.56, 0.64
 .btn-spinner { width:0.875rem; height:0.875rem; border:0.125rem solid var(--button-1); border-top-color:transparent; border-radius:50%; animation:spin-ocr 0.8s linear infinite; display:inline-block; }
 @keyframes spin-ocr { to { transform:rotate(360deg); } }
 
-.char-count { font:500 0.75rem/1 inherit; color:var(--theme-3-text-3); margin-left:auto; display:inline-flex; align-items:center; gap:0.375rem; flex-wrap:wrap; }
+.char-count { font:500 0.75rem/1 inherit; color:var(--theme-3-text-3); margin-left:auto; display:inline-flex; align-items:center; gap:0.375rem; flex-wrap:wrap; transition:color 0.2s $ease; }
+.char-count.limit-reached { color:#ef4444; font-weight:600; }
+.char-count.limit-reached .text-char-inline { color:#ef4444; font-weight:600; }
+.char-count.limit-reached .limit-alert-text { color:#ef4444; font-weight:700; }
 .photo-count-pill { display:inline-flex; align-items:center; gap:0.25rem; padding:0.125rem 0.5rem; background:rgba(31,123,255,0.08); color:var(--button-1); border:0.0625rem solid rgba(31,123,255,0.2); border-radius:1rem; font-weight:600; font-size:0.75rem; }
 .photo-count-pill mat-icon { font-size:0.875rem; width:0.875rem; height:0.875rem; }
 .text-char-inline { color:var(--theme-3-text-3); font-weight:400; }
