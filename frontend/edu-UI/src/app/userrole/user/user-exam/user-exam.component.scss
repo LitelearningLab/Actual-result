@@ -861,12 +861,57 @@ $ease: cubic-bezier(0.4, 0, 0.2, 1); $ease-bounce: cubic-bezier(0.34, 1.56, 0.64
     .voice-btn-icon, .upload-btn-icon, .camera-btn-icon { font-size: 1.25rem; width: 1.25rem; height: 1.25rem; margin: 0; }
   }
 
+  // ── Hide long hint text on mobile so icons fit on one row ──
+  .voice-hint-text,
+  .upload-hint-text,
+  .camera-hint-text {
+    display: none !important;
+  }
+
+  .textarea-footer {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.5rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  .input-actions-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  .q-list {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
   .q-card {
     padding: 0.875rem 1rem;
     border-radius: 0.625rem;
     border-left: 3.5px solid #22c55e;
     box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.04);
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
   }
+
+  .descriptive-input,
+  .textarea-wrapper,
+  .q-input textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
 
   .q-header {
     margin-bottom: 0.5rem;
@@ -1305,6 +1350,125 @@ $ease: cubic-bezier(0.4, 0, 0.2, 1); $ease-bounce: cubic-bezier(0.34, 1.56, 0.64
     }
   }
 }
+
+// ── Mobile Responsive Overrides for Spreadsheets & Word Docs ──
+@media (max-width: 48rem) {
+  .excel-viewer-card,
+  .docx-viewer-card {
+    margin: 0.5rem 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+
+    .excel-toolbar,
+    .docx-toolbar {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 0.45rem !important;
+      padding: 0.5rem 0.625rem !important;
+
+      .excel-file-info,
+      .docx-file-info {
+        width: 100% !important;
+        min-width: 0 !important;
+
+        .excel-filename,
+        .docx-filename {
+          max-width: calc(100% - 28px) !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+          display: inline-block !important;
+          vertical-align: middle !important;
+        }
+      }
+
+      .excel-actions,
+      .docx-actions {
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 0.35rem !important;
+        align-items: center !important;
+
+        .excel-sheet-tabs {
+          width: 100% !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          display: flex !important;
+          gap: 0.25rem !important;
+          padding-bottom: 0.2rem !important;
+        }
+
+        .excel-action-btn,
+        .docx-action-btn {
+          flex: 1 1 auto !important;
+          justify-content: center !important;
+          padding: 0.35rem 0.5rem !important;
+          font-size: 0.75rem !important;
+        }
+      }
+    }
+
+    .excel-grid-container {
+      max-height: 280px !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      box-sizing: border-box !important;
+    }
+
+    .docx-container-box {
+      max-height: 380px !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      box-sizing: border-box !important;
+      padding: 0.625rem !important;
+
+      .docx-preview-content {
+        max-width: 100% !important;
+        width: 100% !important;
+
+        .docx-wrapper {
+          max-width: 100% !important;
+          width: 100% !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          background: transparent !important;
+        }
+
+        section.docx {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          box-sizing: border-box !important;
+          padding: 0.5rem !important;
+          margin: 0 !important;
+          box-shadow: none !important;
+          background: #ffffff !important;
+        }
+
+        table {
+          max-width: 100% !important;
+          width: 100% !important;
+          display: block !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          word-break: break-word !important;
+        }
+
+        img {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+      }
+    }
+  }
+}
+
 
 
 

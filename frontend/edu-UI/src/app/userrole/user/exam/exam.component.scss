@@ -3466,4 +3466,141 @@ tr.exam-detail-row {
   }
 }
 
+// ── Mobile Responsive Overrides for Spreadsheets, Word Docs, and Review Panel ──
+@media (max-width: 768px) {
+  .review-panel {
+    ::ng-deep .mat-tab-body-content {
+      padding: 0.75rem 0.5rem !important;
+      padding-left: max(0.5rem, env(safe-area-inset-left, 0px)) !important;
+      padding-right: max(0.5rem, env(safe-area-inset-right, 0px)) !important;
+    }
+
+    ::ng-deep .mat-tab-header {
+      padding-left: 0.5rem !important;
+      padding-right: 0.5rem !important;
+    }
+  }
+
+  .question-review-card {
+    padding: 0.875rem 0.625rem !important;
+    border-radius: 0.625rem !important;
+  }
+
+  .excel-viewer-card,
+  .docx-viewer-card {
+    margin: 0.5rem 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+
+    .excel-toolbar,
+    .docx-toolbar {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 0.45rem !important;
+      padding: 0.5rem 0.625rem !important;
+
+      .excel-file-info,
+      .docx-file-info {
+        width: 100% !important;
+        min-width: 0 !important;
+
+        .excel-filename,
+        .docx-filename {
+          max-width: calc(100% - 28px) !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+          display: inline-block !important;
+          vertical-align: middle !important;
+        }
+      }
+
+      .excel-actions,
+      .docx-actions {
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 0.35rem !important;
+        align-items: center !important;
+
+        .excel-sheet-tabs {
+          width: 100% !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          display: flex !important;
+          gap: 0.25rem !important;
+          padding-bottom: 0.2rem !important;
+        }
+
+        .excel-action-btn,
+        .docx-action-btn {
+          flex: 1 1 auto !important;
+          justify-content: center !important;
+          padding: 0.35rem 0.5rem !important;
+          font-size: 0.75rem !important;
+        }
+      }
+    }
+
+    .excel-grid-container {
+      max-height: 280px !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      box-sizing: border-box !important;
+    }
+
+    .docx-container-box {
+      max-height: 380px !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      box-sizing: border-box !important;
+      padding: 0.625rem !important;
+
+      .docx-preview-content {
+        max-width: 100% !important;
+        width: 100% !important;
+
+        .docx-wrapper {
+          max-width: 100% !important;
+          width: 100% !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          background: transparent !important;
+        }
+
+        section.docx {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          box-sizing: border-box !important;
+          padding: 0.5rem !important;
+          margin: 0 !important;
+          box-shadow: none !important;
+          background: #ffffff !important;
+        }
+
+        table {
+          max-width: 100% !important;
+          width: 100% !important;
+          display: block !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          word-break: break-word !important;
+        }
+
+        img {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+      }
+    }
+  }
+}
+
+
 
