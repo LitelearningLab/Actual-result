@@ -12,6 +12,7 @@ import { HttpClient } from '@angular/common/http';
 import { API_BASE, resolveMediaUrl } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
 import * as XLSX from 'xlsx';
+import * as docx from 'docx-preview';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
@@ -2652,5 +2653,72 @@ formatSeconds(sec: number | null | undefined): string {
       colIndex = Math.floor(colIndex / 26) - 1;
     }
     return letter;
+  }
+
+  // ── Word Document Viewer Methods for Test Review ──
+  isWordFile(m: any): boolean {
+    const filename = (m.original_filename || m.file_url || m.url || '').toLowerCase();
+    return filename.endsWith('.docx') || filename.endsWith('.doc');
+  }
+
+  toggleWordDoc(m: any, containerId: string): void {
+    if (m._showDoc) {
+      m._showDoc = false;
+      return;
+    }
+    m._showDoc = true;
+    if (m._docLoaded) return;
+    this.renderWordDoc(m, containerId);
+  }
+
+  renderWordDoc(m: any, containerId: string): void {
+    const directUrl = this.resolveMediaUrl(m.file_url || m.url);
+    if (!directUrl && !m.gcs_path) return;
+
+    m._loadingDoc = true;
+    m._docError = null;
+
+    const gcsPath = m.gcs_path || '';
+    const proxyUrl = `${API_BASE}/get-media-content?gcs_path=${encodeURIComponent(gcsPath)}&url=${encodeURIComponent(directUrl || '')}`;
+
+    const renderBuffer = async (buffer: ArrayBuffer) => {
+      m._loadingDoc = false;
+      m._docLoaded = true;
+      try {
+        const container = document.getElementById(containerId);
+        if (container) {
+          container.innerHTML = '';
+          await docx.renderAsync(buffer, container, undefined, {
+            inWrapper: false,
+            ignoreWidth: false,
+            ignoreHeight: false,
+            className: 'docx-preview-content'
+          });
+        }
+      } catch (err) {
+        console.error('Failed to preview Word document in review', err);
+        m._docError = 'Could not preview Word document.';
+      }
+    };
+
+    this.http.get(proxyUrl, { responseType: 'arraybuffer' }).subscribe({
+      next: (buffer: ArrayBuffer) => renderBuffer(buffer),
+      error: (err) => {
+        if (directUrl) {
+          this.http.get(directUrl, { responseType: 'arraybuffer' }).subscribe({
+            next: (buffer: ArrayBuffer) => renderBuffer(buffer),
+            error: (fErr) => {
+              m._loadingDoc = false;
+              m._docError = 'Could not load document file.';
+              console.error('Error fetching document in review', fErr);
+            }
+          });
+        } else {
+          m._loadingDoc = false;
+          m._docError = 'Could not load document file.';
+          console.error('Error fetching document via proxy in review', err);
+        }
+      }
+    });
   }
 }

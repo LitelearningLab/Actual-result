@@ -11,6 +11,7 @@ import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { notify } from 'src/app/shared/global-notify';
 import * as XLSX from 'xlsx';
+import * as docx from 'docx-preview';
 
 // Web Speech API typings
 declare var webkitSpeechRecognition: any;
@@ -938,6 +939,73 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
       colIndex = Math.floor(colIndex / 26) - 1;
     }
     return letter;
+  }
+
+  // ── Word Document Viewer Methods ──
+  isWordFile(m: any): boolean {
+    const filename = (m.original_filename || m.file_url || m.url || '').toLowerCase();
+    return filename.endsWith('.docx') || filename.endsWith('.doc');
+  }
+
+  toggleWordDoc(m: any, containerId: string): void {
+    if (m._showDoc) {
+      m._showDoc = false;
+      return;
+    }
+    m._showDoc = true;
+    if (m._docLoaded) return;
+    this.renderWordDoc(m, containerId);
+  }
+
+  renderWordDoc(m: any, containerId: string): void {
+    const directUrl = this.resolveMediaUrl(m.file_url || m.url);
+    if (!directUrl && !m.gcs_path) return;
+
+    m._loadingDoc = true;
+    m._docError = null;
+
+    const gcsPath = m.gcs_path || '';
+    const proxyUrl = `${API_BASE}/get-media-content?gcs_path=${encodeURIComponent(gcsPath)}&url=${encodeURIComponent(directUrl || '')}`;
+
+    const renderBuffer = async (buffer: ArrayBuffer) => {
+      m._loadingDoc = false;
+      m._docLoaded = true;
+      try {
+        const container = document.getElementById(containerId);
+        if (container) {
+          container.innerHTML = '';
+          await docx.renderAsync(buffer, container, undefined, {
+            inWrapper: false,
+            ignoreWidth: false,
+            ignoreHeight: false,
+            className: 'docx-preview-content'
+          });
+        }
+      } catch (err) {
+        console.error('Failed to preview Word document', err);
+        m._docError = 'Could not preview Word document.';
+      }
+    };
+
+    this.http.get(proxyUrl, { responseType: 'arraybuffer' }).subscribe({
+      next: (buffer: ArrayBuffer) => renderBuffer(buffer),
+      error: (err) => {
+        if (directUrl) {
+          this.http.get(directUrl, { responseType: 'arraybuffer' }).subscribe({
+            next: (buffer: ArrayBuffer) => renderBuffer(buffer),
+            error: (fErr) => {
+              m._loadingDoc = false;
+              m._docError = 'Could not load document file.';
+              console.error('Error fetching document', fErr);
+            }
+          });
+        } else {
+          m._loadingDoc = false;
+          m._docError = 'Could not load document file.';
+          console.error('Error fetching document via proxy', err);
+        }
+      }
+    });
   }
 
   persistExamState() {

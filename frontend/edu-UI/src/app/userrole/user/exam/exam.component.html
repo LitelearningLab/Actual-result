@@ -760,8 +760,40 @@
                                  </div>
                               </div>
 
-                              <!-- Other Documents (Word .doc, .docx) -->
-                              <div *ngIf="m.media_type === 'document' && !isExcelFile(m)" class="review-doc-attachment" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.65rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.375rem;">
+                              <!-- Word Document Viewer (.docx, .doc) -->
+                              <div *ngIf="m.media_type === 'document' && isWordFile(m)" class="docx-viewer-card">
+                                 <div class="docx-toolbar">
+                                    <div class="docx-file-info">
+                                       <mat-icon class="docx-icon">description</mat-icon>
+                                       <span class="docx-filename">{{ m.original_filename || 'Document.docx' }}</span>
+                                    </div>
+                                    <div class="docx-actions">
+                                       <button type="button" class="docx-action-btn preview-btn" (click)="toggleWordDoc(m, 'docx-review-' + (m.media_id || qi))">
+                                          <mat-icon>{{ $any(m)._showDoc ? 'visibility_off' : 'visibility' }}</mat-icon>
+                                          <span>{{ $any(m)._showDoc ? 'Hide Document' : 'Show Document' }}</span>
+                                       </button>
+                                       <a [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank" download class="docx-action-btn dl-btn" matTooltip="Download Word file">
+                                          <mat-icon>download</mat-icon>
+                                          <span>Download</span>
+                                       </a>
+                                    </div>
+                                 </div>
+
+                                 <div *ngIf="$any(m)._loadingDoc" class="docx-loading-state">
+                                    <mat-icon class="rotating-spinner">sync</mat-icon>
+                                    <span>Loading document preview...</span>
+                                 </div>
+
+                                 <div *ngIf="$any(m)._docError" class="docx-error-state">
+                                    <mat-icon>error_outline</mat-icon>
+                                    <span>{{ $any(m)._docError }}</span>
+                                 </div>
+
+                                 <div [id]="'docx-review-' + (m.media_id || qi)" class="docx-container-box" [style.display]="$any(m)._showDoc ? 'block' : 'none'"></div>
+                              </div>
+
+                              <!-- Other Documents (PDF, TXT, etc.) -->
+                              <div *ngIf="m.media_type === 'document' && !isExcelFile(m) && !isWordFile(m)" class="review-doc-attachment" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.65rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.375rem;">
                                  <mat-icon style="color: #475569;">description</mat-icon>
                                  <a [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank" download style="color: #2563eb; font-weight: 600; text-decoration: none;" matTooltip="Download attachment">{{ m.original_filename || 'Download Document' }}</a>
                               </div>
