@@ -932,9 +932,6 @@ def _validate_answers_impl(attempt_id):
                                         s_url = gcs_storage.generate_signed_url(gcs_path, expiration_minutes=15)
                                         if s_url and str(s_url).startswith(("http://", "https://")):
                                             img_ref = {"url": s_url, "signed_url": s_url}
-                                        elif gcs_storage.allow_local_fallback:
-                                            img_bytes = gcs_storage.download_media_bytes(gcs_path)
-                                            img_ref = {"image_bytes": img_bytes}
                                         else:
                                             raise RuntimeError(f"Could not generate signed URL for '{gcs_path}'")
                                         signed_url_cache[gcs_path] = img_ref
@@ -967,9 +964,6 @@ def _validate_answers_impl(attempt_id):
                                         s_url = gcs_storage.generate_signed_url(img_item, expiration_minutes=15)
                                         if s_url and str(s_url).startswith(("http://", "https://")):
                                             img_ref = {"url": s_url, "signed_url": s_url}
-                                        elif gcs_storage.allow_local_fallback:
-                                            img_bytes = gcs_storage.download_media_bytes(img_item)
-                                            img_ref = {"image_bytes": img_bytes}
                                         else:
                                             raise RuntimeError(f"Could not generate signed URL for '{img_item}'")
                                         signed_url_cache[img_item] = img_ref
