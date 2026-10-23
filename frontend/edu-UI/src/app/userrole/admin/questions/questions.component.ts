@@ -3795,12 +3795,16 @@ export class AdminQuestionsComponent {
       questions: payload,
     };
 
+    const questionCount = payload.length;
+
     this.confirmService
       .confirm({
         title: this.isEditing ? 'Confirm Update' : 'Confirm Save',
         message: this.isEditing
           ? 'Are you sure you want to update this question?'
-          : 'Are you sure you want to save all questions?',
+          : questionCount === 1
+          ? 'Are you sure you want to save 1 question?'
+          : `Are you sure you want to save all ${questionCount} questions?`,
         confirmText: this.isEditing ? 'Update' : 'Save All',
         cancelText: 'Cancel',
       })
@@ -4016,8 +4020,8 @@ export class AdminQuestionsComponent {
   // ══════════════════════════════════════════════════════
   isQuestionTextEditing(q: any, qi: number): boolean {
     if (q._isEditingText === undefined) {
-      // By default, questions with text render in read-only preview; new empty questions start in edit mode
-      return !q.text || !q.text.trim();
+      // Store initial state once so typing does not flip back to preview
+      q._isEditingText = !q.text || !q.text.trim();
     }
     return !!q._isEditingText;
   }

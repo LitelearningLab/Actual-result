@@ -1114,6 +1114,7 @@ button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min
   .media-upload-actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 0.75rem;
 
     .media-action-btn {
@@ -1124,6 +1125,14 @@ button[mat-flat-button],button[mat-stroked-button],button[mat-icon-button] { min
       font-weight: 600;
       font-size: 0.875rem;
       padding: 0.25rem 0.85rem;
+    }
+
+    .media-hint {
+      font-size: 0.8125rem;
+      color: #334155;
+      display: inline-flex;
+      align-items: center;
+      font-weight: 600;
     }
   }
 
