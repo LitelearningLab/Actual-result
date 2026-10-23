@@ -606,6 +606,50 @@ def serve_question_media_file(filename):
     upload_folder = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
     return send_from_directory(upload_folder, filename)
 
+@edu_blueprint.route('/get-media-content', methods=['GET'])
+def get_media_content():
+    """
+    Safely streams question media / document bytes (e.g. XLSX) from GCS or local storage.
+    Enables client-side spreadsheet preview without CORS restrictions.
+    """
+    from flask import request, Response, jsonify
+    from others.gcs_service import gcs_storage
+    import mimetypes
+
+    gcs_path = (request.args.get('gcs_path') or '').strip()
+    media_url = (request.args.get('url') or '').strip()
+
+    if not gcs_path and media_url:
+        if 'storage.googleapis.com/' in media_url:
+            parts = media_url.split('storage.googleapis.com/', 1)[-1].split('?', 1)[0]
+            subparts = parts.split('/', 1)
+            if len(subparts) > 1:
+                gcs_path = subparts[1]
+            else:
+                gcs_path = parts
+        elif '/edu/api/uploads/media/' in media_url:
+            gcs_path = media_url.split('/edu/api/uploads/media/', 1)[-1]
+        elif '/uploads/media/' in media_url:
+            gcs_path = media_url.split('/uploads/media/', 1)[-1]
+
+    if not gcs_path:
+        return jsonify({"status": False, "statusMessage": "gcs_path or url is required"}), 400
+
+    try:
+        data = gcs_storage.download_media_bytes(gcs_path)
+        mime_type, _ = mimetypes.guess_type(gcs_path)
+        if not mime_type:
+            mime_type = "application/octet-stream"
+
+        resp = Response(data, mimetype=mime_type)
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+    except Exception as e:
+        print(f"[get_media_content] Error serving '{gcs_path}': {e}")
+        return jsonify({"status": False, "statusMessage": f"Could not load media: {e}"}), 404
+
+
 
 
 @edu_blueprint.route('/launch-exam', methods=['GET'])

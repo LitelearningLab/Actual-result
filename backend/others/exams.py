@@ -2153,6 +2153,7 @@ def get_exam_details(request):
                                 "gcs_path": m.gcs_path,
                                 "caption": m.caption,
                                 "play_limit": getattr(m, "play_limit", 0) or 0,
+                                "original_filename": getattr(m, "original_filename", "") or "",
                             }
                             for m in q_media
                         ]
@@ -3382,7 +3383,7 @@ def launch_exam_details(schedule_id, user_id):
                     "file_url": m.file_url,
                     "url": m.file_url,
                     "gcs_path": m.gcs_path,
-                    "original_filename": m.original_filename,
+                    "original_filename": getattr(m, "original_filename", "") or "",
                     "caption": m.caption,
                     "play_limit": getattr(m, "play_limit", 0) or 0,
                 }
@@ -4018,6 +4019,7 @@ def get_student_evaluation_details(request, current_user=None):
                     "gcs_path": m.gcs_path,
                     "caption": m.caption,
                     "play_limit": getattr(m, "play_limit", 0) or 0,
+                    "original_filename": getattr(m, "original_filename", "") or "",
                 }
                 for m in q_media
             ]

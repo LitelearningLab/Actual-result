@@ -10,6 +10,7 @@ import { API_BASE } from 'src/app/shared/api.config';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { notify } from 'src/app/shared/global-notify';
+import * as XLSX from 'xlsx';
 
 // Web Speech API typings
 declare var webkitSpeechRecognition: any;
@@ -869,6 +870,76 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
     this.previewQuestionId = null;
   }
 
+  // ── Excel Spreadsheet Viewer Methods ──
+  isExcelFile(m: any): boolean {
+    const filename = (m.original_filename || m.file_url || m.url || '').toLowerCase();
+    return filename.endsWith('.xlsx') || filename.endsWith('.xls') || filename.endsWith('.csv');
+  }
+
+  loadExcelData(m: any): void {
+    if (m._excelData || m._loadingExcel) return;
+    const directUrl = this.resolveMediaUrl(m.file_url || m.url);
+    if (!directUrl && !m.gcs_path) return;
+
+    m._loadingExcel = true;
+    m._excelError = null;
+
+    // Use backend proxy endpoint to load spreadsheet bytes without CORS issues
+    const gcsPath = m.gcs_path || '';
+    const proxyUrl = `${API_BASE}/get-media-content?gcs_path=${encodeURIComponent(gcsPath)}&url=${encodeURIComponent(directUrl || '')}`;
+
+    const parseBuffer = (buffer: ArrayBuffer) => {
+      m._loadingExcel = false;
+      try {
+        const wb = XLSX.read(buffer, { type: 'array' });
+        m._sheets = wb.SheetNames;
+        m._activeSheet = wb.SheetNames[0];
+        m._workbook = wb;
+        const ws = wb.Sheets[m._activeSheet];
+        m._excelData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      } catch (err) {
+        console.error('Failed to parse spreadsheet', err);
+        m._excelError = 'Could not preview spreadsheet content.';
+      }
+    };
+
+    this.http.get(proxyUrl, { responseType: 'arraybuffer' }).subscribe({
+      next: (buffer: ArrayBuffer) => parseBuffer(buffer),
+      error: (err) => {
+        if (directUrl) {
+          this.http.get(directUrl, { responseType: 'arraybuffer' }).subscribe({
+            next: (buffer: ArrayBuffer) => parseBuffer(buffer),
+            error: (fErr) => {
+              m._loadingExcel = false;
+              m._excelError = 'Could not load spreadsheet file.';
+              console.error('Error fetching spreadsheet', fErr);
+            }
+          });
+        } else {
+          m._loadingExcel = false;
+          m._excelError = 'Could not load spreadsheet file.';
+          console.error('Error fetching spreadsheet via proxy', err);
+        }
+      }
+    });
+  }
+
+  switchExcelSheet(m: any, sheetName: string): void {
+    if (!m._workbook || !m._workbook.Sheets[sheetName]) return;
+    m._activeSheet = sheetName;
+    const ws = m._workbook.Sheets[sheetName];
+    m._excelData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  }
+
+  getColLetter(colIndex: number): string {
+    let letter = '';
+    while (colIndex >= 0) {
+      letter = String.fromCharCode((colIndex % 26) + 65) + letter;
+      colIndex = Math.floor(colIndex / 26) - 1;
+    }
+    return letter;
+  }
+
   persistExamState() {
     if (!this.exam) return;
     try {
@@ -973,6 +1044,17 @@ export class UserExamRunnerComponent implements OnInit, OnDestroy {
         }),
         marks: q.marks !== undefined && q.marks !== null ? Number(q.marks) : (q.points !== undefined && q.points !== null ? Number(q.points) : 1)
       }));
+
+      // Auto-load Excel attachments so spreadsheets appear immediately
+      this.questions.forEach((q: any) => {
+        if (Array.isArray(q.media)) {
+          q.media.forEach((m: any) => {
+            if (this.isExcelFile(m)) {
+              this.loadExcelData(m);
+            }
+          });
+        }
+      });
 
       // Restore saved audio play counts from localStorage to prevent refresh exploit
       if (this.attempt_id) {

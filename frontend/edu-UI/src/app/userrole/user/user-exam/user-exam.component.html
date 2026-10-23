@@ -183,8 +183,91 @@
                 </div>
               </div>
 
-              <!-- Document Attachment (Word / Excel) -->
-              <div *ngIf="m.media_type === 'document'" class="user-doc-attachment" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+              <!-- Interactive Excel Spreadsheet Viewer -->
+              <div *ngIf="m.media_type === 'document' && isExcelFile(m)" class="excel-viewer-card">
+                <!-- Top Toolbar -->
+                <div class="excel-toolbar">
+                  <div class="excel-file-info">
+                    <mat-icon class="excel-icon">table_chart</mat-icon>
+                    <span class="excel-filename">{{ m.original_filename || 'Spreadsheet.xlsx' }}</span>
+                  </div>
+
+                  <div class="excel-actions">
+                    <!-- Sheet tabs for multiple sheets -->
+                    <div class="excel-sheet-tabs" *ngIf="m._sheets && m._sheets.length > 1">
+                      <button
+                        *ngFor="let s of m._sheets"
+                        type="button"
+                        class="excel-tab-btn"
+                        [class.active]="m._activeSheet === s"
+                        (click)="switchExcelSheet(m, s)"
+                      >
+                        {{ s }}
+                      </button>
+                    </div>
+
+                    <!-- Show Sheet button if not yet loaded -->
+                    <button
+                      type="button"
+                      class="excel-action-btn preview-btn"
+                      (click)="loadExcelData(m)"
+                      *ngIf="!m._excelData && !m._loadingExcel"
+                    >
+                      <mat-icon>visibility</mat-icon>
+                      <span>Show Sheet</span>
+                    </button>
+
+                    <!-- Download raw file -->
+                    <a
+                      [href]="resolveMediaUrl(m.file_url || m.url)"
+                      target="_blank"
+                      download
+                      class="excel-action-btn dl-btn"
+                      matTooltip="Download original Excel file"
+                    >
+                      <mat-icon>download</mat-icon>
+                      <span>Download</span>
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Loading State -->
+                <div *ngIf="m._loadingExcel" class="excel-loading-state">
+                  <mat-icon class="rotating-spinner">sync</mat-icon>
+                  <span>Loading spreadsheet...</span>
+                </div>
+
+                <!-- Error Fallback -->
+                <div *ngIf="m._excelError" class="excel-error-state">
+                  <mat-icon>error_outline</mat-icon>
+                  <span>{{ m._excelError }}</span>
+                </div>
+
+                <!-- Spreadsheet Data Table -->
+                <div class="excel-grid-container" *ngIf="m._excelData && m._excelData.length">
+                  <table class="excel-data-table">
+                    <thead>
+                      <tr>
+                        <th class="excel-corner-header">#</th>
+                        <th *ngFor="let col of m._excelData[0]; let ci = index" class="excel-col-header">
+                          {{ getColLetter(ci) }}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let row of m._excelData; let ri = index">
+                        <td class="excel-row-header">{{ ri + 1 }}</td>
+                        <td *ngFor="let cell of row" class="excel-data-cell">
+                          {{ cell }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Other Document Attachments (Word .doc, .docx) -->
+              <div *ngIf="m.media_type === 'document' && !isExcelFile(m)" class="user-doc-attachment" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
                 <mat-icon style="color: #475569;">description</mat-icon>
                 <a [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank" download style="color: #2563eb; font-weight: 600; text-decoration: none;" matTooltip="Download attachment">{{ m.original_filename || 'Download Attachment' }}</a>
               </div>

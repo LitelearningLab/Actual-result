@@ -11,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { API_BASE, resolveMediaUrl } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
+import * as XLSX from 'xlsx';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
@@ -1372,7 +1373,21 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
       question?: string;
       correct_option?: string;
       options?: Array<{ is_correct?: number; option_text?: string; text?: string; image_url?: string; gcs_path?: string; id?: string }>;
-      media?: Array<{ media_id?: string; media_type?: string; file_url?: string; url?: string; original_filename?: string; caption?: string; play_limit?: number }>;
+      media?: Array<{
+        media_id?: string;
+        media_type?: string;
+        file_url?: string;
+        url?: string;
+        original_filename?: string;
+        caption?: string;
+        play_limit?: number;
+        _sheets?: string[];
+        _activeSheet?: string;
+        _excelData?: any[][];
+        _loadingExcel?: boolean;
+        _excelError?: string | null;
+        [key: string]: any;
+      }>;
       question_type?: string;
       selected_option?: string[];
       is_correct?: boolean | number | null;
@@ -1747,6 +1762,16 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
                 1;
               this.markReviewConsumed(row, effectiveAttNo);
             }
+            // Auto-load Excel files in review attempts
+            (this.reviewAttempts || []).forEach((att: any) => {
+              (att.items || []).forEach((it: any) => {
+                (it.media || []).forEach((m: any) => {
+                  if (this.isExcelFile(m)) {
+                    this.loadExcelData(m);
+                  }
+                });
+              });
+            });
           } catch (e) {
             this.reviewAttempts = [];
           }
@@ -2556,5 +2581,76 @@ formatSeconds(sec: number | null | undefined): string {
     if (img) {
       img._loadError = true;
     }
+  }
+
+  // ── Excel Spreadsheet Viewer Methods for Test Review ──
+  isExcelFile(m: any): boolean {
+    const filename = (m.original_filename || m.file_url || m.url || '').toLowerCase();
+    return filename.endsWith('.xlsx') || filename.endsWith('.xls') || filename.endsWith('.csv');
+  }
+
+  loadExcelData(m: any): void {
+    if (m._excelData || m._loadingExcel) return;
+    const directUrl = this.resolveMediaUrl(m.file_url || m.url);
+    if (!directUrl && !m.gcs_path) return;
+
+    m._loadingExcel = true;
+    m._excelError = null;
+
+    // Use backend proxy endpoint to load spreadsheet bytes without CORS issues
+    const gcsPath = m.gcs_path || '';
+    const proxyUrl = `${API_BASE}/get-media-content?gcs_path=${encodeURIComponent(gcsPath)}&url=${encodeURIComponent(directUrl || '')}`;
+
+    const parseBuffer = (buffer: ArrayBuffer) => {
+      m._loadingExcel = false;
+      try {
+        const wb = XLSX.read(buffer, { type: 'array' });
+        m._sheets = wb.SheetNames;
+        m._activeSheet = wb.SheetNames[0];
+        m._workbook = wb;
+        const ws = wb.Sheets[m._activeSheet];
+        m._excelData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      } catch (err) {
+        console.error('Failed to parse spreadsheet in review', err);
+        m._excelError = 'Could not preview spreadsheet content.';
+      }
+    };
+
+    this.http.get(proxyUrl, { responseType: 'arraybuffer' }).subscribe({
+      next: (buffer: ArrayBuffer) => parseBuffer(buffer),
+      error: (err) => {
+        // Fallback to direct URL if proxy fails
+        if (directUrl) {
+          this.http.get(directUrl, { responseType: 'arraybuffer' }).subscribe({
+            next: (buffer: ArrayBuffer) => parseBuffer(buffer),
+            error: (fErr) => {
+              m._loadingExcel = false;
+              m._excelError = 'Could not load spreadsheet file.';
+              console.error('Error fetching spreadsheet in review', fErr);
+            }
+          });
+        } else {
+          m._loadingExcel = false;
+          m._excelError = 'Could not load spreadsheet file.';
+          console.error('Error fetching spreadsheet via proxy', err);
+        }
+      }
+    });
+  }
+
+  switchExcelSheet(m: any, sheetName: string): void {
+    if (!m._workbook || !m._workbook.Sheets[sheetName]) return;
+    m._activeSheet = sheetName;
+    const ws = m._workbook.Sheets[sheetName];
+    m._excelData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  }
+
+  getColLetter(colIndex: number): string {
+    let letter = '';
+    while (colIndex >= 0) {
+      letter = String.fromCharCode((colIndex % 26) + 65) + letter;
+      colIndex = Math.floor(colIndex / 26) - 1;
+    }
+    return letter;
   }
 }

@@ -696,16 +696,74 @@
                            <strong>{{ q.question_text || q.question || 'Question' }}</strong>
                         </div>
 
-                        <!-- Question Media (Image / Audio) -->
+                        <!-- Question Media (Image / Audio / Excel / Document) -->
                         <div class="review-q-media" *ngIf="q.media && q.media.length">
                            <div class="review-q-media-item" *ngFor="let m of q.media">
+                              <!-- Image -->
                               <img *ngIf="m.media_type === 'image'" [src]="resolveMediaUrl(m.file_url || m.url)" [alt]="m.original_filename || 'Question Image'" class="review-media-img" />
+                              
+                              <!-- Audio -->
                               <div class="review-media-audio-wrap" *ngIf="m.media_type === 'audio'">
                                  <audio controls [src]="resolveMediaUrl(m.file_url || m.url)" class="review-media-audio"></audio>
                                  <span class="audio-limit-badge" [class.limited]="(m.play_limit || 0) > 0">
                                     <mat-icon>repeat</mat-icon>
                                     <span>{{ (m.play_limit || 0) > 0 ? ('Limit: ' + m.play_limit + (m.play_limit === 1 ? ' play' : ' plays')) : 'Unlimited plays' }}</span>
                                  </span>
+                              </div>
+
+                              <!-- Excel Spreadsheet Viewer -->
+                              <div *ngIf="m.media_type === 'document' && isExcelFile(m)" class="excel-viewer-card">
+                                 <div class="excel-toolbar">
+                                    <div class="excel-file-info">
+                                       <mat-icon class="excel-icon">table_chart</mat-icon>
+                                       <span class="excel-filename">{{ m.original_filename || 'Spreadsheet.xlsx' }}</span>
+                                    </div>
+                                    <div class="excel-actions">
+                                       <div class="excel-sheet-tabs" *ngIf="$any(m)._sheets && $any(m)._sheets.length > 1">
+                                          <button *ngFor="let s of $any(m)._sheets" type="button" class="excel-tab-btn" [class.active]="$any(m)._activeSheet === s" (click)="switchExcelSheet(m, s)">
+                                             {{ s }}
+                                          </button>
+                                       </div>
+                                       <button type="button" class="excel-action-btn preview-btn" (click)="loadExcelData(m)" *ngIf="!$any(m)._excelData && !$any(m)._loadingExcel">
+                                          <mat-icon>visibility</mat-icon>
+                                          <span>Show Sheet</span>
+                                       </button>
+                                       <a [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank" download class="excel-action-btn dl-btn" matTooltip="Download Excel file">
+                                          <mat-icon>download</mat-icon>
+                                          <span>Download</span>
+                                       </a>
+                                    </div>
+                                 </div>
+                                 <div *ngIf="$any(m)._loadingExcel" class="excel-loading-state">
+                                    <mat-icon class="rotating-spinner">sync</mat-icon>
+                                    <span>Loading spreadsheet...</span>
+                                 </div>
+                                 <div *ngIf="$any(m)._excelError" class="excel-error-state">
+                                    <mat-icon>error_outline</mat-icon>
+                                    <span>{{ $any(m)._excelError }}</span>
+                                 </div>
+                                 <div class="excel-grid-container" *ngIf="$any(m)._excelData && $any(m)._excelData.length">
+                                    <table class="excel-data-table">
+                                       <thead>
+                                          <tr>
+                                             <th class="excel-corner-header">#</th>
+                                             <th *ngFor="let col of $any(m)._excelData[0]; let ci = index" class="excel-col-header">{{ getColLetter(ci) }}</th>
+                                          </tr>
+                                       </thead>
+                                       <tbody>
+                                          <tr *ngFor="let row of $any(m)._excelData; let ri = index">
+                                             <td class="excel-row-header">{{ ri + 1 }}</td>
+                                             <td *ngFor="let cell of row" class="excel-data-cell">{{ cell }}</td>
+                                          </tr>
+                                       </tbody>
+                                    </table>
+                                 </div>
+                              </div>
+
+                              <!-- Other Documents (Word .doc, .docx) -->
+                              <div *ngIf="m.media_type === 'document' && !isExcelFile(m)" class="review-doc-attachment" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.65rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.375rem;">
+                                 <mat-icon style="color: #475569;">description</mat-icon>
+                                 <a [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank" download style="color: #2563eb; font-weight: 600; text-decoration: none;" matTooltip="Download attachment">{{ m.original_filename || 'Download Document' }}</a>
                               </div>
                            </div>
                         </div>
