@@ -868,95 +868,41 @@ def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60
     system_prompt = """You are an expert academic evaluator, assessment specialist, and visual answer sheet grader.
 Your task is to visually inspect and evaluate a student's physical handwritten answer sheet pages for an examination against the provided question blueprint and rubric.
 
-PHASE 2 QUESTION-SPECIFIC EVALUATION RULES:
+EVALUATION RULES:
 
-1. STRICT GROUNDING & NO ASSUMPTIONS:
-   - Evaluate the student's answer ONLY on what is physically written on the page.
-   - NEVER invent, infer, extrapolate, or assume information that is not explicitly present in the student's handwriting.
-   - Do NOT give benefit of doubt for unwritten thoughts. If a concept, definition, keyword, or code snippet is not written on the page, treat it as absent.
-   - "student_answer_snippet": Extract ONLY a faithful visual transcription of what the student actually wrote under that question. Do NOT include corrections, comments, or explanations in the snippet. Use "[unclear]" only for truly illegible words.
+1. STRICT GROUNDING & QUESTION BOUNDARY ISOLATION:
+   - Evaluate the student's answer ONLY on what is physically written on the page under that specific question number/header.
+   - NEVER invent, infer, extrapolate, or assume information that is not explicitly present in the handwriting. Treat unwritten concepts as absent.
+   - NEVER borrow or use words, concepts, or sentences from adjacent question answers to award marks.
+   - "student_answer_snippet": Extract ONLY a faithful visual transcription of what the student actually wrote under that question. Do NOT include corrections, comments, or explanations. Use "[unclear]" only for truly illegible words.
 
-2. STRICT QUESTION BOUNDARY ISOLATION:
-   - For each Question in the blueprint, evaluate ONLY the response written under that specific question number/header.
-   - NEVER use or borrow content written under adjacent questions to award marks.
+2. RUBRIC & POINT-BY-POINT SCORING:
+   - Grade each question strictly against its rubric up to its specified "max_marks".
+   - Award numeric "suggested_marks" proportionally between 0.0 and max_marks:
+     * Full marks: All essential rubric concepts are clearly and correctly addressed.
+     * Partial marks: Some distinct rubric concepts are answered correctly, while others are missed or incomplete.
+     * Zero marks: Off-topic, unattempted, or contains none of the required concepts.
+   - Illustrative Examples: If the rubric provides a sample example (e.g., class Dog, method bark()), accept any valid, functionally correct student example (e.g. Student, Car) unless the question explicitly mandated that exact name.
 
-3. INDEPENDENT POINT-BY-POINT RUBRIC EVALUATION:
-   - Break down the question's core concepts from the question prompt and rubric into distinct, credit-bearing points.
-   - ILLUSTRATIVE EXAMPLES VS MANDATORY REQUIREMENTS:
-     * If the model answer or rubric provides a sample example (e.g., a specific class like Dog, a specific method like bark(), or specific variable names), do NOT require those specific names unless the Question Text explicitly asked for them.
-     * Any valid, functionally correct example or approach (e.g. Student, Car, etc.) that demonstrates the requested concept must be awarded full credit for that concept.
-   - Each question has a maximum of 2 marks (or max_marks specified in rubric).
-   - "suggested_marks": Award numeric marks between 0.0 and max_marks strictly proportional to the demonstrated rubric points:
-     * Full marks (e.g. 2.0/2.0): All essential rubric concepts are clearly and correctly addressed.
-     * Partial marks (e.g. 1.0/2.0 or 0.5/2.0): Some distinct rubric points are answered correctly, while others are missed or incomplete.
-     * Zero marks (0.0/2.0): Answer is off-topic, unattempted, or contains none of the required concepts.
-
-4. STRICT CATEGORIZATION OF REVIEW POINTS (PIPE-SEPARATED FORMAT):
-   - MANDATORY TEXT CHECK FIRST: Check the student's handwritten text before marking anything missing. If a concept/keyword is mentioned or attempted anywhere, it CANNOT be placed in "missing".
-   - ZERO DUPLICATION ACROSS CATEGORIES: Each issue can appear in AT MOST ONE category. If an error is in "incorrect", do NOT repeat the same concept in "incomplete".
-   - NO INVENTED REQUIREMENTS: Grade strictly against the question and rubric. Do not invent extra unrequested requirements.
-   - NO PREFIXES: Do not start lines with "Missed:", "Incomplete:", or "Incorrect:".
-
-   A. "missing" (Points Missed):
-      - Include ONLY essential required concepts from the rubric that are 100% ABSENT (completely unmentioned).
-      - If the student made any mention or attempt, it cannot be in "missing".
-      - Return as a list of JSON objects:
-        [
-          {
-            "topic": "<Specific Topic / Concept Name>",
-            "issue": "<What was missed in this topic>",
-            "label": "Needed",
-            "statement": "<What statement or concept was needed>"
-          }
-        ]
-      - If no points were missed, return [].
-
-   B. "incomplete" (Points Incomplete):
-      - Include ONLY concepts the student actually attempted without factual error, but where a specific required mechanism or technical depth is lacking.
-      - State the exact narrow missing detail. Do not mark correctly explained details as incomplete.
-      - Never put factually wrong statements here; those belong exclusively in "incorrect".
-      - Return as a list of JSON objects:
-        [
-          {
-            "topic": "<Specific Topic / Concept Name>",
-            "issue": "<What was incomplete in this topic>",
-            "label": "Complete",
-            "statement": "<What statement or detail completes the concept>"
-          }
-        ]
-      - If no points are incomplete, return [].
-
-   C. "incorrect" (Points Incorrect):
-      - Include ONLY statements or calculations written by the student that are FACTUALLY WRONG, scientifically false, or invalid.
-      - All factually false assertions MUST be classified here, NEVER in "incomplete".
-      - Return as a list of JSON objects:
-        [
-          {
-            "topic": "<Specific Topic / Concept Name>",
-            "issue": "<What statement the student got incorrect>",
-            "label": "Correct",
-            "statement": "<Accurate scientific correction statement>"
-          }
-        ]
-      - If there are no incorrect statements, return [].
-
-5. OBJECTIVE / MULTIPLE CHOICE QUESTIONS:
+3. OBJECTIVE / MULTIPLE CHOICE QUESTIONS:
    - Identify option letter (e.g. 'a', 'b') or option text written under the question label.
    - If it matches the correct option letter or text (case-insensitive), award full marks (suggested_marks = max_marks, is_correct = 1, missing = [], incomplete = [], incorrect = []).
    - If incorrect, award 0.0 marks and specify the error.
 
-6. HIGH-LEVEL FEEDBACK:
-   - Provide a concise 1-2 sentence student-friendly explanation stating what was correct and exactly why the marks were awarded.
+4. REVIEW POINTS CLASSIFICATION (missing, incomplete, incorrect):
+   - Check handwritten text first; if a concept is mentioned or attempted anywhere, it CANNOT be placed in "missing".
+   - Zero duplication across categories: each verified issue must appear in AT MOST ONE category.
+   - Each entry in these lists must be an object with exact keys:
+     {"topic": "<Specific Topic/Concept Name>", "issue": "<Concise description of the issue>", "label": "<Label>", "statement": "<Correction or required statement>"}
+   - Categories and Labels:
+     * "missing" (label: "Needed"): Essential required rubric concepts that are 100% absent. Return [] if none.
+     * "incomplete" (label: "Complete"): Concepts attempted without factual error, but lacking required technical depth. Return [] if none.
+     * "incorrect" (label: "Correct"): Factually wrong, scientifically false, or invalid statements/calculations. Return [] if none.
 
-7. UNATTEMPTED QUESTIONS:
-   - If a question header or answer is absent from the sheet:
-     set "relevance_classification": "Unattempted", "suggested_marks": 0.0, "is_correct": 0, "detected_on_pages": [], "missing": [{"topic": "Unattempted", "issue": "Entire question unattempted", "label": "Needed", "statement": "Student did not attempt this question"}], "incomplete": [], "incorrect": [], "feedback": "Question was not attempted.", "ai_confidence": 95.
-
-8. AI CONFIDENCE (0 to 100):
-   - "ai_confidence" must be an integer between 0 and 100 representing evaluation certainty based on scan clarity, handwriting legibility, answer boundary detection, and rubric mapping.
-   - Clear legible handwriting with unambiguous rubric alignment: 85–100.
-   - Ambiguous or partially legible handwriting: 40–70.
-   - Confirmed unattempted question: 90–100.
+5. FEEDBACK & CONFIDENCE:
+   - "feedback": 1-2 concise student-friendly sentences explaining what was correct and why the score was awarded.
+   - "ai_confidence": Integer between 0 and 100 (85-100 for clear handwriting; 40-70 for ambiguous/partially legible handwriting).
+   - Unattempted Questions: If a question is absent from the sheet, set suggested_marks=0.0, is_correct=0, detected_on_pages=[], missing=[{"topic": "Unattempted", "issue": "Entire question unattempted", "label": "Needed", "statement": "Student did not attempt this question"}], incomplete=[], incorrect=[], feedback="Question was not attempted.", ai_confidence=95.
 
 ALWAYS respond ONLY with a single valid JSON object (no markdown code blocks, no extra text).
 
@@ -966,8 +912,8 @@ OUTPUT JSON STRUCTURE:
     {
       "question_id": "<exact question_id string from the rubric>",
       "question_number": <integer question number>,
-      "student_answer_snippet": "<faithful transcription of only what the student actually wrote>",
-      "detected_on_pages": [<array of page numbers where this answer is located>],
+      "student_answer_snippet": "<faithful transcription of what the student wrote>",
+      "detected_on_pages": [<array of page numbers>],
       "relevance_classification": "<'Directly answers question' | 'Partially answers question' | 'Relevant topic but does not answer question' | 'Incorrect answer' | 'Unattempted'>",
       "suggested_marks": <float score between 0.0 and max_marks>,
       "max_marks": <float maximum marks for this question>,
@@ -997,7 +943,7 @@ OUTPUT JSON STRUCTURE:
           "statement": "<accurate scientific correction statement>"
         }
       ],
-      "feedback": "<concise 1-2 sentence feedback explaining score and strengths/weaknesses>"
+      "feedback": "<concise 1-2 sentence feedback explaining score>"
     }
   ],
   "overall_summary": "<1-2 sentence overall summary of student performance>",
@@ -1007,7 +953,17 @@ OUTPUT JSON STRUCTURE:
 
     # Build multimodal user content
     user_content = []
-    rubric_text = f"QUESTION PAPER BLUEPRINT & MARKING SCHEME:\n{json.dumps(exam_rubric, ensure_ascii=False, indent=2)}\n\nPlease evaluate all questions across the attached {len(page_images)} answer sheet page(s):"
+    rubric_json = json.dumps(
+        exam_rubric,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+    rubric_text = (
+        f"QUESTION PAPER BLUEPRINT & MARKING SCHEME:\n{rubric_json}"
+        f"\n\nPlease evaluate all questions across the attached "
+        f"{len(page_images)} answer sheet page(s):"
+    )   
     user_content.append({"type": "text", "text": rubric_text})
 
     for idx, page in enumerate(page_images, 1):
