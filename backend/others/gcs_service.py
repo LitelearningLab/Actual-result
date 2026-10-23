@@ -31,8 +31,16 @@ ALLOWED_AUDIO_MIMES = {
     "audio/flac": [".flac"]
 }
 
+ALLOWED_DOCUMENT_MIMES = {
+    "application/msword": [".doc"],
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+    "application/vnd.ms-excel": [".xls"],
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"]
+}
+
 MAX_IMAGE_SIZE_BYTES = int(os.getenv("MAX_IMAGE_SIZE_BYTES", 15 * 1024 * 1024))  # 15 MB
 MAX_AUDIO_SIZE_BYTES = int(os.getenv("MAX_AUDIO_SIZE_BYTES", 30 * 1024 * 1024))  # 30 MB
+MAX_DOC_SIZE_BYTES = int(os.getenv("MAX_DOC_SIZE_BYTES", 25 * 1024 * 1024))  # 25 MB
 
 
 def sanitize_filename(filename: str) -> str:
@@ -108,6 +116,7 @@ class GCSStorageService:
         # Determine media category
         is_image = False
         is_audio = False
+        is_doc = False
 
         for m, exts in ALLOWED_IMAGE_MIMES.items():
             if mime_type == m or ext in exts:
@@ -121,7 +130,13 @@ class GCSStorageService:
                 mime_type = m
                 break
 
-        if not is_image and not is_audio:
+        for m, exts in ALLOWED_DOCUMENT_MIMES.items():
+            if mime_type == m or ext in exts:
+                is_doc = True
+                mime_type = m
+                break
+
+        if not is_image and not is_audio and not is_doc:
             # Fallback check on extensions
             if ext in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"]:
                 is_image = True
@@ -129,15 +144,28 @@ class GCSStorageService:
             elif ext in [".mp3", ".wav", ".ogg", ".webm", ".m4a", ".aac", ".flac"]:
                 is_audio = True
                 mime_type = f"audio/{ext.replace('.', '')}"
+            elif ext in [".doc", ".docx"]:
+                is_doc = True
+                mime_type = "application/msword" if ext == ".doc" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif ext in [".xls", ".xlsx"]:
+                is_doc = True
+                mime_type = "application/vnd.ms-excel" if ext == ".xls" else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             else:
-                return False, f"Unsupported file type '{ext}'. Allowed: images (JPG, PNG, GIF, WebP, SVG) and audio (MP3, WAV, OGG, WebM, M4A, AAC)", None, None
+                return False, f"Unsupported file type '{ext}'. Allowed: images (JPG, PNG, GIF, WebP, SVG), documents (Word, Excel), and audio (MP3, WAV, OGG, WebM, M4A, AAC)", None, None
 
-        media_type = "image" if is_image else "audio"
+        if is_image:
+            media_type = "image"
+        elif is_audio:
+            media_type = "audio"
+        else:
+            media_type = "document"
 
         if expected_type == "image" and not is_image:
             return False, "Expected an image file (JPG, PNG, GIF, WebP, SVG)", None, None
         if expected_type == "audio" and not is_audio:
             return False, "Expected an audio file (MP3, WAV, OGG, WebM, M4A, AAC)", None, None
+        if expected_type == "document" and not is_doc:
+            return False, "Expected a Word or Excel document (.doc, .docx, .xls, .xlsx)", None, None
 
         # Size check
         size_len = len(file_bytes)
@@ -147,6 +175,9 @@ class GCSStorageService:
         if is_audio and size_len > MAX_AUDIO_SIZE_BYTES:
             max_mb = MAX_AUDIO_SIZE_BYTES // (1024 * 1024)
             return False, f"Audio size exceeds maximum limit of {max_mb}MB", None, None
+        if is_doc and size_len > MAX_DOC_SIZE_BYTES:
+            max_mb = MAX_DOC_SIZE_BYTES // (1024 * 1024)
+            return False, f"Document size exceeds maximum limit of {max_mb}MB", None, None
 
         return True, None, media_type, mime_type
 

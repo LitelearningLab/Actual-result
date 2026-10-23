@@ -1272,44 +1272,28 @@
                 <div class="media-upload-actions">
                   <input
                     type="file"
-                    #qImgInput
+                    #qFileInput
                     style="display: none"
-                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
-                    (change)="onQuestionMediaSelected(qi, $event, 'image')"
-                  />
-                  <input
-                    type="file"
-                    #qAudInput
-                    style="display: none"
-                    accept="audio/mpeg,audio/wav,audio/mp3,audio/ogg,audio/m4a,audio/webm"
-                    (change)="onQuestionMediaSelected(qi, $event, 'audio')"
+                    accept=".jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.mp3,image/jpeg,image/png,image/webp,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/mp3"
+                    (change)="onQuestionMediaSelected(qi, $event)"
                   />
                   <button
                     type="button"
                     mat-stroked-button
                     color="primary"
                     class="media-action-btn"
-                    (click)="qImgInput.click()"
+                    (click)="qFileInput.click()"
                     [disabled]="q._uploadingMedia"
                   >
-                    <mat-icon>add_photo_alternate</mat-icon>
-                    <span>Add Image</span>
-                  </button>
-                  <button
-                    type="button"
-                    mat-stroked-button
-                    color="accent"
-                    class="media-action-btn"
-                    (click)="qAudInput.click()"
-                    [disabled]="q._uploadingMedia"
-                  >
-                    <mat-icon>audiotrack</mat-icon>
-                    <span>Add Audio</span>
+                    <mat-icon *ngIf="!q._uploadingMedia">attach_file</mat-icon>
+                    <mat-icon *ngIf="q._uploadingMedia" class="rotating-spinner">sync</mat-icon>
+                    <span>{{ q._uploadingMedia ? 'Uploading...' : 'Attach File' }}</span>
                   </button>
                 </div>
 
                 <!-- Media Preview Cards -->
                 <div class="media-preview-cards" *ngIf="q.media && q.media.length">
+
                   <div class="media-card-item" *ngFor="let m of q.media; let mi = index">
                     <div
                       class="media-preview-thumb"
@@ -1348,6 +1332,9 @@
                         <option [ngValue]="3">3 times</option>
                       </select>
                     </div>
+                    <div class="media-preview-thumb media-doc-thumb" *ngIf="m.media_type === 'document'" style="background: #e2e8f0;">
+                      <mat-icon style="color: #475569; font-size: 24px; width: 24px; height: 24px;">description</mat-icon>
+                    </div>
                     <span
                       class="media-filename"
                       [title]="m.original_filename || (m.media_type | uppercase)"
@@ -1375,6 +1362,16 @@
                     >
                       <mat-icon>visibility</mat-icon>
                     </button>
+                    <a
+                      *ngIf="m.media_type === 'document'"
+                      mat-icon-button
+                      class="media-view-btn"
+                      [href]="resolveMediaUrl(m.file_url || m.url)"
+                      target="_blank"
+                      matTooltip="Download attachment"
+                    >
+                      <mat-icon>download</mat-icon>
+                    </a>
                     <button
                       type="button"
                       mat-icon-button

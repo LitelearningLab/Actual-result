@@ -765,6 +765,10 @@
                             <span>{{ (m.play_limit || 0) > 0 ? ('Limit: ' + m.play_limit + (m.play_limit === 1 ? ' play' : ' plays')) : 'Unlimited plays' }}</span>
                           </span>
                         </div>
+                        <div class="view-media-doc-wrap" *ngIf="m.media_type === 'document'" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.65rem; background: #f1f5f9; border-radius: 0.375rem;">
+                          <mat-icon style="color: #475569;">description</mat-icon>
+                          <a [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 500;" matTooltip="Download attachment">{{ m.original_filename || 'Download Document' }}</a>
+                        </div>
                       </div>
                     </div>
                   </div>

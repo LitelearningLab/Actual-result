@@ -242,12 +242,10 @@ export interface MathToolItem {
       type="button"
       class="reopen-math-tools-btn"
       (click)="showToolbar()"
-      matTooltip="LaTeX Tools (Alt + M)"
-      aria-label="LaTeX Tools (Alt + M)"
+      matTooltip="Math Tools (Alt + M)"
+      aria-label="Math Tools (Alt + M)"
     >
       <span class="bubble-symbol">&sum;</span>
-      <span class="bubble-label">Math Tools</span>
-      <span class="bubble-shortcut">Alt + M</span>
       <span class="bubble-target-dot" *ngIf="targetLabel" title="Target active"></span>
     </button>
   `,
@@ -777,53 +775,47 @@ export interface MathToolItem {
         background: rgba(79, 70, 229, 0.05);
       }
 
-      /* Re-open Floating Bubble Button */
+      /* Re-open Floating Bubble Button - Round Circle */
       .reopen-math-tools-btn {
         position: fixed;
         bottom: 1.5rem;
         right: 1.5rem;
         z-index: 10040;
-        display: inline-flex;
+        display: flex;
         align-items: center;
-        gap: 0.4rem;
-        padding: 0.5rem 0.9rem;
+        justify-content: center;
+        width: 3.25rem;
+        height: 3.25rem;
+        padding: 0;
         background: linear-gradient(135deg, #4f46e5, #06b6d4);
         color: #ffffff;
         border: none;
-        border-radius: 9999px;
-        font-size: 0.825rem;
-        font-weight: 700;
-        box-shadow: 0 4px 16px rgba(79, 70, 229, 0.35);
+        border-radius: 50%;
+        box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4);
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: all 0.2s ease;
       }
 
       .reopen-math-tools-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 6px 22px rgba(79, 70, 229, 0.55);
       }
 
       .bubble-symbol {
-        font-size: 1.1rem;
-        font-weight: 800;
+        font-size: 1.5rem;
+        font-weight: 700;
         line-height: 1;
       }
 
       .bubble-target-dot {
-        width: 0.5rem;
-        height: 0.5rem;
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 0.55rem;
+        height: 0.55rem;
         border-radius: 50%;
         background: #22c55e;
-        border: 1px solid #ffffff;
-      }
-
-      .bubble-shortcut {
-        font-size: 0.7rem;
-        padding: 0.1rem 0.35rem;
-        background: rgba(255, 255, 255, 0.25);
-        border-radius: 0.25rem;
-        font-weight: 600;
-        margin-left: 0.15rem;
+        border: 2px solid #ffffff;
       }
 
       .custom-scrollbar::-webkit-scrollbar {

@@ -5197,6 +5197,29 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
       max-width: 100%;
       width: 100%;
     }
+
+    .eval-q-media-doc {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.65rem;
+      color: #2563eb;
+      font-weight: 500;
+      font-size: 0.85rem;
+      text-decoration: none;
+      border-radius: 0.375rem;
+
+      &:hover {
+        background: #e0e7ff;
+        text-decoration: underline;
+      }
+
+      .mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+    }
   }
 }
 

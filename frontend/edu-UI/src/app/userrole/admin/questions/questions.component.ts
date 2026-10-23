@@ -3271,18 +3271,31 @@ export class AdminQuestionsComponent {
     return '';
   }
 
-  onQuestionMediaSelected(qIndex: number, event: any, mediaType: 'image' | 'audio') {
+  onQuestionMediaSelected(qIndex: number, event: any, explicitType?: 'image' | 'audio' | 'document') {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
     const q = this.questions[qIndex];
     if (!q) return;
     if (!Array.isArray(q.media)) q.media = [];
 
+    const ext = (file.name || '').split('.').pop()?.toLowerCase();
+    let detectedType: 'image' | 'audio' | 'document' = explicitType || 'document';
+
+    if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext || '')) {
+      detectedType = 'image';
+    } else if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext || '')) {
+      detectedType = 'audio';
+    } else if (['doc', 'docx', 'xls', 'xlsx'].includes(ext || '')) {
+      detectedType = 'document';
+    }
+
+    const folder = detectedType === 'audio' ? 'audio' : (detectedType === 'image' ? 'images' : 'documents');
+
     const fd = new FormData();
     fd.append('file', file);
-    fd.append('media_type', mediaType);
-    fd.append('expected_type', mediaType);
-    fd.append('folder', mediaType === 'audio' ? 'audio' : 'images');
+    fd.append('media_type', detectedType);
+    fd.append('expected_type', detectedType);
+    fd.append('folder', folder);
     if (q.id || q.question_id) {
       fd.append('question_id', String(q.id || q.question_id));
     }
@@ -3294,11 +3307,12 @@ export class AdminQuestionsComponent {
         if (res && res.status && res.data) {
           const mediaItem = {
             ...res.data,
+            media_type: res.data.media_type || detectedType,
             play_limit: res.data.play_limit != null ? Number(res.data.play_limit) : 0,
           };
           q.media.push(mediaItem);
           try {
-            notify(`${mediaType === 'audio' ? 'Audio' : 'Image'} uploaded successfully`, 'success');
+            notify('File attached successfully', 'success');
           } catch (e) {}
         } else {
           notify(res?.statusMessage || res?.message || 'Upload failed', 'error');

@@ -182,6 +182,12 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Document Attachment (Word / Excel) -->
+              <div *ngIf="m.media_type === 'document'" class="user-doc-attachment" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+                <mat-icon style="color: #475569;">description</mat-icon>
+                <a [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank" download style="color: #2563eb; font-weight: 600; text-decoration: none;" matTooltip="Download attachment">{{ m.original_filename || 'Download Attachment' }}</a>
+              </div>
             </div>
           </div>
 

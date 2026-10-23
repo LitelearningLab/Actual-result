@@ -119,6 +119,8 @@ def upload_question_media(request):
         subfolder = "options"
     elif media_type == "audio" or folder == "audio" or expected_type == "audio":
         subfolder = "audio"
+    elif media_type in ("document", "file") or folder in ("documents", "docs"):
+        subfolder = "documents"
     else:
         subfolder = "images"
 

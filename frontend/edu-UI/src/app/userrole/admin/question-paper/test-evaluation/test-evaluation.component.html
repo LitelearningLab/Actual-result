@@ -213,10 +213,10 @@
                   [(ngModel)]="selectedExamId"
                   name="filterTest"
                   (selectionChange)="onTestChange($event.value)"
-                  [disabled]="isSuperAdmin && !activeInstituteId"
+                  [disabled]="(isSuperAdmin && !activeInstituteId) || isLoadingExams"
                   placeholder="Select Test"
                 >
-                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <div class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!isLoadingExams">
                     <input
                       matInput
                       class="select-search-input"
@@ -229,13 +229,33 @@
                       (input)="stopFilterSearchEvent($event)"
                     />
                   </div>
-                  <mat-option *ngIf="filteredExamsList.length === 0" disabled>
+
+                  <!-- Loading Indicator Option inside the dropdown -->
+                  <mat-option disabled *ngIf="isLoadingExams">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
+                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                      <span>Loading tests...</span>
+                    </div>
+                  </mat-option>
+
+                  <!-- Empty State (Only shows when NOT loading) -->
+                  <mat-option *ngIf="!isLoadingExams && filteredExamsList.length === 0" disabled>
                     No published paper tests found
                   </mat-option>
-                  <mat-option *ngFor="let t of filteredExamsList" [value]="t.exam_id">
-                    {{ t.title }}
-                  </mat-option>
+
+                  <!-- Options List (Only shows when NOT loading) -->
+                  <ng-container *ngIf="!isLoadingExams">
+                    <mat-option *ngFor="let t of filteredExamsList" [value]="t.exam_id">
+                      {{ t.title }}
+                    </mat-option>
+                  </ng-container>
                 </mat-select>
+
+                <!-- Sub-hint loading indicator below the field -->
+                <mat-hint *ngIf="isLoadingExams" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                  <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+                  <span>Loading tests...</span>
+                </mat-hint>
               </mat-form-field>
             </div>
           </div>
@@ -1390,6 +1410,16 @@
                     matTooltip="Click to view full image"
                   />
                   <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)" class="eval-q-media-audio"></audio>
+                  <a
+                    *ngIf="m.media_type === 'document'"
+                    [href]="resolveMediaUrl(m.file_url || m.url)"
+                    target="_blank"
+                    class="eval-q-media-doc"
+                    matTooltip="Download attachment"
+                  >
+                    <mat-icon>description</mat-icon>
+                    <span>{{ m.original_filename || 'Download Document' }}</span>
+                  </a>
                 </div>
               </div>
 
