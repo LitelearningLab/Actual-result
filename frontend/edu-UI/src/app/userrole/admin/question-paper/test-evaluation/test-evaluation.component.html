@@ -1222,13 +1222,22 @@
               *ngIf="currentSheetPage && !isLoadingEvaluation"
               [style.transform]="'translate(' + panX + 'px, ' + panY + 'px) scale(' + (zoomLevel / 100) + ')'"
             >
+              <!-- 1. Native Image element for JPG/PNG sheets -->
               <img
+                *ngIf="!isPdfPage(currentSheetPage)"
                 [src]="getPageImageUrl(currentSheetPage)"
                 alt="Student Answer Sheet Page {{ currentSheetPage.page_number }}"
                 class="sheet-page-rendered-image"
                 draggable="false"
                 (dragstart)="$event.preventDefault()"
               />
+
+              <!-- 2. High-DPI HTML5 Canvas for PDF sheets rendered via PDF.js -->
+              <canvas
+                *ngIf="isPdfPage(currentSheetPage)"
+                #pdfCanvas
+                class="sheet-page-rendered-image"
+              ></canvas>
             </div>
 
             <!-- Floating Reset Image Option (Visible when image is moved or zoomed) -->

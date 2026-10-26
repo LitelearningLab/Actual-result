@@ -686,37 +686,54 @@ OUTPUT ONLY THIS JSON:
     user_content.append({"type": "text", "text": intro_text})
 
     for idx, page in enumerate(page_images, 1):
+        data_uri = ""
+        page_num = idx
         if isinstance(page, str):
-            if os.path.isfile(page):
+            if page.startswith(("http://", "https://")):
+                data_uri = page
+            elif page.startswith("data:image"):
+                data_uri = page
+            elif os.path.isfile(page):
                 with open(page, "rb") as img_f:
                     b64_data = base64.b64encode(img_f.read()).decode("utf-8")
                 mime = "image/png" if page.lower().endswith(".png") else "image/jpeg"
                 data_uri = f"data:{mime};base64,{b64_data}"
-            elif page.startswith("data:image"):
-                data_uri = page
             else:
                 data_uri = f"data:image/jpeg;base64,{page}"
-            page_num = idx
         elif isinstance(page, dict):
-            b64_data = (
-                page.get("image_base64")
-                or page.get("data")
-                or page.get("dataUrl")
+            page_num = page.get("page_number") or page.get("order") or idx
+            url_target = (
+                page.get("signed_url")
+                or page.get("url")
+                or page.get("file_url")
                 or ""
             )
-            page_num = page.get("page_number", idx)
-            if b64_data.startswith("data:image"):
-                data_uri = b64_data
-            elif os.path.isfile(b64_data):
-                with open(b64_data, "rb") as img_f:
-                    raw_b64 = base64.b64encode(img_f.read()).decode("utf-8")
-                mime = (
-                    "image/png" if b64_data.lower().endswith(".png") else "image/jpeg"
-                )
-                data_uri = f"data:{mime};base64,{raw_b64}"
+            if isinstance(url_target, str) and url_target.startswith(("http://", "https://")):
+                data_uri = url_target
             else:
-                data_uri = f"data:{mime};base64,{b64_data}"
+                b64_data = (
+                    page.get("image_base64")
+                    or page.get("data")
+                    or page.get("dataUrl")
+                    or ""
+                )
+                if str(b64_data).startswith(("http://", "https://")):
+                    data_uri = str(b64_data)
+                elif str(b64_data).startswith("data:image"):
+                    data_uri = str(b64_data)
+                elif os.path.isfile(str(b64_data)):
+                    with open(str(b64_data), "rb") as img_f:
+                        raw_b64 = base64.b64encode(img_f.read()).decode("utf-8")
+                    mime = (
+                        "image/png" if str(b64_data).lower().endswith(".png") else "image/jpeg"
+                    )
+                    data_uri = f"data:{mime};base64,{raw_b64}"
+                else:
+                    data_uri = f"data:image/jpeg;base64,{b64_data}"
         else:
+            continue
+
+        if not data_uri:
             continue
 
         user_content.append(

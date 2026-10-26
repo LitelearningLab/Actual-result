@@ -20,6 +20,11 @@ import { Subscription, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
 import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
+import * as pdfjsLib from 'pdfjs-dist';
+
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.js';
+}
 
 export interface ScannedPageItem {
   id: string;
@@ -237,6 +242,13 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   isLoadingEvaluation = false;
   activeSheetPageIndex = 0;
   zoomLevel = 100;
+
+  // ── PDF.js Canvas State ──
+  @ViewChild('pdfCanvas') pdfCanvasRef?: ElementRef<HTMLCanvasElement>;
+  pdfDoc: any = null;
+  currentLoadedPdfUrl = '';
+  isRenderingPdfPage = false;
+  private pdfRenderTask: any = null;
 
   // ── Drag & Pan (Hand Tool) for Answer Sheet ──
   isPanningSheet = false;
@@ -985,6 +997,14 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.currentView = 'list';
     this.evaluatingStudent = null;
     this.evaluationDetails = null;
+    this.pdfDoc = null;
+    this.currentLoadedPdfUrl = '';
+    if (this.pdfRenderTask) {
+      try {
+        this.pdfRenderTask.cancel();
+      } catch {}
+      this.pdfRenderTask = null;
+    }
     this.refreshData();
   }
 
@@ -1000,6 +1020,14 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             this.aiConfidenceThreshold = Number(res.ai_confidence_threshold);
           }
           this.activeSheetPageIndex = 0;
+          this.pdfDoc = null;
+          this.currentLoadedPdfUrl = '';
+          const firstPage = this.evaluationPages[0];
+          if (this.isPdfPage(firstPage)) {
+            setTimeout(() => {
+              this.loadAndRenderPdf(this.getPdfUrl(firstPage), firstPage.page_number || 1);
+            }, 60);
+          }
         } else {
           notify(res?.statusMessage || 'Could not load evaluation details.', 'error');
         }
@@ -1045,11 +1073,104 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     return `${API_BASE}/${rawUrl.replace(/^\//, '')}`;
   }
 
+  isPdfPage(page: any): boolean {
+    if (!page) return false;
+    const rawUrl = (page.image_url || page.dataUrl || page.url || '').toLowerCase();
+    // If the page URL is an image, ALWAYS render with native <img>
+    if (rawUrl.includes('.jpg') || rawUrl.includes('.jpeg') || rawUrl.includes('.png') || rawUrl.includes('.webp') || rawUrl.startsWith('data:image/')) {
+      return false;
+    }
+    // Only treat as PDF if the URL itself is a PDF or explicitly application/pdf
+    if (rawUrl.includes('.pdf') || page.mime_type === 'application/pdf') {
+      return true;
+    }
+    return false;
+  }
+
+  getPdfUrl(page: any): string {
+    if (this.evaluationDetails?.pdf_url) {
+      const pUrl = this.evaluationDetails.pdf_url;
+      if (pUrl.startsWith('http://') || pUrl.startsWith('https://')) return pUrl;
+      return `${API_BASE}/${pUrl.replace(/^\//, '')}`;
+    }
+    return this.getPageImageUrl(page);
+  }
+
+  async loadAndRenderPdf(pdfUrl: string, pageNumber: number): Promise<void> {
+    if (!pdfUrl) return;
+    try {
+      if (!this.pdfDoc || this.currentLoadedPdfUrl !== pdfUrl) {
+        this.currentLoadedPdfUrl = pdfUrl;
+        const loadingTask = pdfjsLib.getDocument({
+          url: pdfUrl,
+          cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
+          cMapPacked: true,
+        });
+        this.pdfDoc = await loadingTask.promise;
+      }
+      await this.renderPdfPage(pageNumber);
+    } catch (err) {
+      console.error('Failed to load PDF document in viewer:', err);
+      this.isRenderingPdfPage = false;
+    }
+  }
+
+  async renderPdfPage(pageNumber: number): Promise<void> {
+    if (!this.pdfDoc || !this.pdfCanvasRef?.nativeElement) return;
+    const canvas = this.pdfCanvasRef.nativeElement;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    if (this.pdfRenderTask) {
+      try {
+        this.pdfRenderTask.cancel();
+      } catch {}
+      this.pdfRenderTask = null;
+    }
+
+    try {
+      this.isRenderingPdfPage = true;
+      const safePageNum = Math.max(1, Math.min(pageNumber, this.pdfDoc.numPages || pageNumber));
+      const page = await this.pdfDoc.getPage(safePageNum);
+
+      const dpr = window.devicePixelRatio || 1;
+      const baseViewport = page.getViewport({ scale: 1.5 });
+
+      canvas.width = Math.floor(baseViewport.width * dpr);
+      canvas.height = Math.floor(baseViewport.height * dpr);
+      canvas.style.width = `${Math.floor(baseViewport.width)}px`;
+      canvas.style.height = `${Math.floor(baseViewport.height)}px`;
+
+      const renderContext = {
+        canvasContext: context,
+        viewport: page.getViewport({ scale: 1.5 * dpr }),
+      };
+
+      this.pdfRenderTask = page.render(renderContext);
+      await this.pdfRenderTask.promise;
+      this.pdfRenderTask = null;
+      this.isRenderingPdfPage = false;
+      this.cdr.detectChanges();
+    } catch (err: any) {
+      if (err?.name !== 'RenderingCancelledException') {
+        console.error('Error rendering PDF page:', err);
+      }
+      this.isRenderingPdfPage = false;
+      this.cdr.detectChanges();
+    }
+  }
+
   selectSheetPage(index: number): void {
     if (index >= 0 && index < this.evaluationPages.length) {
       this.activeSheetPageIndex = index;
       this.panX = 0;
       this.panY = 0;
+      const targetPage = this.evaluationPages[index];
+      if (this.isPdfPage(targetPage)) {
+        setTimeout(() => {
+          this.loadAndRenderPdf(this.getPdfUrl(targetPage), targetPage.page_number || (index + 1));
+        }, 0);
+      }
     }
   }
 

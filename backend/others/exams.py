@@ -3766,6 +3766,20 @@ def get_student_evaluation_details(request, current_user=None):
                     )
             pages_data.sort(key=lambda x: x["page_number"])
 
+        # Check if original PDF exists in GCS for direct client-side canvas rendering
+        pdf_signed_url = None
+        if gcs_storage.is_gcs_active() and user_id and exam_id:
+            try:
+                pdf_object_path = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}/answersheet.pdf"
+                blob = gcs_storage.bucket.blob(pdf_object_path)
+                if blob.exists():
+                    pdf_signed_url = gcs_storage.generate_signed_url(
+                        pdf_object_path,
+                        expiration_minutes=60,
+                    )
+            except Exception:
+                pdf_signed_url = None
+
         # Fetch Questions & Answer Keys in exact sequential section/question order
         sec_rows = (
             session.query(ExamSection)
@@ -4120,6 +4134,7 @@ def get_student_evaluation_details(request, current_user=None):
             "attempt_id": str(attempt.attempt_id) if attempt else None,
             "status_code_name": attempt_status,
             "pages": pages_data,
+            "pdf_url": pdf_signed_url,
             "questions": questions_data,
             "summary": {
                 "total_marks": total_exam_marks,
@@ -4301,7 +4316,14 @@ def upload_answer_sheet(request, current_user=None):
     )
     os.makedirs(static_dir, exist_ok=True)
 
-    # 1. Rasterize and upload all pages to GCS under student_answers/test_evaluation/{user_id}/test_id_{exam_id}/page_{n}.jpg
+    # 1. Ensure GCS storage service is active (Strict: GCS required)
+    if not gcs_storage.is_gcs_active():
+        return {
+            "statusMessage": "Google Cloud Storage is not configured or inactive. Cannot upload answer sheet.",
+            "status": False,
+        }, 500
+
+    # 2. Rasterize and upload all pages to GCS under student_answers/test_evaluation/{user_id}/test_id_{exam_id}/page_{n}.jpg
     saved_page_files = []
     curr_page_num = 1
     gcs_folder_prefix = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}"
@@ -4315,6 +4337,16 @@ def upload_answer_sheet(request, current_user=None):
 
         if filename.endswith(".pdf"):
             rendered_pdf = False
+            # Safely archive original PDF in GCS for direct client-side canvas rendering
+            try:
+                gcs_storage.upload_media(
+                    file_bytes=file_bytes,
+                    filename="answersheet.pdf",
+                    exact_object_path=f"{gcs_folder_prefix}/answersheet.pdf",
+                    expected_type="pdf",
+                )
+            except Exception as pdf_save_err:
+                print(f"[GCS PDF Save Warning] Could not store original PDF: {pdf_save_err}")
             try:
                 import fitz
 
@@ -4337,7 +4369,10 @@ def upload_answer_sheet(request, current_user=None):
                             expected_type="image",
                         )
                     except Exception as gcs_err:
-                        print(f"[GCS Upload Warning] Page {curr_page_num}: {gcs_err}")
+                        return {
+                            "statusMessage": f"GCS Storage Error: Failed to upload page {curr_page_num} to GCS: {str(gcs_err)}",
+                            "status": False,
+                        }, 500
 
                     saved_page_files.append((curr_page_num, gcs_object_path))
                     curr_page_num += 1
@@ -4370,7 +4405,10 @@ def upload_answer_sheet(request, current_user=None):
                                 expected_type="image",
                             )
                         except Exception as gcs_err:
-                            print(f"[GCS Upload Warning] Page {curr_page_num}: {gcs_err}")
+                            return {
+                                "statusMessage": f"GCS Storage Error: Failed to upload page {curr_page_num} to GCS: {str(gcs_err)}",
+                                "status": False,
+                            }, 500
 
                         saved_page_files.append((curr_page_num, gcs_object_path))
                         curr_page_num += 1
@@ -4384,6 +4422,18 @@ def upload_answer_sheet(request, current_user=None):
                 with open(page_filepath, "wb") as f:
                     f.write(file_bytes)
                 gcs_object_path = f"{gcs_folder_prefix}/{page_filename}"
+                try:
+                    gcs_storage.upload_media(
+                        file_bytes=file_bytes,
+                        filename=page_filename,
+                        exact_object_path=gcs_object_path,
+                        expected_type="pdf",
+                    )
+                except Exception as gcs_err:
+                    return {
+                        "statusMessage": f"GCS Storage Error: Failed to upload PDF page {curr_page_num} to GCS: {str(gcs_err)}",
+                        "status": False,
+                    }, 500
                 saved_page_files.append((curr_page_num, gcs_object_path))
                 curr_page_num += 1
         else:
@@ -4401,7 +4451,10 @@ def upload_answer_sheet(request, current_user=None):
                     expected_type="image",
                 )
             except Exception as gcs_err:
-                print(f"[GCS Upload Warning] Page {curr_page_num}: {gcs_err}")
+                return {
+                    "statusMessage": f"GCS Storage Error: Failed to upload page {curr_page_num} to GCS: {str(gcs_err)}",
+                    "status": False,
+                }, 500
 
             saved_page_files.append((curr_page_num, gcs_object_path))
             curr_page_num += 1
@@ -4487,6 +4540,10 @@ def upload_answer_sheet(request, current_user=None):
                             gcs_storage.delete_media(old_p.image_path)
                         except Exception:
                             pass
+                try:
+                    gcs_storage.delete_media(f"{gcs_folder_prefix}/answersheet.pdf")
+                except Exception:
+                    pass
                 session.query(AnswerSheetPage).filter(
                     AnswerSheetPage.attempt_id.in_(all_att_ids)
                 ).delete(synchronize_session=False)
@@ -4502,12 +4559,23 @@ def upload_answer_sheet(request, current_user=None):
                 )
                 session.add(page_obj)
 
-                if gcs_storage.is_gcs_active():
-                    page_img_url = gcs_storage.generate_signed_url(rel_img_path)
-                elif rel_img_path.startswith("http"):
-                    page_img_url = rel_img_path
-                else:
-                    page_img_url = f"/edu/api/uploads/answer_sheets/{rel_img_path}"
+                try:
+                    page_img_url = gcs_storage.generate_signed_url(
+                        rel_img_path, expiration_minutes=60
+                    )
+                    if not page_img_url or not str(page_img_url).startswith(
+                        ("http://", "https://")
+                    ):
+                        raise ValueError(
+                            f"Could not generate a valid GCS signed URL for {rel_img_path}"
+                        )
+                except Exception as sign_err:
+                    session.rollback()
+                    session.close()
+                    return {
+                        "statusMessage": f"GCS URL Error: Failed to generate signed URL for page {pnum}: {str(sign_err)}",
+                        "status": False,
+                    }, 500
 
                 created_pages.append(
                     {
@@ -4679,11 +4747,10 @@ def upload_answer_sheet(request, current_user=None):
 
             exam_rubric = {"exam_id": str(exam_id), "sections": rubric_sections}
 
-            # Absolute paths of saved page images for AI visual analysis
-            page_image_paths = [
-                os.path.join(static_dir, f"page_{pnum}.jpg")
-                for pnum, _ in saved_page_files
-                if os.path.exists(os.path.join(static_dir, f"page_{pnum}.jpg"))
+            # Direct GCS signed URLs for AI visual analysis (no Base64)
+            ai_page_inputs = [
+                {"page_number": p["page_number"], "url": p["image_url"]}
+                for p in created_pages
             ]
 
             # Build question number map
@@ -4713,7 +4780,7 @@ def upload_answer_sheet(request, current_user=None):
 
                 # Phase 1: Visually detect physically written question numbers
                 detection_result = vision_detect_question_anchors(
-                    client, page_image_paths, exam_question_numbers=all_exam_q_nums
+                    client, ai_page_inputs, exam_question_numbers=all_exam_q_nums
                 )
 
                 uncertain_q_nums_set = set()
@@ -4769,7 +4836,7 @@ def upload_answer_sheet(request, current_user=None):
                         "sections": filtered_sections,
                     }
                     ai_eval_result = vision_evaluate_answersheet(
-                        client, eval_rubric, page_image_paths
+                        client, eval_rubric, ai_page_inputs
                     )
                     if ai_eval_result and ai_eval_result.get("status"):
                         for ev in ai_eval_result.get("evaluations", []):
