@@ -1270,8 +1270,18 @@ export class AdminQuestionsComponent {
       correct: null,
       answerText: '',
       _expanded: true,
+      _isEditingText: true,
       showFineTune: false,
     });
+    const newQi = this.questions.length - 1;
+    setTimeout(() => {
+      const el = document.getElementById(`q-textarea-${newQi}`) as HTMLTextAreaElement;
+      if (el) {
+        el.focus();
+        this.autoResize(el);
+        this.setActiveTarget(el, `Question ${newQi + 1}`, newQi, 'question');
+      }
+    }, 100);
   }
 
   removeQuestion(index: number) {
@@ -4029,6 +4039,7 @@ export class AdminQuestionsComponent {
   startEditingQuestionText(q: any, qi: number): void {
     q._prevText = q.text || '';
     q._isEditingText = true;
+    q._expanded = true;
     setTimeout(() => {
       const el = document.getElementById(`q-textarea-${qi}`) as HTMLTextAreaElement;
       if (el) {
@@ -4050,6 +4061,14 @@ export class AdminQuestionsComponent {
       delete q._prevText;
     }
     q._isEditingText = false;
+  }
+
+  onQuestionTextareaKeydown(event: KeyboardEvent, q: any, qi: number): void {
+    event.stopPropagation();
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      this.saveEditingQuestionText(q, qi);
+    }
   }
 
   hasMathSyntax(text: string | null | undefined): boolean {
