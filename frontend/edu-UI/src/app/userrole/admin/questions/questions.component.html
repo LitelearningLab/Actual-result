@@ -1302,7 +1302,7 @@
                     type="file"
                     #qFileInput
                     style="display: none"
-                    accept=".jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.mp3,image/jpeg,image/png,image/webp,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/mp3"
+                    accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.mp3,image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/mp3"
                     (change)="onQuestionMediaSelected(qi, $event)"
                   />
                   <button
@@ -1318,7 +1318,7 @@
                     <span>{{ q._uploadingMedia ? 'Uploading...' : 'Attach File' }}</span>
                   </button>
                   <span class="media-hint">
-                    <strong>JPEG, PNG, WebP, Word (.doc, .docx), Excel (.xls, .xlsx), Audio (.mp3)</strong>
+                    <strong>JPEG, PNG, WebP, PDF (.pdf), Word (.doc, .docx), Excel (.xls, .xlsx), Audio (.mp3)</strong>
                   </span>
                 </div>
 
@@ -1363,8 +1363,17 @@
                         <option [ngValue]="3">3 times</option>
                       </select>
                     </div>
-                    <div class="media-preview-thumb media-doc-thumb" *ngIf="m.media_type === 'document'" style="background: #e2e8f0;">
-                      <mat-icon style="color: #475569; font-size: 24px; width: 24px; height: 24px;">description</mat-icon>
+                    <div
+                      class="media-preview-thumb media-doc-thumb"
+                      *ngIf="m.media_type === 'document'"
+                      [style.background]="(m.original_filename || m.url || '').toLowerCase().endsWith('.pdf') ? '#fee2e2' : '#e2e8f0'"
+                    >
+                      <mat-icon
+                        [style.color]="(m.original_filename || m.url || '').toLowerCase().endsWith('.pdf') ? '#dc2626' : '#475569'"
+                        style="font-size: 24px; width: 24px; height: 24px;"
+                      >
+                        {{ (m.original_filename || m.url || '').toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'description' }}
+                      </mat-icon>
                     </div>
                     <span
                       class="media-filename"

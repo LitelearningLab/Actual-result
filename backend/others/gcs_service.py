@@ -32,6 +32,7 @@ ALLOWED_AUDIO_MIMES = {
 }
 
 ALLOWED_DOCUMENT_MIMES = {
+    "application/pdf": [".pdf"],
     "application/msword": [".doc"],
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
     "application/vnd.ms-excel": [".xls"],
@@ -144,6 +145,9 @@ class GCSStorageService:
             elif ext in [".mp3", ".wav", ".ogg", ".webm", ".m4a", ".aac", ".flac"]:
                 is_audio = True
                 mime_type = f"audio/{ext.replace('.', '')}"
+            elif ext == ".pdf":
+                is_doc = True
+                mime_type = "application/pdf"
             elif ext in [".doc", ".docx"]:
                 is_doc = True
                 mime_type = "application/msword" if ext == ".doc" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -151,7 +155,7 @@ class GCSStorageService:
                 is_doc = True
                 mime_type = "application/vnd.ms-excel" if ext == ".xls" else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             else:
-                return False, f"Unsupported file type '{ext}'. Allowed: images (JPG, PNG, GIF, WebP, SVG), documents (Word, Excel), and audio (MP3, WAV, OGG, WebM, M4A, AAC)", None, None
+                return False, f"Unsupported file type '{ext}'. Allowed: images (JPG, PNG, GIF, WebP, SVG), documents (PDF, Word, Excel), and audio (MP3, WAV, OGG, WebM, M4A, AAC)", None, None
 
         if is_image:
             media_type = "image"
@@ -165,7 +169,7 @@ class GCSStorageService:
         if expected_type == "audio" and not is_audio:
             return False, "Expected an audio file (MP3, WAV, OGG, WebM, M4A, AAC)", None, None
         if expected_type == "document" and not is_doc:
-            return False, "Expected a Word or Excel document (.doc, .docx, .xls, .xlsx)", None, None
+            return False, "Expected a document file (.pdf, .doc, .docx, .xls, .xlsx)", None, None
 
         # Size check
         size_len = len(file_bytes)

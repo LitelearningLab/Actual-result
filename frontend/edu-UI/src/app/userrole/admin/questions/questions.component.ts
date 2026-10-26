@@ -3295,7 +3295,7 @@ export class AdminQuestionsComponent {
       detectedType = 'image';
     } else if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext || '')) {
       detectedType = 'audio';
-    } else if (['doc', 'docx', 'xls', 'xlsx'].includes(ext || '')) {
+    } else if (['doc', 'docx', 'xls', 'xlsx', 'pdf'].includes(ext || '')) {
       detectedType = 'document';
     }
 
