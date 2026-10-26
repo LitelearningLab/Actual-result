@@ -65,6 +65,7 @@ class openai_client:
         temperature: float = 0.2,
         timeout: float = 30.0,
         response_format=None,
+        user_name=None,
     ):
         if not self.api_key:
             return _ErrorResponse(
@@ -117,8 +118,9 @@ class openai_client:
                 input_tokens = usage.get("prompt_tokens", 0)
                 output_tokens = usage.get("completion_tokens", 0)
                 total_tokens = usage.get("total_tokens", 0)
+                user_tag = f"user={user_name} | " if user_name else ""
                 print(
-                    f"[TOKEN AUDIT] model={model} | "
+                    f"[TOKEN AUDIT] {user_tag}model={model} | "
                     f"input={input_tokens} | output={output_tokens} | "
                     f"total={total_tokens}",
                     flush=True,
@@ -135,7 +137,7 @@ class openai_client:
 
 
 def descriptive_evaluation(
-    api_client, question_mark, expected_answer, student_answer, question_text=""
+    api_client, question_mark, expected_answer, student_answer, question_text="", user_name=None
 ):
     system_message = """You are an expert academic evaluator. Evaluate the student's descriptive
 answer fairly and accurately against the supplied question, expected answer,
@@ -296,7 +298,7 @@ working, or text outside the JSON object."""
         answer before generating feedback. Return only the specified JSON object.
         """
     try:
-        response = api_client.chat_completion(system_message, user_message)
+        response = api_client.chat_completion(system_message, user_message, user_name=user_name)
         response_json = response.json()
         if response.status_code != 200:
             return {
@@ -821,7 +823,7 @@ OUTPUT ONLY THIS JSON:
         }
 
 
-def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60.0):
+def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60.0, user_name=None):
     """
     Evaluates student handwritten answer sheet page images directly using OpenAI Vision API.
     Does NOT use OCR or text extraction as an intermediate step.
@@ -1074,13 +1076,14 @@ OUTPUT JSON STRUCTURE:
         total_tokens = usage.get("total_tokens", 0)
         t_vision_eval_duration = time.perf_counter() - t_vision_eval_start
 
+        user_tag = f"user={user_name} | " if user_name else ""
         print(
-            f"[TOKEN AUDIT] model={resp_json.get('model', 'unknown')} | "
+            f"[TOKEN AUDIT] {user_tag}model={resp_json.get('model', 'unknown')} | "
             f"input={input_tokens} | output={output_tokens} | "
             f"total={total_tokens}"
         )   
         print(
-            f"[PERF] [OPENAI_VISION_EVAL] status=success duration={t_vision_eval_duration:.4f}s page_count={len(page_images)} model={resp_json.get('model', 'unknown')} input_tokens={input_tokens} output_tokens={output_tokens} total_tokens={total_tokens}",
+            f"[PERF] [OPENAI_VISION_EVAL] {user_tag}status=success duration={t_vision_eval_duration:.4f}s page_count={len(page_images)} model={resp_json.get('model', 'unknown')} input_tokens={input_tokens} output_tokens={output_tokens} total_tokens={total_tokens}",
             flush=True,
         )
 
@@ -1243,7 +1246,7 @@ OUTPUT JSON STRUCTURE:
 
 
 def vision_evaluate_question_images(
-    api_client, question_dict, answer_images, written_text=None, timeout=60.0
+    api_client, question_dict, answer_images, written_text=None, timeout=60.0, user_name=None
 ):
     """
     Evaluates one question's handwritten answer images (and optional typed text)
@@ -1285,7 +1288,7 @@ def vision_evaluate_question_images(
         ],
     }
     res = vision_evaluate_answersheet(
-        api_client, exam_rubric, answer_images, timeout=timeout
+        api_client, exam_rubric, answer_images, timeout=timeout, user_name=user_name
     )
     if res and res.get("status"):
         evals = res.get("evaluations", [])

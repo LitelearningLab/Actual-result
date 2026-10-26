@@ -712,10 +712,26 @@ def start_async_evaluation(attempt_id):
         _evaluating_attempts.add(att_str)
 
     def _worker():
+        user_name = "unknown"
         try:
-            print(f"[ASYNC_EVAL] Started background AI evaluation for attempt {att_str}", flush=True)
+            db_tmp = SQLiteDB()
+            s_tmp = db_tmp.connect()
+            if s_tmp:
+                try:
+                    att_obj = s_tmp.query(Exam_Attempt).filter_by(attempt_id=att_str).first()
+                    if att_obj:
+                        u_obj = s_tmp.query(User).filter_by(user_id=att_obj.user_id).first()
+                        if u_obj and u_obj.user_name:
+                            user_name = u_obj.user_name
+                finally:
+                    s_tmp.close()
+        except Exception:
+            pass
+
+        try:
+            print(f"[ASYNC_EVAL] Started background AI evaluation for attempt {att_str} | user={user_name}", flush=True)
             validate_answers(att_str)
-            print(f"[ASYNC_EVAL] Finished background AI evaluation for attempt {att_str}", flush=True)
+            print(f"[ASYNC_EVAL] Finished background AI evaluation for attempt {att_str} | user={user_name}", flush=True)
         except Exception as e:
             print(f"[ASYNC_EVAL] Error during background evaluation for attempt {att_str}: {e}", flush=True)
         finally:
@@ -785,6 +801,22 @@ def validate_answers(attempt_id):
     t_eval_total_start = time.perf_counter()
     eval_outcome = "unknown"
     evaluation_failures = 0
+    user_name = "unknown"
+    try:
+        db_u = SQLiteDB()
+        s_u = db_u.connect()
+        if s_u:
+            try:
+                att_o = s_u.query(Exam_Attempt).filter_by(attempt_id=str(attempt_id)).first()
+                if att_o:
+                    u_o = s_u.query(User).filter_by(user_id=att_o.user_id).first()
+                    if u_o and u_o.user_name:
+                        user_name = u_o.user_name
+            finally:
+                s_u.close()
+    except Exception:
+        pass
+
     try:
         result = _validate_answers_impl(attempt_id)
         if isinstance(result, tuple) and len(result) == 2:
@@ -804,7 +836,7 @@ def validate_answers(attempt_id):
     finally:
         t_eval_total_duration = time.perf_counter() - t_eval_total_start
         print(
-            f"[PERF] [TOTAL_EVALUATION] attempt_id={attempt_id} outcome={eval_outcome} evaluation_failures={evaluation_failures} total_duration={t_eval_total_duration:.4f}s",
+            f"[PERF] [TOTAL_EVALUATION] attempt_id={attempt_id} user={user_name} outcome={eval_outcome} evaluation_failures={evaluation_failures} total_duration={t_eval_total_duration:.4f}s",
             flush=True,
         )
 
@@ -827,13 +859,15 @@ def _validate_answers_impl(attempt_id):
     sched_rec = session.query(ExamSchedule).filter_by(schedule_id=attempt_rec.schedule_id).first() if attempt_rec else None
     auth_exam_id = str(sched_rec.exam_id) if (sched_rec and getattr(sched_rec, 'exam_id', None)) else None
     auth_inst_id = str(sched_rec.institute_id) if (sched_rec and getattr(sched_rec, 'institute_id', None)) else None
+    user_rec = session.query(User).filter_by(user_id=attempt_rec.user_id).first() if attempt_rec else None
+    user_name = user_rec.user_name if user_rec else "unknown"
     signed_url_cache = {}
 
     # get answer records
     answers = session.query(Answer).filter_by(attempt_id=attempt_id).all()
     t_db_query_duration = time.perf_counter() - t_db_query_start
     print(
-        f"[PERF] [DB_INITIAL_QUERY] attempt_id={attempt_id} answer_count={len(answers)} duration={t_db_query_duration:.4f}s",
+        f"[PERF] [DB_INITIAL_QUERY] attempt_id={attempt_id} user={user_name} answer_count={len(answers)} duration={t_db_query_duration:.4f}s",
         flush=True,
     )
 
@@ -1012,7 +1046,8 @@ def _validate_answers_impl(attempt_id):
                         openai_client_instance,
                         q_dict,
                         prepared_images,
-                        written_text=student_text
+                        written_text=student_text,
+                        user_name=user_name,
                     )
                 else:
                     evaluation = descriptive_evaluation(
@@ -1020,7 +1055,8 @@ def _validate_answers_impl(attempt_id):
                         question_mark,
                         expected_answer,
                         student_text or raw_answer,
-                        question_text=question.question_text if question else ""
+                        question_text=question.question_text if question else "",
+                        user_name=user_name,
                     )
 
                 if not evaluation.get("status", False):

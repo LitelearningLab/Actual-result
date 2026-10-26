@@ -328,7 +328,9 @@ class JWTValidator:
                 if not active_session:
                     print(f"[Auth.token_validation] SESSION NOT FOUND token={token[:12]}...", flush=True)
                     return "Session is not active"
-                print(f"[Auth.token_validation] SESSION VALID id={active_session.id} user_id={active_session.user_id} token={token[:12]}...", flush=True)
+                user_obj = active_session.user or session.query(User).filter_by(user_id=active_session.user_id).first()
+                username = user_obj.user_name if user_obj else "unknown"
+                print(f"[Auth.token_validation] SESSION VALID user={username} id={active_session.id} user_id={active_session.user_id} token={token[:12]}...", flush=True)
                 return "Access granted"
             finally:
                 session.close()
@@ -587,7 +589,9 @@ class JWTValidator:
             prev_hb = session_data.last_heartbeat
             session_data.last_heartbeat = datetime.datetime.utcnow()
             session.commit()
-            print(f"[Auth.heartbeat] Heartbeat updated for Session ID={session_data.id} | user_id={session_data.user_id} | prev_hb={prev_hb} | new_hb={session_data.last_heartbeat}", flush=True)
+            user_obj = session_data.user or session.query(User).filter_by(user_id=session_data.user_id).first()
+            username = user_obj.user_name if user_obj else "unknown"
+            print(f"[Auth.heartbeat] Heartbeat updated for user={username} Session ID={session_data.id} | user_id={session_data.user_id} | prev_hb={prev_hb} | new_hb={session_data.last_heartbeat}", flush=True)
             return {"status": True, "statusMessage": "Heartbeat updated"}, 200
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
             print(f"[Auth.heartbeat] JWT validation failed for token={token[:8] if 'token' in locals() else 'N/A'}: {e}", flush=True)
