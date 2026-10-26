@@ -1602,7 +1602,7 @@ def create_question_using_llm(request):
             system_message,
             user_message,
             aimodel=aimodel,
-            max_tokens=total_tokens_estimate + 500,
+            max_tokens = max(total_tokens_estimate + 2000, 4000)
         )
         # with open("debug_response.json", "w") as debug_file:
         #     debug_file.write(response.text)
@@ -1631,6 +1631,29 @@ def create_question_using_llm(request):
                 result_text = result_text[4:]
             result_text = result_text.strip()
         parsed = json.loads(result_text)
+
+                # ================= PRINT TOKEN USAGE DETAILS =================
+        usage = response_json.get("usage", {}) or {}
+        prompt_tokens = usage.get("prompt_tokens", 0)       # Input tokens (prompt + source text)
+        completion_tokens = usage.get("completion_tokens", 0) # Output tokens (generated question tokens)
+        total_tokens = usage.get("total_tokens", 0)         # Total tokens (prompt + completion)
+
+        questions_list = parsed if isinstance(parsed, list) else [parsed]
+        num_questions = len(questions_list)
+        avg_tokens_per_q = (completion_tokens / num_questions) if num_questions else completion_tokens
+
+        # ============================================
+        # ACTUAL API TOKEN USAGE
+        # ============================================
+        usage = response_json.get("usage") or {}
+
+        print("\n========== ACTUAL API TOKEN USAGE ==========", flush=True)
+        print(f"Model         : {response_json.get('model', 'N/A')}", flush=True)
+        print(f"Input Tokens  : {usage.get('prompt_tokens', usage.get('input_tokens', 'N/A'))}", flush=True)
+        print(f"Output Tokens : {usage.get('completion_tokens', usage.get('output_tokens', 'N/A'))}", flush=True)
+        print(f"Total Tokens  : {usage.get('total_tokens', 'N/A')}", flush=True)
+        print("============================================\n", flush=True)
+
         # normalize parsed output to a consistent dict
         if isinstance(parsed, list):
             result = {
