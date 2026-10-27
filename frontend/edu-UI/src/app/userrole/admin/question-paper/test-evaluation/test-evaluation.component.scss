@@ -1942,6 +1942,11 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
             color: #94a3b8;
             margin-top: 0.25rem;
             font-weight: 500;
+
+            .step-sub-danger {
+              color: #ef4444;
+              font-weight: 700;
+            }
           }
         }
       }
@@ -1990,8 +1995,8 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: #ffffff;
-        border: 1px solid #fcd34d;
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
         border-radius: 0.5rem;
         padding: 0.5rem 0.75rem;
         gap: 1rem;
@@ -2003,7 +2008,7 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           min-width: 0;
 
           .unmatched-file-icon {
-            color: #d97706;
+            color: #ef4444;
             font-size: 18px;
             width: 18px;
             height: 18px;
@@ -2013,7 +2018,7 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           .unmatched-file-name {
             font-size: 0.8125rem;
             font-weight: 600;
-            color: #78350f;
+            color: #dc2626;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -3593,7 +3598,8 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
     gap: 0.5rem;
 
     .btn-attach-quick,
-    .btn-scan-quick {
+    .btn-scan-quick,
+    .btn-remove-sheet {
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
@@ -3629,6 +3635,26 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
 
       &:hover {
         background: #dbeafe;
+      }
+    }
+
+    .btn-remove-sheet {
+      background: #ffffff;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+
+      mat-icon {
+        color: #dc2626;
+      }
+
+      &:hover {
+        background: #fef2f2;
+        border-color: #f87171;
+        color: #b91c1c;
+
+        mat-icon {
+          color: #b91c1c;
+        }
       }
     }
   }
@@ -5689,6 +5715,182 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
   from { transform: scale(0.95); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+// ── Confirm Remove Answer Sheet Modal Card ──
+.confirm-remove-modal-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 1.125rem;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  animation: modalScaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 1.75rem 1.75rem 1.5rem;
+  text-align: center;
+
+  .modal-close-icon-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+
+    &:hover:not(:disabled) {
+      background: #f1f5f9;
+      color: #334155;
+    }
+  }
+
+  .confirm-modal-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .confirm-icon-badge {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: #fef2f2;
+      border: 4px solid #fff1f2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+
+      mat-icon {
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
+        color: #dc2626;
+      }
+    }
+
+    .confirm-modal-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .confirm-modal-desc {
+      font-size: 0.875rem;
+      color: #64748b;
+      margin: 0 0 1rem 0;
+      line-height: 1.5;
+
+      .highlight-student-name {
+        color: #0f172a;
+        font-weight: 700;
+      }
+    }
+
+    .confirm-warning-callout {
+      width: 100%;
+      background: #fff5f5;
+      border: 1px solid #fee2e2;
+      border-radius: 0.5rem;
+      padding: 0.65rem 0.85rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      text-align: left;
+      font-size: 0.75rem;
+      color: #b91c1c;
+      line-height: 1.4;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: #ef4444;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      strong {
+        font-weight: 700;
+      }
+    }
+  }
+
+  .confirm-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+
+    .btn-confirm-cancel {
+      padding: 0.5rem 1.1rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #475569;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover:not(:disabled) {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+      }
+    }
+
+    .btn-confirm-delete {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.5rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #ffffff;
+      background: #dc2626;
+      border: none;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.25);
+      transition: all 0.15s ease;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+
+      .spin-icon {
+        animation: spin 1s linear infinite;
+      }
+
+      &:hover:not(:disabled) {
+        background: #b91c1c;
+        box-shadow: 0 4px 10px rgba(220, 38, 38, 0.4);
+      }
+
+      &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+    }
+  }
+}
+
 
 
 

@@ -599,7 +599,7 @@
               <span class="step-sub">
                 <ng-container *ngIf="bulkFiles.length === 0">Pending upload</ng-container>
                 <ng-container *ngIf="bulkFiles.length > 0 && unmatchedCount === 0">{{ matchedCount }} matched</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && unmatchedCount > 0">{{ matchedCount }} matched, {{ unmatchedCount }} not</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && unmatchedCount > 0">{{ matchedCount }} matched, <span class="step-sub-danger">{{ unmatchedCount }} not</span></ng-container>
               </span>
             </div>
 
@@ -725,7 +725,7 @@
                 <td class="col-student">
                   <div class="student-name">{{ s.name }}</div>
                   <div class="student-roll">{{ s.rollNo }}</div>
-                  <div *ngIf="s.matchedFile && s.status !== 'AI Evaluated'" class="match-badge-chip">
+                  <div *ngIf="s.matchedFile && s.status !== 'AI Evaluated' && s.status !== 'Completed' && s.status !== 'evaluated' && s.status !== 'Need to Check' && s.status !== 'Manual Reviewed'" class="match-badge-chip">
                     <mat-icon class="match-icon">description</mat-icon>
                     <span class="match-chip-text" [title]="s.matchedFile">{{ s.matchedFile }} ({{ s.matchedBy || 'Matched' }})</span>
                     <button
@@ -1189,6 +1189,15 @@
           <button type="button" class="btn-scan-quick" (click)="openScanModal(evaluatingStudent!)" title="Scan with Camera">
             <mat-icon>photo_camera</mat-icon>
             <span>Scan Sheet</span>
+          </button>
+          <button
+            type="button"
+            class="btn-remove-sheet"
+            (click)="openConfirmRemoveModal(evaluatingStudent!)"
+            title="Remove Existing Answer Sheet"
+          >
+            <mat-icon>delete_outline</mat-icon>
+            <span>Remove Sheet</span>
           </button>
         </div>
       </div>
@@ -2241,6 +2250,61 @@
     </div>
   </div>
 </div>
+
+<!-- ========================================================= -->
+<!-- ─── CONFIRM REMOVE ANSWER SHEET MODAL DIALOG ──────────── -->
+<!-- ========================================================= -->
+<div class="modal-backdrop-overlay" *ngIf="isConfirmRemoveModalOpen" (click)="!isRemovingSheet && closeConfirmRemoveModal()">
+  <div class="confirm-remove-modal-card" (click)="$event.stopPropagation()">
+    <!-- Top Close Button -->
+    <button type="button" class="modal-close-icon-btn" [disabled]="isRemovingSheet" (click)="closeConfirmRemoveModal()" title="Cancel">
+      <mat-icon>close</mat-icon>
+    </button>
+
+    <!-- Modal Content -->
+    <div class="confirm-modal-body">
+      <!-- Animated Warning/Trash Icon Badge -->
+      <div class="confirm-icon-badge">
+        <mat-icon>delete_forever</mat-icon>
+      </div>
+
+      <h3 class="confirm-modal-title">Remove Answer Sheet?</h3>
+      <p class="confirm-modal-desc">
+        Are you sure you want to remove the uploaded answer sheet for
+        <span class="highlight-student-name">{{ studentToRemove?.name }}</span>?
+      </p>
+
+      <!-- Caution Callout Note -->
+      <div class="confirm-warning-callout">
+        <mat-icon>error_outline</mat-icon>
+        <span>This will delete all uploaded pages, rubrics, and reset the evaluation score back to <strong>Not Evaluated</strong>.</span>
+      </div>
+    </div>
+
+    <!-- Modal Action Buttons -->
+    <div class="confirm-modal-footer">
+      <button
+        type="button"
+        class="btn-confirm-cancel"
+        [disabled]="isRemovingSheet"
+        (click)="closeConfirmRemoveModal()"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="btn-confirm-delete"
+        [disabled]="isRemovingSheet"
+        (click)="confirmRemoveUploadedSheet()"
+      >
+        <mat-icon *ngIf="!isRemovingSheet">delete</mat-icon>
+        <mat-icon class="spin-icon" *ngIf="isRemovingSheet">sync</mat-icon>
+        <span>{{ isRemovingSheet ? 'Removing...' : 'Yes, Remove Sheet' }}</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 
 
 

@@ -234,6 +234,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   uploadedRawFiles: File[] = [];
   isUploading = false;
 
+  // ─── Confirm Remove Modal State ───
+  isConfirmRemoveModalOpen = false;
+  studentToRemove: StudentEvaluation | null = null;
+  isRemovingSheet = false;
+
   // ─── Split-View Evaluation State ───
   currentView: 'list' | 'evaluate' = 'list';
   splitMode: 'split' | 'viewer-expanded' | 'eval-expanded' = 'split';
@@ -1068,6 +1073,94 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.pdfRenderTask = null;
     }
     this.refreshData();
+  }
+
+  removeUploadedSheet(student: StudentEvaluation, event?: Event): void {
+    this.openConfirmRemoveModal(student, event);
+  }
+
+  openConfirmRemoveModal(student: StudentEvaluation, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!student) return;
+    this.studentToRemove = student;
+    this.isConfirmRemoveModalOpen = true;
+    this.isRemovingSheet = false;
+  }
+
+  closeConfirmRemoveModal(): void {
+    if (this.isRemovingSheet) return;
+    this.isConfirmRemoveModalOpen = false;
+    this.studentToRemove = null;
+    this.isRemovingSheet = false;
+  }
+
+  confirmRemoveUploadedSheet(): void {
+    const student = this.studentToRemove;
+    if (!student) return;
+
+    this.isRemovingSheet = true;
+    const examId = this.selectedExamId;
+    const userId = student.user_id;
+
+    // Immediately reset local student evaluation state
+    student.isUploaded = false;
+    student.rawFile = undefined;
+    student.matchedFile = undefined;
+    student.matchedBy = undefined;
+    student.isMatched = false;
+    student.pagesInfo = '0 of 0 pages';
+    student.missingPagesWarning = undefined;
+    student.status = 'Not Evaluated';
+    student.marks = 'Not marked';
+    student.actionText = 'Evaluate';
+    student.actionClass = 'btn-outline-blue';
+
+    const bIdx = this.bulkFiles.findIndex(
+      (f) => (f.selectedUserId && f.selectedUserId === student.user_id) || (f.studentName && f.studentName === student.name)
+    );
+    if (bIdx !== -1) {
+      this.bulkFiles.splice(bIdx, 1);
+    }
+
+    this.recalculateKpiTotals();
+    this.filterStudents();
+
+    if (examId && userId) {
+      this.http.post<any>(`${API_BASE}/test-evaluation/remove-answer-sheet`, {
+        exam_id: examId,
+        user_id: userId
+      }).subscribe({
+        next: (res) => {
+          this.closeConfirmRemoveModal();
+          if (res && res.status) {
+            notify(`Answer sheet removed for ${student.name}`, 'info');
+          }
+          if (this.currentView === 'evaluate') {
+            this.closeStudentEvaluation();
+          } else {
+            this.refreshData();
+          }
+        },
+        error: (err) => {
+          this.closeConfirmRemoveModal();
+          console.error('Error removing answer sheet from server:', err);
+          notify('Removed locally, but server cleanup encountered an error.', 'error');
+          if (this.currentView === 'evaluate') {
+            this.closeStudentEvaluation();
+          } else {
+            this.refreshData();
+          }
+        }
+      });
+    } else {
+      this.closeConfirmRemoveModal();
+      notify(`Answer sheet removed for ${student.name}`, 'info');
+      if (this.currentView === 'evaluate') {
+        this.closeStudentEvaluation();
+      }
+    }
   }
 
   loadEvaluationDetails(examId: string, userId: string): void {
@@ -2368,6 +2461,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
                 student.actionClass = 'btn-evaluating-pulse';
               } else if (stData.status === 'completed') {
                 student.status = 'AI Evaluated';
+                student.matchedFile = undefined;
                 student.marks = stData.marks || student.marks;
                 student.isUploaded = true;
                 student.actionText = 'Review';
@@ -2409,6 +2503,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
         if (student) {
           student.status = 'AI Evaluated';
+          student.matchedFile = undefined;
           student.marks = data.marks || student.marks;
           student.isUploaded = true;
           student.pagesInfo = `${data.total_pages || 1} of ${data.total_pages || 1} pages`;

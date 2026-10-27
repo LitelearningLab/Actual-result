@@ -5377,3 +5377,131 @@ def identify_student_from_answer_sheet(request, current_user=None):
         "matched": False,
         "statusMessage": "No student identity recognized on any page of this document.",
     }, 200
+
+
+def remove_answer_sheet(request, current_user=None):
+    """
+    Removes uploaded answer sheet, pages from GCS and database,
+    and resets the exam attempt for a student.
+    Accepts JSON or form data: exam_id, user_id.
+    """
+    req_data = request.get_json(silent=True) or {}
+    exam_id = req_data.get("exam_id") or request.form.get("exam_id")
+    user_id = req_data.get("user_id") or request.form.get("user_id")
+
+    if not exam_id or not user_id:
+        return {"statusMessage": "exam_id and user_id are required", "status": False}, 400
+
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    try:
+        from db.models import ExamReviewCommentsHistory
+
+        # Find all attempts for this student and exam
+        all_attempt_rows = (
+            session.query(Exam_Attempt.attempt_id)
+            .filter(
+                Exam_Attempt.user_id == user_id,
+                or_(
+                    Exam_Attempt.schedule_id == exam_id,
+                    Exam_Attempt.schedule_id.in_(
+                        session.query(ExamSchedule.schedule_id).filter(
+                            ExamSchedule.exam_id == exam_id
+                        )
+                    ),
+                ),
+            )
+            .all()
+        )
+        all_att_ids = [str(r[0]) for r in all_attempt_rows if r[0]]
+
+        if all_att_ids:
+            # Delete GCS media files for pages
+            old_pages = (
+                session.query(AnswerSheetPage)
+                .filter(func.cast(AnswerSheetPage.attempt_id, String).in_(all_att_ids))
+                .all()
+            )
+            for old_p in old_pages:
+                if old_p.image_path and not old_p.image_path.startswith("http"):
+                    try:
+                        gcs_storage.delete_media(old_p.image_path)
+                    except Exception:
+                        pass
+
+            # Delete answersheet.pdf from GCS
+            gcs_folder_prefix = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}"
+            try:
+                gcs_storage.delete_media(f"{gcs_folder_prefix}/answersheet.pdf")
+            except Exception:
+                pass
+
+            # Also delete any local uploaded files in static dir if present
+            static_dir = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                "static",
+                "uploads",
+                "answer_sheets",
+                str(exam_id),
+                str(user_id),
+            )
+            if os.path.exists(static_dir):
+                import shutil
+                try:
+                    shutil.rmtree(static_dir)
+                except Exception:
+                    pass
+
+            # Delete DB records in proper foreign key order
+            try:
+                session.query(ExamReviewCommentsHistory).filter(
+                    func.cast(ExamReviewCommentsHistory.attempt_id, String).in_(all_att_ids)
+                ).delete(synchronize_session=False)
+            except Exception:
+                pass
+
+            try:
+                session.query(ExamReviewComments).filter(
+                    func.cast(ExamReviewComments.attempt_id, String).in_(all_att_ids)
+                ).delete(synchronize_session=False)
+            except Exception:
+                pass
+
+            try:
+                session.query(Answer).filter(
+                    func.cast(Answer.attempt_id, String).in_(all_att_ids)
+                ).delete(synchronize_session=False)
+            except Exception:
+                pass
+
+            try:
+                session.query(AnswerSheetPage).filter(
+                    func.cast(AnswerSheetPage.attempt_id, String).in_(all_att_ids)
+                ).delete(synchronize_session=False)
+            except Exception:
+                pass
+
+            try:
+                session.query(Exam_Attempt).filter(
+                    func.cast(Exam_Attempt.attempt_id, String).in_(all_att_ids)
+                ).delete(synchronize_session=False)
+            except Exception:
+                pass
+
+        session.commit()
+        return {
+            "status": True,
+            "statusMessage": "Answer sheet and evaluation removed successfully.",
+        }, 200
+    except Exception as e:
+        session.rollback()
+        return {
+            "status": False,
+            "statusMessage": f"Failed to remove answer sheet: {str(e)}",
+        }, 500
+    finally:
+        session.close()
+

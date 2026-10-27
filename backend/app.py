@@ -588,6 +588,15 @@ def upload_answer_sheet_route():
     response_data, status_code = upload_answer_sheet(request, current_user)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/test-evaluation/remove-answer-sheet', methods=['POST'])
+@admin_required
+def remove_answer_sheet_route():
+    from others.exams import remove_answer_sheet
+    current_user = get_current_user_from_request()
+    response_data, status_code = remove_answer_sheet(request, current_user)
+    return jsonify(response_data), status_code
+
+
 @edu_blueprint.route('/test-evaluation/start-bulk-evaluation', methods=['POST'])
 @admin_required
 def start_bulk_evaluation_route():
