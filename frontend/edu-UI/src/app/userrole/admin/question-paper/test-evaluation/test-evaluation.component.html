@@ -453,7 +453,12 @@
             <mat-icon class="tray-header-icon">folder_open</mat-icon>
             <span class="tray-title">Uploaded Answer Sheets ({{ bulkFiles.length }})</span>
             <span class="tray-stats-badge">
-              {{ matchedCount }} matched &bull; {{ unmatchedCount }} unmatched
+              <ng-container *ngIf="isScanningBulkFiles">
+                {{ matchedCount }} matched &bull; scanning...
+              </ng-container>
+              <ng-container *ngIf="!isScanningBulkFiles">
+                {{ matchedCount }} matched &bull; {{ unmatchedCount }} unmatched
+              </ng-container>
             </span>
           </div>
           <button
@@ -598,8 +603,9 @@
               <span class="step-label">Identify Students</span>
               <span class="step-sub">
                 <ng-container *ngIf="bulkFiles.length === 0">Pending upload</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && unmatchedCount === 0">{{ matchedCount }} matched</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && unmatchedCount > 0">{{ matchedCount }} matched, <span class="step-sub-danger">{{ unmatchedCount }} not</span></ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && isScanningBulkFiles">{{ matchedCount }} matched, scanning...</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && !isScanningBulkFiles && unmatchedCount === 0">{{ matchedCount }} matched</ng-container>
+                <ng-container *ngIf="bulkFiles.length > 0 && !isScanningBulkFiles && unmatchedCount > 0">{{ matchedCount }} matched, <span class="step-sub-danger">{{ unmatchedCount }} not</span></ng-container>
               </span>
             </div>
 
@@ -637,7 +643,7 @@
       </div>
 
       <!-- Warning Alert Banner for Unmatched Files with Resolution / Removal Controls -->
-      <div class="unmatched-resolution-card" *ngIf="unmatchedCount > 0">
+      <div class="unmatched-resolution-card" *ngIf="!isScanningBulkFiles && unmatchedCount > 0">
         <div class="warning-alert-banner">
           <mat-icon class="warning-icon">warning</mat-icon>
           <span>
@@ -725,7 +731,7 @@
                 <td class="col-student">
                   <div class="student-name">{{ s.name }}</div>
                   <div class="student-roll">{{ s.rollNo }}</div>
-                  <div *ngIf="s.matchedFile && s.status !== 'AI Evaluated' && s.status !== 'Completed' && s.status !== 'evaluated' && s.status !== 'Need to Check' && s.status !== 'Manual Reviewed'" class="match-badge-chip">
+                  <div *ngIf="s.matchedFile && s.status === 'Not Evaluated' && !isBulkEvaluating && s.actionText !== 'Evaluating...' && s.actionText !== 'Queued...'" class="match-badge-chip">
                     <mat-icon class="match-icon">description</mat-icon>
                     <span class="match-chip-text" [title]="s.matchedFile">{{ s.matchedFile }} ({{ s.matchedBy || 'Matched' }})</span>
                     <button
@@ -828,16 +834,7 @@
         <div class="bulk-table-footer-bar">
           <span class="files-uploaded-count">{{ bulkFiles.length }} file(s) uploaded &bull; {{ students.length }} student(s) enrolled</span>
           <div class="bulk-footer-actions-group">
-            <button
-              type="button"
-              class="btn-footer-clear"
-              *ngIf="bulkFiles.length > 0"
-              (click)="clearAllBulkFiles()"
-              matTooltip="Remove all uploaded bulk files"
-            >
-              <mat-icon>delete_outline</mat-icon>
-              <span>Clear All</span>
-            </button>
+
             <button
               type="button"
               class="btn-evaluate-matched"

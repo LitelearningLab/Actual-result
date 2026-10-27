@@ -5433,15 +5433,16 @@ def remove_answer_sheet(request, current_user=None):
         gcs_duration_ms = 0
         failed_cleanups = []
 
+        paths_to_delete = []
+        static_dir = None
+
         if all_att_ids:
             # 1. Collect all GCS target paths to delete (pages + answersheet.pdf)
-            gcs_start = time.perf_counter()
             old_pages = (
                 session.query(AnswerSheetPage)
                 .filter(func.cast(AnswerSheetPage.attempt_id, String).in_(all_att_ids))
                 .all()
             )
-            paths_to_delete = []
             for old_p in old_pages:
                 if old_p.image_path and not old_p.image_path.startswith("http"):
                     paths_to_delete.append(old_p.image_path)
@@ -5449,15 +5450,7 @@ def remove_answer_sheet(request, current_user=None):
             gcs_folder_prefix = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}"
             paths_to_delete.append(f"{gcs_folder_prefix}/answersheet.pdf")
 
-            # Execute batch deletion with bounded concurrency (max 6 workers)
-            batch_result = gcs_storage.delete_media_batch(paths_to_delete, max_workers=6)
-            failed_cleanups = batch_result.get("failed", [])
-            gcs_duration_ms = batch_result.get("duration_ms", 0)
-
-            if failed_cleanups:
-                print(f"[remove_answer_sheet] Warning: {len(failed_cleanups)} GCS objects failed deletion: {failed_cleanups}")
-
-            # Also delete any local uploaded files in static dir if present
+            # Static directory for local fallback files
             static_dir = os.path.join(
                 os.path.dirname(os.path.dirname(__file__)),
                 "static",
@@ -5466,14 +5459,8 @@ def remove_answer_sheet(request, current_user=None):
                 str(exam_id),
                 str(user_id),
             )
-            if os.path.exists(static_dir):
-                import shutil
-                try:
-                    shutil.rmtree(static_dir)
-                except Exception as rmtree_err:
-                    print(f"[remove_answer_sheet] Warning removing local directory: {rmtree_err}")
 
-        # 2. Database Cleanup with timing and strict foreign key deletion order
+        # 2. Database Cleanup immediately (strict foreign key deletion order)
         db_start = time.perf_counter()
         if all_att_ids:
             try:
@@ -5515,10 +5502,36 @@ def remove_answer_sheet(request, current_user=None):
         db_duration_ms = int((time.perf_counter() - db_start) * 1000)
         total_duration_ms = int((time.perf_counter() - t_start) * 1000)
 
+        # 3. Offload GCS media batch deletion & local folder removal to background thread
+        if paths_to_delete or static_dir:
+            import threading
+
+            def _async_cloud_cleanup(paths, sdir, u_id, e_id):
+                try:
+                    if paths:
+                        res = gcs_storage.delete_media_batch(paths, max_workers=6)
+                        failed = res.get("failed", [])
+                        if failed:
+                            print(f"[remove_answer_sheet:async] Warning: {len(failed)} GCS objects failed: {failed}")
+                except Exception as ex:
+                    print(f"[remove_answer_sheet:async] GCS deletion exception for user={u_id}: {ex}")
+
+                try:
+                    if sdir and os.path.exists(sdir):
+                        import shutil
+                        shutil.rmtree(sdir, ignore_errors=True)
+                except Exception as rmtree_err:
+                    print(f"[remove_answer_sheet:async] Local rmtree error: {rmtree_err}")
+
+            threading.Thread(
+                target=_async_cloud_cleanup,
+                args=(paths_to_delete, static_dir, str(user_id), str(exam_id)),
+                daemon=True,
+            ).start()
+
         print(
-            f"[remove_answer_sheet] Timings for user={user_id}, exam={exam_id}: "
-            f"DB={db_duration_ms}ms, GCS={gcs_duration_ms}ms, Total={total_duration_ms}ms, "
-            f"FailedGCS={len(failed_cleanups)}"
+            f"[remove_answer_sheet] Fast DB cleanup committed for user={user_id}, exam={exam_id}: "
+            f"DB={db_duration_ms}ms, Total={total_duration_ms}ms (GCS offloaded to background)"
         )
 
         response_payload = {
@@ -5526,15 +5539,9 @@ def remove_answer_sheet(request, current_user=None):
             "statusMessage": "Answer sheet and evaluation removed successfully.",
             "timings": {
                 "db_ms": db_duration_ms,
-                "gcs_ms": gcs_duration_ms,
                 "total_ms": total_duration_ms,
             },
         }
-        if failed_cleanups:
-            response_payload["failed_gcs_cleanups"] = failed_cleanups
-            response_payload["statusMessage"] = (
-                "Answer sheet removed, but some cloud files failed to delete and are logged for retry."
-            )
 
         return response_payload, 200
     except Exception as e:

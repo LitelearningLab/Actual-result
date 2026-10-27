@@ -877,14 +877,15 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
                 (bf.studentName && (user.full_name || user.user_name) && bf.studentName.toLowerCase() === (user.full_name || user.user_name || '').toLowerCase())
       );
 
-      const rawFile = prevStudent?.rawFile || matchedBulk?.file || undefined;
-      const isUploaded = prevStudent?.isUploaded || (pCount > 0 && isDbEvaluated);
-      const matchedFile = prevStudent?.matchedFile || matchedBulk?.fileName || undefined;
-      const matchedBy = prevStudent?.matchedBy || matchedBulk?.matchedBy || undefined;
-      const isMatched = prevStudent?.isMatched || !!matchedBulk || false;
+      const rawFile = matchedBulk?.file || undefined;
+      const isUploaded = (pCount > 0 && isDbEvaluated);
+      const matchedFile = (isDbEvaluated || status !== 'Not Evaluated') ? undefined : (matchedBulk?.fileName || undefined);
+      const matchedBy = (isDbEvaluated || status !== 'Not Evaluated') ? undefined : (matchedBulk?.matchedBy || undefined);
+      const isMatched = !!matchedBulk;
       const pagesInfo = pCount > 0
         ? `${pCount} of ${pCount} pages`
-        : (matchedBulk?.pagesInfo || prevStudent?.pagesInfo || '0 of 0 pages');
+        : (matchedBulk?.pagesInfo || '0 of 0 pages');
+
 
       const isEvaluated = isDbEvaluated;
 
@@ -1029,6 +1030,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     // If student has a matched local file that hasn't been uploaded to backend yet, upload & evaluate first
     if (student.rawFile && !student.isUploaded) {
       this.isLoadingEvaluation = true;
+      student.status = 'Evaluating...';
+      student.matchedFile = undefined;
       const formData = new FormData();
       formData.append('exam_id', this.selectedExamId);
       formData.append('user_id', student.user_id);
@@ -1042,6 +1045,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             const pagesCount = res.data?.total_pages || res.data?.pages?.length || 1;
             student.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
             student.status = 'AI Evaluated';
+            student.matchedFile = undefined;
             student.actionText = 'Review';
             if (res.data?.marks) {
               student.marks = res.data.marks;
@@ -1104,18 +1108,22 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const examId = this.selectedExamId;
     const userId = student.user_id;
 
-    // Immediately reset local student evaluation state
-    student.isUploaded = false;
-    student.rawFile = undefined;
-    student.matchedFile = undefined;
-    student.matchedBy = undefined;
-    student.isMatched = false;
-    student.pagesInfo = '0 of 0 pages';
-    student.missingPagesWarning = undefined;
-    student.status = 'Not Evaluated';
-    student.marks = 'Not marked';
-    student.actionText = 'Evaluate';
-    student.actionClass = 'btn-outline-blue';
+    // Also find and reset the student directly inside this.students by user_id
+const targetInList = this.students.find(s => String(s.user_id) === String(userId));
+if (targetInList) {
+  targetInList.isUploaded = false;
+  targetInList.rawFile = undefined;
+  targetInList.matchedFile = undefined;
+  targetInList.matchedBy = undefined;
+  targetInList.isMatched = false;
+  targetInList.pagesInfo = '0 of 0 pages';
+  targetInList.missingPagesWarning = undefined;
+  targetInList.status = 'Not Evaluated';
+  targetInList.marks = 'Not marked';
+  targetInList.actionText = 'Evaluate';
+  targetInList.actionClass = 'btn-outline-blue';
+}
+
 
     const bIdx = this.bulkFiles.findIndex(
       (f) => (f.selectedUserId && f.selectedUserId === student.user_id) || (f.studentName && f.studentName === student.name)
@@ -1124,8 +1132,38 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.bulkFiles.splice(bIdx, 1);
     }
 
+    // Also update in-memory assigned_users in allPublishedExams so filters don't revert to old evaluation
+    const currentExam = this.allPublishedExams.find(e => e.exam_id === examId);
+    if (currentExam && Array.isArray(currentExam.assigned_users)) {
+      const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(userId));
+      if (u) {
+        u.pages_count = 0;
+        u.evaluation_status = 'Not Evaluated';
+        u.status = 'Not Evaluated';
+        u.marks_awarded = null;
+        u.score = null;
+        u.percentage = null;
+      }
+    }
+
     this.recalculateKpiTotals();
     this.filterStudents();
+
+    // Immediately close modal and transition back to list view with zero delay
+    this.closeConfirmRemoveModal(true);
+    if (this.currentView === 'evaluate') {
+      this.currentView = 'list';
+      this.evaluatingStudent = null;
+      this.evaluationDetails = null;
+      this.pdfDoc = null;
+      this.currentLoadedPdfUrl = '';
+      if (this.pdfRenderTask) {
+        try {
+          this.pdfRenderTask.cancel();
+        } catch {}
+        this.pdfRenderTask = null;
+      }
+    }
 
     if (examId && userId) {
       this.http.post<any>(`${API_BASE}/test-evaluation/remove-answer-sheet`, {
@@ -1133,41 +1171,17 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         user_id: userId
       }).subscribe({
         next: (res) => {
-          this.closeConfirmRemoveModal(true);
-          if (res && res.status) {
-            if (res.failed_gcs_cleanups && res.failed_gcs_cleanups.length > 0) {
-              console.warn('[removeAnswerSheet] Some cloud files failed deletion:', res.failed_gcs_cleanups);
-              notify(`Answer sheet removed for ${student.name}. Notice: Some cloud files could not be cleaned up immediately.`, 'info');
-            } else {
-              notify(`Answer sheet removed for ${student.name}`, 'info');
-            }
-            if (res.timings) {
-              console.log('[removeAnswerSheet] Server performance timings:', res.timings);
-            }
-          }
-          if (this.currentView === 'evaluate') {
-            this.closeStudentEvaluation();
-          } else {
-            this.refreshData();
-          }
+          notify(`Answer sheet removed for ${student.name}`, 'info');
+          this.refreshData();
         },
         error: (err) => {
-          this.closeConfirmRemoveModal(true);
           console.error('Error removing answer sheet from server:', err);
-          notify('Removed locally, but server cleanup encountered an error.', 'error');
-          if (this.currentView === 'evaluate') {
-            this.closeStudentEvaluation();
-          } else {
-            this.refreshData();
-          }
+          notify('Notice: Server cleanup encountered an error.', 'error');
+          this.refreshData();
         }
       });
     } else {
-      this.closeConfirmRemoveModal(true);
       notify(`Answer sheet removed for ${student.name}`, 'info');
-      if (this.currentView === 'evaluate') {
-        this.closeStudentEvaluation();
-      }
     }
   }
 
@@ -1785,6 +1799,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             targetStudent.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
             targetStudent.missingPagesWarning = undefined;
             targetStudent.status = 'AI Evaluated';
+            targetStudent.matchedFile = undefined;
             targetStudent.isUploaded = true;
             targetStudent.actionText = 'Review';
             targetStudent.actionClass = 'btn-solid-blue';
@@ -2169,6 +2184,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             targetStudent.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
             targetStudent.missingPagesWarning = undefined;
             targetStudent.status = 'AI Evaluated';
+            targetStudent.matchedFile = undefined;
             targetStudent.isUploaded = true;
             targetStudent.actionText = 'Review';
             targetStudent.actionClass = 'btn-solid-blue';
@@ -2388,6 +2404,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         s.status = 'Evaluating...';
         s.actionText = 'Queued...';
         s.actionClass = 'btn-evaluating-pulse';
+        s.matchedFile = undefined;
       }
 
       const formData = new FormData();
@@ -2686,6 +2703,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     this.recalculateKpiTotals();
     this.filterStudents();
+    this.refreshData();
     notify('All uploaded bulk files have been removed.', 'info');
   }
 
@@ -2715,14 +2733,18 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     student.matchedBy = undefined;
     student.isMatched = false;
     student.rawFile = undefined;
-    student.pagesInfo = '0 of 0 pages';
     student.missingPagesWarning = undefined;
-    if (student.status === 'AI Evaluated' || !student.isUploaded) {
+    if (!student.isUploaded) {
+      student.pagesInfo = '0 of 0 pages';
       student.status = 'Not Evaluated';
       student.marks = 'Not marked';
       student.actionText = 'Evaluate';
       student.actionClass = 'btn-outline-blue';
     }
+  }
+
+  get isScanningBulkFiles(): boolean {
+    return this.bulkFiles.some((f: BulkFileItem) => !!f.isScanning);
   }
 
   get unmatchedBulkFiles(): BulkFileItem[] {
