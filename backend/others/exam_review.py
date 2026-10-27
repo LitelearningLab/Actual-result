@@ -4,8 +4,7 @@ import random
 import json
 import time
 import threading
-# pyrefly: ignore [missing-import]
-from sqlalchemy import func
+from sqlalchemy import func, String, or_
 from db.db import SQLiteDB
 from db.models import User, Exam, ExamSchedule, Question, QuestionMedia, Option, Answer, Exam_Attempt, ExamScheduleMapping, ExamReviewComments, ExamReviewCommentsHistory, MarksHistory, ExamMapping, ExamQuestionMapping, QuestionMapping
 from others.settings import get_ai_confidence_threshold
@@ -83,7 +82,7 @@ def get_exam_question_ids(session, exam_id=None, schedule_id=None, attempt_id=No
     # 3. Include any additional questions that were answered in this attempt (e.g. from randomization or fallback)
     if attempt_id:
         ans_rows = session.query(Answer.question_id).filter(
-            Answer.attempt_id == attempt_id
+            func.cast(Answer.attempt_id, String) == str(attempt_id)
         ).distinct().all()
         for r in ans_rows:
             qid = r[0] if isinstance(r, (list, tuple)) else getattr(r, 'question_id', None)
@@ -108,7 +107,7 @@ def calculate_attempt_score(session, attempt_id):
     Idempotently calculates total obtained marks for an attempt based on the latest answer
     for each unique question_id. Returns (total_score, latest_answers_by_qid, all_answers).
     """
-    all_answers = session.query(Answer).filter(Answer.attempt_id == attempt_id).all()
+    all_answers = session.query(Answer).filter(func.cast(Answer.attempt_id, String) == str(attempt_id)).all()
     latest_answers_by_qid = {}
     for ans in all_answers:
         qid_key = str(ans.question_id) if ans.question_id is not None else ""
@@ -1522,9 +1521,10 @@ def update_descriptive_marks(request, current_user=None):
         session.commit()
 
         # Update exam attempt score
-        attempt = session.query(Exam_Attempt).filter_by(attempt_id=answer_record.attempt_id).first()
+        att_id_val = str(answer_record.attempt_id) if answer_record.attempt_id else None
+        attempt = session.query(Exam_Attempt).filter(func.cast(Exam_Attempt.attempt_id, String) == att_id_val).first() if att_id_val else None
         if attempt:
-            total_score, latest_answers_by_qid, _ = calculate_attempt_score(session, answer_record.attempt_id)
+            total_score, latest_answers_by_qid, _ = calculate_attempt_score(session, att_id_val)
             attempt.score = total_score
             sched = session.query(ExamSchedule).filter_by(schedule_id=attempt.schedule_id).first()
             exam_id = sched.exam_id if sched else None
@@ -1543,9 +1543,12 @@ def update_descriptive_marks(request, current_user=None):
             all_validated = all(getattr(ans, 'is_validated', 0) == 1 for ans in latest_answers_by_qid.values()) if latest_answers_by_qid else False
             if all_validated and attempt.status != 'evaluated':
                 attempt.status = 'evaluated'
+            final_attempt_score = attempt.score
+            final_attempt_pct = attempt.percentage
+            final_ans_id = str(answer_record.answer_id)
             session.add(attempt)
             session.commit()
-            print(f"[update_descriptive_marks] Successfully updated DB: answer_id={answer_record.answer_id} -> new_marks={marks_awarded}, new_attempt_score={attempt.score}, pct={attempt.percentage}")
+            print(f"[update_descriptive_marks] Successfully updated DB: answer_id={final_ans_id} -> new_marks={marks_awarded}, new_attempt_score={final_attempt_score}, pct={final_attempt_pct}")
             return {"statusMessage": "Descriptive marks updated successfully", "status": True}, 200
 
     except Exception as e:

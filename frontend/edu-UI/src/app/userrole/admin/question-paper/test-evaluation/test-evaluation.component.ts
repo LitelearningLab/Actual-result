@@ -1089,8 +1089,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.isRemovingSheet = false;
   }
 
-  closeConfirmRemoveModal(): void {
-    if (this.isRemovingSheet) return;
+  closeConfirmRemoveModal(force: boolean = false): void {
+    if (this.isRemovingSheet && !force) return;
     this.isConfirmRemoveModalOpen = false;
     this.studentToRemove = null;
     this.isRemovingSheet = false;
@@ -1133,9 +1133,17 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         user_id: userId
       }).subscribe({
         next: (res) => {
-          this.closeConfirmRemoveModal();
+          this.closeConfirmRemoveModal(true);
           if (res && res.status) {
-            notify(`Answer sheet removed for ${student.name}`, 'info');
+            if (res.failed_gcs_cleanups && res.failed_gcs_cleanups.length > 0) {
+              console.warn('[removeAnswerSheet] Some cloud files failed deletion:', res.failed_gcs_cleanups);
+              notify(`Answer sheet removed for ${student.name}. Notice: Some cloud files could not be cleaned up immediately.`, 'info');
+            } else {
+              notify(`Answer sheet removed for ${student.name}`, 'info');
+            }
+            if (res.timings) {
+              console.log('[removeAnswerSheet] Server performance timings:', res.timings);
+            }
           }
           if (this.currentView === 'evaluate') {
             this.closeStudentEvaluation();
@@ -1144,7 +1152,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           }
         },
         error: (err) => {
-          this.closeConfirmRemoveModal();
+          this.closeConfirmRemoveModal(true);
           console.error('Error removing answer sheet from server:', err);
           notify('Removed locally, but server cleanup encountered an error.', 'error');
           if (this.currentView === 'evaluate') {
@@ -1155,7 +1163,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         }
       });
     } else {
-      this.closeConfirmRemoveModal();
+      this.closeConfirmRemoveModal(true);
       notify(`Answer sheet removed for ${student.name}`, 'info');
       if (this.currentView === 'evaluate') {
         this.closeStudentEvaluation();

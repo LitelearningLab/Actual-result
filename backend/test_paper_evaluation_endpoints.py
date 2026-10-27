@@ -21,6 +21,7 @@ from db.models import (
     MarksHistory,
     ExamReviewComments
 )
+from sqlalchemy import func, String
 
 def run_test():
     db = SQLiteDB()
@@ -143,17 +144,17 @@ def run_test():
         session.commit()
 
     # Add AnswerSheetPages if none exist
-    pages_count = session.query(AnswerSheetPage).filter(AnswerSheetPage.attempt_id == attempt.attempt_id).count()
+    pages_count = session.query(AnswerSheetPage).filter(func.cast(AnswerSheetPage.attempt_id, String) == str(attempt.attempt_id)).count()
     if pages_count == 0:
         p1 = AnswerSheetPage(
             page_id=str(uuid.uuid4()),
-            attempt_id=attempt.attempt_id,
+            attempt_id=str(attempt.attempt_id),
             page_number=1,
             image_path=f"{exam.exam_id}/{student_user.user_id}/page_1.jpg"
         )
         p2 = AnswerSheetPage(
             page_id=str(uuid.uuid4()),
-            attempt_id=attempt.attempt_id,
+            attempt_id=str(attempt.attempt_id),
             page_number=2,
             image_path=f"{exam.exam_id}/{student_user.user_id}/page_2.jpg"
         )

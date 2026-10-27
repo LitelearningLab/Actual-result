@@ -341,7 +341,11 @@ class GCSStorageService:
         raise FileNotFoundError(f"Media file '{cleaned_path}' not found in GCS or local storage.")
 
     def delete_media(self, gcs_path: str) -> bool:
-        """Deletes media file from GCS and/or local fallback storage."""
+        """
+        Deletes media file from GCS and/or local fallback storage.
+        Optimized to delete directly without redundant existence checks,
+        safely handling already-missing objects (404/NotFound).
+        """
         if not gcs_path:
             return True
 
@@ -354,11 +358,15 @@ class GCSStorageService:
         if self.is_gcs_active():
             try:
                 blob = self.bucket.blob(cleaned_path)
-                if blob.exists():
-                    blob.delete()
-                    deleted = True
+                blob.delete()
+                deleted = True
             except Exception as e:
-                print(f"[GCSStorageService] Error deleting blob {cleaned_path} from GCS: {e}")
+                err_code = getattr(e, 'code', None) or getattr(e, 'status_code', None)
+                err_name = type(e).__name__
+                if err_name == 'NotFound' or err_code == 404:
+                    deleted = True  # Already deleted/missing is treated as success
+                else:
+                    print(f"[GCSStorageService] Error deleting blob {cleaned_path} from GCS: {e}")
 
         # Also remove from local fallback if exists
         try:
@@ -371,6 +379,83 @@ class GCSStorageService:
             print(f"[GCSStorageService] Error deleting local fallback {cleaned_path}: {e}")
 
         return deleted
+
+    def delete_media_batch(self, gcs_paths: list, max_workers: int = 6) -> dict:
+        """
+        Deletes multiple media files from GCS and local fallback with bounded concurrency.
+        Eliminates redundant existence checks, safely ignores 404 NotFound, and tracks any failures.
+
+        Returns:
+            dict: {
+                "success": [path, ...],
+                "failed": [{"path": path, "error": str(err)}, ...],
+                "duration_ms": int
+            }
+        """
+        start_t = time.perf_counter()
+        if not gcs_paths:
+            return {"success": [], "failed": [], "duration_ms": 0}
+
+        # Deduplicate, sanitize, and exclude HTTP external URLs
+        seen = set()
+        clean_paths = []
+        for p in gcs_paths:
+            if not p or str(p).strip().startswith("http"):
+                continue
+            norm = str(p).strip("/\\").replace("\\", "/")
+            if norm and norm not in seen and ".." not in norm:
+                seen.add(norm)
+                clean_paths.append(norm)
+
+        if not clean_paths:
+            return {"success": [], "failed": [], "duration_ms": 0}
+
+        success = []
+        failed = []
+
+        def _delete_single_item(path: str):
+            item_err = None
+            if self.is_gcs_active():
+                try:
+                    blob = self.bucket.blob(path)
+                    blob.delete()
+                except Exception as e:
+                    err_code = getattr(e, 'code', None) or getattr(e, 'status_code', None)
+                    err_name = type(e).__name__
+                    if err_name == 'NotFound' or err_code == 404:
+                        pass  # Expected if already removed or never created
+                    else:
+                        item_err = str(e)
+                        print(f"[GCSStorageService] Batch delete error for {path}: {e}")
+
+            # Local fallback cleanup
+            try:
+                uploads_root = os.path.abspath(os.path.join(_backend_dir, "static", "uploads"))
+                resolved_file = os.path.abspath(os.path.join(uploads_root, path.replace("/", os.sep)))
+                if os.path.commonpath([uploads_root, resolved_file]) == uploads_root and os.path.exists(resolved_file):
+                    os.remove(resolved_file)
+            except Exception as e:
+                print(f"[GCSStorageService] Batch local cleanup error for {path}: {e}")
+
+            return path, item_err
+
+        from concurrent.futures import ThreadPoolExecutor
+        workers = min(len(clean_paths), max(1, max_workers))
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="GCSBatchDelete") as executor:
+            results = list(executor.map(_delete_single_item, clean_paths))
+
+        for path, err in results:
+            if err:
+                failed.append({"path": path, "error": err})
+            else:
+                success.append(path)
+
+        duration_ms = int((time.perf_counter() - start_t) * 1000)
+        return {
+            "success": success,
+            "failed": failed,
+            "duration_ms": duration_ms
+        }
 
     def generate_signed_url(self, gcs_path: str, expiration_minutes: int = 1440) -> str:
         """Generates a v4 signed URL for secure temporary media access."""

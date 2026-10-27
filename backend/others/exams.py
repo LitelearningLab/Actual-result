@@ -3736,10 +3736,11 @@ def get_student_evaluation_details(request, current_user=None):
 
         # Fetch Answer Sheet Pages (strictly unique by page_number)
         pages_data = []
-        if attempt:
+        att_id_str = str(attempt.attempt_id) if (attempt and attempt.attempt_id) else None
+        if attempt and att_id_str:
             pages = (
                 session.query(AnswerSheetPage)
-                .filter(AnswerSheetPage.attempt_id == attempt.attempt_id)
+                .filter(func.cast(AnswerSheetPage.attempt_id, String) == att_id_str)
                 .order_by(
                     AnswerSheetPage.page_number.asc(),
                     AnswerSheetPage.created_date.desc(),
@@ -3853,12 +3854,12 @@ def get_student_evaluation_details(request, current_user=None):
 
             # Resolve Existing Answer Record
             ans = None
-            if attempt:
+            if attempt and att_id_str:
                 ans = (
                     session.query(Answer)
                     .filter(
-                        Answer.attempt_id == attempt.attempt_id,
-                        Answer.question_id == q.question_id,
+                        func.cast(Answer.attempt_id, String) == att_id_str,
+                        func.cast(Answer.question_id, String) == str(q.question_id),
                     )
                     .first()
                 )
@@ -3880,12 +3881,12 @@ def get_student_evaluation_details(request, current_user=None):
 
             # Resolve Review Comments (Points Missed, Incorrect, Incomplete)
             review_comments = []
-            if attempt:
+            if attempt and att_id_str:
                 rc_rows = (
                     session.query(ExamReviewComments)
                     .filter(
-                        ExamReviewComments.attempt_id == attempt.attempt_id,
-                        ExamReviewComments.question_id == q.question_id,
+                        func.cast(ExamReviewComments.attempt_id, String) == att_id_str,
+                        func.cast(ExamReviewComments.question_id, String) == str(q.question_id),
                         or_(
                             ExamReviewComments.is_deleted == 0,
                             ExamReviewComments.is_deleted.is_(None),
@@ -3951,6 +3952,7 @@ def get_student_evaluation_details(request, current_user=None):
             current_edit_reason = None
 
             if ans:
+                ans_id_str = str(ans.answer_id) if ans.answer_id else None
                 if ans.created_by:
                     ans_user = (
                         session.query(User)
@@ -3971,10 +3973,10 @@ def get_student_evaluation_details(request, current_user=None):
 
                 mh_rows = (
                     session.query(MarksHistory)
-                    .filter(MarksHistory.answer_id == ans.answer_id)
+                    .filter(func.cast(MarksHistory.answer_id, String) == ans_id_str)
                     .order_by(MarksHistory.updated_date.desc())
                     .all()
-                )
+                ) if ans_id_str else []
                 for mh in mh_rows:
                     updater = (
                         session.query(User)
@@ -5384,7 +5386,9 @@ def remove_answer_sheet(request, current_user=None):
     Removes uploaded answer sheet, pages from GCS and database,
     and resets the exam attempt for a student.
     Accepts JSON or form data: exam_id, user_id.
+    Optimized with bounded concurrency GCS deletion, timing metrics, and non-blocking failure tracking.
     """
+    t_start = time.perf_counter()
     req_data = request.get_json(silent=True) or {}
     exam_id = req_data.get("exam_id") or request.form.get("exam_id")
     user_id = req_data.get("user_id") or request.form.get("user_id")
@@ -5399,6 +5403,14 @@ def remove_answer_sheet(request, current_user=None):
 
     try:
         from db.models import ExamReviewCommentsHistory
+
+        # Institute-level access check if current_user provided and not superadmin
+        if current_user and getattr(current_user, "user_role", None) not in ("super_admin", "superadmin", "super-admin"):
+            curr_inst = str(getattr(current_user, "institute_id", "") or "").strip()
+            if curr_inst:
+                exam = session.query(Exam).filter(Exam.exam_id == str(exam_id)).first()
+                if exam and str(getattr(exam, "institute_id", "") or "").strip() and str(exam.institute_id).strip() != curr_inst:
+                    return {"statusMessage": "Unauthorized access to exam in different institute", "status": False}, 403
 
         # Find all attempts for this student and exam
         all_attempt_rows = (
@@ -5418,26 +5430,32 @@ def remove_answer_sheet(request, current_user=None):
         )
         all_att_ids = [str(r[0]) for r in all_attempt_rows if r[0]]
 
+        gcs_duration_ms = 0
+        failed_cleanups = []
+
         if all_att_ids:
-            # Delete GCS media files for pages
+            # 1. Collect all GCS target paths to delete (pages + answersheet.pdf)
+            gcs_start = time.perf_counter()
             old_pages = (
                 session.query(AnswerSheetPage)
                 .filter(func.cast(AnswerSheetPage.attempt_id, String).in_(all_att_ids))
                 .all()
             )
+            paths_to_delete = []
             for old_p in old_pages:
                 if old_p.image_path and not old_p.image_path.startswith("http"):
-                    try:
-                        gcs_storage.delete_media(old_p.image_path)
-                    except Exception:
-                        pass
+                    paths_to_delete.append(old_p.image_path)
 
-            # Delete answersheet.pdf from GCS
             gcs_folder_prefix = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}"
-            try:
-                gcs_storage.delete_media(f"{gcs_folder_prefix}/answersheet.pdf")
-            except Exception:
-                pass
+            paths_to_delete.append(f"{gcs_folder_prefix}/answersheet.pdf")
+
+            # Execute batch deletion with bounded concurrency (max 6 workers)
+            batch_result = gcs_storage.delete_media_batch(paths_to_delete, max_workers=6)
+            failed_cleanups = batch_result.get("failed", [])
+            gcs_duration_ms = batch_result.get("duration_ms", 0)
+
+            if failed_cleanups:
+                print(f"[remove_answer_sheet] Warning: {len(failed_cleanups)} GCS objects failed deletion: {failed_cleanups}")
 
             # Also delete any local uploaded files in static dir if present
             static_dir = os.path.join(
@@ -5452,50 +5470,73 @@ def remove_answer_sheet(request, current_user=None):
                 import shutil
                 try:
                     shutil.rmtree(static_dir)
-                except Exception:
-                    pass
+                except Exception as rmtree_err:
+                    print(f"[remove_answer_sheet] Warning removing local directory: {rmtree_err}")
 
-            # Delete DB records in proper foreign key order
+        # 2. Database Cleanup with timing and strict foreign key deletion order
+        db_start = time.perf_counter()
+        if all_att_ids:
             try:
                 session.query(ExamReviewCommentsHistory).filter(
                     func.cast(ExamReviewCommentsHistory.attempt_id, String).in_(all_att_ids)
                 ).delete(synchronize_session=False)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[remove_answer_sheet] DB delete ExamReviewCommentsHistory notice: {e}")
 
             try:
                 session.query(ExamReviewComments).filter(
                     func.cast(ExamReviewComments.attempt_id, String).in_(all_att_ids)
                 ).delete(synchronize_session=False)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[remove_answer_sheet] DB delete ExamReviewComments notice: {e}")
 
             try:
                 session.query(Answer).filter(
                     func.cast(Answer.attempt_id, String).in_(all_att_ids)
                 ).delete(synchronize_session=False)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[remove_answer_sheet] DB delete Answer notice: {e}")
 
             try:
                 session.query(AnswerSheetPage).filter(
                     func.cast(AnswerSheetPage.attempt_id, String).in_(all_att_ids)
                 ).delete(synchronize_session=False)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[remove_answer_sheet] DB delete AnswerSheetPage notice: {e}")
 
             try:
                 session.query(Exam_Attempt).filter(
                     func.cast(Exam_Attempt.attempt_id, String).in_(all_att_ids)
                 ).delete(synchronize_session=False)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[remove_answer_sheet] DB delete Exam_Attempt notice: {e}")
 
         session.commit()
-        return {
+        db_duration_ms = int((time.perf_counter() - db_start) * 1000)
+        total_duration_ms = int((time.perf_counter() - t_start) * 1000)
+
+        print(
+            f"[remove_answer_sheet] Timings for user={user_id}, exam={exam_id}: "
+            f"DB={db_duration_ms}ms, GCS={gcs_duration_ms}ms, Total={total_duration_ms}ms, "
+            f"FailedGCS={len(failed_cleanups)}"
+        )
+
+        response_payload = {
             "status": True,
             "statusMessage": "Answer sheet and evaluation removed successfully.",
-        }, 200
+            "timings": {
+                "db_ms": db_duration_ms,
+                "gcs_ms": gcs_duration_ms,
+                "total_ms": total_duration_ms,
+            },
+        }
+        if failed_cleanups:
+            response_payload["failed_gcs_cleanups"] = failed_cleanups
+            response_payload["statusMessage"] = (
+                "Answer sheet removed, but some cloud files failed to delete and are logged for retry."
+            )
+
+        return response_payload, 200
     except Exception as e:
         session.rollback()
         return {
