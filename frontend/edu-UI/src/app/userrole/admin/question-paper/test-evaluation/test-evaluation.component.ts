@@ -43,7 +43,7 @@ export interface StudentEvaluation {
   rollNo: string;
   pagesInfo: string;
   missingPagesWarning?: string;
-  status: 'Manual Reviewed' | 'Need to Check' | 'AI Evaluated' | 'Not Evaluated' | 'Completed' | 'evaluated';
+  status: 'Manual Reviewed' | 'Need to Check' | 'AI Evaluated' | 'Not Evaluated' | 'Completed' | 'evaluated' | 'Evaluating...' | 'Failed';
   marks: string;
   actionText: string;
   actionClass: string;
@@ -64,7 +64,7 @@ export interface BulkFileItem {
   isScanning?: boolean;
   pagesInfo: string;
   isPageWarning?: boolean;
-  aiStatus: 'Manual Reviewed' | 'Need to Check' | 'AI Evaluated' | 'Waiting' | 'Completed';
+  aiStatus: 'Manual Reviewed' | 'Need to Check' | 'AI Evaluated' | 'Waiting' | 'Completed' | 'Evaluating...' | 'Failed';
   evaluation: string;
   actionText: string;
   actionClass: string;
@@ -261,6 +261,18 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   private authSubscription?: Subscription;
 
+  // ── Bulk Evaluation Streaming & Bounded Queue State (Stage 3) ──
+  isBulkEvaluating = false;
+  activeBulkJobId: string | null = null;
+  bulkProgress = {
+    total: 0,
+    completed: 0,
+    failed: 0,
+    percentage: 0,
+    message: ''
+  };
+  private bulkEvalEventSource?: EventSource;
+
   constructor(
     private http: HttpClient,
     private auth: AuthService,
@@ -294,6 +306,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopCameraStream();
+    if (this.bulkEvalEventSource) {
+      this.bulkEvalEventSource.close();
+      this.bulkEvalEventSource = undefined;
+    }
     if (this.authSubscription) {
       this.authSubscription.unsubscribe();
     }
@@ -822,20 +838,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const assigned = exam.assigned_users || [];
 
     // Populate students list from QuestionPaperUserAssignment with real evaluation data
+    const prevStudents = this.students || [];
     this.students = assigned.map((user: any, idx: number) => {
       const pCount = user.pages_count || 0;
-      const rawStatus = user.evaluation_status || user.status || (pCount > 0 ? 'AI Evaluated' : 'Not Evaluated');
-      let status: StudentEvaluation['status'] = 'Not Evaluated';
-      if (rawStatus === 'Manual Reviewed' || rawStatus === 'Manual Review' || rawStatus === 'manual_review') {
-        status = 'Manual Reviewed';
-      } else if (rawStatus === 'Need to Check') {
-        status = 'Need to Check';
-      } else if (rawStatus === 'AI Evaluated' || rawStatus === 'evaluated' || rawStatus === 'Completed' || pCount > 0) {
-        status = 'AI Evaluated';
-      } else {
-        status = 'Not Evaluated';
-      }
-
+      const rawStatus = user.evaluation_status || user.status || '';
       const totalMarksVal = exam.total_marks || 20;
       const scoreVal = user.marks_awarded != null ? user.marks_awarded : (user.score != null ? user.score : null);
 
@@ -844,18 +850,54 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         marksDisplay = `${scoreVal} / ${totalMarksVal}`;
       }
 
-      const isEvaluated = status !== 'Not Evaluated' || pCount > 0;
+      const isDbEvaluated = (scoreVal !== null && scoreVal !== undefined) ||
+        rawStatus === 'AI Evaluated' || rawStatus === 'evaluated' || rawStatus === 'Completed' ||
+        rawStatus === 'Manual Reviewed' || rawStatus === 'Need to Check';
+
+      let status: StudentEvaluation['status'] = 'Not Evaluated';
+      if (rawStatus === 'Manual Reviewed' || rawStatus === 'Manual Review' || rawStatus === 'manual_review') {
+        status = 'Manual Reviewed';
+      } else if (rawStatus === 'Need to Check') {
+        status = 'Need to Check';
+      } else if (isDbEvaluated) {
+        status = 'AI Evaluated';
+      } else {
+        status = 'Not Evaluated';
+      }
+
+      // Check for any staged or matched bulk file for this student
+      const prevStudent = prevStudents.find((s) => String(s.user_id) === String(user.user_id));
+      const matchedBulk = this.bulkFiles.find(
+        (bf) => (bf.selectedUserId && String(bf.selectedUserId) === String(user.user_id)) ||
+                (bf.studentName && (user.full_name || user.user_name) && bf.studentName.toLowerCase() === (user.full_name || user.user_name || '').toLowerCase())
+      );
+
+      const rawFile = prevStudent?.rawFile || matchedBulk?.file || undefined;
+      const isUploaded = prevStudent?.isUploaded || (pCount > 0 && isDbEvaluated);
+      const matchedFile = prevStudent?.matchedFile || matchedBulk?.fileName || undefined;
+      const matchedBy = prevStudent?.matchedBy || matchedBulk?.matchedBy || undefined;
+      const isMatched = prevStudent?.isMatched || !!matchedBulk || false;
+      const pagesInfo = pCount > 0
+        ? `${pCount} of ${pCount} pages`
+        : (matchedBulk?.pagesInfo || prevStudent?.pagesInfo || '0 of 0 pages');
+
+      const isEvaluated = isDbEvaluated;
 
       return {
         sno: idx + 1,
         user_id: user.user_id,
         name: user.full_name || user.user_name || `Student ${idx + 1}`,
         rollNo: user.roll_no || user.user_name || `Roll No. ${idx + 1}`,
-        pagesInfo: pCount > 0 ? `${pCount} of ${pCount} pages` : '0 of 0 pages',
+        pagesInfo: pagesInfo,
         status: status,
         marks: marksDisplay,
         actionText: isEvaluated ? 'Review' : 'Evaluate',
-        actionClass: 'btn-solid-blue'
+        actionClass: 'btn-solid-blue',
+        rawFile: rawFile,
+        isUploaded: isUploaded,
+        matchedFile: matchedFile,
+        matchedBy: matchedBy,
+        isMatched: isMatched
       };
     });
 
@@ -959,13 +1001,27 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       notify('Exam or student ID is missing.', 'info');
       return;
     }
+
+    // Fallback: If student.rawFile was detached or missing, recover from this.bulkFiles
+    if (!student.rawFile) {
+      const matchedBulk = this.bulkFiles.find(
+        (bf) => (bf.selectedUserId && String(bf.selectedUserId) === String(student.user_id)) ||
+                (bf.studentName && student.name && bf.studentName.toLowerCase() === student.name.toLowerCase())
+      );
+      if (matchedBulk?.file) {
+        student.rawFile = matchedBulk.file;
+        student.matchedFile = matchedBulk.fileName;
+        student.isMatched = true;
+      }
+    }
+
     this.evaluatingStudent = student;
     this.currentView = 'evaluate';
     this.activeSheetPageIndex = 0;
     this.zoomLevel = 100;
     this.evaluationCategoryFilter = 'all';
 
-    // If student has a matched local file that hasn't been uploaded to backend yet, upload first
+    // If student has a matched local file that hasn't been uploaded to backend yet, upload & evaluate first
     if (student.rawFile && !student.isUploaded) {
       this.isLoadingEvaluation = true;
       const formData = new FormData();
@@ -980,11 +1036,17 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           if (res && res.status) {
             const pagesCount = res.data?.total_pages || res.data?.pages?.length || 1;
             student.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
+            student.status = 'AI Evaluated';
+            student.actionText = 'Review';
+            if (res.data?.marks) {
+              student.marks = res.data.marks;
+            }
           }
           this.loadEvaluationDetails(this.selectedExamId, student.user_id!);
         },
         error: (err) => {
           console.error('Error auto-uploading matched sheet:', err);
+          notify(err?.error?.statusMessage || 'Failed to upload answer sheet for evaluation.', 'error');
           this.loadEvaluationDetails(this.selectedExamId, student.user_id!);
         }
       });
@@ -2054,6 +2116,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       if (isMatched) fastMatchedCount++;
       else pendingScanCount++;
 
+      const isAlreadyEvaluated = matchedStudent?.status === 'AI Evaluated' || matchedStudent?.status === 'Manual Reviewed' || matchedStudent?.status === 'Need to Check';
+
       const fileItem: BulkFileItem = {
         id: Date.now() + i,
         fileName: f.name,
@@ -2063,9 +2127,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         isScanning: !isMatched,
         pagesInfo: f.name.toLowerCase().endsWith('.pdf') ? '2 of 2 pages' : '1 of 1 pages',
         isPageWarning: false,
-        aiStatus: isMatched ? (matchedStudent?.status === 'Completed' || matchedStudent?.status === 'AI Evaluated' ? 'Completed' : 'AI Evaluated') : 'Waiting',
+        aiStatus: isMatched ? (isAlreadyEvaluated ? 'Completed' : 'Waiting') : 'Waiting',
         evaluation: matchedStudent?.marks !== 'Not marked' ? matchedStudent?.marks || 'Ready for evaluation' : 'Ready for evaluation',
-        actionText: isMatched ? 'Review' : 'Scanning...',
+        actionText: isMatched ? (isAlreadyEvaluated ? 'Review' : 'Evaluate') : 'Scanning...',
         actionClass: isMatched ? 'btn-solid-blue' : 'btn-disabled',
         selectedStudent: matchedStudent ? matchedStudent.name : undefined,
         selectedUserId: matchedStudent ? matchedStudent.user_id : undefined,
@@ -2079,8 +2143,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         matchedStudent.rawFile = f;
         matchedStudent.isUploaded = false;
         matchedStudent.pagesInfo = fileItem.pagesInfo;
-        matchedStudent.status = matchedStudent.status === 'Not Evaluated' ? 'AI Evaluated' : matchedStudent.status;
-        matchedStudent.actionText = 'Review';
+        matchedStudent.status = isAlreadyEvaluated ? matchedStudent.status : 'Not Evaluated';
+        matchedStudent.actionText = isAlreadyEvaluated ? 'Review' : 'Evaluate';
         matchedStudent.actionClass = 'btn-solid-blue';
       }
 
@@ -2124,13 +2188,15 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
                    (res.roll_no && s.rollNo && s.rollNo.toLowerCase() === String(res.roll_no).toLowerCase())
           );
 
+          const isAlreadyEvaluated = foundStudent?.status === 'AI Evaluated' || foundStudent?.status === 'Manual Reviewed' || foundStudent?.status === 'Need to Check';
+
           fileItem.isMatched = true;
           fileItem.studentName = res.student_name || foundStudent?.name || 'Identified Student';
           fileItem.selectedUserId = res.user_id || foundStudent?.user_id;
           fileItem.selectedStudent = fileItem.studentName;
           fileItem.matchedBy = res.matched_by || 'Identified from test paper';
-          fileItem.aiStatus = 'AI Evaluated';
-          fileItem.actionText = 'Review';
+          fileItem.aiStatus = isAlreadyEvaluated ? 'Completed' : 'Waiting';
+          fileItem.actionText = isAlreadyEvaluated ? 'Review' : 'Evaluate';
           fileItem.actionClass = 'btn-solid-blue';
 
           if (foundStudent) {
@@ -2140,8 +2206,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             foundStudent.rawFile = fileItem.file;
             foundStudent.isUploaded = false;
             foundStudent.pagesInfo = fileItem.pagesInfo;
-            foundStudent.status = foundStudent.status === 'Not Evaluated' ? 'AI Evaluated' : foundStudent.status;
-            foundStudent.actionText = 'Review';
+            foundStudent.status = isAlreadyEvaluated ? foundStudent.status : 'Not Evaluated';
+            foundStudent.actionText = isAlreadyEvaluated ? 'Review' : 'Evaluate';
             foundStudent.actionClass = 'btn-solid-blue';
           }
           notify(`Identified ${fileItem.studentName} from ${fileItem.fileName} (${fileItem.matchedBy})`, 'success');
@@ -2172,6 +2238,22 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   evaluateAllMatchedBulk(): void {
+    // Ensure all matched bulkFiles have their rawFile and matching properties synced to this.students
+    for (const bf of this.bulkFiles) {
+      if (bf.isMatched && bf.file) {
+        const targetStudent = this.students.find(
+          (s) => (bf.selectedUserId && String(s.user_id) === String(bf.selectedUserId)) ||
+                 (bf.studentName && s.name && s.name.toLowerCase() === bf.studentName.toLowerCase())
+        );
+        if (targetStudent) {
+          targetStudent.rawFile = bf.file;
+          targetStudent.matchedFile = bf.fileName;
+          targetStudent.matchedBy = bf.matchedBy;
+          targetStudent.isMatched = true;
+          targetStudent.pagesInfo = bf.pagesInfo;
+        }
+      }
+    }
     const studentsToEval = this.students.filter(
       (s) => (s.isMatched || s.matchedFile || s.rawFile || s.status === 'AI Evaluated' || s.pagesInfo !== '0 of 0 pages') && s.user_id
     );
@@ -2189,69 +2271,56 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const pendingUploads = this.students.filter((s) => s.rawFile && !s.isUploaded && s.user_id);
 
     if (pendingUploads.length > 0) {
-      notify(`Uploading and evaluating ${pendingUploads.length} matched answer sheet(s)...`, 'info');
+      notify(`Queuing ${pendingUploads.length} answer sheet(s) for background AI evaluation...`, 'info');
       this.isUploading = true;
+      this.isBulkEvaluating = true;
+      this.bulkProgress = {
+        total: pendingUploads.length,
+        completed: 0,
+        failed: 0,
+        percentage: 0,
+        message: 'Submitting sheets to bounded background worker queue...'
+      };
 
-      const uploadRequests = pendingUploads.map((student) => {
-        const formData = new FormData();
-        formData.append('exam_id', this.selectedExamId);
-        formData.append('user_id', student.user_id!);
-        formData.append('replace', 'true');
-        formData.append('file', student.rawFile!);
+      // Set initial status to queued for all pending students
+      for (const s of pendingUploads) {
+        s.status = 'Evaluating...';
+        s.actionText = 'Queued...';
+        s.actionClass = 'btn-evaluating-pulse';
+      }
 
-        return this.http.post<any>(`${API_BASE}/test-evaluation/upload-answer-sheet`, formData).pipe(
-          catchError((err) => {
-            console.error(`Failed uploading sheet for ${student.name}:`, err);
-            return of({ status: false, error: err });
-          })
-        );
+      const formData = new FormData();
+      formData.append('exam_id', this.selectedExamId);
+
+      const manifest = pendingUploads.map((s) => ({
+        user_id: s.user_id,
+        name: s.name,
+        file_name: s.rawFile?.name
+      }));
+      formData.append('manifest', JSON.stringify(manifest));
+
+      pendingUploads.forEach((s) => {
+        if (s.rawFile) {
+          formData.append('files', s.rawFile, `${s.user_id}___${s.rawFile.name}`);
+        }
       });
 
-      forkJoin(uploadRequests).subscribe({
-        next: (results) => {
-          this.isUploading = false;
-          results.forEach((res, index) => {
-            const student = pendingUploads[index];
-            if (res && res.status) {
-              student.isUploaded = true;
-              const pagesCount = res.data?.total_pages || res.data?.pages?.length || 2;
-              student.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
-            }
-          });
-
-          // Update bulk files state
-          for (const f of this.bulkFiles) {
-            if (f.isMatched) {
-              f.aiStatus = 'AI Evaluated';
-              f.evaluation = 'Evaluated';
-              f.actionText = 'Review';
-              f.actionClass = 'btn-solid-blue';
-              f.isUploaded = true;
-            }
+      this.http.post<any>(`${API_BASE}/test-evaluation/start-bulk-evaluation`, formData).subscribe({
+        next: (res) => {
+          if (res && res.status && res.job_id) {
+            this.activeBulkJobId = res.job_id;
+            this.startEvaluationEventStream(res.job_id);
+          } else {
+            this.isUploading = false;
+            this.isBulkEvaluating = false;
+            notify(res?.statusMessage || 'Failed to start bulk evaluation queue.', 'error');
           }
-
-          // Update student records state
-          for (const s of this.students) {
-            if (s.isMatched || s.matchedFile || s.rawFile || s.status === 'AI Evaluated' || s.pagesInfo !== '0 of 0 pages') {
-              s.status = 'AI Evaluated';
-              if (s.marks === 'Not marked') {
-                const totalM = this.testDetails.totalMarks ? parseInt(this.testDetails.totalMarks, 10) || 20 : 20;
-                const randomScore = Math.floor(totalM * 0.75 + Math.random() * (totalM * 0.25));
-                s.marks = `${randomScore} / ${totalM}`;
-              }
-              s.actionText = 'Review';
-              s.actionClass = 'btn-solid-blue';
-            }
-          }
-
-          this.recalculateKpiTotals();
-          this.filterStudents();
-          notify(`AI evaluation completed for ${pendingUploads.length} matched answer sheet(s).`, 'success');
         },
         error: (err) => {
           this.isUploading = false;
-          console.error('Error in bulk evaluation forkJoin:', err);
-          notify('Bulk evaluation encountered an issue.', 'error');
+          this.isBulkEvaluating = false;
+          console.error('Error starting bulk evaluation:', err);
+          notify(err?.error?.statusMessage || 'Failed to enqueue bulk answer sheets.', 'error');
         }
       });
     } else {
@@ -2262,27 +2331,178 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           f.evaluation = 'Evaluated';
           f.actionText = 'Review';
           f.actionClass = 'btn-solid-blue';
+          f.isUploaded = true;
         }
       }
-
-      // Update student records state bi-directionally
-      for (const s of this.students) {
-        if (s.isMatched || s.matchedFile || s.status === 'AI Evaluated' || s.pagesInfo !== '0 of 0 pages') {
-          s.status = 'AI Evaluated';
-          if (s.marks === 'Not marked') {
-            const totalM = this.testDetails.totalMarks ? parseInt(this.testDetails.totalMarks, 10) || 20 : 20;
-            const randomScore = Math.floor(totalM * 0.75 + Math.random() * (totalM * 0.25));
-            s.marks = `${randomScore} / ${totalM}`;
-          }
-          s.actionText = 'Review';
-          s.actionClass = 'btn-solid-blue';
-        }
-      }
-
       this.recalculateKpiTotals();
       this.filterStudents();
-      notify(`AI evaluation completed for ${studentsToEval.length || this.matchedCount} matched answer sheet(s).`, 'success');
+      notify('All matched sheets are already evaluated.', 'info');
     }
+  }
+
+  startEvaluationEventStream(jobId: string): void {
+    if (this.bulkEvalEventSource) {
+      this.bulkEvalEventSource.close();
+      this.bulkEvalEventSource = undefined;
+    }
+
+    const token = sessionStorage.getItem('token') || '';
+    const streamUrl = `${API_BASE}/test-evaluation/evaluation-stream/${jobId}?token=${encodeURIComponent(token)}`;
+
+    this.bulkEvalEventSource = new EventSource(streamUrl);
+
+    this.bulkEvalEventSource.addEventListener('job_snapshot', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        this.bulkProgress.total = data.total || this.bulkProgress.total;
+        this.bulkProgress.completed = data.completed || 0;
+        this.bulkProgress.failed = data.failed || 0;
+        this.bulkProgress.percentage = data.percentage || 0;
+        if (data.students && Array.isArray(data.students)) {
+          data.students.forEach((stData: any) => {
+            const student = this.students.find((s) => String(s.user_id) === String(stData.user_id));
+            if (student) {
+              if (stData.status === 'evaluating') {
+                student.status = 'Evaluating...';
+                student.actionText = 'Evaluating...';
+                student.actionClass = 'btn-evaluating-pulse';
+              } else if (stData.status === 'completed') {
+                student.status = 'AI Evaluated';
+                student.marks = stData.marks || student.marks;
+                student.isUploaded = true;
+                student.actionText = 'Review';
+                student.actionClass = 'btn-solid-blue';
+              } else if (stData.status === 'failed') {
+                student.status = 'Failed';
+                student.actionText = 'Retry';
+                student.actionClass = 'btn-retry-danger';
+              }
+            }
+          });
+        }
+        this.recalculateKpiTotals();
+        this.cdr.detectChanges();
+      } catch (err) {
+        console.warn('Error parsing job_snapshot:', err);
+      }
+    });
+
+    this.bulkEvalEventSource.addEventListener('sheet_started', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
+        if (student) {
+          student.status = 'Evaluating...';
+          student.actionText = 'Evaluating...';
+          student.actionClass = 'btn-evaluating-pulse';
+        }
+        this.bulkProgress.message = data.message || `Evaluating ${data.student_name}...`;
+        this.cdr.detectChanges();
+      } catch (err) {
+        console.warn('Error parsing sheet_started:', err);
+      }
+    });
+
+    this.bulkEvalEventSource.addEventListener('sheet_completed', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
+        if (student) {
+          student.status = 'AI Evaluated';
+          student.marks = data.marks || student.marks;
+          student.isUploaded = true;
+          student.pagesInfo = `${data.total_pages || 1} of ${data.total_pages || 1} pages`;
+          student.actionText = 'Review';
+          student.actionClass = 'btn-solid-blue';
+        }
+        // Update corresponding item in bulkFiles table if present
+        for (const bf of this.bulkFiles) {
+          if (String(bf.selectedUserId) === String(data.user_id)) {
+            bf.aiStatus = 'AI Evaluated';
+            bf.evaluation = data.marks || 'Evaluated';
+            bf.actionText = 'Review';
+            bf.actionClass = 'btn-solid-blue';
+            bf.isUploaded = true;
+          }
+        }
+        this.bulkProgress.completed = data.completed;
+        this.bulkProgress.failed = data.failed || 0;
+        this.bulkProgress.percentage = data.percentage;
+        this.bulkProgress.message = data.message;
+        this.recalculateKpiTotals();
+        this.filterStudents();
+        this.cdr.detectChanges();
+      } catch (err) {
+        console.warn('Error parsing sheet_completed:', err);
+      }
+    });
+
+    this.bulkEvalEventSource.addEventListener('sheet_failed', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
+        if (student) {
+          student.status = 'Failed';
+          student.actionText = 'Retry';
+          student.actionClass = 'btn-retry-danger';
+        }
+        this.bulkProgress.completed = data.completed;
+        this.bulkProgress.failed = data.failed || 1;
+        this.bulkProgress.percentage = data.percentage;
+        this.bulkProgress.message = data.message;
+        notify(data.message || 'A sheet evaluation encountered an error.', 'error');
+        this.cdr.detectChanges();
+      } catch (err) {
+        console.warn('Error parsing sheet_failed:', err);
+      }
+    });
+
+    this.bulkEvalEventSource.addEventListener('job_completed', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        this.isBulkEvaluating = false;
+        this.isUploading = false;
+        this.bulkProgress.percentage = 100;
+        this.bulkProgress.message = data.message || 'All evaluations complete.';
+        notify(data.message || `Evaluation completed: ${data.completed} succeeded, ${data.failed} failed.`, data.failed > 0 ? 'info' : 'success');
+        if (this.bulkEvalEventSource) {
+          this.bulkEvalEventSource.close();
+          this.bulkEvalEventSource = undefined;
+        }
+        this.recalculateKpiTotals();
+        this.filterStudents();
+        this.cdr.detectChanges();
+      } catch (err) {
+        console.warn('Error parsing job_completed:', err);
+      }
+    });
+
+    this.bulkEvalEventSource.onerror = (err) => {
+      console.warn('SSE connection notice / fallback poll check:', err);
+      if (this.activeBulkJobId) {
+        this.http.get<any>(`${API_BASE}/test-evaluation/evaluation-status/${this.activeBulkJobId}`).subscribe({
+          next: (res) => {
+            if (res && res.status && res.data) {
+              const d = res.data;
+              this.bulkProgress.completed = d.completed;
+              this.bulkProgress.failed = d.failed;
+              this.bulkProgress.percentage = d.percentage;
+              if (d.status === 'completed' || d.status === 'failed') {
+                this.isBulkEvaluating = false;
+                this.isUploading = false;
+                if (this.bulkEvalEventSource) {
+                  this.bulkEvalEventSource.close();
+                  this.bulkEvalEventSource = undefined;
+                }
+                this.recalculateKpiTotals();
+                this.filterStudents();
+                this.cdr.detectChanges();
+              }
+            }
+          }
+        });
+      }
+    };
   }
 
   onStudentSelectedForUnmatched(fileItem: BulkFileItem, studentName: string): void {

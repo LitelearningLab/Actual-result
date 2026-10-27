@@ -673,6 +673,33 @@
         </div>
       </div>
 
+      <!-- Live Background Evaluation Progress Card (Stage 3 SSE Streaming) -->
+      <div class="live-eval-progress-banner" *ngIf="isBulkEvaluating || (bulkProgress.total > 0 && bulkProgress.percentage < 100)">
+        <div class="progress-banner-top">
+          <div class="banner-title-group">
+            <mat-icon class="banner-spin-icon">sync</mat-icon>
+            <div class="banner-text">
+              <span class="banner-title">AI Evaluation in Progress (Bounded Background Pool)</span>
+              <span class="banner-subtitle">{{ bulkProgress.message || 'Evaluating answer sheets concurrently...' }}</span>
+            </div>
+          </div>
+          <div class="banner-percentage-pill">
+            {{ bulkProgress.percentage }}%
+          </div>
+        </div>
+        <div class="progress-track-line">
+          <div class="progress-fill-line" [style.width.%]="bulkProgress.percentage"></div>
+        </div>
+        <div class="progress-banner-bottom">
+          <span class="progress-count-info">
+            <strong>{{ bulkProgress.completed }}</strong> of <strong>{{ bulkProgress.total }}</strong> sheets completed
+          </span>
+          <span class="progress-error-info" *ngIf="bulkProgress.failed > 0">
+            {{ bulkProgress.failed }} failed (retryable)
+          </span>
+        </div>
+      </div>
+
       <!-- Bulk Student Files Table (Synchronized with User Upload Table Structure) -->
       <div class="table-card bulk-table-card">
         <div class="table-responsive">
@@ -698,7 +725,7 @@
                 <td class="col-student">
                   <div class="student-name">{{ s.name }}</div>
                   <div class="student-roll">{{ s.rollNo }}</div>
-                  <div *ngIf="s.matchedFile" class="match-badge-chip">
+                  <div *ngIf="s.matchedFile && s.status !== 'AI Evaluated'" class="match-badge-chip">
                     <mat-icon class="match-icon">description</mat-icon>
                     <span class="match-chip-text" [title]="s.matchedFile">{{ s.matchedFile }} ({{ s.matchedBy || 'Matched' }})</span>
                     <button
@@ -728,10 +755,13 @@
                       'pill-manual-review': s.status === 'Manual Reviewed',
                       'pill-ai-evaluated': s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated',
                       'pill-need-check': s.status === 'Need to Check',
-                      'pill-not-evaluated': s.status === 'Not Evaluated'
+                      'pill-not-evaluated': s.status === 'Not Evaluated',
+                      'pill-evaluating': s.status === 'Evaluating...',
+                      'pill-failed': s.status === 'Failed'
                     }"
                   >
-                    <span class="status-dot">●</span> {{ s.status === 'evaluated' || s.status === 'Completed' ? 'AI Evaluated' : s.status }}
+                    <mat-icon class="mini-spin-icon" *ngIf="s.status === 'Evaluating...'">sync</mat-icon>
+                    <span class="status-dot" *ngIf="s.status !== 'Evaluating...'">●</span> {{ s.status === 'evaluated' || s.status === 'Completed' ? 'AI Evaluated' : s.status }}
                   </span>
                 </td>
 
@@ -777,6 +807,7 @@
                   <button
                     type="button"
                     [ngClass]="s.actionClass"
+                    [disabled]="s.status === 'Evaluating...'"
                     (click)="openStudentEvaluation(s)"
                   >
                     {{ s.actionText }}
@@ -807,9 +838,14 @@
               <mat-icon>delete_outline</mat-icon>
               <span>Clear All</span>
             </button>
-            <button type="button" class="btn-evaluate-matched" (click)="evaluateAllMatchedBulk()">
-              <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
-              <span>Evaluate Matched Sheets</span>
+            <button
+              type="button"
+              class="btn-evaluate-matched"
+              [disabled]="isBulkEvaluating || isUploading"
+              (click)="evaluateAllMatchedBulk()"
+            >
+              <mat-icon class="sparkle-icon" [class.spin-icon]="isBulkEvaluating">{{ isBulkEvaluating ? 'sync' : 'auto_awesome' }}</mat-icon>
+              <span>{{ isBulkEvaluating ? 'Evaluating Sheets (' + bulkProgress.completed + '/' + bulkProgress.total + ')...' : 'Evaluate Matched Sheets' }}</span>
             </button>
           </div>
         </div>

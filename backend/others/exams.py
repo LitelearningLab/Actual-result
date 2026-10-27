@@ -4276,12 +4276,13 @@ def finalize_student_evaluation(request, current_user=None):
         }, 500
 
 
-def upload_answer_sheet(request, current_user=None):
+def process_single_student_answer_sheet(
+    exam_id, user_id, file_items, replace=True, current_user=None
+):
     """
-    Accepts multipart/form-data upload with 'file'/'files' (PDF or JPG/PNG), 'exam_id', and 'user_id'.
-    Renders PDF pages into JPEG images using PyMuPDF (fitz) or pdf2image,
-    creates AnswerSheetPage records in the database, and links them to the student's attempt.
-    Includes atomic single-commit transaction and retry logic to prevent SQL Server deadlocks.
+    Core function to process and AI-evaluate a single student's answer sheet.
+    file_items: list of (filename, file_bytes) tuples or file-like objects.
+    Thread-safe and usable by both direct HTTP requests and background worker pool.
     """
     import os
     import sys
@@ -4289,20 +4290,13 @@ def upload_answer_sheet(request, current_user=None):
     import time
     import json
 
-    exam_id = request.form.get("exam_id")
-    user_id = request.form.get("user_id")
-
     if not exam_id or not user_id:
         return {
             "statusMessage": "exam_id and user_id are required",
             "status": False,
         }, 400
 
-    if "file" not in request.files and "files" not in request.files:
-        return {"statusMessage": "No file uploaded in request", "status": False}, 400
-
-    files = request.files.getlist("file") or request.files.getlist("files")
-    if not files or len(files) == 0:
+    if not file_items or len(file_items) == 0:
         return {"statusMessage": "No files found in upload", "status": False}, 400
 
     # Base upload directory: backend/static/uploads/answer_sheets/<exam_id>/<user_id>/
@@ -4328,12 +4322,17 @@ def upload_answer_sheet(request, current_user=None):
     curr_page_num = 1
     gcs_folder_prefix = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}"
 
-    for uploaded_file in files:
-        if not uploaded_file.filename:
+    for item in file_items:
+        if isinstance(item, tuple):
+            fname, file_bytes = item
+        else:
+            fname = getattr(item, "filename", "") or ""
+            file_bytes = item.read() if hasattr(item, "read") else b""
+
+        if not fname:
             continue
 
-        filename = uploaded_file.filename.lower()
-        file_bytes = uploaded_file.read()
+        filename = fname.lower()
 
         if filename.endswith(".pdf"):
             rendered_pdf = False
@@ -4524,10 +4523,8 @@ def upload_answer_sheet(request, current_user=None):
                 .all()
             )
             all_att_ids = [str(r[0]) for r in all_attempt_rows if r[0]]
-            if attempt_id not in all_att_ids:
-                all_att_ids.append(attempt_id)
-
-            if request.form.get("replace", "true").lower() in ("true", "1"):
+            replace_flag = replace if isinstance(replace, bool) else str(replace).lower() in ("true", "1")
+            if replace_flag:
                 # Clean up existing GCS images for these attempts if any
                 old_pages = (
                     session.query(AnswerSheetPage)
@@ -5073,9 +5070,41 @@ def upload_answer_sheet(request, current_user=None):
                             )
                             session.add(rc)
 
+            # Calculate final attempt score and percentage
+            total_awarded = sum(
+                float(ans.marks_awarded or 0.0)
+                for ans in session.query(Answer)
+                .filter(Answer.attempt_id == attempt.attempt_id)
+                .all()
+            )
+            attempt.score = total_awarded
+            from others.exam_review import get_exam_total_marks
+
+            total_possible, _ = get_exam_total_marks(
+                session,
+                exam_id=exam_id,
+                schedule_id=attempt.schedule_id,
+                attempt_id=attempt.attempt_id,
+            )
+            total_possible = float(total_possible or 0.0)
+            final_percentage = 0.0
+            if total_possible > 0:
+                final_percentage = round(
+                    (total_awarded / total_possible * 100), 2
+                )
+                attempt.percentage = final_percentage
+            attempt.status = "evaluated"
+            session.add(attempt)
+
             # Single atomic commit for everything
             session.commit()
             session.close()
+
+            marks_display = (
+                f"{round(total_awarded, 1)} / {round(total_possible, 1)}"
+                if total_possible > 0
+                else f"{round(total_awarded, 1)}"
+            )
 
             return {
                 "status": True,
@@ -5084,6 +5113,10 @@ def upload_answer_sheet(request, current_user=None):
                     "attempt_id": attempt_id,
                     "pages": created_pages,
                     "total_pages": len(created_pages),
+                    "marks": marks_display,
+                    "score": total_awarded,
+                    "total_marks": total_possible,
+                    "percentage": final_percentage,
                 },
             }, 200
 
@@ -5104,6 +5137,37 @@ def upload_answer_sheet(request, current_user=None):
                 "statusMessage": f"Error uploading answer sheet: {err_str}",
                 "status": False,
             }, 500
+
+def upload_answer_sheet(request, current_user=None):
+    """
+    Accepts multipart/form-data upload with 'file'/'files' (PDF or JPG/PNG), 'exam_id', and 'user_id'.
+    Delegates to process_single_student_answer_sheet for atomic evaluation.
+    """
+    exam_id = request.form.get("exam_id")
+    user_id = request.form.get("user_id")
+    replace = request.form.get("replace", "true").lower() in ("true", "1")
+
+    if not exam_id or not user_id:
+        return {
+            "statusMessage": "exam_id and user_id are required",
+            "status": False,
+        }, 400
+
+    if "file" not in request.files and "files" not in request.files:
+        return {"statusMessage": "No file uploaded in request", "status": False}, 400
+
+    files = request.files.getlist("file") or request.files.getlist("files")
+    if not files or len(files) == 0:
+        return {"statusMessage": "No files found in upload", "status": False}, 400
+
+    file_items = [(f.filename, f.read()) for f in files if f.filename]
+    return process_single_student_answer_sheet(
+        exam_id=exam_id,
+        user_id=user_id,
+        file_items=file_items,
+        replace=replace,
+        current_user=current_user,
+    )
 
 
 def identify_student_from_answer_sheet(request, current_user=None):

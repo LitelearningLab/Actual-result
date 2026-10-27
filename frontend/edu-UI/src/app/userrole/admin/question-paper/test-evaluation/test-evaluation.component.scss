@@ -1241,6 +1241,26 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
                 background: #f1f5f9;
                 color: #475569;
               }
+
+              &.pill-evaluating {
+                background: #e0f2fe;
+                color: #0284c7;
+                border: 1px solid #bae6fd;
+                animation: pulse-eval 2s infinite ease-in-out;
+
+                .mini-spin-icon {
+                  font-size: 14px;
+                  width: 14px;
+                  height: 14px;
+                  animation: spin-icon 1.2s linear infinite;
+                }
+              }
+
+              &.pill-failed {
+                background: #fee2e2;
+                color: #b91c1c;
+                border: 1px solid #fecaca;
+              }
             }
           }
 
@@ -1354,6 +1374,42 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
               justify-content: center;
               margin: 0 auto;
             }
+
+            .btn-evaluating-pulse {
+              background: #f0f9ff;
+              border: 1px solid #38bdf8;
+              color: #0284c7;
+              font-weight: 600;
+              font-size: 0.8125rem;
+              padding: 0.375rem 1rem;
+              border-radius: 0.5rem;
+              cursor: wait;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto;
+              animation: pulse-eval 1.5s infinite;
+            }
+
+            .btn-retry-danger {
+              background: #fef2f2;
+              border: 1px solid #f87171;
+              color: #dc2626;
+              font-weight: 600;
+              font-size: 0.8125rem;
+              padding: 0.375rem 1rem;
+              border-radius: 0.5rem;
+              cursor: pointer;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto;
+              transition: all 0.2s ease;
+
+              &:hover {
+                background: #fee2e2;
+              }
+            }
           }
 
           &.no-data-cell {
@@ -1387,6 +1443,109 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
 // ============================================
 // ── 9. Bulk Upload Wrapper & Cards (Image 1 & Image 3) ──
 // ============================================
+// ── Live Evaluation Progress Banner (Stage 3 SSE Streaming) ──
+.live-eval-progress-banner {
+  background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%);
+  border: 1px solid #bae6fd;
+  border-radius: 0.875rem;
+  padding: 1.125rem 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.08);
+
+  .progress-banner-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+
+    .banner-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      .banner-spin-icon {
+        color: #0284c7;
+        animation: spin-icon 1.5s linear infinite;
+        font-size: 26px;
+        width: 26px;
+        height: 26px;
+      }
+
+      .banner-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+
+        .banner-title {
+          font-size: 0.9375rem;
+          font-weight: 700;
+          color: #0369a1;
+        }
+
+        .banner-subtitle {
+          font-size: 0.8125rem;
+          color: #475569;
+        }
+      }
+    }
+
+    .banner-percentage-pill {
+      font-size: 1.125rem;
+      font-weight: 800;
+      color: #0284c7;
+      background: #ffffff;
+      padding: 0.35rem 0.875rem;
+      border-radius: 2rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+  }
+
+  .progress-track-line {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.625rem;
+
+    .progress-fill-line {
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8 0%, #2563eb 100%);
+      border-radius: 4px;
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+
+  .progress-banner-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    color: #334155;
+
+    .progress-count-info {
+      strong {
+        color: #0f172a;
+      }
+    }
+
+    .progress-error-info {
+      color: #dc2626;
+      font-weight: 600;
+    }
+  }
+}
+
+@keyframes spin-icon {
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse-eval {
+  0% { opacity: 0.85; }
+  50% { opacity: 1; filter: brightness(1.05); }
+  100% { opacity: 0.85; }
+}
+
 .bulk-upload-card-wrapper {
   display: flex;
   flex-direction: column;
@@ -1688,7 +1847,7 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         justify-content: space-between;
         width: 100%;
         position: relative;
-        padding: 0 40px; // Centers circles directly above the 5 label columns
+        padding: 0 calc(10% - 18px); // Centers circles directly above the 5 label columns (10% to 90%)
 
         .step-circle-wrapper {
           width: 36px;

@@ -136,9 +136,13 @@ def get_current_user_from_request():
     if hasattr(g, 'current_user') and g.current_user is not None:
         return g.current_user
     auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    token = None
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
+    elif request.args.get("token"):
+        token = request.args.get("token")
+    if not token:
         return None
-    token = auth_header.split(" ", 1)[1]
     try:
         decoded = JWTValidator(jwt_secret).validate_jwt(token)
         email = decoded.get("sub")
@@ -583,6 +587,123 @@ def upload_answer_sheet_route():
     current_user = get_current_user_from_request()
     response_data, status_code = upload_answer_sheet(request, current_user)
     return jsonify(response_data), status_code
+
+@edu_blueprint.route('/test-evaluation/start-bulk-evaluation', methods=['POST'])
+@admin_required
+def start_bulk_evaluation_route():
+    import json
+    from others.bulk_eval_manager import bulk_eval_manager
+    current_user = get_current_user_from_request()
+
+    exam_id = request.form.get('exam_id')
+    if not exam_id:
+        return jsonify({"status": False, "statusMessage": "exam_id is required"}), 400
+
+    raw_manifest = request.form.get('manifest') or '[]'
+    try:
+        manifest = json.loads(raw_manifest)
+    except Exception:
+        manifest = []
+
+    files = request.files.getlist('files') or request.files.getlist('file')
+    if not files or len(files) == 0:
+        return jsonify({"status": False, "statusMessage": "No answer sheet files uploaded"}), 400
+
+    # Build map of uploaded files by original name and prefixed key
+    uploaded_files_by_name = {}
+    for f in files:
+        if f and f.filename:
+            uploaded_files_by_name[f.filename] = f.read()
+
+    student_tasks = []
+    # If manifest is provided, map each student to their file
+    if manifest and isinstance(manifest, list):
+        for item in manifest:
+            user_id = str(item.get('user_id') or '')
+            st_name = item.get('name') or 'Student'
+            target_fname = item.get('file_name') or ''
+
+            # Find matching file bytes
+            matched_bytes = None
+            matched_name = target_fname
+
+            # 1. Exact match
+            if target_fname in uploaded_files_by_name:
+                matched_bytes = uploaded_files_by_name[target_fname]
+            # 2. Prefixed match (e.g. user_id___filename)
+            if not matched_bytes:
+                for k, v in uploaded_files_by_name.items():
+                    if k.startswith(f"{user_id}___"):
+                        matched_bytes = v
+                        matched_name = k.split("___", 1)[-1]
+                        break
+            # 3. Fallback to filename partial match
+            if not matched_bytes and target_fname:
+                for k, v in uploaded_files_by_name.items():
+                    if target_fname in k or k in target_fname:
+                        matched_bytes = v
+                        matched_name = k
+                        break
+
+            if user_id and matched_bytes:
+                student_tasks.append({
+                    "user_id": user_id,
+                    "student_name": st_name,
+                    "file_items": [(matched_name, matched_bytes)]
+                })
+
+    # If no manifest or some files unmapped, pair up by user_ids list if passed
+    if not student_tasks and request.form.getlist('user_ids'):
+        user_ids = request.form.getlist('user_ids')
+        names = request.form.getlist('student_names') or []
+        for idx, uid in enumerate(user_ids):
+            if idx < len(files):
+                f = files[idx]
+                st_name = names[idx] if idx < len(names) else f"Student {idx + 1}"
+                f_bytes = uploaded_files_by_name.get(f.filename) or b''
+                student_tasks.append({
+                    "user_id": uid,
+                    "student_name": st_name,
+                    "file_items": [(f.filename, f_bytes)]
+                })
+
+    if not student_tasks:
+        return jsonify({"status": False, "statusMessage": "No matched student answer sheets found to evaluate"}), 400
+
+    job_id = bulk_eval_manager.create_job(
+        exam_id=exam_id,
+        student_tasks=student_tasks,
+        current_user=current_user
+    )
+
+    return jsonify({
+        "status": True,
+        "statusMessage": f"Enqueued {len(student_tasks)} answer sheet(s) for AI evaluation.",
+        "job_id": job_id,
+        "total": len(student_tasks)
+    }), 200
+
+@edu_blueprint.route('/test-evaluation/evaluation-stream/<job_id>', methods=['GET'])
+@admin_required
+def evaluation_stream_route(job_id):
+    from others.bulk_eval_manager import bulk_eval_manager
+    response = Response(
+        bulk_eval_manager.subscribe_events(job_id),
+        mimetype='text/event-stream'
+    )
+    response.headers['Cache-Control'] = 'no-cache, no-transform'
+    response.headers['X-Accel-Buffering'] = 'no'
+    response.headers['Connection'] = 'keep-alive'
+    return response
+
+@edu_blueprint.route('/test-evaluation/evaluation-status/<job_id>', methods=['GET'])
+@admin_required
+def evaluation_status_route(job_id):
+    from others.bulk_eval_manager import bulk_eval_manager
+    summary = bulk_eval_manager.get_job_summary(job_id)
+    if not summary:
+        return jsonify({"status": False, "statusMessage": "Job not found"}), 404
+    return jsonify({"status": True, "data": summary}), 200
 
 @edu_blueprint.route('/test-evaluation/identify-student', methods=['POST'])
 @admin_required
