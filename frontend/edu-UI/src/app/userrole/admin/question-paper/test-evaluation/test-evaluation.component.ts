@@ -2601,7 +2601,7 @@ if (targetInList) {
         completed: 0,
         failed: 0,
         percentage: 0,
-        message: 'Submitting sheets to bounded background worker queue...'
+        message: 'Processing answer sheets in the background...'
       };
 
       // Set initial status to queued for all pending students
