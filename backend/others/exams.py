@@ -3834,8 +3834,8 @@ def get_student_evaluation_details(request, current_user=None):
         if not attempt and exam_id and user_id:
             sched_ids = [
                 str(r[0])
-                for r in session.query(func.cast(ExamSchedule.schedule_id, String))
-                .filter(func.cast(ExamSchedule.exam_id, String) == str(exam_id))
+                for r in session.query(ExamSchedule.schedule_id)
+                .filter(ExamSchedule.exam_id == exam_id)
                 .all()
             ]
             valid_sched_ids = list(set([str(exam_id)] + [s for s in sched_ids if s]))
@@ -3843,8 +3843,8 @@ def get_student_evaluation_details(request, current_user=None):
             attempt = (
                 session.query(Exam_Attempt)
                 .filter(
-                    func.cast(Exam_Attempt.user_id, String) == str(user_id),
-                    func.cast(Exam_Attempt.schedule_id, String).in_(valid_sched_ids),
+                    Exam_Attempt.user_id == user_id,
+                    Exam_Attempt.schedule_id.in_(valid_sched_ids),
                 )
                 .order_by(
                     Exam_Attempt.started_date.desc(), Exam_Attempt.submitted_date.desc()
@@ -3871,7 +3871,7 @@ def get_student_evaluation_details(request, current_user=None):
         if attempt and att_id_str:
             pages = (
                 session.query(AnswerSheetPage)
-                .filter(func.cast(AnswerSheetPage.attempt_id, String) == att_id_str)
+                .filter(AnswerSheetPage.attempt_id == attempt.attempt_id)
                 .order_by(
                     AnswerSheetPage.page_number.asc(),
                     AnswerSheetPage.created_date.desc(),
@@ -3899,8 +3899,10 @@ def get_student_evaluation_details(request, current_user=None):
             pages_data.sort(key=lambda x: x["page_number"])
 
         # Check if original PDF exists in GCS for direct client-side canvas rendering
+        # Only check GCS if submission has a PDF file; skip remote blob.exists network latency for JPG/PNG sheets
         pdf_signed_url = None
-        if gcs_storage.is_gcs_active() and user_id and exam_id:
+        has_pdf_pages = any((p.image_path or "").lower().endswith(".pdf") for p in pages) if (attempt and att_id_str and 'pages' in locals()) else False
+        if has_pdf_pages and gcs_storage.is_gcs_active() and user_id and exam_id:
             try:
                 pdf_object_path = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}/answersheet.pdf"
                 blob = gcs_storage.bucket.blob(pdf_object_path)
@@ -3967,14 +3969,99 @@ def get_student_evaluation_details(request, current_user=None):
         calculated_total_possible = 0.0
         needs_evaluation_commit = False
 
+        # --- Batch-fetch all related question data in bulk to eliminate N+1 roundtrips ---
+        all_q_ids = [q.question_id for _, q, _ in eqm_rows]
+
+        # 1. Bulk Options
+        all_options = (
+            session.query(Option).filter(Option.question_id.in_(all_q_ids)).all()
+            if all_q_ids
+            else []
+        )
+        options_by_qid = {}
+        for opt in all_options:
+            options_by_qid.setdefault(str(opt.question_id), []).append(opt)
+
+        # 2. Bulk Answers & Collect user IDs
+        answers_by_qid = {}
+        all_ans_ids = []
+        user_ids_to_fetch = set()
+        if attempt and att_id_str:
+            all_answers = (
+                session.query(Answer)
+                .filter(Answer.attempt_id == attempt.attempt_id)
+                .all()
+            )
+            for a in all_answers:
+                answers_by_qid[str(a.question_id)] = a
+                all_ans_ids.append(a.answer_id)
+                if a.created_by and str(a.created_by).lower() not in ("system", "ai", "auto"):
+                    user_ids_to_fetch.add(str(a.created_by))
+
+        # 3. Bulk Review Comments
+        rc_by_qid = {}
+        if attempt and att_id_str:
+            all_rc = (
+                session.query(ExamReviewComments)
+                .filter(
+                    ExamReviewComments.attempt_id == attempt.attempt_id,
+                    or_(
+                        ExamReviewComments.is_deleted == 0,
+                        ExamReviewComments.is_deleted.is_(None),
+                    ),
+                )
+                .order_by(ExamReviewComments.created_date.asc())
+                .all()
+            )
+            for rc in all_rc:
+                rc_by_qid.setdefault(str(rc.question_id), []).append(rc)
+
+        # 4. Bulk Marks History
+        mh_by_ans_id = {}
+        if all_ans_ids:
+            all_mh = (
+                session.query(MarksHistory)
+                .filter(MarksHistory.answer_id.in_(all_ans_ids))
+                .order_by(MarksHistory.updated_date.desc())
+                .all()
+            )
+            for mh in all_mh:
+                mh_by_ans_id.setdefault(str(mh.answer_id), []).append(mh)
+                if mh.updated_by and str(mh.updated_by).lower() not in ("system", "ai", "auto"):
+                    user_ids_to_fetch.add(str(mh.updated_by))
+
+        # 5. Bulk Users (evaluators / updaters)
+        users_by_id = {}
+        if user_ids_to_fetch:
+            all_users = (
+                session.query(User)
+                .filter(User.user_id.in_(list(user_ids_to_fetch)))
+                .all()
+            )
+            for u in all_users:
+                users_by_id[str(u.user_id)] = u.full_name or u.user_name
+
+        # 6. Bulk Media
+        media_by_qid = {}
+        if all_q_ids:
+            all_media = (
+                session.query(QuestionMedia)
+                .filter(
+                    QuestionMedia.question_id.in_(all_q_ids),
+                    QuestionMedia.active_status == 1,
+                )
+                .order_by(QuestionMedia.order_number.asc())
+                .all()
+            )
+            for m in all_media:
+                media_by_qid.setdefault(str(m.question_id), []).append(m)
+
         for idx, (eqm, q, sec_name) in enumerate(eqm_rows):
             q_marks = float(q.marks or 1.0)
             calculated_total_possible += q_marks
 
-            # Resolve Model Answer from Options
-            options = (
-                session.query(Option).filter(Option.question_id == q.question_id).all()
-            )
+            # Resolve Model Answer from Options (instant dictionary lookup)
+            options = options_by_qid.get(str(q.question_id), [])
             correct_opts = [
                 opt for opt in options if str(opt.is_correct).lower() in ("1", "true")
             ]
@@ -3984,17 +4071,8 @@ def get_student_evaluation_details(request, current_user=None):
             elif options:
                 model_answer = options[0].option_text or ""
 
-            # Resolve Existing Answer Record
-            ans = None
-            if attempt and att_id_str:
-                ans = (
-                    session.query(Answer)
-                    .filter(
-                        func.cast(Answer.attempt_id, String) == att_id_str,
-                        func.cast(Answer.question_id, String) == str(q.question_id),
-                    )
-                    .first()
-                )
+            # Resolve Existing Answer Record (instant dictionary lookup)
+            ans = answers_by_qid.get(str(q.question_id))
 
             marks_awarded = float(ans.marks_awarded or 0.0) if ans else 0.0
             ai_marks = (
@@ -4011,73 +4089,60 @@ def get_student_evaluation_details(request, current_user=None):
             )
             manual_review_required = bool(ans.manual_review_required) if ans else False
 
-            # Resolve Review Comments (Points Missed, Incorrect, Incomplete)
+            # Resolve Review Comments (instant dictionary lookup)
             review_comments = []
-            if attempt and att_id_str:
-                rc_rows = (
-                    session.query(ExamReviewComments)
-                    .filter(
-                        func.cast(ExamReviewComments.attempt_id, String) == att_id_str,
-                        func.cast(ExamReviewComments.question_id, String) == str(q.question_id),
-                        or_(
-                            ExamReviewComments.is_deleted == 0,
-                            ExamReviewComments.is_deleted.is_(None),
-                        ),
-                    )
-                    .order_by(ExamReviewComments.created_date.asc())
-                    .all()
-                )
-                for rc in rc_rows:
-                    rc_topic = getattr(rc, "topic", "") or ""
-                    rc_issue = getattr(rc, "issue", "") or ""
-                    rc_label = getattr(rc, "label", "") or ""
-                    rc_statement = getattr(rc, "statement", "") or ""
+            rc_rows = rc_by_qid.get(str(q.question_id), [])
+            for rc in rc_rows:
+                rc_topic = getattr(rc, "topic", "") or ""
+                rc_issue = getattr(rc, "issue", "") or ""
+                rc_label = getattr(rc, "label", "") or ""
+                rc_statement = getattr(rc, "statement", "") or ""
 
-                    # Fallback extraction if topic/statement were not stored separately in older records
-                    if not rc_topic and not rc_statement and rc.comment_text:
-                        raw_txt = rc.comment_text
-                        lbl_pattern = r"\b(Needed|Correct|Complete)\s*:\s*"
-                        parts = re.split(lbl_pattern, raw_txt, flags=re.IGNORECASE)
-                        if len(parts) >= 3:
-                            left_side = parts[0].strip()
-                            rc_label = parts[1].capitalize()
-                            rc_statement = parts[2].strip()
-                            if ":" in left_side:
-                                sub = left_side.split(":", 1)
-                                rc_topic = sub[0].strip("() \t\n\r")
-                                rc_issue = sub[1].strip()
-                            else:
-                                rc_issue = left_side
-                        elif ":" in raw_txt:
-                            sub = raw_txt.split(":", 1)
+                # Fallback extraction if topic/statement were not stored separately in older records
+                if not rc_topic and not rc_statement and rc.comment_text:
+                    raw_txt = rc.comment_text
+                    lbl_pattern = r"\b(Needed|Correct|Complete)\s*:\s*"
+                    parts = re.split(lbl_pattern, raw_txt, flags=re.IGNORECASE)
+                    if len(parts) >= 3:
+                        left_side = parts[0].strip()
+                        rc_label = parts[1].capitalize()
+                        rc_statement = parts[2].strip()
+                        if ":" in left_side:
+                            sub = left_side.split(":", 1)
                             rc_topic = sub[0].strip("() \t\n\r")
                             rc_issue = sub[1].strip()
+                        else:
+                            rc_issue = left_side
+                    elif ":" in raw_txt:
+                        sub = raw_txt.split(":", 1)
+                        rc_topic = sub[0].strip("() \t\n\r")
+                        rc_issue = sub[1].strip()
 
-                    review_comments.append(
-                        {
-                            "comment_id": str(rc.comment_id),
-                            "comment_text": rc.comment_text,
-                            "topic": rc_topic,
-                            "issue": rc_issue or rc.comment_text,
-                            "label": rc_label or ("Correct" if (rc.category or "").lower() == "incorrect" else ("Needed" if (rc.category or "").lower() == "missing" else "Complete")),
-                            "statement": rc_statement,
-                            "category": rc.category or "missing",
-                            "action": rc.action,
-                            "updated_by": rc.updated_by or rc.created_by,
-                            "updated_date": (
-                                rc.updated_date.isoformat()
-                                if rc.updated_date
-                                else (
-                                    rc.created_date.isoformat()
-                                    if rc.created_date
-                                    else None
-                                )
-                            ),
-                            "edit_reason": rc.edit_reason,
-                        }
-                    )
+                review_comments.append(
+                    {
+                        "comment_id": str(rc.comment_id),
+                        "comment_text": rc.comment_text,
+                        "topic": rc_topic,
+                        "issue": rc_issue or rc.comment_text,
+                        "label": rc_label or ("Correct" if (rc.category or "").lower() == "incorrect" else ("Needed" if (rc.category or "").lower() == "missing" else "Complete")),
+                        "statement": rc_statement,
+                        "category": rc.category or "missing",
+                        "action": rc.action,
+                        "updated_by": rc.updated_by or rc.created_by,
+                        "updated_date": (
+                            rc.updated_date.isoformat()
+                            if rc.updated_date
+                            else (
+                                rc.created_date.isoformat()
+                                if rc.created_date
+                                else None
+                            )
+                        ),
+                        "edit_reason": rc.edit_reason,
+                    }
+                )
 
-            # Resolve Marks History & Current Evaluator Info
+            # Resolve Marks History & Current Evaluator Info (instant dictionary lookups)
             marks_history = []
             current_updater_name = "SYSTEM"
             current_updated_date = None
@@ -4086,14 +4151,10 @@ def get_student_evaluation_details(request, current_user=None):
             if ans:
                 ans_id_str = str(ans.answer_id) if ans.answer_id else None
                 if ans.created_by:
-                    ans_user = (
-                        session.query(User)
-                        .filter(User.user_id == ans.created_by)
-                        .first()
-                    )
-                    if ans_user:
-                        current_updater_name = ans_user.full_name or ans_user.user_name
-                    elif str(ans.created_by).lower() in ("system", "ai", "auto"):
+                    c_by_str = str(ans.created_by)
+                    if c_by_str in users_by_id:
+                        current_updater_name = users_by_id[c_by_str]
+                    elif c_by_str.lower() in ("system", "ai", "auto"):
                         current_updater_name = "SYSTEM"
                     else:
                         current_updater_name = "SYSTEM"
@@ -4103,25 +4164,13 @@ def get_student_evaluation_details(request, current_user=None):
                 )
                 current_edit_reason = getattr(ans, "edit_reason", None)
 
-                mh_rows = (
-                    session.query(MarksHistory)
-                    .filter(func.cast(MarksHistory.answer_id, String) == ans_id_str)
-                    .order_by(MarksHistory.updated_date.desc())
-                    .all()
-                ) if ans_id_str else []
+                mh_rows = mh_by_ans_id.get(str(ans.answer_id), []) or mh_by_ans_id.get(ans.answer_id, [])
                 for mh in mh_rows:
-                    updater = (
-                        session.query(User)
-                        .filter(User.user_id == mh.updated_by)
-                        .first()
+                    updater_name = (
+                        users_by_id.get(str(mh.updated_by))
                         if mh.updated_by
                         else None
-                    )
-                    updater_name = (
-                        updater.full_name or updater.user_name
-                        if updater
-                        else (mh.updated_by or "SYSTEM")
-                    )
+                    ) or (str(mh.updated_by) if mh.updated_by else "SYSTEM")
                     marks_history.append(
                         {
                             "history_id": str(mh.history_id),
@@ -4152,12 +4201,7 @@ def get_student_evaluation_details(request, current_user=None):
                 except Exception:
                     student_written_text = ans.written_answer or ""
 
-            q_media = (
-                session.query(QuestionMedia)
-                .filter_by(question_id=q.question_id, active_status=1)
-                .order_by(QuestionMedia.order_number.asc())
-                .all()
-            )
+            q_media = media_by_qid.get(str(q.question_id), [])
             media_list = [
                 {
                     "media_id": str(m.media_id),

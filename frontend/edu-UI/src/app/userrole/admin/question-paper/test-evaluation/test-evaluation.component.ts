@@ -1031,6 +1031,26 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.zoomLevel = 100;
     this.evaluationCategoryFilter = 'all';
 
+    // Pre-populate evaluationDetails from in-memory student data to avoid 0/0 flicker
+    const parsedMarks = parseFloat(String(student.marks || '').split('/')[0]) || 0;
+    const totalExamMarks = parseFloat(String(this.testDetails?.totalMarks || '').replace(/[^\d.]/g, '')) || 10;
+    const pct = totalExamMarks > 0 ? Math.round((parsedMarks / totalExamMarks) * 100) : 0;
+
+    this.evaluationDetails = {
+      status: true,
+      student_name: student.name,
+      roll_no: student.rollNo,
+      summary: {
+        total_marks: totalExamMarks,
+        marks_awarded: parsedMarks,
+        percentage: pct,
+        status: student.status || 'AI Evaluated',
+        total_questions: parseInt(String(this.testDetails?.totalQuestions || '').replace(/[^\d.]/g, ''), 10) || 0
+      },
+      questions: [],
+      pages: []
+    };
+
     // If student has a matched local file that hasn't been uploaded to backend yet, upload & evaluate first
     if (student.rawFile && !student.isUploaded) {
       this.isLoadingEvaluation = true;

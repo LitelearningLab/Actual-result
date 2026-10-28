@@ -1871,6 +1871,12 @@
                 </div>
               </div>
 
+            <!-- Loading Questions State -->
+            <div class="questions-loading-card" *ngIf="isLoadingEvaluation">
+              <div class="loading-spinner"></div>
+              <span>Loading questions &amp; marks...</span>
+            </div>
+
             <!-- Empty Questions State -->
             <div class="no-questions-card" *ngIf="evaluationQuestions.length === 0 && !isLoadingEvaluation">
               <mat-icon class="no-q-icon">playlist_add_check</mat-icon>
