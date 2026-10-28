@@ -904,7 +904,7 @@ EVALUATION RULES:
    - Illustrative Examples: If the rubric provides a sample example (e.g., class Dog, method bark()), accept any valid, functionally correct student example (e.g. Student, Car) unless the question explicitly mandated that exact name.
 
 3. OBJECTIVE / MULTIPLE CHOICE QUESTIONS:
-   - Identify option letter (e.g. 'a', 'b') or option text written under the question label.
+   - Identify option letter (e.g. 'a', 'b') or option text written under the question label. If a student crossed out or scribbled an initial mark and wrote an answer next to it (e.g. scribble then '2'), extract the final intended answer (e.g. '2').
    - If it matches the correct option letter or text (case-insensitive), award full marks (suggested_marks = max_marks, is_correct = 1, missing = [], incomplete = [], incorrect = []).
    - If incorrect, award 0.0 marks and specify the error.
 

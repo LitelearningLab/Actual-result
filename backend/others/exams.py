@@ -67,6 +67,137 @@ def _to_naive_utc_datetime(val):
     return None
 
 
+def _parse_balanced_braces(s_text, start_idx):
+    if start_idx >= len(s_text) or s_text[start_idx] != '{':
+        return None, start_idx
+    count = 0
+    content = []
+    i = start_idx
+    while i < len(s_text):
+        if s_text[i] == '{':
+            count += 1
+            if count > 1:
+                content.append('{')
+        elif s_text[i] == '}':
+            count -= 1
+            if count == 0:
+                return "".join(content), i + 1
+            else:
+                content.append('}')
+        else:
+            content.append(s_text[i])
+        i += 1
+    return "".join(content), len(s_text)
+
+
+def _strip_frac(s_text):
+    while r'\frac' in s_text:
+        idx = s_text.find(r'\frac')
+        b1 = s_text.find('{', idx)
+        if b1 == -1:
+            break
+        num, b2 = _parse_balanced_braces(s_text, b1)
+        if b2 >= len(s_text) or s_text[b2] != '{':
+            break
+        den, end_idx = _parse_balanced_braces(s_text, b2)
+        s_text = s_text[:idx] + f"({num})/({den})" + s_text[end_idx:]
+    return s_text
+
+
+def _norm_math(s):
+    s = str(s or '').strip()
+    s = re.sub(r'\[(unclear|illegible|scratch|scribble)\]', '', s, flags=re.IGNORECASE).strip()
+    s = re.sub(r'[*#_]', '', s).strip()
+    s = s.replace('\u2212', '-').replace('−', '-').replace('±', '+-').replace('²', '^2').replace('³', '^3').replace('√', 'sqrt')
+    s = s.replace('$', '').replace(r'\pm', '+-').replace(r'\sqrt', 'sqrt').replace(r'\times', '*')
+    s = re.sub(r'\\(sin|cos|tan|cot|sec|csc|ln|log|exp)\b', r'\1', s)
+    s = _strip_frac(s)
+    s = re.sub(r'\\frac\b', '', s)
+    s = s.replace('\\', '').replace('{', '(').replace('}', ')')
+    s = re.sub(r'\s+', '', s).lower()
+    return s
+
+
+def _strip_equation_prefix(s):
+    s = re.sub(r'^[a-z]\([a-z]\)=', '', s)
+    s = re.sub(r'^[a-z]=', '', s)
+    return s
+
+
+def _match_objective_option(student_text, options):
+    if not student_text or not options:
+        return None, None
+    clean_snippet = re.sub(r'\[(unclear|illegible|scratch|scribble)\]', '', str(student_text), flags=re.IGNORECASE).strip()
+    clean_snippet = re.sub(r'[*#_]', '', clean_snippet).strip()
+    if not clean_snippet:
+        return None, None
+
+    clean_snippet_lower = clean_snippet.lower()
+    norm_snippet = _norm_math(clean_snippet)
+    norm_snippet_no_eq = _strip_equation_prefix(norm_snippet)
+    norm_snippet_no_paren = norm_snippet_no_eq.replace('(', '').replace(')', '')
+
+    # 1. Pure letter-only answer: e.g. "A", "b)", "(C)", "D.", "Option A", "Ans: B"
+    m_letter_only = re.fullmatch(r'(?:option\s+|ans(?:wer)?\s*[:\.\-]?\s*)?\(?([a-z])\)?[\.\:\-]?\s*', clean_snippet_lower)
+    if m_letter_only:
+        letter_char = m_letter_only.group(1)
+        oi = ord(letter_char) - ord('a')
+        if 0 <= oi < len(options):
+            return options[oi], chr(ord('A') + oi)
+
+    # 2. Letter prefix followed by text: e.g. "B) f(x) = sin(x)", "(C) -2", "A. 3x^2"
+    m_letter_prefix = re.match(r'^(?:option\s+|ans(?:wer)?\s*[:\.\-]?\s*)?\(?([a-z])\)?(?:[\)\.\:\-\s]+|\s+)(.+)$', clean_snippet_lower)
+    if m_letter_prefix:
+        letter_char = m_letter_prefix.group(1)
+        body_text = m_letter_prefix.group(2).strip()
+        oi = ord(letter_char) - ord('a')
+        if 0 <= oi < len(options):
+            cand_opt = options[oi]
+            cand_text = (getattr(cand_opt, "option_text", None) or (cand_opt.get("text") if isinstance(cand_opt, dict) else "") or "").strip()
+            norm_cand = _norm_math(cand_text)
+            norm_body = _norm_math(body_text)
+            if not norm_cand or norm_body == norm_cand or _strip_equation_prefix(norm_body) == _strip_equation_prefix(norm_cand):
+                return cand_opt, chr(ord('A') + oi)
+            if norm_body.replace('(', '').replace(')', '') == norm_cand.replace('(', '').replace(')', ''):
+                return cand_opt, chr(ord('A') + oi)
+            return cand_opt, chr(ord('A') + oi)
+
+    # 3. Exact text matching across all options (Exact matches only; no suffix traps)
+    for oi, opt in enumerate(options):
+        letter_upper = chr(ord('A') + oi)
+        opt_text = (getattr(opt, "option_text", None) or (opt.get("text") if isinstance(opt, dict) else "") or "").strip()
+        if not opt_text:
+            continue
+        opt_text_lower = opt_text.lower()
+        norm_opt = _norm_math(opt_text)
+
+        if clean_snippet_lower == opt_text_lower or (norm_opt and norm_snippet == norm_opt):
+            return opt, letter_upper
+
+    for oi, opt in enumerate(options):
+        letter_upper = chr(ord('A') + oi)
+        opt_text = (getattr(opt, "option_text", None) or (opt.get("text") if isinstance(opt, dict) else "") or "").strip()
+        if not opt_text:
+            continue
+        norm_opt = _norm_math(opt_text)
+        norm_opt_no_eq = _strip_equation_prefix(norm_opt)
+        if norm_snippet_no_eq and norm_opt_no_eq and norm_snippet_no_eq == norm_opt_no_eq:
+            return opt, letter_upper
+
+    for oi, opt in enumerate(options):
+        letter_upper = chr(ord('A') + oi)
+        opt_text = (getattr(opt, "option_text", None) or (opt.get("text") if isinstance(opt, dict) else "") or "").strip()
+        if not opt_text:
+            continue
+        norm_opt = _norm_math(opt_text)
+        norm_opt_no_eq = _strip_equation_prefix(norm_opt)
+        norm_opt_no_paren = norm_opt_no_eq.replace('(', '').replace(')', '')
+        if norm_snippet_no_paren and norm_opt_no_paren and norm_snippet_no_paren == norm_opt_no_paren:
+            return opt, letter_upper
+
+    return None, None
+
+
 def is_exam_active_or_attended(session, exam_id):
     """
     Checks if an exam has already been scheduled and is currently active or is being attended by one or more users.
@@ -3834,6 +3965,7 @@ def get_student_evaluation_details(request, current_user=None):
         questions_data = []
         total_exam_marks = float(exam.total_marks or 0)
         calculated_total_possible = 0.0
+        needs_evaluation_commit = False
 
         for idx, (eqm, q, sec_name) in enumerate(eqm_rows):
             q_marks = float(q.marks or 1.0)
@@ -4051,11 +4183,24 @@ def get_student_evaluation_details(request, current_user=None):
             ]
 
             is_objective_q = str(q.question_type or "").lower() not in ("descriptive", "paragraph")
+            sel_opt_id = str(ans.selected_option_id) if (ans and ans.selected_option_id) else None
             if is_objective_q:
                 model_answer = ""
-                student_written_text = ""
                 feedback = ""
                 review_comments = []
+                if student_written_text:
+                    matched_opt, _ = _match_objective_option(student_written_text, options)
+                    expected_opt_id = str(matched_opt.options_id).lower() if matched_opt else None
+                    if expected_opt_id != (sel_opt_id.lower() if sel_opt_id else None):
+                        sel_opt_id = expected_opt_id
+                        if ans:
+                            ans.selected_option_id = matched_opt.options_id if matched_opt else None
+                            if getattr(ans, "manual_marks", None) is None:
+                                is_opt_corr = str(getattr(matched_opt, "is_correct", 0)).lower() in ("1", "true") if matched_opt else False
+                                ans.marks_awarded = q_marks if is_opt_corr else 0.0
+                                ans.is_correct = 1 if is_opt_corr else 0
+                                marks_awarded = ans.marks_awarded
+                            needs_evaluation_commit = True
 
             questions_data.append(
                 {
@@ -4071,6 +4216,7 @@ def get_student_evaluation_details(request, current_user=None):
                     "options": q_options_list,
                     "model_answer": model_answer,
                     "student_answer": student_written_text,
+                    "selected_option_id": sel_opt_id.lower() if sel_opt_id else None,
                     "ai_marks": ai_marks,
                     "marks_awarded": marks_awarded,
                     "ai_confidence": ai_confidence,
@@ -4158,6 +4304,12 @@ def get_student_evaluation_details(request, current_user=None):
                 "status": display_status,
             },
         }
+
+        if needs_evaluation_commit:
+            try:
+                session.commit()
+            except Exception as _c_err:
+                session.rollback()
 
         session.close()
         return payload, 200
@@ -4878,14 +5030,13 @@ def process_single_student_answer_sheet(
                         except (ValueError, TypeError):
                             pass
 
-                # Phase 2: Filter rubric to only evaluate detected/uncertain questions (descriptive questions only)
+                # Phase 2: Filter rubric to only evaluate detected/uncertain questions
                 filtered_sections = []
                 for sec in rubric_sections:
                     filtered_qs = [
                         q
                         for q in sec.get("questions", [])
                         if int(q.get("question_number", 0)) in detected_q_nums_set
-                        and str(q.get("question_type", "")).lower() in ("descriptive", "paragraph")
                     ]
                     if filtered_qs:
                         filtered_sections.append(
@@ -4956,20 +5107,48 @@ def process_single_student_answer_sheet(
                 manual_review = 1 if is_uncertain else 0
                 ev = evaluations_by_qid.get(qid_str) if is_detected else None
 
+                matched_opt_id = None
                 if is_objective:
-                    # Objective questions: do not call LLM, no feedback, no review comments, no student snippet
-                    awarded = float(existing_ans.marks_awarded or 0.0) if existing_ans else 0.0
-                    conf = 0
-                    fb = ""
-                    is_corr = existing_ans.is_correct if (existing_ans and existing_ans.is_correct is not None) else 0
-                    is_val = existing_ans.is_validated if (existing_ans and existing_ans.is_validated is not None) else 1
+                    student_snippet = ev.get("student_answer_snippet", "").strip() if ev else ""
                     detected_pages = (
                         detected_pages_by_qid.get(qid_str)
                         or pages_by_qnum.get(q_num)
+                        or (ev.get("detected_on_pages") if ev else [])
                         or []
                     )
                     manual_review = 0
-                    student_snippet = ""
+                    is_val = 1
+                    conf = 100
+
+                    if is_detected and student_snippet:
+                        q_options = (
+                            session.query(Option)
+                            .filter(Option.question_id == q_obj.question_id)
+                            .all()
+                        ) if q_obj else []
+                        matched_option, matched_letter = _match_objective_option(student_snippet, q_options)
+
+                        if matched_option:
+                            matched_opt_id = str(matched_option.options_id)
+                            is_opt_correct = str(
+                                getattr(matched_option, "is_correct", 0)
+                            ).lower() in ("1", "true")
+                            if is_opt_correct:
+                                awarded = q_marks
+                                is_corr = 1
+                                fb = f"Correct. Selected Option ({matched_letter}) {matched_option.option_text}"
+                            else:
+                                awarded = 0.0
+                                is_corr = 0
+                                fb = f"Incorrect. Selected Option ({matched_letter}) {matched_option.option_text}"
+                        else:
+                            awarded = 0.0
+                            is_corr = 0
+                            fb = f"Student's answer '{student_snippet}' is not among the options."
+                    else:
+                        awarded = 0.0
+                        is_corr = 0
+                        fb = "Question was not attempted or not found on the uploaded answer sheet."
                 elif is_detected and ev:
                     awarded = float(ev.get("suggested_marks", 0.0))
                     conf = int(ev.get("ai_confidence", 0))
@@ -5016,6 +5195,8 @@ def process_single_student_answer_sheet(
                     existing_ans.is_correct = is_corr
                     existing_ans.manual_review_required = manual_review
                     existing_ans.written_answer = meta_payload
+                    if is_objective:
+                        existing_ans.selected_option_id = matched_opt_id
                 else:
                     ans = Answer(
                         answer_id=str(uuid.uuid4()),
@@ -5031,6 +5212,7 @@ def process_single_student_answer_sheet(
                         feedback=fb,
                         is_validated=is_val,
                         is_correct=is_corr,
+                        selected_option_id=matched_opt_id if is_objective else None,
                     )
                     session.add(ans)
 

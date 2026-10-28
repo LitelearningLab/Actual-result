@@ -1499,15 +1499,31 @@
                       <mat-icon>check_circle</mat-icon>
                       <span>Correct Answer</span>
                     </span>
-                    <span class="badge-opt-student" *ngIf="isStudentSelectedOption(q, opt, oi) && !isOptionCorrect(opt)">
-                      <mat-icon>cancel</mat-icon>
-                      <span>Student's Choice</span>
-                    </span>
                     <span class="badge-opt-student-correct" *ngIf="isStudentSelectedOption(q, opt, oi) && isOptionCorrect(opt)">
                       <mat-icon>verified</mat-icon>
-                      <span>Student's Choice (Correct)</span>
+                      <span>Your Choice</span>
+                    </span>
+                    <span class="badge-opt-student" *ngIf="isStudentSelectedOption(q, opt, oi) && !isOptionCorrect(opt)">
+                      <mat-icon>cancel</mat-icon>
+                      <span>Your Choice</span>
                     </span>
                   </div>
+                </div>
+              </div>
+
+              <!-- Student's Attended Answer When NOT in Choices -->
+              <div
+                class="eval-mcq-unmatched-student-ans"
+                *ngIf="isObjective(q) && hasStudentAnswer(q) && !hasStudentSelectedAnyOption(q)"
+              >
+                <div class="unmatched-ans-header">
+                  <div class="unmatched-hdr-left">
+                    <mat-icon class="unmatched-icon">edit_note</mat-icon>
+                    <span class="unmatched-label">STUDENT'S ANSWER</span>
+                  </div>
+                </div>
+                <div class="unmatched-ans-text">
+                  <app-math-render [text]="q.student_answer"></app-math-render>
                 </div>
               </div>
 

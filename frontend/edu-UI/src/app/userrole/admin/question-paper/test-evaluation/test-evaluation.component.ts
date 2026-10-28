@@ -1422,33 +1422,29 @@ if (targetInList) {
     }
   }
 
+  isQuestionNeedsAttention(q: any): boolean {
+    if (!q) return false;
+    return (
+      q.manual_review_required ||
+      (this.isDescriptive(q) && q.ai_confidence != null && q.ai_confidence < this.aiConfidenceThreshold) ||
+      (q.marks_awarded != null && q.marks_awarded < q.max_marks) ||
+      (q.review_comments && q.review_comments.length > 0)
+    );
+  }
+
   get evaluationQuestions(): any[] {
     const questions: any[] = this.evaluationDetails?.questions || [];
     if (this.evaluationCategoryFilter === 'needs_attention') {
-      return questions.filter(
-        (q) =>
-          q.manual_review_required ||
-          (q.ai_confidence != null && q.ai_confidence < this.aiConfidenceThreshold) ||
-          (q.marks_awarded != null && q.marks_awarded < q.max_marks) ||
-          (q.review_comments && q.review_comments.length > 0)
-      );
+      return questions.filter((q) => this.isQuestionNeedsAttention(q));
     } else if (this.evaluationCategoryFilter === 'reviewed') {
-      return questions.filter(
-        (q) => q.marks_awarded != null && q.marks_awarded > 0 && !q.manual_review_required
-      );
+      return questions.filter((q) => !this.isQuestionNeedsAttention(q));
     }
     return questions;
   }
 
   get needsAttentionQuestionsCount(): number {
     const questions: any[] = this.evaluationDetails?.questions || [];
-    return questions.filter(
-      (q) =>
-        q.manual_review_required ||
-        (q.ai_confidence != null && q.ai_confidence < this.aiConfidenceThreshold) ||
-        (q.marks_awarded != null && q.marks_awarded < q.max_marks) ||
-        (q.review_comments && q.review_comments.length > 0)
-    ).length;
+    return questions.filter((q) => this.isQuestionNeedsAttention(q)).length;
   }
 
   get reviewedQuestionsCount(): number {
@@ -1498,24 +1494,117 @@ if (targetInList) {
   isStudentSelectedOption(q: any, opt: any, index: number): boolean {
     if (!q || !opt) return false;
     const letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[index];
-    const studentAns = (q.student_answer || '').trim();
+    const letterLower = letter.toLowerCase();
 
-    if (studentAns) {
-      if (studentAns.toUpperCase() === letter || studentAns.toUpperCase() === `OPTION ${letter}`) {
-        return true;
-      }
-      if (opt.text && studentAns.toLowerCase() === opt.text.trim().toLowerCase()) {
-        return true;
+    // 1. Direct selected_option_id check (authoritative if present)
+    if (q.selected_option_id) {
+      return (
+        !!opt.id &&
+        String(q.selected_option_id).trim().toLowerCase() === String(opt.id).trim().toLowerCase()
+      );
+    }
+
+    // 2. Check selected_option field (array or single value)
+    if (q.selected_option) {
+      const optIdLower = opt.id ? String(opt.id).trim().toLowerCase() : '';
+      if (Array.isArray(q.selected_option)) {
+        const selNorm = q.selected_option.map((s: any) => String(s).trim().toLowerCase());
+        if (
+          (optIdLower && selNorm.includes(optIdLower)) ||
+          selNorm.includes(letterLower) ||
+          (opt.text && selNorm.includes(opt.text.trim().toLowerCase()))
+        ) {
+          return true;
+        }
+      } else {
+        const selStr = String(q.selected_option).trim().toLowerCase();
+        if (
+          (optIdLower && selStr === optIdLower) ||
+          selStr === letterLower ||
+          (opt.text && selStr === opt.text.trim().toLowerCase())
+        ) {
+          return true;
+        }
       }
     }
 
-    if (q.selected_option && Array.isArray(q.selected_option)) {
-      if (q.selected_option.includes(opt.id) || q.selected_option.includes(letter) || (opt.text && q.selected_option.includes(opt.text))) {
+    // 3. Fallback: Match from student_answer text when selected_option_id is not set
+    const studentAns = (q.student_answer || '').trim();
+    if (studentAns) {
+      const cleanAns = studentAns
+        .replace(/\[(unclear|illegible|scratch|scribble)\]/gi, '')
+        .replace(/[*#_]/g, '')
+        .replace(/^OPTION\s+/i, '')
+        .trim();
+
+      if (!cleanAns) return false;
+
+      // Check letter patterns: A, A), (A), A., A-, A:
+      const letterPatterns = [
+        letter,
+        `${letter})`,
+        `(${letter})`,
+        `${letter}.`,
+        `${letter}-`,
+        `${letter}:`
+      ];
+
+      const cleanAnsUpper = cleanAns.toUpperCase();
+      if (letterPatterns.includes(cleanAnsUpper)) {
         return true;
+      }
+
+      // Check if student wrote letter pattern followed by text e.g. "B) Under" or "(B) Under"
+      for (const pat of letterPatterns) {
+        if (cleanAnsUpper.startsWith(`${pat} `) || cleanAnsUpper.startsWith(`${pat}\t`)) {
+          return true;
+        }
+      }
+
+      // Check direct or normalized text equality
+      if (opt.text) {
+        const normalize = (s: string) =>
+          String(s || '')
+            .replace(/\[(unclear|illegible|scratch|scribble)\]/gi, '')
+            .replace(/[*#_]/g, '')
+            .replace(/[\u2212−]/g, '-')
+            .replace(/[²]/g, '^2')
+            .replace(/[³]/g, '^3')
+            .replace(/[±]/g, '+-')
+            .replace(/\\pm/g, '+-')
+            .replace(/√/g, 'sqrt')
+            .replace(/\\sqrt/g, 'sqrt')
+            .replace(/\\times/g, '*')
+            .replace(/\\(sin|cos|tan|cot|sec|csc|ln|log|exp)\b/gi, '$1')
+            .replace(/[$]/g, '')
+            .replace(/\\/g, '')
+            .replace(/[{}]/g, '')
+            .replace(/\s+/g, '')
+            .toLowerCase();
+
+        const stripEq = (s: string) => s.replace(/^[a-z]\([a-z]\)=/, '').replace(/^[a-z]=/, '');
+
+        const normClean = normalize(cleanAns);
+        const normOpt = normalize(opt.text);
+
+        if (cleanAns.toLowerCase() === opt.text.trim().toLowerCase()) {
+          return true;
+        }
+        if (normClean && normOpt && (normClean === normOpt || normClean.replace(/[()]/g, '') === normOpt.replace(/[()]/g, ''))) {
+          return true;
+        }
+        if (stripEq(normClean) && stripEq(normOpt) && (stripEq(normClean) === stripEq(normOpt) || stripEq(normClean).replace(/[()]/g, '') === stripEq(normOpt).replace(/[()]/g, ''))) {
+          return true;
+        }
       }
     }
 
     return false;
+  }
+
+  hasStudentSelectedAnyOption(q: any): boolean {
+    if (!q || !q.options || !q.options.length) return false;
+    return q.options.some((opt: any, index: number) => this.isStudentSelectedOption(q, opt, index));
   }
 
   getNonEmptyCategoryCount(q: any): number {
