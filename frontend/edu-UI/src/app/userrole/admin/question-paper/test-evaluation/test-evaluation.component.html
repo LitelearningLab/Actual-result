@@ -663,7 +663,7 @@
                 (ngModelChange)="onStudentSelectedForUnmatched(uf, $event)"
               >
                 <option value="Choose student" disabled>Choose student to link...</option>
-                <option *ngFor="let st of students" [value]="st.name">{{ st.name }} ({{ st.rollNo }})</option>
+                <option *ngFor="let st of getEligibleStudentsForLink(uf)" [value]="st.name">{{ st.name }} ({{ st.rollNo }})</option>
               </select>
               <button
                 type="button"

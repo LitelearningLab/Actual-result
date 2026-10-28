@@ -2948,6 +2948,61 @@ if (targetInList) {
     }
   }
 
+  getEligibleStudentsForLink(currentFile?: BulkFileItem): StudentEvaluation[] {
+    if (!this.students || this.students.length === 0) {
+      return [];
+    }
+
+    return this.students.filter((st) => {
+      // Preserve current selection if this student is already selected for this unmatched file
+      const isCurrentSelection =
+        !!currentFile &&
+        ((currentFile.selectedStudent && currentFile.selectedStudent === st.name) ||
+         (currentFile.selectedUserId && String(currentFile.selectedUserId) === String(st.user_id)));
+
+      if (isCurrentSelection) {
+        return true;
+      }
+
+      // Exclude if already evaluated or marks awarded
+      const isEvaluated =
+        (st.status && st.status !== 'Not Evaluated') ||
+        (st.marks && st.marks !== 'Not marked');
+      if (isEvaluated) {
+        return false;
+      }
+
+      // Exclude if student has uploaded sheets or attached sheets from DB / camera / attach modal
+      if (st.isUploaded || (st.scannedPagesData && st.scannedPagesData.length > 0)) {
+        return false;
+      }
+
+      // Exclude if already matched or linked to another file
+      if (st.isMatched || st.matchedFile || st.rawFile) {
+        return false;
+      }
+
+      // Exclude if matched to any other bulk file
+      const isMatchedToOtherBulkFile = this.bulkFiles.some(
+        (bf) =>
+          bf !== currentFile &&
+          bf.isMatched &&
+          ((bf.selectedUserId && String(bf.selectedUserId) === String(st.user_id)) ||
+           (bf.studentName && bf.studentName.toLowerCase() === st.name.toLowerCase()))
+      );
+      if (isMatchedToOtherBulkFile) {
+        return false;
+      }
+
+      // Exclude if pagesInfo indicates attached pages
+      if (st.pagesInfo && !st.pagesInfo.startsWith('0 of 0')) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
   get isScanningBulkFiles(): boolean {
     return this.bulkFiles.some((f: BulkFileItem) => !!f.isScanning);
   }
