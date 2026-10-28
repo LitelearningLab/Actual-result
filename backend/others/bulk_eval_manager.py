@@ -36,7 +36,7 @@ class BulkEvaluationManager:
         )
         self.jobs = {}
         self.listeners = defaultdict(list)  # job_id -> list of queue.Queue
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self._recover_interrupted_jobs()
 
     def _persist_job(self, job_id: str):
@@ -141,15 +141,25 @@ class BulkEvaluationManager:
         student_name = task.get("student_name") or "Student"
         file_items = task.get("file_items") or []
 
+        # Check before starting if job or student was cancelled
+        with self.lock:
+            job = self.jobs.get(job_id)
+            if not job or job.get("cancelled"):
+                return
+            st_record = job["students"].get(user_id)
+            if not st_record or st_record.get("cancelled"):
+                return
+
         # 1. Update status to 'evaluating' and notify
         with self.lock:
             job = self.jobs.get(job_id)
-            if not job:
+            if not job or job.get("cancelled"):
                 return
             st_record = job["students"].get(user_id)
-            if st_record:
-                st_record["status"] = "evaluating"
-                st_record["started_at"] = datetime.utcnow().isoformat()
+            if not st_record or st_record.get("cancelled"):
+                return
+            st_record["status"] = "evaluating"
+            st_record["started_at"] = datetime.utcnow().isoformat()
             self._persist_job(job_id)
 
         self._emit_event(job_id, "sheet_started", {
@@ -171,6 +181,33 @@ class BulkEvaluationManager:
                 replace=True,
                 current_user=user_info
             )
+
+            # Check if cancelled while LLM / processing was executing
+            with self.lock:
+                job = self.jobs.get(job_id)
+                is_cancelled = not job or job.get("cancelled") or (job.get("students", {}).get(user_id, {}).get("cancelled"))
+                if is_cancelled:
+                    logger.info(f"[BulkEvalWorker] Student {student_name} was stopped - purging DB attempt.")
+                    try:
+                        from others.exams import SQLiteDB, Exam_Attempt, Answer, AnswerSheetPage
+                        from sqlalchemy import func, String
+                        db = SQLiteDB()
+                        sess = db.connect()
+                        if sess:
+                            att_rows = sess.query(Exam_Attempt.attempt_id).filter(
+                                Exam_Attempt.user_id == str(user_id),
+                                Exam_Attempt.schedule_id == str(job.get("exam_id"))
+                            ).all()
+                            att_ids = [str(r[0]) for r in att_rows if r[0]]
+                            if att_ids:
+                                sess.query(Answer).filter(func.cast(Answer.attempt_id, String).in_(att_ids)).delete(synchronize_session=False)
+                                sess.query(AnswerSheetPage).filter(func.cast(AnswerSheetPage.attempt_id, String).in_(att_ids)).delete(synchronize_session=False)
+                                sess.query(Exam_Attempt).filter(func.cast(Exam_Attempt.attempt_id, String).in_(att_ids)).delete(synchronize_session=False)
+                                sess.commit()
+                            sess.close()
+                    except Exception as err:
+                        logger.warning(f"Error purging cancelled DB attempt: {err}")
+                    return
 
             if status_code == 200 and res_data.get("status"):
                 data_payload = res_data.get("data") or {}
@@ -227,6 +264,96 @@ class BulkEvaluationManager:
             err_msg = str(e)
             logger.error(f"[BulkEvalWorker] Error evaluating {student_name} ({user_id}): {err_msg}", exc_info=True)
             self._handle_sheet_error(job_id, user_id, student_name, err_msg)
+
+    def stop_job(self, job_id: str, user_id: str = None) -> dict:
+        """Stops the entire job or cancels a specific student task within the job."""
+        event_to_emit = None
+        db_cleanup_task = None
+
+        with self.lock:
+            job = self.jobs.get(job_id)
+            if not job:
+                return {"status": False, "statusMessage": f"Job {job_id} not found."}
+
+            exam_id = job.get("exam_id")
+
+            if user_id:
+                st = job["students"].get(str(user_id))
+                if st:
+                    st["cancelled"] = True
+                    st["status"] = "cancelled"
+
+                    # Decrement active total students so progress reflects remaining active sheets
+                    if job.get("total_students", 0) > 0:
+                        job["total_students"] -= 1
+
+                    db_cleanup_task = (str(user_id), str(exam_id))
+
+                    total_cnt = job["total_students"]
+                    completed_cnt = job["completed_students"]
+                    failed_cnt = job["failed_students"]
+                    is_all_done = (completed_cnt + failed_cnt >= total_cnt)
+                    if is_all_done:
+                        job["status"] = "completed"
+
+                    self._persist_job(job_id)
+                    event_to_emit = ("sheet_stopped", {
+                        "job_id": job_id,
+                        "user_id": str(user_id),
+                        "student_name": st.get("student_name", "Student"),
+                        "status": "Not Evaluated",
+                        "total": total_cnt,
+                        "completed": completed_cnt,
+                        "failed": failed_cnt,
+                        "percentage": round((completed_cnt / total_cnt) * 100) if total_cnt > 0 else 0,
+                        "message": f"Evaluation stopped for {st.get('student_name', 'Student')}."
+                    }, f"Evaluation stopped for {st.get('student_name', 'Student')}.")
+                else:
+                    return {"status": False, "statusMessage": f"Student {user_id} not found in job."}
+            else:
+                job["cancelled"] = True
+                job["status"] = "cancelled"
+                for uid, st in job["students"].items():
+                    if st["status"] in ("queued", "evaluating"):
+                        st["cancelled"] = True
+                        st["status"] = "cancelled"
+                self._persist_job(job_id)
+                event_to_emit = ("job_stopped", {
+                    "job_id": job_id,
+                    "status": "cancelled",
+                    "message": "Bulk evaluation stopped by user."
+                }, "Bulk evaluation stopped.")
+
+        # Clean up database records outside the lock so other threads are never blocked
+        if db_cleanup_task:
+            clean_uid, clean_eid = db_cleanup_task
+            try:
+                from others.exams import SQLiteDB, Exam_Attempt, Answer, AnswerSheetPage
+                from sqlalchemy import func, String
+                db = SQLiteDB()
+                sess = db.connect()
+                if sess:
+                    att_rows = sess.query(Exam_Attempt.attempt_id).filter(
+                        Exam_Attempt.user_id == clean_uid,
+                        Exam_Attempt.schedule_id == clean_eid
+                    ).all()
+                    att_ids = [str(r[0]) for r in att_rows if r[0]]
+                    if att_ids:
+                        sess.query(Answer).filter(func.cast(Answer.attempt_id, String).in_(att_ids)).delete(synchronize_session=False)
+                        sess.query(AnswerSheetPage).filter(func.cast(AnswerSheetPage.attempt_id, String).in_(att_ids)).delete(synchronize_session=False)
+                        sess.query(Exam_Attempt).filter(func.cast(Exam_Attempt.attempt_id, String).in_(att_ids)).delete(synchronize_session=False)
+                        sess.commit()
+                    sess.close()
+            except Exception as clean_err:
+                logger.warning(f"Failed cleaning stopped student DB attempt: {clean_err}")
+
+        # Emit events outside the lock
+        if event_to_emit:
+            evt_name, evt_data, ret_msg = event_to_emit
+            self._emit_event(job_id, evt_name, evt_data)
+            return {"status": True, "statusMessage": ret_msg}
+
+        return {"status": False, "statusMessage": "No action taken."}
 
     def _handle_sheet_error(self, job_id: str, user_id: str, student_name: str, error_msg: str):
         """Handles single student failure cleanly without failing other concurrent workers."""

@@ -4308,7 +4308,12 @@ def get_student_evaluation_details(request, current_user=None):
             )
             for q in questions_data
         )
-        if has_manual_review:
+        has_evaluated_content = bool(
+            attempt and (pages_data or any(q.get("marks_awarded", 0) > 0 or q.get("ai_marks") is not None for q in questions_data))
+        )
+        if not has_evaluated_content:
+            display_status = "Not Evaluated"
+        elif has_manual_review:
             display_status = "Manual Reviewed"
         elif has_need_to_check:
             display_status = "Need to Check"

@@ -447,7 +447,7 @@
       </div>
 
       <!-- Uploaded Files Manager Tray (Quick View & Delete Mistakes) -->
-      <div class="uploaded-files-tray" *ngIf="bulkFiles.length > 0">
+      <div class="uploaded-files-tray" *ngIf="bulkFiles.length > 0 && (!hasStartedEvaluation || unmatchedCount > 0)">
         <div class="uploaded-tray-header">
           <div class="tray-title-group">
             <mat-icon class="tray-header-icon">folder_open</mat-icon>
@@ -473,50 +473,52 @@
         </div>
 
         <div class="uploaded-files-chips-grid">
-          <div
-            class="file-chip-item"
-            *ngFor="let f of bulkFiles"
-            [ngClass]="{
-              'chip-matched': f.isMatched,
-              'chip-unmatched': !f.isMatched,
-              'chip-scanning': f.isScanning,
-              'chip-selected': previewAnswerSheet?.fileName === f.fileName
-            }"
-            (click)="openAnswerSheetPreview(f)"
-            matTooltip="Click to preview answer sheet"
-          >
-            <div class="file-chip-left">
-              <mat-icon class="file-chip-icon">
-                {{ f.fileName.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image' }}
-              </mat-icon>
-              <div class="file-chip-details">
-                <span class="file-chip-name" [title]="f.fileName">{{ f.fileName }}</span>
-                <span class="file-chip-sub">
-                  <ng-container *ngIf="f.isMatched">
-                    <mat-icon class="sub-status-icon matched-icon">check_circle</mat-icon>
-                    <span class="sub-text"><strong>{{ f.studentName }}</strong></span>
-                  </ng-container>
-                  <ng-container *ngIf="!f.isMatched && f.isScanning">
-                    <mat-icon class="sub-status-icon scanning-icon">sync</mat-icon>
-                    <span class="sub-text">Scanning...</span>
-                  </ng-container>
-                  <ng-container *ngIf="!f.isMatched && !f.isScanning">
-                    <mat-icon class="sub-status-icon unmatched-icon">warning</mat-icon>
-                    <span class="sub-text">Unmatched</span>
-                  </ng-container>
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="btn-chip-remove"
-              (click)="removeBulkFile(f, $event)"
-              [matTooltip]="'Remove ' + f.fileName"
-              aria-label="Remove file"
+          <ng-container *ngFor="let f of bulkFiles">
+            <div
+              class="file-chip-item"
+              *ngIf="!hasStartedEvaluation || !f.isMatched"
+              [ngClass]="{
+                'chip-matched': f.isMatched,
+                'chip-unmatched': !f.isMatched,
+                'chip-scanning': f.isScanning,
+                'chip-selected': previewAnswerSheet?.fileName === f.fileName
+              }"
+              (click)="openAnswerSheetPreview(f)"
+              matTooltip="Click to preview answer sheet"
             >
-              <mat-icon>close</mat-icon>
-            </button>
-          </div>
+              <div class="file-chip-left">
+                <mat-icon class="file-chip-icon">
+                  {{ f.fileName.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image' }}
+                </mat-icon>
+                <div class="file-chip-details">
+                  <span class="file-chip-name" [title]="f.fileName">{{ f.fileName }}</span>
+                  <span class="file-chip-sub">
+                    <ng-container *ngIf="f.isMatched">
+                      <mat-icon class="sub-status-icon matched-icon">check_circle</mat-icon>
+                      <span class="sub-text"><strong>{{ f.studentName }}</strong></span>
+                    </ng-container>
+                    <ng-container *ngIf="!f.isMatched && f.isScanning">
+                      <mat-icon class="sub-status-icon scanning-icon">sync</mat-icon>
+                      <span class="sub-text">Scanning...</span>
+                    </ng-container>
+                    <ng-container *ngIf="!f.isMatched && !f.isScanning">
+                      <mat-icon class="sub-status-icon unmatched-icon">warning</mat-icon>
+                      <span class="sub-text">Unmatched</span>
+                    </ng-container>
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="btn-chip-remove"
+                (click)="removeBulkFile(f, $event)"
+                [matTooltip]="'Remove ' + f.fileName"
+                aria-label="Remove file"
+              >
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </ng-container>
         </div>
 
         <!-- Inline Answer Sheet Preview (Appears directly below the cards) -->
@@ -998,8 +1000,19 @@
                 <td class="col-action text-center">
                   <button
                     type="button"
+                    *ngIf="s.status === 'Evaluating...'"
+                    class="btn-stop-eval"
+                    (click)="stopStudentEvaluation(s, $event)"
+                    matTooltip="Stop evaluation"
+                  >
+                    <mat-icon class="btn-stop-icon">stop</mat-icon>
+                    <span>Stop</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    *ngIf="s.status !== 'Evaluating...'"
                     [ngClass]="s.actionClass"
-                    [disabled]="s.status === 'Evaluating...'"
                     (click)="openStudentEvaluation(s)"
                   >
                     {{ s.actionText }}
@@ -1024,11 +1037,23 @@
             <button
               type="button"
               class="btn-evaluate-matched"
-              [disabled]="isBulkEvaluating || isUploading"
+              *ngIf="!isBulkEvaluating"
+              [disabled]="isUploading"
               (click)="evaluateAllMatchedBulk()"
             >
-              <mat-icon class="sparkle-icon" [class.spin-icon]="isBulkEvaluating">{{ isBulkEvaluating ? 'sync' : 'auto_awesome' }}</mat-icon>
-              <span>{{ isBulkEvaluating ? 'Evaluating Sheets (' + bulkProgress.completed + '/' + bulkProgress.total + ')...' : 'Evaluate Matched Sheets' }}</span>
+              <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
+              <span>Evaluate Matched Sheets</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-stop-all-eval"
+              *ngIf="isBulkEvaluating"
+              (click)="stopAllEvaluation()"
+              matTooltip="Stop all ongoing evaluations"
+            >
+              <mat-icon class="stop-icon">stop</mat-icon>
+              <span>Stop Evaluation</span>
             </button>
           </div>
         </div>
@@ -1227,6 +1252,17 @@
               <td class="col-action text-center">
                 <button
                   type="button"
+                  *ngIf="s.status === 'Evaluating...'"
+                  class="btn-stop-eval"
+                  (click)="stopStudentEvaluation(s, $event)"
+                  matTooltip="Stop evaluation"
+                >
+                  <mat-icon class="btn-stop-icon">stop</mat-icon>
+                  <span>Stop</span>
+                </button>
+                <button
+                  type="button"
+                  *ngIf="s.status !== 'Evaluating...'"
                   [ngClass]="s.actionClass"
                   (click)="openStudentEvaluation(s)"
                 >
@@ -1293,10 +1329,11 @@
               [ngClass]="{
                 'pill-manual-review': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Manual Reviewed',
                 'pill-ai-evaluated': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'AI Evaluated' || (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Completed' || (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'evaluated',
-                'pill-need-check': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Need to Check'
+                'pill-need-check': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Need to Check',
+                'pill-not-evaluated': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Not Evaluated'
               }"
             >
-              <span class="status-dot">●</span> {{ (evaluationDetails?.summary?.status === 'Completed' || evaluationDetails?.summary?.status === 'evaluated') ? 'AI Evaluated' : (evaluationDetails?.summary?.status || evaluatingStudent?.status || 'AI Evaluated') }}
+              <span class="status-dot">●</span> {{ (evaluationDetails?.summary?.status === 'Completed' || evaluationDetails?.summary?.status === 'evaluated') ? 'AI Evaluated' : (evaluationDetails?.summary?.status || evaluatingStudent?.status || 'Not Evaluated') }}
             </span>
           </div>
         </div>

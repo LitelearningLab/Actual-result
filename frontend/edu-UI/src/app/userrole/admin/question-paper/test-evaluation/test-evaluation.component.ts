@@ -272,7 +272,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   // ── Bulk Evaluation Streaming & Bounded Queue State (Stage 3) ──
   isBulkEvaluating = false;
+  hasStartedEvaluation = false;
   activeBulkJobId: string | null = null;
+  stoppedStudentIds = new Set<string>();
   bulkProgress = {
     total: 0,
     completed: 0,
@@ -297,6 +299,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.pageMeta.setMeta('Test Evaluation');
+    const savedJobId = sessionStorage.getItem('activeBulkJobId');
+    if (savedJobId) {
+      this.activeBulkJobId = savedJobId;
+    }
     this.loadAIConfidenceThreshold();
     this.initFilterCascade();
   }
@@ -411,6 +417,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.selectedExamId = '';
     this.searchQuery = '';
     this.selectedStatus = 'All statuses';
+    this.hasStartedEvaluation = false;
     this.bulkFiles = [];
     this.instituteFilterSearch = '';
     this.deptFilterSearch = '';
@@ -447,6 +454,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.allInstituteTeams = [];
     this.students = [];
     this.filteredStudents = [];
+    this.hasStartedEvaluation = false;
     this.bulkFiles = [];
     this.resetTestDetails();
     this.recalculateKpiTotals();
@@ -822,6 +830,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   onTestChange(examId: string): void {
+    this.hasStartedEvaluation = false;
     this.selectedExamId = examId;
     if (!examId) {
       this.students = [];
@@ -1047,7 +1056,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         total_marks: totalExamMarks,
         marks_awarded: parsedMarks,
         percentage: pct,
-        status: student.status || 'AI Evaluated',
+        status: student.status || 'Not Evaluated',
         total_questions: parseInt(String(this.testDetails?.totalQuestions || '').replace(/[^\d.]/g, ''), 10) || 0
       },
       questions: [],
@@ -2423,6 +2432,7 @@ if (targetInList) {
   }
 
   onBulkFilesSelected(event: any): void {
+    this.hasStartedEvaluation = false;
     const files: FileList = event.target?.files;
     if (!files || files.length === 0) return;
 
@@ -2596,6 +2606,11 @@ if (targetInList) {
       return;
     }
 
+    this.hasStartedEvaluation = true;
+    if (this.previewAnswerSheet && this.previewAnswerSheet.isMatched) {
+      this.closeAnswerSheetPreview();
+    }
+
     const pendingUploads = this.students.filter((s) => s.rawFile && !s.isUploaded && s.user_id);
 
     if (pendingUploads.length > 0) {
@@ -2638,6 +2653,7 @@ if (targetInList) {
         next: (res) => {
           if (res && res.status && res.job_id) {
             this.activeBulkJobId = res.job_id;
+            sessionStorage.setItem('activeBulkJobId', res.job_id);
             this.startEvaluationEventStream(res.job_id);
           } else {
             this.isUploading = false;
@@ -2689,6 +2705,9 @@ if (targetInList) {
         this.bulkProgress.percentage = data.percentage || 0;
         if (data.students && Array.isArray(data.students)) {
           data.students.forEach((stData: any) => {
+            if (this.stoppedStudentIds.has(String(stData.user_id))) {
+              return;
+            }
             const student = this.students.find((s) => String(s.user_id) === String(stData.user_id));
             if (student) {
               if (stData.status === 'evaluating') {
@@ -2720,6 +2739,9 @@ if (targetInList) {
     this.bulkEvalEventSource.addEventListener('sheet_started', (e: any) => {
       try {
         const data = JSON.parse(e.data);
+        if (this.stoppedStudentIds.has(String(data.user_id))) {
+          return;
+        }
         const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
         if (student) {
           student.status = 'Evaluating...';
@@ -2736,6 +2758,9 @@ if (targetInList) {
     this.bulkEvalEventSource.addEventListener('sheet_completed', (e: any) => {
       try {
         const data = JSON.parse(e.data);
+        if (this.stoppedStudentIds.has(String(data.user_id))) {
+          return;
+        }
         const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
         if (student) {
           student.status = 'AI Evaluated';
@@ -2793,6 +2818,7 @@ if (targetInList) {
         const data = JSON.parse(e.data);
         this.isBulkEvaluating = false;
         this.isUploading = false;
+        sessionStorage.removeItem('activeBulkJobId');
         this.bulkProgress.percentage = 100;
         this.bulkProgress.message = data.message || 'All evaluations complete.';
         notify(data.message || `Evaluation completed: ${data.completed} succeeded, ${data.failed} failed.`, data.failed > 0 ? 'info' : 'success');
@@ -2808,6 +2834,60 @@ if (targetInList) {
       }
     });
 
+    this.bulkEvalEventSource.addEventListener('sheet_stopped', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
+        if (student) {
+          student.status = 'Not Evaluated';
+          student.marks = 'Not marked';
+          student.actionText = 'Evaluate';
+          student.actionClass = 'btn-outline-blue';
+        }
+        if (data.total != null) {
+          this.bulkProgress.total = data.total;
+          this.bulkProgress.percentage = data.percentage || 0;
+        }
+        const stillEvaluating = this.students.some((s) => s.status === 'Evaluating...');
+        if (!stillEvaluating || this.bulkProgress.total === 0) {
+          this.isBulkEvaluating = false;
+          this.isUploading = false;
+        }
+        this.recalculateKpiTotals();
+        this.filterStudents();
+        this.cdr.detectChanges();
+      } catch (err) {
+        console.warn('Error parsing sheet_stopped:', err);
+      }
+    });
+
+    this.bulkEvalEventSource.addEventListener('job_stopped', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        this.isBulkEvaluating = false;
+        this.isUploading = false;
+        sessionStorage.removeItem('activeBulkJobId');
+        notify(data.message || 'Evaluation stopped.', 'info');
+        if (this.bulkEvalEventSource) {
+          this.bulkEvalEventSource.close();
+          this.bulkEvalEventSource = undefined;
+        }
+        for (const s of this.students) {
+          if (s.status === 'Evaluating...') {
+            s.status = 'Not Evaluated';
+            s.marks = 'Not marked';
+            s.actionText = 'Evaluate';
+            s.actionClass = 'btn-outline-blue';
+          }
+        }
+        this.recalculateKpiTotals();
+        this.filterStudents();
+        this.cdr.detectChanges();
+      } catch (err) {
+        console.warn('Error parsing job_stopped:', err);
+      }
+    });
+
     this.bulkEvalEventSource.onerror = (err) => {
       console.warn('SSE connection notice / fallback poll check:', err);
       if (this.activeBulkJobId) {
@@ -2818,7 +2898,7 @@ if (targetInList) {
               this.bulkProgress.completed = d.completed;
               this.bulkProgress.failed = d.failed;
               this.bulkProgress.percentage = d.percentage;
-              if (d.status === 'completed' || d.status === 'failed') {
+              if (d.status === 'completed' || d.status === 'failed' || d.status === 'cancelled') {
                 this.isBulkEvaluating = false;
                 this.isUploading = false;
                 if (this.bulkEvalEventSource) {
@@ -2834,6 +2914,134 @@ if (targetInList) {
         });
       }
     };
+  }
+
+  stopStudentEvaluation(student: StudentEvaluation, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!student || student.status !== 'Evaluating...') return;
+
+    if (student.user_id) {
+      this.stoppedStudentIds.add(String(student.user_id));
+    }
+    student.status = 'Not Evaluated';
+    student.marks = 'Not marked';
+    student.pagesInfo = '0 of 0 pages';
+    student.isUploaded = false;
+    student.rawFile = undefined;
+    student.matchedFile = undefined;
+    student.isMatched = false;
+    student.actionText = 'Evaluate';
+    student.actionClass = 'btn-outline-blue';
+
+    // Also unmatch from bulkFiles list
+    const bIdx = this.bulkFiles.findIndex(
+      (f) => (f.selectedUserId && String(f.selectedUserId) === String(student.user_id)) ||
+             (f.studentName && student.name && f.studentName.toLowerCase() === student.name.toLowerCase())
+    );
+    if (bIdx !== -1) {
+      this.bulkFiles[bIdx].isMatched = false;
+      this.bulkFiles[bIdx].selectedUserId = undefined;
+      this.bulkFiles[bIdx].aiStatus = 'Waiting';
+    }
+
+    // Decrement bulkProgress.total immediately so banner updates from 4 -> 3 -> 2 -> 1
+    if (this.bulkProgress.total > 0) {
+      this.bulkProgress.total--;
+      this.bulkProgress.percentage = this.bulkProgress.total > 0
+        ? Math.round((this.bulkProgress.completed / this.bulkProgress.total) * 100)
+        : 0;
+    }
+
+    notify(`Evaluation stopped for ${student.name}.`, 'info');
+
+    const jobId = this.activeBulkJobId || sessionStorage.getItem('activeBulkJobId');
+    if (jobId && student.user_id) {
+      this.http.post<any>(`${API_BASE}/test-evaluation/stop-bulk-evaluation`, {
+        job_id: jobId,
+        user_id: student.user_id
+      }).subscribe({
+        next: (res) => {
+          console.log('Stop student evaluation response:', res);
+        },
+        error: (err) => {
+          console.warn('Stop student evaluation backend notice:', err);
+        }
+      });
+    }
+
+    // Purge any database record for this student so they do not show evaluated on reload
+    if (this.selectedExamId && student.user_id) {
+      this.http.post<any>(`${API_BASE}/test-evaluation/remove-answer-sheet`, {
+        exam_id: this.selectedExamId,
+        user_id: student.user_id
+      }).subscribe();
+    }
+
+    const stillEvaluating = this.students.some((s) => s.status === 'Evaluating...');
+    if (!stillEvaluating || this.bulkProgress.total === 0) {
+      this.isBulkEvaluating = false;
+      this.isUploading = false;
+      if (this.bulkEvalEventSource) {
+        this.bulkEvalEventSource.close();
+        this.bulkEvalEventSource = undefined;
+      }
+    }
+
+    this.recalculateKpiTotals();
+    this.filterStudents();
+    this.cdr.detectChanges();
+  }
+
+  stopAllEvaluation(): void {
+    if (!this.isBulkEvaluating && !this.activeBulkJobId) return;
+
+    const jobId = this.activeBulkJobId;
+    this.isBulkEvaluating = false;
+    this.isUploading = false;
+    this.bulkProgress.total = 0;
+    this.bulkProgress.completed = 0;
+    this.bulkProgress.percentage = 0;
+
+    if (this.bulkEvalEventSource) {
+      this.bulkEvalEventSource.close();
+      this.bulkEvalEventSource = undefined;
+    }
+
+    for (const s of this.students) {
+      if (s.status === 'Evaluating...') {
+        s.status = 'Not Evaluated';
+        s.marks = 'Not marked';
+        s.actionText = 'Evaluate';
+        s.actionClass = 'btn-outline-blue';
+        if (this.selectedExamId && s.user_id) {
+          this.http.post<any>(`${API_BASE}/test-evaluation/remove-answer-sheet`, {
+            exam_id: this.selectedExamId,
+            user_id: s.user_id
+          }).subscribe();
+        }
+      }
+    }
+
+    notify('Bulk evaluation stopped.', 'info');
+
+    if (jobId) {
+      this.http.post<any>(`${API_BASE}/test-evaluation/stop-bulk-evaluation`, {
+        job_id: jobId
+      }).subscribe({
+        next: (res) => {
+          console.log('Stop bulk evaluation response:', res);
+        },
+        error: (err) => {
+          console.warn('Stop bulk evaluation backend notice:', err);
+        }
+      });
+    }
+
+    this.recalculateKpiTotals();
+    this.filterStudents();
+    this.cdr.detectChanges();
   }
 
   onStudentSelectedForUnmatched(fileItem: BulkFileItem, studentName: string): void {
@@ -2900,6 +3108,7 @@ if (targetInList) {
   }
 
   clearAllBulkFiles(): void {
+    this.hasStartedEvaluation = false;
     if (!this.bulkFiles || this.bulkFiles.length === 0) return;
 
     for (const f of this.bulkFiles) {

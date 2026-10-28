@@ -692,6 +692,18 @@ def start_bulk_evaluation_route():
         "total": len(student_tasks)
     }), 200
 
+@edu_blueprint.route('/test-evaluation/stop-bulk-evaluation', methods=['POST'])
+@admin_required
+def stop_bulk_evaluation_route():
+    from others.bulk_eval_manager import bulk_eval_manager
+    data = request.get_json(silent=True) or {}
+    job_id = data.get('job_id')
+    user_id = data.get('user_id')
+    if not job_id:
+        return jsonify({"status": False, "statusMessage": "job_id is required"}), 400
+    res = bulk_eval_manager.stop_job(job_id=job_id, user_id=user_id)
+    return jsonify(res), 200
+
 @edu_blueprint.route('/test-evaluation/evaluation-stream/<job_id>', methods=['GET'])
 @admin_required
 def evaluation_stream_route(job_id):
