@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
@@ -288,7 +289,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     private pageMeta: PageMetaService,
     private cdr: ChangeDetectorRef,
     private overlay: Overlay,
-    private vcr: ViewContainerRef
+    private vcr: ViewContainerRef,
+    private sanitizer: DomSanitizer
   ) {
     this.detectUserRole();
   }
@@ -313,6 +315,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.closeAnswerSheetPreview();
     this.stopCameraStream();
     if (this.bulkEvalEventSource) {
       this.bulkEvalEventSource.close();
@@ -1439,6 +1442,9 @@ if (targetInList) {
   onWindowMouseUp(): void {
     if (this.isPanningSheet) {
       this.isPanningSheet = false;
+    }
+    if (this.isPanningModal) {
+      this.isPanningModal = false;
     }
   }
 
@@ -2870,6 +2876,9 @@ if (targetInList) {
     if (event) {
       event.stopPropagation();
     }
+    if (this.previewAnswerSheet && this.previewAnswerSheet.fileName === fileItem.fileName) {
+      this.closeAnswerSheetPreview();
+    }
     const idx = this.bulkFiles.findIndex((f) => f.id === fileItem.id || f.fileName === fileItem.fileName);
     if (idx !== -1) {
       this.bulkFiles.splice(idx, 1);
@@ -2902,6 +2911,7 @@ if (targetInList) {
       }
     }
 
+    this.closeAnswerSheetPreview();
     this.bulkFiles = [];
     const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
     fileInputs.forEach((input) => (input.value = ''));
@@ -2917,6 +2927,9 @@ if (targetInList) {
       event.stopPropagation();
     }
     const fileName = student.matchedFile;
+    if (this.previewAnswerSheet && (this.previewAnswerSheet.fileName === fileName || (student.rawFile && this.previewAnswerSheet.file === student.rawFile))) {
+      this.closeAnswerSheetPreview();
+    }
     if (fileName) {
       const bIdx = this.bulkFiles.findIndex((f) => f.fileName === fileName || (f.file && f.file === student.rawFile));
       if (bIdx !== -1) {
@@ -3065,9 +3078,278 @@ if (targetInList) {
 
   @HostListener('document:keydown.escape')
   onEscapeKey() {
+    if (this.previewAnswerSheet) {
+      this.closeAnswerSheetPreview();
+      return;
+    }
     if (this.previewModalImage) {
       this.closeImageModal();
+      return;
     }
+  }
+
+  // ── Answer Sheet Modal Preview State & Handlers ──
+  @ViewChild('modalPdfCanvas') modalPdfCanvasRef?: ElementRef<HTMLCanvasElement>;
+  previewAnswerSheet: {
+    fileName: string;
+    studentName?: string;
+    isMatched?: boolean;
+    isScanning?: boolean;
+    isPdf: boolean;
+    objectUrl: string;
+    safeUrl?: SafeResourceUrl;
+    file?: File;
+  } | null = null;
+  previewZoom: number = 1;
+  previewPdfDoc: any = null;
+  previewPdfCurrentPage: number = 1;
+  previewPdfTotalPages: number = 1;
+  isPreviewPdfLoading: boolean = false;
+  previewError: boolean = false;
+  private previewPdfRenderTask: any = null;
+
+  // ── Drag & Pan (Hand Tool) for Modal Preview ──
+  isPanningModal: boolean = false;
+  private modalStartX: number = 0;
+  private modalStartY: number = 0;
+  private modalScrollLeft: number = 0;
+  private modalScrollTop: number = 0;
+
+  startModalPan(event: MouseEvent, container: HTMLElement): void {
+    if (event.button !== 0 || !container) return;
+    this.isPanningModal = true;
+    this.modalStartX = event.pageX - container.offsetLeft;
+    this.modalStartY = event.pageY - container.offsetTop;
+    this.modalScrollLeft = container.scrollLeft;
+    this.modalScrollTop = container.scrollTop;
+  }
+
+  onModalPan(event: MouseEvent, container: HTMLElement): void {
+    if (!this.isPanningModal || !container) return;
+    event.preventDefault();
+    const x = event.pageX - container.offsetLeft;
+    const y = event.pageY - container.offsetTop;
+    const walkX = (x - this.modalStartX) * 1.5;
+    const walkY = (y - this.modalStartY) * 1.5;
+    container.scrollLeft = this.modalScrollLeft - walkX;
+    container.scrollTop = this.modalScrollTop - walkY;
+  }
+
+  stopModalPan(): void {
+    this.isPanningModal = false;
+  }
+
+  openAnswerSheetPreview(item: BulkFileItem | StudentEvaluation | null | undefined): void {
+    if (!item) return;
+
+    let file: File | undefined;
+    let fileName: string = '';
+    let studentName: string | undefined;
+    let isMatched: boolean | undefined;
+    let isScanning: boolean | undefined;
+
+    if ('file' in item && item.file) {
+      file = item.file;
+      fileName = item.fileName || file.name;
+      studentName = item.studentName;
+      isMatched = item.isMatched;
+      isScanning = item.isScanning;
+    } else if ('rawFile' in item && item.rawFile) {
+      file = item.rawFile;
+      fileName = item.matchedFile || file.name;
+      studentName = item.name;
+      isMatched = item.isMatched;
+    } else if ('matchedFile' in item && item.matchedFile) {
+      const foundBulk = this.bulkFiles.find((b) => b.fileName === item.matchedFile);
+      if (foundBulk && foundBulk.file) {
+        file = foundBulk.file;
+        fileName = foundBulk.fileName;
+        studentName = item.name || foundBulk.studentName;
+        isMatched = true;
+      }
+    }
+
+    if (!file) {
+      notify('No local file available to preview.', 'info');
+      return;
+    }
+
+    // Toggle close if already open for this file
+    if (this.previewAnswerSheet && this.previewAnswerSheet.fileName === fileName) {
+      this.closeAnswerSheetPreview();
+      return;
+    }
+
+    this.closeAnswerSheetPreview();
+
+    const isPdf = fileName.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    const objectUrl = URL.createObjectURL(file);
+    const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(objectUrl);
+
+    this.previewZoom = 1;
+    this.previewError = false;
+    this.previewPdfDoc = null;
+    this.previewPdfCurrentPage = 1;
+    this.previewPdfTotalPages = 1;
+    this.isPreviewPdfLoading = true;
+
+    this.previewAnswerSheet = {
+      fileName,
+      studentName,
+      isMatched,
+      isScanning,
+      isPdf,
+      objectUrl,
+      safeUrl,
+      file
+    };
+
+    if (isPdf) {
+      this.loadModalPdf(file, objectUrl);
+    }
+
+    setTimeout(() => {
+      document.getElementById('answer-sheet-preview-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 60);
+  }
+
+  async loadModalPdf(file: File, objectUrl: string): Promise<void> {
+    this.isPreviewPdfLoading = true;
+    this.previewError = false;
+    try {
+      this.cdr.detectChanges();
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
+        cMapPacked: true,
+      });
+
+      this.previewPdfDoc = await loadingTask.promise;
+      this.previewPdfTotalPages = this.previewPdfDoc.numPages || 1;
+      this.previewPdfCurrentPage = 1;
+
+      await this.renderModalPdfPage(1);
+    } catch (err: any) {
+      console.error('Failed to load PDF in preview modal:', err);
+      this.previewError = true;
+      this.isPreviewPdfLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  async renderModalPdfPage(pageNumber: number): Promise<void> {
+    if (!this.previewPdfDoc) return;
+    this.cdr.detectChanges();
+
+    if (!this.modalPdfCanvasRef?.nativeElement) {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      this.cdr.detectChanges();
+      if (!this.modalPdfCanvasRef?.nativeElement) {
+        console.warn('Canvas ref not available for preview');
+        return;
+      }
+    }
+
+    const canvas = this.modalPdfCanvasRef.nativeElement;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    if (this.previewPdfRenderTask) {
+      try {
+        this.previewPdfRenderTask.cancel();
+      } catch {}
+      this.previewPdfRenderTask = null;
+    }
+
+    try {
+      this.isPreviewPdfLoading = true;
+      const safePageNum = Math.max(1, Math.min(pageNumber, this.previewPdfTotalPages));
+      this.previewPdfCurrentPage = safePageNum;
+      const page = await this.previewPdfDoc.getPage(safePageNum);
+
+      const dpr = window.devicePixelRatio || 1;
+      const baseViewport = page.getViewport({ scale: 1.5 });
+
+      canvas.width = Math.floor(baseViewport.width * dpr);
+      canvas.height = Math.floor(baseViewport.height * dpr);
+      canvas.style.width = `${Math.floor(baseViewport.width)}px`;
+      canvas.style.height = `${Math.floor(baseViewport.height)}px`;
+
+      const renderContext = {
+        canvasContext: context,
+        viewport: page.getViewport({ scale: 1.5 * dpr }),
+      };
+
+      this.previewPdfRenderTask = page.render(renderContext);
+      await this.previewPdfRenderTask.promise;
+      this.previewPdfRenderTask = null;
+      this.isPreviewPdfLoading = false;
+      this.cdr.detectChanges();
+    } catch (err: any) {
+      if (err?.name !== 'RenderingCancelledException') {
+        console.error('Error rendering modal PDF page:', err);
+        this.previewError = true;
+      }
+      this.isPreviewPdfLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  prevModalPdfPage(): void {
+    if (this.previewPdfCurrentPage > 1 && !this.isPreviewPdfLoading) {
+      this.renderModalPdfPage(this.previewPdfCurrentPage - 1);
+    }
+  }
+
+  nextModalPdfPage(): void {
+    if (this.previewPdfCurrentPage < this.previewPdfTotalPages && !this.isPreviewPdfLoading) {
+      this.renderModalPdfPage(this.previewPdfCurrentPage + 1);
+    }
+  }
+
+  previewModalZoomIn(): void {
+    if (this.previewZoom < 3) {
+      this.previewZoom = Math.min(3, +(this.previewZoom + 0.25).toFixed(2));
+    }
+  }
+
+  previewModalZoomOut(): void {
+    if (this.previewZoom > 0.5) {
+      this.previewZoom = Math.max(0.5, +(this.previewZoom - 0.25).toFixed(2));
+    }
+  }
+
+  previewModalResetZoom(): void {
+    this.previewZoom = 1;
+  }
+
+  downloadPreviewAnswerSheet(): void {
+    if (!this.previewAnswerSheet) return;
+    const a = document.createElement('a');
+    a.href = this.previewAnswerSheet.objectUrl;
+    a.download = this.previewAnswerSheet.fileName || 'answer_sheet';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  closeAnswerSheetPreview(): void {
+    if (this.previewPdfRenderTask) {
+      try {
+        this.previewPdfRenderTask.cancel();
+      } catch {}
+      this.previewPdfRenderTask = null;
+    }
+    if (this.previewAnswerSheet?.objectUrl) {
+      URL.revokeObjectURL(this.previewAnswerSheet.objectUrl);
+    }
+    this.previewAnswerSheet = null;
+    this.previewPdfDoc = null;
+    this.previewZoom = 1;
+    this.previewError = false;
+    this.isPreviewPdfLoading = false;
+    this.isPanningModal = false;
   }
 }
 

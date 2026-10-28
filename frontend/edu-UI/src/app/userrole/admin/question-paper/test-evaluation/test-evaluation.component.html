@@ -479,8 +479,11 @@
             [ngClass]="{
               'chip-matched': f.isMatched,
               'chip-unmatched': !f.isMatched,
-              'chip-scanning': f.isScanning
+              'chip-scanning': f.isScanning,
+              'chip-selected': previewAnswerSheet?.fileName === f.fileName
             }"
+            (click)="openAnswerSheetPreview(f)"
+            matTooltip="Click to preview answer sheet"
           >
             <div class="file-chip-left">
               <mat-icon class="file-chip-icon">
@@ -513,6 +516,189 @@
             >
               <mat-icon>close</mat-icon>
             </button>
+          </div>
+        </div>
+
+        <!-- Inline Answer Sheet Preview (Appears directly below the cards) -->
+        <div id="answer-sheet-preview-panel" class="sheet-preview-panel" *ngIf="previewAnswerSheet">
+          <!-- Header -->
+          <div class="sheet-preview-header">
+            <div class="sheet-preview-title-group">
+              <mat-icon class="title-icon">
+                {{ previewAnswerSheet.isPdf ? 'picture_as_pdf' : 'image' }}
+              </mat-icon>
+              <div class="title-text-wrap">
+                <span id="answer-sheet-preview-title" class="sheet-preview-title" [title]="previewAnswerSheet.fileName">
+                  {{ previewAnswerSheet.fileName }}
+                </span>
+                <div class="sheet-preview-meta">
+                  <span class="preview-badge badge-matched" *ngIf="previewAnswerSheet.isMatched && previewAnswerSheet.studentName">
+                    <mat-icon>check_circle</mat-icon>
+                    <span>{{ previewAnswerSheet.studentName }}</span>
+                  </span>
+                  <span class="preview-badge badge-scanning" *ngIf="!previewAnswerSheet.isMatched && previewAnswerSheet.isScanning">
+                    <mat-icon class="spin-icon">sync</mat-icon>
+                    <span>Scanning student...</span>
+                  </span>
+                  <span class="preview-badge badge-unmatched" *ngIf="!previewAnswerSheet.isMatched && !previewAnswerSheet.isScanning">
+                    <mat-icon>warning</mat-icon>
+                    <span>Unmatched File</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Toolbar -->
+            <div class="sheet-preview-actions">
+              <!-- PDF Page Navigation (only for PDFs) -->
+              <div class="pdf-page-controls" *ngIf="previewAnswerSheet.isPdf && previewPdfTotalPages > 0">
+                <button
+                  type="button"
+                  class="ctrl-icon-btn"
+                  (click)="prevModalPdfPage()"
+                  [disabled]="previewPdfCurrentPage <= 1 || isPreviewPdfLoading"
+                  matTooltip="Previous Page"
+                  aria-label="Previous Page"
+                >
+                  <mat-icon>chevron_left</mat-icon>
+                </button>
+                <span class="page-counter">
+                  {{ previewPdfCurrentPage }} / {{ previewPdfTotalPages }}
+                </span>
+                <button
+                  type="button"
+                  class="ctrl-icon-btn"
+                  (click)="nextModalPdfPage()"
+                  [disabled]="previewPdfCurrentPage >= previewPdfTotalPages || isPreviewPdfLoading"
+                  matTooltip="Next Page"
+                  aria-label="Next Page"
+                >
+                  <mat-icon>chevron_right</mat-icon>
+                </button>
+              </div>
+
+              <div class="divider" *ngIf="previewAnswerSheet.isPdf && previewPdfTotalPages > 0"></div>
+
+              <!-- Zoom Controls -->
+              <button
+                type="button"
+                class="ctrl-icon-btn"
+                (click)="previewModalZoomOut()"
+                [disabled]="previewZoom <= 0.5"
+                matTooltip="Zoom Out"
+                aria-label="Zoom Out"
+              >
+                <mat-icon>zoom_out</mat-icon>
+              </button>
+              <button
+                type="button"
+                class="zoom-reset-btn"
+                (click)="previewModalResetZoom()"
+                [disabled]="previewZoom === 1"
+                matTooltip="Reset Zoom"
+              >
+                {{ (previewZoom * 100) | number : '1.0-0' }}%
+              </button>
+              <button
+                type="button"
+                class="ctrl-icon-btn"
+                (click)="previewModalZoomIn()"
+                [disabled]="previewZoom >= 3"
+                matTooltip="Zoom In"
+                aria-label="Zoom In"
+              >
+                <mat-icon>zoom_in</mat-icon>
+              </button>
+
+              <div class="divider"></div>
+
+              <!-- Download Action -->
+              <button
+                type="button"
+                class="ctrl-icon-btn"
+                (click)="downloadPreviewAnswerSheet()"
+                matTooltip="Download Answer Sheet"
+                aria-label="Download File"
+              >
+                <mat-icon>file_download</mat-icon>
+              </button>
+
+              <!-- Open in new tab -->
+              <a
+                [href]="previewAnswerSheet.objectUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="ctrl-icon-btn"
+                matTooltip="Open in New Tab"
+                aria-label="Open original file in new tab"
+              >
+                <mat-icon>open_in_new</mat-icon>
+              </a>
+
+              <!-- Close Action -->
+              <button
+                type="button"
+                class="ctrl-icon-btn close-btn"
+                (click)="closeAnswerSheetPreview()"
+                matTooltip="Close Preview (Esc)"
+                aria-label="Close"
+              >
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Body (Interactive Hand Tool Pan) -->
+          <div
+            #previewBodyRef
+            class="sheet-preview-body"
+            [class.is-grabbing]="isPanningModal"
+            (mousedown)="startModalPan($event, previewBodyRef)"
+            (mousemove)="onModalPan($event, previewBodyRef)"
+            (mouseup)="stopModalPan()"
+            (mouseleave)="stopModalPan()"
+          >
+            <!-- Loading Spinner -->
+            <div class="sheet-preview-loading" *ngIf="isPreviewPdfLoading">
+              <mat-icon class="spin-icon">sync</mat-icon>
+              <span>Loading answer sheet preview...</span>
+            </div>
+
+            <!-- Error State -->
+            <div class="sheet-preview-error-state" *ngIf="previewError">
+              <mat-icon class="error-state-icon">error_outline</mat-icon>
+              <h4>Unable to preview this file in viewer</h4>
+              <p>This file format could not be rendered directly, but the file is intact.</p>
+              <div class="error-actions">
+                <button type="button" class="btn-error-download" (click)="downloadPreviewAnswerSheet()">
+                  <mat-icon>file_download</mat-icon>
+                  <span>Download {{ previewAnswerSheet.fileName }}</span>
+                </button>
+                <a [href]="previewAnswerSheet.objectUrl" target="_blank" rel="noopener noreferrer" class="btn-error-open">
+                  <mat-icon>open_in_new</mat-icon>
+                  <span>Open in New Tab</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Viewport -->
+            <div class="sheet-preview-viewport" [hidden]="previewError">
+              <!-- PDF Render Canvas -->
+              <div class="canvas-transform-wrapper" *ngIf="previewAnswerSheet.isPdf" [style.transform]="'scale(' + previewZoom + ')'">
+                <canvas #modalPdfCanvas class="modal-pdf-canvas"></canvas>
+              </div>
+
+              <!-- Image Render -->
+              <div class="image-transform-wrapper" *ngIf="!previewAnswerSheet.isPdf" [style.transform]="'scale(' + previewZoom + ')'">
+                <img
+                  [src]="previewAnswerSheet.objectUrl"
+                  [alt]="previewAnswerSheet.fileName"
+                  class="modal-preview-image"
+                  (load)="isPreviewPdfLoading = false"
+                  (error)="previewError = true; isPreviewPdfLoading = false"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -652,7 +838,7 @@
         </div>
         <div class="unmatched-items-list">
           <div class="unmatched-item-row" *ngFor="let uf of unmatchedBulkFiles">
-            <div class="unmatched-file-info">
+            <div class="unmatched-file-info" (click)="openAnswerSheetPreview(uf)" matTooltip="Click to preview answer sheet">
               <mat-icon class="unmatched-file-icon">description</mat-icon>
               <span class="unmatched-file-name" [title]="uf.fileName">{{ uf.fileName }}</span>
             </div>
@@ -731,7 +917,7 @@
                 <td class="col-student">
                   <div class="student-name">{{ s.name }}</div>
                   <div class="student-roll">{{ s.rollNo }}</div>
-                  <div *ngIf="s.matchedFile && s.status === 'Not Evaluated' && !isBulkEvaluating && s.actionText !== 'Evaluating...' && s.actionText !== 'Queued...'" class="match-badge-chip">
+                  <div *ngIf="s.matchedFile && s.status === 'Not Evaluated' && !isBulkEvaluating && s.actionText !== 'Evaluating...' && s.actionText !== 'Queued...'" class="match-badge-chip" (click)="openAnswerSheetPreview(s)" matTooltip="Click to preview answer sheet">
                     <mat-icon class="match-icon">description</mat-icon>
                     <span class="match-chip-text" [title]="s.matchedFile">{{ s.matchedFile }} ({{ s.matchedBy || 'Matched' }})</span>
                     <button
