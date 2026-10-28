@@ -233,6 +233,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   selectedFilesList: Array<{ id: string; name: string; size: string; pages: string }> = [];
   uploadedRawFiles: File[] = [];
   isUploading = false;
+  isAttachConfirmPopupOpen = false;
+  pendingAttachStudent: StudentEvaluation | null = null;
+  attachMode: 'replace' | 'add' = 'replace';
 
   // ─── Confirm Remove Modal State ───
   isConfirmRemoveModalOpen = false;
@@ -949,10 +952,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   refreshData(): void {
-    if (this.activeInstituteId) {
-      this.loadPublishedExams(this.activeInstituteId);
-    } else if (this.selectedExamId) {
+    if (this.selectedExamId) {
+      // Prioritize refreshing the currently active test locally with zero delay
       this.onTestChange(this.selectedExamId);
+    } else if (this.activeInstituteId) {
+      this.loadPublishedExams(this.activeInstituteId);
     }
   }
 
@@ -1049,6 +1053,20 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             student.actionText = 'Review';
             if (res.data?.marks) {
               student.marks = res.data.marks;
+            }
+
+            // Sync in-memory cache in allPublishedExams immediately
+            const currentExam = this.allPublishedExams.find(e => e.exam_id === this.selectedExamId);
+            if (currentExam && Array.isArray(currentExam.assigned_users)) {
+              const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(student.user_id));
+              if (u) {
+                u.pages_count = pagesCount;
+                u.evaluation_status = 'AI Evaluated';
+                u.status = 'AI Evaluated';
+                u.score = res.data?.score != null ? res.data.score : u.score;
+                u.marks_awarded = res.data?.score != null ? res.data.score : u.marks_awarded;
+                u.percentage = res.data?.percentage != null ? res.data.percentage : u.percentage;
+              }
             }
           }
           this.loadEvaluationDetails(this.selectedExamId, student.user_id!);
@@ -1446,6 +1464,32 @@ if (targetInList) {
     return this.getReviewComments(q, category).length > 0;
   }
 
+  isDescriptive(q: any): boolean {
+    if (!q) return false;
+    const type = String(q.question_type || '').toLowerCase();
+    return type === 'descriptive' || type === 'paragraph';
+  }
+
+  isObjective(q: any): boolean {
+    if (!q) return false;
+    return !this.isDescriptive(q);
+  }
+
+  hasStudentAnswer(q: any): boolean {
+    if (!q || !q.student_answer) return false;
+    const text = String(q.student_answer).trim();
+    if (!text) return false;
+    const lower = text.toLowerCase();
+    return (
+      lower !== 'unattempted' &&
+      lower !== 'none' &&
+      lower !== 'not answered' &&
+      lower !== 'not attempted' &&
+      lower !== 'null' &&
+      lower !== 'undefined'
+    );
+  }
+
   isOptionCorrect(opt: any): boolean {
     if (!opt) return false;
     return opt.is_correct === 1 || opt.is_correct === true || opt.is_correct === '1' || opt.is_correct === 'true';
@@ -1691,6 +1735,39 @@ if (targetInList) {
   }
 
   // ─── Attach Answer Sheet Modal Handlers ───
+  hasAttachedSheet(student?: StudentEvaluation | null): boolean {
+    if (!student) return false;
+    if (student.pagesInfo && !student.pagesInfo.startsWith('0 of 0')) return true;
+    if (student.isUploaded) return true;
+    if (student.status && student.status !== 'Not Evaluated') return true;
+    if (student.matchedFile || student.rawFile || (student.scannedPagesData && student.scannedPagesData.length > 0)) return true;
+    return false;
+  }
+
+  onAttachClick(student: StudentEvaluation): void {
+    if (this.hasAttachedSheet(student)) {
+      this.pendingAttachStudent = student;
+      this.isAttachConfirmPopupOpen = true;
+    } else {
+      this.attachMode = 'replace';
+      this.openAttachModal(student);
+    }
+  }
+
+  chooseAttachAction(action: 'replace' | 'add'): void {
+    this.attachMode = action;
+    const targetStudent = this.pendingAttachStudent;
+    this.closeAttachConfirmPopup();
+    if (targetStudent) {
+      this.openAttachModal(targetStudent);
+    }
+  }
+
+  closeAttachConfirmPopup(): void {
+    this.isAttachConfirmPopupOpen = false;
+    this.pendingAttachStudent = null;
+  }
+
   openAttachModal(student?: StudentEvaluation): void {
     this.selectedStudentForAttach = student || this.evaluatingStudent || null;
     this.isAttachModalOpen = true;
@@ -1783,7 +1860,7 @@ if (targetInList) {
     const formData = new FormData();
     formData.append('exam_id', examId);
     formData.append('user_id', userId);
-    formData.append('replace', 'true');
+    formData.append('replace', this.attachMode === 'add' ? 'false' : 'true');
 
     for (let i = 0; i < this.uploadedRawFiles.length; i++) {
       formData.append('file', this.uploadedRawFiles[i]);
@@ -1799,12 +1876,31 @@ if (targetInList) {
             targetStudent.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
             targetStudent.missingPagesWarning = undefined;
             targetStudent.status = 'AI Evaluated';
+            if (res.data?.marks) {
+              targetStudent.marks = res.data.marks;
+            }
             targetStudent.matchedFile = undefined;
             targetStudent.isUploaded = true;
             targetStudent.actionText = 'Review';
             targetStudent.actionClass = 'btn-solid-blue';
+
+            // Instantly sync in-memory cache in allPublishedExams so table never lags or shows stale data
+            const currentExam = this.allPublishedExams.find(e => e.exam_id === examId);
+            if (currentExam && Array.isArray(currentExam.assigned_users)) {
+              const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(userId));
+              if (u) {
+                u.pages_count = pagesCount;
+                u.evaluation_status = 'AI Evaluated';
+                u.status = 'AI Evaluated';
+                u.score = res.data?.score != null ? res.data.score : u.score;
+                u.marks_awarded = res.data?.score != null ? res.data.score : u.marks_awarded;
+                u.percentage = res.data?.percentage != null ? res.data.percentage : u.percentage;
+              }
+            }
+
             this.recalculateKpiTotals();
             this.filterStudents();
+            this.cdr.detectChanges();
           }
           this.closeAttachModal();
           if (targetStudent) {

@@ -802,7 +802,7 @@
                     type="button"
                     class="icon-btn-square"
                     matTooltip="Attach answer sheet"
-                    (click)="openAttachModal(s)"
+                    (click)="onAttachClick(s)"
                   >
                     <mat-icon>attach_file</mat-icon>
                   </button>
@@ -1033,7 +1033,7 @@
                   type="button"
                   class="icon-btn-square"
                   matTooltip="Attach answer sheet"
-                  (click)="openAttachModal(s)"
+                  (click)="onAttachClick(s)"
                 >
                   <mat-icon>attach_file</mat-icon>
                 </button>
@@ -1475,7 +1475,7 @@
               </div>
 
               <!-- MCQ Options with Images (if present) -->
-              <div class="eval-q-options" *ngIf="q.options && q.options.length && q.question_type !== 'DESCRIPTIVE'">
+              <div class="eval-q-options" *ngIf="isObjective(q) && q.options && q.options.length">
                 <div
                   class="eval-opt-row"
                   *ngFor="let opt of q.options; let oi = index"
@@ -1572,9 +1572,9 @@
               </div>
 
               <!-- Descriptive Section: Student Answer, Model Answer & Feedback -->
-              <div class="q-descriptive">
+              <div class="q-descriptive" *ngIf="isDescriptive(q)">
                 <!-- Student Answer Box (Shows what AI / teacher detected on answer sheet) -->
-                <div class="desc-student-answer" *ngIf="q.student_answer">
+                <div class="desc-student-answer" *ngIf="hasStudentAnswer(q)">
                   <div class="student-ans-header">
                     <mat-icon class="ans-hdr-icon">edit_note</mat-icon>
                     <span class="student-ans-label">STUDENT'S ANSWER</span>
@@ -1777,9 +1777,10 @@
                     ● No incomplete points
                   </span>
                 </div>
+              </div>
 
-                <!-- Marks History Section (Exact Test Reports Design & Timeline) -->
-                <div class="marks-history-section">
+              <!-- Marks History Section (Exact Test Reports Design & Timeline) -->
+              <div class="marks-history-section">
                   <div class="marks-history-header">
                     <mat-icon>history</mat-icon>
                     <span>Marks History</span>
@@ -1853,7 +1854,6 @@
                   </div>
                 </div>
               </div>
-            </div>
 
             <!-- Empty Questions State -->
             <div class="no-questions-card" *ngIf="evaluationQuestions.length === 0 && !isLoadingEvaluation">
@@ -2083,6 +2083,65 @@
   </div>
 
   <!-- ========================================================= -->
+  <!-- ─── ATTACH CONFIRMATION POPUP (Replace / Add / Cancel) ─── -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop-overlay" *ngIf="isAttachConfirmPopupOpen" (click)="closeAttachConfirmPopup()">
+    <div class="confirm-attach-modal-card" (click)="$event.stopPropagation()">
+      <button type="button" class="modal-close-icon-btn" (click)="closeAttachConfirmPopup()" title="Cancel">
+        <mat-icon>close</mat-icon>
+      </button>
+
+      <div class="confirm-modal-body">
+        <div class="confirm-icon-badge attach-badge">
+          <mat-icon>attach_file</mat-icon>
+        </div>
+
+        <h3 class="confirm-modal-title">Answer Sheet Already Attached</h3>
+        <p class="confirm-modal-desc">
+          An answer sheet is already attached for
+          <span class="highlight-student-name">{{ pendingAttachStudent?.name }}</span>
+          ({{ pendingAttachStudent?.pagesInfo }}).
+        </p>
+
+        <div class="confirm-attach-callout">
+          <mat-icon>info_outline</mat-icon>
+          <span>Choose <strong>Replace</strong> to overwrite the existing answer sheet, or <strong>Add</strong> to append additional pages without removing current ones.</span>
+        </div>
+      </div>
+
+      <div class="confirm-attach-footer">
+        <button
+          type="button"
+          class="btn-confirm-cancel"
+          (click)="closeAttachConfirmPopup()"
+        >
+          Cancel
+        </button>
+
+        <div class="confirm-right-actions">
+          <button
+            type="button"
+            class="btn-confirm-add"
+            (click)="chooseAttachAction('add')"
+          >
+            <mat-icon>note_add</mat-icon>
+            <span>Add</span>
+          </button>
+
+          <button
+            type="button"
+            class="btn-confirm-replace"
+            (click)="chooseAttachAction('replace')"
+          >
+            <mat-icon>sync</mat-icon>
+            <span>Replace</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
   <!-- ─── ATTACH ANSWER SHEET MODAL DIALOG (Image 2 Design) ─── -->
   <!-- ========================================================= -->
   <div class="modal-backdrop-overlay" *ngIf="isAttachModalOpen" (click)="!isUploading && closeAttachModal()">
@@ -2090,7 +2149,9 @@
       <!-- Modal Header -->
       <div class="attach-modal-header">
         <div class="modal-header-text">
-          <h2 class="modal-title">Attach Answer Sheet</h2>
+          <h2 class="modal-title">
+            {{ attachMode === 'add' ? 'Add Pages to Answer Sheet' : (hasAttachedSheet(selectedStudentForAttach) ? 'Replace Answer Sheet' : 'Attach Answer Sheet') }}
+          </h2>
           <p class="modal-subtitle">
             Student: <strong>{{ selectedStudentForAttach?.name || 'Student' }}</strong>. The file is linked to this student for {{ selectedTest }}.
           </p>
@@ -2162,7 +2223,7 @@
           <button type="button" class="btn-attach-submit" [disabled]="isUploading || selectedFilesList.length === 0" (click)="attachAndEvaluateAll()">
             <mat-icon class="sparkle-icon spin-icon" *ngIf="isUploading">sync</mat-icon>
             <mat-icon class="sparkle-icon" *ngIf="!isUploading">auto_awesome</mat-icon>
-            <span>{{ isUploading ? 'Evaluating with AI...' : 'Attach and Evaluate' }}</span>
+            <span>{{ isUploading ? 'Evaluating with AI...' : (attachMode === 'add' ? 'Add and Evaluate' : (attachMode === 'replace' && hasAttachedSheet(selectedStudentForAttach) ? 'Replace and Evaluate' : 'Attach and Evaluate')) }}</span>
           </button>
         </div>
       </div>

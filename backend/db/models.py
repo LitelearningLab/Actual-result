@@ -398,7 +398,7 @@ class Option(Base):
 
 class Answer(Base):
      __tablename__ = 'Answers'
-     answer_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+     answer_id = Column(String(50), primary_key=True, default=generate_uuid)
      user_id = Column(String, ForeignKey('Users.user_id'), nullable=False)
      schedule_id = Column(String, ForeignKey('ExamSchedules.schedule_id'), nullable=False)
      attempt_id = Column(String, ForeignKey('Exam_Attempts.attempt_id'), nullable=False)
@@ -431,8 +431,8 @@ class Setting(Base):
 
 class MarksHistory(Base):
      __tablename__ = 'MarksHistory'
-     history_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
-     answer_id = Column(UNIQUEIDENTIFIER, ForeignKey('Answers.answer_id'), nullable=False)
+     history_id = Column(String(50), primary_key=True, default=generate_uuid)
+     answer_id = Column(String(50), ForeignKey('Answers.answer_id'), nullable=False)
      question_id = Column(String, nullable=True)
      marks_awarded = Column(Float, nullable=True)
      source = Column(String, nullable=True)
@@ -442,7 +442,7 @@ class MarksHistory(Base):
 
 class Exam_Attempt(Base):
     __tablename__ = 'Exam_Attempts'
-    attempt_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+    attempt_id = Column(String(50), primary_key=True, default=generate_uuid)
     schedule_id = Column(String, ForeignKey('ExamSchedules.schedule_id'), nullable=False)
     user_id = Column(String, ForeignKey('Users.user_id'), nullable=False)
     attempt_number = Column(Integer, default=1)
@@ -457,7 +457,7 @@ class Exam_Attempt(Base):
 
 class ExamReviewComments(Base):
     __tablename__ = 'ExamReviewComments'
-    comment_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+    comment_id = Column(String(50), primary_key=True, default=generate_uuid)
     attempt_id = Column(String, ForeignKey('Exam_Attempts.attempt_id'), nullable=False)
     question_id = Column(String, ForeignKey('Questions.question_id'), nullable=False)
     reviewer_id = Column(String)
@@ -635,7 +635,7 @@ class QuestionPaperUserAssignment(Base):
 
 class AnswerSheetPage(Base):
     __tablename__ = 'AnswerSheetPages'
-    page_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+    page_id = Column(String(50), primary_key=True, default=generate_uuid)
     attempt_id = Column(String, ForeignKey('Exam_Attempts.attempt_id'), nullable=False)
     page_number = Column(Integer, nullable=False)
     image_path = Column(String(500), nullable=False)

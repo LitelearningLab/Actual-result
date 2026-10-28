@@ -4050,6 +4050,13 @@ def get_student_evaluation_details(request, current_user=None):
                 for opt in options
             ]
 
+            is_objective_q = str(q.question_type or "").lower() not in ("descriptive", "paragraph")
+            if is_objective_q:
+                model_answer = ""
+                student_written_text = ""
+                feedback = ""
+                review_comments = []
+
             questions_data.append(
                 {
                     "question_id": str(q.question_id),
@@ -4321,7 +4328,37 @@ def process_single_student_answer_sheet(
 
     # 2. Rasterize and upload all pages to GCS under student_answers/test_evaluation/{user_id}/test_id_{exam_id}/page_{n}.jpg
     saved_page_files = []
-    curr_page_num = 1
+    replace_flag = replace if isinstance(replace, bool) else str(replace).lower() in ("true", "1")
+    start_page_num = 1
+
+    # In Add mode (replace=False), determine the starting page number after existing pages
+    if not replace_flag:
+        db_pre = SQLiteDB()
+        sess_pre = db_pre.connect()
+        if sess_pre:
+            try:
+                att_rows = sess_pre.query(Exam_Attempt.attempt_id).filter(
+                    Exam_Attempt.user_id == user_id,
+                    or_(
+                        Exam_Attempt.schedule_id == exam_id,
+                        Exam_Attempt.schedule_id.in_(
+                            sess_pre.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == exam_id)
+                        )
+                    )
+                ).all()
+                all_att_ids_pre = [str(r[0]) for r in att_rows if r[0]]
+                if all_att_ids_pre:
+                    max_p = sess_pre.query(func.max(AnswerSheetPage.page_number)).filter(
+                        func.cast(AnswerSheetPage.attempt_id, String).in_(all_att_ids_pre)
+                    ).scalar()
+                    if max_p is not None:
+                        start_page_num = int(max_p) + 1
+            except Exception as e_pnum:
+                print(f"[upload_answer_sheet] max page_number lookup warning: {e_pnum}")
+            finally:
+                sess_pre.close()
+
+    curr_page_num = start_page_num
     gcs_folder_prefix = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}"
 
     for item in file_items:
@@ -4527,31 +4564,39 @@ def process_single_student_answer_sheet(
             all_att_ids = [str(r[0]) for r in all_attempt_rows if r[0]]
             replace_flag = replace if isinstance(replace, bool) else str(replace).lower() in ("true", "1")
             if replace_flag:
-                # Clean up existing GCS images for these attempts if any
+                # Clean up existing GCS images that are NOT overwritten by the newly uploaded files
+                new_saved_paths = set(path for _, path in saved_page_files)
                 old_pages = (
                     session.query(AnswerSheetPage)
-                    .filter(AnswerSheetPage.attempt_id.in_(all_att_ids))
+                    .filter(func.cast(AnswerSheetPage.attempt_id, String).in_(all_att_ids))
                     .all()
                 )
                 for old_p in old_pages:
-                    if old_p.image_path and not old_p.image_path.startswith("http"):
+                    if old_p.image_path and old_p.image_path not in new_saved_paths and not old_p.image_path.startswith("http"):
                         try:
                             gcs_storage.delete_media(old_p.image_path)
                         except Exception:
                             pass
-                try:
-                    gcs_storage.delete_media(f"{gcs_folder_prefix}/answersheet.pdf")
-                except Exception:
-                    pass
+
+                has_new_pdf = any(
+                    (item[0] if isinstance(item, tuple) else getattr(item, "filename", "") or "").lower().endswith(".pdf")
+                    for item in file_items
+                )
+                if not has_new_pdf:
+                    try:
+                        gcs_storage.delete_media(f"{gcs_folder_prefix}/answersheet.pdf")
+                    except Exception:
+                        pass
+
                 session.query(AnswerSheetPage).filter(
-                    AnswerSheetPage.attempt_id.in_(all_att_ids)
+                    func.cast(AnswerSheetPage.attempt_id, String).in_(all_att_ids)
                 ).delete(synchronize_session=False)
 
             created_pages = []
             for pnum, rel_img_path in saved_page_files:
                 page_obj = AnswerSheetPage(
                     page_id=str(uuid.uuid4()),
-                    attempt_id=attempt.attempt_id,
+                    attempt_id=str(attempt_id),
                     page_number=pnum,
                     image_path=rel_img_path,
                     created_date=datetime.utcnow(),
@@ -4747,7 +4792,27 @@ def process_single_student_answer_sheet(
             exam_rubric = {"exam_id": str(exam_id), "sections": rubric_sections}
 
             # Direct GCS signed URLs for AI visual analysis (no Base64)
-            ai_page_inputs = [
+            # Combine all attempt pages (both existing and newly uploaded) for comprehensive AI evaluation
+            all_attempt_pages = (
+                session.query(AnswerSheetPage)
+                .filter(func.cast(AnswerSheetPage.attempt_id, String) == str(attempt_id))
+                .order_by(AnswerSheetPage.page_number.asc())
+                .all()
+            )
+            all_eval_pages = []
+            for p_row in all_attempt_pages:
+                match_created = next((cp for cp in created_pages if cp["page_number"] == p_row.page_number), None)
+                if match_created:
+                    all_eval_pages.append({"page_number": p_row.page_number, "url": match_created["image_url"]})
+                else:
+                    try:
+                        old_url = gcs_storage.generate_signed_url(p_row.image_path, expiration_minutes=60)
+                        if old_url:
+                            all_eval_pages.append({"page_number": p_row.page_number, "url": old_url})
+                    except Exception:
+                        pass
+
+            ai_page_inputs = all_eval_pages if all_eval_pages else [
                 {"page_number": p["page_number"], "url": p["image_url"]}
                 for p in created_pages
             ]
@@ -4813,13 +4878,14 @@ def process_single_student_answer_sheet(
                         except (ValueError, TypeError):
                             pass
 
-                # Phase 2: Filter rubric to only evaluate detected/uncertain questions
+                # Phase 2: Filter rubric to only evaluate detected/uncertain questions (descriptive questions only)
                 filtered_sections = []
                 for sec in rubric_sections:
                     filtered_qs = [
                         q
                         for q in sec.get("questions", [])
                         if int(q.get("question_number", 0)) in detected_q_nums_set
+                        and str(q.get("question_type", "")).lower() in ("descriptive", "paragraph")
                     ]
                     if filtered_qs:
                         filtered_sections.append(
@@ -4857,7 +4923,7 @@ def process_single_student_answer_sheet(
 
             # Clean old review comments for this attempt before re-evaluating
             session.query(ExamReviewComments).filter(
-                ExamReviewComments.attempt_id == attempt.attempt_id
+                func.cast(ExamReviewComments.attempt_id, String) == str(attempt_id)
             ).delete(synchronize_session=False)
 
             # Persist genuine evaluation results without hardcoded defaults
@@ -4868,11 +4934,13 @@ def process_single_student_answer_sheet(
                     .first()
                 )
                 q_marks = float(q_obj.marks or 1.0) if q_obj else 1.0
+                q_type = str(getattr(q_obj, "question_type", "")).lower() if q_obj else ""
+                is_objective = q_type not in ("descriptive", "paragraph")
 
                 existing_ans = (
                     session.query(Answer)
                     .filter(
-                        Answer.attempt_id == attempt.attempt_id,
+                        func.cast(Answer.attempt_id, String) == str(attempt_id),
                         func.cast(Answer.question_id, String) == qid_str,
                     )
                     .first()
@@ -4888,7 +4956,21 @@ def process_single_student_answer_sheet(
                 manual_review = 1 if is_uncertain else 0
                 ev = evaluations_by_qid.get(qid_str) if is_detected else None
 
-                if is_detected and ev:
+                if is_objective:
+                    # Objective questions: do not call LLM, no feedback, no review comments, no student snippet
+                    awarded = float(existing_ans.marks_awarded or 0.0) if existing_ans else 0.0
+                    conf = 0
+                    fb = ""
+                    is_corr = existing_ans.is_correct if (existing_ans and existing_ans.is_correct is not None) else 0
+                    is_val = existing_ans.is_validated if (existing_ans and existing_ans.is_validated is not None) else 1
+                    detected_pages = (
+                        detected_pages_by_qid.get(qid_str)
+                        or pages_by_qnum.get(q_num)
+                        or []
+                    )
+                    manual_review = 0
+                    student_snippet = ""
+                elif is_detected and ev:
                     awarded = float(ev.get("suggested_marks", 0.0))
                     conf = int(ev.get("ai_confidence", 0))
                     fb = ev.get("feedback") or ""
@@ -4906,71 +4988,7 @@ def process_single_student_answer_sheet(
                         or ev.get("detected_on_pages")
                         or []
                     )
-
-                    # Deterministic fallback check for objective MCQ/SCQ questions
-                    if q_obj and q_obj.question_type in (
-                        "choose",
-                        "multi",
-                        "scq",
-                        "mcq",
-                    ):
-                        options = (
-                            session.query(Option)
-                            .filter(Option.question_id == q_obj.question_id)
-                            .all()
-                        )
-                        correct_opts = [
-                            opt
-                            for opt in options
-                            if str(getattr(opt, "is_correct", 0)).lower()
-                            in ("1", "true")
-                        ]
-                        student_snippet_clean = (
-                            (ev.get("student_answer_snippet") or "").strip().lower()
-                        )
-
-                        if correct_opts and student_snippet_clean:
-                            for idx, opt in enumerate(options):
-                                if str(getattr(opt, "is_correct", 0)).lower() in (
-                                    "1",
-                                    "true",
-                                ):
-                                    letter = chr(ord("a") + idx)
-                                    opt_text = (opt.option_text or "").strip().lower()
-                                    letter_patterns = [
-                                        letter,
-                                        f"{letter})",
-                                        f"({letter})",
-                                        f"{letter}.",
-                                    ]
-
-                                    is_match = False
-                                    if student_snippet_clean in letter_patterns:
-                                        is_match = True
-                                    elif opt_text and student_snippet_clean == opt_text:
-                                        is_match = True
-                                    elif opt_text and any(
-                                        student_snippet_clean.startswith(pat)
-                                        and opt_text in student_snippet_clean
-                                        for pat in letter_patterns
-                                    ):
-                                        is_match = True
-                                    elif (
-                                        opt_text
-                                        and student_snippet_clean.endswith(opt_text)
-                                        and any(
-                                            student_snippet_clean.startswith(pat)
-                                            for pat in letter_patterns
-                                        )
-                                    ):
-                                        is_match = True
-
-                                    if is_match:
-                                        awarded = q_marks
-                                        is_corr = 1
-                                        if not fb or "incorrect" in fb.lower():
-                                            fb = f"Correct. Option ({letter.upper()}) {opt.option_text or ''}"
-                                        break
+                    student_snippet = ev.get("student_answer_snippet", "") or ""
                 else:
                     # Question was in rubric but NOT physically detected on answer sheet -> Unattempted
                     awarded = 0.0
@@ -4980,8 +4998,8 @@ def process_single_student_answer_sheet(
                     is_val = 1
                     detected_pages = []
                     manual_review = 0
+                    student_snippet = ""
 
-                student_snippet = ev.get("student_answer_snippet", "") if ev else ""
                 meta_payload = json.dumps(
                     {
                         "detected_pages": detected_pages,
@@ -5001,7 +5019,7 @@ def process_single_student_answer_sheet(
                 else:
                     ans = Answer(
                         answer_id=str(uuid.uuid4()),
-                        attempt_id=attempt.attempt_id,
+                        attempt_id=str(attempt_id),
                         schedule_id=str(attempt.schedule_id),
                         user_id=user_id,
                         question_id=qid_str,
@@ -5016,7 +5034,7 @@ def process_single_student_answer_sheet(
                     )
                     session.add(ans)
 
-                if ev:
+                if ev and not is_objective:
                     for cat in ["missing", "incomplete", "incorrect"]:
                         raw_cat_val = ev.get(cat)
                         items = []
@@ -5060,7 +5078,7 @@ def process_single_student_answer_sheet(
                             comment_text = comment_text[:255]
                             rc = ExamReviewComments(
                                 comment_id=str(uuid.uuid4()),
-                                attempt_id=attempt.attempt_id,
+                                attempt_id=str(attempt_id),
                                 question_id=qid_str,
                                 topic=top,
                                 issue=iss,
@@ -5076,7 +5094,7 @@ def process_single_student_answer_sheet(
             total_awarded = sum(
                 float(ans.marks_awarded or 0.0)
                 for ans in session.query(Answer)
-                .filter(Answer.attempt_id == attempt.attempt_id)
+                .filter(func.cast(Answer.attempt_id, String) == str(attempt_id))
                 .all()
             )
             attempt.score = total_awarded
@@ -5086,7 +5104,7 @@ def process_single_student_answer_sheet(
                 session,
                 exam_id=exam_id,
                 schedule_id=attempt.schedule_id,
-                attempt_id=attempt.attempt_id,
+                attempt_id=str(attempt_id),
             )
             total_possible = float(total_possible or 0.0)
             final_percentage = 0.0
@@ -5097,6 +5115,9 @@ def process_single_student_answer_sheet(
                 attempt.percentage = final_percentage
             attempt.status = "evaluated"
             session.add(attempt)
+
+            # Calculate total pages from in-memory attempt pages before closing session
+            total_pages_count = len(all_attempt_pages) if all_attempt_pages else len(created_pages)
 
             # Single atomic commit for everything
             session.commit()
@@ -5114,7 +5135,7 @@ def process_single_student_answer_sheet(
                 "data": {
                     "attempt_id": attempt_id,
                     "pages": created_pages,
-                    "total_pages": len(created_pages),
+                    "total_pages": total_pages_count,
                     "marks": marks_display,
                     "score": total_awarded,
                     "total_marks": total_possible,

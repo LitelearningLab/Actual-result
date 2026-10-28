@@ -383,72 +383,7 @@ $radius-full: 999px;
   line-height: 1.5;
 }
 
-// ─── Social Login ───
-.social-login {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-}
 
-.social-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  height: 2.75rem;
-  background: var(--bg-1);
-  border: 0.0625rem solid var(--theme-3-border);
-  border-radius: $radius-md;
-  cursor: pointer;
-  transition: all 0.25s $ease;
-  font-family: inherit;
-
-  span {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--theme-3-text-1);
-  }
-
-  svg {
-    flex-shrink: 0;
-  }
-
-  &:hover {
-    background: var(--bg-2);
-    border-color: var(--theme-3-text-3);
-    box-shadow: 0 0.25rem 0.75rem var(--theme-3-hanover-bg);
-    transform: translateY(-0.0625rem);
-  }
-
-  &:active {
-    transform: translateY(0);
-    box-shadow: none;
-  }
-}
-
-// Divider
-.login-divider {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-
-  &::before, &::after {
-    content: '';
-    flex: 1;
-    height: 0.0625rem;
-    background: var(--theme-3-border);
-  }
-
-  span {
-    font-size: 0.6875rem;
-    font-weight: 500;
-    color: var(--theme-3-text-3);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    white-space: nowrap;
-  }
-}
 
 // Form
 .login-form {
