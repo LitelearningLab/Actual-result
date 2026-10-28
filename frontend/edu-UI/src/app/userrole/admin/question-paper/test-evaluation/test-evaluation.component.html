@@ -1320,8 +1320,14 @@
             <!-- Score & Status Pill -->
             <div class="score-summary-badge">
               <span class="score-lbl">Total Score:</span>
-              <span class="score-val">{{ evaluationDetails?.summary?.marks_awarded || 0 }} / {{ evaluationDetails?.summary?.total_marks || 0 }}</span>
-              <span class="score-pct">({{ evaluationDetails?.summary?.percentage || 0 }}%)</span>
+              <ng-container *ngIf="isStudentNotEvaluated">
+                <span class="score-val">— / {{ evaluationDetails?.summary?.total_marks || 0 }}</span>
+                <span class="score-pct">(Not marked)</span>
+              </ng-container>
+              <ng-container *ngIf="!isStudentNotEvaluated">
+                <span class="score-val">{{ evaluationDetails?.summary?.marks_awarded || 0 }} / {{ evaluationDetails?.summary?.total_marks || 0 }}</span>
+                <span class="score-pct">({{ evaluationDetails?.summary?.percentage || 0 }}%)</span>
+              </ng-container>
             </div>
 
             <span
@@ -1624,13 +1630,17 @@
                       <span
                         class="mark-badge"
                         [ngClass]="{
-                          'mark-positive': (q.marks_awarded || 0) >= (q.max_marks || 1),
-                          'mark-mid': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.max_marks || 1),
-                          'mark-negative': (q.marks_awarded || 0) == 0
+                          'mark-muted': isStudentNotEvaluated,
+                          'mark-positive': !isStudentNotEvaluated && (q.marks_awarded || 0) >= (q.max_marks || 1),
+                          'mark-mid': !isStudentNotEvaluated && (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.max_marks || 1),
+                          'mark-negative': !isStudentNotEvaluated && (q.marks_awarded || 0) == 0
                         }"
                       >
-                        {{ q.marks_awarded != null ? q.marks_awarded : 0 }}/{{ q.max_marks }} Marks
-                        ({{ q.max_marks > 0 ? (((q.marks_awarded || 0) / q.max_marks) * 100 | number:'1.0-1') : 0 }}%)
+                        <ng-container *ngIf="isStudentNotEvaluated">Not Evaluated ({{ q.max_marks }} Marks)</ng-container>
+                        <ng-container *ngIf="!isStudentNotEvaluated">
+                          {{ q.marks_awarded != null ? q.marks_awarded : 0 }}/{{ q.max_marks }} Marks
+                          ({{ q.max_marks > 0 ? (((q.marks_awarded || 0) / q.max_marks) * 100 | number:'1.0-1') : 0 }}%)
+                        </ng-container>
                       </span>
                       <span class="q-info" *ngIf="q.ai_confidence">
                         <mat-icon>auto_awesome</mat-icon>
@@ -1646,12 +1656,13 @@
                     <span
                       class="q-marks"
                       [ngClass]="{
-                        'mark-positive': (q.marks_awarded || 0) >= (q.max_marks || 1),
-                        'mark-mid': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.max_marks || 1),
-                        'mark-negative': (q.marks_awarded || 0) == 0
+                        'mark-muted': isStudentNotEvaluated,
+                        'mark-positive': !isStudentNotEvaluated && (q.marks_awarded || 0) >= (q.max_marks || 1),
+                        'mark-mid': !isStudentNotEvaluated && (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.max_marks || 1),
+                        'mark-negative': !isStudentNotEvaluated && (q.marks_awarded || 0) == 0
                       }"
                     >
-                      <span class="mark-num">{{ q.marks_awarded != null ? q.marks_awarded : 0 }}</span>
+                      <span class="mark-num">{{ isStudentNotEvaluated ? '—' : (q.marks_awarded != null ? q.marks_awarded : 0) }}</span>
                       <span class="mark-sep">/</span>
                       <span class="mark-total">{{ q.max_marks }}</span>
                     </span>

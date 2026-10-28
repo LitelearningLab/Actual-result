@@ -1457,8 +1457,14 @@ if (targetInList) {
     }
   }
 
+  get isStudentNotEvaluated(): boolean {
+    const status = this.evaluationDetails?.summary?.status || this.evaluatingStudent?.status;
+    const pagesCount = (this.evaluationDetails?.pages || []).length;
+    return status === 'Not Evaluated' || pagesCount === 0;
+  }
+
   isQuestionNeedsAttention(q: any): boolean {
-    if (!q) return false;
+    if (!q || this.isStudentNotEvaluated) return false;
     return (
       q.manual_review_required ||
       (this.isDescriptive(q) && q.ai_confidence != null && q.ai_confidence < this.aiConfidenceThreshold) ||
@@ -1469,6 +1475,9 @@ if (targetInList) {
 
   get evaluationQuestions(): any[] {
     const questions: any[] = this.evaluationDetails?.questions || [];
+    if (this.isStudentNotEvaluated) {
+      return this.evaluationCategoryFilter === 'all' ? questions : [];
+    }
     if (this.evaluationCategoryFilter === 'needs_attention') {
       return questions.filter((q) => this.isQuestionNeedsAttention(q));
     } else if (this.evaluationCategoryFilter === 'reviewed') {
@@ -1478,11 +1487,13 @@ if (targetInList) {
   }
 
   get needsAttentionQuestionsCount(): number {
+    if (this.isStudentNotEvaluated) return 0;
     const questions: any[] = this.evaluationDetails?.questions || [];
     return questions.filter((q) => this.isQuestionNeedsAttention(q)).length;
   }
 
   get reviewedQuestionsCount(): number {
+    if (this.isStudentNotEvaluated) return 0;
     const total = this.evaluationDetails?.questions?.length || 0;
     return Math.max(0, total - this.needsAttentionQuestionsCount);
   }
