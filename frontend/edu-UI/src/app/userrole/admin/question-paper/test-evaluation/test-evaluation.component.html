@@ -49,9 +49,9 @@
         <button
           mat-flat-button
           type="button"
-          (click)="refreshData()"
+          (click)="clearAppliedFilters()"
           class="refresh-icon-btn"
-          title="Refresh Data"
+          title="Clear all filters & refresh"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" class="refresh-svg-icon">
             <path
@@ -1757,7 +1757,7 @@
                   </div>
                 </div>
                 <div class="unmatched-ans-text">
-                  <app-math-render [text]="q.student_answer"></app-math-render>
+                  <app-math-render [text]="q.student_answer" [subject]="evaluationDetails?.subject_name || testDetails?.subject"></app-math-render>
                 </div>
               </div>
 
@@ -1830,7 +1830,7 @@
                     <span class="student-ans-label">STUDENT'S ANSWER</span>
                   </div>
                   <div class="student-ans-text">
-                    <app-math-render [text]="q.student_answer"></app-math-render>
+                    <app-math-render [text]="q.student_answer" [subject]="evaluationDetails?.subject_name || testDetails?.subject"></app-math-render>
                   </div>
                 </div>
 
