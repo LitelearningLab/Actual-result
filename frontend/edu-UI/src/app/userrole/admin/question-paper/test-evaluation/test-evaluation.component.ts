@@ -320,15 +320,22 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       if (savedStudentRaw) {
         try {
           this.evaluatingStudent = JSON.parse(savedStudentRaw);
-        } catch (e) {}
+        } catch (e) { }
       }
       if (savedMetaRaw) {
         try {
           this.testDetails = { ...this.testDetails, ...JSON.parse(savedMetaRaw) };
-        } catch (e) {}
+        } catch (e) { }
       }
       this.loadEvaluationDetails(savedExamId, savedUserId);
     }
+
+    const savedClass = sessionStorage.getItem('test_eval_class');
+    const savedSection = sessionStorage.getItem('test_eval_section');
+    const savedSubject = sessionStorage.getItem('test_eval_subject');
+    if (savedClass) this.selectedClass = savedClass;
+    if (savedSection) this.selectedSection = savedSection;
+    if (savedSubject) this.selectedSubject = savedSubject;
 
     this.initFilterCascade();
   }
@@ -410,17 +417,29 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   get selectedClassName(): string {
     const c = this.classList.find(x => String(x.id) === String(this.selectedClass));
-    return (c && c.id !== 'ALL') ? c.name : '';
+    if (c && c.id !== 'ALL') return c.name;
+    if (this.selectedExamId && this.testDetails?.class && this.testDetails.class !== '—' && this.testDetails.class !== this.terminology.deptLabel) {
+      return this.testDetails.class;
+    }
+    return '';
   }
 
   get selectedSectionName(): string {
     const s = this.sectionList.find(x => String(x.id) === String(this.selectedSection));
-    return (s && s.id !== 'ALL') ? s.name : '';
+    if (s && s.id !== 'ALL') return s.name;
+    if (this.selectedExamId && this.testDetails?.section && this.testDetails.section !== '—' && this.testDetails.section !== this.terminology.teamLabel) {
+      return this.testDetails.section;
+    }
+    return '';
   }
 
   get selectedSubjectName(): string {
     const s = this.subjectList.find(x => String(x.id) === String(this.selectedSubject));
-    return (s && s.id !== 'ALL') ? s.name : '';
+    if (s && s.id !== 'ALL') return s.name;
+    if (this.selectedExamId && this.testDetails?.subject && this.testDetails.subject !== '—' && this.testDetails.subject !== 'General') {
+      return this.testDetails.subject;
+    }
+    return '';
   }
 
   get hasAppliedFilters(): boolean {
@@ -442,6 +461,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     sessionStorage.removeItem('test_eval_user_id');
     sessionStorage.removeItem('test_eval_student');
     sessionStorage.removeItem('test_eval_meta');
+    sessionStorage.removeItem('test_eval_class');
+    sessionStorage.removeItem('test_eval_section');
+    sessionStorage.removeItem('test_eval_subject');
     this.selectedClass = 'ALL';
     this.selectedSection = 'ALL';
     this.selectedSubject = 'ALL';
@@ -477,6 +499,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     sessionStorage.removeItem('test_eval_user_id');
     sessionStorage.removeItem('test_eval_student');
     sessionStorage.removeItem('test_eval_meta');
+    sessionStorage.removeItem('test_eval_class');
+    sessionStorage.removeItem('test_eval_section');
+    sessionStorage.removeItem('test_eval_subject');
     this.selectedClass = 'ALL';
     this.selectedSection = 'ALL';
     this.selectedSubject = 'ALL';
@@ -546,13 +571,19 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const isEvaluating =
       this.currentView === 'evaluate' ||
       (typeof sessionStorage !== 'undefined' && !!sessionStorage.getItem('test_eval_user_id'));
+    const hasActiveExam =
+      !!this.selectedExamId ||
+      (typeof sessionStorage !== 'undefined' && !!sessionStorage.getItem('test_eval_exam_id'));
 
-    if (!isEvaluating) {
+    if (!isEvaluating && !hasActiveExam) {
       // Reset all dependent filters when manually switching institute in list mode
       this.selectedClass = 'ALL';
       this.selectedSection = 'ALL';
       this.selectedSubject = 'ALL';
       this.selectedExamId = '';
+      sessionStorage.removeItem('test_eval_class');
+      sessionStorage.removeItem('test_eval_section');
+      sessionStorage.removeItem('test_eval_subject');
       this.testList = [];
       this.allPublishedExams = [];
       this.allInstituteTeams = [];
@@ -573,7 +604,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) {}
+      } catch (e) { }
       this.filtersOverlayRef = null;
     }
 
@@ -616,7 +647,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
-      } catch (e) {}
+      } catch (e) { }
       this.filtersOverlayRef = null;
     }
   }
@@ -657,6 +688,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       case 'class':
       case 'department':
         this.selectedClass = 'ALL';
+        sessionStorage.removeItem('test_eval_class');
         this.filterSectionList();
         this.applyExamFilters();
         this.filterStudents();
@@ -664,11 +696,13 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       case 'section':
       case 'team':
         this.selectedSection = 'ALL';
+        sessionStorage.removeItem('test_eval_section');
         this.applyExamFilters();
         this.filterStudents();
         break;
       case 'subject':
         this.selectedSubject = 'ALL';
+        sessionStorage.removeItem('test_eval_subject');
         this.applyExamFilters();
         this.filterStudents();
         break;
@@ -823,18 +857,34 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   onClassChange(classId: string): void {
     this.selectedClass = classId;
+    if (classId && classId !== 'ALL') {
+      sessionStorage.setItem('test_eval_class', classId);
+    } else {
+      sessionStorage.removeItem('test_eval_class');
+    }
     this.selectedSection = 'ALL';
+    sessionStorage.removeItem('test_eval_section');
     this.filterSectionList();
     this.applyExamFilters();
   }
 
   onSectionChange(sectionId: string): void {
     this.selectedSection = sectionId;
+    if (sectionId && sectionId !== 'ALL') {
+      sessionStorage.setItem('test_eval_section', sectionId);
+    } else {
+      sessionStorage.removeItem('test_eval_section');
+    }
     this.applyExamFilters();
   }
 
   onSubjectChange(subjectId: string): void {
     this.selectedSubject = subjectId;
+    if (subjectId && subjectId !== 'ALL') {
+      sessionStorage.setItem('test_eval_subject', subjectId);
+    } else {
+      sessionStorage.removeItem('test_eval_subject');
+    }
     this.applyExamFilters();
   }
 
@@ -913,6 +963,23 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       teamName = matchT ? matchT.name : this.terminology.teamLabel;
     }
 
+    // Auto-sync selected filters from the exam if not set or ALL
+    if ((!this.selectedClass || this.selectedClass === 'ALL') && exam.departments && exam.departments.length > 0) {
+      this.selectedClass = String(exam.departments[0]);
+      sessionStorage.setItem('test_eval_class', this.selectedClass);
+    }
+    if ((!this.selectedSection || this.selectedSection === 'ALL') && exam.teams && exam.teams.length > 0) {
+      this.selectedSection = String(exam.teams[0]);
+      sessionStorage.setItem('test_eval_section', this.selectedSection);
+    }
+    if ((!this.selectedSubject || this.selectedSubject === 'ALL') && (exam.subject_id || exam.subject_name)) {
+      const subMatch = this.subjectList.find(s => String(s.id) === String(exam.subject_id) || (s.name && exam.subject_name && s.name.toLowerCase() === String(exam.subject_name).toLowerCase()));
+      this.selectedSubject = subMatch ? String(subMatch.id) : String(exam.subject_id || '');
+      if (this.selectedSubject && this.selectedSubject !== 'ALL') {
+        sessionStorage.setItem('test_eval_subject', this.selectedSubject);
+      }
+    }
+
     const assigned = exam.assigned_users || [];
 
     // Populate students list from QuestionPaperUserAssignment with real evaluation data
@@ -947,7 +1014,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       const prevStudent = prevStudents.find((s) => String(s.user_id) === String(user.user_id));
       const matchedBulk = this.bulkFiles.find(
         (bf) => (bf.selectedUserId && String(bf.selectedUserId) === String(user.user_id)) ||
-                (bf.studentName && (user.full_name || user.user_name) && bf.studentName.toLowerCase() === (user.full_name || user.user_name || '').toLowerCase())
+          (bf.studentName && (user.full_name || user.user_name) && bf.studentName.toLowerCase() === (user.full_name || user.user_name || '').toLowerCase())
       );
 
       const rawFile = matchedBulk?.file || undefined;
@@ -983,7 +1050,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     let savedMeta: any = {};
     try {
       savedMeta = JSON.parse(sessionStorage.getItem('test_eval_meta') || '{}');
-    } catch (e) {}
+    } catch (e) { }
 
     if (deptName === '—' || deptName === this.terminology.deptLabel) {
       deptName = savedMeta.class || this.testDetails.class || deptName;
@@ -1116,7 +1183,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (!student.rawFile) {
       const matchedBulk = this.bulkFiles.find(
         (bf) => (bf.selectedUserId && String(bf.selectedUserId) === String(student.user_id)) ||
-                (bf.studentName && student.name && bf.studentName.toLowerCase() === student.name.toLowerCase())
+          (bf.studentName && student.name && bf.studentName.toLowerCase() === student.name.toLowerCase())
       );
       if (matchedBulk?.file) {
         student.rawFile = matchedBulk.file;
@@ -1225,7 +1292,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (this.pdfRenderTask) {
       try {
         this.pdfRenderTask.cancel();
-      } catch {}
+      } catch { }
       this.pdfRenderTask = null;
     }
     this.refreshData();
@@ -1261,20 +1328,20 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const userId = student.user_id;
 
     // Also find and reset the student directly inside this.students by user_id
-const targetInList = this.students.find(s => String(s.user_id) === String(userId));
-if (targetInList) {
-  targetInList.isUploaded = false;
-  targetInList.rawFile = undefined;
-  targetInList.matchedFile = undefined;
-  targetInList.matchedBy = undefined;
-  targetInList.isMatched = false;
-  targetInList.pagesInfo = '0 of 0 pages';
-  targetInList.missingPagesWarning = undefined;
-  targetInList.status = 'Not Evaluated';
-  targetInList.marks = 'Not marked';
-  targetInList.actionText = 'Evaluate';
-  targetInList.actionClass = 'btn-outline-blue';
-}
+    const targetInList = this.students.find(s => String(s.user_id) === String(userId));
+    if (targetInList) {
+      targetInList.isUploaded = false;
+      targetInList.rawFile = undefined;
+      targetInList.matchedFile = undefined;
+      targetInList.matchedBy = undefined;
+      targetInList.isMatched = false;
+      targetInList.pagesInfo = '0 of 0 pages';
+      targetInList.missingPagesWarning = undefined;
+      targetInList.status = 'Not Evaluated';
+      targetInList.marks = 'Not marked';
+      targetInList.actionText = 'Evaluate';
+      targetInList.actionClass = 'btn-outline-blue';
+    }
 
 
     const bIdx = this.bulkFiles.findIndex(
@@ -1312,7 +1379,7 @@ if (targetInList) {
       if (this.pdfRenderTask) {
         try {
           this.pdfRenderTask.cancel();
-        } catch {}
+        } catch { }
         this.pdfRenderTask = null;
       }
     }
@@ -1453,7 +1520,7 @@ if (targetInList) {
     if (this.pdfRenderTask) {
       try {
         this.pdfRenderTask.cancel();
-      } catch {}
+      } catch { }
       this.pdfRenderTask = null;
     }
 
@@ -1818,7 +1885,7 @@ if (targetInList) {
       try {
         const uObj = JSON.parse(rawUser);
         loggedUserId = uObj.user_id || uObj.id || '';
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const payload = {
@@ -1846,7 +1913,7 @@ if (targetInList) {
           }
           const matchedStudent = this.students.find(
             (s) => (this.evaluatingStudent?.user_id && s.user_id === this.evaluatingStudent.user_id) ||
-                   (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
+              (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
           );
           if (matchedStudent) {
             matchedStudent.status = 'Manual Reviewed';
@@ -1906,7 +1973,7 @@ if (targetInList) {
           }
           const matchedStudent = this.students.find(
             (s) => (this.evaluatingStudent?.user_id && s.user_id === this.evaluatingStudent.user_id) ||
-                   (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
+              (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
           );
           if (matchedStudent) {
             matchedStudent.status = 'Manual Reviewed';
@@ -1945,7 +2012,7 @@ if (targetInList) {
           }
           const matchedStudent = this.students.find(
             (s) => (this.evaluatingStudent?.user_id && s.user_id === this.evaluatingStudent.user_id) ||
-                   (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
+              (this.evaluationDetails?.user_id && s.user_id === this.evaluationDetails.user_id)
           );
           if (matchedStudent) {
             matchedStudent.status = 'Manual Reviewed';
@@ -2635,8 +2702,8 @@ if (targetInList) {
         if (res && res.status && res.matched && (res.user_id || res.student_name)) {
           const foundStudent = this.students.find(
             (s) => (res.user_id && String(s.user_id) === String(res.user_id)) ||
-                   (res.student_name && s.name && s.name.toLowerCase() === String(res.student_name).toLowerCase()) ||
-                   (res.roll_no && s.rollNo && s.rollNo.toLowerCase() === String(res.roll_no).toLowerCase())
+              (res.student_name && s.name && s.name.toLowerCase() === String(res.student_name).toLowerCase()) ||
+              (res.roll_no && s.rollNo && s.rollNo.toLowerCase() === String(res.roll_no).toLowerCase())
           );
 
           const isAlreadyEvaluated = foundStudent?.status === 'AI Evaluated' || foundStudent?.status === 'Manual Reviewed' || foundStudent?.status === 'Need to Check';
@@ -2694,7 +2761,7 @@ if (targetInList) {
       if (bf.isMatched && bf.file) {
         const targetStudent = this.students.find(
           (s) => (bf.selectedUserId && String(s.user_id) === String(bf.selectedUserId)) ||
-                 (bf.studentName && s.name && s.name.toLowerCase() === bf.studentName.toLowerCase())
+            (bf.studentName && s.name && s.name.toLowerCase() === bf.studentName.toLowerCase())
         );
         if (targetStudent) {
           targetStudent.rawFile = bf.file;
@@ -3063,7 +3130,7 @@ if (targetInList) {
     // Also unmatch from bulkFiles list
     const bIdx = this.bulkFiles.findIndex(
       (f) => (f.selectedUserId && String(f.selectedUserId) === String(student.user_id)) ||
-             (f.studentName && student.name && f.studentName.toLowerCase() === student.name.toLowerCase())
+        (f.studentName && student.name && f.studentName.toLowerCase() === student.name.toLowerCase())
     );
     if (bIdx !== -1) {
       this.bulkFiles[bIdx].isMatched = false;
@@ -3155,7 +3222,7 @@ if (targetInList) {
         // Unmatch in bulkFiles list
         const bIdx = this.bulkFiles.findIndex(
           (f) => (f.selectedUserId && String(f.selectedUserId) === String(s.user_id)) ||
-                 (f.studentName && s.name && f.studentName.toLowerCase() === s.name.toLowerCase())
+            (f.studentName && s.name && f.studentName.toLowerCase() === s.name.toLowerCase())
         );
         if (bIdx !== -1) {
           this.bulkFiles[bIdx].isMatched = false;
@@ -3328,7 +3395,7 @@ if (targetInList) {
       const isCurrentSelection =
         !!currentFile &&
         ((currentFile.selectedStudent && currentFile.selectedStudent === st.name) ||
-         (currentFile.selectedUserId && String(currentFile.selectedUserId) === String(st.user_id)));
+          (currentFile.selectedUserId && String(currentFile.selectedUserId) === String(st.user_id)));
 
       if (isCurrentSelection) {
         return true;
@@ -3358,7 +3425,7 @@ if (targetInList) {
           bf !== currentFile &&
           bf.isMatched &&
           ((bf.selectedUserId && String(bf.selectedUserId) === String(st.user_id)) ||
-           (bf.studentName && bf.studentName.toLowerCase() === st.name.toLowerCase()))
+            (bf.studentName && bf.studentName.toLowerCase() === st.name.toLowerCase()))
       );
       if (isMatchedToOtherBulkFile) {
         return false;
@@ -3615,7 +3682,7 @@ if (targetInList) {
     if (this.previewPdfRenderTask) {
       try {
         this.previewPdfRenderTask.cancel();
-      } catch {}
+      } catch { }
       this.previewPdfRenderTask = null;
     }
 
@@ -3695,7 +3762,7 @@ if (targetInList) {
     if (this.previewPdfRenderTask) {
       try {
         this.previewPdfRenderTask.cancel();
-      } catch {}
+      } catch { }
       this.previewPdfRenderTask = null;
     }
     if (this.previewAnswerSheet?.objectUrl) {
