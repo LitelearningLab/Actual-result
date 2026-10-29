@@ -313,10 +313,12 @@ class BulkEvaluationManager:
             else:
                 job["cancelled"] = True
                 job["status"] = "cancelled"
+                all_uids_to_clean = []
                 for uid, st in job["students"].items():
                     if st["status"] in ("queued", "evaluating"):
                         st["cancelled"] = True
                         st["status"] = "cancelled"
+                        all_uids_to_clean.append(str(uid))
                 self._persist_job(job_id)
                 event_to_emit = ("job_stopped", {
                     "job_id": job_id,
@@ -325,8 +327,8 @@ class BulkEvaluationManager:
                 }, "Bulk evaluation stopped.")
 
         # Clean up database records outside the lock so other threads are never blocked
-        if db_cleanup_task:
-            clean_uid, clean_eid = db_cleanup_task
+        uids_to_clean = [db_cleanup_task[0]] if db_cleanup_task else (all_uids_to_clean if 'all_uids_to_clean' in locals() else [])
+        if uids_to_clean and exam_id:
             try:
                 from others.exams import SQLiteDB, Exam_Attempt, Answer, AnswerSheetPage
                 from sqlalchemy import func, String
@@ -334,8 +336,8 @@ class BulkEvaluationManager:
                 sess = db.connect()
                 if sess:
                     att_rows = sess.query(Exam_Attempt.attempt_id).filter(
-                        Exam_Attempt.user_id == clean_uid,
-                        Exam_Attempt.schedule_id == clean_eid
+                        Exam_Attempt.user_id.in_(uids_to_clean),
+                        Exam_Attempt.schedule_id == str(exam_id)
                     ).all()
                     att_ids = [str(r[0]) for r in att_rows if r[0]]
                     if att_ids:
@@ -345,7 +347,7 @@ class BulkEvaluationManager:
                         sess.commit()
                     sess.close()
             except Exception as clean_err:
-                logger.warning(f"Failed cleaning stopped student DB attempt: {clean_err}")
+                logger.warning(f"Failed cleaning stopped student DB attempts: {clean_err}")
 
         # Emit events outside the lock
         if event_to_emit:

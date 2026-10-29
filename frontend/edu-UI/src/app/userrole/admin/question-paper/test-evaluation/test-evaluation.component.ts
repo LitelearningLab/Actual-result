@@ -2852,6 +2852,11 @@ if (targetInList) {
         if (student) {
           student.status = 'Not Evaluated';
           student.marks = 'Not marked';
+          student.pagesInfo = '0 of 0 pages';
+          student.matchedFile = undefined;
+          student.rawFile = undefined;
+          student.isMatched = false;
+          student.isUploaded = false;
           student.actionText = 'Evaluate';
           student.actionClass = 'btn-outline-blue';
         }
@@ -2863,6 +2868,7 @@ if (targetInList) {
         if (!stillEvaluating || this.bulkProgress.total === 0) {
           this.isBulkEvaluating = false;
           this.isUploading = false;
+          this.hasStartedEvaluation = false;
         }
         this.recalculateKpiTotals();
         this.filterStudents();
@@ -2877,6 +2883,7 @@ if (targetInList) {
         const data = JSON.parse(e.data);
         this.isBulkEvaluating = false;
         this.isUploading = false;
+        this.hasStartedEvaluation = false;
         sessionStorage.removeItem('activeBulkJobId');
         notify(data.message || 'Evaluation stopped.', 'info');
         if (this.bulkEvalEventSource) {
@@ -2884,9 +2891,14 @@ if (targetInList) {
           this.bulkEvalEventSource = undefined;
         }
         for (const s of this.students) {
-          if (s.status === 'Evaluating...') {
+          if (s.status === 'Evaluating...' || s.actionText === 'Evaluating...' || s.actionText === 'Queued...') {
             s.status = 'Not Evaluated';
             s.marks = 'Not marked';
+            s.pagesInfo = '0 of 0 pages';
+            s.matchedFile = undefined;
+            s.rawFile = undefined;
+            s.isMatched = false;
+            s.isUploaded = false;
             s.actionText = 'Evaluate';
             s.actionClass = 'btn-outline-blue';
           }
@@ -3015,17 +3027,40 @@ if (targetInList) {
     this.bulkProgress.completed = 0;
     this.bulkProgress.percentage = 0;
 
+    this.hasStartedEvaluation = false;
+    sessionStorage.removeItem('activeBulkJobId');
+
     if (this.bulkEvalEventSource) {
       this.bulkEvalEventSource.close();
       this.bulkEvalEventSource = undefined;
     }
 
     for (const s of this.students) {
-      if (s.status === 'Evaluating...') {
+      if (s.status === 'Evaluating...' || s.actionText === 'Evaluating...' || s.actionText === 'Queued...') {
+        if (s.user_id) {
+          this.stoppedStudentIds.add(String(s.user_id));
+        }
         s.status = 'Not Evaluated';
         s.marks = 'Not marked';
+        s.pagesInfo = '0 of 0 pages';
+        s.matchedFile = undefined;
+        s.rawFile = undefined;
+        s.isMatched = false;
+        s.isUploaded = false;
         s.actionText = 'Evaluate';
         s.actionClass = 'btn-outline-blue';
+
+        // Unmatch in bulkFiles list
+        const bIdx = this.bulkFiles.findIndex(
+          (f) => (f.selectedUserId && String(f.selectedUserId) === String(s.user_id)) ||
+                 (f.studentName && s.name && f.studentName.toLowerCase() === s.name.toLowerCase())
+        );
+        if (bIdx !== -1) {
+          this.bulkFiles[bIdx].isMatched = false;
+          this.bulkFiles[bIdx].selectedUserId = undefined;
+          this.bulkFiles[bIdx].aiStatus = 'Waiting';
+        }
+
         if (this.selectedExamId && s.user_id) {
           this.http.post<any>(`${API_BASE}/test-evaluation/remove-answer-sheet`, {
             exam_id: this.selectedExamId,

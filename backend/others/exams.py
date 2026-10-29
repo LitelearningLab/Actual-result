@@ -3871,7 +3871,7 @@ def get_student_evaluation_details(request, current_user=None):
         if attempt and att_id_str:
             pages = (
                 session.query(AnswerSheetPage)
-                .filter(AnswerSheetPage.attempt_id == attempt.attempt_id)
+                .filter(func.cast(AnswerSheetPage.attempt_id, String) == att_id_str)
                 .order_by(
                     AnswerSheetPage.page_number.asc(),
                     AnswerSheetPage.created_date.desc(),
@@ -3989,7 +3989,7 @@ def get_student_evaluation_details(request, current_user=None):
         if attempt and att_id_str:
             all_answers = (
                 session.query(Answer)
-                .filter(Answer.attempt_id == attempt.attempt_id)
+                .filter(func.cast(Answer.attempt_id, String) == att_id_str)
                 .all()
             )
             for a in all_answers:
@@ -4004,7 +4004,7 @@ def get_student_evaluation_details(request, current_user=None):
             all_rc = (
                 session.query(ExamReviewComments)
                 .filter(
-                    ExamReviewComments.attempt_id == attempt.attempt_id,
+                    func.cast(ExamReviewComments.attempt_id, String) == att_id_str,
                     or_(
                         ExamReviewComments.is_deleted == 0,
                         ExamReviewComments.is_deleted.is_(None),
