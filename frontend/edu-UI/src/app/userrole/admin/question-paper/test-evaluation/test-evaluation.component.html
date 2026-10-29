@@ -1642,7 +1642,7 @@
                           ({{ q.max_marks > 0 ? (((q.marks_awarded || 0) / q.max_marks) * 100 | number:'1.0-1') : 0 }}%)
                         </ng-container>
                       </span>
-                      <span class="q-info" *ngIf="q.ai_confidence">
+                      <span class="q-info ai-confidence-chip" *ngIf="q.ai_confidence">
                         <mat-icon>auto_awesome</mat-icon>
                         <span>AI Confidence: {{ q.ai_confidence }}%</span>
                       </span>

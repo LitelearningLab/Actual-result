@@ -4317,15 +4317,16 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
                 }
               }
 
-              .q-info {
+              .q-info,
+              .ai-confidence-chip {
                 display: inline-flex;
                 align-items: center;
                 gap: 0.25rem;
                 font-size: 0.75rem;
                 font-weight: 600;
-                color: #15803d;
-                background: #f0fdf4;
-                border: 1px solid #bbf7d0;
+                color: #6d28d9;
+                background: #f5f3ff;
+                border: 1px solid #ddd6fe;
                 padding: 0.2rem 0.5rem;
                 border-radius: 0.25rem;
 
@@ -4333,6 +4334,7 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
                   font-size: 14px;
                   width: 14px;
                   height: 14px;
+                  color: #7c3aed;
                 }
               }
             }
