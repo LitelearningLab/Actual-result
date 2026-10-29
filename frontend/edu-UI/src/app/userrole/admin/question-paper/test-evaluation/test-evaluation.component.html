@@ -49,9 +49,9 @@
         <button
           mat-flat-button
           type="button"
-          (click)="clearAppliedFilters()"
+          (click)="refreshData()"
           class="refresh-icon-btn"
-          title="Refresh & Clear Filters"
+          title="Refresh Data"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" class="refresh-svg-icon">
             <path
@@ -1309,7 +1309,7 @@
               <span class="meta-pill" *ngIf="testDetails.class && testDetails.class !== '—'">{{ testDetails.class }}</span>
               <span class="meta-pill" *ngIf="testDetails.section && testDetails.section !== '—'">{{ testDetails.section }}</span>
               <span class="meta-pill" *ngIf="testDetails.subject && testDetails.subject !== '—'">{{ testDetails.subject }}</span>
-              <span class="meta-pill">{{ selectedExamTitle }}</span>
+              <span class="meta-pill" *ngIf="selectedExamTitle && selectedExamTitle !== '—'">{{ selectedExamTitle }}</span>
               <span class="meta-pill" *ngIf="evaluationDetails?.roll_no || evaluatingStudent?.rollNo">
                 Roll no. {{ evaluationDetails?.roll_no || evaluatingStudent?.rollNo }}
               </span>

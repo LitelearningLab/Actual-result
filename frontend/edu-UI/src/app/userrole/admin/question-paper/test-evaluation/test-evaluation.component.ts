@@ -244,7 +244,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   isRemovingSheet = false;
 
   // ─── Split-View Evaluation State ───
-  currentView: 'list' | 'evaluate' = 'list';
+  currentView: 'list' | 'evaluate' =
+    typeof window !== 'undefined' && typeof sessionStorage !== 'undefined' && sessionStorage.getItem('test_eval_user_id')
+      ? 'evaluate'
+      : 'list';
   splitMode: 'split' | 'viewer-expanded' | 'eval-expanded' = 'split';
   evaluatingStudent: StudentEvaluation | null = null;
   evaluationDetails: any = null;
@@ -304,6 +307,29 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.activeBulkJobId = savedJobId;
     }
     this.loadAIConfidenceThreshold();
+
+    // If refreshing while on student evaluation review, restore immediately without falling back to list
+    const savedExamId = sessionStorage.getItem('test_eval_exam_id');
+    const savedUserId = sessionStorage.getItem('test_eval_user_id');
+    const savedStudentRaw = sessionStorage.getItem('test_eval_student');
+    const savedMetaRaw = sessionStorage.getItem('test_eval_meta');
+
+    if (savedExamId && savedUserId) {
+      this.selectedExamId = savedExamId;
+      this.currentView = 'evaluate';
+      if (savedStudentRaw) {
+        try {
+          this.evaluatingStudent = JSON.parse(savedStudentRaw);
+        } catch (e) {}
+      }
+      if (savedMetaRaw) {
+        try {
+          this.testDetails = { ...this.testDetails, ...JSON.parse(savedMetaRaw) };
+        } catch (e) {}
+      }
+      this.loadEvaluationDetails(savedExamId, savedUserId);
+    }
+
     this.initFilterCascade();
   }
 
@@ -411,6 +437,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   clearAppliedFilters(): void {
+    sessionStorage.removeItem('test_eval_institute');
+    sessionStorage.removeItem('test_eval_exam_id');
+    sessionStorage.removeItem('test_eval_user_id');
+    sessionStorage.removeItem('test_eval_student');
+    sessionStorage.removeItem('test_eval_meta');
     this.selectedClass = 'ALL';
     this.selectedSection = 'ALL';
     this.selectedSubject = 'ALL';
@@ -442,6 +473,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   resetAllDependentDropdowns(): void {
+    sessionStorage.removeItem('test_eval_exam_id');
+    sessionStorage.removeItem('test_eval_user_id');
+    sessionStorage.removeItem('test_eval_student');
+    sessionStorage.removeItem('test_eval_meta');
     this.selectedClass = 'ALL';
     this.selectedSection = 'ALL';
     this.selectedSubject = 'ALL';
@@ -475,8 +510,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       next: (res) => {
         const data = res?.data || res || [];
         this.institutes = Array.isArray(data) ? data : [];
-        // For Super Admin: Do NOT auto-select an institute. Wait for user selection like Test Reports.
-        if (this.selectedInstitute && this.institutes.some(i => i.institute_id === this.selectedInstitute)) {
+        const savedInst = sessionStorage.getItem('test_eval_institute');
+        const instToSelect = this.selectedInstitute || savedInst || '';
+        if (instToSelect && this.institutes.some(i => String(i.institute_id) === String(instToSelect))) {
+          this.selectedInstitute = instToSelect;
           this.onInstituteSelected(this.selectedInstitute);
         } else {
           this.selectedInstitute = '';
@@ -492,8 +529,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   onInstituteChange(instituteId: string): void {
     this.selectedInstitute = instituteId;
     if (instituteId) {
+      sessionStorage.setItem('test_eval_institute', instituteId);
       this.onInstituteSelected(instituteId);
     } else {
+      sessionStorage.removeItem('test_eval_institute');
       this.resetAllDependentDropdowns();
     }
   }
@@ -504,17 +543,23 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Reset all dependent filters
-    this.selectedClass = 'ALL';
-    this.selectedSection = 'ALL';
-    this.selectedSubject = 'ALL';
-    this.selectedExamId = '';
-    this.testList = [];
-    this.allPublishedExams = [];
-    this.allInstituteTeams = [];
-    this.students = [];
-    this.filteredStudents = [];
-    this.resetTestDetails();
+    const isEvaluating =
+      this.currentView === 'evaluate' ||
+      (typeof sessionStorage !== 'undefined' && !!sessionStorage.getItem('test_eval_user_id'));
+
+    if (!isEvaluating) {
+      // Reset all dependent filters when manually switching institute in list mode
+      this.selectedClass = 'ALL';
+      this.selectedSection = 'ALL';
+      this.selectedSubject = 'ALL';
+      this.selectedExamId = '';
+      this.testList = [];
+      this.allPublishedExams = [];
+      this.allInstituteTeams = [];
+      this.students = [];
+      this.filteredStudents = [];
+      this.resetTestDetails();
+    }
 
     // Load dependent masters for this institute
     this.loadDepartments(instituteId);
@@ -600,6 +645,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     switch (key) {
       case 'institute':
         if (this.isSuperAdmin) {
+          sessionStorage.removeItem('test_eval_institute');
+          sessionStorage.removeItem('test_eval_exam_id');
+          sessionStorage.removeItem('test_eval_user_id');
+          sessionStorage.removeItem('test_eval_student');
+          sessionStorage.removeItem('test_eval_meta');
           this.selectedInstitute = '';
           this.resetAllDependentDropdowns();
         }
@@ -623,6 +673,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.filterStudents();
         break;
       case 'test':
+        sessionStorage.removeItem('test_eval_exam_id');
+        sessionStorage.removeItem('test_eval_user_id');
+        sessionStorage.removeItem('test_eval_student');
+        sessionStorage.removeItem('test_eval_meta');
         this.selectedExamId = '';
         this.students = [];
         this.filteredStudents = [];
@@ -818,9 +872,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       title: e.title
     }));
 
-    if (this.testList.length > 0 && this.selectedExamId && this.testList.some((t) => t.exam_id === this.selectedExamId)) {
-      this.onTestChange(this.selectedExamId);
-    } else {
+    const examToSelect = this.selectedExamId || sessionStorage.getItem('test_eval_exam_id') || '';
+    if (this.testList.length > 0 && examToSelect && this.testList.some((t) => String(t.exam_id) === String(examToSelect))) {
+      this.onTestChange(examToSelect);
+    } else if (this.currentView !== 'evaluate' && !(typeof sessionStorage !== 'undefined' && sessionStorage.getItem('test_eval_user_id'))) {
       this.selectedExamId = '';
       this.students = [];
       this.filteredStudents = [];
@@ -833,12 +888,15 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.hasStartedEvaluation = false;
     this.selectedExamId = examId;
     if (!examId) {
+      sessionStorage.removeItem('test_eval_exam_id');
+      sessionStorage.removeItem('test_eval_user_id');
       this.students = [];
       this.filteredStudents = [];
       this.resetTestDetails();
       this.recalculateKpiTotals();
       return;
     }
+    sessionStorage.setItem('test_eval_exam_id', examId);
 
     const exam = this.allPublishedExams.find((e) => e.exam_id === examId);
     if (!exam) return;
@@ -922,11 +980,25 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       };
     });
 
+    let savedMeta: any = {};
+    try {
+      savedMeta = JSON.parse(sessionStorage.getItem('test_eval_meta') || '{}');
+    } catch (e) {}
+
+    if (deptName === '—' || deptName === this.terminology.deptLabel) {
+      deptName = savedMeta.class || this.testDetails.class || deptName;
+    }
+    if (teamName === '—' || teamName === this.terminology.teamLabel) {
+      teamName = savedMeta.section || this.testDetails.section || teamName;
+    }
+    const finalSubject = exam.subject_name || savedMeta.subject || this.testDetails.subject || 'General';
+    const finalTitle = exam.title || savedMeta.title || this.testDetails.title;
+
     this.testDetails = {
-      title: exam.title,
+      title: finalTitle,
       class: deptName,
       section: teamName,
-      subject: exam.subject_name || 'General',
+      subject: finalSubject,
       totalMarks: `${exam.total_marks || 0} marks`,
       totalQuestions: `${exam.total_questions || 0} questions`,
       totalStudents: assigned.length,
@@ -935,12 +1007,24 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       needToCheck: 0,
       notEvaluated: assigned.length
     };
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('test_eval_meta', JSON.stringify(this.testDetails));
+    }
 
     // Update available student list for Bulk Upload assignment
     this.availableStudents = ['Choose student', ...this.students.map((s) => s.name)];
 
     this.recalculateKpiTotals();
     this.filterStudents();
+
+    // Auto-restore student evaluation view if previously viewing a student
+    const savedUserId = sessionStorage.getItem('test_eval_user_id');
+    if (savedUserId && this.currentView !== 'evaluate') {
+      const studentToEval = this.students.find((s) => String(s.user_id) === String(savedUserId));
+      if (studentToEval) {
+        this.openStudentEvaluation(studentToEval);
+      }
+    }
   }
 
   private resetTestDetails(): void {
@@ -964,6 +1048,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   refreshData(): void {
+    if (this.currentView === 'evaluate' && this.evaluatingStudent?.user_id && this.selectedExamId) {
+      this.loadEvaluationDetails(this.selectedExamId, this.evaluatingStudent.user_id);
+      return;
+    }
     if (this.selectedExamId) {
       // Prioritize refreshing the currently active test locally with zero delay
       this.onTestChange(this.selectedExamId);
@@ -1039,6 +1127,17 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     this.evaluatingStudent = student;
     this.currentView = 'evaluate';
+    if (student?.user_id) {
+      sessionStorage.setItem('test_eval_user_id', String(student.user_id));
+      sessionStorage.setItem('test_eval_student', JSON.stringify({
+        user_id: student.user_id,
+        name: student.name,
+        rollNo: student.rollNo,
+        marks: student.marks,
+        status: student.status
+      }));
+      sessionStorage.setItem('test_eval_meta', JSON.stringify(this.testDetails));
+    }
     this.activeSheetPageIndex = 0;
     this.zoomLevel = 100;
     this.evaluationCategoryFilter = 'all';
@@ -1115,6 +1214,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   closeStudentEvaluation(): void {
+    sessionStorage.removeItem('test_eval_user_id');
+    sessionStorage.removeItem('test_eval_student');
+    sessionStorage.removeItem('test_eval_meta');
     this.currentView = 'list';
     this.evaluatingStudent = null;
     this.evaluationDetails = null;
