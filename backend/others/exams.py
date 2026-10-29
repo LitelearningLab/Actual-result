@@ -1463,6 +1463,74 @@ def delete_exam(exam_id, deleted_by):
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
+    exam_id_str = str(exam_id).strip()
+
+    exam = session.query(Exam).filter(
+        (Exam.exam_id == exam_id_str) | (func.cast(Exam.exam_id, String) == exam_id_str)
+    ).first()
+    if not exam:
+        return {"statusMessage": "Exam not found", "status": False}, 404
+
+    if is_exam_active_or_attended(session, exam_id_str):
+        return {
+            "statusMessage": "Exam cannot be deleted because it has active schedules or student submissions.",
+            "status": False,
+        }, 400
+
+    try:
+        # 1. Clean up unused schedules and their mappings (if any without attempts)
+        schedules = session.query(ExamSchedule).filter(
+            func.cast(ExamSchedule.exam_id, String) == exam_id_str
+        ).all()
+        for sched in schedules:
+            session.query(ExamScheduleMapping).filter(
+                func.cast(ExamScheduleMapping.schedule_id, String) == str(sched.schedule_id)
+            ).delete(synchronize_session=False)
+            session.delete(sched)
+
+        # 2. Clean up all child and mapping records
+        session.query(ExamQuestionMapping).filter(
+            func.cast(ExamQuestionMapping.exam_id, String) == exam_id_str
+        ).delete(synchronize_session=False)
+
+        session.query(ExamMapping).filter(
+            func.cast(ExamMapping.exam_id, String) == exam_id_str
+        ).delete(synchronize_session=False)
+
+        session.query(ExamSection).filter(
+            func.cast(ExamSection.exam_id, String) == exam_id_str
+        ).delete(synchronize_session=False)
+
+        session.query(ExamsDepartments).filter(
+            func.cast(ExamsDepartments.exam_id, String) == exam_id_str
+        ).delete(synchronize_session=False)
+
+        session.query(ExamsTeams).filter(
+            func.cast(ExamsTeams.exam_id, String) == exam_id_str
+        ).delete(synchronize_session=False)
+
+        session.query(QuestionPaperUserAssignment).filter(
+            func.cast(QuestionPaperUserAssignment.exam_id, String) == exam_id_str
+        ).delete(synchronize_session=False)
+
+        # 3. Delete the exam row safely without pyodbc/ODBC Driver 17 UUID cast failure
+        session.execute(
+            text("DELETE FROM Exams WHERE CAST(exam_id AS NVARCHAR(64)) = :eid OR exam_id = :eid"),
+            {"eid": exam_id_str}
+        )
+        session.commit()
+        return {"statusMessage": "Exam deleted successfully", "status": True}, 200
+    except Exception as e:
+        session.rollback()
+        print(
+            f"{e} occurred while deleting exam at line {sys.exc_info()[-1].tb_lineno}"
+        )
+        return {"statusMessage": f"Error deleting exam: {str(e)}", "status": False}, 500
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
     exam = session.query(Exam).filter_by(exam_id=exam_id).first()
     if not exam:
         return {"statusMessage": "Exam not found", "status": False}, 404
