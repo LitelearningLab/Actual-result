@@ -1059,14 +1059,14 @@ def _validate_answers_impl(attempt_id):
                     )
 
                 if not evaluation.get("status", False):
-                    # Keep the answer retryable, but persist a visible diagnostic instead
-                    # of silently returning an empty feedback section.
                     evaluation_failures += 1
                     error_detail = evaluation.get("error") or "The AI evaluation service did not return a valid result."
                     print(f"AI evaluation failed for answer {ans.answer_id}: {error_detail}")
-                    ans.feedback = "AI evaluation could not be completed. Please retry the evaluation."
+                    ans.feedback = "Evaluation incomplete: Answer could not be processed by AI."
                     ans.ai_confidence = None
-                    ans.is_validated = 0
+                    ans.is_validated = 1
+                    ans.marks_awarded = 0.0
+                    ans.is_correct = 0
                     session.add(ans)
                     continue
                 score = evaluation.get("score", 0)
@@ -1257,7 +1257,7 @@ def _validate_answers_impl(attempt_id):
                 attempt.feedback = 'Failed'
             attempt.percentage = round((total_score / total_possible_marks * 100), 2) if total_possible_marks > 0 else 0
             all_answers_validated = all(getattr(ans, 'is_validated', 0) == 1 for ans in latest_answers_by_qid.values()) if latest_answers_by_qid else True
-            if all_answers_validated and evaluation_failures == 0:
+            if all_answers_validated:
                 attempt.status = 'evaluated'
             session.add(attempt)
             session.commit()

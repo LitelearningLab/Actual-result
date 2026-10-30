@@ -218,7 +218,7 @@ class AppSession(Base):
 
 class Exam(Base):
      __tablename__ = 'Exams'
-     exam_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+     exam_id = Column(String(64), primary_key=True, default=generate_uuid)
      title = Column(String, nullable=False)
      description = Column(String)
      institute_id = Column(String, ForeignKey('Institutes.institute_id'), nullable=False)
@@ -279,7 +279,7 @@ class ExamQuestionMapping(Base):
 
 class ExamSchedule(Base):
      __tablename__ = 'ExamSchedules'
-     schedule_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+     schedule_id = Column(String(64), primary_key=True, default=generate_uuid)
      exam_id = Column(String, ForeignKey('Exams.exam_id'), nullable=False)
      title = Column(String)
      institute_id = Column(String, ForeignKey('Institutes.institute_id'), nullable=True)

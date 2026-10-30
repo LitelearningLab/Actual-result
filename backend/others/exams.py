@@ -2684,14 +2684,23 @@ def get_user_exam_details(request):
 
         eligible_schedule_ids = set()
 
+        # 1. Resolve user and their institute
+        user_obj = session.query(User).filter_by(user_id=user_id).first() if user_id else None
+        effective_inst_id = institute_id or (getattr(user_obj, "institute_id", None) if user_obj else None)
+
+        # 2. Include all published schedules for the institute (or all if super admin)
+        inst_query = session.query(ExamSchedule.schedule_id).filter(ExamSchedule.published == 1)
+        user_role = str(getattr(user_obj, "user_role", "") or "").lower() if user_obj else ""
+        if effective_inst_id and user_role not in ("super_admin", "superadmin", "super-admin"):
+            inst_query = inst_query.filter(ExamSchedule.institute_id == effective_inst_id)
+        for (s_id,) in inst_query.all():
+            if s_id:
+                eligible_schedule_ids.add(str(s_id))
+
+        # 3. Include any schedules specifically mapped to this user/dept/team
         if user_id:
-            user_obj = session.query(User).filter_by(user_id=user_id).first()
-            user_dept_id = department_id or (
-                getattr(user_obj, "department_id", None) if user_obj else None
-            )
-            user_team_id = team_id or (
-                getattr(user_obj, "team_id", None) if user_obj else None
-            )
+            user_dept_id = department_id or (getattr(user_obj, "department_id", None) if user_obj else None)
+            user_team_id = team_id or (getattr(user_obj, "team_id", None) if user_obj else None)
             user_campus_id = getattr(user_obj, "campus_id", None) if user_obj else None
 
             mapping_conds = [ExamScheduleMapping.user_id == user_id]
@@ -2702,7 +2711,6 @@ def get_user_exam_details(request):
             if user_campus_id:
                 mapping_conds.append(ExamScheduleMapping.campus_id == user_campus_id)
 
-            # 1. Mapped schedules for this user, their department, team, or campus
             mapped_rows = (
                 session.query(ExamScheduleMapping.schedule_id)
                 .join(
@@ -2717,7 +2725,7 @@ def get_user_exam_details(request):
                 if s_id:
                     eligible_schedule_ids.add(str(s_id))
 
-            # 2. All schedules where the user has any attempt (in_progress, submitted, evaluated)
+            # 4. Include all schedules where this user has attempts (submitted, in-progress, evaluated)
             attempt_rows = (
                 session.query(Exam_Attempt.schedule_id)
                 .filter(Exam_Attempt.user_id == user_id)
@@ -2725,19 +2733,6 @@ def get_user_exam_details(request):
                 .all()
             )
             for (s_id,) in attempt_rows:
-                if s_id:
-                    eligible_schedule_ids.add(str(s_id))
-        elif institute_id:
-            # Fallback for admin overview by institute
-            inst_rows = (
-                session.query(ExamSchedule.schedule_id)
-                .filter(
-                    ExamSchedule.institute_id == institute_id,
-                    ExamSchedule.published == 1,
-                )
-                .all()
-            )
-            for (s_id,) in inst_rows:
                 if s_id:
                     eligible_schedule_ids.add(str(s_id))
 
@@ -2794,7 +2789,7 @@ def get_user_exam_details(request):
                 .filter(
                     Exam_Attempt.user_id == user_id,
                     (
-                        Exam_Attempt.schedule_id == schedule_obj.schedule_id
+                        Exam_Attempt.schedule_id == str(schedule_obj.schedule_id)
                         if schedule_obj
                         else None
                     ),
@@ -3700,13 +3695,17 @@ def launch_exam_details(schedule_id, user_id):
             else None
         )
 
+        exam_id_val = str(exam_data.exam_id) if exam_data else ""
+        exam_title_val = str(exam_data.title or "") if exam_data else ""
+        exam_total_q_val = exam_data.total_questions if exam_data else 0
+
         exam_detail = {
-            "exam_id": exam_data.exam_id,
-            "schedule_id": schedule_id,
-            "title": schedule_title or (exam_data.title if exam_data else ""),
-            "attempt_id": current_attempt.attempt_id,
+            "exam_id": exam_id_val,
+            "schedule_id": str(schedule_id),
+            "title": schedule_title or exam_title_val,
+            "attempt_id": str(current_attempt.attempt_id),
             "duration_mins": duration_mins,
-            "total_questions": exam_data.total_questions,
+            "total_questions": exam_total_q_val,
             "started_date": (
                 safe_utc_isoformat(current_attempt.started_date)
                 if current_attempt.started_date
