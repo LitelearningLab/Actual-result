@@ -35,6 +35,7 @@ import { MathService } from '../../services/math.service';
 })
 export class MathRenderComponent implements OnInit, OnChanges {
   @Input() text: any = '';
+  @Input() subject: string = '';
 
   safeContent: SafeHtml = '';
 
@@ -45,12 +46,12 @@ export class MathRenderComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['text']) {
+    if (changes['text'] || changes['subject']) {
       this.updateContent();
     }
   }
 
   private updateContent(): void {
-    this.safeContent = this.mathService.renderSafe(this.text);
+    this.safeContent = this.mathService.renderSafe(this.text, this.subject);
   }
 }

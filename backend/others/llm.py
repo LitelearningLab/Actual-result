@@ -893,7 +893,21 @@ EVALUATION RULES:
    - Evaluate the student's answer ONLY on what is physically written on the page under that specific question number/header.
    - NEVER invent, infer, extrapolate, or assume information that is not explicitly present in the handwriting. Treat unwritten concepts as absent.
    - NEVER borrow or use words, concepts, or sentences from adjacent question answers to award marks.
-   - "student_answer_snippet": Extract ONLY a faithful visual transcription of what the student actually wrote under that question. Do NOT include corrections, comments, or explanations. Use "[unclear]" only for truly illegible words.
+   - "student_answer_snippet": Extract a faithful, verbatim transcription of what the student physically wrote under that question.
+     * LOGICAL SEPARATION OF TRANSCRIPTION & SCORING:
+       Transcription is strictly optical capture and must NEVER alter rubric evaluation, scoring criteria, or awarded marks.
+     * ZERO CORRECTION (STRICT VERBATIM FIDELITY FOR ALL SUBJECTS):
+       NEVER solve, correct, simplify, calculate, balance, or normalize the student's work.
+       Preserve every visible step, sign, operator, coefficient, fraction, exponent, typo, and mistake EXACTLY as written on the physical sheet.
+       Preserve explanatory text (e.g. "Sol:", "Given:", "Step 1:") and the authentic order of steps.
+       Do NOT invent unreadable symbols; represent truly illegible writing as "[unclear]". If unattempted, return "".
+     * SUBJECT-SPECIFIC TRANSCRIPTION CONTRACT:
+       - FOR MATHEMATICS SUBJECTS:
+         Faithfully transcribe visible mathematical expressions into valid LaTeX syntax using standard delimiters:
+         Use inline '$...$' for inline terms within sentences, or display '$$...$$' for standalone equations and fractions (e.g., '$$\\frac{a}{b}$$', 'x^2', '\\sqrt{x}', '\\times').
+       - FOR NON-MATHEMATICS SUBJECTS (Science, English, History, etc.):
+         Preserve natural-language answers as normal text, sentences, paragraphs, or bullet points.
+         Do NOT wrap ordinary text, science units (e.g., 'km/h', 'm/s', 'g/mol'), dates, ratios, or unrelated expressions in mathematical delimiters.
 
 2. RUBRIC & POINT-BY-POINT SCORING:
    - Grade each question strictly against its rubric up to its specified "max_marks".
@@ -931,7 +945,7 @@ OUTPUT JSON STRUCTURE:
     {
       "question_id": "<exact question_id string from the rubric>",
       "question_number": <integer question number>,
-      "student_answer_snippet": "<faithful transcription of what the student wrote>",
+      "student_answer_snippet": "<faithful verbatim transcription in LaTeX for math or natural text for non-math without correcting errors>",
       "detected_on_pages": [<array of page numbers>],
       "relevance_classification": "<'Directly answers question' | 'Partially answers question' | 'Relevant topic but does not answer question' | 'Incorrect answer' | 'Unattempted'>",
       "suggested_marks": <float score between 0.0 and max_marks>,

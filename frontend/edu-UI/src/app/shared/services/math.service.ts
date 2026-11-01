@@ -18,20 +18,174 @@ export class MathService {
       .replace(/'/g, '&#39;');
   }
 
-  public render(input: string | null | undefined): string {
+  public isMathSubject(subject?: string): boolean {
+    if (!subject) return true;
+    const s = subject.toLowerCase().trim();
+    const nonMathKeywords = [
+      'science', 'physics', 'chemistry', 'biology', 'botany', 'zoology',
+      'english', 'history', 'geography', 'social', 'hindi', 'tamil', 'computer'
+    ];
+    for (const nmk of nonMathKeywords) {
+      if (s.includes(nmk) && !s.includes('math')) {
+        return false;
+      }
+    }
+    const mathKeywords = [
+      'math', 'algebra', 'geometry', 'calculus', 'trigonometry', 'trig', 'arithmetic', 'statistics'
+    ];
+    return mathKeywords.some((k) => s.includes(k));
+  }
+
+  public render(input: string | null | undefined, subject?: string): string {
     if (input == null) return '';
-    const str = String(input);
+    let str = String(input);
     if (!str.trim()) return '';
 
     if (!this.hasMathIndicators(str)) {
-      return this.escapeHtml(str).replace(/\r?\n/g, '<br/>');
+      if (this.isMathSubject(subject)) {
+        str = this.formatPlainMathToLatex(str, subject);
+      }
+      if (!this.hasMathIndicators(str)) {
+        return this.escapeHtml(str).replace(/\r?\n/g, '<br/>');
+      }
     }
 
     return this.parseAndRenderMixed(str);
   }
 
-  public renderSafe(input: string | null | undefined): SafeHtml {
-    const rendered = this.render(input);
+  public formatPlainMathToLatex(text: string, subject?: string): string {
+    if (!text || typeof text !== 'string') return text || '';
+    if (!this.isMathSubject(subject)) return text;
+    if (text.includes('$$')) return text;
+
+    const lines = text.split(/\r?\n/);
+    const prefixRe = /^(\s*(?:\d+[\)\.]|Sol(?:ution)?\s*[:\.\-]?|Ans(?:wer)?\s*[:\.\-]?|Given\s*[:\.\-]?|Step\s*\d+\s*[:\.\-]?)\s*)/i;
+
+    const formattedLines: string[] = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        formattedLines.push('');
+        continue;
+      }
+
+      let prefix = '';
+      let mathPart = trimmed;
+      const mPrefix = trimmed.match(prefixRe);
+      if (mPrefix) {
+        prefix = mPrefix[1].trim();
+        mathPart = trimmed.substring(mPrefix[1].length).trim();
+      }
+
+      if (mathPart.startsWith('$$') && mathPart.endsWith('$$')) {
+        if (prefix) formattedLines.push(prefix);
+        formattedLines.push(mathPart);
+        continue;
+      }
+
+      if (mathPart.startsWith('$') && mathPart.endsWith('$')) {
+        mathPart = mathPart.substring(1, mathPart.length - 1).trim();
+      }
+
+      const hasMathTokens =
+        /[=><\+\-\*/\^]/.test(mathPart) ||
+        /\b\d+\/\d+\b/.test(mathPart) ||
+        mathPart.includes('\\frac');
+      const longWords = mathPart.match(/\b[a-zA-Z]{4,}\b/g) || [];
+      const isDescriptiveText = longWords.length >= 4 && !mathPart.includes('=');
+
+      if (!hasMathTokens || isDescriptiveText || !mathPart) {
+        formattedLines.push(trimmed);
+        continue;
+      }
+
+      let s = mathPart;
+
+      // 1. Balanced parenthesized fractions: (...)/(...) or (...)/term
+      const slashPattern = /\)\s*\//;
+      while (true) {
+        const m = slashPattern.exec(s);
+        if (!m) break;
+        const closeParenIdx = m.index;
+        const slashIdx = closeParenIdx + m[0].length - 1;
+        let depth = 0;
+        let openParenIdx = -1;
+        for (let i = closeParenIdx; i >= 0; i--) {
+          if (s[i] === ')') depth++;
+          else if (s[i] === '(') {
+            depth--;
+            if (depth === 0) {
+              openParenIdx = i;
+              break;
+            }
+          }
+        }
+        if (openParenIdx === -1) break;
+
+        const numContent = s.substring(openParenIdx + 1, closeParenIdx);
+        const afterSlash = s.substring(slashIdx + 1).replace(/^\s+/, '');
+        const wsLen = s.substring(slashIdx + 1).length - afterSlash.length;
+
+        if (afterSlash.startsWith('(')) {
+          let dDepth = 0;
+          let dEnd = -1;
+          for (let j = 0; j < afterSlash.length; j++) {
+            if (afterSlash[j] === '(') dDepth++;
+            else if (afterSlash[j] === ')') {
+              dDepth--;
+              if (dDepth === 0) {
+                dEnd = j;
+                break;
+              }
+            }
+          }
+          if (dEnd !== -1) {
+            const denomContent = afterSlash.substring(1, dEnd);
+            const endDenomIdx = slashIdx + 1 + wsLen + dEnd + 1;
+            const frac = `\\frac{${numContent}}{${denomContent}}`;
+            s = s.substring(0, openParenIdx) + frac + s.substring(endDenomIdx);
+            continue;
+          }
+        }
+
+        const mDenom = afterSlash.match(/^(-?\d+[a-zA-Z]*|-?[a-zA-Z]+)/);
+        if (mDenom) {
+          const denomContent = mDenom[1];
+          const endDenomIdx = slashIdx + 1 + wsLen + denomContent.length;
+          const frac = `\\frac{${numContent}}{${denomContent}}`;
+          s = s.substring(0, openParenIdx) + frac + s.substring(endDenomIdx);
+          continue;
+        }
+        break;
+      }
+
+      // 2. Term / parenthesized denominator: term / (...)
+      s = s.replace(/(-?\d+[a-zA-Z]*|-?[a-zA-Z]+)\s*\/\s*\(([^()]+)\)/g, '\\frac{$1}{$2}');
+
+      // 3. Simple fractions: 4/3, 2/3, 54y/7, -210/242, 16x/3
+      s = s.replace(/(^|[^a-zA-Z0-9_/\\])(-?\d+[a-zA-Z]*|-?[a-zA-Z]+)\s*\/\s*(\d+[a-zA-Z]*|[a-zA-Z]+)(?![a-zA-Z0-9_/])/g, '$1\\frac{$2}{$3}');
+
+      // 4. Clean negative signs before \frac
+      s = s.replace(/\\frac{-(\d+[a-zA-Z]*)/g, '-\\frac{$1');
+
+      // 5. Multiplication * -> \times
+      s = s.replace(/\s*\*\s*/g, ' \\times ');
+
+      // 6. Spacing around =
+      s = s.replace(/\s*=\s*/g, ' = ');
+
+      if (prefix) {
+        formattedLines.push(prefix);
+      }
+      formattedLines.push(`$$\\displaystyle ${s.trim()}$$`);
+    }
+
+    return formattedLines.join('\n\n');
+  }
+
+  public renderSafe(input: string | null | undefined, subject?: string): SafeHtml {
+    const rendered = this.render(input, subject);
     return this.sanitizer.bypassSecurityTrustHtml(rendered);
   }
 

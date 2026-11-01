@@ -124,6 +124,161 @@ def _strip_equation_prefix(s):
     return s
 
 
+def _is_math_subject(subject_name, exam_title=""):
+    combined = f"{subject_name or ''} {exam_title or ''}".lower()
+    non_math_keywords = (
+        "science", "physics", "chemistry", "biology", "botany", "zoology",
+        "english", "history", "geography", "social", "hindi", "tamil", "computer"
+    )
+    for nmk in non_math_keywords:
+        if nmk in combined and not any(k in combined for k in ("math", "maths", "mathematics")):
+            return False
+    math_keywords = (
+        "math", "maths", "mathematics", "algebra", "geometry", 
+        "calculus", "trigonometry", "trig", "arithmetic", "statistics"
+    )
+    return any(k in combined for k in math_keywords)
+
+
+def format_math_for_display(text, is_math=True):
+    """
+    Formats mathematical expressions into clean display LaTeX ($$\\displaystyle ...$$)
+    matching model answer typography, strictly when is_math is True.
+    Preserves all student numbers, signs, steps, typos, and mistakes verbatim without solving or correcting them.
+    If is_math is False (Science, English, etc.), returns text completely untouched.
+    """
+    if not text or not isinstance(text, str) or not text.strip():
+        return text or ""
+    if not is_math:
+        return text
+
+    if "$$" in text:
+        return text
+
+    lines = text.split("\n")
+    formatted_lines = []
+    prefix_re = re.compile(
+        r"^(\s*(?:\d+[\)\.]|Sol(?:ution)?\s*[:\.\-]?|Ans(?:wer)?\s*[:\.\-]?|Given\s*[:\.\-]?|Step\s*\d+\s*[:\.\-]?)\s*)",
+        re.IGNORECASE,
+    )
+
+    for line in lines:
+        trimmed = line.strip()
+        if not trimmed:
+            formatted_lines.append("")
+            continue
+
+        prefix = ""
+        math_part = trimmed
+        m_prefix = prefix_re.match(trimmed)
+        if m_prefix:
+            prefix = m_prefix.group(1).strip()
+            math_part = trimmed[len(m_prefix.group(1)):].strip()
+
+        if math_part.startswith("$$") and math_part.endswith("$$"):
+            if prefix:
+                formatted_lines.append(prefix)
+            formatted_lines.append(math_part)
+            continue
+
+        if math_part.startswith("$") and math_part.endswith("$"):
+            math_part = math_part[1:-1].strip()
+
+        has_math_tokens = bool(
+            re.search(r"[=><\+\-\*/\^]", math_part)
+            or re.search(r"\b\d+/\d+\b", math_part)
+            or r"\frac" in math_part
+        )
+        long_words = re.findall(r"\b[a-zA-Z]{4,}\b", math_part)
+        is_descriptive = len(long_words) >= 4 and "=" not in math_part
+
+        if not has_math_tokens or is_descriptive or not math_part:
+            formatted_lines.append(trimmed)
+            continue
+
+        s = math_part
+
+        # 1. Balanced parenthesized fractions: (...)/(...) or (...)/term
+        pattern = re.compile(r'\)\s*/')
+        while True:
+            m = pattern.search(s)
+            if not m:
+                break
+            close_paren_idx = m.start()
+            slash_idx = m.end() - 1
+            depth = 0
+            open_paren_idx = None
+            for i in range(close_paren_idx, -1, -1):
+                if s[i] == ')':
+                    depth += 1
+                elif s[i] == '(':
+                    depth -= 1
+                    if depth == 0:
+                        open_paren_idx = i
+                        break
+            if open_paren_idx is None:
+                break
+
+            num_content = s[open_paren_idx + 1:close_paren_idx]
+            after_slash = s[slash_idx + 1:].lstrip()
+
+            if after_slash.startswith('('):
+                d_depth = 0
+                d_end = None
+                for j in range(len(after_slash)):
+                    if after_slash[j] == '(':
+                        d_depth += 1
+                    elif after_slash[j] == ')':
+                        d_depth -= 1
+                        if d_depth == 0:
+                            d_end = j
+                            break
+                if d_end is not None:
+                    denom_content = after_slash[1:d_end]
+                    end_denom_idx = slash_idx + 1 + (len(s[slash_idx + 1:]) - len(after_slash)) + d_end + 1
+                    frac = f"\\frac{{{num_content}}}{{{denom_content}}}"
+                    s = s[:open_paren_idx] + frac + s[end_denom_idx:]
+                    continue
+
+            m_denom = re.match(r'^(-?\d+[a-zA-Z]*|-?[a-zA-Z]+)', after_slash)
+            if m_denom:
+                denom_content = m_denom.group(1)
+                end_denom_idx = slash_idx + 1 + (len(s[slash_idx + 1:]) - len(after_slash)) + len(denom_content)
+                frac = f"\\frac{{{num_content}}}{{{denom_content}}}"
+                s = s[:open_paren_idx] + frac + s[end_denom_idx:]
+                continue
+            break
+
+        # 2. Term / parenthesized denominator: term / (...)
+        s = re.sub(r'(-?\d+[a-zA-Z]*|-?[a-zA-Z]+)\s*/\s*\(([^()]+)\)', r'\\frac{\1}{\2}', s)
+
+        # 3. Simple fractions: 4/3, 2/3, 54y/7, -210/242, 16x/3
+        s = re.sub(
+            r'(^|[^a-zA-Z0-9_/\\])(-?\d+[a-zA-Z]*|-?[a-zA-Z]+)\s*/\s*(\d+[a-zA-Z]*|[a-zA-Z]+)(?![a-zA-Z0-9_/])',
+            r'\1\\frac{\2}{\3}',
+            s,
+        )
+
+        # 4. Clean negative signs before \frac
+        s = re.sub(r'\\frac{-(\d+[a-zA-Z]*)', r'-\\frac{\1', s)
+
+        # 5. Multiplication * -> \times
+        s = re.sub(r'\s*\*\s*', r' \\times ', s)
+
+        # 6. Spacing around =
+        s = re.sub(r'\s*=\s*', r' = ', s)
+
+        if prefix:
+            formatted_lines.append(prefix)
+        formatted_lines.append(f"$$\\displaystyle {s.strip()}$$")
+
+    return "\n\n".join(formatted_lines)
+
+
+# Backwards compatibility alias
+format_plain_math_to_latex = format_math_for_display
+
+
 def _match_objective_option(student_text, options):
     if not student_text or not options:
         return None, None
@@ -2529,14 +2684,23 @@ def get_user_exam_details(request):
 
         eligible_schedule_ids = set()
 
+        # 1. Resolve user and their institute
+        user_obj = session.query(User).filter_by(user_id=user_id).first() if user_id else None
+        effective_inst_id = institute_id or (getattr(user_obj, "institute_id", None) if user_obj else None)
+
+        # 2. Include all published schedules for the institute (or all if super admin)
+        inst_query = session.query(ExamSchedule.schedule_id).filter(ExamSchedule.published == 1)
+        user_role = str(getattr(user_obj, "user_role", "") or "").lower() if user_obj else ""
+        if effective_inst_id and user_role not in ("super_admin", "superadmin", "super-admin"):
+            inst_query = inst_query.filter(ExamSchedule.institute_id == effective_inst_id)
+        for (s_id,) in inst_query.all():
+            if s_id:
+                eligible_schedule_ids.add(str(s_id))
+
+        # 3. Include any schedules specifically mapped to this user/dept/team
         if user_id:
-            user_obj = session.query(User).filter_by(user_id=user_id).first()
-            user_dept_id = department_id or (
-                getattr(user_obj, "department_id", None) if user_obj else None
-            )
-            user_team_id = team_id or (
-                getattr(user_obj, "team_id", None) if user_obj else None
-            )
+            user_dept_id = department_id or (getattr(user_obj, "department_id", None) if user_obj else None)
+            user_team_id = team_id or (getattr(user_obj, "team_id", None) if user_obj else None)
             user_campus_id = getattr(user_obj, "campus_id", None) if user_obj else None
 
             mapping_conds = [ExamScheduleMapping.user_id == user_id]
@@ -2547,7 +2711,6 @@ def get_user_exam_details(request):
             if user_campus_id:
                 mapping_conds.append(ExamScheduleMapping.campus_id == user_campus_id)
 
-            # 1. Mapped schedules for this user, their department, team, or campus
             mapped_rows = (
                 session.query(ExamScheduleMapping.schedule_id)
                 .join(
@@ -2562,7 +2725,7 @@ def get_user_exam_details(request):
                 if s_id:
                     eligible_schedule_ids.add(str(s_id))
 
-            # 2. All schedules where the user has any attempt (in_progress, submitted, evaluated)
+            # 4. Include all schedules where this user has attempts (submitted, in-progress, evaluated)
             attempt_rows = (
                 session.query(Exam_Attempt.schedule_id)
                 .filter(Exam_Attempt.user_id == user_id)
@@ -2570,19 +2733,6 @@ def get_user_exam_details(request):
                 .all()
             )
             for (s_id,) in attempt_rows:
-                if s_id:
-                    eligible_schedule_ids.add(str(s_id))
-        elif institute_id:
-            # Fallback for admin overview by institute
-            inst_rows = (
-                session.query(ExamSchedule.schedule_id)
-                .filter(
-                    ExamSchedule.institute_id == institute_id,
-                    ExamSchedule.published == 1,
-                )
-                .all()
-            )
-            for (s_id,) in inst_rows:
                 if s_id:
                     eligible_schedule_ids.add(str(s_id))
 
@@ -2639,7 +2789,7 @@ def get_user_exam_details(request):
                 .filter(
                     Exam_Attempt.user_id == user_id,
                     (
-                        Exam_Attempt.schedule_id == schedule_obj.schedule_id
+                        Exam_Attempt.schedule_id == str(schedule_obj.schedule_id)
                         if schedule_obj
                         else None
                     ),
@@ -3545,13 +3695,17 @@ def launch_exam_details(schedule_id, user_id):
             else None
         )
 
+        exam_id_val = str(exam_data.exam_id) if exam_data else ""
+        exam_title_val = str(exam_data.title or "") if exam_data else ""
+        exam_total_q_val = exam_data.total_questions if exam_data else 0
+
         exam_detail = {
-            "exam_id": exam_data.exam_id,
-            "schedule_id": schedule_id,
-            "title": schedule_title or (exam_data.title if exam_data else ""),
-            "attempt_id": current_attempt.attempt_id,
+            "exam_id": exam_id_val,
+            "schedule_id": str(schedule_id),
+            "title": schedule_title or exam_title_val,
+            "attempt_id": str(current_attempt.attempt_id),
             "duration_mins": duration_mins,
-            "total_questions": exam_data.total_questions,
+            "total_questions": exam_total_q_val,
             "started_date": (
                 safe_utc_isoformat(current_attempt.started_date)
                 if current_attempt.started_date
@@ -4124,6 +4278,8 @@ def get_student_evaluation_details(request, current_user=None):
             for m in all_media:
                 media_by_qid.setdefault(str(m.question_id), []).append(m)
 
+        is_math_exam = _is_math_subject(getattr(exam, "subject_name", None), getattr(exam, "title", None))
+
         for idx, (eqm, q, sec_name) in enumerate(eqm_rows):
             q_marks = float(q.marks or 1.0)
             calculated_total_possible += q_marks
@@ -4268,6 +4424,7 @@ def get_student_evaluation_details(request, current_user=None):
                         student_written_text = ans.written_answer
                 except Exception:
                     student_written_text = ans.written_answer or ""
+            student_display_text = format_math_for_display(student_written_text, is_math=is_math_exam)
 
             q_media = media_by_qid.get(str(q.question_id), [])
             media_list = [
@@ -4327,7 +4484,7 @@ def get_student_evaluation_details(request, current_user=None):
                     "media": media_list,
                     "options": q_options_list,
                     "model_answer": model_answer,
-                    "student_answer": student_written_text,
+                    "student_answer": student_display_text,
                     "selected_option_id": sel_opt_id.lower() if sel_opt_id else None,
                     "ai_marks": ai_marks,
                     "marks_awarded": marks_awarded,
@@ -4778,6 +4935,12 @@ def process_single_student_answer_sheet(
             }, 500
 
         try:
+            exam_obj = session.query(Exam).filter(Exam.exam_id == exam_id).first()
+            is_math_exam = _is_math_subject(
+                getattr(exam_obj, "subject_name", None),
+                getattr(exam_obj, "title", None),
+            )
+
             # Ensure or create Exam_Attempt for this user and paper exam
             attempt = (
                 session.query(Exam_Attempt)
@@ -5166,6 +5329,8 @@ def process_single_student_answer_sheet(
                 if filtered_sections:
                     eval_rubric = {
                         "exam_id": str(exam_id),
+                        "subject_name": str(getattr(exam_obj, "subject_name", "") or getattr(exam_obj, "title", "") or ""),
+                        "is_math": is_math_exam,
                         "sections": filtered_sections,
                     }
                     ai_eval_result = vision_evaluate_answersheet(
@@ -5299,7 +5464,7 @@ def process_single_student_answer_sheet(
                 meta_payload = json.dumps(
                     {
                         "detected_pages": detected_pages,
-                        "student_answer": student_snippet,
+                        "student_answer": format_math_for_display(student_snippet, is_math=is_math_exam),
                     }
                 )
 
