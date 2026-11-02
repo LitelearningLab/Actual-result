@@ -1637,7 +1637,6 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     return (
       q.manual_review_required ||
       (q.ai_confidence != null && q.ai_confidence <= this.aiConfidenceThreshold) ||
-      (q.marks_awarded != null && q.marks_awarded < q.max_marks) ||
       (q.review_comments && q.review_comments.length > 0)
     );
   }

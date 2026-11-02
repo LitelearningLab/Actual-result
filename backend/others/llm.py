@@ -934,7 +934,7 @@ EVALUATION RULES:
 
 5. FEEDBACK & CONFIDENCE:
    - "feedback": 1-2 concise student-friendly sentences explaining what was correct and why the score was awarded.
-   - "ai_confidence": Integer between 0 and 100 (85-100 for clear handwriting; 40-70 for ambiguous/partially legible handwriting).
+   - "ai_confidence": Integer between 0 and 100 representing how clearly the student's answer was identified and how reliably it could be evaluated against the rubric. Rate lower if handwriting is illegible, words are crossed out, or the answer is fragmented.
    - Unattempted Questions: If a question is absent from the sheet, visually verify its absence across all pages; set suggested_marks=0.0, is_correct=0, detected_on_pages=[], missing=[{"topic": "Unattempted", "issue": "Entire question unattempted", "label": "Needed", "statement": "Student did not attempt this question"}], incomplete=[], incorrect=[], feedback="Question was not attempted or not found on the uploaded answer sheet.", ai_confidence between 85-100 for clean unattempted empty space, or 40-70 if ambiguous handwriting/scribbles exist.
 
 ALWAYS respond ONLY with a single valid JSON object (no markdown code blocks, no extra text).

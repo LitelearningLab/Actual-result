@@ -5384,8 +5384,8 @@ def process_single_student_answer_sheet(
                 is_uncertain = (
                     (q_num in uncertain_q_nums_set) if uncertain_q_nums_set else False
                 )
-                manual_review = 1 if is_uncertain else 0
                 ev = evaluations_by_qid.get(qid_str) if is_detected else None
+                manual_review = 1 if (is_uncertain and not ev) else 0
 
                 matched_opt_id = None
                 if is_objective:
@@ -5433,8 +5433,6 @@ def process_single_student_answer_sheet(
                     awarded = float(ev.get("suggested_marks", 0.0))
                     conf = int(ev.get("ai_confidence", 0))
                     fb = ev.get("feedback") or ""
-                    if is_uncertain:
-                        conf = min(conf, 75)
                     is_corr = int(
                         ev.get(
                             "is_correct", 1 if awarded >= q_marks and q_marks > 0 else 0
@@ -5455,11 +5453,13 @@ def process_single_student_answer_sheet(
                     if ev and ev.get("ai_confidence") is not None:
                         conf = int(ev["ai_confidence"])
                     elif is_uncertain:
-                        conf = 40  # Vision detector flagged uncertainty in question boundaries
+                        conf = 30  # Vision detector flagged uncertainty in question boundaries
+                        manual_review = 1
                     elif detection_result and detection_result.get("status"):
                         conf = 95  # Vision detector cleanly verified question is absent across all pages
                     else:
-                        conf = 50
+                        conf = 20  # Detector failed to run or verify evidence: flag for review
+                        manual_review = 1
                     fb = (ev.get("feedback") if ev and ev.get("feedback") else None) or "Question was not attempted or not found on the uploaded answer sheet."
                     is_corr = int(ev.get("is_correct", 0)) if ev else 0
                     is_val = 1
