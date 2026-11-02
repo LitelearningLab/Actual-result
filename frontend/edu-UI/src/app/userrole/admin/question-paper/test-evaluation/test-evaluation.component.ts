@@ -1636,7 +1636,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (!q || this.isStudentNotEvaluated) return false;
     return (
       q.manual_review_required ||
-      (this.isDescriptive(q) && q.ai_confidence != null && q.ai_confidence < this.aiConfidenceThreshold) ||
+      (q.ai_confidence != null && q.ai_confidence <= this.aiConfidenceThreshold) ||
       (q.marks_awarded != null && q.marks_awarded < q.max_marks) ||
       (q.review_comments && q.review_comments.length > 0)
     );
