@@ -1,4 +1,4 @@
-import {
+﻿import {
   Component,
   ViewChild,
   AfterViewInit,
@@ -61,6 +61,7 @@ export interface Institute {
   active_status?: boolean;
   // internal id from backend (UUID) - not shown in UI but used for actions
   institute_id?: string;
+  qa_character_limits?: any[];
   raw?: any;
 }
 

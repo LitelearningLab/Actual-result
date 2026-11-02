@@ -1,10 +1,11 @@
-from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City, Subject
+﻿from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City, Subject
 from db.db import SQLiteDB
 from datetime import datetime
 from sqlalchemy import func, or_
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy import text
 import threading
+import json
 # from sqlalchemy import text
 
 _institute_schema_ready = False
@@ -36,6 +37,7 @@ def _ensure_institute_registration_schema(session):
             "max_users": "INT NULL",
             "subscription_start": "DATE NULL",
             "subscription_end": "DATE NULL",
+            "qa_character_limits": "NVARCHAR(MAX) NULL",
         }
         for column_name, definition in required_columns.items():
             exists = session.execute(
@@ -127,6 +129,13 @@ def insert_institute(data):
     subscription_start_str = data.get("subscription_start", None)
     subscription_end_str = data.get("subscription_end", None)
     created_by = data.get("current_user", 'system')
+    qa_character_limits_val = data.get("qa_character_limits", None)
+    if isinstance(qa_character_limits_val, (list, dict)):
+        qa_character_limits = json.dumps(qa_character_limits_val)
+    elif isinstance(qa_character_limits_val, str) and qa_character_limits_val.strip():
+        qa_character_limits = qa_character_limits_val.strip()
+    else:
+        qa_character_limits = '[{"marks": 2, "character_limit": 450}, {"marks": 5, "character_limit": 1000}, {"marks": 10, "character_limit": 1500}]'
 
     missing_fields = [field for field, value in (("name", name), ("short_name", short_name))
                       if value is None or not str(value).strip()]
@@ -187,6 +196,7 @@ def insert_institute(data):
             max_users=max_users,
             subscription_start=subscription_start,
             subscription_end=subscription_end,
+            qa_character_limits=qa_character_limits,
             active_status=active_status,
             created_by=created_by,
         )
@@ -408,6 +418,8 @@ def update_institute(request):
         if hasattr(institute, key) and key != "institute_id":
             if key in parsed_dates:
                 value = parsed_dates[key]
+            elif key == "qa_character_limits" and isinstance(value, (list, dict)):
+                value = json.dumps(value)
             setattr(institute, key, value)
 
     institute.updated_by = data.get("current_user", 'system')
@@ -863,6 +875,11 @@ def get_institute_details(request):
             "users_count": users_count,
             "subscription_start": inst.subscription_start,
             "subscription_end": inst.subscription_end,
+            "qa_character_limits": json.loads(inst.qa_character_limits) if getattr(inst, "qa_character_limits", None) else [
+                {"marks": 2, "character_limit": 450},
+                {"marks": 5, "character_limit": 1000},
+                {"marks": 10, "character_limit": 1500}
+            ],
             "active_status": True if inst.active_status else False,
             "departments": dept_list,
             "teams": team_list,
@@ -943,7 +960,12 @@ def get_institute_list(current_user=None, request=None):
             "name": inst.name,
             "short_name": inst.short_name,
             "industry_type": inst.industry_type or '',
-            "industry_sector": inst.industry_sector or ''
+            "industry_sector": inst.industry_sector or '',
+            "qa_character_limits": json.loads(inst.qa_character_limits) if getattr(inst, "qa_character_limits", None) else [
+                {"marks": 2, "character_limit": 450},
+                {"marks": 5, "character_limit": 1000},
+                {"marks": 10, "character_limit": 1500}
+            ]
         })
     json_data = {
         "statusMessage": "Active institutes retrieved successfully",

@@ -1,4 +1,4 @@
-from db.models import (
+﻿from db.models import (
     Question,
     Option,
     QuestionMapping,
@@ -9,6 +9,7 @@ from db.models import (
     User,
     openai_requests,
     InstituteDepartment,
+    Institute,
 )
 from db.db import SQLiteDB
 from sqlalchemy import func, or_, text
@@ -1536,29 +1537,61 @@ def create_question_using_llm(request):
             "error": "Topic or content is required.",
         }, 400
     question_mark = int(gv("marks_per_question", 2) or 2)
-    if question_mark >= 2 and question_mark <= 4:
-        recommended_words_count = "60-65 words"
-        character_count = 450
-    elif question_mark >= 5 and question_mark <= 9:
-        recommended_words_count = "250-280 words"
-        character_count = 2000
-    elif question_mark >= 10 and question_mark <= 15:
-        recommended_words_count = "550-600 words"
-        character_count = 4000
-    else:
-        recommended_words_count = "as appropriate"
-        character_count = 500  # default estimate
+
+    # Dynamic character limit lookup from institute configuration
+    character_count = None
+    target_inst_id = institute_id
+    if not target_inst_id and user_id:
+        try:
+            db_u = SQLiteDB()
+            sess_u = db_u.connect()
+            if sess_u:
+                u_rec = sess_u.query(User).filter_by(user_id=user_id).first()
+                if u_rec:
+                    target_inst_id = u_rec.institute_id
+                sess_u.close()
+        except Exception:
+            pass
+
+    if target_inst_id:
+        try:
+            db_inst = SQLiteDB()
+            sess_inst = db_inst.connect()
+            if sess_inst:
+                inst_rec = sess_inst.query(Institute).filter_by(institute_id=target_inst_id).first()
+                if inst_rec and getattr(inst_rec, "qa_character_limits", None):
+                    raw_cfg = json.loads(inst_rec.qa_character_limits) if isinstance(inst_rec.qa_character_limits, str) else inst_rec.qa_character_limits
+                    exact_match = next((item for item in raw_cfg if int(item.get("marks", 0)) == question_mark), None)
+                    if exact_match:
+                        character_count = int(exact_match.get("character_limit", 500))
+                    elif raw_cfg:
+                        closest = min(raw_cfg, key=lambda x: abs(int(x.get("marks", 0)) - question_mark))
+                        character_count = int(closest.get("character_limit", 500))
+                sess_inst.close()
+        except Exception as e:
+            print(f"Error reading institute qa_character_limits: {e}")
+
+    if not character_count:
+        if question_mark <= 2:
+            character_count = 450
+        elif question_mark <= 5:
+            character_count = 1000
+        else:
+            character_count = 1500
+
+    est_words = max(character_count // 6, 5)
+    recommended_words_count = f"{int(est_words * 0.85)}-{int(est_words * 1.15)} words"
 
     if type == "fill":
         recommended_words_count = "1-3 words (only the missing word/phrase)"
-        character_count = 50
+        character_count = min(character_count, 100)
 
     aimodel = 2 if question_mark < 5 else 1
 
     openai_client_instance = openai_client()
 
-    # Token calculation based on number of questions and character count
-    total_tokens_estimate = number_of_questions * character_count // 4
+    # Dynamically scale token estimate to match configured character count
+    total_tokens_estimate = max((number_of_questions * character_count // 4) + 1500, 3000)
 
     system_message = """You are an expert question setter and evaluator. Your task is to create a question and answer based on the provided source text and parameters.
     Note for Question Type : 
@@ -1581,7 +1614,8 @@ def create_question_using_llm(request):
     - Source Text: {source_text}
     - Additional Instructions: {additional_instructions}
     - Question Mark: {question_mark}
-    - Recommended Answer Length: approximately {recommended_words_count} - ({character_count} characters) (±10%),
+    - STRICT CHARACTER LIMIT: The generated question text and answer text combined must NOT exceed {character_count} characters.
+    - Recommended Answer Length: approximately {recommended_words_count} (Maximum {character_count} characters),
     Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
     [
         {{

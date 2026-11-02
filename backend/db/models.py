@@ -1,4 +1,4 @@
-import uuid
+﻿import uuid
 from sqlalchemy import (
      Column, Date, String, Integer, Boolean, DateTime, ForeignKey, Text, CheckConstraint, UniqueConstraint, Float
 )
@@ -36,6 +36,7 @@ class Institute(Base):
      max_users = Column(Integer, default=0)
      subscription_start = Column(Date)
      subscription_end = Column(Date)
+     qa_character_limits = Column(String, default='[{"marks": 2, "character_limit": 450}, {"marks": 5, "character_limit": 1000}, {"marks": 10, "character_limit": 1500}]')
 
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)

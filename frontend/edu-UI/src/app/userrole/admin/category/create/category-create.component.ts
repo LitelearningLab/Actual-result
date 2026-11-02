@@ -1,4 +1,4 @@
-import { Component, HostListener } from '@angular/core';
+﻿import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -53,6 +53,7 @@ export class CategoryCreateComponent {
   evaluation = '';
   status = 'true';
   markForEachQuestion: number | null = 1;
+  availableMarkOptions: Array<{ marks: number; character_limit: number; label: string }> = [];
   readonly ALL_OPTION_VALUE = '__all__';
   selectedDepartments: string[] = [];
   selectedTeams: string[] = [];
@@ -275,6 +276,7 @@ export class CategoryCreateComponent {
             city: i.city || i.city_name,
             industry: i.industry || i.industry_type || i.type,
             sector: i.sector || i.sector_name,
+            qa_character_limits: i.qa_character_limits,
           }))
           .filter((i: any) => !!i.id);
 
@@ -282,6 +284,7 @@ export class CategoryCreateComponent {
           this.setInstitute(String(this.institutesList[0].id));
           return;
         }
+        this.updateAvailableMarkOptions();
         // if institute was prefilled from sessionStorage or edit category, trigger setInstitute to resolve display name and load dependent lists
         try {
           if (this.institute) this.setInstitute(this.institute);
@@ -603,6 +606,7 @@ export class CategoryCreateComponent {
     this.loadDepartments();
     this.loadTeams();
     this.loadSubjects();
+    this.updateAvailableMarkOptions();
   }
 
   @HostListener('document:click', ['$event'])
@@ -1121,7 +1125,32 @@ export class CategoryCreateComponent {
   setStatus(v: string) {
     this.status = v || '';
   }
-  setMark(v: string) {
+  updateAvailableMarkOptions(): void {
+    const instId = this.institute || (this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes[0] : '');
+    const foundInst: any = (this.institutesList || []).find((i: any) => String(i.id) === String(instId));
+    const limits = foundInst?.qa_character_limits;
+    const parsedLimits = Array.isArray(limits) ? limits : (typeof limits === 'string' ? JSON.parse(limits) : null);
+
+    if (Array.isArray(parsedLimits) && parsedLimits.length) {
+      this.availableMarkOptions = parsedLimits.map((item: any) => ({
+        marks: Number(item.marks),
+        character_limit: Number(item.character_limit),
+        label: item.marks + ' Marks (Max ' + item.character_limit + ' chars)'
+      }));
+    } else {
+      this.availableMarkOptions = [
+        { marks: 2, character_limit: 450, label: '2 Marks (Max 450 chars)' },
+        { marks: 5, character_limit: 1000, label: '5 Marks (Max 1,000 chars)' },
+        { marks: 10, character_limit: 1500, label: '10 Marks (Max 1,500 chars)' }
+      ];
+    }
+
+    if (this.markForEachQuestion === null && this.availableMarkOptions.length) {
+      this.markForEachQuestion = this.availableMarkOptions[0].marks;
+    }
+  }
+
+  setMark(v: any) {
     const n = Number(v);
     this.markForEachQuestion = isNaN(n) ? null : n;
   }

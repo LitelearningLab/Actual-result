@@ -1,4 +1,4 @@
-<div class="page institute-register">
+﻿<div class="page institute-register">
 
   <!-- ── Top Toolbar ── -->
   <div class="toolbar">
@@ -411,6 +411,46 @@
                   <mat-error *ngIf="form.get('subscription_end')?.hasError('matDatepickerParse')">Enter the date in DD/MM/YYYY format.</mat-error>
                   <mat-error *ngIf="form.get('subscription_end')?.hasError('matDatepickerMin') || form.hasError('subscriptionDateRange')">End date must be after the start date.</mat-error>
                 </mat-form-field>
+              </div>
+            </div>
+
+            <!-- AI Question & Answer Generation Limits -->
+            <div class="section-block">
+              <div class="section-header">
+                <mat-icon class="section-icon">psychology</mat-icon>
+                <div>
+                  <h2 class="section-heading">AI Question & Answer Generation Limits</h2>
+                  <p class="section-desc">Define maximum character limits for AI-generated questions and answers based on marks.</p>
+                </div>
+              </div>
+
+              <div formArrayName="qa_character_limits">
+                <div class="field-row" style="align-items: center; display: flex; gap: 16px; margin-bottom: 8px;" *ngFor="let limitGroup of qaCharacterLimits.controls; let i = index" [formGroupName]="i">
+                  <mat-form-field appearance="outline" style="flex: 1;">
+                    <mat-label>Marks</mat-label>
+                    <mat-icon matPrefix>grade</mat-icon>
+                    <input matInput type="number" formControlName="marks" placeholder="e.g. 2" min="1" required />
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" style="flex: 1;">
+                    <mat-label>Character Limit</mat-label>
+                    <mat-icon matPrefix>format_size</mat-icon>
+                    <input matInput type="number" formControlName="character_limit" placeholder="e.g. 450" min="10" required />
+                  </mat-form-field>
+
+                  <div style="padding-bottom: 1.25em;">
+                    <button type="button" mat-icon-button color="warn" (click)="removeQaLimitRow(i)" [disabled]="qaCharacterLimits.length <= 1" title="Remove Limit">
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </div>
+                </div>
+
+                <div style="margin-top: 8px;">
+                  <button type="button" mat-stroked-button color="primary" (click)="addQaLimitRow()">
+                    <mat-icon>add</mat-icon>
+                    <span>Add Mark Limit</span>
+                  </button>
+                </div>
               </div>
             </div>
 

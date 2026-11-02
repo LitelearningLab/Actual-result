@@ -1,4 +1,4 @@
-<div class="page category-create">
+﻿<div class="page category-create">
 
 
   <!-- ── Form Card ── -->
@@ -549,18 +549,21 @@
               >
                 <mat-label>Mark for each question</mat-label>
                 <mat-icon matPrefix>grade</mat-icon>
-                <input
-                  matInput
-                  required
+                <mat-select
                   [value]="markForEachQuestion"
+                  (selectionChange)="setMark($event.value)"
                   [disabled]="isEditing"
-                  (input)="setMark($any($event.target).value)"
-                  placeholder="e.g. 1"
-                />
+                  placeholder="Select mark for each question"
+                  required
+                >
+                  <mat-option *ngFor="let opt of availableMarkOptions" [value]="opt.marks">
+                    {{ opt.label }}
+                  </mat-option>
+                </mat-select>
                 <mat-hint
                   class="field-error"
                   *ngIf="(formSubmitted || accessInfoSubmitted) && isMarkInvalid()"
-                  >Mark for each question is required and must be a number.</mat-hint
+                  >Mark for each question is required.</mat-hint
                 >
               </mat-form-field>
 

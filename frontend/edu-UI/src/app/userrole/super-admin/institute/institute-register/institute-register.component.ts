@@ -1,4 +1,4 @@
-import { Component, ChangeDetectorRef } from '@angular/core';
+﻿import { Component, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { of, Subscription } from 'rxjs';
 import { finalize, switchMap, tap } from 'rxjs/operators';
@@ -148,9 +148,33 @@ export class InstituteRegisterComponent {
       subscription_end: [null as Date | null, Validators.required],
       active: [true],
       campuses: this.fb.array([]),
+      qa_character_limits: this.fb.array([
+        this.fb.group({ marks: [2, [Validators.required, Validators.min(1)]], character_limit: [450, [Validators.required, Validators.min(10)]] }),
+        this.fb.group({ marks: [5, [Validators.required, Validators.min(1)]], character_limit: [1000, [Validators.required, Validators.min(10)]] }),
+        this.fb.group({ marks: [10, [Validators.required, Validators.min(1)]], character_limit: [1500, [Validators.required, Validators.min(10)]] }),
+      ]),
     },
     { validators: [subscriptionDateRangeValidator, headOfficeOrCampusRequiredValidator] }
   );
+
+  get qaCharacterLimits(): FormArray {
+    return this.form.get('qa_character_limits') as FormArray;
+  }
+
+  addQaLimitRow(marks: number | null = null, limit: number | null = null): void {
+    this.qaCharacterLimits.push(
+      this.fb.group({
+        marks: [marks, [Validators.required, Validators.min(1)]],
+        character_limit: [limit, [Validators.required, Validators.min(10)]],
+      })
+    );
+  }
+
+  removeQaLimitRow(index: number): void {
+    if (this.qaCharacterLimits.length > 1) {
+      this.qaCharacterLimits.removeAt(index);
+    }
+  }
 
   get minimumSubscriptionEndDate(): Date | null {
     const value: unknown = this.form.get('subscription_start')?.value;
@@ -677,6 +701,22 @@ export class InstituteRegisterComponent {
           }
         } catch (e) {
           /* ignore conversion errors */
+        }
+
+        try {
+          const limits = Array.isArray(obj.qa_character_limits)
+            ? obj.qa_character_limits
+            : (typeof obj.qa_character_limits === 'string' ? JSON.parse(obj.qa_character_limits) : null);
+          if (Array.isArray(limits) && limits.length) {
+            while (this.qaCharacterLimits.length) {
+              this.qaCharacterLimits.removeAt(0);
+            }
+            limits.forEach((item: any) => {
+              this.addQaLimitRow(Number(item.marks), Number(item.character_limit));
+            });
+          }
+        } catch (e) {
+          /* ignore limits parsing errors */
         }
         const campusesData = Array.isArray(obj.campuses) ? obj.campuses : [];
         // Backend stores Head Office as the primary campus, so split it out before filling the campus UI.
