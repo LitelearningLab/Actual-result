@@ -734,6 +734,24 @@ def identify_student_route():
     response_data, status_code = identify_student_from_answer_sheet(request, current_user)
     return jsonify(response_data), status_code
 
+
+@edu_blueprint.route('/test-evaluation/split-multi-student-pdf', methods=['POST'])
+@admin_required
+def split_multi_student_pdf_route():
+    from others.exams import split_and_identify_multi_student_pdf
+    current_user = get_current_user_from_request()
+    response_data, status_code = split_and_identify_multi_student_pdf(request, current_user)
+    return jsonify(response_data), status_code
+
+
+@edu_blueprint.route('/test-evaluation/confirm-split-evaluation', methods=['POST'])
+@admin_required
+def confirm_split_evaluation_route():
+    from others.exams import confirm_and_enqueue_split_evaluations
+    current_user = get_current_user_from_request()
+    response_data, status_code = confirm_and_enqueue_split_evaluations(request, current_user)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/uploads/answer_sheets/<path:filename>', methods=['GET'])
 def serve_answer_sheet_file(filename):
     import os

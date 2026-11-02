@@ -6087,3 +6087,409 @@ def remove_answer_sheet(request, current_user=None):
     finally:
         session.close()
 
+
+
+def split_and_identify_multi_student_pdf(request, current_user=None):
+    """
+    Splits a single multi-student PDF containing multiple students' answer sheets.
+    Identifies each student from the exam roster via text matching and OpenAI Vision,
+    extracts per-student sub-PDFs, and returns segmented student records for teacher review.
+    """
+    import os
+    import sys
+    import json
+    import uuid
+    import time
+    import base64
+    from datetime import datetime
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from others.llm import openai_client
+
+    if "file" not in request.files and "files" not in request.files:
+        return {"status": False, "statusMessage": "No PDF file uploaded for multi-student evaluation"}, 400
+
+    uploaded_file = request.files.get("file") or request.files.get("files")
+    if not uploaded_file or not uploaded_file.filename:
+        return {"status": False, "statusMessage": "Invalid file uploaded"}, 400
+
+    exam_id = request.form.get("exam_id")
+    if not exam_id:
+        return {"status": False, "statusMessage": "exam_id is required"}, 400
+
+    pages_per_student_param = (request.form.get("pages_per_student") or "auto").strip()
+    fixed_pages = None
+    if pages_per_student_param.isdigit() and int(pages_per_student_param) > 0:
+        fixed_pages = int(pages_per_student_param)
+
+    file_bytes = uploaded_file.read()
+    if not file_bytes:
+        return {"status": False, "statusMessage": "Uploaded file is empty"}, 400
+
+    # 1. Parse PDF with PyMuPDF (fitz)
+    try:
+        import fitz
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        total_pages = len(doc)
+    except Exception as err:
+        return {"status": False, "statusMessage": f"Failed to parse PDF document: {str(err)}"}, 400
+
+    if total_pages == 0:
+        return {"status": False, "statusMessage": "The uploaded PDF has 0 pages."}, 400
+
+    # 2. Retrieve Exam Student Roster
+    db = SQLiteDB()
+    session = db.connect()
+    students_roster = []
+    if session:
+        try:
+            assigned_users = (
+                session.query(User)
+                .filter(
+                    User.user_id.in_(
+                        session.query(QuestionPaperUserAssignment.user_id).filter(
+                            QuestionPaperUserAssignment.exam_id == exam_id
+                        )
+                    )
+                )
+                .all()
+            )
+            students_roster = [
+                {
+                    "user_id": str(u.user_id),
+                    "name": u.full_name or u.user_name or "",
+                    "roll_no": getattr(u, "roll_no", "") or u.user_name or "",
+                }
+                for u in assigned_users
+            ]
+        except Exception as roster_err:
+            print(f"[split_multi_student_pdf] Roster query error: {roster_err}")
+        finally:
+            session.close()
+
+    # 3. Pre-extract page texts and images for all pages
+    page_data = []
+    for p_idx in range(total_pages):
+        page = doc[p_idx]
+        p_text = page.get_text() or ""
+        pix = page.get_pixmap(dpi=130)
+        img_bytes = pix.tobytes("jpeg")
+        thumb_b64 = f"data:image/jpeg;base64,{base64.b64encode(img_bytes).decode('utf-8')}"
+        page_data.append({
+            "page_idx": p_idx,
+            "page_num": p_idx + 1,
+            "text": p_text,
+            "img_bytes": img_bytes,
+            "thumb_b64": thumb_b64,
+        })
+
+    # Helper function to inspect a single page
+    def _inspect_page(p_info):
+        p_num = p_info["page_num"]
+        p_text = p_info["text"]
+        img_bytes = p_info["img_bytes"]
+
+        # Step A: Fast Text Layer Check
+        if p_text and len(p_text.strip()) > 3 and students_roster:
+            norm_text = p_text.lower()
+            for st in students_roster:
+                st_name = (st.get("name") or "").lower().strip()
+                st_roll = (st.get("roll_no") or "").lower().strip()
+                if (st_name and len(st_name) >= 3 and st_name in norm_text) or (
+                    st_roll and len(st_roll) >= 3 and st_roll in norm_text
+                ):
+                    return {
+                        "page_num": p_num,
+                        "is_start": True,
+                        "matched": True,
+                        "student_name": st.get("name"),
+                        "user_id": st.get("user_id"),
+                        "roll_no": st.get("roll_no"),
+                        "confidence": 98,
+                        "detected_text": st.get("name") or st.get("roll_no"),
+                        "matched_by": f"Identified on Page {p_num} (Text)",
+                    }
+
+        # Step B: OpenAI Vision inspection on page header
+        client = openai_client()
+        if client.api_key:
+            roster_summary = [
+                {"user_id": str(s.get("user_id")), "name": s.get("name"), "roll_no": s.get("roll_no")}
+                for s in students_roster
+            ]
+            system_prompt = (
+                "You are an expert AI exam grading assistant specializing in identifying student answer sheets.\n"
+                "Examine this page image and determine:\n"
+                "1. Is this page the START of a student's answer sheet (e.g. contains student name, roll number, title box, header, or question 1 start)?\n"
+                "2. Match the student name or roll number against the candidate students roster.\n\n"
+                f"Candidate Students Roster:\n{json.dumps(roster_summary, ensure_ascii=False)}\n\n"
+                "Return ONLY a JSON object (no markdown):\n"
+                '{"is_start": true/false, "matched": true/false, "student_name": "<name>", "roll_no": "<roll>", "user_id": "<id>", "confidence": 90, "detected_text": "<text>"}'
+            )
+
+            try:
+                base64_img = base64.b64encode(img_bytes).decode("utf-8")
+                data_uri = f"data:image/jpeg;base64,{base64_img}"
+                user_content = [
+                    {"type": "text", "text": f"Inspect Page {p_num} to detect if this starts a student's answer sheet and identify the student."},
+                    {"type": "image_url", "image_url": {"url": data_uri}}
+                ]
+                resp = client.chat_completion(
+                    system_message=system_prompt,
+                    InputData=user_content,
+                    aimodel=1,
+                    max_tokens=300,
+                    temperature=0.1
+                )
+                if resp.status_code == 200:
+                    choices = resp.json().get("choices", [])
+                    if choices:
+                        raw_c = choices[0].get("message", {}).get("content", "").strip()
+                        if raw_c.startswith("```"):
+                            lines = raw_c.splitlines()
+                            if lines[0].startswith("```"): lines = lines[1:]
+                            if lines and lines[-1].startswith("```"): lines = lines[:-1]
+                            raw_c = "\n".join(lines).strip()
+                        parsed = json.loads(raw_c)
+                        parsed["page_num"] = p_num
+                        parsed["matched_by"] = f"AI Vision on Page {p_num}"
+                        return parsed
+            except Exception as vis_err:
+                print(f"[split_multi_student_pdf] Vision error on page {p_num}: {vis_err}")
+
+        return {
+            "page_num": p_num,
+            "is_start": False,
+            "matched": False,
+            "student_name": None,
+            "user_id": None,
+            "roll_no": None,
+            "confidence": 0,
+            "detected_text": "",
+            "matched_by": "Unidentified"
+        }
+
+    # 4. Determine Segments
+    segments = []
+    batch_id = str(uuid.uuid4())
+    temp_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "static", "uploads", "temp_bulk_splits", batch_id
+    )
+    os.makedirs(temp_dir, exist_ok=True)
+
+    if fixed_pages:
+        # Fixed pages chunking (e.g. 1 page per student or 2 pages per student)
+        chunks = []
+        for start_idx in range(0, total_pages, fixed_pages):
+            end_idx = min(start_idx + fixed_pages - 1, total_pages - 1)
+            chunks.append((start_idx, end_idx))
+
+        # Inspect start page of each chunk in parallel
+        start_pages_info = [page_data[c[0]] for c in chunks]
+        inspections_by_pnum = {}
+        with ThreadPoolExecutor(max_workers=min(5, len(chunks) or 1)) as executor:
+            futures = {executor.submit(_inspect_page, p_info): p_info["page_num"] for p_info in start_pages_info}
+            for fut in as_completed(futures):
+                try:
+                    res = fut.result()
+                    inspections_by_pnum[res["page_num"]] = res
+                except Exception as ex:
+                    print(f"[split_multi_student_pdf] Future error: {ex}")
+
+        for s_idx, (start_idx, end_idx) in enumerate(chunks):
+            start_pnum = start_idx + 1
+            insp = inspections_by_pnum.get(start_pnum, {})
+            u_id = insp.get("user_id")
+            s_name = insp.get("student_name")
+            r_no = insp.get("roll_no")
+            is_m = bool(insp.get("matched"))
+            conf = insp.get("confidence", 85 if is_m else 0)
+
+            # Fallback to roster sequence if unassigned and matching index exists
+            if not is_m and s_idx < len(students_roster):
+                fallback_st = students_roster[s_idx]
+                u_id = fallback_st.get("user_id")
+                s_name = fallback_st.get("name")
+                r_no = fallback_st.get("roll_no")
+                is_m = True
+                conf = 75
+                insp["matched_by"] = f"Assigned by sequence (Page {start_pnum})"
+
+            segments.append({
+                "segment_index": s_idx,
+                "start_page": start_idx + 1,
+                "end_page": end_idx + 1,
+                "total_pages": (end_idx - start_idx + 1),
+                "user_id": u_id,
+                "student_name": s_name or f"Student (Pages {start_idx + 1}-{end_idx + 1})",
+                "roll_no": r_no or "",
+                "is_matched": is_m,
+                "confidence": conf,
+                "matched_by": insp.get("matched_by", "Fixed page boundary"),
+                "thumbnail_url": page_data[start_idx]["thumb_b64"]
+            })
+    else:
+        # Dynamic Auto-detect boundaries
+        inspections_by_pnum = {}
+        with ThreadPoolExecutor(max_workers=min(5, total_pages)) as executor:
+            futures = {executor.submit(_inspect_page, p_info): p_info["page_num"] for p_info in page_data}
+            for fut in as_completed(futures):
+                try:
+                    res = fut.result()
+                    inspections_by_pnum[res["page_num"]] = res
+                except Exception as ex:
+                    print(f"[split_multi_student_pdf] Future error: {ex}")
+
+        # Group pages into segments
+        curr_segment = None
+        for p_idx in range(total_pages):
+            pnum = p_idx + 1
+            insp = inspections_by_pnum.get(pnum, {})
+            is_start = insp.get("is_start") or insp.get("matched") or (pnum == 1)
+
+            if is_start:
+                if curr_segment is not None:
+                    curr_segment["end_page"] = pnum - 1
+                    curr_segment["total_pages"] = curr_segment["end_page"] - curr_segment["start_page"] + 1
+                    segments.append(curr_segment)
+
+                curr_segment = {
+                    "segment_index": len(segments),
+                    "start_page": pnum,
+                    "end_page": pnum,
+                    "total_pages": 1,
+                    "user_id": insp.get("user_id"),
+                    "student_name": insp.get("student_name") or f"Student (Page {pnum})",
+                    "roll_no": insp.get("roll_no") or "",
+                    "is_matched": bool(insp.get("matched")),
+                    "confidence": insp.get("confidence", 90 if insp.get("matched") else 0),
+                    "matched_by": insp.get("matched_by", f"Detected on Page {pnum}"),
+                    "thumbnail_url": page_data[p_idx]["thumb_b64"]
+                }
+            else:
+                if curr_segment is not None:
+                    curr_segment["end_page"] = pnum
+                    curr_segment["total_pages"] = curr_segment["end_page"] - curr_segment["start_page"] + 1
+                else:
+                    curr_segment = {
+                        "segment_index": 0,
+                        "start_page": pnum,
+                        "end_page": pnum,
+                        "total_pages": 1,
+                        "user_id": None,
+                        "student_name": f"Student (Page {pnum})",
+                        "roll_no": "",
+                        "is_matched": False,
+                        "confidence": 0,
+                        "matched_by": "Unmatched",
+                        "thumbnail_url": page_data[p_idx]["thumb_b64"]
+                    }
+
+        if curr_segment is not None:
+            curr_segment["end_page"] = total_pages
+            curr_segment["total_pages"] = curr_segment["end_page"] - curr_segment["start_page"] + 1
+            segments.append(curr_segment)
+
+    # 5. Extract and save sub-PDFs for each segment
+    for seg in segments:
+        s_idx = seg["segment_index"]
+        from_p = seg["start_page"] - 1
+        to_p = seg["end_page"] - 1
+        try:
+            sub_doc = fitz.open()
+            sub_doc.insert_pdf(doc, from_page=from_p, to_page=to_p)
+            sub_pdf_filename = f"segment_{s_idx}.pdf"
+            sub_doc.save(os.path.join(temp_dir, sub_pdf_filename))
+            sub_doc.close()
+            seg["sub_pdf_file"] = sub_pdf_filename
+        except Exception as split_err:
+            print(f"[split_multi_student_pdf] Error splitting segment {s_idx}: {split_err}")
+
+    doc.close()
+
+    # Save manifest for confirmation step
+    manifest_data = {
+        "batch_id": batch_id,
+        "exam_id": str(exam_id),
+        "total_pages": total_pages,
+        "created_at": datetime.utcnow().isoformat(),
+        "segments": segments
+    }
+    with open(os.path.join(temp_dir, "manifest.json"), "w", encoding="utf-8") as mf:
+        json.dump(manifest_data, mf, indent=2)
+
+    matched_count = sum(1 for s in segments if s.get("is_matched") and s.get("user_id"))
+    unmatched_count = len(segments) - matched_count
+
+    return {
+        "status": True,
+        "batch_id": batch_id,
+        "total_pages": total_pages,
+        "total_students": len(segments),
+        "identified_count": matched_count,
+        "unmatched_count": unmatched_count,
+        "segments": segments
+    }, 200
+
+
+def confirm_and_enqueue_split_evaluations(request, current_user=None):
+    """
+    Takes confirmed student-to-page mappings from teacher and enqueues
+    the extracted individual student PDFs directly into BulkEvaluationManager.
+    """
+    import os
+    import json
+    from others.bulk_eval_manager import bulk_eval_manager
+
+    req_data = request.get_json(silent=True) or {}
+    batch_id = req_data.get("batch_id")
+    exam_id = req_data.get("exam_id")
+    confirmed_mappings = req_data.get("mappings") or []
+
+    if not batch_id or not exam_id:
+        return {"status": False, "statusMessage": "batch_id and exam_id are required"}, 400
+
+    temp_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "static", "uploads", "temp_bulk_splits", str(batch_id)
+    )
+    if not os.path.exists(temp_dir):
+        return {"status": False, "statusMessage": "Temporary split batch expired or not found."}, 404
+
+    student_tasks = []
+    for mapping in confirmed_mappings:
+        user_id = str(mapping.get("user_id") or "")
+        student_name = mapping.get("student_name") or "Student"
+        seg_idx = mapping.get("segment_index")
+
+        if not user_id or user_id.lower() in ("null", "none", "choose student"):
+            continue
+
+        pdf_filename = f"segment_{seg_idx}.pdf"
+        pdf_path = os.path.join(temp_dir, pdf_filename)
+        if os.path.exists(pdf_path):
+            with open(pdf_path, "rb") as f:
+                pdf_bytes = f.read()
+
+            target_filename = f"{student_name.replace(' ', '_')}_answersheet.pdf"
+            student_tasks.append({
+                "user_id": user_id,
+                "student_name": student_name,
+                "file_items": [(target_filename, pdf_bytes)]
+            })
+
+    if not student_tasks:
+        return {"status": False, "statusMessage": "No valid student mappings confirmed to evaluate."}, 400
+
+    job_id = bulk_eval_manager.create_job(
+        exam_id=exam_id,
+        student_tasks=student_tasks,
+        current_user=current_user
+    )
+
+    return {
+        "status": True,
+        "statusMessage": f"Successfully queued {len(student_tasks)} student answer sheets for AI evaluation.",
+        "job_id": job_id,
+        "total": len(student_tasks)
+    }, 200

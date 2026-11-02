@@ -56,6 +56,30 @@ export interface StudentEvaluation {
   isUploaded?: boolean;
 }
 
+export interface MultiStudentSplitSegment {
+  segment_index: number;
+  start_page: number;
+  end_page: number;
+  total_pages: number;
+  user_id?: string;
+  student_name: string;
+  roll_no: string;
+  is_matched: boolean;
+  confidence: number;
+  matched_by: string;
+  thumbnail_url: string;
+  sub_pdf_file?: string;
+}
+
+export interface MultiStudentSplitBatch {
+  batch_id: string;
+  total_pages: number;
+  total_students: number;
+  identified_count: number;
+  unmatched_count: number;
+  segments: MultiStudentSplitSegment[];
+}
+
 export interface BulkFileItem {
   id: number;
   fileName: string;
@@ -215,6 +239,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   // Bulk Upload File Data
   availableStudents: string[] = ['Choose student'];
   bulkFiles: BulkFileItem[] = [];
+
+  // ─── Multi-Student Single PDF Bulk Upload State ───
+  bulkUploadMode: 'individual' | 'combined_pdf' = 'combined_pdf';
+  isSplittingPdf = false;
+  splitBatchData: MultiStudentSplitBatch | null = null;
+  combinedPdfFileName = '';
 
   // ─── Camera & Scanner State ───
   mediaStream: MediaStream | null = null;
@@ -2752,6 +2782,132 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         console.warn('Student identification failed for file:', fileItem.fileName, err);
       }
     });
+  }
+
+  setBulkMode(mode: 'individual' | 'combined_pdf'): void {
+    this.bulkUploadMode = mode;
+  }
+
+  onCombinedPdfSelected(event: any): void {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      notify('Please upload a valid PDF document.', 'error');
+      return;
+    }
+
+    if (!this.selectedExamId) {
+      notify('Please select an exam first.', 'info');
+      return;
+    }
+
+    this.combinedPdfFileName = file.name;
+    this.isSplittingPdf = true;
+    notify(`Analyzing multi-student PDF "${file.name}"... AI is scanning pages and identifying students.`, 'info');
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('exam_id', this.selectedExamId);
+
+    this.http.post<any>(`${API_BASE}/test-evaluation/split-multi-student-pdf`, formData).subscribe({
+      next: (res) => {
+        this.isSplittingPdf = false;
+        if (res && res.status && res.segments) {
+          this.splitBatchData = res;
+          notify(`Identified ${res.identified_count} of ${res.total_students} student papers across ${res.total_pages} pages.`, 'success');
+        } else {
+          notify(res?.statusMessage || 'Failed to split and identify multi-student PDF.', 'error');
+        }
+      },
+      error: (err) => {
+        this.isSplittingPdf = false;
+        console.error('Error splitting multi-student PDF:', err);
+        notify(err?.error?.statusMessage || 'Error analyzing and splitting multi-student PDF.', 'error');
+      }
+    });
+  }
+
+  onSegmentStudentChange(segment: MultiStudentSplitSegment, newUserId: string): void {
+    const selected = this.students.find((s) => String(s.user_id) === String(newUserId));
+    if (selected) {
+      segment.user_id = String(selected.user_id);
+      segment.student_name = selected.name;
+      segment.roll_no = selected.rollNo || '';
+      segment.is_matched = true;
+      segment.confidence = 100;
+      segment.matched_by = 'Manually Assigned';
+      if (this.splitBatchData) {
+        this.splitBatchData.identified_count = this.splitBatchData.segments.filter((s) => s.is_matched && s.user_id).length;
+        this.splitBatchData.unmatched_count = this.splitBatchData.segments.length - this.splitBatchData.identified_count;
+      }
+    }
+  }
+
+  confirmSplitAndEvaluate(): void {
+    if (!this.splitBatchData || !this.selectedExamId) return;
+
+    const validSegments = this.splitBatchData.segments.filter((s) => s.user_id && s.is_matched);
+    if (validSegments.length === 0) {
+      notify('Please ensure at least one student is matched or assigned before starting evaluation.', 'info');
+      return;
+    }
+
+    notify(`Queuing ${validSegments.length} student answer sheets for background AI evaluation...`, 'info');
+    this.isUploading = true;
+    this.isBulkEvaluating = true;
+    this.hasStartedEvaluation = true;
+    this.bulkProgress = {
+      total: validSegments.length,
+      completed: 0,
+      failed: 0,
+      percentage: 0,
+      message: 'Processing multi-student answer sheets in background...'
+    };
+
+    // Update status in students list
+    for (const seg of validSegments) {
+      const targetStudent = this.students.find((s) => String(s.user_id) === String(seg.user_id));
+      if (targetStudent) {
+        targetStudent.status = 'Evaluating...';
+        targetStudent.actionText = 'Queued...';
+        targetStudent.actionClass = 'btn-evaluating-pulse';
+        targetStudent.pagesInfo = `${seg.total_pages} of ${seg.total_pages} pages`;
+      }
+    }
+
+    const payload = {
+      batch_id: this.splitBatchData.batch_id,
+      exam_id: this.selectedExamId,
+      mappings: this.splitBatchData.segments
+    };
+
+    this.http.post<any>(`${API_BASE}/test-evaluation/confirm-split-evaluation`, payload).subscribe({
+      next: (res) => {
+        if (res && res.status && res.job_id) {
+          this.activeBulkJobId = res.job_id;
+          sessionStorage.setItem('activeBulkJobId', res.job_id);
+          this.splitBatchData = null;
+          this.startEvaluationEventStream(res.job_id);
+          notify(`Enqueued ${res.total} students for evaluation. Streaming live results...`, 'success');
+        } else {
+          this.isUploading = false;
+          this.isBulkEvaluating = false;
+          notify(res?.statusMessage || 'Failed to start evaluation queue.', 'error');
+        }
+      },
+      error: (err) => {
+        this.isUploading = false;
+        this.isBulkEvaluating = false;
+        console.error('Error confirming multi-student evaluation:', err);
+        notify(err?.error?.statusMessage || 'Failed to enqueue evaluation.', 'error');
+      }
+    });
+  }
+
+  cancelSplitReview(): void {
+    this.splitBatchData = null;
+    this.combinedPdfFileName = '';
   }
 
   evaluateAllMatchedBulk(): void {

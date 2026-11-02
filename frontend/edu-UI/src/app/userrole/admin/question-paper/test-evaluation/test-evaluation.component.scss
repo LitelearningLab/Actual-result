@@ -6682,3 +6682,333 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
 
 
 
+
+
+/* ========================================================= */
+/* ─── Multi-Student Combined PDF Upload & Split Review ─── */
+/* ========================================================= */
+.bulk-mode-toggle-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+
+  .bulk-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 24px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #4b5563;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+
+    .mode-badge-new {
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    &:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+      color: #111827;
+    }
+
+    &.active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+  }
+}
+
+.combined-dropzone {
+  border: 2px dashed #3b82f6 !important;
+  background: #f8fafc !important;
+
+  .combined-cloud-badge {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+  }
+}
+
+.combined-upload-btn {
+  background: #2563eb !important;
+  color: #ffffff !important;
+
+  &:hover {
+    background: #1d4ed8 !important;
+  }
+
+  &.btn-disabled {
+    opacity: 0.65;
+    pointer-events: none;
+  }
+}
+
+.split-review-wrapper {
+  margin-top: 24px;
+  margin-bottom: 24px;
+
+  .split-review-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+
+    .split-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      flex-wrap: wrap;
+      gap: 16px;
+
+      .split-title-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .split-header-icon {
+          font-size: 28px;
+          width: 28px;
+          height: 28px;
+          color: #2563eb;
+        }
+
+        .split-title {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+        }
+
+        .split-subtitle {
+          margin: 4px 0 0;
+          font-size: 13px;
+          color: #6b7280;
+        }
+      }
+
+      .split-header-actions {
+        display: flex;
+        gap: 12px;
+
+        .btn-split-discard {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 8px;
+          border: 1px solid #d1d5db;
+          background: #ffffff;
+          color: #4b5563;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s ease;
+
+          &:hover {
+            background: #f3f4f6;
+            color: #111827;
+          }
+        }
+
+        .btn-split-confirm {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 20px;
+          border-radius: 8px;
+          border: none;
+          background: #16a34a;
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
+          transition: all 0.15s ease;
+
+          &:hover {
+            background: #15803d;
+          }
+
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+
+    .split-table-responsive {
+      overflow-x: auto;
+      max-height: 520px;
+
+      .split-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+
+        thead {
+          background: #f9fafb;
+          position: sticky;
+          top: 0;
+          z-index: 2;
+
+          th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #4b5563;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e5e7eb;
+          }
+        }
+
+        tbody {
+          tr {
+            border-bottom: 1px solid #f3f4f6;
+            transition: background 0.1s ease;
+
+            &:hover {
+              background: #f8fafc;
+            }
+
+            &.unmatched-row {
+              background: #fffbeb;
+            }
+
+            td {
+              padding: 10px 16px;
+              vertical-align: middle;
+            }
+
+            .col-sno {
+              color: #9ca3af;
+              font-weight: 600;
+              width: 50px;
+            }
+
+            .col-pages {
+              white-space: nowrap;
+
+              .page-range-pill {
+                display: inline-block;
+                padding: 3px 8px;
+                border-radius: 12px;
+                background: #e0e7ff;
+                color: #3730a3;
+                font-weight: 600;
+                font-size: 12px;
+              }
+
+              .pages-count-text {
+                margin-left: 6px;
+                font-size: 11px;
+                color: #6b7280;
+              }
+            }
+
+            .col-thumb {
+              width: 60px;
+
+              .split-thumb-img {
+                width: 48px;
+                height: 60px;
+                object-fit: cover;
+                border-radius: 4px;
+                border: 1px solid #e5e7eb;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+              }
+            }
+
+            .col-student-name {
+              .seg-student-name {
+                font-weight: 600;
+                color: #111827;
+              }
+
+              .seg-student-roll {
+                font-size: 11px;
+                color: #6b7280;
+              }
+            }
+
+            .col-method {
+              .method-text {
+                font-size: 12px;
+                color: #4b5563;
+              }
+            }
+
+            .col-conf {
+              .conf-pill {
+                display: inline-block;
+                padding: 2px 8px;
+                border-radius: 10px;
+                font-size: 11px;
+                font-weight: 600;
+
+                &.conf-high {
+                  background: #dcfce7;
+                  color: #166534;
+                }
+
+                &.conf-med {
+                  background: #fef3c7;
+                  color: #92400e;
+                }
+
+                &.conf-none {
+                  background: #fee2e2;
+                  color: #991b1b;
+                }
+              }
+            }
+
+            .col-assign {
+              .split-student-select {
+                padding: 6px 12px;
+                border-radius: 6px;
+                border: 1px solid #d1d5db;
+                font-size: 13px;
+                color: #111827;
+                background: #ffffff;
+                width: 220px;
+                outline: none;
+
+                &:focus {
+                  border-color: #2563eb;
+                  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
