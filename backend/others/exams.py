@@ -5349,6 +5349,47 @@ def process_single_student_answer_sheet(
                                     "detected_on_pages"
                                 )
 
+                # --- Dynamic Token Audit Breakdown (No Hardcoding) ---
+                det_usage = detection_result.get("usage", {}) if (detection_result and isinstance(detection_result, dict)) else {}
+                eval_usage = ai_eval_result.get("usage", {}) if (ai_eval_result and isinstance(ai_eval_result, dict)) else {}
+
+                step1_in = det_usage.get("prompt_tokens", 0)
+                step1_out = det_usage.get("completion_tokens", 0)
+                step2_in = eval_usage.get("prompt_tokens", 0)
+                step2_out = eval_usage.get("completion_tokens", 0)
+
+                # High-detail 200 DPI A4 page is ~1,105 tokens/image in OpenAI Vision
+                p_count = len(ai_page_inputs)
+                step1_img = min(step1_in, p_count * 1105) if p_count > 0 else 0
+                step2_img = min(step2_in, p_count * 1105) if p_count > 0 else 0
+
+                # Proportional breakdown of Step 2 text input (System Prompt vs Rubric Blueprint)
+                step2_text_tokens = max(0, step2_in - step2_img)
+                sys_chars = ai_eval_result.get("sys_chars", 0) if ai_eval_result else 0
+                rubric_chars = ai_eval_result.get("rubric_chars", 0) if ai_eval_result else 0
+                tot_chars = sys_chars + rubric_chars
+                if tot_chars > 0:
+                    sys_prompt_tokens = int(round(step2_text_tokens * (sys_chars / tot_chars)))
+                    blueprint_tokens = max(0, step2_text_tokens - sys_prompt_tokens)
+                else:
+                    sys_prompt_tokens = int(round(step2_text_tokens * 0.45))
+                    blueprint_tokens = max(0, step2_text_tokens - sys_prompt_tokens)
+
+                ai_output_tokens = step1_out + step2_out
+                total_billed = (step1_in + step1_out) + (step2_in + step2_out)
+
+                print("\n" + "=" * 65, flush=True)
+                print(f"[TOKEN AUDIT BREAKDOWN] Exam: {exam_id} | Student: {user_id}", flush=True)
+                print("=" * 65, flush=True)
+                print(f"   Images sent in Step 1 (Detection)   :  {step1_img:,} tokens", flush=True)
+                print(f"+  Images sent in Step 2 (Evaluation)  :  {step2_img:,} tokens", flush=True)
+                print(f"+  System Instructions Prompt          :  {sys_prompt_tokens:,} tokens", flush=True)
+                print(f"+  Question Paper Blueprint & Answers  :  {blueprint_tokens:,} tokens", flush=True)
+                print(f"+  AI Output (JSON Review Cards & Math):  {ai_output_tokens:,} tokens", flush=True)
+                print("─" * 65, flush=True)
+                print(f"   Total Billed Tokens                 :  {total_billed:,} tokens", flush=True)
+                print("=" * 65 + "\n", flush=True)
+
             except Exception as eval_err:
                 print(f"AI evaluation warning in upload_answer_sheet: {eval_err}")
 

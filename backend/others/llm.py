@@ -825,6 +825,9 @@ OUTPUT ONLY THIS JSON:
             "detection_notes": parsed.get(
                 "detection_notes", "Question detection completed."
             ),
+            "usage": resp_json.get("usage") or {},
+            "sys_chars": len(system_prompt),
+            "page_count": len(page_images),
         }
 
     except Exception as e:
@@ -1284,6 +1287,10 @@ OUTPUT JSON STRUCTURE:
             "evaluations": evaluations,
             "overall_summary": parsed.get("overall_summary", "Evaluation completed."),
             "evaluation_notes": parsed.get("evaluation_notes", "Clear scan."),
+            "usage": usage,
+            "sys_chars": len(system_prompt),
+            "rubric_chars": len(rubric_text),
+            "page_count": len(page_images),
         }
 
     except Exception as e:
