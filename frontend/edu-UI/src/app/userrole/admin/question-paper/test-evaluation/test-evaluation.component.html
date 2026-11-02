@@ -2020,6 +2020,9 @@
 
                 <!-- Status Tags -->
                 <div class="rubric-status-pills-row">
+                  <span class="rubric-status-pill pill-ok" *ngIf="!hasReviewComments(q, 'missing')">
+                    ● No missed points
+                  </span>
                   <span class="rubric-status-pill pill-ok" *ngIf="!hasReviewComments(q, 'incorrect')">
                     ● No incorrect points
                   </span>
