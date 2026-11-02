@@ -2373,7 +2373,7 @@ def get_exam_details(request):
                                                 & (Answer.ai_confidence > 0)
                                                 & (
                                                     Answer.ai_confidence
-                                                    < conf_threshold
+                                                    <= conf_threshold
                                                 )
                                             ),
                                         ),
@@ -4529,7 +4529,7 @@ def get_student_evaluation_details(request, current_user=None):
             q.get("manual_review_required")
             or (
                 q.get("ai_confidence") is not None
-                and 0 < q.get("ai_confidence") < conf_threshold
+                and 0 < q.get("ai_confidence") <= conf_threshold
             )
             for q in questions_data
         )
@@ -5310,46 +5310,44 @@ def process_single_student_answer_sheet(
                         except (ValueError, TypeError):
                             pass
 
-                # Phase 2: Filter rubric to only evaluate detected/uncertain questions
-                filtered_sections = []
+                # Phase 2: Evaluate detected and uncertain questions to keep token size safe and accurate
+                eval_sections = []
                 for sec in rubric_sections:
-                    filtered_qs = [
-                        q
-                        for q in sec.get("questions", [])
+                    eval_qs = [
+                        q for q in sec.get("questions", [])
                         if int(q.get("question_number", 0)) in detected_q_nums_set
                     ]
-                    if filtered_qs:
-                        filtered_sections.append(
-                            {
-                                "section_name": sec.get("section_name", "Section"),
-                                "questions": filtered_qs,
-                            }
-                        )
-
-                if filtered_sections:
-                    eval_rubric = {
-                        "exam_id": str(exam_id),
-                        "subject_name": str(getattr(exam_obj, "subject_name", "") or getattr(exam_obj, "title", "") or ""),
-                        "is_math": is_math_exam,
-                        "sections": filtered_sections,
-                    }
-                    ai_eval_result = vision_evaluate_answersheet(
-                        client, eval_rubric, ai_page_inputs
-                    )
-                    if ai_eval_result and ai_eval_result.get("status"):
-                        for ev in ai_eval_result.get("evaluations", []):
-                            if ev.get("question_id"):
-                                qid = str(ev["question_id"])
-                                evaluations_by_qid[qid] = ev
-                                q_num_val = exam_q_num_by_qid.get(qid)
-                                if q_num_val and q_num_val in pages_by_qnum:
-                                    detected_pages_by_qid[qid] = pages_by_qnum[
-                                        q_num_val
-                                    ]
-                                elif ev.get("detected_on_pages"):
-                                    detected_pages_by_qid[qid] = ev.get(
-                                        "detected_on_pages"
-                                    )
+                    if eval_qs:
+                        eval_sections.append({
+                            "section_name": sec.get("section_name", "Section"),
+                            "questions": eval_qs
+                        })
+                # If no questions detected at all, evaluate full rubric
+                if not eval_sections:
+                    eval_sections = rubric_sections
+                eval_rubric = {
+                    "exam_id": str(exam_id),
+                    "subject_name": str(getattr(exam_obj, "subject_name", "") or getattr(exam_obj, "title", "") or ""),
+                    "is_math": is_math_exam,
+                    "sections": eval_sections,
+                }
+                ai_eval_result = vision_evaluate_answersheet(
+                    client, eval_rubric, ai_page_inputs
+                )
+                if ai_eval_result and ai_eval_result.get("status"):
+                    for ev in ai_eval_result.get("evaluations", []):
+                        if ev.get("question_id"):
+                            qid = str(ev["question_id"])
+                            evaluations_by_qid[qid] = ev
+                            q_num_val = exam_q_num_by_qid.get(qid)
+                            if q_num_val and q_num_val in pages_by_qnum:
+                                detected_pages_by_qid[qid] = pages_by_qnum[
+                                    q_num_val
+                                ]
+                            elif ev.get("detected_on_pages"):
+                                detected_pages_by_qid[qid] = ev.get(
+                                    "detected_on_pages"
+                                )
 
             except Exception as eval_err:
                 print(f"AI evaluation warning in upload_answer_sheet: {eval_err}")
@@ -5400,7 +5398,7 @@ def process_single_student_answer_sheet(
                     )
                     manual_review = 0
                     is_val = 1
-                    conf = 100
+                    conf = int(ev.get("ai_confidence", 0)) if (ev and ev.get("ai_confidence") is not None) else 0
 
                     if is_detected and student_snippet:
                         q_options = (
@@ -5451,15 +5449,23 @@ def process_single_student_answer_sheet(
                     )
                     student_snippet = ev.get("student_answer_snippet", "") or ""
                 else:
-                    # Question was in rubric but NOT physically detected on answer sheet -> Unattempted
-                    awarded = 0.0
-                    conf = 0
-                    fb = "Question was not attempted or not found on the uploaded answer sheet."
-                    is_corr = 0
+                    # Question was in rubric but NOT physically detected in vision anchor detection -> Unattempted
+                    awarded = float(ev.get("suggested_marks", 0.0)) if ev else 0.0
+                    # Dynamic visual confidence from Phase 1 vision detection results:
+                    if ev and ev.get("ai_confidence") is not None:
+                        conf = int(ev["ai_confidence"])
+                    elif is_uncertain:
+                        conf = 40  # Vision detector flagged uncertainty in question boundaries
+                    elif detection_result and detection_result.get("status"):
+                        conf = 95  # Vision detector cleanly verified question is absent across all pages
+                    else:
+                        conf = 50
+                    fb = (ev.get("feedback") if ev and ev.get("feedback") else None) or "Question was not attempted or not found on the uploaded answer sheet."
+                    is_corr = int(ev.get("is_correct", 0)) if ev else 0
                     is_val = 1
-                    detected_pages = []
-                    manual_review = 0
-                    student_snippet = ""
+                    detected_pages = (ev.get("detected_on_pages") if ev else []) or []
+                    manual_review = 1 if is_uncertain else 0
+                    student_snippet = (ev.get("student_answer_snippet") if ev else "") or ""
 
                 meta_payload = json.dumps(
                     {

@@ -935,7 +935,7 @@ EVALUATION RULES:
 5. FEEDBACK & CONFIDENCE:
    - "feedback": 1-2 concise student-friendly sentences explaining what was correct and why the score was awarded.
    - "ai_confidence": Integer between 0 and 100 (85-100 for clear handwriting; 40-70 for ambiguous/partially legible handwriting).
-   - Unattempted Questions: If a question is absent from the sheet, set suggested_marks=0.0, is_correct=0, detected_on_pages=[], missing=[{"topic": "Unattempted", "issue": "Entire question unattempted", "label": "Needed", "statement": "Student did not attempt this question"}], incomplete=[], incorrect=[], feedback="Question was not attempted.", ai_confidence=95.
+   - Unattempted Questions: If a question is absent from the sheet, visually verify its absence across all pages; set suggested_marks=0.0, is_correct=0, detected_on_pages=[], missing=[{"topic": "Unattempted", "issue": "Entire question unattempted", "label": "Needed", "statement": "Student did not attempt this question"}], incomplete=[], incorrect=[], feedback="Question was not attempted or not found on the uploaded answer sheet.", ai_confidence between 85-100 for clean unattempted empty space, or 40-70 if ambiguous handwriting/scribbles exist.
 
 ALWAYS respond ONLY with a single valid JSON object (no markdown code blocks, no extra text).
 
@@ -1080,7 +1080,7 @@ OUTPUT JSON STRUCTURE:
             system_message=system_prompt,
             InputData=user_content,
             aimodel=1,
-            max_tokens=4000,
+            max_tokens=8192,
             temperature=0.15,
             timeout=timeout,
             response_format={"type": "json_object"},
@@ -1133,21 +1133,39 @@ OUTPUT JSON STRUCTURE:
                 clean_json = clean_json[4:]
             clean_json = clean_json.strip()
 
-        # Extract between outermost curly braces
+        # Extract between outermost curly braces safely
         first_brace = clean_json.find("{")
         last_brace = clean_json.rfind("}")
-        if first_brace != -1 and last_brace != -1:
+        if first_brace != -1 and last_brace != -1 and last_brace >= first_brace:
             clean_json = clean_json[first_brace : last_brace + 1]
+        elif first_brace != -1:
+            # Output was truncated mid-JSON (e.g. at token limit); attempt closure
+            clean_json = clean_json[first_brace:]
+            # Close any dangling quotes and incomplete evaluations array
+            if clean_json.count('"') % 2 != 0:
+                clean_json += '"'
+            clean_json += ']}'
 
-        # Automatically clean trailing commas before } or ] (fixes line 30 column 5 JSONDecodeError)
+        # Automatically clean trailing commas before } or ]
         clean_json = re.sub(r",\s*([\]}])", r"\1", clean_json)
         clean_json = re.sub(r",\s*([\]}])", r"\1", clean_json)
 
         try:
             parsed = json.loads(clean_json)
-        except json.JSONDecodeError:
-            # Fallback for unescaped newlines or control characters inside strings
-            parsed = json.loads(clean_json, strict=False)
+        except Exception:
+            try:
+                # Fallback for unescaped newlines or control characters inside strings
+                parsed = json.loads(clean_json, strict=False)
+            except Exception:
+                # Attempt regex recovery of completed evaluation objects if JSON truncated
+                eval_matches = re.findall(r'\{[^{}]+"question_id"\s*:\s*"([^"]+)"[^{}]*\}', raw_content)
+                evaluations_recovered = []
+                for q_match in re.finditer(r'\{[^{}]*"question_id"[^{}]*\}', raw_content):
+                    try:
+                        evaluations_recovered.append(json.loads(q_match.group(0), strict=False))
+                    except Exception:
+                        pass
+                parsed = {"evaluations": evaluations_recovered, "status": bool(evaluations_recovered)}
         if isinstance(parsed, list):
             evaluations = parsed
         elif isinstance(parsed, dict):
