@@ -1376,7 +1376,7 @@ export class AdminUserRegisterComponent implements OnInit {
 
       const fieldLabels: Record<string, string> = {
         name: 'Full Name',
-        username: 'User Name',
+        username: 'Register Number',
         email: 'Email',
         password: 'Password',
         confirmPassword: 'Confirm Password',

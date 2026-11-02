@@ -5349,47 +5349,49 @@ def process_single_student_answer_sheet(
                                     "detected_on_pages"
                                 )
 
-                # --- Dynamic Token Audit Breakdown (No Hardcoding) ---
-                det_usage = detection_result.get("usage", {}) if (detection_result and isinstance(detection_result, dict)) else {}
-                eval_usage = ai_eval_result.get("usage", {}) if (ai_eval_result and isinstance(ai_eval_result, dict)) else {}
+                # --- Accurate Token Audit (Direct from OpenAI API usage) ---
+                det_usage = detection_result.get("usage") if (detection_result and isinstance(detection_result, dict)) else None
+                eval_usage = ai_eval_result.get("usage") if (ai_eval_result and isinstance(ai_eval_result, dict)) else None
 
-                step1_in = det_usage.get("prompt_tokens", 0)
-                step1_out = det_usage.get("completion_tokens", 0)
-                step2_in = eval_usage.get("prompt_tokens", 0)
-                step2_out = eval_usage.get("completion_tokens", 0)
+                # 1. Detect missing API usage instead of silently assuming zero
+                missing_calls = []
+                if not det_usage:
+                    missing_calls.append("Call 1 (Detection)")
+                if not eval_usage:
+                    missing_calls.append("Call 2 (Evaluation)")
 
-                # High-detail 200 DPI A4 page is ~1,105 tokens/image in OpenAI Vision
-                p_count = len(ai_page_inputs)
-                step1_img = min(step1_in, p_count * 1105) if p_count > 0 else 0
-                step2_img = min(step2_in, p_count * 1105) if p_count > 0 else 0
+                # 2. Extract API-reported metrics (using API's official total_tokens)
+                step1_in = det_usage.get("prompt_tokens", 0) if det_usage else 0
+                step1_out = det_usage.get("completion_tokens", 0) if det_usage else 0
+                step1_total = det_usage.get("total_tokens", step1_in + step1_out) if det_usage else 0
 
-                # Proportional breakdown of Step 2 text input (System Prompt vs Rubric Blueprint)
-                step2_text_tokens = max(0, step2_in - step2_img)
-                sys_chars = ai_eval_result.get("sys_chars", 0) if ai_eval_result else 0
-                rubric_chars = ai_eval_result.get("rubric_chars", 0) if ai_eval_result else 0
-                tot_chars = sys_chars + rubric_chars
-                if tot_chars > 0:
-                    sys_prompt_tokens = int(round(step2_text_tokens * (sys_chars / tot_chars)))
-                    blueprint_tokens = max(0, step2_text_tokens - sys_prompt_tokens)
-                else:
-                    sys_prompt_tokens = int(round(step2_text_tokens * 0.45))
-                    blueprint_tokens = max(0, step2_text_tokens - sys_prompt_tokens)
+                step2_in = eval_usage.get("prompt_tokens", 0) if eval_usage else 0
+                step2_out = eval_usage.get("completion_tokens", 0) if eval_usage else 0
+                step2_total = eval_usage.get("total_tokens", step2_in + step2_out) if eval_usage else 0
 
-                ai_output_tokens = step1_out + step2_out
-                total_billed = (step1_in + step1_out) + (step2_in + step2_out)
+                total_input = step1_in + step2_in
+                total_output = step1_out + step2_out
+                # Use the API's official total_tokens sum
+                total_billed = step1_total + step2_total
 
                 print("\n" + "=" * 65, flush=True)
-                print(f"[TOKEN AUDIT BREAKDOWN] Exam: {exam_id} | Student: {user_id}", flush=True)
+                print(f"[TOKEN AUDIT (API REPORTED)] Exam: {exam_id} | Student: {user_id}", flush=True)
                 print("=" * 65, flush=True)
-                print(f"   Images sent in Step 1 (Detection)   :  {step1_img:,} tokens", flush=True)
-                print(f"+  Images sent in Step 2 (Evaluation)  :  {step2_img:,} tokens", flush=True)
-                print(f"+  System Instructions Prompt          :  {sys_prompt_tokens:,} tokens", flush=True)
-                print(f"+  Question Paper Blueprint & Answers  :  {blueprint_tokens:,} tokens", flush=True)
-                print(f"+  AI Output (JSON Review Cards & Math):  {ai_output_tokens:,} tokens", flush=True)
-                print("─" * 65, flush=True)
-                print(f"   Total Billed Tokens                 :  {total_billed:,} tokens", flush=True)
-                print("=" * 65 + "\n", flush=True)
 
+                if missing_calls:
+                    print(f"   [WARNING] API usage missing for: {', '.join(missing_calls)}.", flush=True)
+                    print(f"             Reported totals below are partial / incomplete.", flush=True)
+
+                call1_str = f"Input = {step1_in:,} | Output = {step1_out:,} | Total = {step1_total:,}" if det_usage else "N/A (Missing from API response)"
+                call2_str = f"Input = {step2_in:,} | Output = {step2_out:,} | Total = {step2_total:,}" if eval_usage else "N/A (Missing from API response)"
+                print(f"   Call 1 (Detection)   : {call1_str}", flush=True)
+                print(f"   Call 2 (Evaluation)  : {call2_str}", flush=True)
+                print("-" * 65, flush=True)
+                print(f"   Total Input Tokens   : {total_input:,} (Images + Prompts combined by API)", flush=True)
+                print(f"   Total Output Tokens  : {total_output:,} (Generated JSON & Math)", flush=True)
+                status_suffix = " (INCOMPLETE)" if missing_calls else ""
+                print(f"   Total Billed Tokens  : {total_billed:,}{status_suffix}", flush=True)
+                print("=" * 65 + "\n", flush=True)
             except Exception as eval_err:
                 print(f"AI evaluation warning in upload_answer_sheet: {eval_err}")
 

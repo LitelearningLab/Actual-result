@@ -290,7 +290,7 @@
 
             <!-- Username Column -->
             <ng-container matColumnDef="username">
-              <th mat-header-cell *matHeaderCellDef>Username</th>
+              <th mat-header-cell *matHeaderCellDef>Register Number</th>
               <td mat-cell *matCellDef="let row">{{ row.username }}</td>
             </ng-container>
 
@@ -392,7 +392,7 @@
 
             <!-- Username Column -->
             <ng-container matColumnDef="username">
-              <th mat-header-cell *matHeaderCellDef>Username</th>
+              <th mat-header-cell *matHeaderCellDef>Register Number</th>
               <td mat-cell *matCellDef="let row">{{ row.username }}</td>
             </ng-container>
 
@@ -507,12 +507,12 @@
 
                   <mat-form-field appearance="outline" class="field-half">
                     <mat-label>
-                      User Name*
+                      Register Number*
                       <mat-icon class="info-icon" matTooltip="Institute registration number or email" matTooltipPosition="above" style="font-size: 16px; cursor: help; margin-left: 4px;">info</mat-icon>
                     </mat-label>
                     <mat-icon matPrefix>badge</mat-icon>
-                    <input matInput id="user_username" formControlName="username" placeholder="username" aria-label="User Name" />
-                    <mat-error *ngIf="(form.get('username')?.touched || step1Submitted) && form.get('username')?.invalid">User name is required</mat-error>
+                    <input matInput id="user_username" formControlName="username" placeholder="Register number" aria-label="Register Number" />
+                    <mat-error *ngIf="(form.get('username')?.touched || step1Submitted) && form.get('username')?.invalid">Register number is required</mat-error>
                   </mat-form-field>
                 </div>
 
@@ -853,7 +853,7 @@
                     </h4>
                     <div class="review-items">
                       <div class="review-item"><span class="review-label">Full Name</span><span class="review-value">{{ form.value.name || '—' }}</span></div>
-                      <div class="review-item"><span class="review-label">Username</span><span class="review-value">{{ form.value.username || '—' }}</span></div>
+                      <div class="review-item"><span class="review-label">Register Number</span><span class="review-value">{{ form.value.username || '—' }}</span></div>
                       <div class="review-item"><span class="review-label">Email</span><span class="review-value">{{ form.value.email || '—' }}</span></div>
                       <div class="review-item"><span class="review-label">Phone</span><span class="review-value">{{ form.value.phone || '—' }}</span></div>
                       <div class="review-item"><span class="review-label">Joining Date</span><span class="review-value">{{ form.value.joining_date || '—' }}</span></div>

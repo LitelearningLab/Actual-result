@@ -496,7 +496,7 @@
 
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Name</mat-label>
-            <input matInput placeholder="Name or username" [(ngModel)]="filters.name" />
+            <input matInput placeholder="Name or register number" [(ngModel)]="filters.name" />
           </mat-form-field>
 
           <mat-form-field
@@ -697,7 +697,7 @@
                 <div class="label"><mat-icon>account_circle</mat-icon> Full Name</div>
                 <div class="value">{{ selectedUser.full_name || selectedUser.name }}</div>
 
-                <div class="label"><mat-icon>badge</mat-icon> Username</div>
+                <div class="label"><mat-icon>badge</mat-icon> Register Number</div>
                 <div class="value">{{ selectedUser.user_name || '—' }}</div>
 
                 <div class="label"><mat-icon>email</mat-icon> Email</div>

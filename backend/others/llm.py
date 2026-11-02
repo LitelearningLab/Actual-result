@@ -38,7 +38,7 @@ class openai_client:
             or os.getenv("model1")
             or config.get("OPENAI_MODEL_1")
             or config.get("model1")
-            or "gpt-6-luna"
+            or "gpt-4o-mini"
         )
         configured_model2 = (
             os.getenv("OPENAI_MODEL_2")

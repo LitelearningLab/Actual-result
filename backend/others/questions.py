@@ -15,6 +15,7 @@ from sqlalchemy import func, or_, text
 import sys
 import pandas as pd
 import json
+import re
 import datetime
 import uuid
 from others.llm import descriptive_evaluation, openai_client
@@ -1681,43 +1682,52 @@ def create_question_using_llm(request):
 
 
 def response_tracker(response_json, institute_id=None, user_id=None):
-    db = SQLiteDB()
-    session = db.connect()
+    if not isinstance(response_json, dict):
+        return
+    choices = response_json.get("choices")
+    if not choices or not isinstance(choices, list) or len(choices) == 0:
+        return
 
-    id = response_json.get("id", None)
-    object_type = response_json.get("object", None)
-    choices = response_json.get("choices", None)
-    model = response_json.get("model", None)
-    usage = response_json.get("usage", None)
-    service_tier = response_json.get("service_tier", None)
-    system_fingerprint = response_json.get("system_fingerprint", None)
+    try:
+        db = SQLiteDB()
+        session = db.connect()
 
-    role = choices[0]["message"].get("role", None)
-    content = choices[0]["message"].get("content", None)
-    finish_reason = choices[0].get("finish_reason", None)
+        id = response_json.get("id", None)
+        object_type = response_json.get("object", None)
+        model = response_json.get("model", None)
+        usage = response_json.get("usage") or {}
+        service_tier = response_json.get("service_tier", None)
+        system_fingerprint = response_json.get("system_fingerprint", None)
 
-    prompt_tokens = usage.get("prompt_tokens", None)
-    completion_tokens = usage.get("completion_tokens", None)
-    total_tokens = usage.get("total_tokens", None)
+        msg = choices[0].get("message") or {}
+        role = msg.get("role", None)
+        content = msg.get("content", None)
+        finish_reason = choices[0].get("finish_reason", None)
 
-    insert_record = openai_requests(
-        id=id,
-        # object_type=object_type,
-        model=model,
-        service_tier=service_tier,
-        system_fingerprint=system_fingerprint,
-        role=role,
-        content=content,
-        finish_reason=finish_reason,
-        prompt_tokens=prompt_tokens,
-        completion_tokens=completion_tokens,
-        total_tokens=total_tokens,
-        institute_id=institute_id,
-        created_by=user_id,
-    )
-    session.add(insert_record)
-    session.commit()
-    session.close()
+        prompt_tokens = usage.get("prompt_tokens", None)
+        completion_tokens = usage.get("completion_tokens", None)
+        total_tokens = usage.get("total_tokens", None)
+
+        insert_record = openai_requests(
+            id=id,
+            # object_type=object_type,
+            model=model,
+            service_tier=service_tier,
+            system_fingerprint=system_fingerprint,
+            role=role,
+            content=content,
+            finish_reason=finish_reason,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            institute_id=institute_id,
+            created_by=user_id,
+        )
+        session.add(insert_record)
+        session.commit()
+        session.close()
+    except Exception as db_err:
+        print(f"[response_tracker] Failed to save request metrics: {db_err}")
     return
 
 
@@ -1734,9 +1744,7 @@ def default_fine_tune_result():
 
 
 def fine_tune_questions_using_llm(request):
-    # return default_fine_tune_result(), 200
-
-    data_json = request.get_json(silent=True)
+    data_json = request.get_json(silent=True) or {}
     openai_client_instance = openai_client()
 
     def gv(key, default=None):
@@ -1765,35 +1773,49 @@ def fine_tune_questions_using_llm(request):
             }}
         Ensure the output is valid JSON with no surrounding markdown or text.
         """
-        response = openai_client_instance.chat_completion(system_message, user_message)
-        # with open("debug_fine_tune_response.json", "w") as debug_file:
-        #     debug_file.write(response.text)
-        response_json = response.json()
-        # with open("debug_fine_tune_response.json", "r") as debug_file:
-        #     response_json = json.load(debug_file)
-        #     class MockResponse:
-        #         def __init__(self, json_data, status=200):
-        #             self._json = json_data
-        #             self.status_code = status
-        #         def json(self):
-        #             return self._json
-        #     response = MockResponse(response_json)
-        response_tracker(response_json, institute_id, user_id)
+        response = openai_client_instance.chat_completion(
+            system_message=system_message,
+            InputData=user_message,
+            aimodel=1,
+            max_tokens=2500,
+        )
+        response_json = response.json() if hasattr(response, "json") else {}
+
         if response.status_code != 200:
             print(f"Error response from LLM: {response_json}")
-            result = {
-                "status": False,
-                "error": response_json.get("error", "Unknown error"),
-            }
-            return result, 500
-        result_text = response_json["choices"][0]["message"]["content"].strip()
+            error = response_json.get("error", "Unknown error")
+            if isinstance(error, dict):
+                error = error.get("message", str(error))
+            return {"status": False, "error": error}, response.status_code
+
+        response_tracker(response_json, institute_id, user_id)
+
+        choices = response_json.get("choices") or []
+        if not choices:
+            return {"status": False, "error": "No response choices returned by AI"}, 500
+
+        result_text = choices[0].get("message", {}).get("content", "").strip()
         # Remove markdown code blocks if present
         if result_text.startswith("```"):
-            result_text = result_text.split("```")[1]
-            if result_text.startswith("json"):
-                result_text = result_text[4:]
-            result_text = result_text.strip()
-        parsed = json.loads(result_text)[0]
+            lines = result_text.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            result_text = "\n".join(lines).strip()
+
+        # Parse JSON safely - handles both [ { ... } ] and { ... }
+        match = re.search(r"(\[[\s\S]*\]|\{[\s\S]*\})", result_text)
+        json_str = match.group(0) if match else result_text
+        parsed_data = json.loads(json_str)
+
+        if isinstance(parsed_data, list):
+            parsed = parsed_data[0] if len(parsed_data) > 0 else {}
+        elif isinstance(parsed_data, dict):
+            parsed = parsed_data
+        else:
+            parsed = {}
+
         result = {"status": True, "data": parsed}
         return result, 200
     except Exception as e:
