@@ -141,7 +141,6 @@
                                 [(ngModel)]="selectedQuestionPaperTemplateId"
                                 (selectionChange)="onQuestionPaperTemplateChange($event.value); markDirty()"
                                 (openedChange)="onQuestionPaperOpenedChange($event)"
-                                [disabled]="readOnly || isPublished"
                                 placeholder="Select question paper">
                                 <mat-option class="select-search-option" (click)="$event.stopPropagation()">
                                     <input class="select-search-input" placeholder="Search question paper..."
@@ -618,7 +617,7 @@
                     </button>
 
                     <!-- Publish Question Paper (Publish mode only) -->
-                    <button class="btn-sidebar-publish" type="button" (click)="save(true)" *ngIf="formMode === 'publish' && !isPublished && !readOnly" [disabled]="!canPublish" [class.disabled]="!canPublish" [matTooltip]="publishDisabledReason">
+                    <button class="btn-sidebar-publish" type="button" (click)="save(true)" *ngIf="formMode === 'publish'" [disabled]="!canPublish" [class.disabled]="!canPublish" [matTooltip]="publishDisabledReason">
                         <mat-icon>publish</mat-icon>
                         <span>Publish Question Paper</span>
                     </button>

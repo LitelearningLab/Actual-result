@@ -604,7 +604,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   get draftsCount(): number {
-    return (this.allExams || []).filter((e) => this.isDraft(e)).length;
+    return (this.allExams || []).length;
   }
 
   get publishedCount(): number {
@@ -715,7 +715,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
   updateFilteredExams() {
     let list = (this.allExams || []).filter((e) => {
-      return this.activeTab === 'drafts' ? this.isDraft(e) : this.isPublished(e);
+      return this.activeTab === 'drafts' ? true : this.isPublished(e);
     });
     const term = (this.filter || '').trim().toLowerCase();
     if (term) {
@@ -877,7 +877,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     this.confirmService
       .confirm({
         title: 'Publish Question Paper',
-        message: `Are you sure you want to publish "${e?.title || 'this question paper'}"? It will move to the Published tab and become available for users.`,
+        message: `Are you sure you want to publish "${e?.title || 'this question paper'}"? It will be published and available in the Published tab.`,
         confirmText: 'Publish',
         cancelText: 'Cancel',
       })

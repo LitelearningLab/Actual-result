@@ -919,15 +919,17 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     // load edit payload first so editMode is populated before setting page metadata
     this.loadEditTest();
 
-    if (this.readOnly || this.isPublished) {
-      this.pageMeta.setMeta(
-        'View Test',
-        'Viewing question paper details in read-only mode.'
-      );
-    } else if (this.formMode === 'publish') {
+    if (this.formMode === 'publish') {
+      this.readOnly = false;
+      this.isPublished = false;
       this.pageMeta.setMeta(
         'Publish Question Paper',
         'Select a created question paper and assign candidates to publish.'
+      );
+    } else if (this.readOnly || this.isPublished) {
+      this.pageMeta.setMeta(
+        'View Test',
+        'Viewing question paper details in read-only mode.'
       );
     } else if (this.editMode) {
       this.pageMeta.setMeta(
