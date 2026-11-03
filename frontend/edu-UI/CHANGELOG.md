@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.2.0] - 2026-11-03
+
+### Features & Updates
+- **Admin Results Dashboard**: Added admin results component with dashboard metrics, analysis charts, and feature cards.
+- **Question Paper Engine**: Enhanced question paper creation and management components for admin role.
+- **Version Bump**: Bumped application release version to 2.2.0.
+
+---
+
 ## [2.1.4] - 2026-10-20
 
 ### Patch Fixes
