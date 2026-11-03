@@ -357,21 +357,21 @@ class JWTValidator:
             password = data.get('password')
 
             if not identifier or not password:
-                return {"statusMessage": "Email/username and password are required", "status": False}, 400
+                return {"statusMessage": "Email and password are required", "status": False}, 400
 
             clean_id = identifier.strip().lower()
             user = session.query(User).filter(
                 or_(
                     func.lower(User.email) == clean_id,
-                    func.lower(User.user_name) == clean_id,
+
                     User.email == identifier,
-                    User.user_name == identifier
+
                 )
             ).first()
             if not user:
                 print(f"[Auth] User not found for identifier: {identifier}", flush=True)
                 return {
-                    "statusMessage": "Invalid email/username or password",
+                    "statusMessage": "Invalid email or password",
                     "status": False
                 }, 401
 
@@ -390,7 +390,7 @@ class JWTValidator:
 
             if not cred or not password_valid:
                 return {
-                    "statusMessage": "Invalid email/username or password",
+                    "statusMessage": "Invalid email or password",
                     "status": False
                 }, 401
 

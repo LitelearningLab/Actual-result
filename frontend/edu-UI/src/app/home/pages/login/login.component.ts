@@ -43,7 +43,7 @@ export class LoginComponent implements OnDestroy {
 
   constructor(private fb: FormBuilder, private auth: AuthService, private router: Router, private notify: NotificationService, private loader: LoaderService) {
     this.loginForm = this.fb.group({
-      username: ['', Validators.required],
+      email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]],
       remember: [false]
     });
@@ -79,9 +79,9 @@ export class LoginComponent implements OnDestroy {
       this.loginForm.markAllAsTouched();
       return;
     }
-    const { username, password } = this.loginForm.value;
+    const { email, password } = this.loginForm.value;
     this.loader.show();
-    this.auth.login(username, password).then((result: LoginResult) => {
+    this.auth.login(email, password).then((result: LoginResult) => {
       this.loader.hide();
       if (result.ok) {
         this.stopLockoutCountdown();

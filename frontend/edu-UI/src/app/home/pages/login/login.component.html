@@ -82,12 +82,15 @@
 
       <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form" autocomplete="on">
         <div class="field-group">
-          <label class="field-label" for="login-username">Email or Username</label>
+          <label class="field-label" for="login-email">Email</label>
           <mat-form-field appearance="outline" class="form-field">
-            <mat-icon matPrefix fontSet="material-icons-outlined">person</mat-icon>
-            <input matInput formControlName="username" id="login-username" placeholder="Enter your email or username" aria-describedby="username-error" autocomplete="username" />
-            <mat-error id="username-error" *ngIf="loginForm.get('username')?.hasError('required') && (loginForm.get('username')?.dirty || loginForm.get('username')?.touched)">
-              Email or username is required
+            <mat-icon matPrefix fontSet="material-icons-outlined">email</mat-icon>
+            <input matInput type="email" formControlName="email" id="login-email" placeholder="Enter your email" aria-describedby="email-error" autocomplete="email" />
+            <mat-error id="email-error" *ngIf="loginForm.get('email')?.hasError('required') && (loginForm.get('email')?.dirty || loginForm.get('email')?.touched)">
+              Email is required
+            </mat-error>
+            <mat-error id="email-error-format" *ngIf="loginForm.get('email')?.hasError('email') && (loginForm.get('email')?.dirty || loginForm.get('email')?.touched)">
+              Please enter a valid email address
             </mat-error>
           </mat-form-field>
         </div>
