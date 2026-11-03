@@ -631,9 +631,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
     const result: any[] = [];
     for (const [, items] of groups) {
-      // Pick the master draft if available, otherwise the primary definition
-      const draftItem = items.find((x) => this.isDraft(x));
-      result.push(draftItem || items[0]);
+      // Pick the master question paper definition if available, otherwise the primary definition
+      const masterItem = items.find((x) => !this.isPublished(x));
+      result.push(masterItem || items[0]);
     }
     return result;
   }
@@ -652,7 +652,10 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   isDraft(e: any): boolean {
-    return !this.isPublished(e);
+    if (this.isPublished(e)) {
+      return false;
+    }
+    return this.getPaperStatus(e) === 'draft';
   }
 
   // Determines whether a question paper is Draft or Ready to Publish
@@ -2757,7 +2760,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           updated_by: x.updated_by || x.modifier || '',
           updated_date: x.updated_date || x.updated || '',
           published: !!x.published,
-          status: x.published ? 'published' : 'draft',
+          status: x.published
+            ? 'published'
+            : (this.isMarksIncomplete(x) || this.isQuestionsIncomplete(x) ? 'draft' : 'ready_to_publish'),
           is_editable: x.is_editable !== false,
         }));
         this.exams = this.allExams;

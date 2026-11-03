@@ -5164,7 +5164,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
           try {
-            const defaultMsg = this.isPublished
+            const defaultMsg = this.isPublished || this.canCreatePaper
               ? 'Question paper updated successfully'
               : 'Question paper draft updated successfully';
             const msg = res?.statusMessage || res?.message || defaultMsg;
