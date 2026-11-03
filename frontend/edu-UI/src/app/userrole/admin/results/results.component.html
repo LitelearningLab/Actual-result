@@ -140,7 +140,39 @@
     </div>
   </section>
 
-  <!-- ── Charts Section ── -->
+  <!-- ── Feature Cards Section ── -->
+  <section class="feature-cards-section">
+    <div class="features-grid">
+      <div 
+        *ngFor="let card of featureCards"
+        class="feature-card"
+        [ngClass]="card.themeClass"
+        [routerLink]="card.route"
+        tabindex="0"
+        role="link"
+        [attr.aria-label]="card.title + ' - ' + card.actionText">
+        
+        <div class="feature-card-header">
+          <div class="feature-icon-wrap">
+            <mat-icon>{{ card.icon }}</mat-icon>
+          </div>
+        </div>
+
+        <div class="feature-card-content">
+          <h3 class="feature-title">{{ card.title }}</h3>
+          <p class="feature-description">{{ card.description }}</p>
+        </div>
+
+        <div class="feature-card-action">
+          <span class="action-link-text">{{ card.actionText }}</span>
+          <mat-icon class="action-arrow-icon">arrow_forward</mat-icon>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Charts Section (Commented Out per Redesign Requirements) ── -->
+  <!--
   <section class="charts-section">
     <div class="section-header">
       <div class="section-title-wrap">
@@ -184,11 +216,12 @@
       </div>
     </div>
   </section>
+  -->
 
-  <!-- ── Bottom: Table + Quick Actions ── -->
+  <!-- ── Bottom: Table + Quick Actions (Commented Out) ── -->
+  <!--
   <section class="bottom-section">
     <div class="bottom-grid">
-      <!-- Upcoming Tests Table -->
       <div class="data-card table-card">
         <div class="card-header">
           <div class="card-title-wrap">
@@ -228,7 +261,6 @@
         </div>
       </div>
 
-      <!-- Quick Actions -->
       <div class="data-card actions-card">
         <div class="card-header">
           <div class="card-title-wrap">
@@ -295,6 +327,7 @@
       </div>
     </div>
   </section>
+  -->
 </div>
 
 

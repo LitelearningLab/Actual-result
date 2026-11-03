@@ -10,6 +10,16 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
 import { LoaderService } from 'src/app/shared/services/loader.service';
+
+export interface DashboardFeatureCard {
+  title: string;
+  description: string;
+  actionText: string;
+  route: string;
+  icon: string;
+  themeClass: string;
+}
+
 @Component({
   selector: 'app-admin-results',
   standalone: true,
@@ -18,6 +28,57 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
   styleUrls: ['./results.component.scss']
 })
 export class AdminResultsComponent implements OnInit {
+  readonly featureCards: DashboardFeatureCard[] = [
+    {
+      title: 'Question Banks',
+      description: 'Create and manage question banks to organize questions by subject, chapter, and topic.',
+      actionText: 'Manage Question Banks',
+      route: '/category',
+      icon: 'folder_special',
+      themeClass: 'feature-card--purple'
+    },
+    {
+      title: 'Questions',
+      description: 'Create, view, and manage individual questions to build your question collection.',
+      actionText: 'Manage Questions',
+      route: '/view-questions',
+      icon: 'quiz',
+      themeClass: 'feature-card--amber'
+    },
+    {
+      title: 'Create/Edit Test',
+      description: 'Create new tests, add questions from your question bank, and edit existing tests.',
+      actionText: 'Create or Manage Tests',
+      route: '/exams',
+      icon: 'fact_check',
+      themeClass: 'feature-card--green'
+    },
+    {
+      title: 'Schedule Test',
+      description: 'Schedule tests for students by selecting the test, date, time, and other required settings.',
+      actionText: 'Schedule a Test',
+      route: '/view-schedule-exam',
+      icon: 'event_available',
+      themeClass: 'feature-card--blue'
+    },
+    {
+      title: 'Paper Question',
+      description: 'Create, customize, and publish question papers for offline or printed examinations.',
+      actionText: 'Manage Paper Questions',
+      route: '/question-papers',
+      icon: 'description',
+      themeClass: 'feature-card--rose'
+    },
+    {
+      title: 'Test Evaluation',
+      description: 'Review student answer sheets, grade responses, and record evaluations.',
+      actionText: 'Evaluate Tests',
+      route: '/test-evaluation',
+      icon: 'rate_review',
+      themeClass: 'feature-card--teal'
+    }
+  ];
+
   metrics: any = {
     totalStudents: 0,
     testsScheduled: 0,
