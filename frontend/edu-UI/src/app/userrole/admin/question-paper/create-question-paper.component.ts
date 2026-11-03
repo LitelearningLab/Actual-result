@@ -720,9 +720,22 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   // ── Question paper template filter search for Publish mode dropdown ──
   questionPaperFilterSearch = '';
   get filteredQuestionPaperTemplates(): any[] {
+    let list = this.availableQuestionPaperTemplates || [];
+    if (this.institute) {
+      list = list.filter((p: any) => !p.institute_id || String(p.institute_id) === String(this.institute));
+    }
+    // Deduplicate question paper masters by title and institute_id so repeated publications only show once
+    const seen = new Set<string>();
+    list = list.filter((p: any) => {
+      const key = `${(p.title || p.name || '').trim().toLowerCase()}_${p.institute_id || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
     const term = (this.questionPaperFilterSearch || '').trim().toLowerCase();
-    if (!term) return this.availableQuestionPaperTemplates || [];
-    return (this.availableQuestionPaperTemplates || []).filter((p: any) =>
+    if (!term) return list;
+    return list.filter((p: any) =>
       (p.title || p.name || '').toLowerCase().includes(term)
     );
   }
@@ -950,6 +963,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.loadInstitutes();
 
     if (this.formMode === 'publish') {
+      const queryTemplate = this.route?.snapshot?.queryParams
+        ? this.route.snapshot.queryParams['template_id']
+        : null;
+      if (queryTemplate) {
+        this.selectedQuestionPaperTemplateId = String(queryTemplate);
+        this.onQuestionPaperTemplateChange(this.selectedQuestionPaperTemplateId);
+      }
       this.loadCreatedQuestionPapersForDropdown(this.institute || undefined);
     }
 
@@ -2162,6 +2182,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.updateFilteredCategoriesStream();
     if (this.formMode === 'publish') {
       this.selectedQuestionPaperTemplateId = '';
+      this.availableQuestionPaperTemplates = [];
       if (this.institute) {
         this.loadCreatedQuestionPapersForDropdown(this.institute);
       }
@@ -4797,26 +4818,15 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       next: (res) => {
         this.loadingTemplates = false;
         let list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-        if (!list.length && inst) {
-          // If no papers found for this specific institute, try loading all paper tests
-          this.http.get<any>(`${API_BASE}/get-exams-details?test_mode=paper`).subscribe({
-            next: (resAll) => {
-              const allList = Array.isArray(resAll?.data) ? resAll.data : Array.isArray(resAll) ? resAll : [];
-              this.availableQuestionPaperTemplates = (allList || []).filter((p: any) => p && (p.title || p.name));
-              this.cdr.detectChanges();
-            },
-            error: () => {
-              this.availableQuestionPaperTemplates = [];
-              this.cdr.detectChanges();
-            }
-          });
-        } else {
-          this.availableQuestionPaperTemplates = (list || []).filter((p: any) => p && (p.title || p.name));
-          this.cdr.detectChanges();
+        if (inst) {
+          list = list.filter((p: any) => !p.institute_id || String(p.institute_id) === String(inst));
         }
+        this.availableQuestionPaperTemplates = (list || []).filter((p: any) => p && (p.title || p.name));
+        this.cdr.detectChanges();
 
-        if (this.editExamId) {
-          const match = this.availableQuestionPaperTemplates.find((p: any) => String(p.test_id || p.exam_id || p.id) === String(this.editExamId));
+        const wantTemplateId = this.selectedQuestionPaperTemplateId || this.editExamId;
+        if (wantTemplateId) {
+          const match = this.availableQuestionPaperTemplates.find((p: any) => String(p.test_id || p.exam_id || p.id) === String(wantTemplateId));
           if (match) {
             this.selectedQuestionPaperTemplateId = String(match.test_id || match.exam_id || match.id);
           }
@@ -4928,6 +4938,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.readOnly) return false;
     if (!this.title || !this.title.trim()) return false;
     if (!this.institute) return false;
+    if (!this.selectedDepartment) return false;
+    if (!this.selectedTeam) return false;
     if (!this.subject_id) return false;
     if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return false;
     if (!this.sections.length || this.totalPaperQuestionsCount === 0) return false;
@@ -4950,6 +4962,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.readOnly) return 'Question paper is in read-only mode';
     if (!this.title || !this.title.trim()) return 'Title is required';
     if (!this.institute) return 'Institute is required';
+    if (!this.selectedDepartment) return `${this.terminology.deptLabel || 'Department'} is required`;
+    if (!this.selectedTeam) return `${this.terminology.teamLabel || 'Year'} is required`;
     if (!this.subject_id) return 'Subject is required';
     if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return 'Duration is required';
     if (!this.sections.length || this.totalPaperQuestionsCount === 0) return 'Add at least one section with questions';
@@ -4972,6 +4986,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.formMode === 'publish' && !this.selectedQuestionPaperTemplateId) return false;
     if (!this.title || !this.title.trim()) return false;
     if (!this.institute) return false;
+    if (!this.selectedDepartment) return false;
+    if (!this.selectedTeam) return false;
     if (!this.subject_id) return false;
     if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return false;
     if (!this.sections.length || this.totalPaperQuestionsCount === 0) return false;
@@ -4998,6 +5014,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.formMode === 'publish' && !this.selectedQuestionPaperTemplateId) return 'Please select a question paper to publish';
     if (!this.title || !this.title.trim()) return 'Title is required to publish';
     if (!this.institute) return 'Institute is required to publish';
+    if (!this.selectedDepartment) return `${this.terminology.deptLabel || 'Department'} is required to publish`;
+    if (!this.selectedTeam) return `${this.terminology.teamLabel || 'Year'} is required to publish`;
     if (!this.subject_id) return 'Subject is required to publish';
     if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return 'Duration is required to publish';
     if (!this.sections.length || this.totalPaperQuestionsCount === 0) return 'Add at least one section with questions to publish';
@@ -5029,6 +5047,14 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     }
     if (!this.institute) {
       notify('Institute is required', 'error');
+      return;
+    }
+    if (!this.selectedDepartment) {
+      notify(`${this.terminology.deptLabel || 'Department'} is required`, 'error');
+      return;
+    }
+    if (!this.selectedTeam) {
+      notify(`${this.terminology.teamLabel || 'Year'} is required`, 'error');
       return;
     }
     if (!this.subject_id) {
@@ -5116,21 +5142,17 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
     const targetTab = shouldPublish ? 'published' : 'drafts';
 
-    // If editing an existing exam or publishing an existing paper, call update endpoint
-    if ((this.editMode && this.editExamId) || (this.formMode === 'publish' && this.selectedQuestionPaperTemplateId)) {
-      payload.exam_id = this.editExamId || this.selectedQuestionPaperTemplateId;
+    // If editing an existing exam (in create/edit mode), call update endpoint
+    if (this.editMode && this.editExamId && this.formMode !== 'publish') {
+      payload.exam_id = this.editExamId;
       this.loader.show();
       const url = `${API_BASE}/update-exam`;
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
           try {
-            const defaultMsg = publish
-              ? 'Question paper published successfully'
-              : (this.formMode === 'create'
-                  ? 'Question paper created successfully'
-                  : (this.isPublished
-                      ? 'Question paper updated successfully'
-                      : 'Question paper draft updated successfully'));
+            const defaultMsg = this.isPublished
+              ? 'Question paper updated successfully'
+              : 'Question paper draft updated successfully';
             const msg = res?.statusMessage || res?.message || defaultMsg;
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
             notify(msg, ok ? 'success' : 'error');
@@ -5156,6 +5178,14 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         },
       });
       return;
+    }
+
+    // In publish mode, register a fresh published instance (like Schedule Test)
+    if (this.formMode === 'publish') {
+      payload.published = 1;
+      delete payload.exam_id;
+      delete payload.test_id;
+      delete payload.id;
     }
 
     const url = `${API_BASE}/register-exam`;

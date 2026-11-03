@@ -160,7 +160,6 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     'questions',
     'marks',
     'duration',
-    'evaluation',
     'actions',
   ];
   activeTab: 'drafts' | 'published' = 'drafts';
@@ -595,8 +594,20 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     this.loadExamsForInstitute(this.selectedInstitute || undefined);
   }
 
+  updateDisplayedColumns(): void {
+    this.displayedColumns = this.activeTab === 'drafts'
+      ? ['sno', 'title', 'sections', 'questions', 'marks', 'duration', 'actions']
+      : ['sno', 'title', 'sections', 'questions', 'marks', 'duration', 'evaluation', 'actions'];
+  }
+
   setTab(tab: 'drafts' | 'published') {
     this.activeTab = tab;
+    this.updateDisplayedColumns();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: tab },
+      queryParamsHandling: 'merge',
+    });
     if (this.hasAppliedFilters) {
       this.saveTestsReturnState();
     }
@@ -604,7 +615,27 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   get draftsCount(): number {
-    return (this.allExams || []).length;
+    return this.uniqueMasterQuestionPapers.length;
+  }
+
+  // Ensures each master question paper is shown ONLY ONCE in the Question Papers tab (no duplicates)
+  get uniqueMasterQuestionPapers(): any[] {
+    const groups = new Map<string, any[]>();
+    for (const e of this.allExams || []) {
+      const key = `${(e.title || '').trim().toLowerCase()}_${e.institute?.institute_id || ''}`;
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(e);
+    }
+
+    const result: any[] = [];
+    for (const [, items] of groups) {
+      // Pick the master draft if available, otherwise the primary definition
+      const draftItem = items.find((x) => this.isDraft(x));
+      result.push(draftItem || items[0]);
+    }
+    return result;
   }
 
   get publishedCount(): number {
@@ -714,9 +745,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   updateFilteredExams() {
-    let list = (this.allExams || []).filter((e) => {
-      return this.activeTab === 'drafts' ? true : this.isPublished(e);
-    });
+    let list = this.activeTab === 'drafts'
+      ? this.uniqueMasterQuestionPapers
+      : (this.allExams || []).filter((e) => this.isPublished(e));
     const term = (this.filter || '').trim().toLowerCase();
     if (term) {
       list = list.filter((e) =>
@@ -874,51 +905,23 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       return;
     }
 
-    this.confirmService
-      .confirm({
-        title: 'Publish Question Paper',
-        message: `Are you sure you want to publish "${e?.title || 'this question paper'}"? It will be published and available in the Published tab.`,
-        confirmText: 'Publish',
-        cancelText: 'Cancel',
-      })
-      .subscribe((confirmed) => {
-        if (!confirmed) return;
-
-        this.loader.show();
-        const url = `${API_BASE}/publish-exam`;
-        this.http.post<any>(url, { exam_id: examId, published: 1 }).subscribe({
-          next: (res) => {
-            this.loader.hide();
-            e.published = true;
-            e.is_published = true;
-            e.status = 'published';
-
-            const match = (this.allExams || []).find(
-              (x) => String(x?.test_id || x?.exam_id || x?.id) === String(examId)
-            );
-            if (match) {
-              match.published = true;
-              match.is_published = true;
-              match.status = 'published';
-            }
-
-            this.updateFilteredExams();
-            try {
-              notify(res?.statusMessage || 'Question paper published successfully', 'success');
-            } catch (_) {}
-          },
-          error: (err) => {
-            this.loader.hide();
-            console.error('Failed to publish question paper', err);
-            try {
-              notify(
-                err?.error?.statusMessage || 'Failed to publish question paper. Please try again.',
-                'error'
-              );
-            } catch (_) {}
-          },
-        });
-      });
+    this.loader.show();
+    try {
+      sessionStorage.removeItem('edit_exam');
+    } catch (err) {}
+    this.saveTestsReturnState();
+    const inst =
+      this.selectedInstitute ||
+      (this.selectedInstitutes && this.selectedInstitutes.length
+        ? this.selectedInstitutes[0]
+        : '');
+    this.router.navigate(['/create-question-paper'], {
+      queryParams: {
+        mode: 'publish',
+        template_id: String(examId),
+        institute_id: inst || undefined,
+      },
+    });
   }
 
   onDuplicate(e: any): void {
@@ -1703,6 +1706,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       const tabParam = params.get('tab');
       if (tabParam === 'published' || tabParam === 'drafts') {
         this.activeTab = tabParam;
+        this.updateDisplayedColumns();
         this.updateFilteredExams();
       }
     });
@@ -2991,6 +2995,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       } else if (state?.activeTab === 'published' || state?.activeTab === 'drafts') {
         this.activeTab = state.activeTab;
       }
+      this.updateDisplayedColumns();
 
       if (this.selectedInstitutes.length > 0) {
         this.onInstituteSelectionChange();
