@@ -506,10 +506,7 @@
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="field-half">
-                    <mat-label>
-                      Register Number*
-                      <mat-icon class="info-icon" matTooltip="Institute registration number or email" matTooltipPosition="above" style="font-size: 16px; cursor: help; margin-left: 4px;">info</mat-icon>
-                    </mat-label>
+                    <mat-label>Register Number*</mat-label>
                     <mat-icon matPrefix>badge</mat-icon>
                     <input matInput id="user_username" formControlName="username" placeholder="Register number" aria-label="Register Number" />
                     <mat-error *ngIf="(form.get('username')?.touched || step1Submitted) && form.get('username')?.invalid">Register number is required</mat-error>
