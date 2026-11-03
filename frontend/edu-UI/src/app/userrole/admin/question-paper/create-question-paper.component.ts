@@ -962,6 +962,15 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     // load institutes and ensure institute selection is reconciled
     this.loadInstitutes();
 
+    // if an institute is already present (from edit payload or query), ensure dependent lists load
+    if (this.institute) {
+      try {
+        this.onInstituteChange(this.institute);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
     if (this.formMode === 'publish') {
       const queryTemplate = this.route?.snapshot?.queryParams
         ? this.route.snapshot.queryParams['template_id']
@@ -971,15 +980,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         this.onQuestionPaperTemplateChange(this.selectedQuestionPaperTemplateId);
       }
       this.loadCreatedQuestionPapersForDropdown(this.institute || undefined);
-    }
-
-    // if an institute is already present (from edit payload), ensure dependent lists load
-    if (this.institute) {
-      try {
-        this.onInstituteChange(this.institute);
-      } catch (e) {
-        /* ignore */
-      }
     } else {
       // try to auto-select from session user
       try {
@@ -2181,8 +2181,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
     this.updateFilteredCategoriesStream();
     if (this.formMode === 'publish') {
-      this.selectedQuestionPaperTemplateId = '';
-      this.availableQuestionPaperTemplates = [];
+      const queryTemplate = this.route?.snapshot?.queryParams
+        ? this.route.snapshot.queryParams['template_id']
+        : null;
+      if (!queryTemplate && instituteChanged) {
+        this.selectedQuestionPaperTemplateId = '';
+        this.availableQuestionPaperTemplates = [];
+      }
       if (this.institute) {
         this.loadCreatedQuestionPapersForDropdown(this.institute);
       }
@@ -4869,11 +4874,20 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         }
         const instRaw = item.institute;
         const itemInst = (instRaw && (instRaw.institute_id || instRaw.id)) || item.institute_id || (typeof instRaw === 'string' ? instRaw : '');
-        if (itemInst && !this.institute) {
+        if (itemInst && (!this.institute || this.institute !== String(itemInst))) {
           this.institute = String(itemInst);
-          try {
-            this.onInstituteChange(this.institute);
-          } catch (e) {}
+          this.loadDepartments(this.institute);
+          this.loadTeams(this.institute);
+          this.loadSubjects(this.institute);
+        }
+
+        const deptId = (Array.isArray(item.departments) && item.departments.length ? item.departments[0] : item.department_id || item.department) || '';
+        if (deptId) {
+          this.selectedDepartment = String(deptId);
+        }
+        const teamId = (Array.isArray(item.teams) && item.teams.length ? item.teams[0] : item.team_id || item.team) || '';
+        if (teamId) {
+          this.selectedTeam = String(teamId);
         }
         if (item.total_marks !== undefined && item.total_marks !== null) {
           this.totalMarksOverride = Number(item.total_marks);

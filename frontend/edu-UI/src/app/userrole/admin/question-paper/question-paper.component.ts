@@ -911,6 +911,10 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     } catch (err) {}
     this.saveTestsReturnState();
     const inst =
+      e?.institute_id ||
+      e?.institute?.institute_id ||
+      e?.institute?.id ||
+      (typeof e?.institute === 'string' ? e.institute : '') ||
       this.selectedInstitute ||
       (this.selectedInstitutes && this.selectedInstitutes.length
         ? this.selectedInstitutes[0]
