@@ -20,7 +20,7 @@ import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild, HostListener, ChangeDetectorRef } from '@angular/core';
@@ -129,6 +129,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     industry_sector?: string;
   }> = [];
 
+  // ── Mode Handling ('create' vs 'publish') ──
+  formMode: 'create' | 'publish' = 'create';
+  availableQuestionPaperTemplates: any[] = [];
+  selectedQuestionPaperTemplateId = '';
+  loadingTemplates = false;
+
   // ── Subject Management ──
   subject_id = '';
   subject_name = '';
@@ -164,6 +170,36 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   modalSearchTerm = '';
   modalLoadingQuestions = false;
   modalLoadingBanks = false;
+  modalQuestionBankFilterSearch = '';
+
+  get filteredModalQuestionBanks(): Array<{
+    id: string;
+    name: string;
+    type?: string;
+    subject?: string;
+    marks_per_question?: number | null;
+  }> {
+    const term = (this.modalQuestionBankFilterSearch || '').trim().toLowerCase();
+    if (!term) return this.modalQuestionBanks;
+    return (this.modalQuestionBanks || []).filter((b) =>
+      (b.name || '').toLowerCase().includes(term)
+    );
+  }
+
+  onModalQuestionBankOpenedChange(opened: boolean) {
+    if (opened) {
+      setTimeout(() => {
+        try {
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) {}
+      });
+    } else {
+      this.modalQuestionBankFilterSearch = '';
+    }
+  }
 
   // ── New UI properties ──
   examTypeLabel = 'Unit Test';
@@ -680,6 +716,34 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.instituteFilterSearch = '';
     }
   }
+
+  // ── Question paper template filter search for Publish mode dropdown ──
+  questionPaperFilterSearch = '';
+  get filteredQuestionPaperTemplates(): any[] {
+    const term = (this.questionPaperFilterSearch || '').trim().toLowerCase();
+    if (!term) return this.availableQuestionPaperTemplates || [];
+    return (this.availableQuestionPaperTemplates || []).filter((p: any) =>
+      (p.title || p.name || '').toLowerCase().includes(term)
+    );
+  }
+
+  onQuestionPaperOpenedChange(opened: boolean) {
+    if (opened) {
+      if (!this.availableQuestionPaperTemplates.length && !this.loadingTemplates) {
+        this.loadCreatedQuestionPapersForDropdown(this.institute || undefined);
+      }
+      setTimeout(() => {
+        try {
+          const input = document.querySelector(
+            '.cdk-overlay-pane .select-search-input'
+          ) as HTMLInputElement | null;
+          input?.focus();
+        } catch (e) {}
+      });
+    } else {
+      this.questionPaperFilterSearch = '';
+    }
+  }
   // 4. Prevent keystrokes in search input from triggering select dropdown shortcuts
   stopFilterSearchEvent(event: Event) {
     event.stopPropagation();
@@ -717,6 +781,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   constructor(
     private router: Router,
+    private route: ActivatedRoute,
     private http: HttpClient,
     private auth: AuthService,
     private pageMeta: PageMetaService,
@@ -844,6 +909,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.filterEnabled = !!enabled;
   }
   ngOnInit(): void {
+    const modeParam = this.route?.snapshot?.queryParams ? this.route.snapshot.queryParams['mode'] : null;
+    if (modeParam === 'publish') {
+      this.formMode = 'publish';
+    } else {
+      this.formMode = 'create';
+    }
+
     // load edit payload first so editMode is populated before setting page metadata
     this.loadEditTest();
 
@@ -852,18 +924,32 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         'View Test',
         'Viewing question paper details in read-only mode.'
       );
+    } else if (this.formMode === 'publish') {
+      this.pageMeta.setMeta(
+        'Publish Question Paper',
+        'Select a created question paper and assign candidates to publish.'
+      );
     } else if (this.editMode) {
       this.pageMeta.setMeta(
         'Update Test',
         'Update the exam details and click Update to save changes.'
       );
     } else {
-      this.pageMeta.setMeta('Create Test', 'Fill required fields and save the exam.');
+      this.pageMeta.setMeta('Create Question Paper', 'Fill required fields and save the exam.');
     }
     this.isDirty = false;
 
+    const queryInst = this.route?.snapshot?.queryParams ? this.route.snapshot.queryParams['institute_id'] : null;
+    if (queryInst && !this.institute) {
+      this.institute = String(queryInst);
+    }
+
     // load institutes and ensure institute selection is reconciled
     this.loadInstitutes();
+
+    if (this.formMode === 'publish') {
+      this.loadCreatedQuestionPapersForDropdown(this.institute || undefined);
+    }
 
     // if an institute is already present (from edit payload), ensure dependent lists load
     if (this.institute) {
@@ -1217,6 +1303,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           }
         } catch (e) {
           /* ignore malformed session data */
+        }
+        if (this.formMode === 'publish' && !this.availableQuestionPaperTemplates.length) {
+          this.loadCreatedQuestionPapersForDropdown(this.institute || undefined);
         }
       },
       error: () => {
@@ -2069,6 +2158,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.hasTrackedInstituteForQuestionBanks = true;
 
     this.updateFilteredCategoriesStream();
+    if (this.formMode === 'publish') {
+      this.selectedQuestionPaperTemplateId = '';
+      if (this.institute) {
+        this.loadCreatedQuestionPapersForDropdown(this.institute);
+      }
+    }
     if (this.institute) {
       this.loadDepartments(this.institute);
       this.loadTeams(this.institute);
@@ -3139,9 +3234,79 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.modalSearchTerm = '';
   }
 
+  isQuestionBankMatchingSectionType(bank: any, secType: string): boolean {
+    const rawType = String(bank.type || bank.question_type || '').toLowerCase().trim();
+    const name = String(bank.name || '').toLowerCase().trim();
+    const marks = Number(bank.marks_per_question || 0);
+
+    const isExplicitDescriptiveType =
+      rawType.includes('descriptive') ||
+      rawType.includes('subjective') ||
+      rawType.includes('paragraph') ||
+      rawType.includes('essay') ||
+      rawType.includes('long_answer') ||
+      rawType.includes('brief');
+
+    const isExplicitObjectiveType =
+      rawType.includes('objective') ||
+      rawType.includes('mcq') ||
+      rawType.includes('choose') ||
+      rawType.includes('single') ||
+      rawType.includes('multi') ||
+      rawType.includes('fill') ||
+      rawType.includes('true_false');
+
+    // Name-based hints when type is ambiguous or generic
+    const isDescriptiveName =
+      name.includes('descriptive') ||
+      name.includes('subjective') ||
+      name.includes('paragraph') ||
+      name.includes('essay') ||
+      name.includes('10m') ||
+      name.includes('10 m') ||
+      name.includes('10mark') ||
+      name.includes('5m') ||
+      name.includes('5 m') ||
+      name.includes('5mark') ||
+      name.includes('8m') ||
+      name.includes('15m') ||
+      marks >= 5;
+
+    const isObjectiveName =
+      name.includes('objective') ||
+      name.includes('mcq') ||
+      name.includes('choose') ||
+      name.includes('fill') ||
+      name.includes('1m') ||
+      name.includes('1 m') ||
+      name.includes('1mark') ||
+      name.includes('2m') ||
+      name.includes('2 m') ||
+      name.includes('2mark') ||
+      (marks > 0 && marks <= 2);
+
+    if (secType === 'objective') {
+      if (isExplicitDescriptiveType && !isExplicitObjectiveType) return false;
+      if (isExplicitObjectiveType && !isExplicitDescriptiveType) return true;
+      if (isDescriptiveName && !isObjectiveName) return false;
+      if (isObjectiveName && !isDescriptiveName) return true;
+      return true;
+    } else {
+      // secType === 'descriptive'
+      if (isExplicitObjectiveType && !isExplicitDescriptiveType) return false;
+      if (isExplicitDescriptiveType && !isExplicitObjectiveType) return true;
+      if (isObjectiveName && !isDescriptiveName) return false;
+      if (isDescriptiveName && !isObjectiveName) return true;
+      return true;
+    }
+  }
+
   loadSubjectQuestionBanks() {
     this.modalLoadingBanks = true;
     this.modalQuestionBanks = [];
+    const activeSec = this.activeModalSection;
+    const secType = (activeSec?.question_type || 'objective').toLowerCase();
+
     const params: any = { institute_id: this.institute };
     if (this.subject_name) {
       params.subject = this.subject_name;
@@ -3150,13 +3315,19 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       next: (res) => {
         this.modalLoadingBanks = false;
         const arr = Array.isArray(res) ? res : res?.data || [];
-        this.modalQuestionBanks = arr.map((c: any) => ({
+        const mapped = arr.map((c: any) => ({
           id: String(c.category_id || c.id || ''),
           name: c.name || c.category_name || '',
           type: c.type || c.question_type || '',
           subject: c.subject || '',
           marks_per_question: this.getMarksPerQuestion(c),
         }));
+
+        // Filter question banks so only objective question banks show for objective section,
+        // and only descriptive question banks show for descriptive section
+        this.modalQuestionBanks = mapped.filter((b: any) =>
+          this.isQuestionBankMatchingSectionType(b, secType)
+        );
       },
       error: (err) => {
         this.modalLoadingBanks = false;
@@ -4613,8 +4784,190 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.numberOfAttempts = attempts;
   }
 
+  loadCreatedQuestionPapersForDropdown(instituteId?: string): void {
+    const inst = instituteId || this.institute;
+    let url = `${API_BASE}/get-exams-details?test_mode=paper`;
+    if (inst) {
+      url += `&institute_id=${encodeURIComponent(inst)}`;
+    }
+    this.loadingTemplates = true;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        this.loadingTemplates = false;
+        let list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        if (!list.length && inst) {
+          // If no papers found for this specific institute, try loading all paper tests
+          this.http.get<any>(`${API_BASE}/get-exams-details?test_mode=paper`).subscribe({
+            next: (resAll) => {
+              const allList = Array.isArray(resAll?.data) ? resAll.data : Array.isArray(resAll) ? resAll : [];
+              this.availableQuestionPaperTemplates = (allList || []).filter((p: any) => p && (p.title || p.name));
+              this.cdr.detectChanges();
+            },
+            error: () => {
+              this.availableQuestionPaperTemplates = [];
+              this.cdr.detectChanges();
+            }
+          });
+        } else {
+          this.availableQuestionPaperTemplates = (list || []).filter((p: any) => p && (p.title || p.name));
+          this.cdr.detectChanges();
+        }
+
+        if (this.editExamId) {
+          const match = this.availableQuestionPaperTemplates.find((p: any) => String(p.test_id || p.exam_id || p.id) === String(this.editExamId));
+          if (match) {
+            this.selectedQuestionPaperTemplateId = String(match.test_id || match.exam_id || match.id);
+          }
+        }
+      },
+      error: () => {
+        this.loadingTemplates = false;
+        this.availableQuestionPaperTemplates = [];
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  onQuestionPaperTemplateChange(templateId: string): void {
+    this.selectedQuestionPaperTemplateId = templateId;
+    if (!templateId) return;
+
+    this.loader.show();
+    this.http.get<any>(`${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(templateId)}&test_mode=paper`).subscribe({
+      next: (res) => {
+        this.loader.hide();
+        const item = Array.isArray(res?.data) && res.data.length ? res.data[0] : res?.data || res;
+        if (!item) return;
+
+        this.title = item.title || item.name || '';
+        this.description = item.description || item.desc || '';
+        const mins = Number(item.duration_mins || item.duration);
+        if (mins) {
+          this.durationMinutes = mins;
+          this.durationLabel = mins >= 60
+            ? `${Math.floor(mins / 60)} Hour${Math.floor(mins / 60) > 1 ? 's' : ''}${mins % 60 ? ' ' + (mins % 60) + ' Mins' : ''}`
+            : `${mins} Mins`;
+        }
+        if (item.start_time || item.exam_date || item.start) {
+          const rawDate = item.start_time || item.exam_date || item.start;
+          this.examDate = String(rawDate).split('T')[0];
+        }
+        if (item.exam_type || item.examType) {
+          this.examTypeLabel = item.exam_type || item.examType;
+        }
+        const instRaw = item.institute;
+        const itemInst = (instRaw && (instRaw.institute_id || instRaw.id)) || item.institute_id || (typeof instRaw === 'string' ? instRaw : '');
+        if (itemInst && !this.institute) {
+          this.institute = String(itemInst);
+          try {
+            this.onInstituteChange(this.institute);
+          } catch (e) {}
+        }
+        if (item.total_marks !== undefined && item.total_marks !== null) {
+          this.totalMarksOverride = Number(item.total_marks);
+        } else if (item.totalMarks !== undefined && item.totalMarks !== null) {
+          this.totalMarksOverride = Number(item.totalMarks);
+        }
+        if (item.pass_mark !== undefined || item.passMark !== undefined) {
+          this.passMark = item.pass_mark ?? item.passMark;
+        }
+        if (item.subject_id) {
+          this.subject_id = String(item.subject_id);
+          this.subject_name = item.subject_name || '';
+        }
+        if (Array.isArray(item.sections) && item.sections.length > 0) {
+          this.sections = item.sections.map((sec: any, idx: number) => ({
+            section_id: sec.section_id || sec.id || null,
+            name: sec.name || `Section ${idx + 1}`,
+            sub_heading: sec.sub_heading || sec.instructions || '',
+            instructions: sec.instructions || sec.sub_heading || '',
+            question_type: sec.question_type || 'objective',
+            targetCount: Number(sec.target_count ?? sec.targetCount) || null,
+            order_number: sec.order_number || idx + 1,
+            questions: Array.isArray(sec.questions)
+              ? sec.questions.map((q: any) => ({
+                  id: String(q.question_id || q.id),
+                  question: q.question || q.question_text || q.text || 'Question',
+                  type: q.type || q.question_type || sec.question_type || 'objective',
+                  marks: Number(q.marks ?? q.mark ?? 1),
+                  category_id: q.category_id ? String(q.category_id) : undefined,
+                  category_name: q.category_name || undefined,
+                  options: q.options || q.choices || (q.raw ? q.raw.options : []),
+                  answer: q.answer || '',
+                  raw: q,
+                }))
+              : [],
+          }));
+        } else {
+          this.sections = [];
+        }
+
+        const srcCats = Array.isArray(item.categories)
+          ? item.categories
+          : Array.isArray(item.category_list)
+            ? item.category_list
+            : [];
+        this.model.categories = srcCats.map((c: any) => this.normalizeEditCategory(c));
+        this.hydrateMissingEditCategoryMarks();
+
+        if (this.institute) {
+          this.loadUsers();
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loader.hide();
+        notify('Failed to load question paper details', 'error');
+      }
+    });
+  }
+
+  get canCreatePaper(): boolean {
+    if (this.readOnly) return false;
+    if (!this.title || !this.title.trim()) return false;
+    if (!this.institute) return false;
+    if (!this.subject_id) return false;
+    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return false;
+    if (!this.sections.length || this.totalPaperQuestionsCount === 0) return false;
+
+    const targetMarks =
+      this.totalMarksOverride !== null &&
+      this.totalMarksOverride !== undefined &&
+      Number(this.totalMarksOverride) > 0
+        ? Number(this.totalMarksOverride)
+        : 50;
+
+    if (this.totalPaperMarks !== targetMarks) {
+      return false;
+    }
+
+    return true;
+  }
+
+  get createDisabledReason(): string {
+    if (this.readOnly) return 'Question paper is in read-only mode';
+    if (!this.title || !this.title.trim()) return 'Title is required';
+    if (!this.institute) return 'Institute is required';
+    if (!this.subject_id) return 'Subject is required';
+    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return 'Duration is required';
+    if (!this.sections.length || this.totalPaperQuestionsCount === 0) return 'Add at least one section with questions';
+
+    const targetMarks =
+      this.totalMarksOverride !== null &&
+      this.totalMarksOverride !== undefined &&
+      Number(this.totalMarksOverride) > 0
+        ? Number(this.totalMarksOverride)
+        : 50;
+
+    if (this.totalPaperMarks !== targetMarks) {
+      return `Section marks (${this.totalPaperMarks}) do not tally with Total Marks (${targetMarks})`;
+    }
+    return '';
+  }
+
   get canPublish(): boolean {
     if (this.readOnly || this.isPublished) return false;
+    if (this.formMode === 'publish' && !this.selectedQuestionPaperTemplateId) return false;
     if (!this.title || !this.title.trim()) return false;
     if (!this.institute) return false;
     if (!this.subject_id) return false;
@@ -4640,6 +4993,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   get publishDisabledReason(): string {
     if (this.readOnly || this.isPublished) return 'Question paper is in read-only mode';
+    if (this.formMode === 'publish' && !this.selectedQuestionPaperTemplateId) return 'Please select a question paper to publish';
     if (!this.title || !this.title.trim()) return 'Title is required to publish';
     if (!this.institute) return 'Institute is required to publish';
     if (!this.subject_id) return 'Subject is required to publish';
@@ -4695,7 +5049,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       notify('Please add at least one section with questions before saving', 'error');
       return;
     }
-    if (!this.selectedPaperUsers.length) {
+    if (publish && !this.selectedPaperUsers.length) {
       notify('Please select at least one user to assign this question paper.', 'error');
       return;
     }
@@ -4760,9 +5114,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
     const targetTab = shouldPublish ? 'published' : 'drafts';
 
-    // If editing an existing exam, call update endpoint
-    if (this.editMode && this.editExamId) {
-      payload.exam_id = this.editExamId;
+    // If editing an existing exam or publishing an existing paper, call update endpoint
+    if ((this.editMode && this.editExamId) || (this.formMode === 'publish' && this.selectedQuestionPaperTemplateId)) {
+      payload.exam_id = this.editExamId || this.selectedQuestionPaperTemplateId;
       this.loader.show();
       const url = `${API_BASE}/update-exam`;
       this.http.post<any>(url, payload).subscribe({
@@ -4770,9 +5124,11 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           try {
             const defaultMsg = publish
               ? 'Question paper published successfully'
-              : (this.isPublished
-                  ? 'Question paper updated successfully'
-                  : 'Question paper draft updated successfully');
+              : (this.formMode === 'create'
+                  ? 'Question paper created successfully'
+                  : (this.isPublished
+                      ? 'Question paper updated successfully'
+                      : 'Question paper draft updated successfully'));
             const msg = res?.statusMessage || res?.message || defaultMsg;
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
             notify(msg, ok ? 'success' : 'error');
@@ -4807,7 +5163,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         try {
           const defaultMsg = publish
             ? 'Question paper published successfully'
-            : 'Question paper draft saved successfully';
+            : (this.formMode === 'create'
+                ? 'Question paper created successfully'
+                : 'Question paper draft saved successfully');
           const msg = res?.statusMessage || res?.message || defaultMsg;
           const ok = typeof res?.status === 'undefined' ? true : !!res.status;
           notify(msg, ok ? 'success' : 'error');

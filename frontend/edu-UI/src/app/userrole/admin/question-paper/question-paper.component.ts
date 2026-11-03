@@ -160,7 +160,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     'questions',
     'marks',
     'duration',
-    'status',
+    'evaluation',
     'actions',
   ];
   activeTab: 'drafts' | 'published' = 'drafts';
@@ -583,12 +583,15 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
 
   refresh() {
-    if (!this.hasAppliedFilters) {
-      try {
-        notify('Apply filters to fetch question papers', 'info');
-      } catch (e) {}
-      return;
+    const inst =
+      this.selectedInstitute ||
+      this.globalInstituteContext.activeInstituteId ||
+      (this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes[0] : '');
+    if (inst && !this.selectedInstitute) {
+      this.selectedInstitute = inst;
+      this.syncInstituteSearch();
     }
+    this.hasAppliedFilters = true;
     this.loadExamsForInstitute(this.selectedInstitute || undefined);
   }
 
@@ -619,6 +622,95 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
   isDraft(e: any): boolean {
     return !this.isPublished(e);
+  }
+
+  // Determines whether a question paper is Draft or Ready to Publish
+  getPaperStatus(e: any): 'ready_to_publish' | 'draft' {
+    if (this.isMarksIncomplete(e) || this.isQuestionsIncomplete(e)) {
+      return 'draft';
+    }
+    return 'ready_to_publish';
+  }
+
+  // Determines whether a published schedule is Upcoming (for Edit action)
+  isUpcoming(e: any): boolean {
+    if (!e) return false;
+    if (e?.status === 'upcoming') return true;
+    const time = e?.start_time || e?.exam_date || e?.start || e?.created_at;
+    if (!time) return true;
+    return new Date(time).getTime() > Date.now();
+  }
+
+  /**
+   * Evaluation Status: Simplified to two statuses only: 'Pending' or 'Evaluated'.
+   * - 'Pending': No successfully evaluated student answer sheets exist.
+   * - 'Evaluated': At least one student answer sheet has been successfully evaluated and saved.
+   * - If all evaluated answer sheets are removed, automatically recalculates back to 'Pending'.
+   * - Scheduled start/end time is NOT used to determine evaluation status.
+   * - Uploaded, queued, processing, and failed sheets do NOT count as successfully evaluated.
+   */
+  getEvaluationStatus(e: any): 'Pending' | 'Evaluated' {
+    if (!e) return 'Pending';
+
+    // 1. Direct verified evaluated count on the exam object
+    const evalCount = Number(
+      e.evaluated_count ??
+      e.evaluated_sheets_count ??
+      e.evaluated_students_count ??
+      e.evaluations_count ??
+      0
+    );
+    if (evalCount > 0) {
+      return 'Evaluated';
+    }
+
+    // 2. Check assigned users / students evaluation records
+    const users = Array.isArray(e.assigned_users)
+      ? e.assigned_users
+      : (Array.isArray(e.students) ? e.students : []);
+
+    if (users.length > 0) {
+      const hasEvaluated = users.some((user: any) => {
+        const rawStatus = (user.evaluation_status || user.status || user.ai_status || '').toLowerCase().trim();
+
+        // Uploaded, queued, processing, and failed answer sheets MUST NOT count
+        if (
+          rawStatus === 'evaluating...' ||
+          rawStatus === 'failed' ||
+          rawStatus === 'waiting' ||
+          rawStatus === 'scanned' ||
+          rawStatus === 'ready' ||
+          rawStatus === 'not evaluated'
+        ) {
+          return false;
+        }
+
+        const scoreVal = user.marks_awarded != null ? user.marks_awarded : (user.score != null ? user.score : null);
+        const isDbEvaluated = (scoreVal !== null && scoreVal !== undefined) ||
+          ['ai evaluated', 'evaluated', 'completed', 'manual reviewed', 'need to check'].includes(rawStatus);
+
+        return isDbEvaluated;
+      });
+
+      if (hasEvaluated) {
+        return 'Evaluated';
+      }
+    }
+
+    // 3. Fallback check on exam-level evaluation_status string
+    const examEvalStatus = String(e.evaluation_status || '').toLowerCase().trim();
+    if (['evaluated', 'completed', 'ai evaluated', 'manual reviewed'].includes(examEvalStatus)) {
+      return 'Evaluated';
+    }
+
+    return 'Pending';
+  }
+
+  // Dropdown list: ONLY papers with 'Ready to Publish' status (Drafts are excluded)
+  get readyToPublishPapers(): any[] {
+    return (this.allExams || []).filter(
+      (e) => !this.isPublished(e) && this.getPaperStatus(e) === 'ready_to_publish'
+    );
   }
 
   updateFilteredExams() {
@@ -752,7 +844,22 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       sessionStorage.removeItem('edit_exam');
     } catch (e) {}
     this.saveTestsReturnState();
-    this.router.navigate(['/create-question-paper']);
+    const inst = this.selectedInstitute || (this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes[0] : '');
+    this.router.navigate(['/create-question-paper'], {
+      queryParams: { mode: 'create', institute_id: inst || undefined },
+    });
+  }
+
+  openPublishQuestionPaper(): void {
+    this.loader.show();
+    try {
+      sessionStorage.removeItem('edit_exam');
+    } catch (e) {}
+    this.saveTestsReturnState();
+    const inst = this.selectedInstitute || (this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes[0] : '');
+    this.router.navigate(['/create-question-paper'], {
+      queryParams: { mode: 'publish', institute_id: inst || undefined },
+    });
   }
 
   publishQuestionPaper(e: any): void {

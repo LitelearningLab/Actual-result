@@ -16,10 +16,10 @@
             <div class="qp-card" id="test-details-card">
                 <div class="qp-card-header">
                     <div class="qp-card-title">
-                        <h2>Test Details</h2>
-                        <p>Create the basic details of the written test.</p>
+                        <h2>{{ formMode === 'publish' ? 'Publish Question Paper' : 'Test Details' }}</h2>
+                        <p>{{ formMode === 'publish' ? 'Select a question paper and assign candidates to publish.' : 'Create the basic details of the written test.' }}</p>
                     </div>
-                    <span class="draft-badge" [class.published-badge]="isPublished">{{ isPublished ? 'Published' : 'Draft' }}</span>
+                    <span class="draft-badge" [class.published-badge]="isPublished">{{ isPublished ? 'Published' : (formMode === 'publish' ? 'Publish' : 'Draft') }}</span>
                 </div>
 
                 <div class="qp-card-body">
@@ -133,8 +133,33 @@
                     <div class="fields-row fields-row--2">
                         <div class="field-group">
                             <label class="field-label">Test Name <span class="req">*</span></label>
-                            <input class="qp-input" type="text" [(ngModel)]="title" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
+                            <input *ngIf="formMode === 'create'" class="qp-input" type="text" [(ngModel)]="title" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
                                 placeholder="Physics – Unit Test 1" />
+                            <mat-select *ngIf="formMode === 'publish'" class="qp-select"
+                                panelClass="qp-select-dropdown-panel"
+                                disableOptionCentering
+                                [(ngModel)]="selectedQuestionPaperTemplateId"
+                                (selectionChange)="onQuestionPaperTemplateChange($event.value); markDirty()"
+                                (openedChange)="onQuestionPaperOpenedChange($event)"
+                                [disabled]="readOnly || isPublished"
+                                placeholder="Select question paper">
+                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                    <input class="select-search-input" placeholder="Search question paper..."
+                                        [(ngModel)]="questionPaperFilterSearch"
+                                        [ngModelOptions]="{standalone: true}"
+                                        (click)="$event.stopPropagation()"
+                                        (keydown)="stopFilterSearchEvent($event)"
+                                        (keyup)="stopFilterSearchEvent($event)"
+                                        (input)="stopFilterSearchEvent($event)" />
+                                </mat-option>
+                                <mat-option *ngIf="loadingTemplates" disabled>Loading question papers...</mat-option>
+                                <mat-option *ngIf="!loadingTemplates && filteredQuestionPaperTemplates.length === 0" disabled>
+                                    No question papers found
+                                </mat-option>
+                                <mat-option *ngFor="let p of filteredQuestionPaperTemplates" [value]="p.exam_id || p.test_id || p.id">
+                                    {{ p.title || p.name }}
+                                </mat-option>
+                            </mat-select>
                         </div>
                         <div class="field-group">
                             <label class="field-label">Exam Date <span class="opt">(optional)</span></label>
@@ -160,8 +185,8 @@
                 </div>
             </div>
 
-            <!-- ── Sections and Questions Card ── -->
-            <div class="qp-card" id="paper-assignment-card">
+            <!-- ── Assign Question Paper Card (Publish mode only) ── -->
+            <div class="qp-card" id="paper-assignment-card" *ngIf="formMode === 'publish'">
                 <div class="qp-card-header assignment-card-header">
                     <div class="assignment-heading-wrap">
                         <mat-icon class="assignment-heading-icon">people</mat-icon>
@@ -423,7 +448,8 @@
                 </div>
             </div>
 
-            <div class="qp-card" id="sections-card">
+            <!-- ── Sections and Questions Card (Create mode only) ── -->
+            <div class="qp-card" id="sections-card" *ngIf="formMode === 'create'">
                 <div class="qp-card-header">
                     <div class="qp-card-title">
                         <h2>Sections and Questions</h2>
@@ -590,11 +616,21 @@
                         <mat-icon>menu_book</mat-icon>
                         <span>Preview Answer Key</span>
                     </button>
-                    <button class="btn-sidebar-publish" type="button" (click)="save(true)" *ngIf="!isPublished && !readOnly" [disabled]="!canPublish" [class.disabled]="!canPublish" [matTooltip]="publishDisabledReason">
+
+                    <!-- Publish Question Paper (Publish mode only) -->
+                    <button class="btn-sidebar-publish" type="button" (click)="save(true)" *ngIf="formMode === 'publish' && !isPublished && !readOnly" [disabled]="!canPublish" [class.disabled]="!canPublish" [matTooltip]="publishDisabledReason">
                         <mat-icon>publish</mat-icon>
                         <span>Publish Question Paper</span>
                     </button>
-                    <button class="btn-sidebar-save" type="button" (click)="save(false)" *ngIf="!isPublished && !readOnly">
+
+                    <!-- Create Question Paper (Create mode only) -->
+                    <button class="btn-sidebar-publish" type="button" (click)="save(false)" *ngIf="formMode === 'create' && !isPublished && !readOnly" [disabled]="!canCreatePaper" [class.disabled]="!canCreatePaper" [matTooltip]="createDisabledReason">
+                        <mat-icon>add_circle_outline</mat-icon>
+                        <span>Create Question Paper</span>
+                    </button>
+
+                    <!-- Save Draft (Create mode only) -->
+                    <button class="btn-sidebar-save" type="button" (click)="save(false)" *ngIf="formMode === 'create' && !isPublished && !readOnly">
                         <mat-icon>save</mat-icon>
                         <span>{{ editMode ? 'Update Draft' : 'Save Draft' }}</span>
                     </button>
@@ -904,13 +940,30 @@
             <div class="modal-body">
                 <!-- Question Bank Select -->
                 <div class="form-group">
-                    <label class="field-label">Question Bank</label>
-                    <mat-select class="qp-select" [(ngModel)]="modalSelectedBankId"
+                    <label class="field-label">Question Bank <span class="req">*</span></label>
+                    <mat-select class="qp-select"
+                        panelClass="qp-select-dropdown-panel"
+                        disableOptionCentering
+                        [(ngModel)]="modalSelectedBankId"
                         (selectionChange)="onModalQuestionBankChange($event.value)"
+                        (openedChange)="onModalQuestionBankOpenedChange($event)"
                         placeholder="Select Question Bank">
+                        <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                            <input class="select-search-input" placeholder="Search question bank..."
+                                [(ngModel)]="modalQuestionBankFilterSearch"
+                                [ngModelOptions]="{standalone: true}"
+                                (click)="$event.stopPropagation()"
+                                (keydown)="stopFilterSearchEvent($event)"
+                                (keyup)="stopFilterSearchEvent($event)"
+                                (input)="stopFilterSearchEvent($event)" />
+                        </mat-option>
                         <mat-option *ngIf="modalLoadingBanks" disabled>Loading question banks for {{ subject_name }}...</mat-option>
-                        <mat-option *ngIf="!modalLoadingBanks && modalQuestionBanks.length === 0" disabled>No question banks for {{ subject_name }}</mat-option>
-                        <mat-option *ngFor="let b of modalQuestionBanks" [value]="b.id">{{ b.name }}</mat-option>
+                        <mat-option *ngIf="!modalLoadingBanks && filteredModalQuestionBanks.length === 0" disabled>
+                            No {{ activeModalSection?.question_type | titlecase }} question banks found for {{ subject_name }}
+                        </mat-option>
+                        <mat-option *ngFor="let b of filteredModalQuestionBanks" [value]="b.id">
+                            {{ b.name }}
+                        </mat-option>
                     </mat-select>
                 </div>
 

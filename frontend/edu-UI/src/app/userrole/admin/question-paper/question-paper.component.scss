@@ -436,8 +436,8 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
     font-size: 0.875rem;
   }
 
-  .col-status {
-    width: 6.5rem;
+  .col-evaluation {
+    width: 8rem;
 
     .status-pill {
       display: inline-flex;
@@ -447,15 +447,18 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
       border-radius: 9999px;
       font-size: 0.75rem;
       font-weight: 600;
+      white-space: nowrap;
 
-      &.status-draft {
+      &.status-eval-pending {
         background: #fef3c7;
         color: #b45309;
+        border: 1px solid #fde68a;
       }
 
-      &.status-published {
-        background: #dcfce7;
-        color: #15803d;
+      &.status-eval-done {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
       }
     }
   }
