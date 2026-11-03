@@ -637,7 +637,7 @@
           <tbody>
             <tr mat-row *matRowDef="let row; columns: columns"></tr>
             <tr class="mat-row" *matNoDataRow>
-              <td class="mat-cell no-data-cell" [attr.colspan]="columns.length">
+              <td class="mat-cell no-data-cell text-center" [attr.colspan]="columns.length">
                 {{
                   hasAppliedFilters
                     ? 'No users found for the selected filters.'
