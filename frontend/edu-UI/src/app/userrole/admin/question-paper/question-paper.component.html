@@ -350,7 +350,7 @@
                             <div class="test-title-box">
                                 <div class="test-title-row">
                                     <span class="test-title">
-                                        {{ activeTab === 'published' ? (e.scheduler_name || e.schedule_name || e.title) : e.title }}
+                                        {{ activeTab === 'published' ? formatScheduleTitle(e.scheduler_name || e.schedule_name || e.title) : e.title }}
                                     </span>
                                     <span class="paper-draft-chip" *ngIf="isDraft(e)">Draft</span>
                                 </div>

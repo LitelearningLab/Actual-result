@@ -603,7 +603,12 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   updateDisplayedColumns(): void {
     this.displayedColumns = this.activeTab === 'drafts'
       ? ['sno', 'title', 'sections', 'questions', 'marks', 'duration', 'actions']
-      : ['sno', 'title', 'sections', 'questions', 'marks', 'duration', 'evaluation', 'actions'];
+      : ['sno', 'title', 'questions', 'duration', 'evaluation', 'actions'];
+  }
+
+  formatScheduleTitle(title: string): string {
+    if (!title) return '';
+    return title.replace(/\s*-\s*/g, ' - ').trim();
   }
 
   setTab(tab: 'drafts' | 'published') {
