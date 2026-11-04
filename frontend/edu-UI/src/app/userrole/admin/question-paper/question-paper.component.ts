@@ -576,7 +576,13 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     this.openCreateTest();
   }
 
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  paginator!: MatPaginator;
+  @ViewChild(MatPaginator) set matPaginator(mp: MatPaginator) {
+    if (mp) {
+      this.paginator = mp;
+      this.dataSource.paginator = mp;
+    }
+  }
   @ViewChild(MatSort) sort!: MatSort;
   @ViewChild('filtersBtn', { read: ElementRef }) filtersBtn!: ElementRef;
   @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;

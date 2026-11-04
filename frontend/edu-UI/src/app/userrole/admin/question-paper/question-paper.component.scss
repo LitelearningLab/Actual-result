@@ -252,11 +252,17 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
 
 .list-wrapper {
   width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
   background: var(--bg-1, #ffffff);
   border-radius: 0.625rem;
   box-shadow: 0 0.875rem 2.625rem rgba(1, 39, 46, 0.08);
+}
+
+.table-responsive {
+  width: 100%;
+  max-height: calc(100vh - 22rem);
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
 .question-paper-loader {
@@ -330,6 +336,9 @@ $shadow-lg: 0 0.75rem 1.875rem rgba(6,18,30,0.06);
     height: 3.25rem;
 
     th[mat-header-cell] {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 2 !important;
       background: linear-gradient(135deg, var(--table-header-bg, #1e293b) 0%, #334155 100%) !important;
       color: var(--table-header-text, #ffffff) !important;
       font-weight: 600 !important;
