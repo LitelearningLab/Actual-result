@@ -145,13 +145,26 @@
                         </div>
                     </div>
 
-                    <!-- Row 3: Test Name + Total Marks (in Create mode) / Test Name + Exam Date (in Publish mode) -->
-                    <div class="fields-row fields-row--2">
+                    <!-- Row 3 (Create Mode): Test Name + Total Marks -->
+                    <div class="fields-row fields-row--2" *ngIf="formMode === 'create'">
                         <div class="field-group">
                             <label class="field-label">Test Name <span class="req">*</span></label>
-                            <input *ngIf="formMode === 'create'" class="qp-input" type="text" [(ngModel)]="title" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
+                            <input class="qp-input" type="text" [(ngModel)]="title" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
                                 placeholder="Physics – Unit Test 1" />
-                            <mat-select *ngIf="formMode === 'publish'" class="qp-select"
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label">Total Marks</label>
+                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
+                                placeholder="50" min="0" />
+                        </div>
+                    </div>
+
+                    <!-- Row 3 (Publish Mode): Question Paper + Schedule Name -->
+                    <div class="fields-row fields-row--2" *ngIf="formMode === 'publish'">
+                        <div class="field-group">
+                            <label class="field-label">Question Paper <span class="req">*</span></label>
+                            <mat-select class="qp-select"
                                 panelClass="qp-select-dropdown-panel"
                                 disableOptionCentering
                                 [(ngModel)]="selectedQuestionPaperTemplateId"
@@ -177,33 +190,42 @@
                             </mat-select>
                         </div>
 
-                        <!-- Total Marks on the right in Create mode -->
-                        <div class="field-group" *ngIf="formMode === 'create'">
-                            <label class="field-label">Total Marks</label>
-                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
-                                placeholder="50" min="0" />
+                        <div class="field-group">
+                            <label class="field-label">Schedule name <span class="req">*</span></label>
+                            <input class="qp-input" type="text"
+                                [(ngModel)]="publishedScheduleName"
+                                (input)="onScheduleNameInput()"
+                                (ngModelChange)="markDirty()"
+                                [disabled]="readOnly || isPublished"
+                                placeholder="Schedule name" />
+                            <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
+                                Name used to identify this schedule.
+                            </span>
                         </div>
+                    </div>
 
-                        <!-- Exam Date only in Publish mode -->
-                        <div class="field-group" *ngIf="formMode === 'publish'">
+                    <!-- Row 4 (Publish Mode Only): Exam Date + Duration -->
+                    <div class="fields-row fields-row--2" *ngIf="formMode === 'publish'">
+                        <div class="field-group">
                             <label class="field-label">Exam Date <span class="opt">(optional)</span></label>
                             <div class="date-input-wrap">
                                 <input class="qp-input date-input" type="date" [(ngModel)]="examDate" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished" placeholder="dd-mm-yyyy" />
                             </div>
                         </div>
+
+                        <div class="field-group">
+                            <label class="field-label">Duration <span class="opt">(printed on paper)</span></label>
+                            <input class="qp-input" type="text" [(ngModel)]="durationLabel" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
+                                placeholder="1 Hour" />
+                        </div>
                     </div>
 
-                    <!-- Row 4 (Publish Mode Only): Total Marks + Duration -->
+                    <!-- Row 5 (Publish Mode Only): Total Marks -->
                     <div class="fields-row fields-row--2" *ngIf="formMode === 'publish'">
                         <div class="field-group">
                             <label class="field-label">Total Marks</label>
                             <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
                                 placeholder="50" min="0" />
-                        </div>
-                        <div class="field-group">
-                            <label class="field-label">Duration <span class="opt">(printed on paper)</span></label>
-                            <input class="qp-input" type="text" [(ngModel)]="durationLabel" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
-                                placeholder="1 Hour" />
                         </div>
                     </div>
                 </div>

@@ -134,6 +134,17 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   availableQuestionPaperTemplates: any[] = [];
   selectedQuestionPaperTemplateId = '';
   loadingTemplates = false;
+  publishedScheduleName = '';
+  scheduleNameManuallyEdited = false;
+
+  formatSchedulerDateTime(date: Date = new Date()): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  onScheduleNameInput(): void {
+    this.scheduleNameManuallyEdited = true;
+  }
 
   // ── Subject Management ──
   subject_id = '';
@@ -939,6 +950,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         'Publish Question Paper',
         'Select a created question paper and assign candidates to publish.'
       );
+      if (!this.publishedScheduleName) {
+        this.publishedScheduleName = this.formatSchedulerDateTime();
+      }
     } else if (this.readOnly || this.isPublished) {
       this.pageMeta.setMeta(
         'View Test',
@@ -1033,6 +1047,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         this.readOnly = true;
       }
       this.title = e.title || e.name || '';
+      this.publishedScheduleName = e.title || e.schedulerName || e.name || '';
       this.description = e.description || e.desc || '';
       const instRaw = e.institute;
       this.institute =
@@ -4857,6 +4872,11 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         if (!item) return;
 
         this.title = item.title || item.name || '';
+        if (!this.scheduleNameManuallyEdited) {
+          const dateTime = this.formatSchedulerDateTime(new Date());
+          const paperTitle = (this.title || '').trim();
+          this.publishedScheduleName = paperTitle ? `${paperTitle} - ${dateTime}` : dateTime;
+        }
         this.description = item.description || item.desc || '';
         const mins = Number(item.duration_mins || item.duration);
         if (mins) {
@@ -4997,8 +5017,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   get canPublish(): boolean {
     if (this.readOnly || this.isPublished) return false;
-    if (this.formMode === 'publish' && !this.selectedQuestionPaperTemplateId) return false;
-    if (!this.title || !this.title.trim()) return false;
+    if (this.formMode === 'publish') {
+      if (!this.selectedQuestionPaperTemplateId) return false;
+      if (!this.publishedScheduleName || !this.publishedScheduleName.trim()) return false;
+    } else {
+      if (!this.title || !this.title.trim()) return false;
+    }
     if (!this.institute) return false;
     if (!this.selectedDepartment) return false;
     if (!this.selectedTeam) return false;
@@ -5025,8 +5049,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   get publishDisabledReason(): string {
     if (this.readOnly || this.isPublished) return 'Question paper is in read-only mode';
-    if (this.formMode === 'publish' && !this.selectedQuestionPaperTemplateId) return 'Please select a question paper to publish';
-    if (!this.title || !this.title.trim()) return 'Title is required to publish';
+    if (this.formMode === 'publish') {
+      if (!this.selectedQuestionPaperTemplateId) return 'Please select a question paper to publish';
+      if (!this.publishedScheduleName || !this.publishedScheduleName.trim()) return 'Schedule name is required to publish';
+    } else {
+      if (!this.title || !this.title.trim()) return 'Title is required to publish';
+    }
     if (!this.institute) return 'Institute is required to publish';
     if (!this.selectedDepartment) return `${this.terminology.deptLabel || 'Department'} is required to publish`;
     if (!this.selectedTeam) return `${this.terminology.teamLabel || 'Year'} is required to publish`;
@@ -5055,9 +5083,16 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     }
 
     // basic validation
-    if (!this.title || !this.title.trim()) {
-      notify('Title is required', 'error');
-      return;
+    if (this.formMode === 'publish') {
+      if (!this.publishedScheduleName || !this.publishedScheduleName.trim()) {
+        notify('Schedule name is required', 'error');
+        return;
+      }
+    } else {
+      if (!this.title || !this.title.trim()) {
+        notify('Title is required', 'error');
+        return;
+      }
     }
     if (!this.institute) {
       notify('Institute is required', 'error');
@@ -5109,9 +5144,15 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
     const shouldPublish = publish || this.isPublished;
 
+    const finalTitle = this.formMode === 'publish'
+      ? (this.publishedScheduleName || '').trim() || String(this.title).trim()
+      : String(this.title).trim();
+
     const payload: any = {
       test_mode: 'paper',
-      title: String(this.title).trim(),
+      title: finalTitle,
+      scheduler_name: this.formMode === 'publish' ? (this.publishedScheduleName || '').trim() : undefined,
+      template_id: this.selectedQuestionPaperTemplateId || null,
       total_marks: finalTotalMarks,
       description: this.description || null,
       institute_id: this.institute || null,
@@ -5241,6 +5282,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   reset() {
     this.loader.show();
     this.title = '';
+    this.publishedScheduleName = '';
+    this.scheduleNameManuallyEdited = false;
     this.description = '';
     this.institute = '';
     this.subject_id = '';
