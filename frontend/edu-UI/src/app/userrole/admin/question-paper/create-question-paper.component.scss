@@ -280,6 +280,28 @@
     border-top: 1px solid #e2e8f0;
 }
 
+::ng-deep .qp-filter-paper-panel {
+    .filter-body {
+        padding-top: 12px !important;
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+    }
+
+    .mat-mdc-form-field-appearance-outline,
+    .mat-form-field-appearance-outline {
+        margin-top: 4px;
+
+        .mdc-floating-label,
+        .mat-mdc-floating-label,
+        .mat-form-field-label {
+            background-color: #ffffff !important;
+            padding: 0 4px !important;
+            width: auto !important;
+            z-index: 2 !important;
+        }
+    }
+}
+
 .user-filter-reset,
 .user-filter-apply {
     display: inline-flex;

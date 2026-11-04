@@ -2736,6 +2736,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
         this.allExams = arr.map((x: any) => ({
           test_id: x.test_id || x.id || x.exam_id,
           title: x.title || x.name || '',
+          scheduler_name: x.scheduler_name || x.schedule_name || x.schedulerName || '',
           description: x.description || x.desc || '',
           categories: Array.isArray(x.categories)
             ? x.categories

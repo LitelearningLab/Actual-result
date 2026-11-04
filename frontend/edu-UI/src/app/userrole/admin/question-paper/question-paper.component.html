@@ -343,11 +343,15 @@
 
                     <!-- Title Column -->
                     <ng-container matColumnDef="title">
-                        <th mat-header-cell *matHeaderCellDef class="col-title" mat-sort-header>TEST NAME</th>
+                        <th mat-header-cell *matHeaderCellDef class="col-title" mat-sort-header>
+                            {{ activeTab === 'published' ? 'SCHEDULE NAME' : 'TEST NAME' }}
+                        </th>
                         <td mat-cell *matCellDef="let e" class="col-title">
                             <div class="test-title-box">
                                 <div class="test-title-row">
-                                    <span class="test-title">{{ e.title }}</span>
+                                    <span class="test-title">
+                                        {{ activeTab === 'published' ? (e.scheduler_name || e.schedule_name || e.title) : e.title }}
+                                    </span>
                                     <span class="paper-draft-chip" *ngIf="isDraft(e)">Draft</span>
                                 </div>
                                 <div class="test-subtitle">{{ getTestSubtitle(e) }}</div>

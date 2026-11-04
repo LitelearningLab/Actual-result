@@ -14,128 +14,152 @@
 
             <!-- ── Test Details Card ── -->
             <div class="qp-card" id="test-details-card">
-                <div class="qp-card-header">
+                <div class="qp-card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="qp-card-title">
                         <h2>{{ formMode === 'publish' ? 'Publish Question Paper' : 'Test Details' }}</h2>
                         <p>{{ formMode === 'publish' ? 'Select a question paper and assign candidates to publish.' : 'Create the basic details of the written test.' }}</p>
                     </div>
-                    <span class="draft-badge" [class.published-badge]="isPublished">{{ isPublished ? 'Published' : (formMode === 'publish' ? 'Publish' : 'Draft') }}</span>
+
+                    <!-- Filter Paper Button (Publish Mode Only) -->
+                    <button *ngIf="formMode === 'publish'" #filterPaperBtn class="btn-primary-blue" type="button"
+                        (click)="openFilterPaperOverlay(); $event.stopPropagation()"
+                        [attr.aria-expanded]="filterPaperOpen" aria-haspopup="true"
+                        style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer;">
+                        <mat-icon>filter_list</mat-icon>
+                        <span>Filter Paper</span>
+                    </button>
+
+                    <span *ngIf="formMode !== 'publish'" class="draft-badge" [class.published-badge]="isPublished">
+                        {{ isPublished ? 'Published' : 'Draft' }}
+                    </span>
                 </div>
 
-                <div class="qp-card-body">
-                    <!-- Row 1: Institute (Top side / Super Admin only) -->
+                <!-- ═════════════════════════════════════════════════ -->
+                <!-- ── MODE A: PUBLISH QUESTION PAPER (CLEAN UI) ── -->
+                <!-- ═════════════════════════════════════════════════ -->
+                <div class="qp-card-body" *ngIf="formMode === 'publish'">
+                    <!-- Applied filter chips -->
+                    <div class="applied-filters" *ngIf="appliedPaperFilterChips.length" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #64748b; align-self: center;">Applied filters:</span>
+                        <button type="button" class="applied-filter-chip" *ngFor="let chip of appliedPaperFilterChips"
+                            (click)="removePaperFilter(chip.key)"
+                            style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #e2e8f0; border: none; border-radius: 16px; font-size: 12px; cursor: pointer;">
+                            <span>{{ chip.label }}</span>
+                            <mat-icon style="font-size: 14px; width: 14px; height: 14px;">close</mat-icon>
+                        </button>
+                        <button type="button" (click)="clearAllPaperFilters()" style="background: none; border: none; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer;">
+                            Clear all
+                        </button>
+                    </div>
+
+                    <!-- Row 1: Institute (Super Admin Only) + Selected Question Paper -->
+                    <div class="fields-row" [ngClass]="isSuperAdmin ? 'fields-row--2' : ''" [style.grid-template-columns]="isSuperAdmin ? '1fr 1fr' : '1fr'">
+                        <!-- Institute (Super Admin only) -->
+                        <div class="field-group" *ngIf="isSuperAdmin">
+                            <label class="field-label">Institute <span class="req">*</span></label>
+                            <input class="qp-input" type="text" [value]="selectedInstituteName || ''"
+                                placeholder="Choose institute in Filter Paper" readonly
+                                style="background: #f8fafc; cursor: pointer;"
+                                (click)="openFilterPaperOverlay(); $event.stopPropagation()" />
+                            <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
+                                Choose an institute in Filter Paper to unlock fields.
+                            </span>
+                        </div>
+
+                        <!-- Selected Question Paper -->
+                        <div class="field-group">
+                            <label class="field-label">Selected Question Paper <span class="req">*</span></label>
+                            <input class="qp-input" type="text" [value]="selectedQuestionPaperTitle || ''"
+                                placeholder="Choose a paper in Filter Paper" readonly
+                                style="background: #f8fafc; cursor: pointer;"
+                                (click)="openFilterPaperOverlay(); $event.stopPropagation()" />
+                            <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
+                                {{ selectedQuestionPaperTitle ? 'Selected from Filter Paper' : 'Click Filter Paper button above to choose' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Schedule Name (Auto-written) + Exam Date (Optional) -->
+                    <div class="fields-row fields-row--2" style="margin-top: 16px;">
+                        <!-- Schedule Name -->
+                        <div class="field-group">
+                            <label class="field-label">Schedule name <span class="req">*</span></label>
+                            <input class="qp-input" type="text"
+                                [(ngModel)]="publishedScheduleName"
+                                (input)="onScheduleNameInput()"
+                                (ngModelChange)="markDirty()"
+                                [disabled]="readOnly || isPublished"
+                                placeholder="E.g. Physics – Unit Test 1 04/11/2026 13:15" />
+                            <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
+                                Auto-generated name. You can edit this if needed.
+                            </span>
+                        </div>
+
+                        <!-- Exam Date (Optional) -->
+                        <div class="field-group">
+                            <label class="field-label">Exam Date <span class="opt">(optional)</span></label>
+                            <div class="date-input-wrap">
+                                <input class="qp-input date-input" type="date" [(ngModel)]="examDate"
+                                    (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished" placeholder="dd-mm-yyyy" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═════════════════════════════════════════════════ -->
+                <!-- ── MODE B: CREATE MODE (UNTOUCHED / ORIGINAL) ── -->
+                <!-- ═════════════════════════════════════════════════ -->
+                <div class="qp-card-body" *ngIf="formMode === 'create'">
+                    <!-- Row 1: Institute (Super Admin only) -->
                     <div class="fields-row" *ngIf="isSuperAdmin" style="grid-template-columns: 1fr;">
-                        <!-- Institute (super admin only) -->
                         <div class="field-group">
                             <label class="field-label">Institute <span class="req">*</span></label>
                             <mat-select class="qp-select" [(ngModel)]="institute"
-                                panelClass="qp-select-dropdown-panel"
-                                disableOptionCentering
-                                [disabled]="readOnly || isPublished"
+                                panelClass="qp-select-dropdown-panel" disableOptionCentering
                                 (selectionChange)="onInstituteChange($event.value); markDirty()"
-                                (openedChange)="onInstituteOpenedChange($event)"
                                 placeholder="Select institute">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input class="select-search-input" placeholder="Search institute"
-                                        [(ngModel)]="instituteFilterSearch"
-                                        [ngModelOptions]="{standalone: true}"
-                                        (click)="$event.stopPropagation()"
-                                        (keydown)="stopFilterSearchEvent($event)"
-                                        (keyup)="stopFilterSearchEvent($event)"
-                                        (input)="stopFilterSearchEvent($event)" />
-                                </mat-option>
-                                <mat-option value="">Select institute</mat-option>
                                 <mat-option *ngFor="let i of filteredInstitutes" [value]="i.id">{{i.name}}</mat-option>
                             </mat-select>
                         </div>
                     </div>
 
-                    <!-- Row 2: Department + Year (Below Institute) -->
+                    <!-- Row 2: Department + Team -->
                     <div class="fields-row fields-row--2">
-                        <!-- Department -->
                         <div class="field-group">
                             <label class="field-label">{{ terminology.deptLabel || terminology.deptPlural }} <span class="req">*</span></label>
                             <mat-select class="qp-select" [(ngModel)]="selectedDepartment"
-                                panelClass="qp-select-dropdown-panel"
-                                disableOptionCentering
-                                [disabled]="readOnly || isPublished"
+                                panelClass="qp-select-dropdown-panel" disableOptionCentering
                                 (selectionChange)="onDepartmentChange($event.value); markDirty()"
-                                (openedChange)="onDepartmentOpenedChange($event)"
                                 [placeholder]="terminology.selectDeptPlaceholder">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input class="select-search-input" [placeholder]="terminology.searchDeptPlaceholder"
-                                        [(ngModel)]="departmentFilterSearch"
-                                        [ngModelOptions]="{standalone: true}"
-                                        (click)="$event.stopPropagation()"
-                                        (keydown)="stopFilterSearchEvent($event)"
-                                        (keyup)="stopFilterSearchEvent($event)"
-                                        (input)="stopFilterSearchEvent($event)" />
-                                </mat-option>
-                                <mat-option value="">{{ terminology.selectDeptPlaceholder }}</mat-option>
                                 <mat-option *ngFor="let d of filteredDepartments" [value]="d.id">{{d.name}}</mat-option>
                             </mat-select>
                         </div>
-
-                        <!-- Team -->
                         <div class="field-group">
                             <label class="field-label">{{ terminology.teamLabel || terminology.teamPlural }} <span class="req">*</span></label>
                             <mat-select class="qp-select" [(ngModel)]="selectedTeam"
-                                panelClass="qp-select-dropdown-panel"
-                                disableOptionCentering
-                                [disabled]="readOnly || isPublished"
+                                panelClass="qp-select-dropdown-panel" disableOptionCentering
                                 (selectionChange)="onTeamChange($event.value); markDirty()"
-                                (openedChange)="onTeamOpenedChange($event)"
                                 [placeholder]="terminology.selectTeamPlaceholder">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input class="select-search-input" [placeholder]="terminology.searchTeamPlaceholder"
-                                        [(ngModel)]="teamFilterSearch"
-                                        [ngModelOptions]="{standalone: true}"
-                                        (click)="$event.stopPropagation()"
-                                        (keydown)="stopFilterSearchEvent($event)"
-                                        (keyup)="stopFilterSearchEvent($event)"
-                                        (input)="stopFilterSearchEvent($event)" />
-                                </mat-option>
-                                <mat-option value="">{{ terminology.selectTeamPlaceholder }}</mat-option>
                                 <mat-option *ngFor="let t of filteredTeams" [value]="t.id">{{t.name}}</mat-option>
                             </mat-select>
                         </div>
                     </div>
 
-                    <!-- Row 2: Subject + Exam Type -->
+                    <!-- Row 3: Subject + Exam Type -->
                     <div class="fields-row fields-row--2">
-                        <!-- Subject -->
                         <div class="field-group">
                             <label class="field-label">Subject <span class="req">*</span></label>
                             <mat-select class="qp-select" [(ngModel)]="subject_id"
-                                panelClass="qp-select-dropdown-panel"
-                                disableOptionCentering
+                                panelClass="qp-select-dropdown-panel" disableOptionCentering
                                 (selectionChange)="onSubjectChange($event.value); markDirty()"
-                                (openedChange)="onSubjectOpenedChange($event)"
-                                [disabled]="readOnly || isPublished || !institute"
                                 placeholder="Select subject">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input class="select-search-input" placeholder="Search subject"
-                                        [(ngModel)]="subjectFilterSearch"
-                                        [ngModelOptions]="{standalone: true}"
-                                        (click)="$event.stopPropagation()"
-                                        (keydown)="stopFilterSearchEvent($event)"
-                                        (keyup)="stopFilterSearchEvent($event)"
-                                        (input)="stopFilterSearchEvent($event)" />
-                                </mat-option>
-                                <mat-option value="">Select subject</mat-option>
-                                <mat-option *ngIf="loadingSubjects" disabled>Loading...</mat-option>
                                 <mat-option *ngFor="let s of filteredSubjects" [value]="s.id">{{s.name}}</mat-option>
                             </mat-select>
                         </div>
-
-                        <!-- Exam Type -->
                         <div class="field-group">
                             <label class="field-label">Exam Type</label>
                             <mat-select class="qp-select" [(ngModel)]="examTypeLabel"
-                                panelClass="qp-select-dropdown-panel"
-                                disableOptionCentering
-                                (selectionChange)="markDirty()"
-                                [disabled]="readOnly || isPublished"
+                                panelClass="qp-select-dropdown-panel" disableOptionCentering
                                 placeholder="Select type">
                                 <mat-option value="Unit Test">Unit Test</mat-option>
                                 <mat-option value="Mid Term">Mid Term</mat-option>
@@ -145,87 +169,15 @@
                         </div>
                     </div>
 
-                    <!-- Row 3 (Create Mode): Test Name + Total Marks -->
-                    <div class="fields-row fields-row--2" *ngIf="formMode === 'create'">
+                    <!-- Row 4: Test Name + Total Marks -->
+                    <div class="fields-row fields-row--2">
                         <div class="field-group">
                             <label class="field-label">Test Name <span class="req">*</span></label>
-                            <input class="qp-input" type="text" [(ngModel)]="title" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
-                                placeholder="Physics – Unit Test 1" />
+                            <input class="qp-input" type="text" [(ngModel)]="title" (ngModelChange)="markDirty()" placeholder="Physics – Unit Test 1" />
                         </div>
-
                         <div class="field-group">
                             <label class="field-label">Total Marks</label>
-                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
-                                placeholder="50" min="0" />
-                        </div>
-                    </div>
-
-                    <!-- Row 3 (Publish Mode): Question Paper + Schedule Name -->
-                    <div class="fields-row fields-row--2" *ngIf="formMode === 'publish'">
-                        <div class="field-group">
-                            <label class="field-label">Question Paper <span class="req">*</span></label>
-                            <mat-select class="qp-select"
-                                panelClass="qp-select-dropdown-panel"
-                                disableOptionCentering
-                                [(ngModel)]="selectedQuestionPaperTemplateId"
-                                (selectionChange)="onQuestionPaperTemplateChange($event.value); markDirty()"
-                                (openedChange)="onQuestionPaperOpenedChange($event)"
-                                placeholder="Select question paper">
-                                <mat-option class="select-search-option" (click)="$event.stopPropagation()">
-                                    <input class="select-search-input" placeholder="Search question paper..."
-                                        [(ngModel)]="questionPaperFilterSearch"
-                                        [ngModelOptions]="{standalone: true}"
-                                        (click)="$event.stopPropagation()"
-                                        (keydown)="stopFilterSearchEvent($event)"
-                                        (keyup)="stopFilterSearchEvent($event)"
-                                        (input)="stopFilterSearchEvent($event)" />
-                                </mat-option>
-                                <mat-option *ngIf="loadingTemplates" disabled>Loading question papers...</mat-option>
-                                <mat-option *ngIf="!loadingTemplates && filteredQuestionPaperTemplates.length === 0" disabled>
-                                    No question papers found
-                                </mat-option>
-                                <mat-option *ngFor="let p of filteredQuestionPaperTemplates" [value]="p.exam_id || p.test_id || p.id">
-                                    {{ p.title || p.name }}
-                                </mat-option>
-                            </mat-select>
-                        </div>
-
-                        <div class="field-group">
-                            <label class="field-label">Schedule name <span class="req">*</span></label>
-                            <input class="qp-input" type="text"
-                                [(ngModel)]="publishedScheduleName"
-                                (input)="onScheduleNameInput()"
-                                (ngModelChange)="markDirty()"
-                                [disabled]="readOnly || isPublished"
-                                placeholder="Schedule name" />
-                            <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
-                                Name used to identify this schedule.
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- Row 4 (Publish Mode Only): Exam Date + Duration -->
-                    <div class="fields-row fields-row--2" *ngIf="formMode === 'publish'">
-                        <div class="field-group">
-                            <label class="field-label">Exam Date <span class="opt">(optional)</span></label>
-                            <div class="date-input-wrap">
-                                <input class="qp-input date-input" type="date" [(ngModel)]="examDate" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished" placeholder="dd-mm-yyyy" />
-                            </div>
-                        </div>
-
-                        <div class="field-group">
-                            <label class="field-label">Duration <span class="opt">(printed on paper)</span></label>
-                            <input class="qp-input" type="text" [(ngModel)]="durationLabel" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
-                                placeholder="1 Hour" />
-                        </div>
-                    </div>
-
-                    <!-- Row 5 (Publish Mode Only): Total Marks -->
-                    <div class="fields-row fields-row--2" *ngIf="formMode === 'publish'">
-                        <div class="field-group">
-                            <label class="field-label">Total Marks</label>
-                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished"
-                                placeholder="50" min="0" />
+                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" (ngModelChange)="markDirty()" placeholder="50" min="0" />
                         </div>
                     </div>
                 </div>
@@ -237,8 +189,8 @@
                     <div class="assignment-heading-wrap">
                         <mat-icon class="assignment-heading-icon">people</mat-icon>
                         <div class="qp-card-title">
-                            <h2>Assign Question Paper <span class="req">*</span></h2>
-                            <p>Choose which users to assign this question paper to (at least 1 user required). Selected: <strong>{{ selectedPaperUsers.length }}</strong></p>
+                            <h2>Select Users <span class="req">*</span></h2>
+                            <p>Choose which users to assign this test to (at least 1 user required). Selected: <strong>{{ selectedPaperUsers.length }}</strong></p>
                         </div>
                     </div>
                     <button #userFiltersBtn class="btn-assignment-filter" type="button"
@@ -401,6 +353,142 @@
                                     Apply
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </ng-template>
+
+                <!-- ══════════════════════════════════════════════════════════ -->
+                <!-- ── FILTER QUESTION PAPER OVERLAY (SUPER ADMIN + ADMIN) ── -->
+                <!-- ══════════════════════════════════════════════════════════ -->
+                <ng-template #filterPaperOverlayTpl>
+                    <div class="filters-panel qp-filter-paper-panel" (click)="$event.stopPropagation()"
+                        style="background: #ffffff; border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,0.2); width: 380px; padding: 18px; border: 1px solid #e2e8f0;">
+                        
+                        <style>
+                            .qp-filter-paper-panel .mat-mdc-form-field-appearance-outline .mdc-floating-label,
+                            .qp-filter-paper-panel .mat-mdc-form-field-appearance-outline .mat-mdc-floating-label,
+                            .qp-filter-paper-panel .mat-form-field-appearance-outline .mat-form-field-label {
+                                background-color: #ffffff !important;
+                                padding: 0 4px !important;
+                                width: auto !important;
+                                z-index: 2 !important;
+                            }
+                        </style>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                            <h4 style="margin: 0; font-size: 15px; font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                                <mat-icon style="color: #2563eb;">tune</mat-icon> Filter Question Paper
+                            </h4>
+                            <span *ngIf="isSuperAdmin" style="font-size: 11px; background: #eff6ff; color: #2563eb; font-weight: 600; padding: 2px 6px; border-radius: 4px;">
+                                Super Admin
+                            </span>
+                        </div>
+
+                        <div class="filter-body" style="display: flex; flex-direction: column; gap: 12px; max-height: 480px; overflow-y: auto; padding: 12px 4px 4px 4px;">
+                            
+                            <!-- SUPER ADMIN ONLY: Location & Industry to Filter Institute -->
+                            <ng-container *ngIf="isSuperAdmin">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
+                                        <mat-label>Country</mat-label>
+                                        <mat-select [(ngModel)]="filterPaperCountry" (selectionChange)="onFilterPaperCountryChange($event.value)" placeholder="Country">
+                                            <mat-option value="">All Countries</mat-option>
+                                            <mat-option *ngFor="let c of superAdminUserCountries" [value]="c.code">{{ c.name }}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+
+                                    <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
+                                        <mat-label>City</mat-label>
+                                        <mat-select [(ngModel)]="filterPaperCity" (selectionChange)="onFilterPaperCityChange($event.value)" [disabled]="!filterPaperCountry" placeholder="City">
+                                            <mat-option value="">All Cities</mat-option>
+                                            <mat-option *ngFor="let city of availableFilterPaperCities" [value]="city.name">{{ city.name }}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
+                                        <mat-label>Industry</mat-label>
+                                        <mat-select [(ngModel)]="filterPaperIndustry" (selectionChange)="onFilterPaperIndustryChange($event.value)" placeholder="Industry">
+                                            <mat-option value="">All Industries</mat-option>
+                                            <mat-option *ngFor="let ind of filterPaperIndustryTypes" [value]="ind">{{ ind }}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+
+                                    <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
+                                        <mat-label>Sector</mat-label>
+                                        <mat-select [(ngModel)]="filterPaperSector" (selectionChange)="onFilterPaperSectorChange($event.value)" [disabled]="!filterPaperIndustry" placeholder="Sector">
+                                            <mat-option value="">All Sectors</mat-option>
+                                            <mat-option *ngFor="let sec of availableFilterPaperSectors" [value]="sec">{{ sec }}</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                </div>
+
+                                <mat-form-field appearance="outline" class="filter-item" floatLabel="always" style="width: 100%;">
+                                    <mat-label>Institute *</mat-label>
+                                    <mat-select [(ngModel)]="filterPaperInstituteId" (selectionChange)="onFilterPaperInstituteChange($event.value)" placeholder="Select Institute">
+                                        <mat-option *ngFor="let inst of filteredInstitutesForPaperFilter" [value]="inst.id">{{ inst.name }}</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+                            </ng-container>
+
+                            <!-- QUESTION PAPER SELECTOR (SINGLE ASTERISK ONLY) -->
+                            <mat-form-field appearance="outline" class="filter-item" floatLabel="always" style="width: 100%; margin-top: 4px;">
+                                <mat-label>Question Paper *</mat-label>
+                                <mat-select [(ngModel)]="tempSelectedPaperId" placeholder="Select Question Paper"
+                                    [disabled]="isSuperAdmin && !filterPaperInstituteId">
+                                    <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+                                        <input matInput class="select-search-input" placeholder="Search question paper..."
+                                            [(ngModel)]="filterPaperSearchQuery" [ngModelOptions]="{standalone: true}"
+                                            (click)="$event.stopPropagation()" />
+                                    </mat-option>
+                                    <mat-option *ngIf="loadingTemplates" disabled>Loading question papers...</mat-option>
+                                    <mat-option *ngIf="!loadingTemplates && filteredTemplatesInFilter.length === 0" disabled>No created papers found</mat-option>
+                                    <mat-option *ngFor="let p of filteredTemplatesInFilter" [value]="p.exam_id || p.test_id || p.id">
+                                        {{ p.title || p.name }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+
+                            <!-- Category Filters: Department & Subject -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
+                                    <mat-label>Department</mat-label>
+                                    <mat-select [(ngModel)]="filterPaperDept" placeholder="Any Department">
+                                        <mat-option value="">All</mat-option>
+                                        <mat-option *ngFor="let d of filteredDepartments" [value]="d.id">{{ d.name }}</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline" class="filter-item" floatLabel="always">
+                                    <mat-label>Subject</mat-label>
+                                    <mat-select [(ngModel)]="filterPaperSubj" placeholder="Any Subject">
+                                        <mat-option value="">All</mat-option>
+                                        <mat-option *ngFor="let s of filteredSubjects" [value]="s.id">{{ s.name }}</mat-option>
+                                    </mat-select>
+                                </mat-form-field>
+                            </div>
+
+                            <!-- ── CREATED DATE FILTER (IN THE RED CIRCLED AREA) ── -->
+                            <mat-form-field appearance="outline" class="filter-item" floatLabel="always" style="width: 100%;">
+                                <mat-label>Created Date</mat-label>
+                                <input matInput type="date" [(ngModel)]="filterPaperCreatedDate" placeholder="dd-mm-yyyy" />
+                                <button *ngIf="filterPaperCreatedDate" matSuffix mat-icon-button type="button"
+                                    (click)="filterPaperCreatedDate = ''; $event.stopPropagation()" aria-label="Clear date">
+                                    <mat-icon style="font-size: 16px; width: 16px; height: 16px;">close</mat-icon>
+                                </button>
+                            </mat-form-field>
+                        </div>
+
+                        <!-- Footer Actions -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                            <button mat-stroked-button type="button" (click)="resetPaperFilter()" style="font-weight: 500;">
+                                <mat-icon>refresh</mat-icon> Reset
+                            </button>
+                            <button mat-flat-button color="primary" type="button" (click)="applyPaperFilter()"
+                                [disabled]="!tempSelectedPaperId" style="font-weight: 500;">
+                                <mat-icon>check</mat-icon> Apply
+                            </button>
                         </div>
                     </div>
                 </ng-template>

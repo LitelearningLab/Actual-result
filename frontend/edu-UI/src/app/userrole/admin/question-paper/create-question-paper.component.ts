@@ -217,6 +217,29 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   totalMarksOverride: number | null = null;
   durationLabel = '1 Hour';
 
+  // ── Filter Paper Overlay State ──
+  @ViewChild('filterPaperBtn', { read: ElementRef }) filterPaperBtn?: ElementRef;
+  @ViewChild('filterPaperOverlayTpl') filterPaperOverlayTpl?: TemplateRef<any>;
+  private filterPaperOverlayRef: OverlayRef | null = null;
+  filterPaperOpen = false;
+
+  selectedQuestionPaperTitle = '';
+  selectedInstituteName = '';
+
+  filterPaperCountry = '';
+  filterPaperCity = '';
+  filterPaperIndustry = '';
+  filterPaperSector = '';
+  filterPaperInstituteId = '';
+  tempSelectedPaperId = '';
+  filterPaperSearchQuery = '';
+  filterPaperDept = '';
+  filterPaperSubj = '';
+  filterPaperCreatedDate = '';
+
+  appliedPaperFilterChips: Array<{ key: string; label: string }> = [];
+  filterPaperIndustryTypes: string[] = ['Education', 'Higher Education', 'Corporate', 'Government'];
+
   // User assignment mirrors the Select Users experience from Schedule Test.
   @ViewChild('userFiltersBtn', { read: ElementRef }) userFiltersBtn?: ElementRef;
   @ViewChild('filtersPanelUserAnchor') filtersPanelUserAnchorTpl?: TemplateRef<any>;
@@ -3725,6 +3748,257 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.userFilterOpen = false;
   }
 
+  // ═════════════════════════════════════════════════════════════════
+  // ── FILTER QUESTION PAPER OVERLAY (SUPER ADMIN + ADMIN) ──
+  // ═════════════════════════════════════════════════════════════════
+
+  generateDefaultScheduleName(paperTitle: string): string {
+    const now = new Date();
+    const pad = (n: number) => (n < 10 ? '0' + n : n);
+    const day = pad(now.getDate());
+    const month = pad(now.getMonth() + 1);
+    const year = now.getFullYear();
+    const hours = pad(now.getHours());
+    const minutes = pad(now.getMinutes());
+    return `${(paperTitle || 'Question Paper').trim()} ${day}/${month}/${year} ${hours}:${minutes}`;
+  }
+
+  openFilterPaperOverlay(): void {
+    if (!this.filterPaperBtn || !this.filterPaperOverlayTpl) return;
+    this.filterPaperOpen = true;
+
+    // Load locations if Super Admin
+    if (this.isSuperAdmin && (!this.superAdminUserCountries || !this.superAdminUserCountries.length)) {
+      this.loadUserLocations();
+    }
+
+    if (this.filterPaperOverlayRef) {
+      try { this.filterPaperOverlayRef.dispose(); } catch (e) {}
+      this.filterPaperOverlayRef = null;
+    }
+
+    const positionStrategy = this.overlay
+      .position()
+      .flexibleConnectedTo(this.filterPaperBtn)
+      .withPositions([
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
+        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 }
+      ])
+      .withPush(true);
+
+    this.filterPaperOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      scrollStrategy: this.overlay.scrollStrategies.reposition()
+    });
+
+    this.filterPaperOverlayRef.backdropClick().subscribe(() => this.closeFilterPaperOverlay());
+    this.filterPaperOverlayRef.attach(new TemplatePortal(this.filterPaperOverlayTpl, this.vcr));
+  }
+
+  closeFilterPaperOverlay(): void {
+    this.filterPaperOpen = false;
+    if (this.filterPaperOverlayRef) {
+      try { this.filterPaperOverlayRef.dispose(); } catch (e) {}
+      this.filterPaperOverlayRef = null;
+    }
+  }
+
+  applyPaperFilter(): void {
+    if (!this.tempSelectedPaperId) return;
+
+    this.selectedQuestionPaperTemplateId = this.tempSelectedPaperId;
+
+    const chosen = (this.availableQuestionPaperTemplates || []).find(
+      (p: any) => String(p.exam_id || p.test_id || p.id) === String(this.tempSelectedPaperId)
+    );
+
+    if (chosen) {
+      this.selectedQuestionPaperTitle = chosen.title || chosen.name || '';
+      // Auto-generates schedule name like: "Physics – Unit Test 1 04/11/2026 13:25"
+      this.publishedScheduleName = this.generateDefaultScheduleName(this.selectedQuestionPaperTitle);
+      this.onQuestionPaperTemplateChange(this.tempSelectedPaperId);
+    }
+
+    if (this.isSuperAdmin && this.filterPaperInstituteId) {
+      this.institute = this.filterPaperInstituteId;
+      const matchInst = this.institutes.find(i => String(i.id) === String(this.filterPaperInstituteId));
+      this.selectedInstituteName = matchInst ? matchInst.name : '';
+    }
+
+    this.buildPaperFilterChips();
+    this.markDirty();
+    this.closeFilterPaperOverlay();
+  }
+
+  resetPaperFilter(): void {
+    this.filterPaperCountry = '';
+    this.filterPaperCity = '';
+    this.filterPaperIndustry = '';
+    this.filterPaperSector = '';
+    this.filterPaperInstituteId = '';
+    this.tempSelectedPaperId = '';
+    this.filterPaperSearchQuery = '';
+    this.filterPaperDept = '';
+    this.filterPaperSubj = '';
+    this.filterPaperCreatedDate = '';
+  }
+
+  buildPaperFilterChips(): void {
+    this.appliedPaperFilterChips = [];
+    if (this.selectedQuestionPaperTitle) {
+      this.appliedPaperFilterChips.push({ key: 'paper', label: `Paper: ${this.selectedQuestionPaperTitle}` });
+    }
+    if (this.filterPaperDept) {
+      const d = this.filteredDepartments.find(item => item.id === this.filterPaperDept);
+      if (d) this.appliedPaperFilterChips.push({ key: 'dept', label: `Dept: ${d.name}` });
+    }
+    if (this.filterPaperSubj) {
+      const s = this.filteredSubjects.find(item => item.id === this.filterPaperSubj);
+      if (s) this.appliedPaperFilterChips.push({ key: 'subj', label: `Subject: ${s.name}` });
+    }
+    if (this.filterPaperCreatedDate) {
+      this.appliedPaperFilterChips.push({ key: 'date', label: `Date: ${this.filterPaperCreatedDate}` });
+    }
+  }
+
+  removePaperFilter(key: string): void {
+    if (key === 'paper') {
+      this.selectedQuestionPaperTemplateId = '';
+      this.selectedQuestionPaperTitle = '';
+      this.tempSelectedPaperId = '';
+    } else if (key === 'dept') {
+      this.filterPaperDept = '';
+    } else if (key === 'subj') {
+      this.filterPaperSubj = '';
+    } else if (key === 'date') {
+      this.filterPaperCreatedDate = '';
+    }
+    this.buildPaperFilterChips();
+  }
+
+  clearAllPaperFilters(): void {
+    this.resetPaperFilter();
+    this.selectedQuestionPaperTemplateId = '';
+    this.selectedQuestionPaperTitle = '';
+    this.appliedPaperFilterChips = [];
+  }
+
+  get filteredInstitutesForPaperFilter(): any[] {
+    let list = this.institutes || [];
+    if (this.filterPaperIndustry) {
+      list = list.filter(i => (i.industry_type || '').toLowerCase() === this.filterPaperIndustry.toLowerCase());
+    }
+    return list;
+  }
+
+  get availableFilterPaperCities(): any[] {
+    if (!this.filterPaperCountry) return [];
+    return (this.superAdminUserCities || []).filter(c => c.countryCode === this.filterPaperCountry);
+  }
+
+  get availableFilterPaperSectors(): string[] {
+    return ['Higher Education', 'Vocational', 'Engineering', 'Medical', 'K-12'];
+  }
+
+  isPaperPublished(p: any): boolean {
+    return !!(
+      p?.published === 1 ||
+      p?.published === true ||
+      p?.is_published === 1 ||
+      p?.is_published === true ||
+      p?.status === 'published' ||
+      p?.status === 'active'
+    );
+  }
+
+  get filteredTemplatesInFilter(): any[] {
+    let list = this.availableQuestionPaperTemplates || [];
+
+    // 1. Group by title and institute to separate created master papers from published schedules
+    const groups = new Map<string, any[]>();
+    for (const p of list) {
+      const key = `${(p.title || p.name || '').trim().toLowerCase()}_${p.institute_id || ''}`;
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(p);
+    }
+
+    // 2. Prioritize master / draft question papers (created question papers)
+    const masterPapers: any[] = [];
+    for (const [, items] of groups) {
+      const masterItem = items.find((x) => !this.isPaperPublished(x));
+      if (masterItem) {
+        masterPapers.push(masterItem);
+      } else {
+        // Fallback: take base master definition
+        masterPapers.push(items[0]);
+      }
+    }
+    list = masterPapers;
+
+    // 3. Filter by Department
+    if (this.filterPaperDept) {
+      list = list.filter(p => !p.department_id || String(p.department_id) === String(this.filterPaperDept));
+    }
+
+    // 4. Filter by Subject
+    if (this.filterPaperSubj) {
+      list = list.filter(p => !p.subject_id || String(p.subject_id) === String(this.filterPaperSubj));
+    }
+
+    // 5. Filter by Created Date (matches YYYY-MM-DD)
+    if (this.filterPaperCreatedDate) {
+      list = list.filter(p => {
+        const rawDate = p.created_date || p.created_at || p.created || '';
+        if (!rawDate) return false;
+        const d = new Date(rawDate);
+        if (isNaN(d.getTime())) return false;
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}` === this.filterPaperCreatedDate;
+      });
+    }
+
+    // 6. Search query
+    if (this.filterPaperSearchQuery.trim()) {
+      const q = this.filterPaperSearchQuery.trim().toLowerCase();
+      list = list.filter(p => (p.title || p.name || '').toLowerCase().includes(q));
+    }
+    return list;
+  }
+
+  onFilterPaperCountryChange(code: string): void {
+    this.filterPaperCountry = code;
+    this.filterPaperCity = '';
+  }
+
+  onFilterPaperCityChange(city: string): void {
+    this.filterPaperCity = city;
+  }
+
+  onFilterPaperIndustryChange(ind: string): void {
+    this.filterPaperIndustry = ind;
+    this.filterPaperSector = '';
+  }
+
+  onFilterPaperSectorChange(sec: string): void {
+    this.filterPaperSector = sec;
+  }
+
+  onFilterPaperInstituteChange(instId: string): void {
+    this.filterPaperInstituteId = instId;
+    this.tempSelectedPaperId = '';
+    if (instId) {
+      this.loadCreatedQuestionPapersForDropdown(instId);
+      this.loadDepartments(instId);
+      this.loadSubjects(instId);
+    }
+  }
+
   private explicitInstituteRequestOptions(): { headers?: { [name: string]: string } } {
     return this.isSuperAdmin ? { headers: { 'X-Skip-Institute-Context': 'true' } } : {};
   }
@@ -4849,6 +5123,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           const match = this.availableQuestionPaperTemplates.find((p: any) => String(p.test_id || p.exam_id || p.id) === String(wantTemplateId));
           if (match) {
             this.selectedQuestionPaperTemplateId = String(match.test_id || match.exam_id || match.id);
+            this.selectedQuestionPaperTitle = match.title || match.name || '';
+            if (!this.publishedScheduleName) {
+              this.publishedScheduleName = this.generateDefaultScheduleName(this.selectedQuestionPaperTitle);
+            }
           }
         }
       },
