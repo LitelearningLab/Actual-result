@@ -1889,11 +1889,14 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   // ─── Teacher Mark Override Handlers ───
   startEditMarks(q: any): void {
-    q._editingMarks = true;
-    q._editedMarks = q.marks_awarded != null ? q.marks_awarded : 0;
-    q._marksEditReason = '';
-    q._marksReasonError = false;
+  if (this.evaluationPages.length === 0) {
+    return; // Block opening the marks editor if no answer sheet is uploaded
   }
+  q._editingMarks = true;
+  q._editedMarks = q.marks_awarded != null ? q.marks_awarded : 0;
+  q._marksEditReason = '';
+  q._marksReasonError = false;
+}
 
   cancelEditMarks(q: any): void {
     q._editingMarks = false;

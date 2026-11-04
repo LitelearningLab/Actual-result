@@ -1,1424 +1,1188 @@
 <div class="test-evaluation-page">
   <ng-container *ngIf="currentView === 'list'">
-  <!-- ─── Applied Filters & Top Actions Bar ─── -->
-  <div class="top-filter-bar-row">
-    <div class="applied-filters-container" *ngIf="hasAppliedFilters">
-      <span class="applied-filters-title">APPLIED FILTERS</span>
-      <span class="applied-filter-pill" *ngIf="isSuperAdmin && !!selectedInstitute && activeInstituteName">
-        <strong>Institute:</strong> {{ activeInstituteName }}
-        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('institute'); $event.stopPropagation()">close</mat-icon>
-      </span>
-      <span class="applied-filter-pill" *ngIf="selectedClassName">
-        <strong>{{ terminology.deptLabel }}:</strong> {{ selectedClassName }}
-        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('class'); $event.stopPropagation()">close</mat-icon>
-      </span>
-      <span class="applied-filter-pill" *ngIf="selectedSectionName">
-        <strong>{{ terminology.teamLabel }}:</strong> {{ selectedSectionName }}
-        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('section'); $event.stopPropagation()">close</mat-icon>
-      </span>
-      <span class="applied-filter-pill" *ngIf="selectedSubjectName">
-        <strong>Subject:</strong> {{ selectedSubjectName }}
-        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('subject'); $event.stopPropagation()">close</mat-icon>
-      </span>
-      <span class="applied-filter-pill" *ngIf="selectedExamTitle">
-        <strong>Test:</strong> {{ selectedExamTitle }}
-        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('test'); $event.stopPropagation()">close</mat-icon>
-      </span>
-      <span class="applied-filter-pill" *ngIf="selectedStatus && selectedStatus !== 'All statuses'">
-        <strong>Status:</strong> {{ selectedStatus }}
-        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('status'); $event.stopPropagation()">close</mat-icon>
-      </span>
-      <span class="applied-filter-pill" *ngIf="searchQuery && searchQuery.trim()">
-        <strong>Search:</strong> {{ searchQuery }}
-        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('search'); $event.stopPropagation()">close</mat-icon>
-      </span>
+    <!-- ─── Applied Filters & Top Actions Bar ─── -->
+    <div class="top-filter-bar-row">
+      <div class="applied-filters-container" *ngIf="hasAppliedFilters">
+        <span class="applied-filters-title">APPLIED FILTERS</span>
+        <span class="applied-filter-pill" *ngIf="isSuperAdmin && !!selectedInstitute && activeInstituteName">
+          <strong>Institute:</strong> {{ activeInstituteName }}
+          <mat-icon class="pill-remove-icon"
+            (click)="removeAppliedFilter('institute'); $event.stopPropagation()">close</mat-icon>
+        </span>
+        <span class="applied-filter-pill" *ngIf="selectedClassName">
+          <strong>{{ terminology.deptLabel }}:</strong> {{ selectedClassName }}
+          <mat-icon class="pill-remove-icon"
+            (click)="removeAppliedFilter('class'); $event.stopPropagation()">close</mat-icon>
+        </span>
+        <span class="applied-filter-pill" *ngIf="selectedSectionName">
+          <strong>{{ terminology.teamLabel }}:</strong> {{ selectedSectionName }}
+          <mat-icon class="pill-remove-icon"
+            (click)="removeAppliedFilter('section'); $event.stopPropagation()">close</mat-icon>
+        </span>
+        <span class="applied-filter-pill" *ngIf="selectedSubjectName">
+          <strong>Subject:</strong> {{ selectedSubjectName }}
+          <mat-icon class="pill-remove-icon"
+            (click)="removeAppliedFilter('subject'); $event.stopPropagation()">close</mat-icon>
+        </span>
+        <span class="applied-filter-pill" *ngIf="selectedExamTitle">
+          <strong>Test:</strong> {{ selectedExamTitle }}
+          <mat-icon class="pill-remove-icon"
+            (click)="removeAppliedFilter('test'); $event.stopPropagation()">close</mat-icon>
+        </span>
+        <span class="applied-filter-pill" *ngIf="selectedStatus && selectedStatus !== 'All statuses'">
+          <strong>Status:</strong> {{ selectedStatus }}
+          <mat-icon class="pill-remove-icon"
+            (click)="removeAppliedFilter('status'); $event.stopPropagation()">close</mat-icon>
+        </span>
+        <span class="applied-filter-pill" *ngIf="searchQuery && searchQuery.trim()">
+          <strong>Search:</strong> {{ searchQuery }}
+          <mat-icon class="pill-remove-icon"
+            (click)="removeAppliedFilter('search'); $event.stopPropagation()">close</mat-icon>
+        </span>
 
-      <button
-        type="button"
-        class="clear-all-chip-btn"
-        (click)="clearAppliedFilters()"
-        title="Clear all applied filters"
-        *ngIf="hasAppliedFilters"
-      >
-        Clear all
-      </button>
+        <button type="button" class="clear-all-chip-btn" (click)="clearAppliedFilters()"
+          title="Clear all applied filters" *ngIf="hasAppliedFilters">
+          Clear all
+        </button>
+      </div>
+
+      <div class="controls" [class.ml-auto]="!hasAppliedFilters">
+        <div class="action-row">
+          <button mat-flat-button type="button" (click)="clearAppliedFilters()" class="refresh-icon-btn"
+            title="Clear all filters & refresh">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" class="refresh-svg-icon">
+              <path
+                d="M204-318q-22-38-33-78t-11-82q0-134 93-228t227-94h7l-64-64 56-56 160 160-160 160-56-56 64-64h-7q-100 0-170 70.5T240-478q0 26 6 51t18 49l-60 60ZM481-40 321-200l160-160 56 56-64 64h7q100 0 170-70.5T720-482q0-26-6-51t-18-49l60-60q22 38 33 78t11 82q0 134-93 228t-227 94h-7l64 64-56 56Z" />
+            </svg>
+          </button>
+          <button #filtersBtn mat-flat-button type="button" class="button-one btn-filter-reports"
+            (click)="$event.stopPropagation(); openFiltersOverlay()">
+            <mat-icon svgIcon="filter"></mat-icon>
+            <span>Filter Tests</span>
+          </button>
+        </div>
+
+        <!-- Filter fields (rendered into floating overlay) -->
+        <ng-template #filtersPanel>
+          <div class="filters-panel view-questions-filters-panel" (click)="$event.stopPropagation()">
+            <div class="filters-panel-header">
+              <h4><mat-icon>tune</mat-icon> Filters</h4>
+            </div>
+            <div class="filter-block filter-grid">
+              <!-- Row 1: Institute (Super Admin) -->
+              <div class="filter-col-full" *ngIf="isSuperAdmin">
+                <mat-form-field appearance="outline" class="filter-item mandatory-field">
+                  <mat-label>Institute <span class="required-mark">*</span></mat-label>
+                  <mat-select [(ngModel)]="selectedInstitute" name="filterInstitute" placeholder="Choose Institute"
+                    (selectionChange)="onInstituteChange($event.value)">
+                    <div class="select-search-option" (click)="$event.stopPropagation()">
+                      <input matInput class="select-search-input" placeholder="Search institute..."
+                        [(ngModel)]="instituteFilterSearch" [ngModelOptions]="{ standalone: true }"
+                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                        (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                    </div>
+                    <mat-option value="">Choose Institute</mat-option>
+                    <mat-option *ngIf="!filteredInstitutesList.length" disabled>
+                      No institutes found
+                    </mat-option>
+                    <mat-option *ngFor="let inst of filteredInstitutesList" [value]="inst.institute_id">
+                      {{ inst.name }}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <!-- Row 2: Department / Class -->
+              <div class="filter-col-full">
+                <mat-form-field appearance="outline" class="filter-item">
+                  <mat-label>{{ terminology.deptLabel }}</mat-label>
+                  <mat-select [(ngModel)]="selectedClass" name="filterClass"
+                    (selectionChange)="onClassChange($event.value)" [disabled]="isSuperAdmin && !activeInstituteId">
+                    <div class="select-search-option" (click)="$event.stopPropagation()">
+                      <input matInput class="select-search-input"
+                        [placeholder]="'Search ' + terminology.deptLabel.toLowerCase() + '...'"
+                        [(ngModel)]="deptFilterSearch" [ngModelOptions]="{ standalone: true }"
+                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                        (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                    </div>
+                    <mat-option *ngFor="let c of filteredClassList" [value]="c.id">
+                      {{ c.name }}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <!-- Row 3: Team / Section -->
+              <div class="filter-col-full">
+                <mat-form-field appearance="outline" class="filter-item">
+                  <mat-label>{{ terminology.teamLabel }}</mat-label>
+                  <mat-select [(ngModel)]="selectedSection" name="filterSection"
+                    (selectionChange)="onSectionChange($event.value)" [disabled]="isSuperAdmin && !activeInstituteId">
+                    <div class="select-search-option" (click)="$event.stopPropagation()">
+                      <input matInput class="select-search-input"
+                        [placeholder]="'Search ' + terminology.teamLabel.toLowerCase() + '...'"
+                        [(ngModel)]="teamFilterSearch" [ngModelOptions]="{ standalone: true }"
+                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                        (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                    </div>
+                    <mat-option *ngFor="let s of filteredSectionList" [value]="s.id">
+                      {{ s.name }}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <!-- Row 4: Subject -->
+              <div class="filter-col-full">
+                <mat-form-field appearance="outline" class="filter-item">
+                  <mat-label>Subject</mat-label>
+                  <mat-select [(ngModel)]="selectedSubject" name="filterSubject"
+                    (selectionChange)="onSubjectChange($event.value)" [disabled]="isSuperAdmin && !activeInstituteId">
+                    <div class="select-search-option" (click)="$event.stopPropagation()">
+                      <input matInput class="select-search-input" placeholder="Search subject..."
+                        [(ngModel)]="subjectFilterSearch" [ngModelOptions]="{ standalone: true }"
+                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                        (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                    </div>
+                    <mat-option *ngFor="let sub of filteredSubjectList" [value]="sub.id">
+                      {{ sub.name }}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <!-- Row 5: Test Name -->
+              <div class="filter-col-full">
+                <mat-form-field appearance="outline" class="filter-item mandatory-field">
+                  <mat-label>Test <span class="required-mark">*</span></mat-label>
+                  <mat-select [(ngModel)]="selectedExamId" name="filterTest"
+                    (selectionChange)="onTestChange($event.value)"
+                    [disabled]="(isSuperAdmin && !activeInstituteId) || isLoadingExams" placeholder="Select Test">
+                    <div class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!isLoadingExams">
+                      <input matInput class="select-search-input" placeholder="Search test..."
+                        [(ngModel)]="testFilterSearch" [ngModelOptions]="{ standalone: true }"
+                        (click)="$event.stopPropagation()" (keydown)="stopFilterSearchEvent($event)"
+                        (keyup)="stopFilterSearchEvent($event)" (input)="stopFilterSearchEvent($event)" />
+                    </div>
+
+                    <!-- Loading Indicator Option inside the dropdown -->
+                    <mat-option disabled *ngIf="isLoadingExams">
+                      <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
+                        <mat-icon class="rotating-spinner"
+                          style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
+                        <span>Loading tests...</span>
+                      </div>
+                    </mat-option>
+
+                    <!-- Empty State (Only shows when NOT loading) -->
+                    <mat-option *ngIf="!isLoadingExams && filteredExamsList.length === 0" disabled>
+                      No published paper tests found
+                    </mat-option>
+
+                    <!-- Options List (Only shows when NOT loading) -->
+                    <ng-container *ngIf="!isLoadingExams">
+                      <mat-option *ngFor="let t of filteredExamsList" [value]="t.exam_id">
+                        {{ t.title }}
+                      </mat-option>
+                    </ng-container>
+                  </mat-select>
+
+                  <!-- Sub-hint loading indicator below the field -->
+                  <mat-hint *ngIf="isLoadingExams"
+                    style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                    <mat-icon class="rotating-spinner"
+                      style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+                    <span>Loading tests...</span>
+                  </mat-hint>
+                </mat-form-field>
+              </div>
+            </div>
+
+            <div class="filter-actions">
+              <button mat-flat-button (click)="resetFiltersAndReload()" class="filter-reset-btn">
+                <mat-icon svgIcon="refresh"></mat-icon> Reset
+              </button>
+              <button mat-flat-button (click)="applyFiltersPanel()" class="filter-apply-btn">
+                <mat-icon svgIcon="apply"></mat-icon> Apply
+              </button>
+            </div>
+          </div>
+        </ng-template>
+      </div>
     </div>
 
-    <div class="controls" [class.ml-auto]="!hasAppliedFilters">
-      <div class="action-row">
-        <button
-          mat-flat-button
-          type="button"
-          (click)="clearAppliedFilters()"
-          class="refresh-icon-btn"
-          title="Clear all filters & refresh"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" class="refresh-svg-icon">
-            <path
-              d="M204-318q-22-38-33-78t-11-82q0-134 93-228t227-94h7l-64-64 56-56 160 160-160 160-56-56 64-64h-7q-100 0-170 70.5T240-478q0 26 6 51t18 49l-60 60ZM481-40 321-200l160-160 56 56-64 64h7q100 0 170-70.5T720-482q0-26-6-51t-18-49l60-60q22 38 33 78t11 82q0 134-93 228t-227 94h-7l64 64-56 56Z"
-            />
-          </svg>
-        </button>
-        <button
-          #filtersBtn
-          mat-flat-button
-          type="button"
-          class="button-one btn-filter-reports"
-          (click)="$event.stopPropagation(); openFiltersOverlay()"
-        >
+    <!-- ─── Test Selection Card (Matching Test Reports Modern Design) ─── -->
+    <div class="test-schedule-selection-card">
+      <div class="selection-card-header">
+        <div class="header-mode-toggle-group">
+          <h3 class="selection-card-title-main">Test Selection Mode:</h3>
+          <div class="mode-toggle-buttons">
+            <button type="button" class="mode-toggle-btn active">
+              <mat-icon>assignment</mat-icon>
+              <span>Select Test</span>
+            </button>
+          </div>
+        </div>
+        <span class="selection-step-hint">
+          Select {{ terminology.deptLabel }} &rarr; Select {{ terminology.teamLabel }} &rarr; Select Subject &rarr;
+          Select Test from Filter
+        </span>
+      </div>
+
+      <div class="selection-card-rows">
+        <!-- Top Row: 3 Boxes (Expandable / 3 Columns) -->
+        <div class="selection-fields-row selection-row-three-col" [class.two-col-admin]="!isSuperAdmin">
+          <!-- Institute Selector Box (Super Admin) -->
+          <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always"
+            *ngIf="isSuperAdmin">
+            <mat-label>Institute <span class="required-mark">*</span></mat-label>
+            <input matInput type="text" [value]="activeInstituteName" placeholder="Choose Institute from Filter"
+              readonly tabindex="-1" style="cursor: default; user-select: none;" />
+          </mat-form-field>
+
+          <!-- Department / Class Box -->
+          <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always">
+            <mat-label>{{ terminology.deptLabel }}</mat-label>
+            <input matInput type="text" [value]="selectedClassName" [placeholder]="terminology.deptLabel" readonly
+              tabindex="-1" style="cursor: default; user-select: none;" />
+          </mat-form-field>
+
+          <!-- Team / Section / Year Box -->
+          <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always">
+            <mat-label>{{ terminology.teamLabel }}</mat-label>
+            <input matInput type="text" [value]="selectedSectionName" [placeholder]="terminology.teamLabel" readonly
+              tabindex="-1" style="cursor: default; user-select: none;" />
+          </mat-form-field>
+        </div>
+
+        <!-- Bottom Row: 2 Boxes (Subject & Test, Expandable / 2 Columns) -->
+        <div class="selection-fields-row selection-row-two-col">
+          <!-- Subject Box -->
+          <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always">
+            <mat-label>Subject</mat-label>
+            <input matInput type="text" [value]="selectedSubjectName" placeholder="Subject" readonly tabindex="-1"
+              style="cursor: default; user-select: none;" />
+          </mat-form-field>
+
+          <!-- Test Box -->
+          <mat-form-field appearance="outline" class="selection-field readonly-field readonly-test-field"
+            floatLabel="always">
+            <mat-label>Test <span class="required-mark">*</span></mat-label>
+            <input matInput type="text" [value]="selectedExamTitle" placeholder="Select Test from Filter" readonly
+              tabindex="-1" style="cursor: default; user-select: none;" />
+            <mat-hint *ngIf="isLoadingExams"
+              style="color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
+              <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+              <span>Loading tests...</span>
+            </mat-hint>
+          </mat-form-field>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Empty State when no test selected (Matching Test Reports) ─── -->
+    <div class="empty-reports-state" *ngIf="!selectedExamId">
+      <div class="empty-state-card">
+        <div class="empty-state-icon">
+          <mat-icon>analytics</mat-icon>
+        </div>
+        <h3 class="empty-state-title">No Test Selected</h3>
+        <p class="empty-state-description" *ngIf="isSuperAdmin">
+          Please select an <strong>Institute</strong> and a <strong>Test</strong> from the toolbar above or use the
+          <strong>Filter Tests</strong> panel to load test evaluation data.
+        </p>
+        <p class="empty-state-description" *ngIf="!isSuperAdmin">
+          Please select a <strong>Test</strong> from the <strong>Filter Tests</strong> panel to load test evaluation
+          data.
+        </p>
+        <button mat-flat-button type="button" class="button-one empty-action-btn" (click)="openFiltersOverlay()">
           <mat-icon svgIcon="filter"></mat-icon>
           <span>Filter Tests</span>
         </button>
       </div>
-
-      <!-- Filter fields (rendered into floating overlay) -->
-      <ng-template #filtersPanel>
-        <div
-          class="filters-panel view-questions-filters-panel"
-          (click)="$event.stopPropagation()"
-        >
-          <div class="filters-panel-header">
-            <h4><mat-icon>tune</mat-icon> Filters</h4>
-          </div>
-          <div class="filter-block filter-grid">
-            <!-- Row 1: Institute (Super Admin) -->
-            <div class="filter-col-full" *ngIf="isSuperAdmin">
-              <mat-form-field appearance="outline" class="filter-item mandatory-field">
-                <mat-label>Institute <span class="required-mark">*</span></mat-label>
-                <mat-select
-                  [(ngModel)]="selectedInstitute"
-                  name="filterInstitute"
-                  placeholder="Choose Institute"
-                  (selectionChange)="onInstituteChange($event.value)"
-                >
-                  <div class="select-search-option" (click)="$event.stopPropagation()">
-                    <input
-                      matInput
-                      class="select-search-input"
-                      placeholder="Search institute..."
-                      [(ngModel)]="instituteFilterSearch"
-                      [ngModelOptions]="{ standalone: true }"
-                      (click)="$event.stopPropagation()"
-                      (keydown)="stopFilterSearchEvent($event)"
-                      (keyup)="stopFilterSearchEvent($event)"
-                      (input)="stopFilterSearchEvent($event)"
-                    />
-                  </div>
-                  <mat-option value="">Choose Institute</mat-option>
-                  <mat-option *ngIf="!filteredInstitutesList.length" disabled>
-                    No institutes found
-                  </mat-option>
-                  <mat-option *ngFor="let inst of filteredInstitutesList" [value]="inst.institute_id">
-                    {{ inst.name }}
-                  </mat-option>
-                </mat-select>
-              </mat-form-field>
-            </div>
-
-            <!-- Row 2: Department / Class -->
-            <div class="filter-col-full">
-              <mat-form-field appearance="outline" class="filter-item">
-                <mat-label>{{ terminology.deptLabel }}</mat-label>
-                <mat-select
-                  [(ngModel)]="selectedClass"
-                  name="filterClass"
-                  (selectionChange)="onClassChange($event.value)"
-                  [disabled]="isSuperAdmin && !activeInstituteId"
-                >
-                  <div class="select-search-option" (click)="$event.stopPropagation()">
-                    <input
-                      matInput
-                      class="select-search-input"
-                      [placeholder]="'Search ' + terminology.deptLabel.toLowerCase() + '...'"
-                      [(ngModel)]="deptFilterSearch"
-                      [ngModelOptions]="{ standalone: true }"
-                      (click)="$event.stopPropagation()"
-                      (keydown)="stopFilterSearchEvent($event)"
-                      (keyup)="stopFilterSearchEvent($event)"
-                      (input)="stopFilterSearchEvent($event)"
-                    />
-                  </div>
-                  <mat-option *ngFor="let c of filteredClassList" [value]="c.id">
-                    {{ c.name }}
-                  </mat-option>
-                </mat-select>
-              </mat-form-field>
-            </div>
-
-            <!-- Row 3: Team / Section -->
-            <div class="filter-col-full">
-              <mat-form-field appearance="outline" class="filter-item">
-                <mat-label>{{ terminology.teamLabel }}</mat-label>
-                <mat-select
-                  [(ngModel)]="selectedSection"
-                  name="filterSection"
-                  (selectionChange)="onSectionChange($event.value)"
-                  [disabled]="isSuperAdmin && !activeInstituteId"
-                >
-                  <div class="select-search-option" (click)="$event.stopPropagation()">
-                    <input
-                      matInput
-                      class="select-search-input"
-                      [placeholder]="'Search ' + terminology.teamLabel.toLowerCase() + '...'"
-                      [(ngModel)]="teamFilterSearch"
-                      [ngModelOptions]="{ standalone: true }"
-                      (click)="$event.stopPropagation()"
-                      (keydown)="stopFilterSearchEvent($event)"
-                      (keyup)="stopFilterSearchEvent($event)"
-                      (input)="stopFilterSearchEvent($event)"
-                    />
-                  </div>
-                  <mat-option *ngFor="let s of filteredSectionList" [value]="s.id">
-                    {{ s.name }}
-                  </mat-option>
-                </mat-select>
-              </mat-form-field>
-            </div>
-
-            <!-- Row 4: Subject -->
-            <div class="filter-col-full">
-              <mat-form-field appearance="outline" class="filter-item">
-                <mat-label>Subject</mat-label>
-                <mat-select
-                  [(ngModel)]="selectedSubject"
-                  name="filterSubject"
-                  (selectionChange)="onSubjectChange($event.value)"
-                  [disabled]="isSuperAdmin && !activeInstituteId"
-                >
-                  <div class="select-search-option" (click)="$event.stopPropagation()">
-                    <input
-                      matInput
-                      class="select-search-input"
-                      placeholder="Search subject..."
-                      [(ngModel)]="subjectFilterSearch"
-                      [ngModelOptions]="{ standalone: true }"
-                      (click)="$event.stopPropagation()"
-                      (keydown)="stopFilterSearchEvent($event)"
-                      (keyup)="stopFilterSearchEvent($event)"
-                      (input)="stopFilterSearchEvent($event)"
-                    />
-                  </div>
-                  <mat-option *ngFor="let sub of filteredSubjectList" [value]="sub.id">
-                    {{ sub.name }}
-                  </mat-option>
-                </mat-select>
-              </mat-form-field>
-            </div>
-
-            <!-- Row 5: Test Name -->
-            <div class="filter-col-full">
-              <mat-form-field appearance="outline" class="filter-item mandatory-field">
-                <mat-label>Test <span class="required-mark">*</span></mat-label>
-                <mat-select
-                  [(ngModel)]="selectedExamId"
-                  name="filterTest"
-                  (selectionChange)="onTestChange($event.value)"
-                  [disabled]="(isSuperAdmin && !activeInstituteId) || isLoadingExams"
-                  placeholder="Select Test"
-                >
-                  <div class="select-search-option" (click)="$event.stopPropagation()" *ngIf="!isLoadingExams">
-                    <input
-                      matInput
-                      class="select-search-input"
-                      placeholder="Search test..."
-                      [(ngModel)]="testFilterSearch"
-                      [ngModelOptions]="{ standalone: true }"
-                      (click)="$event.stopPropagation()"
-                      (keydown)="stopFilterSearchEvent($event)"
-                      (keyup)="stopFilterSearchEvent($event)"
-                      (input)="stopFilterSearchEvent($event)"
-                    />
-                  </div>
-
-                  <!-- Loading Indicator Option inside the dropdown -->
-                  <mat-option disabled *ngIf="isLoadingExams">
-                    <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 500;">
-                      <mat-icon class="rotating-spinner" style="font-size: 16px; width: 16px; height: 16px;">sync</mat-icon>
-                      <span>Loading tests...</span>
-                    </div>
-                  </mat-option>
-
-                  <!-- Empty State (Only shows when NOT loading) -->
-                  <mat-option *ngIf="!isLoadingExams && filteredExamsList.length === 0" disabled>
-                    No published paper tests found
-                  </mat-option>
-
-                  <!-- Options List (Only shows when NOT loading) -->
-                  <ng-container *ngIf="!isLoadingExams">
-                    <mat-option *ngFor="let t of filteredExamsList" [value]="t.exam_id">
-                      {{ t.title }}
-                    </mat-option>
-                  </ng-container>
-                </mat-select>
-
-                <!-- Sub-hint loading indicator below the field -->
-                <mat-hint *ngIf="isLoadingExams" style="color: #0284c7; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
-                  <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
-                  <span>Loading tests...</span>
-                </mat-hint>
-              </mat-form-field>
-            </div>
-          </div>
-
-          <div class="filter-actions">
-            <button mat-flat-button (click)="resetFiltersAndReload()" class="filter-reset-btn">
-              <mat-icon svgIcon="refresh"></mat-icon> Reset
-            </button>
-            <button mat-flat-button (click)="applyFiltersPanel()" class="filter-apply-btn">
-              <mat-icon svgIcon="apply"></mat-icon> Apply
-            </button>
-          </div>
-        </div>
-      </ng-template>
-    </div>
-  </div>
-
-  <!-- ─── Test Selection Card (Matching Test Reports Modern Design) ─── -->
-  <div class="test-schedule-selection-card">
-    <div class="selection-card-header">
-      <div class="header-mode-toggle-group">
-        <h3 class="selection-card-title-main">Test Selection Mode:</h3>
-        <div class="mode-toggle-buttons">
-          <button
-            type="button"
-            class="mode-toggle-btn active"
-          >
-            <mat-icon>assignment</mat-icon>
-            <span>Select Test</span>
-          </button>
-        </div>
-      </div>
-      <span class="selection-step-hint">
-        Select {{ terminology.deptLabel }} &rarr; Select {{ terminology.teamLabel }} &rarr; Select Subject &rarr; Select Test from Filter
-      </span>
     </div>
 
-    <div class="selection-card-rows">
-      <!-- Top Row: 3 Boxes (Expandable / 3 Columns) -->
-      <div class="selection-fields-row selection-row-three-col" [class.two-col-admin]="!isSuperAdmin">
-        <!-- Institute Selector Box (Super Admin) -->
-        <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always" *ngIf="isSuperAdmin">
-          <mat-label>Institute <span class="required-mark">*</span></mat-label>
-          <input
-            matInput
-            type="text"
-            [value]="activeInstituteName"
-            placeholder="Choose Institute from Filter"
-            readonly
-            tabindex="-1"
-            style="cursor: default; user-select: none;"
-          />
-        </mat-form-field>
-
-        <!-- Department / Class Box -->
-        <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always">
-          <mat-label>{{ terminology.deptLabel }}</mat-label>
-          <input
-            matInput
-            type="text"
-            [value]="selectedClassName"
-            [placeholder]="terminology.deptLabel"
-            readonly
-            tabindex="-1"
-            style="cursor: default; user-select: none;"
-          />
-        </mat-form-field>
-
-        <!-- Team / Section / Year Box -->
-        <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always">
-          <mat-label>{{ terminology.teamLabel }}</mat-label>
-          <input
-            matInput
-            type="text"
-            [value]="selectedSectionName"
-            [placeholder]="terminology.teamLabel"
-            readonly
-            tabindex="-1"
-            style="cursor: default; user-select: none;"
-          />
-        </mat-form-field>
-      </div>
-
-      <!-- Bottom Row: 2 Boxes (Subject & Test, Expandable / 2 Columns) -->
-      <div class="selection-fields-row selection-row-two-col">
-        <!-- Subject Box -->
-        <mat-form-field appearance="outline" class="selection-field readonly-field" floatLabel="always">
-          <mat-label>Subject</mat-label>
-          <input
-            matInput
-            type="text"
-            [value]="selectedSubjectName"
-            placeholder="Subject"
-            readonly
-            tabindex="-1"
-            style="cursor: default; user-select: none;"
-          />
-        </mat-form-field>
-
-        <!-- Test Box -->
-        <mat-form-field appearance="outline" class="selection-field readonly-field readonly-test-field" floatLabel="always">
-          <mat-label>Test <span class="required-mark">*</span></mat-label>
-          <input
-            matInput
-            type="text"
-            [value]="selectedExamTitle"
-            placeholder="Select Test from Filter"
-            readonly
-            tabindex="-1"
-            style="cursor: default; user-select: none;"
-          />
-          <mat-hint *ngIf="isLoadingExams" style="color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
-            <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
-            <span>Loading tests...</span>
-          </mat-hint>
-        </mat-form-field>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── Empty State when no test selected (Matching Test Reports) ─── -->
-  <div class="empty-reports-state" *ngIf="!selectedExamId">
-    <div class="empty-state-card">
-      <div class="empty-state-icon">
-        <mat-icon>analytics</mat-icon>
-      </div>
-      <h3 class="empty-state-title">No Test Selected</h3>
-      <p class="empty-state-description" *ngIf="isSuperAdmin">
-        Please select an <strong>Institute</strong> and a <strong>Test</strong> from the toolbar above or use the <strong>Filter Tests</strong> panel to load test evaluation data.
-      </p>
-      <p class="empty-state-description" *ngIf="!isSuperAdmin">
-        Please select a <strong>Test</strong> from the <strong>Filter Tests</strong> panel to load test evaluation data.
-      </p>
-      <button
-        mat-flat-button
-        type="button"
-        class="button-one empty-action-btn"
-        (click)="openFiltersOverlay()"
-      >
-        <mat-icon svgIcon="filter"></mat-icon>
-        <span>Filter Tests</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- ─── Evaluation View Content (Shown only when a test is selected) ─── -->
-  <ng-container *ngIf="selectedExamId">
-  <!-- ─── Sub-tabs Toggle Bar (User Upload / Bulk Upload) ─── -->
-  <div class="upload-tabs-container">
-    <button
-      type="button"
-      class="upload-tab-btn"
-      [class.active]="uploadTab === 'user'"
-      (click)="setUploadTab('user')"
-    >
-      <mat-icon class="tab-icon">person</mat-icon>
-      User Upload
-    </button>
-    <button
-      type="button"
-      class="upload-tab-btn"
-      [class.active]="uploadTab === 'bulk'"
-      (click)="setUploadTab('bulk')"
-    >
-      <mat-icon class="tab-icon">cloud_upload</mat-icon>
-      Bulk Upload
-    </button>
-  </div>
-
-  <!-- ========================================================= -->
-  <!-- ─── BULK UPLOAD VIEW (Image 1 & Image 3 Design) ──────── -->
-  <!-- ========================================================= -->
-  <ng-container *ngIf="uploadTab === 'bulk'">
-    <div class="bulk-upload-card-wrapper">
-      <!-- Drag & Drop Upload Zone Box (Image 1) -->
-      <!-- Mode Toggle Switch (Single Combined PDF vs Individual Files) -->
-      <div class="bulk-mode-toggle-group">
-        <button
-          type="button"
-          class="bulk-mode-btn"
-          [class.active]="bulkUploadMode === 'combined_pdf'"
-          (click)="setBulkMode('combined_pdf')"
-        >
-          <mat-icon>picture_as_pdf</mat-icon>
-          <span>Single Multi-Student PDF</span>
-          <span class="mode-badge-new">NEW</span>
+    <!-- ─── Evaluation View Content (Shown only when a test is selected) ─── -->
+    <ng-container *ngIf="selectedExamId">
+      <!-- ─── Sub-tabs Toggle Bar (User Upload / Bulk Upload) ─── -->
+      <div class="upload-tabs-container">
+        <button type="button" class="upload-tab-btn" [class.active]="uploadTab === 'user'"
+          (click)="setUploadTab('user')">
+          <mat-icon class="tab-icon">person</mat-icon>
+          User Upload
         </button>
-        <button
-          type="button"
-          class="bulk-mode-btn"
-          [class.active]="bulkUploadMode === 'individual'"
-          (click)="setBulkMode('individual')"
-        >
-          <mat-icon>filter_none</mat-icon>
-          <span>Individual Files</span>
+        <button type="button" class="upload-tab-btn" [class.active]="uploadTab === 'bulk'"
+          (click)="setUploadTab('bulk')">
+          <mat-icon class="tab-icon">cloud_upload</mat-icon>
+          Bulk Upload
         </button>
       </div>
 
-      <!-- Mode 1: Single Combined PDF Upload Dropzone -->
-      <div class="bulk-dropzone-container combined-dropzone" *ngIf="bulkUploadMode === 'combined_pdf' && !splitBatchData">
-        <div class="cloud-badge-circle combined-cloud-badge">
-          <mat-icon class="cloud-icon">auto_awesome</mat-icon>
-        </div>
-        <h3 class="dropzone-title">Upload Single Multi-Student Answer Sheets PDF</h3>
-        <p class="dropzone-subtitle">
-          Upload 1 PDF containing multiple students' papers (e.g. 50 pages for 50 students).
-          AI will automatically detect student boundaries, identify each student, split the PDF, and evaluate each paper.
-        </p>
+      <!-- ========================================================= -->
+      <!-- ─── BULK UPLOAD VIEW (Image 1 & Image 3 Design) ──────── -->
+      <!-- ========================================================= -->
+      <ng-container *ngIf="uploadTab === 'bulk'">
+        <div class="bulk-upload-card-wrapper">
+          <!-- Drag & Drop Upload Zone Box (Image 1) -->
+          <!-- Mode Toggle Switch (Single Combined PDF vs Individual Files) -->
+          <div class="bulk-mode-toggle-group">
+            <button type="button" class="bulk-mode-btn" [class.active]="bulkUploadMode === 'combined_pdf'"
+              (click)="setBulkMode('combined_pdf')">
+              <mat-icon>picture_as_pdf</mat-icon>
+              <span>Single Multi-Student PDF</span>
+              <span class="mode-badge-new">NEW</span>
+            </button>
+            <button type="button" class="bulk-mode-btn" [class.active]="bulkUploadMode === 'individual'"
+              (click)="setBulkMode('individual')">
+              <mat-icon>filter_none</mat-icon>
+              <span>Individual Files</span>
+            </button>
+          </div>
+
+          <!-- Mode 1: Single Combined PDF Upload Dropzone -->
+          <div class="bulk-dropzone-container combined-dropzone"
+            *ngIf="bulkUploadMode === 'combined_pdf' && !splitBatchData">
+            <div class="cloud-badge-circle combined-cloud-badge">
+              <mat-icon class="cloud-icon">auto_awesome</mat-icon>
+            </div>
+            <h3 class="dropzone-title">Upload Single Multi-Student Answer Sheets PDF</h3>
+            <p class="dropzone-subtitle">
+              Upload 1 PDF containing multiple students' papers (e.g. 50 pages for 50 students).
+              AI will automatically detect student boundaries, identify each student, split the PDF, and evaluate each
+              paper.
+            </p>
 
 
 
-        <label class="btn-upload-files combined-upload-btn" [class.btn-disabled]="isSplittingPdf">
-          <mat-icon *ngIf="!isSplittingPdf">upload_file</mat-icon>
-          <mat-icon *ngIf="isSplittingPdf" class="spin-icon">sync</mat-icon>
-          <span>{{ isSplittingPdf ? 'Analyzing & Splitting PDF...' : 'Select Multi-Student PDF' }}</span>
-          <input
-            type="file"
-            accept=".pdf"
-            (change)="onCombinedPdfSelected($event)"
-            [disabled]="isSplittingPdf"
-            hidden
-          />
-        </label>
-      </div>
+            <label class="btn-upload-files combined-upload-btn" [class.btn-disabled]="isSplittingPdf">
+              <mat-icon *ngIf="!isSplittingPdf">upload_file</mat-icon>
+              <mat-icon *ngIf="isSplittingPdf" class="spin-icon">sync</mat-icon>
+              <span>{{ isSplittingPdf ? 'Analyzing & Splitting PDF...' : 'Select Multi-Student PDF' }}</span>
+              <input type="file" accept=".pdf" (change)="onCombinedPdfSelected($event)" [disabled]="isSplittingPdf"
+                hidden />
+            </label>
+          </div>
 
-      <!-- Mode 2: Traditional Individual Files Dropzone -->
-      <div class="bulk-dropzone-container" *ngIf="bulkUploadMode === 'individual'">
-        <div class="cloud-badge-circle">
-          <mat-icon class="cloud-icon">cloud_upload</mat-icon>
-        </div>
-        <h3 class="dropzone-title">Drag and drop individual answer sheets</h3>
-        <p class="dropzone-subtitle">
-          PDF, JPG, JPEG or PNG. Upload one file per student and name it after the student, for example <strong>Arun_Kumar.pdf</strong>.
-        </p>
-        <label class="btn-upload-files">
-          <mat-icon>add</mat-icon>
-          <span>Upload Files</span>
-          <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg" (change)="onBulkFilesSelected($event)" hidden />
-        </label>
-      </div>
+          <!-- Mode 2: Traditional Individual Files Dropzone -->
+          <div class="bulk-dropzone-container" *ngIf="bulkUploadMode === 'individual'">
+            <div class="cloud-badge-circle">
+              <mat-icon class="cloud-icon">cloud_upload</mat-icon>
+            </div>
+            <h3 class="dropzone-title">Drag and drop individual answer sheets</h3>
+            <p class="dropzone-subtitle">
+              PDF, JPG, JPEG or PNG. Upload one file per student and name it after the student, for example
+              <strong>Arun_Kumar.pdf</strong>.
+            </p>
+            <label class="btn-upload-files">
+              <mat-icon>add</mat-icon>
+              <span>Upload Files</span>
+              <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg" (change)="onBulkFilesSelected($event)" hidden />
+            </label>
+          </div>
 
-      <!-- Splitting & Review Table Card (Shown when splitBatchData is available) -->
-      <div class="split-review-wrapper" *ngIf="splitBatchData && !isBulkEvaluating">
-        <div class="split-review-card">
-          <div class="split-card-header">
-            <div class="split-title-group">
-              <mat-icon class="split-header-icon">call_split</mat-icon>
-              <div>
-                <h4 class="split-title">Multi-Student PDF Split Results</h4>
-                <p class="split-subtitle">
-                  {{ splitBatchData.total_pages }} Pages Processed &bull;
-                  <strong>{{ splitBatchData.identified_count }}</strong> of {{ splitBatchData.segments.length }} Students Automatically Identified
-                </p>
+          <!-- Splitting & Review Table Card (Shown when splitBatchData is available) -->
+          <div class="split-review-wrapper" *ngIf="splitBatchData && !isBulkEvaluating">
+            <div class="split-review-card">
+              <div class="split-card-header">
+                <div class="split-title-group">
+                  <mat-icon class="split-header-icon">call_split</mat-icon>
+                  <div>
+                    <h4 class="split-title">Multi-Student PDF Split Results</h4>
+                    <p class="split-subtitle">
+                      {{ splitBatchData.total_pages }} Pages Processed &bull;
+                      <strong>{{ splitBatchData.identified_count }}</strong> of {{ splitBatchData.segments.length }}
+                      Students Automatically Identified
+                    </p>
+                  </div>
+                </div>
+                <div class="split-header-actions">
+                  <button type="button" class="btn-split-discard" (click)="cancelSplitReview()">
+                    <mat-icon>close</mat-icon>
+                    <span>Discard</span>
+                  </button>
+                  <button type="button" class="btn-split-confirm" [disabled]="isUploading || isBulkEvaluating"
+                    (click)="confirmSplitAndEvaluate()">
+                    <mat-icon>auto_awesome</mat-icon>
+                    <span>Confirm & Evaluate All ({{ splitBatchData.identified_count }})</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="split-table-responsive">
+                <table class="split-table">
+                  <thead>
+                    <tr>
+                      <th>S.NO</th>
+                      <th>PAGES</th>
+                      <th>FIRST PAGE PREVIEW</th>
+                      <th>MATCHED STUDENT</th>
+                      <th>MATCH METHOD</th>
+                      <th>CONFIDENCE</th>
+                      <th>ASSIGN / REASSIGN</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let seg of splitBatchData.segments; let i = index"
+                      [class.unmatched-row]="!seg.is_matched">
+                      <td class="col-sno">{{ i + 1 }}</td>
+                      <td class="col-pages">
+                        <span class="page-range-pill">
+                          {{ seg.start_page === seg.end_page ? ('Page ' + seg.start_page) : ('Pages ' + seg.start_page +
+                          ' - ' + seg.end_page) }}
+                        </span>
+                        <span class="pages-count-text">({{ seg.total_pages }} page{{ seg.total_pages > 1 ? 's' : ''
+                          }})</span>
+                      </td>
+                      <td class="col-thumb">
+                        <img [src]="seg.thumbnail_url" alt="Page Thumbnail" class="split-thumb-img" />
+                      </td>
+                      <td class="col-student-name">
+                        <div class="seg-student-name">{{ seg.student_name }}</div>
+                        <div class="seg-student-roll" *ngIf="seg.roll_no">Roll: {{ seg.roll_no }}</div>
+                      </td>
+                      <td class="col-method">
+                        <span class="method-text">{{ seg.matched_by }}</span>
+                      </td>
+                      <td class="col-conf">
+                        <span class="conf-pill"
+                          [ngClass]="seg.confidence >= 80 ? 'conf-high' : (seg.confidence > 0 ? 'conf-med' : 'conf-none')">
+                          {{ seg.confidence }}%
+                        </span>
+                      </td>
+                      <td class="col-assign">
+                        <select class="split-student-select" [ngModel]="seg.user_id || 'unmatched'"
+                          (ngModelChange)="onSegmentStudentChange(seg, $event)">
+                          <option value="unmatched" disabled>Choose student to link...</option>
+                          <option *ngFor="let st of students" [value]="st.user_id">
+                            {{ st.name }} ({{ st.rollNo }})
+                          </option>
+                        </select>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div class="split-header-actions">
-              <button type="button" class="btn-split-discard" (click)="cancelSplitReview()">
-                <mat-icon>close</mat-icon>
-                <span>Discard</span>
-              </button>
-              <button
-                type="button"
-                class="btn-split-confirm"
-                [disabled]="isUploading || isBulkEvaluating"
-                (click)="confirmSplitAndEvaluate()"
-              >
-                <mat-icon>auto_awesome</mat-icon>
-                <span>Confirm & Evaluate All ({{ splitBatchData.identified_count }})</span>
+          </div>
+
+          <!-- Uploaded Files Manager Tray (Quick View & Delete Mistakes) -->
+          <div class="uploaded-files-tray"
+            *ngIf="bulkFiles.length > 0 && (!hasStartedEvaluation || unmatchedCount > 0)">
+            <div class="uploaded-tray-header">
+              <div class="tray-title-group">
+                <mat-icon class="tray-header-icon">folder_open</mat-icon>
+                <span class="tray-title">Uploaded Answer Sheets ({{ bulkFiles.length }})</span>
+                <span class="tray-stats-badge">
+                  <ng-container *ngIf="isScanningBulkFiles">
+                    {{ matchedCount }} matched &bull; scanning...
+                  </ng-container>
+                  <ng-container *ngIf="!isScanningBulkFiles">
+                    {{ matchedCount }} matched &bull; {{ unmatchedCount }} unmatched
+                  </ng-container>
+                </span>
+              </div>
+              <button type="button" class="btn-clear-all-files" (click)="clearAllBulkFiles()"
+                matTooltip="Clear and remove all uploaded bulk files">
+                <mat-icon>delete_sweep</mat-icon>
+                <span>Clear All Files</span>
               </button>
             </div>
-          </div>
 
-          <div class="split-table-responsive">
-            <table class="split-table">
-              <thead>
-                <tr>
-                  <th>S.NO</th>
-                  <th>PAGES</th>
-                  <th>FIRST PAGE PREVIEW</th>
-                  <th>MATCHED STUDENT</th>
-                  <th>MATCH METHOD</th>
-                  <th>CONFIDENCE</th>
-                  <th>ASSIGN / REASSIGN</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let seg of splitBatchData.segments; let i = index" [class.unmatched-row]="!seg.is_matched">
-                  <td class="col-sno">{{ i + 1 }}</td>
-                  <td class="col-pages">
-                    <span class="page-range-pill">
-                      {{ seg.start_page === seg.end_page ? ('Page ' + seg.start_page) : ('Pages ' + seg.start_page + ' - ' + seg.end_page) }}
-                    </span>
-                    <span class="pages-count-text">({{ seg.total_pages }} page{{ seg.total_pages > 1 ? 's' : '' }})</span>
-                  </td>
-                  <td class="col-thumb">
-                    <img [src]="seg.thumbnail_url" alt="Page Thumbnail" class="split-thumb-img" />
-                  </td>
-                  <td class="col-student-name">
-                    <div class="seg-student-name">{{ seg.student_name }}</div>
-                    <div class="seg-student-roll" *ngIf="seg.roll_no">Roll: {{ seg.roll_no }}</div>
-                  </td>
-                  <td class="col-method">
-                    <span class="method-text">{{ seg.matched_by }}</span>
-                  </td>
-                  <td class="col-conf">
-                    <span class="conf-pill" [ngClass]="seg.confidence >= 80 ? 'conf-high' : (seg.confidence > 0 ? 'conf-med' : 'conf-none')">
-                      {{ seg.confidence }}%
-                    </span>
-                  </td>
-                  <td class="col-assign">
-                    <select
-                      class="split-student-select"
-                      [ngModel]="seg.user_id || 'unmatched'"
-                      (ngModelChange)="onSegmentStudentChange(seg, $event)"
-                    >
-                      <option value="unmatched" disabled>Choose student to link...</option>
-                      <option *ngFor="let st of students" [value]="st.user_id">
-                        {{ st.name }} ({{ st.rollNo }})
-                      </option>
-                    </select>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Uploaded Files Manager Tray (Quick View & Delete Mistakes) -->
-      <div class="uploaded-files-tray" *ngIf="bulkFiles.length > 0 && (!hasStartedEvaluation || unmatchedCount > 0)">
-        <div class="uploaded-tray-header">
-          <div class="tray-title-group">
-            <mat-icon class="tray-header-icon">folder_open</mat-icon>
-            <span class="tray-title">Uploaded Answer Sheets ({{ bulkFiles.length }})</span>
-            <span class="tray-stats-badge">
-              <ng-container *ngIf="isScanningBulkFiles">
-                {{ matchedCount }} matched &bull; scanning...
-              </ng-container>
-              <ng-container *ngIf="!isScanningBulkFiles">
-                {{ matchedCount }} matched &bull; {{ unmatchedCount }} unmatched
-              </ng-container>
-            </span>
-          </div>
-          <button
-            type="button"
-            class="btn-clear-all-files"
-            (click)="clearAllBulkFiles()"
-            matTooltip="Clear and remove all uploaded bulk files"
-          >
-            <mat-icon>delete_sweep</mat-icon>
-            <span>Clear All Files</span>
-          </button>
-        </div>
-
-        <div class="uploaded-files-chips-grid">
-          <ng-container *ngFor="let f of bulkFiles">
-            <div
-              class="file-chip-item"
-              *ngIf="!hasStartedEvaluation || !f.isMatched"
-              [ngClass]="{
+            <div class="uploaded-files-chips-grid">
+              <ng-container *ngFor="let f of bulkFiles">
+                <div class="file-chip-item" *ngIf="!hasStartedEvaluation || !f.isMatched" [ngClass]="{
                 'chip-matched': f.isMatched,
                 'chip-unmatched': !f.isMatched,
                 'chip-scanning': f.isScanning,
                 'chip-selected': previewAnswerSheet?.fileName === f.fileName
-              }"
-              (click)="openAnswerSheetPreview(f)"
-              matTooltip="Click to preview answer sheet"
-            >
-              <div class="file-chip-left">
-                <mat-icon class="file-chip-icon">
-                  {{ f.fileName.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image' }}
-                </mat-icon>
-                <div class="file-chip-details">
-                  <span class="file-chip-name" [title]="f.fileName">{{ f.fileName }}</span>
-                  <span class="file-chip-sub">
-                    <ng-container *ngIf="f.isMatched">
-                      <mat-icon class="sub-status-icon matched-icon">check_circle</mat-icon>
-                      <span class="sub-text"><strong>{{ f.studentName }}</strong></span>
-                    </ng-container>
-                    <ng-container *ngIf="!f.isMatched && f.isScanning">
-                      <mat-icon class="sub-status-icon scanning-icon">sync</mat-icon>
-                      <span class="sub-text">Scanning...</span>
-                    </ng-container>
-                    <ng-container *ngIf="!f.isMatched && !f.isScanning">
-                      <mat-icon class="sub-status-icon unmatched-icon">warning</mat-icon>
-                      <span class="sub-text">Unmatched</span>
-                    </ng-container>
-                  </span>
+              }" (click)="openAnswerSheetPreview(f)" matTooltip="Click to preview answer sheet">
+                  <div class="file-chip-left">
+                    <mat-icon class="file-chip-icon">
+                      {{ f.fileName.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image' }}
+                    </mat-icon>
+                    <div class="file-chip-details">
+                      <span class="file-chip-name" [title]="f.fileName">{{ f.fileName }}</span>
+                      <span class="file-chip-sub">
+                        <ng-container *ngIf="f.isMatched">
+                          <mat-icon class="sub-status-icon matched-icon">check_circle</mat-icon>
+                          <span class="sub-text"><strong>{{ f.studentName }}</strong></span>
+                        </ng-container>
+                        <ng-container *ngIf="!f.isMatched && f.isScanning">
+                          <mat-icon class="sub-status-icon scanning-icon">sync</mat-icon>
+                          <span class="sub-text">Scanning...</span>
+                        </ng-container>
+                        <ng-container *ngIf="!f.isMatched && !f.isScanning">
+                          <mat-icon class="sub-status-icon unmatched-icon">warning</mat-icon>
+                          <span class="sub-text">Unmatched</span>
+                        </ng-container>
+                      </span>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-chip-remove" (click)="removeBulkFile(f, $event)"
+                    [matTooltip]="'Remove ' + f.fileName" aria-label="Remove file">
+                    <mat-icon>close</mat-icon>
+                  </button>
                 </div>
-              </div>
-              <button
-                type="button"
-                class="btn-chip-remove"
-                (click)="removeBulkFile(f, $event)"
-                [matTooltip]="'Remove ' + f.fileName"
-                aria-label="Remove file"
-              >
-                <mat-icon>close</mat-icon>
-              </button>
+              </ng-container>
             </div>
-          </ng-container>
-        </div>
 
-        <!-- Inline Answer Sheet Preview (Appears directly below the cards) -->
-        <div id="answer-sheet-preview-panel" class="sheet-preview-panel" *ngIf="previewAnswerSheet">
-          <!-- Header -->
-          <div class="sheet-preview-header">
-            <div class="sheet-preview-title-group">
-              <mat-icon class="title-icon">
-                {{ previewAnswerSheet.isPdf ? 'picture_as_pdf' : 'image' }}
-              </mat-icon>
-              <div class="title-text-wrap">
-                <span id="answer-sheet-preview-title" class="sheet-preview-title" [title]="previewAnswerSheet.fileName">
-                  {{ previewAnswerSheet.fileName }}
-                </span>
-                <div class="sheet-preview-meta">
-                  <span class="preview-badge badge-matched" *ngIf="previewAnswerSheet.isMatched && previewAnswerSheet.studentName">
-                    <mat-icon>check_circle</mat-icon>
-                    <span>{{ previewAnswerSheet.studentName }}</span>
-                  </span>
-                  <span class="preview-badge badge-scanning" *ngIf="!previewAnswerSheet.isMatched && previewAnswerSheet.isScanning">
-                    <mat-icon class="spin-icon">sync</mat-icon>
-                    <span>Scanning student...</span>
-                  </span>
-                  <span class="preview-badge badge-unmatched" *ngIf="!previewAnswerSheet.isMatched && !previewAnswerSheet.isScanning">
-                    <mat-icon>warning</mat-icon>
-                    <span>Unmatched File</span>
-                  </span>
+            <!-- Inline Answer Sheet Preview (Appears directly below the cards) -->
+            <div id="answer-sheet-preview-panel" class="sheet-preview-panel" *ngIf="previewAnswerSheet">
+              <!-- Header -->
+              <div class="sheet-preview-header">
+                <div class="sheet-preview-title-group">
+                  <mat-icon class="title-icon">
+                    {{ previewAnswerSheet.isPdf ? 'picture_as_pdf' : 'image' }}
+                  </mat-icon>
+                  <div class="title-text-wrap">
+                    <span id="answer-sheet-preview-title" class="sheet-preview-title"
+                      [title]="previewAnswerSheet.fileName">
+                      {{ previewAnswerSheet.fileName }}
+                    </span>
+                    <div class="sheet-preview-meta">
+                      <span class="preview-badge badge-matched"
+                        *ngIf="previewAnswerSheet.isMatched && previewAnswerSheet.studentName">
+                        <mat-icon>check_circle</mat-icon>
+                        <span>{{ previewAnswerSheet.studentName }}</span>
+                      </span>
+                      <span class="preview-badge badge-scanning"
+                        *ngIf="!previewAnswerSheet.isMatched && previewAnswerSheet.isScanning">
+                        <mat-icon class="spin-icon">sync</mat-icon>
+                        <span>Scanning student...</span>
+                      </span>
+                      <span class="preview-badge badge-unmatched"
+                        *ngIf="!previewAnswerSheet.isMatched && !previewAnswerSheet.isScanning">
+                        <mat-icon>warning</mat-icon>
+                        <span>Unmatched File</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <!-- Action Toolbar -->
-            <div class="sheet-preview-actions">
-              <!-- PDF Page Navigation (only for PDFs) -->
-              <div class="pdf-page-controls" *ngIf="previewAnswerSheet.isPdf && previewPdfTotalPages > 0">
-                <button
-                  type="button"
-                  class="ctrl-icon-btn"
-                  (click)="prevModalPdfPage()"
-                  [disabled]="previewPdfCurrentPage <= 1 || isPreviewPdfLoading"
-                  matTooltip="Previous Page"
-                  aria-label="Previous Page"
-                >
-                  <mat-icon>chevron_left</mat-icon>
-                </button>
-                <span class="page-counter">
-                  {{ previewPdfCurrentPage }} / {{ previewPdfTotalPages }}
-                </span>
-                <button
-                  type="button"
-                  class="ctrl-icon-btn"
-                  (click)="nextModalPdfPage()"
-                  [disabled]="previewPdfCurrentPage >= previewPdfTotalPages || isPreviewPdfLoading"
-                  matTooltip="Next Page"
-                  aria-label="Next Page"
-                >
-                  <mat-icon>chevron_right</mat-icon>
-                </button>
-              </div>
-
-              <div class="divider" *ngIf="previewAnswerSheet.isPdf && previewPdfTotalPages > 0"></div>
-
-              <!-- Zoom Controls -->
-              <button
-                type="button"
-                class="ctrl-icon-btn"
-                (click)="previewModalZoomOut()"
-                [disabled]="previewZoom <= 0.5"
-                matTooltip="Zoom Out"
-                aria-label="Zoom Out"
-              >
-                <mat-icon>zoom_out</mat-icon>
-              </button>
-              <button
-                type="button"
-                class="zoom-reset-btn"
-                (click)="previewModalResetZoom()"
-                [disabled]="previewZoom === 1"
-                matTooltip="Reset Zoom"
-              >
-                {{ (previewZoom * 100) | number : '1.0-0' }}%
-              </button>
-              <button
-                type="button"
-                class="ctrl-icon-btn"
-                (click)="previewModalZoomIn()"
-                [disabled]="previewZoom >= 3"
-                matTooltip="Zoom In"
-                aria-label="Zoom In"
-              >
-                <mat-icon>zoom_in</mat-icon>
-              </button>
-
-              <div class="divider"></div>
-
-              <!-- Download Action -->
-              <button
-                type="button"
-                class="ctrl-icon-btn"
-                (click)="downloadPreviewAnswerSheet()"
-                matTooltip="Download Answer Sheet"
-                aria-label="Download File"
-              >
-                <mat-icon>file_download</mat-icon>
-              </button>
-
-              <!-- Open in new tab -->
-              <a
-                [href]="previewAnswerSheet.objectUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="ctrl-icon-btn"
-                matTooltip="Open in New Tab"
-                aria-label="Open original file in new tab"
-              >
-                <mat-icon>open_in_new</mat-icon>
-              </a>
-
-              <!-- Close Action -->
-              <button
-                type="button"
-                class="ctrl-icon-btn close-btn"
-                (click)="closeAnswerSheetPreview()"
-                matTooltip="Close Preview (Esc)"
-                aria-label="Close"
-              >
-                <mat-icon>close</mat-icon>
-              </button>
-            </div>
-          </div>
-
-          <!-- Body (Interactive Hand Tool Pan) -->
-          <div
-            #previewBodyRef
-            class="sheet-preview-body"
-            [class.is-grabbing]="isPanningModal"
-            (mousedown)="startModalPan($event, previewBodyRef)"
-            (mousemove)="onModalPan($event, previewBodyRef)"
-            (mouseup)="stopModalPan()"
-            (mouseleave)="stopModalPan()"
-          >
-            <!-- Loading Spinner -->
-            <div class="sheet-preview-loading" *ngIf="isPreviewPdfLoading">
-              <mat-icon class="spin-icon">sync</mat-icon>
-              <span>Loading answer sheet preview...</span>
-            </div>
-
-            <!-- Error State -->
-            <div class="sheet-preview-error-state" *ngIf="previewError">
-              <mat-icon class="error-state-icon">error_outline</mat-icon>
-              <h4>Unable to preview this file in viewer</h4>
-              <p>This file format could not be rendered directly, but the file is intact.</p>
-              <div class="error-actions">
-                <button type="button" class="btn-error-download" (click)="downloadPreviewAnswerSheet()">
-                  <mat-icon>file_download</mat-icon>
-                  <span>Download {{ previewAnswerSheet.fileName }}</span>
-                </button>
-                <a [href]="previewAnswerSheet.objectUrl" target="_blank" rel="noopener noreferrer" class="btn-error-open">
-                  <mat-icon>open_in_new</mat-icon>
-                  <span>Open in New Tab</span>
-                </a>
-              </div>
-            </div>
-
-            <!-- Viewport -->
-            <div class="sheet-preview-viewport" [hidden]="previewError">
-              <!-- PDF Render Canvas -->
-              <div class="canvas-transform-wrapper" *ngIf="previewAnswerSheet.isPdf" [style.transform]="'scale(' + previewZoom + ')'">
-                <canvas #modalPdfCanvas class="modal-pdf-canvas"></canvas>
-              </div>
-
-              <!-- Image Render -->
-              <div class="image-transform-wrapper" *ngIf="!previewAnswerSheet.isPdf" [style.transform]="'scale(' + previewZoom + ')'">
-                <img
-                  [src]="previewAnswerSheet.objectUrl"
-                  [alt]="previewAnswerSheet.fileName"
-                  class="modal-preview-image"
-                  (load)="isPreviewPdfLoading = false"
-                  (error)="previewError = true; isPreviewPdfLoading = false"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 5-Step Evaluation Progress Stepper (100% Dynamic Logic) -->
-      <div class="stepper-bar-container">
-        <div class="stepper-track">
-          <!-- Row 1: Circles & Direct Connecting Lines -->
-          <div class="stepper-nodes-row">
-            <!-- Step 1: Upload -->
-            <div class="step-circle-wrapper" [ngClass]="bulkFiles.length > 0 ? 'step-completed' : 'step-active'">
-              <div class="step-circle">
-                <mat-icon *ngIf="bulkFiles.length > 0">check</mat-icon>
-                <span *ngIf="bulkFiles.length === 0">1</span>
-              </div>
-            </div>
-            <div class="step-line" [ngClass]="bulkFiles.length > 0 ? 'line-completed' : 'line-upcoming'"></div>
-
-            <!-- Step 2: Identify Students -->
-            <div
-              class="step-circle-wrapper"
-              [ngClass]="bulkFiles.length === 0 ? 'step-upcoming' : (unmatchedCount === 0 ? 'step-completed' : 'step-active')"
-            >
-              <div class="step-circle">
-                <mat-icon *ngIf="bulkFiles.length > 0 && unmatchedCount === 0">check</mat-icon>
-                <span *ngIf="bulkFiles.length === 0 || unmatchedCount > 0">2</span>
-              </div>
-            </div>
-            <div
-              class="step-line"
-              [ngClass]="(bulkFiles.length > 0 && unmatchedCount === 0) ? 'line-completed' : 'line-upcoming'"
-            ></div>
-
-            <!-- Step 3: Validate Pages -->
-            <div
-              class="step-circle-wrapper"
-              [ngClass]="(bulkFiles.length === 0 || unmatchedCount > 0) ? 'step-upcoming' : (bulkMissingPagesCount === 0 ? 'step-completed' : 'step-active')"
-            >
-              <div class="step-circle">
-                <mat-icon *ngIf="bulkFiles.length > 0 && unmatchedCount === 0 && bulkMissingPagesCount === 0">check</mat-icon>
-                <span *ngIf="bulkFiles.length === 0 || unmatchedCount > 0 || bulkMissingPagesCount > 0">3</span>
-              </div>
-            </div>
-            <div
-              class="step-line"
-              [ngClass]="(bulkFiles.length > 0 && unmatchedCount === 0 && bulkMissingPagesCount === 0) ? 'line-completed' : 'line-upcoming'"
-            ></div>
-
-            <!-- Step 4: AI Evaluation -->
-            <div
-              class="step-circle-wrapper"
-              [ngClass]="(bulkFiles.length === 0 || unmatchedCount > 0) ? 'step-upcoming' : (matchedCount > 0 && bulkEvaluatedCount === matchedCount ? 'step-completed' : 'step-active')"
-            >
-              <div class="step-circle">
-                <mat-icon *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">check</mat-icon>
-                <span *ngIf="!(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount)">4</span>
-              </div>
-            </div>
-            <div
-              class="step-line"
-              [ngClass]="(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount) ? 'line-completed' : 'line-upcoming'"
-            ></div>
-
-            <!-- Step 5: Results -->
-            <div
-              class="step-circle-wrapper"
-              [ngClass]="(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount) ? 'step-completed' : 'step-upcoming'"
-            >
-              <div class="step-circle">
-                <mat-icon *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">check</mat-icon>
-                <span *ngIf="!(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount)">5</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Row 2: Aligning Labels & Subtitles below circles -->
-          <div class="stepper-labels-row">
-            <!-- Col 1: Upload -->
-            <div class="step-label-col">
-              <span class="step-label">Upload</span>
-              <span class="step-sub">
-                {{ bulkFiles.length > 0 ? (bulkFiles.length + ' file' + (bulkFiles.length > 1 ? 's' : '') + ' added') : 'No files added' }}
-              </span>
-            </div>
-
-            <!-- Col 2: Identify Students -->
-            <div class="step-label-col">
-              <span class="step-label">Identify Students</span>
-              <span class="step-sub">
-                <ng-container *ngIf="bulkFiles.length === 0">Pending upload</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && isScanningBulkFiles">{{ matchedCount }} matched, scanning...</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && !isScanningBulkFiles && unmatchedCount === 0">{{ matchedCount }} matched</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && !isScanningBulkFiles && unmatchedCount > 0">{{ matchedCount }} matched, <span class="step-sub-danger">{{ unmatchedCount }} not</span></ng-container>
-              </span>
-            </div>
-
-            <!-- Col 3: Validate Pages -->
-            <div class="step-label-col">
-              <span class="step-label">Validate Pages</span>
-              <span class="step-sub">
-                <ng-container *ngIf="bulkFiles.length === 0">Pending upload</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && bulkMissingPagesCount === 0">All pages verified</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && bulkMissingPagesCount > 0">{{ bulkMissingPagesCount }} with missing page</ng-container>
-              </span>
-            </div>
-
-            <!-- Col 4: AI Evaluation -->
-            <div class="step-label-col">
-              <span class="step-label">AI Evaluation</span>
-              <span class="step-sub">
-                <ng-container *ngIf="bulkFiles.length === 0">Pending</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">All sheets evaluated</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && !(matchedCount > 0 && bulkEvaluatedCount === matchedCount)">{{ bulkEvaluatedCount }} of {{ matchedCount }} sheets done</ng-container>
-              </span>
-            </div>
-
-            <!-- Col 5: Results -->
-            <div class="step-label-col">
-              <span class="step-label">Results</span>
-              <span class="step-sub">
-                <ng-container *ngIf="bulkFiles.length === 0">Pending</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">Ready to review</ng-container>
-                <ng-container *ngIf="bulkFiles.length > 0 && !(matchedCount > 0 && bulkEvaluatedCount === matchedCount)">Review exceptions</ng-container>
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Warning Alert Banner for Unmatched Files with Resolution / Removal Controls -->
-      <div class="unmatched-resolution-card" *ngIf="!isScanningBulkFiles && unmatchedCount > 0">
-        <div class="warning-alert-banner">
-          <mat-icon class="warning-icon">warning</mat-icon>
-          <span>
-            <strong>{{ unmatchedCount }} file{{ unmatchedCount > 1 ? 's' : '' }}</strong> could not be matched automatically. Choose the student below or remove mistaken files:
-          </span>
-        </div>
-        <div class="unmatched-items-list">
-          <div class="unmatched-item-row" *ngFor="let uf of unmatchedBulkFiles">
-            <div class="unmatched-file-info" (click)="openAnswerSheetPreview(uf)" matTooltip="Click to preview answer sheet">
-              <mat-icon class="unmatched-file-icon">description</mat-icon>
-              <span class="unmatched-file-name" [title]="uf.fileName">{{ uf.fileName }}</span>
-            </div>
-            <div class="unmatched-item-actions">
-              <select
-                class="student-assign-select"
-                [ngModel]="uf.selectedStudent || 'Choose student'"
-                (ngModelChange)="onStudentSelectedForUnmatched(uf, $event)"
-              >
-                <option value="Choose student" disabled>Choose student to link...</option>
-                <option *ngFor="let st of getEligibleStudentsForLink(uf)" [value]="st.name">{{ st.name }} ({{ st.rollNo }})</option>
-              </select>
-              <button
-                type="button"
-                class="btn-unmatched-remove"
-                (click)="removeBulkFile(uf, $event)"
-                [matTooltip]="'Remove ' + uf.fileName"
-              >
-                <mat-icon>delete_outline</mat-icon>
-                <span>Remove</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live Background Evaluation Progress Card (Stage 3 SSE Streaming) -->
-      <div class="live-eval-progress-banner" *ngIf="isBulkEvaluating || (bulkProgress.total > 0 && bulkProgress.percentage < 100)">
-        <div class="progress-banner-top">
-          <div class="banner-title-group">
-            <mat-icon class="banner-spin-icon">sync</mat-icon>
-            <div class="banner-text">
-              <span class="banner-title">Evaluating Papers...</span>
-              <span class="banner-subtitle">{{ bulkProgress.message || 'Processing answer sheets in the background...' }}</span>
-            </div>
-          </div>
-          <div class="banner-percentage-pill">
-            {{ bulkProgress.percentage }}%
-          </div>
-        </div>
-        <div class="progress-track-line">
-          <div class="progress-fill-line" [style.width.%]="bulkProgress.percentage"></div>
-        </div>
-        <div class="progress-banner-bottom">
-          <span class="progress-count-info">
-            <strong>{{ bulkProgress.completed }}</strong> of <strong>{{ bulkProgress.total }}</strong> sheets completed
-          </span>
-          <span class="progress-error-info" *ngIf="bulkProgress.failed > 0">
-            {{ bulkProgress.failed }} failed (retryable)
-          </span>
-        </div>
-      </div>
-
-      <!-- Bulk Student Files Table (Synchronized with User Upload Table Structure) -->
-      <div class="table-card bulk-table-card">
-        <div class="table-responsive">
-          <table class="evaluation-table bulk-evaluation-table">
-            <thead>
-              <tr>
-                <th>S.NO</th>
-                <th>STUDENT NAME</th>
-                <th>ANSWER SHEET</th>
-                <th>EVALUATION STATUS</th>
-                <th>MARKS</th>
-                <th class="text-center col-icon-header">SCAN</th>
-                <th class="text-center col-icon-header">ATTACH</th>
-                <th class="text-center col-action-header">ACTION</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let s of filteredStudents">
-                <!-- S.No Column -->
-                <td class="col-sno">{{ s.sno }}</td>
-
-                <!-- Student Name Column -->
-                <td class="col-student">
-                  <div class="student-name">{{ s.name }}</div>
-                  <div class="student-roll">{{ s.rollNo }}</div>
-                  <div *ngIf="s.matchedFile && s.status === 'Not Evaluated' && !isBulkEvaluating && s.actionText !== 'Evaluating...' && s.actionText !== 'Queued...'" class="match-badge-chip" (click)="openAnswerSheetPreview(s)" matTooltip="Click to preview answer sheet">
-                    <mat-icon class="match-icon">description</mat-icon>
-                    <span class="match-chip-text" [title]="s.matchedFile">{{ s.matchedFile }} ({{ s.matchedBy || 'Matched' }})</span>
-                    <button
-                      type="button"
-                      class="btn-match-chip-remove"
-                      (click)="removeMatchedStudentFile(s, $event)"
-                      matTooltip="Remove / Detach file"
-                    >
-                      <mat-icon>close</mat-icon>
+                <!-- Action Toolbar -->
+                <div class="sheet-preview-actions">
+                  <!-- PDF Page Navigation (only for PDFs) -->
+                  <div class="pdf-page-controls" *ngIf="previewAnswerSheet.isPdf && previewPdfTotalPages > 0">
+                    <button type="button" class="ctrl-icon-btn" (click)="prevModalPdfPage()"
+                      [disabled]="previewPdfCurrentPage <= 1 || isPreviewPdfLoading" matTooltip="Previous Page"
+                      aria-label="Previous Page">
+                      <mat-icon>chevron_left</mat-icon>
+                    </button>
+                    <span class="page-counter">
+                      {{ previewPdfCurrentPage }} / {{ previewPdfTotalPages }}
+                    </span>
+                    <button type="button" class="ctrl-icon-btn" (click)="nextModalPdfPage()"
+                      [disabled]="previewPdfCurrentPage >= previewPdfTotalPages || isPreviewPdfLoading"
+                      matTooltip="Next Page" aria-label="Next Page">
+                      <mat-icon>chevron_right</mat-icon>
                     </button>
                   </div>
-                </td>
 
-                <!-- Answer Sheet Column -->
-                <td class="col-pages">
-                  <div>{{ s.pagesInfo }}</div>
-                  <div *ngIf="s.missingPagesWarning" class="warning-subtext">
-                    {{ s.missingPagesWarning }}
+                  <div class="divider" *ngIf="previewAnswerSheet.isPdf && previewPdfTotalPages > 0"></div>
+
+                  <!-- Zoom Controls -->
+                  <button type="button" class="ctrl-icon-btn" (click)="previewModalZoomOut()"
+                    [disabled]="previewZoom <= 0.5" matTooltip="Zoom Out" aria-label="Zoom Out">
+                    <mat-icon>zoom_out</mat-icon>
+                  </button>
+                  <button type="button" class="zoom-reset-btn" (click)="previewModalResetZoom()"
+                    [disabled]="previewZoom === 1" matTooltip="Reset Zoom">
+                    {{ (previewZoom * 100) | number : '1.0-0' }}%
+                  </button>
+                  <button type="button" class="ctrl-icon-btn" (click)="previewModalZoomIn()"
+                    [disabled]="previewZoom >= 3" matTooltip="Zoom In" aria-label="Zoom In">
+                    <mat-icon>zoom_in</mat-icon>
+                  </button>
+
+                  <div class="divider"></div>
+
+                  <!-- Download Action -->
+                  <button type="button" class="ctrl-icon-btn" (click)="downloadPreviewAnswerSheet()"
+                    matTooltip="Download Answer Sheet" aria-label="Download File">
+                    <mat-icon>file_download</mat-icon>
+                  </button>
+
+                  <!-- Open in new tab -->
+                  <a [href]="previewAnswerSheet.objectUrl" target="_blank" rel="noopener noreferrer"
+                    class="ctrl-icon-btn" matTooltip="Open in New Tab" aria-label="Open original file in new tab">
+                    <mat-icon>open_in_new</mat-icon>
+                  </a>
+
+                  <!-- Close Action -->
+                  <button type="button" class="ctrl-icon-btn close-btn" (click)="closeAnswerSheetPreview()"
+                    matTooltip="Close Preview (Esc)" aria-label="Close">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Body (Interactive Hand Tool Pan) -->
+              <div #previewBodyRef class="sheet-preview-body" [class.is-grabbing]="isPanningModal"
+                (mousedown)="startModalPan($event, previewBodyRef)" (mousemove)="onModalPan($event, previewBodyRef)"
+                (mouseup)="stopModalPan()" (mouseleave)="stopModalPan()">
+                <!-- Loading Spinner -->
+                <div class="sheet-preview-loading" *ngIf="isPreviewPdfLoading">
+                  <mat-icon class="spin-icon">sync</mat-icon>
+                  <span>Loading answer sheet preview...</span>
+                </div>
+
+                <!-- Error State -->
+                <div class="sheet-preview-error-state" *ngIf="previewError">
+                  <mat-icon class="error-state-icon">error_outline</mat-icon>
+                  <h4>Unable to preview this file in viewer</h4>
+                  <p>This file format could not be rendered directly, but the file is intact.</p>
+                  <div class="error-actions">
+                    <button type="button" class="btn-error-download" (click)="downloadPreviewAnswerSheet()">
+                      <mat-icon>file_download</mat-icon>
+                      <span>Download {{ previewAnswerSheet.fileName }}</span>
+                    </button>
+                    <a [href]="previewAnswerSheet.objectUrl" target="_blank" rel="noopener noreferrer"
+                      class="btn-error-open">
+                      <mat-icon>open_in_new</mat-icon>
+                      <span>Open in New Tab</span>
+                    </a>
                   </div>
-                </td>
+                </div>
 
-                <!-- Evaluation Status Column -->
-                <td class="col-status">
-                  <span
-                    class="status-pill"
-                    [ngClass]="{
+                <!-- Viewport -->
+                <div class="sheet-preview-viewport" [hidden]="previewError">
+                  <!-- PDF Render Canvas -->
+                  <div class="canvas-transform-wrapper" *ngIf="previewAnswerSheet.isPdf"
+                    [style.transform]="'scale(' + previewZoom + ')'">
+                    <canvas #modalPdfCanvas class="modal-pdf-canvas"></canvas>
+                  </div>
+
+                  <!-- Image Render -->
+                  <div class="image-transform-wrapper" *ngIf="!previewAnswerSheet.isPdf"
+                    [style.transform]="'scale(' + previewZoom + ')'">
+                    <img [src]="previewAnswerSheet.objectUrl" [alt]="previewAnswerSheet.fileName"
+                      class="modal-preview-image" (load)="isPreviewPdfLoading = false"
+                      (error)="previewError = true; isPreviewPdfLoading = false" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5-Step Evaluation Progress Stepper (100% Dynamic Logic) -->
+          <div class="stepper-bar-container">
+            <div class="stepper-track">
+              <!-- Row 1: Circles & Direct Connecting Lines -->
+              <div class="stepper-nodes-row">
+                <!-- Step 1: Upload -->
+                <div class="step-circle-wrapper" [ngClass]="bulkFiles.length > 0 ? 'step-completed' : 'step-active'">
+                  <div class="step-circle">
+                    <mat-icon *ngIf="bulkFiles.length > 0">check</mat-icon>
+                    <span *ngIf="bulkFiles.length === 0">1</span>
+                  </div>
+                </div>
+                <div class="step-line" [ngClass]="bulkFiles.length > 0 ? 'line-completed' : 'line-upcoming'"></div>
+
+                <!-- Step 2: Identify Students -->
+                <div class="step-circle-wrapper"
+                  [ngClass]="bulkFiles.length === 0 ? 'step-upcoming' : (unmatchedCount === 0 ? 'step-completed' : 'step-active')">
+                  <div class="step-circle">
+                    <mat-icon *ngIf="bulkFiles.length > 0 && unmatchedCount === 0">check</mat-icon>
+                    <span *ngIf="bulkFiles.length === 0 || unmatchedCount > 0">2</span>
+                  </div>
+                </div>
+                <div class="step-line"
+                  [ngClass]="(bulkFiles.length > 0 && unmatchedCount === 0) ? 'line-completed' : 'line-upcoming'"></div>
+
+                <!-- Step 3: Validate Pages -->
+                <div class="step-circle-wrapper"
+                  [ngClass]="(bulkFiles.length === 0 || unmatchedCount > 0) ? 'step-upcoming' : (bulkMissingPagesCount === 0 ? 'step-completed' : 'step-active')">
+                  <div class="step-circle">
+                    <mat-icon
+                      *ngIf="bulkFiles.length > 0 && unmatchedCount === 0 && bulkMissingPagesCount === 0">check</mat-icon>
+                    <span *ngIf="bulkFiles.length === 0 || unmatchedCount > 0 || bulkMissingPagesCount > 0">3</span>
+                  </div>
+                </div>
+                <div class="step-line"
+                  [ngClass]="(bulkFiles.length > 0 && unmatchedCount === 0 && bulkMissingPagesCount === 0) ? 'line-completed' : 'line-upcoming'">
+                </div>
+
+                <!-- Step 4: AI Evaluation -->
+                <div class="step-circle-wrapper"
+                  [ngClass]="(bulkFiles.length === 0 || unmatchedCount > 0) ? 'step-upcoming' : (matchedCount > 0 && bulkEvaluatedCount === matchedCount ? 'step-completed' : 'step-active')">
+                  <div class="step-circle">
+                    <mat-icon
+                      *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">check</mat-icon>
+                    <span
+                      *ngIf="!(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount)">4</span>
+                  </div>
+                </div>
+                <div class="step-line"
+                  [ngClass]="(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount) ? 'line-completed' : 'line-upcoming'">
+                </div>
+
+                <!-- Step 5: Results -->
+                <div class="step-circle-wrapper"
+                  [ngClass]="(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount) ? 'step-completed' : 'step-upcoming'">
+                  <div class="step-circle">
+                    <mat-icon
+                      *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">check</mat-icon>
+                    <span
+                      *ngIf="!(bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount)">5</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Row 2: Aligning Labels & Subtitles below circles -->
+              <div class="stepper-labels-row">
+                <!-- Col 1: Upload -->
+                <div class="step-label-col">
+                  <span class="step-label">Upload</span>
+                  <span class="step-sub">
+                    {{ bulkFiles.length > 0 ? (bulkFiles.length + ' file' + (bulkFiles.length > 1 ? 's' : '') + '
+                    added') : 'No files added' }}
+                  </span>
+                </div>
+
+                <!-- Col 2: Identify Students -->
+                <div class="step-label-col">
+                  <span class="step-label">Identify Students</span>
+                  <span class="step-sub">
+                    <ng-container *ngIf="bulkFiles.length === 0">Pending upload</ng-container>
+                    <ng-container *ngIf="bulkFiles.length > 0 && isScanningBulkFiles">{{ matchedCount }} matched,
+                      scanning...</ng-container>
+                    <ng-container *ngIf="bulkFiles.length > 0 && !isScanningBulkFiles && unmatchedCount === 0">{{
+                      matchedCount }} matched</ng-container>
+                    <ng-container *ngIf="bulkFiles.length > 0 && !isScanningBulkFiles && unmatchedCount > 0">{{
+                      matchedCount }} matched, <span class="step-sub-danger">{{ unmatchedCount }}
+                        not</span></ng-container>
+                  </span>
+                </div>
+
+                <!-- Col 3: Validate Pages -->
+                <div class="step-label-col">
+                  <span class="step-label">Validate Pages</span>
+                  <span class="step-sub">
+                    <ng-container *ngIf="bulkFiles.length === 0">Pending upload</ng-container>
+                    <ng-container *ngIf="bulkFiles.length > 0 && bulkMissingPagesCount === 0">All pages
+                      verified</ng-container>
+                    <ng-container *ngIf="bulkFiles.length > 0 && bulkMissingPagesCount > 0">{{ bulkMissingPagesCount }}
+                      with missing page</ng-container>
+                  </span>
+                </div>
+
+                <!-- Col 4: AI Evaluation -->
+                <div class="step-label-col">
+                  <span class="step-label">AI Evaluation</span>
+                  <span class="step-sub">
+                    <ng-container *ngIf="bulkFiles.length === 0">Pending</ng-container>
+                    <ng-container
+                      *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">All sheets
+                      evaluated</ng-container>
+                    <ng-container
+                      *ngIf="bulkFiles.length > 0 && !(matchedCount > 0 && bulkEvaluatedCount === matchedCount)">{{
+                      bulkEvaluatedCount }} of {{ matchedCount }} sheets done</ng-container>
+                  </span>
+                </div>
+
+                <!-- Col 5: Results -->
+                <div class="step-label-col">
+                  <span class="step-label">Results</span>
+                  <span class="step-sub">
+                    <ng-container *ngIf="bulkFiles.length === 0">Pending</ng-container>
+                    <ng-container
+                      *ngIf="bulkFiles.length > 0 && matchedCount > 0 && bulkEvaluatedCount === matchedCount">Ready to
+                      review</ng-container>
+                    <ng-container
+                      *ngIf="bulkFiles.length > 0 && !(matchedCount > 0 && bulkEvaluatedCount === matchedCount)">Review
+                      exceptions</ng-container>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Warning Alert Banner for Unmatched Files with Resolution / Removal Controls -->
+          <div class="unmatched-resolution-card" *ngIf="!isScanningBulkFiles && unmatchedCount > 0">
+            <div class="warning-alert-banner">
+              <mat-icon class="warning-icon">warning</mat-icon>
+              <span>
+                <strong>{{ unmatchedCount }} file{{ unmatchedCount > 1 ? 's' : '' }}</strong> could not be matched
+                automatically. Choose the student below or remove mistaken files:
+              </span>
+            </div>
+            <div class="unmatched-items-list">
+              <div class="unmatched-item-row" *ngFor="let uf of unmatchedBulkFiles">
+                <div class="unmatched-file-info" (click)="openAnswerSheetPreview(uf)"
+                  matTooltip="Click to preview answer sheet">
+                  <mat-icon class="unmatched-file-icon">description</mat-icon>
+                  <span class="unmatched-file-name" [title]="uf.fileName">{{ uf.fileName }}</span>
+                </div>
+                <div class="unmatched-item-actions">
+                  <select class="student-assign-select" [ngModel]="uf.selectedStudent || 'Choose student'"
+                    (ngModelChange)="onStudentSelectedForUnmatched(uf, $event)">
+                    <option value="Choose student" disabled>Choose student to link...</option>
+                    <option *ngFor="let st of getEligibleStudentsForLink(uf)" [value]="st.name">{{ st.name }} ({{
+                      st.rollNo }})</option>
+                  </select>
+                  <button type="button" class="btn-unmatched-remove" (click)="removeBulkFile(uf, $event)"
+                    [matTooltip]="'Remove ' + uf.fileName">
+                    <mat-icon>delete_outline</mat-icon>
+                    <span>Remove</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Background Evaluation Progress Card (Stage 3 SSE Streaming) -->
+          <div class="live-eval-progress-banner"
+            *ngIf="isBulkEvaluating || (bulkProgress.total > 0 && bulkProgress.percentage < 100)">
+            <div class="progress-banner-top">
+              <div class="banner-title-group">
+                <mat-icon class="banner-spin-icon">sync</mat-icon>
+                <div class="banner-text">
+                  <span class="banner-title">Evaluating Papers...</span>
+                  <span class="banner-subtitle">{{ bulkProgress.message || 'Processing answer sheets in the
+                    background...' }}</span>
+                </div>
+              </div>
+              <div class="banner-percentage-pill">
+                {{ bulkProgress.percentage }}%
+              </div>
+            </div>
+            <div class="progress-track-line">
+              <div class="progress-fill-line" [style.width.%]="bulkProgress.percentage"></div>
+            </div>
+            <div class="progress-banner-bottom">
+              <span class="progress-count-info">
+                <strong>{{ bulkProgress.completed }}</strong> of <strong>{{ bulkProgress.total }}</strong> sheets
+                completed
+              </span>
+              <span class="progress-error-info" *ngIf="bulkProgress.failed > 0">
+                {{ bulkProgress.failed }} failed (retryable)
+              </span>
+            </div>
+          </div>
+
+          <!-- Bulk Student Files Table (Synchronized with User Upload Table Structure) -->
+          <div class="table-card bulk-table-card">
+            <div class="table-responsive">
+              <table class="evaluation-table bulk-evaluation-table">
+                <thead>
+                  <tr>
+                    <th>S.NO</th>
+                    <th>STUDENT NAME</th>
+                    <th>ANSWER SHEET</th>
+                    <th>EVALUATION STATUS</th>
+                    <th>MARKS</th>
+                    <th class="text-center col-icon-header">SCAN</th>
+                    <th class="text-center col-icon-header">ATTACH</th>
+                    <th class="text-center col-action-header">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let s of filteredStudents">
+                    <!-- S.No Column -->
+                    <td class="col-sno">{{ s.sno }}</td>
+
+                    <!-- Student Name Column -->
+                    <td class="col-student">
+                      <div class="student-name">{{ s.name }}</div>
+                      <div class="student-roll">{{ s.rollNo }}</div>
+                      <div
+                        *ngIf="s.matchedFile && s.status === 'Not Evaluated' && !isBulkEvaluating && s.actionText !== 'Evaluating...' && s.actionText !== 'Queued...'"
+                        class="match-badge-chip" (click)="openAnswerSheetPreview(s)"
+                        matTooltip="Click to preview answer sheet">
+                        <mat-icon class="match-icon">description</mat-icon>
+                        <span class="match-chip-text" [title]="s.matchedFile">{{ s.matchedFile }} ({{ s.matchedBy ||
+                          'Matched' }})</span>
+                        <button type="button" class="btn-match-chip-remove"
+                          (click)="removeMatchedStudentFile(s, $event)" matTooltip="Remove / Detach file">
+                          <mat-icon>close</mat-icon>
+                        </button>
+                      </div>
+                    </td>
+
+                    <!-- Answer Sheet Column -->
+                    <td class="col-pages">
+                      <div>{{ s.pagesInfo }}</div>
+                      <div *ngIf="s.missingPagesWarning" class="warning-subtext">
+                        {{ s.missingPagesWarning }}
+                      </div>
+                    </td>
+
+                    <!-- Evaluation Status Column -->
+                    <td class="col-status">
+                      <span class="status-pill" [ngClass]="{
                       'pill-manual-review': s.status === 'Manual Reviewed',
                       'pill-ai-evaluated': s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated',
                       'pill-need-check': s.status === 'Need to Check',
                       'pill-not-evaluated': s.status === 'Not Evaluated',
                       'pill-evaluating': s.status === 'Evaluating...',
                       'pill-failed': s.status === 'Failed'
-                    }"
-                  >
-                    <mat-icon class="mini-spin-icon" *ngIf="s.status === 'Evaluating...'">sync</mat-icon>
-                    <span class="status-dot" *ngIf="s.status !== 'Evaluating...'">●</span> {{ s.status === 'evaluated' || s.status === 'Completed' ? 'AI Evaluated' : s.status }}
-                  </span>
-                </td>
+                    }">
+                        <mat-icon class="mini-spin-icon" *ngIf="s.status === 'Evaluating...'">sync</mat-icon>
+                        <span class="status-dot" *ngIf="s.status !== 'Evaluating...'">●</span> {{ s.status ===
+                        'evaluated' || s.status === 'Completed' ? 'AI Evaluated' : s.status }}
+                      </span>
+                    </td>
 
-                <!-- Marks Column -->
-                <td class="col-marks">
-                  <span
-                    [ngClass]="{
+                    <!-- Marks Column -->
+                    <td class="col-marks">
+                      <span [ngClass]="{
                       'marks-bold': s.marks !== 'Not marked' && !s.marks.includes('suggests'),
                       'marks-ai': s.marks.includes('suggests'),
                       'marks-muted': s.marks === 'Not marked'
-                    }"
-                  >
-                    {{ s.marks }}
-                  </span>
-                </td>
+                    }">
+                        {{ s.marks }}
+                      </span>
+                    </td>
 
-                <!-- Scan Column -->
-                <td class="col-icon text-center">
-                  <button
-                    type="button"
-                    class="icon-btn-square"
-                    matTooltip="Scan answer sheet"
-                    (click)="openScanModal(s)"
-                  >
-                    <mat-icon>photo_camera</mat-icon>
-                  </button>
-                </td>
+                    <!-- Scan Column -->
+                    <td class="col-icon text-center">
+                      <button type="button" class="icon-btn-square" matTooltip="Scan answer sheet"
+                        (click)="openScanModal(s)">
+                        <mat-icon>photo_camera</mat-icon>
+                      </button>
+                    </td>
 
-                <!-- Attach Column -->
-                <td class="col-icon text-center">
-                  <button
-                    type="button"
-                    class="icon-btn-square"
-                    matTooltip="Attach answer sheet"
-                    (click)="onAttachClick(s)"
-                  >
-                    <mat-icon>attach_file</mat-icon>
-                  </button>
-                </td>
+                    <!-- Attach Column -->
+                    <td class="col-icon text-center">
+                      <button type="button" class="icon-btn-square" matTooltip="Attach answer sheet"
+                        (click)="onAttachClick(s)">
+                        <mat-icon>attach_file</mat-icon>
+                      </button>
+                    </td>
 
-                <!-- Action Column -->
-                <td class="col-action text-center">
-                  <button
-                    type="button"
-                    *ngIf="s.status === 'Evaluating...'"
-                    class="btn-stop-eval"
-                    (click)="stopStudentEvaluation(s, $event)"
-                    matTooltip="Stop evaluation"
-                  >
-                    <mat-icon class="btn-stop-icon">stop</mat-icon>
-                    <span>Stop</span>
-                  </button>
+                    <!-- Action Column -->
+                    <td class="col-action text-center">
+                      <button type="button" *ngIf="s.status === 'Evaluating...'" class="btn-stop-eval"
+                        (click)="stopStudentEvaluation(s, $event)" matTooltip="Stop evaluation">
+                        <mat-icon class="btn-stop-icon">stop</mat-icon>
+                        <span>Stop</span>
+                      </button>
 
-                  <button
-                    type="button"
-                    *ngIf="s.status !== 'Evaluating...'"
-                    [ngClass]="s.actionClass"
-                    (click)="openStudentEvaluation(s)"
-                  >
-                    {{ s.actionText }}
-                  </button>
-                </td>
-              </tr>
+                      <button type="button" *ngIf="s.status !== 'Evaluating...'" [ngClass]="s.actionClass"
+                        (click)="openStudentEvaluation(s)">
+                        {{ s.actionText }}
+                      </button>
+                    </td>
+                  </tr>
 
-              <tr *ngIf="filteredStudents.length === 0">
-                <td colspan="8" class="no-data-cell">
-                  No enrolled students found for this test.
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  <tr *ngIf="filteredStudents.length === 0">
+                    <td colspan="8" class="no-data-cell">
+                      No enrolled students found for this test.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Table Bottom Action Footer Bar -->
+            <div class="bulk-table-footer-bar">
+              <span class="files-uploaded-count">{{ bulkFiles.length }} file(s) uploaded &bull; {{ students.length }}
+                student(s) enrolled</span>
+              <div class="bulk-footer-actions-group">
+
+                <button type="button" class="btn-evaluate-matched" *ngIf="!isBulkEvaluating" [disabled]="isUploading"
+                  (click)="evaluateAllMatchedBulk()">
+                  <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
+                  <span>Evaluate Matched Sheets</span>
+                </button>
+
+                <button type="button" class="btn-stop-all-eval" *ngIf="isBulkEvaluating" (click)="stopAllEvaluation()"
+                  matTooltip="Stop all ongoing evaluations">
+                  <mat-icon class="stop-icon">stop</mat-icon>
+                  <span>Stop Evaluation</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ========================================================= -->
+      <!-- ─── USER UPLOAD VIEW (Individual Student View) ──────── -->
+      <!-- ========================================================= -->
+      <ng-container *ngIf="uploadTab === 'user'">
+        <!-- KPI Header & Status Cards Container -->
+        <div class="test-kpi-container">
+          <div class="test-kpi-header">
+            <div class="header-left">
+              <h2 class="test-title">{{ testDetails.title }}</h2>
+              <div class="badge-group">
+                <span class="detail-badge">{{ testDetails.class }}</span>
+                <span class="detail-badge">{{ testDetails.section }}</span>
+                <span class="detail-badge">{{ testDetails.subject }}</span>
+                <span class="detail-badge">{{ testDetails.totalMarks }}</span>
+                <span class="detail-badge">{{ testDetails.totalQuestions }}</span>
+              </div>
+            </div>
+            <div class="header-right">
+              <button type="button" class="btn-refresh-counts" (click)="refreshData()">
+                <mat-icon>refresh</mat-icon>
+                <span>Refresh Counts</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 5 Status KPI Cards Grid -->
+          <div class="kpi-cards-grid">
+            <div class="kpi-card kpi-students">
+              <div class="kpi-content">
+                <div class="kpi-val">{{ testDetails.totalStudents }}</div>
+                <div class="kpi-lbl">Students</div>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-ai-evaluated">
+              <div class="kpi-content">
+                <div class="kpi-val font-styled">{{ testDetails.aiEvaluated }}</div>
+                <div class="kpi-lbl">AI Evaluated</div>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-manual-review">
+              <div class="kpi-content">
+                <div class="kpi-val font-styled">{{ testDetails.manualReview }}</div>
+                <div class="kpi-lbl">Manual Reviewed</div>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-need-check">
+              <div class="kpi-content">
+                <div class="kpi-val">{{ testDetails.needToCheck }}</div>
+                <div class="kpi-lbl">Need to Check</div>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-not-evaluated">
+              <div class="kpi-content">
+                <div class="kpi-val">{{ testDetails.notEvaluated }}</div>
+                <div class="kpi-lbl">Not Evaluated</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Segmented Progress Bar -->
+          <div class="progress-bar-container" *ngIf="testDetails.totalStudents > 0">
+            <div class="progress-seg seg-ai"
+              [style.width.%]="(testDetails.aiEvaluated / testDetails.totalStudents) * 100"
+              title="AI Evaluated: {{ testDetails.aiEvaluated }}"></div>
+            <div class="progress-seg seg-manual-review"
+              [style.width.%]="(testDetails.manualReview / testDetails.totalStudents) * 100"
+              title="Manual Reviewed: {{ testDetails.manualReview }}"></div>
+            <div class="progress-seg seg-need-check"
+              [style.width.%]="(testDetails.needToCheck / testDetails.totalStudents) * 100"
+              title="Need to Check: {{ testDetails.needToCheck }}"></div>
+            <div class="progress-seg seg-not-evaluated"
+              [style.width.%]="(testDetails.notEvaluated / testDetails.totalStudents) * 100"
+              title="Not Evaluated: {{ testDetails.notEvaluated }}"></div>
+          </div>
         </div>
 
-        <!-- Table Bottom Action Footer Bar -->
-        <div class="bulk-table-footer-bar">
-          <span class="files-uploaded-count">{{ bulkFiles.length }} file(s) uploaded &bull; {{ students.length }} student(s) enrolled</span>
-          <div class="bulk-footer-actions-group">
+        <!-- Student Search & Action Toolbar -->
+        <div class="student-toolbar">
+          <div class="search-box">
+            <mat-icon class="search-icon">search</mat-icon>
+            <input type="text" placeholder="Search student" [(ngModel)]="searchQuery" (input)="filterStudents()" />
+          </div>
 
-            <button
-              type="button"
-              class="btn-evaluate-matched"
-              *ngIf="!isBulkEvaluating"
-              [disabled]="isUploading"
-              (click)="evaluateAllMatchedBulk()"
-            >
-              <mat-icon class="sparkle-icon">auto_awesome</mat-icon>
-              <span>Evaluate Matched Sheets</span>
+          <div class="toolbar-right-actions">
+            <div class="select-wrapper status-select">
+              <select [(ngModel)]="selectedStatus" (change)="filterStudents()">
+                <option *ngFor="let st of statusList" [value]="st">{{ st }}</option>
+              </select>
+              <mat-icon class="dropdown-icon">expand_more</mat-icon>
+            </div>
+
+            <button type="button" class="btn-refresh-solid" (click)="refreshData()">
+              <mat-icon>refresh</mat-icon>
+              <span>Refresh</span>
             </button>
-
-            <button
-              type="button"
-              class="btn-stop-all-eval"
-              *ngIf="isBulkEvaluating"
-              (click)="stopAllEvaluation()"
-              matTooltip="Stop all ongoing evaluations"
-            >
-              <mat-icon class="stop-icon">stop</mat-icon>
-              <span>Stop Evaluation</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </ng-container>
-
-  <!-- ========================================================= -->
-  <!-- ─── USER UPLOAD VIEW (Individual Student View) ──────── -->
-  <!-- ========================================================= -->
-  <ng-container *ngIf="uploadTab === 'user'">
-    <!-- KPI Header & Status Cards Container -->
-    <div class="test-kpi-container">
-      <div class="test-kpi-header">
-        <div class="header-left">
-          <h2 class="test-title">{{ testDetails.title }}</h2>
-          <div class="badge-group">
-            <span class="detail-badge">{{ testDetails.class }}</span>
-            <span class="detail-badge">{{ testDetails.section }}</span>
-            <span class="detail-badge">{{ testDetails.subject }}</span>
-            <span class="detail-badge">{{ testDetails.totalMarks }}</span>
-            <span class="detail-badge">{{ testDetails.totalQuestions }}</span>
-          </div>
-        </div>
-        <div class="header-right">
-          <button type="button" class="btn-refresh-counts" (click)="refreshData()">
-            <mat-icon>refresh</mat-icon>
-            <span>Refresh Counts</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 5 Status KPI Cards Grid -->
-      <div class="kpi-cards-grid">
-        <div class="kpi-card kpi-students">
-          <div class="kpi-content">
-            <div class="kpi-val">{{ testDetails.totalStudents }}</div>
-            <div class="kpi-lbl">Students</div>
           </div>
         </div>
 
-        <div class="kpi-card kpi-ai-evaluated">
-          <div class="kpi-content">
-            <div class="kpi-val font-styled">{{ testDetails.aiEvaluated }}</div>
-            <div class="kpi-lbl">AI Evaluated</div>
-          </div>
-        </div>
-
-        <div class="kpi-card kpi-manual-review">
-          <div class="kpi-content">
-            <div class="kpi-val font-styled">{{ testDetails.manualReview }}</div>
-            <div class="kpi-lbl">Manual Reviewed</div>
-          </div>
-        </div>
-
-        <div class="kpi-card kpi-need-check">
-          <div class="kpi-content">
-            <div class="kpi-val">{{ testDetails.needToCheck }}</div>
-            <div class="kpi-lbl">Need to Check</div>
-          </div>
-        </div>
-
-        <div class="kpi-card kpi-not-evaluated">
-          <div class="kpi-content">
-            <div class="kpi-val">{{ testDetails.notEvaluated }}</div>
-            <div class="kpi-lbl">Not Evaluated</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Segmented Progress Bar -->
-      <div class="progress-bar-container" *ngIf="testDetails.totalStudents > 0">
-        <div
-          class="progress-seg seg-ai"
-          [style.width.%]="(testDetails.aiEvaluated / testDetails.totalStudents) * 100"
-          title="AI Evaluated: {{ testDetails.aiEvaluated }}"
-        ></div>
-        <div
-          class="progress-seg seg-manual-review"
-          [style.width.%]="(testDetails.manualReview / testDetails.totalStudents) * 100"
-          title="Manual Reviewed: {{ testDetails.manualReview }}"
-        ></div>
-        <div
-          class="progress-seg seg-need-check"
-          [style.width.%]="(testDetails.needToCheck / testDetails.totalStudents) * 100"
-          title="Need to Check: {{ testDetails.needToCheck }}"
-        ></div>
-        <div
-          class="progress-seg seg-not-evaluated"
-          [style.width.%]="(testDetails.notEvaluated / testDetails.totalStudents) * 100"
-          title="Not Evaluated: {{ testDetails.notEvaluated }}"
-        ></div>
-      </div>
-    </div>
-
-    <!-- Student Search & Action Toolbar -->
-    <div class="student-toolbar">
-      <div class="search-box">
-        <mat-icon class="search-icon">search</mat-icon>
-        <input
-          type="text"
-          placeholder="Search student"
-          [(ngModel)]="searchQuery"
-          (input)="filterStudents()"
-        />
-      </div>
-
-      <div class="toolbar-right-actions">
-        <div class="select-wrapper status-select">
-          <select [(ngModel)]="selectedStatus" (change)="filterStudents()">
-            <option *ngFor="let st of statusList" [value]="st">{{ st }}</option>
-          </select>
-          <mat-icon class="dropdown-icon">expand_more</mat-icon>
-        </div>
-
-        <button type="button" class="btn-refresh-solid" (click)="refreshData()">
-          <mat-icon>refresh</mat-icon>
-          <span>Refresh</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Student Evaluation Table -->
-    <div class="table-card">
-      <div class="table-responsive">
-        <table class="evaluation-table">
-          <thead>
-            <tr>
-              <th>S.NO</th>
-              <th>STUDENT NAME</th>
-              <th>ANSWER SHEET</th>
-              <th>EVALUATION STATUS</th>
-              <th>MARKS</th>
-              <th class="text-center col-icon-header">SCAN</th>
-              <th class="text-center col-icon-header">ATTACH</th>
-              <th class="text-center col-action-header">ACTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let s of filteredStudents">
-              <td class="col-sno">{{ s.sno }}</td>
-              <td class="col-student">
-                <div class="student-name">{{ s.name }}</div>
-                <div class="student-roll">{{ s.rollNo }}</div>
-              </td>
-              <td class="col-pages">
-                <div>{{ s.pagesInfo }}</div>
-                <div *ngIf="s.missingPagesWarning" class="warning-subtext">
-                  {{ s.missingPagesWarning }}
-                </div>
-              </td>
-              <td class="col-status">
-                <span
-                  class="status-pill"
-                  [ngClass]="{
+        <!-- Student Evaluation Table -->
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="evaluation-table">
+              <thead>
+                <tr>
+                  <th>S.NO</th>
+                  <th>STUDENT NAME</th>
+                  <th>ANSWER SHEET</th>
+                  <th>EVALUATION STATUS</th>
+                  <th>MARKS</th>
+                  <th class="text-center col-icon-header">SCAN</th>
+                  <th class="text-center col-icon-header">ATTACH</th>
+                  <th class="text-center col-action-header">ACTION</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let s of filteredStudents">
+                  <td class="col-sno">{{ s.sno }}</td>
+                  <td class="col-student">
+                    <div class="student-name">{{ s.name }}</div>
+                    <div class="student-roll">{{ s.rollNo }}</div>
+                  </td>
+                  <td class="col-pages">
+                    <div>{{ s.pagesInfo }}</div>
+                    <div *ngIf="s.missingPagesWarning" class="warning-subtext">
+                      {{ s.missingPagesWarning }}
+                    </div>
+                  </td>
+                  <td class="col-status">
+                    <span class="status-pill" [ngClass]="{
                     'pill-manual-review': s.status === 'Manual Reviewed',
                     'pill-ai-evaluated': s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated',
                     'pill-need-check': s.status === 'Need to Check',
                     'pill-not-evaluated': s.status === 'Not Evaluated'
-                  }"
-                >
-                  <span class="status-dot">●</span> {{ s.status === 'evaluated' || s.status === 'Completed' ? 'AI Evaluated' : s.status }}
-                </span>
-              </td>
-              <td class="col-marks">
-                <span
-                  [ngClass]="{
+                  }">
+                      <span class="status-dot">●</span> {{ s.status === 'evaluated' || s.status === 'Completed' ? 'AI
+                      Evaluated' : s.status }}
+                    </span>
+                  </td>
+                  <td class="col-marks">
+                    <span [ngClass]="{
                     'marks-bold': s.marks !== 'Not marked' && !s.marks.includes('suggests'),
                     'marks-ai': s.marks.includes('suggests'),
                     'marks-muted': s.marks === 'Not marked'
-                  }"
-                >
-                  {{ s.marks }}
-                </span>
-              </td>
-              <td class="col-icon text-center">
-                <button
-                  type="button"
-                  class="icon-btn-square"
-                  matTooltip="Scan answer sheet"
-                  (click)="openScanModal(s)"
-                >
-                  <mat-icon>photo_camera</mat-icon>
-                </button>
-              </td>
-              <td class="col-icon text-center">
-                <button
-                  type="button"
-                  class="icon-btn-square"
-                  matTooltip="Attach answer sheet"
-                  (click)="onAttachClick(s)"
-                >
-                  <mat-icon>attach_file</mat-icon>
-                </button>
-              </td>
-              <td class="col-action text-center">
-                <button
-                  type="button"
-                  *ngIf="s.status === 'Evaluating...'"
-                  class="btn-stop-eval"
-                  (click)="stopStudentEvaluation(s, $event)"
-                  matTooltip="Stop evaluation"
-                >
-                  <mat-icon class="btn-stop-icon">stop</mat-icon>
-                  <span>Stop</span>
-                </button>
-                <button
-                  type="button"
-                  *ngIf="s.status !== 'Evaluating...'"
-                  [ngClass]="s.actionClass"
-                  (click)="openStudentEvaluation(s)"
-                >
-                  {{ s.actionText }}
-                </button>
-              </td>
-            </tr>
-            <tr *ngIf="filteredStudents.length === 0">
-              <td colspan="8" class="no-data-cell">
-                No student records found matching your filters.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </ng-container>
-  </ng-container>
+                  }">
+                      {{ s.marks }}
+                    </span>
+                  </td>
+                  <td class="col-icon text-center">
+                    <button type="button" class="icon-btn-square" matTooltip="Scan answer sheet"
+                      (click)="openScanModal(s)">
+                      <mat-icon>photo_camera</mat-icon>
+                    </button>
+                  </td>
+                  <td class="col-icon text-center">
+                    <button type="button" class="icon-btn-square" matTooltip="Attach answer sheet"
+                      (click)="onAttachClick(s)">
+                      <mat-icon>attach_file</mat-icon>
+                    </button>
+                  </td>
+                  <td class="col-action text-center">
+                    <button type="button" *ngIf="s.status === 'Evaluating...'" class="btn-stop-eval"
+                      (click)="stopStudentEvaluation(s, $event)" matTooltip="Stop evaluation">
+                      <mat-icon class="btn-stop-icon">stop</mat-icon>
+                      <span>Stop</span>
+                    </button>
+                    <button type="button" *ngIf="s.status !== 'Evaluating...'" [ngClass]="s.actionClass"
+                      (click)="openStudentEvaluation(s)">
+                      {{ s.actionText }}
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="filteredStudents.length === 0">
+                  <td colspan="8" class="no-data-cell">
+                    No student records found matching your filters.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </ng-container>
+    </ng-container>
   </ng-container>
 
   <!-- ========================================================= -->
@@ -1442,12 +1206,17 @@
 
         <div class="student-info-main-row">
           <div class="student-left-meta">
-            <h2 class="student-eval-name">{{ evaluationDetails?.student_name || evaluatingStudent?.name || 'Student Evaluation' }}</h2>
+            <h2 class="student-eval-name">{{ evaluationDetails?.student_name || evaluatingStudent?.name || 'Student
+              Evaluation' }}</h2>
             <div class="meta-pills-row">
-              <span class="meta-pill" *ngIf="testDetails.class && testDetails.class !== '—'">{{ testDetails.class }}</span>
-              <span class="meta-pill" *ngIf="testDetails.section && testDetails.section !== '—'">{{ testDetails.section }}</span>
-              <span class="meta-pill" *ngIf="testDetails.subject && testDetails.subject !== '—'">{{ testDetails.subject }}</span>
-              <span class="meta-pill" *ngIf="selectedExamTitle && selectedExamTitle !== '—'">{{ selectedExamTitle }}</span>
+              <span class="meta-pill" *ngIf="testDetails.class && testDetails.class !== '—'">{{ testDetails.class
+                }}</span>
+              <span class="meta-pill" *ngIf="testDetails.section && testDetails.section !== '—'">{{ testDetails.section
+                }}</span>
+              <span class="meta-pill" *ngIf="testDetails.subject && testDetails.subject !== '—'">{{ testDetails.subject
+                }}</span>
+              <span class="meta-pill" *ngIf="selectedExamTitle && selectedExamTitle !== '—'">{{ selectedExamTitle
+                }}</span>
               <span class="meta-pill" *ngIf="evaluationDetails?.roll_no || evaluatingStudent?.rollNo">
                 Roll no. {{ evaluationDetails?.roll_no || evaluatingStudent?.rollNo }}
               </span>
@@ -1463,21 +1232,21 @@
                 <span class="score-pct">(Not marked)</span>
               </ng-container>
               <ng-container *ngIf="!isStudentNotEvaluated">
-                <span class="score-val">{{ evaluationDetails?.summary?.marks_awarded || 0 }} / {{ evaluationDetails?.summary?.total_marks || 0 }}</span>
+                <span class="score-val">{{ evaluationDetails?.summary?.marks_awarded || 0 }} / {{
+                  evaluationDetails?.summary?.total_marks || 0 }}</span>
                 <span class="score-pct">({{ evaluationDetails?.summary?.percentage || 0 }}%)</span>
               </ng-container>
             </div>
 
-            <span
-              class="status-pill"
-              [ngClass]="{
+            <span class="status-pill" [ngClass]="{
                 'pill-manual-review': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Manual Reviewed',
                 'pill-ai-evaluated': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'AI Evaluated' || (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Completed' || (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'evaluated',
                 'pill-need-check': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Need to Check',
                 'pill-not-evaluated': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Not Evaluated'
-              }"
-            >
-              <span class="status-dot">●</span> {{ (evaluationDetails?.summary?.status === 'Completed' || evaluationDetails?.summary?.status === 'evaluated') ? 'AI Evaluated' : (evaluationDetails?.summary?.status || evaluatingStudent?.status || 'Not Evaluated') }}
+              }">
+              <span class="status-dot">●</span> {{ (evaluationDetails?.summary?.status === 'Completed' ||
+              evaluationDetails?.summary?.status === 'evaluated') ? 'AI Evaluated' : (evaluationDetails?.summary?.status
+              || evaluatingStudent?.status || 'Not Evaluated') }}
             </span>
           </div>
         </div>
@@ -1512,33 +1281,18 @@
             <span>Layout View:</span>
           </span>
           <div class="split-mode-pill-group">
-            <button
-              type="button"
-              class="split-pill-btn"
-              [class.active]="splitMode === 'split'"
-              (click)="setSplitMode('split')"
-              title="50% Answer Sheet / 50% Evaluation"
-            >
+            <button type="button" class="split-pill-btn" [class.active]="splitMode === 'split'"
+              (click)="setSplitMode('split')" title="50% Answer Sheet / 50% Evaluation">
               <mat-icon>vertical_split</mat-icon>
               <span>Split (50/50)</span>
             </button>
-            <button
-              type="button"
-              class="split-pill-btn"
-              [class.active]="splitMode === 'viewer-expanded'"
-              (click)="setSplitMode('viewer-expanded')"
-              title="Expand Answer Sheet Viewer"
-            >
+            <button type="button" class="split-pill-btn" [class.active]="splitMode === 'viewer-expanded'"
+              (click)="setSplitMode('viewer-expanded')" title="Expand Answer Sheet Viewer">
               <mat-icon>fullscreen</mat-icon>
               <span>Expand Sheet</span>
             </button>
-            <button
-              type="button"
-              class="split-pill-btn"
-              [class.active]="splitMode === 'eval-expanded'"
-              (click)="setSplitMode('eval-expanded')"
-              title="Expand Evaluation Details"
-            >
+            <button type="button" class="split-pill-btn" [class.active]="splitMode === 'eval-expanded'"
+              (click)="setSplitMode('eval-expanded')" title="Expand Evaluation Details">
               <mat-icon>rate_review</mat-icon>
               <span>Expand Evaluation</span>
             </button>
@@ -1546,20 +1300,18 @@
         </div>
 
         <div class="split-toolbar-right">
-          <button type="button" class="btn-attach-quick" (click)="openAttachModal(evaluatingStudent!)" title="Attach/Replace Answer Sheet PDF">
+          <button type="button" class="btn-attach-quick" (click)="openAttachModal(evaluatingStudent!)"
+            title="Attach/Replace Answer Sheet PDF">
             <mat-icon>attach_file</mat-icon>
             <span>Upload Sheet PDF</span>
           </button>
-          <button type="button" class="btn-scan-quick" (click)="openScanModal(evaluatingStudent!)" title="Scan with Camera">
+          <button type="button" class="btn-scan-quick" (click)="openScanModal(evaluatingStudent!)"
+            title="Scan with Camera">
             <mat-icon>photo_camera</mat-icon>
             <span>Scan Sheet</span>
           </button>
-          <button
-            type="button"
-            class="btn-remove-sheet"
-            (click)="openConfirmRemoveModal(evaluatingStudent!)"
-            title="Remove Existing Answer Sheet"
-          >
+          <button type="button" class="btn-remove-sheet" (click)="openConfirmRemoveModal(evaluatingStudent!)"
+            title="Remove Existing Answer Sheet">
             <mat-icon>delete_outline</mat-icon>
             <span>Remove Sheet</span>
           </button>
@@ -1581,13 +1333,8 @@
 
             <!-- Page Navigation Tabs (Page 1, Page 2...) -->
             <div class="page-tabs-scroller" *ngIf="evaluationPages.length > 0">
-              <button
-                type="button"
-                *ngFor="let p of evaluationPages; let pi = index"
-                class="page-tab-chip"
-                [class.active-page-tab]="pi === activeSheetPageIndex"
-                (click)="selectSheetPage(pi)"
-              >
+              <button type="button" *ngFor="let p of evaluationPages; let pi = index" class="page-tab-chip"
+                [class.active-page-tab]="pi === activeSheetPageIndex" (click)="selectSheetPage(pi)">
                 <span class="chip-dot">●</span>
                 <span>Page {{ p.page_number }}</span>
               </button>
@@ -1604,59 +1351,32 @@
               <button type="button" class="zoom-btn" (click)="zoomIn()" title="Zoom in" [disabled]="zoomLevel >= 250">
                 <mat-icon>add</mat-icon>
               </button>
-              <button
-                type="button"
-                class="zoom-btn reset-image-btn"
-                (click)="resetImage()"
-                title="Reset Image (Center & 100%)"
-                [disabled]="zoomLevel === 100 && panX === 0 && panY === 0"
-              >
+              <button type="button" class="zoom-btn reset-image-btn" (click)="resetImage()"
+                title="Reset Image (Center & 100%)" [disabled]="zoomLevel === 100 && panX === 0 && panY === 0">
                 <mat-icon>restart_alt</mat-icon>
               </button>
             </div>
           </div>
 
           <!-- Interactive High-Res Page Viewport (Visual Ink / Handwriting / Diagrams) -->
-          <div
-            class="sheet-viewport-container"
-            [class.is-dragging]="isPanningSheet"
-            (mousedown)="startSheetPan($event)"
-            (mousemove)="onSheetPan($event)"
-            (mouseup)="stopSheetPan()"
-            (mouseleave)="stopSheetPan()"
-            (dblclick)="resetImage()"
-          >
-            <div
-              class="sheet-viewport-content"
-              *ngIf="currentSheetPage && !isLoadingEvaluation"
-              [style.transform]="'translate(' + panX + 'px, ' + panY + 'px) scale(' + (zoomLevel / 100) + ')'"
-            >
+          <div class="sheet-viewport-container" [class.is-dragging]="isPanningSheet" (mousedown)="startSheetPan($event)"
+            (mousemove)="onSheetPan($event)" (mouseup)="stopSheetPan()" (mouseleave)="stopSheetPan()"
+            (dblclick)="resetImage()">
+            <div class="sheet-viewport-content" *ngIf="currentSheetPage && !isLoadingEvaluation"
+              [style.transform]="'translate(' + panX + 'px, ' + panY + 'px) scale(' + (zoomLevel / 100) + ')'">
               <!-- 1. Native Image element for JPG/PNG sheets -->
-              <img
-                *ngIf="!isPdfPage(currentSheetPage)"
-                [src]="getPageImageUrl(currentSheetPage)"
-                alt="Student Answer Sheet Page {{ currentSheetPage.page_number }}"
-                class="sheet-page-rendered-image"
-                draggable="false"
-                (dragstart)="$event.preventDefault()"
-              />
+              <img *ngIf="!isPdfPage(currentSheetPage)" [src]="getPageImageUrl(currentSheetPage)"
+                alt="Student Answer Sheet Page {{ currentSheetPage.page_number }}" class="sheet-page-rendered-image"
+                draggable="false" (dragstart)="$event.preventDefault()" />
 
               <!-- 2. High-DPI HTML5 Canvas for PDF sheets rendered via PDF.js -->
-              <canvas
-                *ngIf="isPdfPage(currentSheetPage)"
-                #pdfCanvas
-                class="sheet-page-rendered-image"
-              ></canvas>
+              <canvas *ngIf="isPdfPage(currentSheetPage)" #pdfCanvas class="sheet-page-rendered-image"></canvas>
             </div>
 
             <!-- Floating Reset Image Option (Visible when image is moved or zoomed) -->
-            <button
-              type="button"
-              class="btn-reset-image-floating"
+            <button type="button" class="btn-reset-image-floating"
               *ngIf="(panX !== 0 || panY !== 0 || zoomLevel !== 100) && currentSheetPage && !isLoadingEvaluation"
-              (click)="resetImage(); $event.stopPropagation()"
-              title="Reset Image to center position and default zoom"
-            >
+              (click)="resetImage(); $event.stopPropagation()" title="Reset Image to center position and default zoom">
               <mat-icon>restart_alt</mat-icon>
               <span>Reset Image</span>
             </button>
@@ -1667,7 +1387,8 @@
                 <mat-icon>description</mat-icon>
               </div>
               <h4 class="empty-title">No Answer Sheet Pages Found</h4>
-              <p class="empty-sub">Upload the student's answer sheet PDF or scan camera pages to view visual handwriting.</p>
+              <p class="empty-sub">Upload the student's answer sheet PDF or scan camera pages to view visual
+                handwriting.</p>
               <div class="empty-actions">
                 <button type="button" class="btn-empty-scan" (click)="openScanModal(evaluatingStudent!)">
                   <mat-icon>photo_camera</mat-icon>
@@ -1689,24 +1410,16 @@
 
           <!-- Bottom Viewer Navigation Footer -->
           <div class="viewer-bottom-footer" *ngIf="evaluationPages.length > 1">
-            <button
-              type="button"
-              class="btn-prev-page"
-              (click)="selectSheetPage(activeSheetPageIndex - 1)"
-              [disabled]="activeSheetPageIndex === 0"
-            >
+            <button type="button" class="btn-prev-page" (click)="selectSheetPage(activeSheetPageIndex - 1)"
+              [disabled]="activeSheetPageIndex === 0">
               <mat-icon>chevron_left</mat-icon>
               <span>Previous Page</span>
             </button>
             <span class="footer-page-indicator">
               Viewing Page {{ activeSheetPageIndex + 1 }} of {{ evaluationPages.length }}
             </span>
-            <button
-              type="button"
-              class="btn-next-page"
-              (click)="selectSheetPage(activeSheetPageIndex + 1)"
-              [disabled]="activeSheetPageIndex === evaluationPages.length - 1"
-            >
+            <button type="button" class="btn-next-page" (click)="selectSheetPage(activeSheetPageIndex + 1)"
+              [disabled]="activeSheetPageIndex === evaluationPages.length - 1">
               <span>Next Page</span>
               <mat-icon>chevron_right</mat-icon>
             </button>
@@ -1719,32 +1432,22 @@
           <div class="eval-filter-tabs-row">
             <div class="eval-title-text">Evaluation</div>
             <div class="eval-category-tabs">
-              <button
-                type="button"
-                class="eval-filter-pill-btn"
-                [class.active]="evaluationCategoryFilter === 'all'"
-                (click)="evaluationCategoryFilter = 'all'"
-              >
+              <button type="button" class="eval-filter-pill-btn" [class.active]="evaluationCategoryFilter === 'all'"
+                (click)="evaluationCategoryFilter = 'all'">
                 <span>All</span>
                 <span class="count-badge">{{ evaluationDetails?.questions?.length || 0 }}</span>
               </button>
 
-              <button
-                type="button"
-                class="eval-filter-pill-btn"
+              <button type="button" class="eval-filter-pill-btn"
                 [class.active]="evaluationCategoryFilter === 'needs_attention'"
-                (click)="evaluationCategoryFilter = 'needs_attention'"
-              >
+                (click)="evaluationCategoryFilter = 'needs_attention'">
                 <span>Needs attention</span>
                 <span class="count-badge count-warn">{{ needsAttentionQuestionsCount }}</span>
               </button>
 
-              <button
-                type="button"
-                class="eval-filter-pill-btn"
+              <button type="button" class="eval-filter-pill-btn"
                 [class.active]="evaluationCategoryFilter === 'reviewed'"
-                (click)="evaluationCategoryFilter = 'reviewed'"
-              >
+                (click)="evaluationCategoryFilter = 'reviewed'">
                 <span>Reviewed</span>
                 <span class="count-badge count-ok">{{ reviewedQuestionsCount }}</span>
               </button>
@@ -1753,28 +1456,24 @@
 
           <!-- Question-by-Question Cards Container (Exact Test Reports Layout) -->
           <div class="eval-questions-scroll-list">
-            <div
-              class="question-review-card"
-              *ngFor="let q of evaluationQuestions; let qi = index"
-            >
+            <div class="question-review-card" *ngFor="let q of evaluationQuestions; let qi = index">
               <!-- Card Top Header Row (Exact Test Reports Structure) -->
               <div class="q-head-row">
                 <div class="q-left">
                   <div class="q-index">{{ q.question_number || (qi + 1) }}</div>
                   <div class="q-body">
                     <div class="q-meta">
-                      <span class="q-badge" *ngIf="q.section_name && q.section_name !== 'General'">{{ q.section_name }}</span>
+                      <span class="q-badge" *ngIf="q.section_name && q.section_name !== 'General'">{{ q.section_name
+                        }}</span>
                       <span class="q-badge">{{ q.question_type || 'DESCRIPTIVE' }}</span>
-                      <span
-                        class="mark-badge"
-                        [ngClass]="{
+                      <span class="mark-badge" [ngClass]="{
                           'mark-muted': isStudentNotEvaluated,
                           'mark-positive': !isStudentNotEvaluated && (q.marks_awarded || 0) >= (q.max_marks || 1),
                           'mark-mid': !isStudentNotEvaluated && (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.max_marks || 1),
                           'mark-negative': !isStudentNotEvaluated && (q.marks_awarded || 0) == 0
-                        }"
-                      >
-                        <ng-container *ngIf="isStudentNotEvaluated">Not Evaluated ({{ q.max_marks }} Marks)</ng-container>
+                        }">
+                        <ng-container *ngIf="isStudentNotEvaluated">Not Evaluated ({{ q.max_marks }}
+                          Marks)</ng-container>
                         <ng-container *ngIf="!isStudentNotEvaluated">
                           {{ q.marks_awarded != null ? q.marks_awarded : 0 }}/{{ q.max_marks }} Marks
                           ({{ q.max_marks > 0 ? (((q.marks_awarded || 0) / q.max_marks) * 100 | number:'1.0-1') : 0 }}%)
@@ -1791,25 +1490,20 @@
                 <!-- Right Side: Teacher Marks Display & Inline Override -->
                 <div class="q-right">
                   <div class="marks-display-mode" *ngIf="!q._editingMarks">
-                    <span
-                      class="q-marks"
-                      [ngClass]="{
+                    <span class="q-marks" [ngClass]="{
                         'mark-muted': isStudentNotEvaluated,
                         'mark-positive': !isStudentNotEvaluated && (q.marks_awarded || 0) >= (q.max_marks || 1),
                         'mark-mid': !isStudentNotEvaluated && (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.max_marks || 1),
                         'mark-negative': !isStudentNotEvaluated && (q.marks_awarded || 0) == 0
-                      }"
-                    >
-                      <span class="mark-num">{{ isStudentNotEvaluated ? '—' : (q.marks_awarded != null ? q.marks_awarded : 0) }}</span>
+                      }">
+                      <span class="mark-num">{{ isStudentNotEvaluated ? '—' : (q.marks_awarded != null ? q.marks_awarded
+                        : 0) }}</span>
                       <span class="mark-sep">/</span>
                       <span class="mark-total">{{ q.max_marks }}</span>
                     </span>
-                    <button
-                      type="button"
-                      class="edit-marks-btn"
-                      (click)="startEditMarks(q)"
-                      title="Edit marks"
-                    >
+                    <button type="button" class="edit-marks-btn" (click)="startEditMarks(q)"
+                      [disabled]="evaluationPages.length === 0"
+                      [title]="evaluationPages.length === 0 ? 'Upload answer sheet to edit marks' : 'Edit marks'">
                       <mat-icon>edit</mat-icon>
                     </button>
                   </div>
@@ -1824,22 +1518,14 @@
               <!-- Question Media (Images & Audio) -->
               <div class="eval-q-media" *ngIf="q.media && q.media.length">
                 <div class="eval-q-media-item" *ngFor="let m of q.media">
-                  <img
-                    *ngIf="m.media_type === 'image'"
-                    [src]="resolveMediaUrl(m.file_url || m.url)"
-                    [alt]="m.original_filename || 'Question Image'"
-                    class="eval-q-media-img"
+                  <img *ngIf="m.media_type === 'image'" [src]="resolveMediaUrl(m.file_url || m.url)"
+                    [alt]="m.original_filename || 'Question Image'" class="eval-q-media-img"
                     (click)="openImageModal(m.file_url || m.url, m.original_filename || 'Question Image')"
-                    matTooltip="Click to view full image"
-                  />
-                  <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)" class="eval-q-media-audio"></audio>
-                  <a
-                    *ngIf="m.media_type === 'document'"
-                    [href]="resolveMediaUrl(m.file_url || m.url)"
-                    target="_blank"
-                    class="eval-q-media-doc"
-                    matTooltip="Download attachment"
-                  >
+                    matTooltip="Click to view full image" />
+                  <audio *ngIf="m.media_type === 'audio'" controls [src]="resolveMediaUrl(m.file_url || m.url)"
+                    class="eval-q-media-audio"></audio>
+                  <a *ngIf="m.media_type === 'document'" [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank"
+                    class="eval-q-media-doc" matTooltip="Download attachment">
                     <mat-icon>description</mat-icon>
                     <span>{{ m.original_filename || 'Download Document' }}</span>
                   </a>
@@ -1848,34 +1534,30 @@
 
               <!-- MCQ Options with Images (if present) -->
               <div class="eval-q-options" *ngIf="isObjective(q) && q.options && q.options.length">
-                <div
-                  class="eval-opt-row"
-                  *ngFor="let opt of q.options; let oi = index"
+                <div class="eval-opt-row" *ngFor="let opt of q.options; let oi = index"
                   [class.is-correct-option]="isOptionCorrect(opt)"
                   [class.is-student-option]="isStudentSelectedOption(q, opt, oi)"
-                  [class.is-student-wrong]="isStudentSelectedOption(q, opt, oi) && !isOptionCorrect(opt)"
-                >
+                  [class.is-student-wrong]="isStudentSelectedOption(q, opt, oi) && !isOptionCorrect(opt)">
                   <span class="eval-opt-badge">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi] }}</span>
-                  <span class="eval-opt-text" *ngIf="opt.text"><app-math-render [text]="opt.text"></app-math-render></span>
-                  <img
-                    *ngIf="opt.image_url || opt.url"
-                    [src]="resolveMediaUrl(opt.image_url || opt.url)"
-                    class="eval-opt-img"
-                    alt="Option Image"
+                  <span class="eval-opt-text" *ngIf="opt.text"><app-math-render
+                      [text]="opt.text"></app-math-render></span>
+                  <img *ngIf="opt.image_url || opt.url" [src]="resolveMediaUrl(opt.image_url || opt.url)"
+                    class="eval-opt-img" alt="Option Image"
                     (click)="openImageModal(opt.image_url || opt.url, 'Option ' + ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[oi]) + ' Image')"
-                    matTooltip="Click to view full image"
-                  />
+                    matTooltip="Click to view full image" />
                   <!-- Status Badges -->
                   <div class="eval-opt-status-tags">
                     <span class="badge-opt-correct" *ngIf="isOptionCorrect(opt)">
                       <mat-icon>check_circle</mat-icon>
                       <span>Correct Answer</span>
                     </span>
-                    <span class="badge-opt-student-correct" *ngIf="isStudentSelectedOption(q, opt, oi) && isOptionCorrect(opt)">
+                    <span class="badge-opt-student-correct"
+                      *ngIf="isStudentSelectedOption(q, opt, oi) && isOptionCorrect(opt)">
                       <mat-icon>verified</mat-icon>
                       <span>Your Choice</span>
                     </span>
-                    <span class="badge-opt-student" *ngIf="isStudentSelectedOption(q, opt, oi) && !isOptionCorrect(opt)">
+                    <span class="badge-opt-student"
+                      *ngIf="isStudentSelectedOption(q, opt, oi) && !isOptionCorrect(opt)">
                       <mat-icon>cancel</mat-icon>
                       <span>Your Choice</span>
                     </span>
@@ -1884,10 +1566,8 @@
               </div>
 
               <!-- Student's Attended Answer When NOT in Choices -->
-              <div
-                class="eval-mcq-unmatched-student-ans"
-                *ngIf="isObjective(q) && hasStudentAnswer(q) && !hasStudentSelectedAnyOption(q)"
-              >
+              <div class="eval-mcq-unmatched-student-ans"
+                *ngIf="isObjective(q) && hasStudentAnswer(q) && !hasStudentSelectedAnyOption(q)">
                 <div class="unmatched-ans-header">
                   <div class="unmatched-hdr-left">
                     <mat-icon class="unmatched-icon">edit_note</mat-icon>
@@ -1895,7 +1575,8 @@
                   </div>
                 </div>
                 <div class="unmatched-ans-text">
-                  <app-math-render [text]="q.student_answer" [subject]="evaluationDetails?.subject_name || testDetails?.subject"></app-math-render>
+                  <app-math-render [text]="q.student_answer"
+                    [subject]="evaluationDetails?.subject_name || testDetails?.subject"></app-math-render>
                 </div>
               </div>
 
@@ -1904,14 +1585,8 @@
                 <div class="marks-edit-row">
                   <label class="edit-field-lbl">Awarded Marks:</label>
                   <div class="input-max-wrap">
-                    <input
-                      type="number"
-                      class="marks-input"
-                      [(ngModel)]="q._editedMarks"
-                      [min]="0"
-                      [max]="q.max_marks"
-                      step="0.5"
-                    />
+                    <input type="number" class="marks-input" [(ngModel)]="q._editedMarks" [min]="0" [max]="q.max_marks"
+                      step="0.5" />
                     <span class="marks-max">/ {{ q.max_marks }}</span>
                   </div>
                 </div>
@@ -1920,14 +1595,9 @@
                   <label class="marks-reason-label">
                     Change comment <span class="required-star">*</span>
                   </label>
-                  <textarea
-                    class="marks-reason-input"
-                    [class.input-error]="q._marksReasonError"
-                    [(ngModel)]="q._marksEditReason"
-                    (input)="q._marksReasonError = false"
-                    placeholder="Explain why the marks are being changed (Required for audit log)"
-                    rows="2"
-                  ></textarea>
+                  <textarea class="marks-reason-input" [class.input-error]="q._marksReasonError"
+                    [(ngModel)]="q._marksEditReason" (input)="q._marksReasonError = false"
+                    placeholder="Explain why the marks are being changed (Required for audit log)" rows="2"></textarea>
                   <small *ngIf="q._marksReasonError" class="marks-reason-error-msg">
                     Description is required when changing marks.
                   </small>
@@ -1939,7 +1609,8 @@
                     <span *ngIf="!q._savingMarks">Save Marks</span>
                     <span *ngIf="q._savingMarks">Saving...</span>
                   </button>
-                  <button type="button" class="cancel-marks-btn" (click)="cancelEditMarks(q)" [disabled]="q._savingMarks">
+                  <button type="button" class="cancel-marks-btn" (click)="cancelEditMarks(q)"
+                    [disabled]="q._savingMarks">
                     <mat-icon>close</mat-icon>
                     <span>Cancel</span>
                   </button>
@@ -1948,12 +1619,8 @@
 
               <!-- Visual Page Reference Jump Link -->
               <div class="detected-page-locator-row" *ngIf="q.detected_on_page && q.detected_on_page.length > 0">
-                <button
-                  type="button"
-                  class="btn-page-jump-link"
-                  (click)="jumpToPage(q.detected_on_page[0])"
-                  title="Click to view this question in the Answer Sheet"
-                >
+                <button type="button" class="btn-page-jump-link" (click)="jumpToPage(q.detected_on_page[0])"
+                  title="Click to view this question in the Answer Sheet">
                   <mat-icon class="locator-icon">visibility</mat-icon>
                   <span>Located on Page {{ q.detected_on_page.join(', ') }} — Click to see in the viewer</span>
                 </button>
@@ -1968,7 +1635,8 @@
                     <span class="student-ans-label">STUDENT'S ANSWER</span>
                   </div>
                   <div class="student-ans-text">
-                    <app-math-render [text]="q.student_answer" [subject]="evaluationDetails?.subject_name || testDetails?.subject"></app-math-render>
+                    <app-math-render [text]="q.student_answer"
+                      [subject]="evaluationDetails?.subject_name || testDetails?.subject"></app-math-render>
                   </div>
                 </div>
 
@@ -1976,7 +1644,8 @@
                 <div class="desc-model">
                   <div class="model-label">MODEL ANSWER</div>
                   <div class="model-text">
-                    <app-math-render [text]="q.model_answer || 'No model answer provided in question paper.'"></app-math-render>
+                    <app-math-render
+                      [text]="q.model_answer || 'No model answer provided in question paper.'"></app-math-render>
                   </div>
                 </div>
 
@@ -1987,11 +1656,9 @@
                 </div>
 
                 <!-- Review Comments (Points Missed / Incorrect / Incomplete Columns) -->
-                <div class="q-review-comments" *ngIf="hasReviewComments(q, 'missing') || hasReviewComments(q, 'incorrect') || hasReviewComments(q, 'incomplete')">
-                  <div
-                    class="review-columns"
-                    [ngClass]="'cols-' + getNonEmptyCategoryCount(q)"
-                  >
+                <div class="q-review-comments"
+                  *ngIf="hasReviewComments(q, 'missing') || hasReviewComments(q, 'incorrect') || hasReviewComments(q, 'incomplete')">
+                  <div class="review-columns" [ngClass]="'cols-' + getNonEmptyCategoryCount(q)">
                     <!-- Column: Points Missed -->
                     <div class="col missed" *ngIf="hasReviewComments(q, 'missing')">
                       <div class="col-header">
@@ -2009,7 +1676,8 @@
                                 <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
                                 <span>{{ rc.issue || rc.comment_text }}</span>
                               </div>
-                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;" *ngIf="rc.statement">
+                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;"
+                                *ngIf="rc.statement">
                                 {{ rc.label || 'Needed' }} : <span style="font-weight: 400;">{{ rc.statement }}</span>
                               </div>
                             </ng-container>
@@ -2029,16 +1697,20 @@
                             <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>
                           </div>
                           <div class="comment-actions-links">
-                            <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing" (click)="startEditComment(rc)">
+                            <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing"
+                              (click)="startEditComment(rc)">
                               <mat-icon>edit</mat-icon> Edit
                             </a>
-                            <a href="javascript:void(0)" class="link-delete" *ngIf="!rc._editing" (click)="confirmDeleteComment(rc, q)">
+                            <a href="javascript:void(0)" class="link-delete" *ngIf="!rc._editing"
+                              (click)="confirmDeleteComment(rc, q)">
                               <mat-icon>delete</mat-icon> Delete
                             </a>
-                            <a href="javascript:void(0)" class="link-save" *ngIf="rc._editing" (click)="saveReviewComment(rc)">
+                            <a href="javascript:void(0)" class="link-save" *ngIf="rc._editing"
+                              (click)="saveReviewComment(rc)">
                               <mat-icon>check</mat-icon> Save
                             </a>
-                            <a href="javascript:void(0)" class="link-cancel" *ngIf="rc._editing" (click)="cancelEditComment(rc)">
+                            <a href="javascript:void(0)" class="link-cancel" *ngIf="rc._editing"
+                              (click)="cancelEditComment(rc)">
                               <mat-icon>close</mat-icon> Cancel
                             </a>
                           </div>
@@ -2063,7 +1735,8 @@
                                 <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
                                 <span>{{ rc.issue || rc.comment_text }}</span>
                               </div>
-                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;" *ngIf="rc.statement">
+                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;"
+                                *ngIf="rc.statement">
                                 {{ rc.label || 'Correct' }} : <span style="font-weight: 400;">{{ rc.statement }}</span>
                               </div>
                             </ng-container>
@@ -2083,16 +1756,20 @@
                             <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>
                           </div>
                           <div class="comment-actions-links">
-                            <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing" (click)="startEditComment(rc)">
+                            <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing"
+                              (click)="startEditComment(rc)">
                               <mat-icon>edit</mat-icon> Edit
                             </a>
-                            <a href="javascript:void(0)" class="link-delete" *ngIf="!rc._editing" (click)="confirmDeleteComment(rc, q)">
+                            <a href="javascript:void(0)" class="link-delete" *ngIf="!rc._editing"
+                              (click)="confirmDeleteComment(rc, q)">
                               <mat-icon>delete</mat-icon> Delete
                             </a>
-                            <a href="javascript:void(0)" class="link-save" *ngIf="rc._editing" (click)="saveReviewComment(rc)">
+                            <a href="javascript:void(0)" class="link-save" *ngIf="rc._editing"
+                              (click)="saveReviewComment(rc)">
                               <mat-icon>check</mat-icon> Save
                             </a>
-                            <a href="javascript:void(0)" class="link-cancel" *ngIf="rc._editing" (click)="cancelEditComment(rc)">
+                            <a href="javascript:void(0)" class="link-cancel" *ngIf="rc._editing"
+                              (click)="cancelEditComment(rc)">
                               <mat-icon>close</mat-icon> Cancel
                             </a>
                           </div>
@@ -2117,7 +1794,8 @@
                                 <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
                                 <span>{{ rc.issue || rc.comment_text }}</span>
                               </div>
-                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;" *ngIf="rc.statement">
+                              <div class="point-solution" style="color: #16a34a; font-weight: 600; margin-top: 6px;"
+                                *ngIf="rc.statement">
                                 {{ rc.label || 'Complete' }} : <span style="font-weight: 400;">{{ rc.statement }}</span>
                               </div>
                             </ng-container>
@@ -2137,16 +1815,20 @@
                             <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>
                           </div>
                           <div class="comment-actions-links">
-                            <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing" (click)="startEditComment(rc)">
+                            <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing"
+                              (click)="startEditComment(rc)">
                               <mat-icon>edit</mat-icon> Edit
                             </a>
-                            <a href="javascript:void(0)" class="link-delete" *ngIf="!rc._editing" (click)="confirmDeleteComment(rc, q)">
+                            <a href="javascript:void(0)" class="link-delete" *ngIf="!rc._editing"
+                              (click)="confirmDeleteComment(rc, q)">
                               <mat-icon>delete</mat-icon> Delete
                             </a>
-                            <a href="javascript:void(0)" class="link-save" *ngIf="rc._editing" (click)="saveReviewComment(rc)">
+                            <a href="javascript:void(0)" class="link-save" *ngIf="rc._editing"
+                              (click)="saveReviewComment(rc)">
                               <mat-icon>check</mat-icon> Save
                             </a>
-                            <a href="javascript:void(0)" class="link-cancel" *ngIf="rc._editing" (click)="cancelEditComment(rc)">
+                            <a href="javascript:void(0)" class="link-cancel" *ngIf="rc._editing"
+                              (click)="cancelEditComment(rc)">
                               <mat-icon>close</mat-icon> Cancel
                             </a>
                           </div>
@@ -2172,79 +1854,70 @@
 
               <!-- Marks History Section (Exact Test Reports Design & Timeline) -->
               <div class="marks-history-section">
-                  <div class="marks-history-header">
-                    <mat-icon>history</mat-icon>
-                    <span>Marks History</span>
-                  </div>
-                  <div class="marks-history-timeline">
-                    <!-- Current Marks (Latest) -->
-                    <div class="history-item current">
-                      <div class="history-indicator">
-                        <div class="dot current"></div>
-                        <div
-                          class="line"
-                          *ngIf="q.marks_history && q.marks_history.length > 0"
-                        ></div>
-                      </div>
-                      <div class="history-content">
-                        <div class="history-card current">
-                          <div
-                            class="history-badge"
-                            *ngIf="q.updated_by && q.updated_by.toLowerCase() !== 'system'"
-                          >
-                            CURRENT
-                          </div>
-                          <div class="history-marks">
-                            {{ q.marks_awarded }}
-                            <span class="marks-total">/ {{ q.max_marks || 2 }}</span>
-                          </div>
-                          <div class="history-meta">
-                            <span class="updated-by">
-                              <mat-icon>person</mat-icon>{{ q.updated_by || 'SYSTEM' }}
-                            </span>
-                            <span class="updated-date" *ngIf="q.updated_date">
-                              <mat-icon>schedule</mat-icon>{{ q.updated_date | date:'dd-MMM-yyyy HH:mm' }}
-                            </span>
-                          </div>
-                          <div class="history-reason" *ngIf="q.edit_reason">
-                            <strong>Change comment:</strong> {{ q.edit_reason }}
-                          </div>
+                <div class="marks-history-header">
+                  <mat-icon>history</mat-icon>
+                  <span>Marks History</span>
+                </div>
+                <div class="marks-history-timeline">
+                  <!-- Current Marks (Latest) -->
+                  <div class="history-item current">
+                    <div class="history-indicator">
+                      <div class="dot current"></div>
+                      <div class="line" *ngIf="q.marks_history && q.marks_history.length > 0"></div>
+                    </div>
+                    <div class="history-content">
+                      <div class="history-card current">
+                        <div class="history-badge" *ngIf="q.updated_by && q.updated_by.toLowerCase() !== 'system'">
+                          CURRENT
+                        </div>
+                        <div class="history-marks">
+                          {{ q.marks_awarded }}
+                          <span class="marks-total">/ {{ q.max_marks || 2 }}</span>
+                        </div>
+                        <div class="history-meta">
+                          <span class="updated-by">
+                            <mat-icon>person</mat-icon>{{ q.updated_by || 'SYSTEM' }}
+                          </span>
+                          <span class="updated-date" *ngIf="q.updated_date">
+                            <mat-icon>schedule</mat-icon>{{ q.updated_date | date:'dd-MMM-yyyy HH:mm' }}
+                          </span>
+                        </div>
+                        <div class="history-reason" *ngIf="q.edit_reason">
+                          <strong>Change comment:</strong> {{ q.edit_reason }}
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <!-- Previous Marks History -->
-                    <div
-                      class="history-item"
-                      *ngFor="let mh of q.marks_history; let isLast = last"
-                    >
-                      <div class="history-indicator">
-                        <div class="dot past"></div>
-                        <div class="line" *ngIf="!isLast"></div>
-                      </div>
-                      <div class="history-content">
-                        <div class="history-card past">
-                          <div class="history-marks">
-                            {{ mh.marks_awarded }}
-                            <span class="marks-total">/ {{ q.max_marks || 2 }}</span>
-                          </div>
-                          <div class="history-meta">
-                            <span class="updated-by">
-                              <mat-icon>person</mat-icon>{{ mh.updated_by || 'SYSTEM' }}
-                            </span>
-                            <span class="updated-date" *ngIf="mh.updated_date">
-                              <mat-icon>schedule</mat-icon>{{ mh.updated_date | date:'dd-MMM-yyyy HH:mm' }}
-                            </span>
-                          </div>
-                          <div class="history-reason" *ngIf="mh.edit_reason">
-                            <strong>Change comment:</strong> {{ mh.edit_reason }}
-                          </div>
+                  <!-- Previous Marks History -->
+                  <div class="history-item" *ngFor="let mh of q.marks_history; let isLast = last">
+                    <div class="history-indicator">
+                      <div class="dot past"></div>
+                      <div class="line" *ngIf="!isLast"></div>
+                    </div>
+                    <div class="history-content">
+                      <div class="history-card past">
+                        <div class="history-marks">
+                          {{ mh.marks_awarded }}
+                          <span class="marks-total">/ {{ q.max_marks || 2 }}</span>
+                        </div>
+                        <div class="history-meta">
+                          <span class="updated-by">
+                            <mat-icon>person</mat-icon>{{ mh.updated_by || 'SYSTEM' }}
+                          </span>
+                          <span class="updated-date" *ngIf="mh.updated_date">
+                            <mat-icon>schedule</mat-icon>{{ mh.updated_date | date:'dd-MMM-yyyy HH:mm' }}
+                          </span>
+                        </div>
+                        <div class="history-reason" *ngIf="mh.edit_reason">
+                          <strong>Change comment:</strong> {{ mh.edit_reason }}
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
             <!-- Loading Questions State -->
             <div class="questions-loading-card" *ngIf="isLoadingEvaluation">
@@ -2265,11 +1938,7 @@
             <div class="footer-left-progress">
               <span>All questions evaluated &amp; auto-saved</span>
             </div>
-            <button
-              type="button"
-              class="btn-footer-back"
-              (click)="closeStudentEvaluation()"
-            >
+            <button type="button" class="btn-footer-back" (click)="closeStudentEvaluation()">
               <mat-icon>arrow_back</mat-icon>
               <span>Back to Students List</span>
             </button>
@@ -2289,7 +1958,8 @@
         <div class="modal-header-text">
           <h2 class="modal-title">Scan Answer Sheet</h2>
           <p class="modal-subtitle">
-            Student: <strong>{{ selectedStudentForScan?.name || 'Student' }}</strong>. Scan each page in order, then finish scanning.
+            Student: <strong>{{ selectedStudentForScan?.name || 'Student' }}</strong>. Scan each page in order, then
+            finish scanning.
           </p>
         </div>
         <button type="button" class="modal-close-btn" (click)="closeScanModal()" title="Close">
@@ -2302,22 +1972,12 @@
         <!-- Left: Camera Viewfinder & Page Preview -->
         <div class="viewfinder-card">
           <!-- Live Camera Stream (Active when current page is ready or streaming) -->
-          <video
-            #scannerVideo
-            autoplay
-            playsinline
-            muted
-            class="viewfinder-video-stream"
-            [class.stream-active]="isCameraStreaming && currentActivePage?.status === 'ready' && !cameraError"
-          ></video>
+          <video #scannerVideo autoplay playsinline muted class="viewfinder-video-stream"
+            [class.stream-active]="isCameraStreaming && currentActivePage?.status === 'ready' && !cameraError"></video>
 
           <!-- Captured Page High-Res Snapshot Preview (When viewing an already scanned page) -->
-          <img
-            *ngIf="currentActivePage?.status === 'scanned' && currentActivePage?.dataUrl"
-            [src]="currentActivePage?.dataUrl"
-            alt="Captured Page"
-            class="viewfinder-captured-preview"
-          />
+          <img *ngIf="currentActivePage?.status === 'scanned' && currentActivePage?.dataUrl"
+            [src]="currentActivePage?.dataUrl" alt="Captured Page" class="viewfinder-captured-preview" />
 
           <!-- Shutter Flash Effect -->
           <div class="shutter-flash-overlay" *ngIf="isFlashing"></div>
@@ -2370,10 +2030,7 @@
           <div class="camera-select-group">
             <label class="camera-select-label">Camera</label>
             <div class="select-wrapper">
-              <select
-                [ngModel]="selectedCameraId"
-                (ngModelChange)="onCameraChange($event)"
-              >
+              <select [ngModel]="selectedCameraId" (ngModelChange)="onCameraChange($event)">
                 <option *ngFor="let cam of availableCameras" [value]="cam.id">
                   {{ cam.label }}
                 </option>
@@ -2384,12 +2041,8 @@
 
           <!-- Scanned / Queued Pages List -->
           <div class="scanned-pages-list">
-            <div
-              class="page-item-card"
-              *ngFor="let p of scannedPages; let idx = index"
-              [class.active-page]="idx === activeScanPageIndex"
-              (click)="selectScanPage(idx)"
-            >
+            <div class="page-item-card" *ngFor="let p of scannedPages; let idx = index"
+              [class.active-page]="idx === activeScanPageIndex" (click)="selectScanPage(idx)">
               <!-- Page Preview / Icon Box -->
               <div class="page-thumb-box" [ngClass]="p.status === 'scanned' ? 'thumb-scanned' : 'thumb-ready'">
                 <ng-container *ngIf="p.status === 'scanned'">
@@ -2417,13 +2070,8 @@
               </div>
 
               <!-- Delete Page Action (for multi-page management) -->
-              <button
-                type="button"
-                class="page-delete-btn"
-                *ngIf="scannedPages.length > 1"
-                (click)="removePage(idx, $event)"
-                title="Remove page"
-              >
+              <button type="button" class="page-delete-btn" *ngIf="scannedPages.length > 1"
+                (click)="removePage(idx, $event)" title="Remove page">
                 <mat-icon>close</mat-icon>
               </button>
             </div>
@@ -2446,31 +2094,18 @@
           <button type="button" class="btn-scan-cancel" (click)="closeScanModal()">
             Cancel
           </button>
-          <button
-            type="button"
-            class="btn-scan-retake"
-            *ngIf="currentActivePage?.status === 'scanned'"
-            (click)="retakeCurrentPage()"
-          >
+          <button type="button" class="btn-scan-retake" *ngIf="currentActivePage?.status === 'scanned'"
+            (click)="retakeCurrentPage()">
             <mat-icon class="btn-retake-icon">refresh</mat-icon>
             <span>Retake Page {{ activePageNumber }}</span>
           </button>
-          <button
-            type="button"
-            class="btn-scan-capture"
-            *ngIf="currentActivePage?.status === 'ready'"
-            [disabled]="!isCameraStreaming || !!cameraError"
-            (click)="captureCurrentPage()"
-          >
+          <button type="button" class="btn-scan-capture" *ngIf="currentActivePage?.status === 'ready'"
+            [disabled]="!isCameraStreaming || !!cameraError" (click)="captureCurrentPage()">
             <mat-icon class="btn-cam-icon">photo_camera</mat-icon>
             <span>Capture Page {{ activePageNumber }}</span>
           </button>
-          <button
-            type="button"
-            class="btn-scan-finish"
-            [disabled]="completedScannedCount === 0"
-            (click)="finishScanning()"
-          >
+          <button type="button" class="btn-scan-finish" [disabled]="completedScannedCount === 0"
+            (click)="finishScanning()">
             <mat-icon class="btn-check-icon">check</mat-icon>
             <span>Finish Scanning</span>
           </button>
@@ -2502,34 +2137,23 @@
 
         <div class="confirm-attach-callout">
           <mat-icon>info_outline</mat-icon>
-          <span>Choose <strong>Replace</strong> to overwrite the existing answer sheet, or <strong>Add</strong> to append additional pages without removing current ones.</span>
+          <span>Choose <strong>Replace</strong> to overwrite the existing answer sheet, or <strong>Add</strong> to
+            append additional pages without removing current ones.</span>
         </div>
       </div>
 
       <div class="confirm-attach-footer">
-        <button
-          type="button"
-          class="btn-confirm-cancel"
-          (click)="closeAttachConfirmPopup()"
-        >
+        <button type="button" class="btn-confirm-cancel" (click)="closeAttachConfirmPopup()">
           Cancel
         </button>
 
         <div class="confirm-right-actions">
-          <button
-            type="button"
-            class="btn-confirm-add"
-            (click)="chooseAttachAction('add')"
-          >
+          <button type="button" class="btn-confirm-add" (click)="chooseAttachAction('add')">
             <mat-icon>note_add</mat-icon>
             <span>Add</span>
           </button>
 
-          <button
-            type="button"
-            class="btn-confirm-replace"
-            (click)="chooseAttachAction('replace')"
-          >
+          <button type="button" class="btn-confirm-replace" (click)="chooseAttachAction('replace')">
             <mat-icon>sync</mat-icon>
             <span>Replace</span>
           </button>
@@ -2547,10 +2171,12 @@
       <div class="attach-modal-header">
         <div class="modal-header-text">
           <h2 class="modal-title">
-            {{ attachMode === 'add' ? 'Add Pages to Answer Sheet' : (hasAttachedSheet(selectedStudentForAttach) ? 'Replace Answer Sheet' : 'Attach Answer Sheet') }}
+            {{ attachMode === 'add' ? 'Add Pages to Answer Sheet' : (hasAttachedSheet(selectedStudentForAttach) ?
+            'Replace Answer Sheet' : 'Attach Answer Sheet') }}
           </h2>
           <p class="modal-subtitle">
-            Student: <strong>{{ selectedStudentForAttach?.name || 'Student' }}</strong>. The file is linked to this student for {{ selectedTest }}.
+            Student: <strong>{{ selectedStudentForAttach?.name || 'Student' }}</strong>. The file is linked to this
+            student for {{ selectedTest }}.
           </p>
         </div>
         <button type="button" class="modal-close-btn" [disabled]="isUploading" (click)="closeAttachModal()">
@@ -2572,13 +2198,8 @@
         </div>
 
         <!-- Dashed Dropzone Area -->
-        <div
-          class="modal-dropzone"
-          [class.disabled-zone]="isUploading"
-          (dragover)="onModalDragOver($event)"
-          (dragleave)="onModalDragLeave($event)"
-          (drop)="onModalFileDrop($event)"
-        >
+        <div class="modal-dropzone" [class.disabled-zone]="isUploading" (dragover)="onModalDragOver($event)"
+          (dragleave)="onModalDragLeave($event)" (drop)="onModalFileDrop($event)">
           <div class="cloud-badge-circle">
             <mat-icon class="cloud-icon">cloud_upload</mat-icon>
           </div>
@@ -2587,7 +2208,8 @@
           <label class="btn-choose-file" [class.disabled-label]="isUploading">
             <mat-icon class="paperclip-icon">attach_file</mat-icon>
             <span>Choose Files</span>
-            <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" (change)="onMultipleFilesSelected($event)" [disabled]="isUploading" hidden />
+            <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" (change)="onMultipleFilesSelected($event)"
+              [disabled]="isUploading" hidden />
           </label>
         </div>
 
@@ -2603,7 +2225,8 @@
                 <span class="file-details">{{ file.size }} • {{ file.pages }}</span>
               </div>
             </div>
-            <button type="button" class="file-remove-btn" [disabled]="isUploading" (click)="removeFileFromList(i)" title="Remove file">
+            <button type="button" class="file-remove-btn" [disabled]="isUploading" (click)="removeFileFromList(i)"
+              title="Remove file">
               <mat-icon>close</mat-icon>
             </button>
           </div>
@@ -2617,10 +2240,13 @@
         </div>
         <div class="footer-actions">
           <button type="button" class="btn-cancel" [disabled]="isUploading" (click)="closeAttachModal()">Cancel</button>
-          <button type="button" class="btn-attach-submit" [disabled]="isUploading || selectedFilesList.length === 0" (click)="attachAndEvaluateAll()">
+          <button type="button" class="btn-attach-submit" [disabled]="isUploading || selectedFilesList.length === 0"
+            (click)="attachAndEvaluateAll()">
             <mat-icon class="sparkle-icon spin-icon" *ngIf="isUploading">sync</mat-icon>
             <mat-icon class="sparkle-icon" *ngIf="!isUploading">auto_awesome</mat-icon>
-            <span>{{ isUploading ? 'Evaluating with AI...' : (attachMode === 'add' ? 'Add and Evaluate' : (attachMode === 'replace' && hasAttachedSheet(selectedStudentForAttach) ? 'Replace and Evaluate' : 'Attach and Evaluate')) }}</span>
+            <span>{{ isUploading ? 'Evaluating with AI...' : (attachMode === 'add' ? 'Add and Evaluate' : (attachMode
+              === 'replace' && hasAttachedSheet(selectedStudentForAttach) ? 'Replace and Evaluate' : 'Attach and
+              Evaluate')) }}</span>
           </button>
         </div>
       </div>
@@ -2629,14 +2255,8 @@
 </div>
 
 <!-- ═══ Image Lightbox Preview Modal ═══ -->
-<div
-  *ngIf="previewModalImage"
-  class="img-preview-backdrop"
-  (click)="closeImageModal()"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="eval-img-preview-title"
->
+<div *ngIf="previewModalImage" class="img-preview-backdrop" (click)="closeImageModal()" role="dialog" aria-modal="true"
+  aria-labelledby="eval-img-preview-title">
   <div class="img-preview-dialog" (click)="$event.stopPropagation()">
     <div class="img-preview-header">
       <div class="img-preview-title-group">
@@ -2646,49 +2266,22 @@
         </span>
       </div>
       <div class="img-preview-actions">
-        <button
-          type="button"
-          mat-icon-button
-          (click)="modalZoomOut()"
-          [disabled]="imageZoom <= 0.5"
-          matTooltip="Zoom out"
-        >
+        <button type="button" mat-icon-button (click)="modalZoomOut()" [disabled]="imageZoom <= 0.5"
+          matTooltip="Zoom out">
           <mat-icon>zoom_out</mat-icon>
         </button>
-        <button
-          type="button"
-          class="zoom-reset-btn"
-          (click)="modalResetZoom()"
-          [disabled]="imageZoom === 1"
-          matTooltip="Reset zoom"
-        >
+        <button type="button" class="zoom-reset-btn" (click)="modalResetZoom()" [disabled]="imageZoom === 1"
+          matTooltip="Reset zoom">
           {{ (imageZoom * 100) | number : '1.0-0' }}%
         </button>
-        <button
-          type="button"
-          mat-icon-button
-          (click)="modalZoomIn()"
-          [disabled]="imageZoom >= 3"
-          matTooltip="Zoom in"
-        >
+        <button type="button" mat-icon-button (click)="modalZoomIn()" [disabled]="imageZoom >= 3" matTooltip="Zoom in">
           <mat-icon>zoom_in</mat-icon>
         </button>
-        <a
-          [href]="previewModalImage.url"
-          target="_blank"
-          rel="noopener noreferrer"
-          mat-icon-button
-          matTooltip="Open original in new tab"
-        >
+        <a [href]="previewModalImage.url" target="_blank" rel="noopener noreferrer" mat-icon-button
+          matTooltip="Open original in new tab">
           <mat-icon>open_in_new</mat-icon>
         </a>
-        <button
-          type="button"
-          mat-icon-button
-          class="close-btn"
-          (click)="closeImageModal()"
-          matTooltip="Close (Esc)"
-        >
+        <button type="button" mat-icon-button class="close-btn" (click)="closeImageModal()" matTooltip="Close (Esc)">
           <mat-icon>close</mat-icon>
         </button>
       </div>
@@ -2696,11 +2289,8 @@
 
     <div class="img-preview-body">
       <div class="img-preview-viewport">
-        <img
-          [src]="previewModalImage.url"
-          [alt]="previewModalImage.title"
-          [style.transform]="'scale(' + imageZoom + ')'"
-        />
+        <img [src]="previewModalImage.url" [alt]="previewModalImage.title"
+          [style.transform]="'scale(' + imageZoom + ')'" />
       </div>
     </div>
   </div>
@@ -2709,10 +2299,12 @@
 <!-- ========================================================= -->
 <!-- ─── CONFIRM REMOVE ANSWER SHEET MODAL DIALOG ──────────── -->
 <!-- ========================================================= -->
-<div class="modal-backdrop-overlay" *ngIf="isConfirmRemoveModalOpen" (click)="!isRemovingSheet && closeConfirmRemoveModal()">
+<div class="modal-backdrop-overlay" *ngIf="isConfirmRemoveModalOpen"
+  (click)="!isRemovingSheet && closeConfirmRemoveModal()">
   <div class="confirm-remove-modal-card" (click)="$event.stopPropagation()">
     <!-- Top Close Button -->
-    <button type="button" class="modal-close-icon-btn" [disabled]="isRemovingSheet" (click)="closeConfirmRemoveModal()" title="Cancel">
+    <button type="button" class="modal-close-icon-btn" [disabled]="isRemovingSheet" (click)="closeConfirmRemoveModal()"
+      title="Cancel">
       <mat-icon>close</mat-icon>
     </button>
 
@@ -2732,26 +2324,18 @@
       <!-- Caution Callout Note -->
       <div class="confirm-warning-callout">
         <mat-icon>error_outline</mat-icon>
-        <span>This will delete all uploaded pages, rubrics, and reset the evaluation score back to <strong>Not Evaluated</strong>.</span>
+        <span>This will delete all uploaded pages, rubrics, and reset the evaluation score back to <strong>Not
+            Evaluated</strong>.</span>
       </div>
     </div>
 
     <!-- Modal Action Buttons -->
     <div class="confirm-modal-footer">
-      <button
-        type="button"
-        class="btn-confirm-cancel"
-        [disabled]="isRemovingSheet"
-        (click)="closeConfirmRemoveModal()"
-      >
+      <button type="button" class="btn-confirm-cancel" [disabled]="isRemovingSheet" (click)="closeConfirmRemoveModal()">
         Cancel
       </button>
-      <button
-        type="button"
-        class="btn-confirm-delete"
-        [disabled]="isRemovingSheet"
-        (click)="confirmRemoveUploadedSheet()"
-      >
+      <button type="button" class="btn-confirm-delete" [disabled]="isRemovingSheet"
+        (click)="confirmRemoveUploadedSheet()">
         <mat-icon *ngIf="!isRemovingSheet">delete</mat-icon>
         <mat-icon class="spin-icon" *ngIf="isRemovingSheet">sync</mat-icon>
         <span>{{ isRemovingSheet ? 'Removing...' : 'Yes, Remove Sheet' }}</span>
@@ -2759,7 +2343,3 @@
     </div>
   </div>
 </div>
-
-
-
-
