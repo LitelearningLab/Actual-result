@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.2.1] - 2026-11-04
+
+### Patch Fixes & Enhancements
+- **Question Paper Management**: Added question paper creation, publishing, and evaluation workflows for administrators.
+- **Table Navigation & Scrolling**: Fixed header sticking when scrolling in Question Bank module; fixed table pagination issues and preserved visible headers and paginators.
+- **Answer Sheet Upload Validation**: Disabled the "Remove Sheet" action when no answer sheet has been uploaded, enabling it only upon active file upload.
+- **Evaluation & AI Integration**: Added OpenAI API client integration and descriptive evaluation logic; added test evaluation UI components.
+- **Version Tracking**: Updated application version to 2.2.1 in environment configurations and UI components.
+
+---
+
 ## [2.2.0] - 2026-11-03
 
 ### Features & Updates
