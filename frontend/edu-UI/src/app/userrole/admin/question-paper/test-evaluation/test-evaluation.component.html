@@ -1311,7 +1311,8 @@
             <span>Scan Sheet</span>
           </button>
           <button type="button" class="btn-remove-sheet" (click)="openConfirmRemoveModal(evaluatingStudent!)"
-            title="Remove Existing Answer Sheet">
+            [disabled]="evaluationPages.length === 0"
+            [title]="evaluationPages.length === 0 ? 'No answer sheet to remove' : 'Remove Existing Answer Sheet'">
             <mat-icon>delete_outline</mat-icon>
             <span>Remove Sheet</span>
           </button>

@@ -1336,8 +1336,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (event) {
       event.stopPropagation();
     }
-    if (!student) return;
+    if (!student || this.evaluationPages.length === 0) return;
     this.studentToRemove = student;
+    this.isConfirmRemoveModalOpen = true;
+    this.isRemovingSheet = false;
+  
     this.isConfirmRemoveModalOpen = true;
     this.isRemovingSheet = false;
   }

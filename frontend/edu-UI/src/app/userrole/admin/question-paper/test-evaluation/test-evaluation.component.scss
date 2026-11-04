@@ -3837,6 +3837,28 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           color: #b91c1c;
         }
       }
+
+      &:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        color: #94a3b8;
+
+        mat-icon {
+          color: #94a3b8;
+        }
+
+        &:hover {
+          background: #f8fafc;
+          border-color: #e2e8f0;
+          color: #94a3b8;
+
+          mat-icon {
+            color: #94a3b8;
+          }
+        }
+      }
     }
   }
 }
