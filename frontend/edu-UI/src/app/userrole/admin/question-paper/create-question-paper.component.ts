@@ -3909,7 +3909,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       p?.is_published === 1 ||
       p?.is_published === true ||
       p?.status === 'published' ||
-      p?.status === 'active'
+      p?.status === 'active' ||
+      p?.template_id
     );
   }
 
@@ -3932,9 +3933,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       const masterItem = items.find((x) => !this.isPaperPublished(x));
       if (masterItem) {
         masterPapers.push(masterItem);
-      } else {
-        // Fallback: take base master definition
-        masterPapers.push(items[0]);
       }
     }
     list = masterPapers;
@@ -5103,7 +5101,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   loadCreatedQuestionPapersForDropdown(instituteId?: string): void {
     const inst = instituteId || this.institute;
-    let url = `${API_BASE}/get-exams-details?test_mode=paper`;
+    let url = `${API_BASE}/get-exams-details?test_mode=paper&published=0`;
     if (inst) {
       url += `&institute_id=${encodeURIComponent(inst)}`;
     }
@@ -5115,7 +5113,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         if (inst) {
           list = list.filter((p: any) => !p.institute_id || String(p.institute_id) === String(inst));
         }
-        this.availableQuestionPaperTemplates = (list || []).filter((p: any) => p && (p.title || p.name));
+        this.availableQuestionPaperTemplates = (list || []).filter(
+          (p: any) => p && (p.title || p.name) && !this.isPaperPublished(p)
+        );
         this.cdr.detectChanges();
 
         const wantTemplateId = this.selectedQuestionPaperTemplateId || this.editExamId;
