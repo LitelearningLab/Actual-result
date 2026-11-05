@@ -1023,32 +1023,129 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     const examId = e?.master_exam_id || e?.exam_id || e?.test_id || e?.id;
     const generateDoc = (item: any) => {
       this.loader.hide();
-      const printWin = window.open('', '_blank', 'width=900,height=700');
+      const printWin = window.open('', '_blank', 'width=950,height=800');
       if (!printWin) {
         try {
           notify('Please allow popups to download/print the question paper', 'info');
         } catch (_) {}
         return;
       }
-      const title = item.title || 'Question Paper';
-      const duration = this.getDurationDisplay(item);
-      const totalMarks = this.getTotalMarksCount(item);
-      const subtitle = this.getTestSubtitle(item);
+
+      // 1. School / Institute Name
+      let schoolName = '';
+      if (item?.institute?.name || item?.institute?.institute_name) {
+        schoolName = item.institute.name || item.institute.institute_name;
+      } else if (item?.institute_name) {
+        schoolName = item.institute_name;
+      } else if (e?.institute_name || e?.institute?.name) {
+        schoolName = e.institute_name || e.institute?.name;
+      } else if (item?.institute_id || e?.institute_id) {
+        const iId = String(item?.institute_id || e?.institute_id);
+        const match = (this.institutes || []).find((i: any) => String(i.institute_id || i.id) === iId);
+        if (match) schoolName = (match as any).name || match.institute_name || '';
+      }
+      schoolName = (schoolName || 'INSTITUTE NAME').trim().toUpperCase();
+
+      // 2. Department, Team / Year, Subject (Meta Line)
+      let deptName = '';
+      const depts = item.departments || e.departments;
+      if (Array.isArray(depts) && depts.length) {
+        deptName = this.getSelectedName(this.departments, depts[0]) || depts[0];
+      }
+      let teamName = '';
+      const teams = item.teams || e.teams;
+      if (Array.isArray(teams) && teams.length) {
+        teamName = this.getSelectedName(this.teams, teams[0]) || teams[0];
+      }
+      const subj = item.subject_name || item.subject || e.subject_name || e.subject || '';
+      const metaParts = [deptName, teamName, subj].filter(Boolean).map((x: any) => String(x).trim().toUpperCase());
+      const metaLine = metaParts.join(' · ');
+
+      // 3. Test Type / Title
+      const examType = item.exam_type || item.examType || e.exam_type || e.examType || '';
+      const rawTitle = item.title || e.title || 'Question Paper';
+      const examTypePrefix = examType ? `${String(examType).trim().toUpperCase()} – ` : '';
+      const testTypeLabel = `${examTypePrefix}${rawTitle.trim().toUpperCase()}`;
+
+      // 4. Exam Date (formatted as DD-MM-YYYY)
+      const rawDate = item.exam_date || item.start_time || item.start || e.exam_date || e.start_time || e.start || '';
+      let formattedDate = '';
+      if (rawDate) {
+        const dStr = String(rawDate).split('T')[0].trim();
+        if (dStr.includes('-')) {
+          const parts = dStr.split('-');
+          if (parts.length === 3) {
+            formattedDate = parts[0].length === 4 ? `${parts[2]}-${parts[1]}-${parts[0]}` : dStr;
+          }
+        } else {
+          const d = new Date(rawDate);
+          if (!isNaN(d.getTime())) {
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = d.getFullYear();
+            formattedDate = `${dd}-${mm}-${yyyy}`;
+          }
+        }
+      }
+
+      // 5. Time & Total Marks
+      const durationText = this.getDurationDisplay(item) || '10 Mins';
+      const maxMarks = this.getTotalMarksCount(item) || item.total_marks || e.total_marks || 0;
+
+      // 6. Format Options helper
+      const formatOpt = (opt: any, optIdx: number): string => {
+        let text = typeof opt === 'string' ? opt : (opt?.text || opt?.option_text || opt?.label || opt?.value || '');
+        text = (text || '').trim();
+        if (/^\(?[a-zA-Z0-9][\.\)\:\-]\s*/.test(text)) {
+          return text;
+        }
+        const prefix = `(${String.fromCharCode(97 + optIdx)})`;
+        return `${prefix} ${text}`;
+      };
+
+      // 7. Sections & Questions Flow
       let sectionsHtml = '';
       const sections = item.sections || [];
+      let globalQIdx = 1;
+
       if (sections.length > 0) {
         sections.forEach((s: any, sIdx: number) => {
+          const qList = s.questions || [];
+          const qCount = qList.length;
+
+          // Marks calculation string (e.g. 10 × 1 = 10)
+          let calcText = '';
+          if (s.calculation || s.sectionCalculation) {
+            calcText = s.calculation || s.sectionCalculation;
+          } else if (qCount > 0) {
+            const marksList = qList.map((q: any) => Number(q.marks) || 0).filter((m: number) => m > 0);
+            const uniqueMarks = [...new Set(marksList)];
+            const marksPerQ: number = Number(uniqueMarks.length === 1 ? uniqueMarks[0] : (s.marks_per_question || 1));
+            const totalSecMarks = s.total_marks || (qCount * marksPerQ);
+            if (uniqueMarks.length <= 1) {
+              calcText = `${qCount} × ${marksPerQ} = ${totalSecMarks}`;
+            } else {
+              calcText = `${qCount} Qs = ${totalSecMarks} Marks`;
+            }
+          }
+
           const sectionInstructions = s.sub_heading || s.instructions || '';
+          const sectionName = s.name || s.section_name || String.fromCharCode(65 + sIdx);
+
           sectionsHtml += `
-            <div class="section-heading" style="margin-top: 24px; border-bottom: 2px solid #0f172a; padding-bottom: 8px;">
-              <h3 style="margin: 0; font-size: 16px; color: #1e293b;">Section ${s.name || String.fromCharCode(65 + sIdx)} (${(s.question_type || 'Objective').toUpperCase()})</h3>
-              ${sectionInstructions ? `<div style="margin-top: 5px; font-size: 12px; font-style: italic; color: #475569;">${sectionInstructions}</div>` : ''}
+            <div class="paper-section-heading-wrap">
+              <div class="paper-section-spacer"></div>
+              <div class="paper-section-heading"><u>Section ${sectionName}</u></div>
+              <div class="paper-section-marks-calc">${calcText}</div>
             </div>
+            ${sectionInstructions ? `<div class="paper-section-instructions">${sectionInstructions}</div>` : ''}
           `;
-          (s.questions || []).forEach((q: any, qIdx: number) => {
-            const marks = q.marks ? `[${q.marks} Mark${q.marks > 1 ? 's' : ''}]` : '';
+
+          qList.forEach((q: any) => {
+            const marks = q.marks ? `[${q.marks}]` : '[1]';
             const rawQText = q.question_text || q.text || q.question || 'Question text';
             const qText = this.mathService.render(rawQText);
+
             let optionsHtml = '';
             const questionType = String(
               q.type || q.question_type || s.question_type || ''
@@ -1057,68 +1154,210 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
               String(s.question_type || '').toLowerCase() === 'descriptive' ||
               questionType.includes('descriptive') ||
               questionType.includes('subjective');
-            // Some descriptive records store their model answer in `options`.
-            // Never expose that field on the student question paper.
+
             if (!isDescriptive && q.options && q.options.length) {
-              optionsHtml =
-                '<div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">' +
-                q.options
-                  .map(
-                    (opt: any, optIdx: number) => `
-                  <div style="font-size: 13px; color: #334155;">
-                    ${String.fromCharCode(65 + optIdx)}. ${this.mathService.render(opt.option_text || opt.text || opt)}
-                  </div>
-                `
-                  )
-                  .join('') +
-                '</div>';
+              const optionsItems = q.options
+                .map((opt: any, optIdx: number) => {
+                  const optFormatted = formatOpt(opt, optIdx);
+                  return `<div class="paper-q-option">${this.mathService.render(optFormatted)}</div>`;
+                })
+                .join('');
+              optionsHtml = `<div class="paper-q-options-grid">${optionsItems}</div>`;
             }
+
             sectionsHtml += `
-              <div class="question-item" style="margin: 16px 0; padding-left: 8px;">
-                <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 500; color: #0f172a;">
-                  <span>${qIdx + 1}. ${qText}</span>
-                  <span style="color: #64748b; font-size: 13px;">${marks}</span>
+              <div class="paper-question-item">
+                <div class="paper-q-header">
+                  <span class="paper-q-num">${globalQIdx}.</span>
+                  <span class="paper-q-text">${qText}</span>
+                  <span class="paper-q-marks">${marks}</span>
                 </div>
                 ${optionsHtml}
               </div>
             `;
+            globalQIdx++;
           });
         });
       } else {
-        sectionsHtml = '<p style="margin-top: 20px; color: #64748b;">No questions added to this test yet.</p>';
+        sectionsHtml = '<p style="text-align: center; margin-top: 40px; color: #64748b;">No questions added to this test yet.</p>';
       }
 
       printWin.document.write(`
         <!DOCTYPE html>
         <html>
           <head>
-            <title>${title} - Question Paper</title>
+            <meta charset="utf-8">
+            <title>${rawTitle} - Question Paper</title>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
             <style>
-              @page { size: A4 portrait; margin: 15mm 20mm; }
-              * { box-sizing: border-box; }
-              body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.5; margin: 0; }
-              .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
-              .title { font-size: 24px; font-weight: bold; margin: 0; }
-              .sub { font-size: 14px; color: #64748b; margin-top: 6px; }
-              .meta-row { display: flex; justify-content: space-between; margin-top: 16px; font-size: 14px; font-weight: 600; }
-              .section-heading { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
-              .question-item { break-inside: avoid; page-break-inside: avoid; orphans: 3; widows: 3; }
+              @page {
+                size: A4 portrait;
+                margin: 12mm 15mm;
+              }
+              * {
+                box-sizing: border-box;
+              }
+              html, body {
+                font-family: 'Times New Roman', Times, serif;
+                color: #111;
+                line-height: 1.5;
+                margin: 0 !important;
+                padding: 24px 32px !important;
+                background: #ffffff;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .paper-container {
+                max-width: 820px;
+                margin: 0 auto;
+              }
+              .paper-school-name {
+                text-align: center;
+                font-size: 16.5px;
+                font-weight: 700;
+                letter-spacing: 0.05em;
+                margin-bottom: 2px;
+                color: #000;
+                line-height: 1.25;
+              }
+              .paper-meta-line {
+                text-align: center;
+                font-size: 12px;
+                color: #333;
+                margin-bottom: 2px;
+                letter-spacing: 0.03em;
+                line-height: 1.25;
+              }
+              .paper-test-type {
+                text-align: center;
+                font-size: 13px;
+                font-weight: 700;
+                margin-bottom: 3px;
+                color: #000;
+                line-height: 1.25;
+              }
+              .paper-header-row {
+                display: flex;
+                justify-content: space-between;
+                font-size: 12px;
+                font-weight: 600;
+                margin-bottom: 3px;
+                color: #111;
+                line-height: 1.25;
+              }
+              .paper-divider {
+                border: none;
+                border-top: 1.5px solid #000;
+                margin: 4px 0 10px 0;
+              }
+              .paper-section-heading-wrap {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin: 14px 0 2px;
+              }
+              .paper-section-spacer {
+                flex: 1;
+              }
+              .paper-section-heading {
+                flex: 2;
+                text-align: center;
+                font-size: 13.5px;
+                font-weight: 700;
+                margin: 0;
+                color: #000;
+                line-height: 1.25;
+              }
+              .paper-section-heading u {
+                text-decoration: underline;
+              }
+              .paper-section-marks-calc {
+                flex: 1;
+                text-align: right;
+                font-size: 13px;
+                font-weight: 700;
+                color: #000;
+                white-space: nowrap;
+              }
+              .paper-section-instructions {
+                text-align: center;
+                font-size: 12px;
+                font-style: italic;
+                margin-bottom: 6px;
+                color: #333;
+                line-height: 1.25;
+              }
+              .paper-question-item {
+                margin-bottom: 10px;
+                font-size: 13.5px;
+                color: #111;
+                break-inside: avoid;
+                page-break-inside: avoid;
+              }
+              .paper-q-header {
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+                line-height: 1.35;
+              }
+              .paper-q-num {
+                flex-shrink: 0;
+                font-weight: 700;
+                min-width: 22px;
+                font-size: 13.5px;
+                color: #000;
+              }
+              .paper-q-text {
+                flex: 1;
+                font-size: 13.5px;
+                color: #111;
+                line-height: 1.35;
+              }
+              .paper-q-marks {
+                flex-shrink: 0;
+                font-weight: 700;
+                margin-left: 12px;
+                white-space: nowrap;
+                color: #000;
+                font-size: 13px;
+              }
+              .paper-q-options-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                column-gap: 24px;
+                row-gap: 2.5px;
+                margin-top: 3px;
+                margin-left: 28px;
+                font-size: 13px;
+                line-height: 1.35;
+              }
+              .paper-q-option {
+                color: #111;
+                word-break: break-word;
+              }
               @media print {
-                body { padding: 0; }
+                body {
+                  padding: 0 !important;
+                }
               }
             </style>
           </head>
           <body>
-            <div class="header">
-              <h1 class="title">${title}</h1>
-              <div class="sub">${subtitle}</div>
-              <div class="meta-row">
-                <span>Duration: ${duration}</span>
-                <span>Total Marks: ${totalMarks}</span>
+            <div class="paper-container">
+              <div class="paper-school-name">${schoolName}</div>
+              ${metaLine ? `<div class="paper-meta-line">${metaLine}</div>` : ''}
+              <div class="paper-test-type">${testTypeLabel}</div>
+              ${formattedDate ? `
+              <div class="paper-header-row" style="margin-bottom: 2px;">
+                <span>Date: ${formattedDate}</span>
+              </div>` : ''}
+              <div class="paper-header-row">
+                <span>Time: ${durationText}</span>
+                <span>Maximum Marks: ${maxMarks}</span>
               </div>
+              <hr class="paper-divider">
+              ${sectionsHtml}
             </div>
-            ${sectionsHtml}
             <script>
               window.onload = function() { window.print(); };
             </script>
@@ -1149,88 +1388,344 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     const examId = e?.master_exam_id || e?.exam_id || e?.test_id || e?.id;
     const generateGuide = (item: any) => {
       this.loader.hide();
-      const printWin = window.open('', '_blank', 'width=900,height=700');
+      const printWin = window.open('', '_blank', 'width=950,height=800');
       if (!printWin) {
         try {
           notify('Please allow popups to download/print the answer key', 'info');
         } catch (_) {}
         return;
       }
-      const title = item.title || 'Answer Key';
-      const duration = this.getDurationDisplay(item);
-      const totalMarks = this.getTotalMarksCount(item);
-      const subtitle = this.getTestSubtitle(item);
+
+      // 1. School / Institute Name
+      let schoolName = '';
+      if (item?.institute?.name || item?.institute?.institute_name) {
+        schoolName = item.institute.name || item.institute.institute_name;
+      } else if (item?.institute_name) {
+        schoolName = item.institute_name;
+      } else if (e?.institute_name || e?.institute?.name) {
+        schoolName = e.institute_name || e.institute?.name;
+      } else if (item?.institute_id || e?.institute_id) {
+        const iId = String(item?.institute_id || e?.institute_id);
+        const match = (this.institutes || []).find((i: any) => String(i.institute_id || i.id) === iId);
+        if (match) schoolName = (match as any).name || match.institute_name || '';
+      }
+      schoolName = (schoolName || 'INSTITUTE NAME').trim().toUpperCase();
+
+      // 2. Department, Team / Year, Subject (Meta Line)
+      let deptName = '';
+      const depts = item.departments || e.departments;
+      if (Array.isArray(depts) && depts.length) {
+        deptName = this.getSelectedName(this.departments, depts[0]) || depts[0];
+      }
+      let teamName = '';
+      const teams = item.teams || e.teams;
+      if (Array.isArray(teams) && teams.length) {
+        teamName = this.getSelectedName(this.teams, teams[0]) || teams[0];
+      }
+      const subj = item.subject_name || item.subject || e.subject_name || e.subject || '';
+      const metaParts = [deptName, teamName, subj].filter(Boolean).map((x: any) => String(x).trim().toUpperCase());
+      const metaLine = metaParts.join(' · ');
+
+      // 3. Test Type / Title
+      const examType = item.exam_type || item.examType || e.exam_type || e.examType || '';
+      const rawTitle = item.title || e.title || 'Question Paper';
+      const examTypePrefix = examType ? `${String(examType).trim().toUpperCase()} – ` : '';
+      const testTypeLabel = `${examTypePrefix}${rawTitle.trim().toUpperCase()} (ANSWER KEY)`;
+
+      // 4. Exam Date (formatted as DD-MM-YYYY)
+      const rawDate = item.exam_date || item.start_time || item.start || e.exam_date || e.start_time || e.start || '';
+      let formattedDate = '';
+      if (rawDate) {
+        const dStr = String(rawDate).split('T')[0].trim();
+        if (dStr.includes('-')) {
+          const parts = dStr.split('-');
+          if (parts.length === 3) {
+            formattedDate = parts[0].length === 4 ? `${parts[2]}-${parts[1]}-${parts[0]}` : dStr;
+          }
+        } else {
+          const d = new Date(rawDate);
+          if (!isNaN(d.getTime())) {
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = d.getFullYear();
+            formattedDate = `${dd}-${mm}-${yyyy}`;
+          }
+        }
+      }
+
+      // 5. Time & Total Marks
+      const durationText = this.getDurationDisplay(item) || '10 Mins';
+      const maxMarks = this.getTotalMarksCount(item) || item.total_marks || e.total_marks || 0;
+
+      // 6. Format Options helper
+      const formatOpt = (opt: any, optIdx: number): string => {
+        let text = typeof opt === 'string' ? opt : (opt?.text || opt?.option_text || opt?.label || opt?.value || '');
+        text = (text || '').trim();
+        if (/^\(?[a-zA-Z0-9][\.\)\:\-]\s*/.test(text)) {
+          return text;
+        }
+        const prefix = `(${String.fromCharCode(97 + optIdx)})`;
+        return `${prefix} ${text}`;
+      };
+
+      // 7. Sections & Questions Flow
       let sectionsHtml = '';
       const sections = item.sections || [];
+      let globalQIdx = 1;
+
       if (sections.length > 0) {
         sections.forEach((s: any, sIdx: number) => {
+          const qList = s.questions || [];
+          const qCount = qList.length;
+
+          // Marks calculation string (e.g. 10 × 1 = 10)
+          let calcText = '';
+          if (s.calculation || s.sectionCalculation) {
+            calcText = s.calculation || s.sectionCalculation;
+          } else if (qCount > 0) {
+            const marksList = qList.map((q: any) => Number(q.marks) || 0).filter((m: number) => m > 0);
+            const uniqueMarks = [...new Set(marksList)];
+            const marksPerQ: number = Number(uniqueMarks.length === 1 ? uniqueMarks[0] : (s.marks_per_question || 1));
+            const totalSecMarks = s.total_marks || (qCount * marksPerQ);
+            if (uniqueMarks.length <= 1) {
+              calcText = `${qCount} × ${marksPerQ} = ${totalSecMarks}`;
+            } else {
+              calcText = `${qCount} Qs = ${totalSecMarks} Marks`;
+            }
+          }
+
+          const sectionInstructions = s.sub_heading || s.instructions || '';
+          const sectionName = s.name || s.section_name || String.fromCharCode(65 + sIdx);
+
           sectionsHtml += `
-            <div style="margin-top: 24px; border-bottom: 2px solid #2563eb; padding-bottom: 8px;">
-              <h3 style="margin: 0; font-size: 16px; color: #1e293b;">Section ${s.name || String.fromCharCode(65 + sIdx)} - Answer Key</h3>
+            <div class="paper-section-heading-wrap">
+              <div class="paper-section-spacer"></div>
+              <div class="paper-section-heading"><u>Section ${sectionName}</u></div>
+              <div class="paper-section-marks-calc">${calcText}</div>
             </div>
+            ${sectionInstructions ? `<div class="paper-section-instructions">${sectionInstructions}</div>` : ''}
           `;
-          (s.questions || []).forEach((q: any, qIdx: number) => {
-            const marks = q.marks ? `[${q.marks} Mark${q.marks > 1 ? 's' : ''}]` : '';
+
+          qList.forEach((q: any) => {
+            const marks = q.marks ? `[${q.marks}]` : '[1]';
             let correctAns = q.answer || '';
-            if (!correctAns && q.options) {
-              const correctOpt = q.options.find((o: any) => o.is_correct || o.isCorrect);
-              if (correctOpt) correctAns = correctOpt.option_text || correctOpt.text;
+            if (!correctAns && q.options && q.options.length) {
+              const correctOptIdx = q.options.findIndex((o: any) => o.is_correct || o.isCorrect || o.is_correct === 1);
+              if (correctOptIdx >= 0) {
+                correctAns = formatOpt(q.options[correctOptIdx], correctOptIdx);
+              }
             }
             if (!correctAns) correctAns = 'Refer to model answer rubric';
+
             const rawQText = q.question_text || q.text || q.question || 'Question';
             const qText = this.mathService.render(rawQText);
             const ansText = this.mathService.render(correctAns);
             const explanationHtml = q.explanation
-              ? `<div style="margin-top: 6px; font-size: 12px; color: #64748b;"><strong>Explanation:</strong> ${this.mathService.render(q.explanation)}</div>`
+              ? `<div style="margin-top: 4px; margin-left: 28px; font-size: 12px; color: #555; font-style: italic;"><strong>Explanation:</strong> ${this.mathService.render(q.explanation)}</div>`
               : '';
+
             sectionsHtml += `
-              <div style="margin: 16px 0; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 500; color: #0f172a;">
-                  <span>${qIdx + 1}. ${qText}</span>
-                  <span style="color: #64748b; font-size: 13px;">${marks}</span>
+              <div class="paper-question-item">
+                <div class="paper-q-header">
+                  <span class="paper-q-num">${globalQIdx}.</span>
+                  <span class="paper-q-text">${qText}</span>
+                  <span class="paper-q-marks">${marks}</span>
                 </div>
-                <div style="margin-top: 8px; font-size: 13px; color: #15803d; font-weight: 600;">
-                  ✓ Correct Answer / Key: <span style="font-weight: 400; color: #0f172a;">${ansText}</span>
+                <div class="paper-q-answer">
+                  <span class="ans-badge">Ans:</span>
+                  <span class="ans-value">${ansText}</span>
                 </div>
                 ${explanationHtml}
               </div>
             `;
+            globalQIdx++;
           });
         });
       } else {
-        sectionsHtml = '<p style="margin-top: 20px; color: #64748b;">No questions available in this test.</p>';
+        sectionsHtml = '<p style="text-align: center; margin-top: 40px; color: #64748b;">No questions available in this test.</p>';
       }
 
       printWin.document.write(`
         <!DOCTYPE html>
         <html>
           <head>
-            <title>${title} - Answer Key</title>
+            <meta charset="utf-8">
+            <title>${rawTitle} - Answer Key</title>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
             <style>
-              @page { size: A4; margin: 0mm; }
-              body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.5; margin: 0; }
-              .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; }
-              .title { font-size: 24px; font-weight: bold; margin: 0; color: #1e293b; }
-              .guide-badge { display: inline-block; background: #eff6ff; color: #2563eb; padding: 4px 12px; border-radius: 9999px; font-weight: 600; font-size: 12px; margin-top: 6px; }
-              .sub { font-size: 14px; color: #64748b; margin-top: 6px; }
-              .meta-row { display: flex; justify-content: space-between; margin-top: 16px; font-size: 14px; font-weight: 600; }
+              @page {
+                size: A4 portrait;
+                margin: 12mm 15mm;
+              }
+              * {
+                box-sizing: border-box;
+              }
+              html, body {
+                font-family: 'Times New Roman', Times, serif;
+                color: #111;
+                line-height: 1.5;
+                margin: 0 !important;
+                padding: 24px 32px !important;
+                background: #ffffff;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .paper-container {
+                max-width: 820px;
+                margin: 0 auto;
+              }
+              .paper-school-name {
+                text-align: center;
+                font-size: 16.5px;
+                font-weight: 700;
+                letter-spacing: 0.05em;
+                margin-bottom: 2px;
+                color: #000;
+                line-height: 1.25;
+              }
+              .paper-meta-line {
+                text-align: center;
+                font-size: 12px;
+                color: #333;
+                margin-bottom: 2px;
+                letter-spacing: 0.03em;
+                line-height: 1.25;
+              }
+              .paper-test-type {
+                text-align: center;
+                font-size: 13px;
+                font-weight: 700;
+                margin-bottom: 3px;
+                color: #000;
+                line-height: 1.25;
+              }
+              .paper-header-row {
+                display: flex;
+                justify-content: space-between;
+                font-size: 12px;
+                font-weight: 600;
+                margin-bottom: 3px;
+                color: #111;
+                line-height: 1.25;
+              }
+              .paper-divider {
+                border: none;
+                border-top: 1.5px solid #000;
+                margin: 4px 0 10px 0;
+              }
+              .paper-section-heading-wrap {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin: 14px 0 2px;
+              }
+              .paper-section-spacer {
+                flex: 1;
+              }
+              .paper-section-heading {
+                flex: 2;
+                text-align: center;
+                font-size: 13.5px;
+                font-weight: 700;
+                margin: 0;
+                color: #000;
+                line-height: 1.25;
+              }
+              .paper-section-heading u {
+                text-decoration: underline;
+              }
+              .paper-section-marks-calc {
+                flex: 1;
+                text-align: right;
+                font-size: 13px;
+                font-weight: 700;
+                color: #000;
+                white-space: nowrap;
+              }
+              .paper-section-instructions {
+                text-align: center;
+                font-size: 12px;
+                font-style: italic;
+                margin-bottom: 6px;
+                color: #333;
+                line-height: 1.25;
+              }
+              .paper-question-item {
+                margin-bottom: 10px;
+                font-size: 13.5px;
+                color: #111;
+                break-inside: avoid;
+                page-break-inside: avoid;
+              }
+              .paper-q-header {
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+                line-height: 1.35;
+              }
+              .paper-q-num {
+                flex-shrink: 0;
+                font-weight: 700;
+                min-width: 22px;
+                font-size: 13.5px;
+                color: #000;
+              }
+              .paper-q-text {
+                flex: 1;
+                font-size: 13.5px;
+                color: #111;
+                line-height: 1.35;
+              }
+              .paper-q-marks {
+                flex-shrink: 0;
+                font-weight: 700;
+                margin-left: 12px;
+                white-space: nowrap;
+                color: #000;
+                font-size: 13px;
+              }
+              .paper-q-answer {
+                display: flex;
+                align-items: baseline;
+                gap: 6px;
+                margin-top: 4px;
+                margin-left: 28px;
+                font-size: 13px;
+                line-height: 1.35;
+              }
+              .ans-badge {
+                font-weight: 700;
+                color: #15803d;
+                flex-shrink: 0;
+              }
+              .ans-value {
+                font-weight: 600;
+                color: #0f172a;
+                word-break: break-word;
+              }
               @media print {
-                body { padding: 15mm 20mm; }
+                body {
+                  padding: 0 !important;
+                }
               }
             </style>
           </head>
           <body>
-            <div class="header">
-              <h1 class="title">${title}</h1>
-              <div class="guide-badge">Answer Key</div>
-              <div class="sub">${subtitle}</div>
-              <div class="meta-row">
-                <span>Duration: ${duration}</span>
-                <span>Total Marks: ${totalMarks}</span>
+            <div class="paper-container">
+              <div class="paper-school-name">${schoolName}</div>
+              ${metaLine ? `<div class="paper-meta-line">${metaLine}</div>` : ''}
+              <div class="paper-test-type">${testTypeLabel}</div>
+              ${formattedDate ? `
+              <div class="paper-header-row" style="margin-bottom: 2px;">
+                <span>Date: ${formattedDate}</span>
+              </div>` : ''}
+              <div class="paper-header-row">
+                <span>Time: ${durationText}</span>
+                <span>Maximum Marks: ${maxMarks}</span>
               </div>
+              <hr class="paper-divider">
+              ${sectionsHtml}
             </div>
-            ${sectionsHtml}
             <script>
               window.onload = function() { window.print(); };
             </script>

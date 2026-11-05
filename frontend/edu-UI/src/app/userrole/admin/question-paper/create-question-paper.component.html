@@ -479,14 +479,20 @@
                                 </mat-form-field>
                             </div>
 
-                            <!-- ── CREATED DATE FILTER (IN THE RED CIRCLED AREA) ── -->
-                            <mat-form-field appearance="outline" class="filter-item" floatLabel="always" style="width: 100%;">
+                            <!-- ── CREATED DATE FILTER (DATE RANGE PICKER) ── -->
+                            <mat-form-field appearance="outline" class="filter-item user-date-filter" floatLabel="always"
+                                style="width: 100%; cursor: pointer;"
+                                (click)="openFilterPaperDateRangePicker()">
                                 <mat-label>Created Date</mat-label>
-                                <input matInput type="date" [(ngModel)]="filterPaperCreatedDate" placeholder="dd-mm-yyyy" />
-                                <button *ngIf="filterPaperCreatedDate" matSuffix mat-icon-button type="button"
-                                    (click)="filterPaperCreatedDate = ''; $event.stopPropagation()" aria-label="Clear date">
+                                <input matInput readonly [value]="getFilterPaperDateRangeDisplay()"
+                                    placeholder="Select date range" style="cursor: pointer;" />
+                                <button *ngIf="filterPaperCreatedDateStart || filterPaperCreatedDateEnd || filterPaperCreatedDate"
+                                    matSuffix mat-icon-button type="button"
+                                    (click)="clearFilterPaperDateRange($event)" aria-label="Clear date">
                                     <mat-icon style="font-size: 16px; width: 16px; height: 16px;">close</mat-icon>
                                 </button>
+                                <mat-icon matSuffix *ngIf="!filterPaperCreatedDateStart && !filterPaperCreatedDateEnd && !filterPaperCreatedDate"
+                                    style="color: #64748b; font-size: 18px; width: 18px; height: 18px; cursor: pointer;">calendar_today</mat-icon>
                             </mat-form-field>
                         </div>
 
@@ -835,6 +841,9 @@
                                 {{ getSelectedDepartmentsDisplay() | uppercase }} · {{ getSelectedTeamsDisplay() | uppercase }} · {{ subject_name | uppercase }}
                             </div>
                             <div class="paper-test-type">{{ examTypeLabel ? (examTypeLabel | uppercase) + ' – ' : '' }}{{ title }}</div>
+                            <div class="paper-header-row" *ngIf="formattedExamDate" style="margin-bottom: 2px;">
+                                <span>Date: {{ formattedExamDate }}</span>
+                            </div>
                             <div class="paper-header-row">
                                 <span>Time: {{ durationLabel || (durationMinutes + ' mins') }}</span>
                                 <span>Maximum Marks: {{ totalMarksOverride || totalPaperMarks }}</span>
@@ -935,6 +944,9 @@
                                 {{ getSelectedDepartmentsDisplay() | uppercase }} · {{ getSelectedTeamsDisplay() | uppercase }} · {{ subject_name | uppercase }}
                             </div>
                             <div class="paper-test-type">{{ examTypeLabel ? (examTypeLabel | uppercase) + ' – ' : '' }}{{ title }} (ANSWER KEY)</div>
+                            <div class="paper-header-row" *ngIf="formattedExamDate" style="margin-bottom: 2px;">
+                                <span>Date: {{ formattedExamDate }}</span>
+                            </div>
                             <div class="paper-header-row">
                                 <span>Time: {{ durationLabel || (durationMinutes + ' mins') }}</span>
                                 <span>Maximum Marks: {{ totalMarksOverride || totalPaperMarks }}</span>

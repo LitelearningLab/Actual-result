@@ -1889,6 +1889,13 @@ def get_exam_details(request):
             elif str(published_arg).lower() in ("0", "false"):
                 filter.append(or_(Exam.published == 0, Exam.published == None))
 
+        is_draft_arg = args.get("is_draft", None)
+        if is_draft_arg is not None:
+            if str(is_draft_arg).lower() in ("1", "true"):
+                filter.append(Exam.is_draft == 1)
+            elif str(is_draft_arg).lower() in ("0", "false"):
+                filter.append(or_(Exam.is_draft == 0, Exam.is_draft == None))
+
         dept_arg = args.get("departments", None) or args.get("department", None)
         if dept_arg:
             dept_ids = [d.strip() for d in str(dept_arg).split(",") if d.strip()]

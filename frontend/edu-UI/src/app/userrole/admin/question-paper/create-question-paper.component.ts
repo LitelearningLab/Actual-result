@@ -236,6 +236,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   filterPaperDept = '';
   filterPaperSubj = '';
   filterPaperCreatedDate = '';
+  filterPaperCreatedDateStart: Date | null = null;
+  filterPaperCreatedDateEnd: Date | null = null;
   editingScheduleId: string | null = null;
   initialSelectedPaperUsers: string[] = [];
 
@@ -325,6 +327,29 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
   set examDate(val: string) {
     this.startDateTime = val ? (val.includes('T') ? val : `${val}T09:00:00`) : '';
+  }
+
+  get formattedExamDate(): string {
+    if (!this.examDate) return '';
+    const raw = this.examDate.trim();
+    if (raw.includes('-')) {
+      const parts = raw.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD -> DD-MM-YYYY
+          return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        return raw;
+      }
+    }
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+    return raw;
   }
 
   // ── Preview overlays ──
@@ -776,6 +801,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.institute) {
       list = list.filter((p: any) => !p.institute_id || String(p.institute_id) === String(this.institute));
     }
+    // Exclude drafts and already-published papers from publish selection
+    list = list.filter((p: any) => !this.isPaperDraft(p) && !this.isPaperPublished(p));
     // Deduplicate question paper masters by title and institute_id so repeated publications only show once
     const seen = new Set<string>();
     list = list.filter((p: any) => {
@@ -2881,6 +2908,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           <div class="paper-school-name">${schoolName}</div>
           ${metaLine ? `<div class="paper-meta-line">${metaLine}</div>` : ''}
           <div class="paper-test-type">${testTypeLabel}</div>
+          ${this.formattedExamDate ? `
+          <div class="paper-header-row" style="margin-bottom: 2px;">
+            <span>Date: ${this.formattedExamDate}</span>
+          </div>` : ''}
           <div class="paper-header-row">
             <span>Time: ${durationText}</span>
             <span>Maximum Marks: ${maxMarks}</span>
@@ -3905,6 +3936,64 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.filterPaperDept = '';
     this.filterPaperSubj = '';
     this.filterPaperCreatedDate = '';
+    this.filterPaperCreatedDateStart = null;
+    this.filterPaperCreatedDateEnd = null;
+  }
+
+  openFilterPaperDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.filterPaperCreatedDateStart,
+        endDate: this.filterPaperCreatedDateEnd,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.filterPaperCreatedDateStart = res.startDate;
+        this.filterPaperCreatedDateEnd = res.endDate;
+        this.filterPaperCreatedDate = this.getFilterPaperDateRangeDisplay();
+        this.buildPaperFilterChips();
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  getFilterPaperDateRangeDisplay(): string {
+    const start = this.filterPaperCreatedDateStart;
+    const end = this.filterPaperCreatedDateEnd;
+    if (!start && !end) {
+      return this.filterPaperCreatedDate || '';
+    }
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const day = String(dt.getDate()).padStart(2, '0');
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const y = dt.getFullYear();
+      return `${day}/${m}/${y}`;
+    };
+    if (start && end) {
+      if (format(start) === format(end)) {
+        return format(start);
+      }
+      return `${format(start)} - ${format(end)}`;
+    }
+    if (start) return `From ${format(start)}`;
+    return `Until ${format(end)}`;
+  }
+
+  clearFilterPaperDateRange(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.filterPaperCreatedDateStart = null;
+    this.filterPaperCreatedDateEnd = null;
+    this.filterPaperCreatedDate = '';
+    this.buildPaperFilterChips();
+    this.cdr.detectChanges();
   }
 
   buildPaperFilterChips(): void {
@@ -3920,8 +4009,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       const s = this.filteredSubjects.find(item => item.id === this.filterPaperSubj);
       if (s) this.appliedPaperFilterChips.push({ key: 'subj', label: `Subject: ${s.name}` });
     }
-    if (this.filterPaperCreatedDate) {
-      this.appliedPaperFilterChips.push({ key: 'date', label: `Date: ${this.filterPaperCreatedDate}` });
+    const dateDisplay = this.getFilterPaperDateRangeDisplay();
+    if (dateDisplay) {
+      this.appliedPaperFilterChips.push({ key: 'date', label: `Date: ${dateDisplay}` });
     }
   }
 
@@ -3936,6 +4026,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.filterPaperSubj = '';
     } else if (key === 'date') {
       this.filterPaperCreatedDate = '';
+      this.filterPaperCreatedDateStart = null;
+      this.filterPaperCreatedDateEnd = null;
     }
     this.buildPaperFilterChips();
   }
@@ -3976,6 +4068,16 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     );
   }
 
+  isPaperDraft(p: any): boolean {
+    return !!(
+      p?.is_draft === 1 ||
+      p?.is_draft === true ||
+      p?.is_draft === '1' ||
+      p?.is_draft === 'true' ||
+      p?.status === 'draft'
+    );
+  }
+
   get filteredTemplatesInFilter(): any[] {
     let list = this.availableQuestionPaperTemplates || [];
 
@@ -3985,6 +4087,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       if (p.template_id || p.master_exam_id || (/\s+-\s+\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(p.title || p.name || ''))) {
         continue;
       }
+      // Exclude draft question papers from publish selection
+      if (this.isPaperDraft(p)) {
+        continue;
+      }
       const key = `${(p.title || p.name || '').trim().toLowerCase()}_${p.institute_id || ''}`;
       if (!groups.has(key)) {
         groups.set(key, []);
@@ -3992,10 +4098,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       groups.get(key)!.push(p);
     }
 
-    // 2. Prioritize master / draft question papers (created question papers)
+    // 2. Prioritize master question papers ready to publish (exclude drafts and published)
     const masterPapers: any[] = [];
     for (const [, items] of groups) {
-      const masterItem = items.find((x) => !this.isPaperPublished(x)) || items[0];
+      const masterItem = items.find((x) => !this.isPaperPublished(x) && !this.isPaperDraft(x));
       if (masterItem) {
         masterPapers.push(masterItem);
       }
@@ -4012,17 +4118,36 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       list = list.filter(p => !p.subject_id || String(p.subject_id) === String(this.filterPaperSubj));
     }
 
-    // 5. Filter by Created Date (matches YYYY-MM-DD)
-    if (this.filterPaperCreatedDate) {
+    // 5. Filter by Created Date Range
+    if (this.filterPaperCreatedDateStart || this.filterPaperCreatedDateEnd || this.filterPaperCreatedDate) {
       list = list.filter(p => {
         const rawDate = p.created_date || p.created_at || p.created || '';
         if (!rawDate) return false;
         const d = new Date(rawDate);
         if (isNaN(d.getTime())) return false;
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}` === this.filterPaperCreatedDate;
+
+        if (this.filterPaperCreatedDateStart) {
+          const s = new Date(this.filterPaperCreatedDateStart);
+          s.setHours(0, 0, 0, 0);
+          if (d.getTime() < s.getTime()) return false;
+        }
+
+        if (this.filterPaperCreatedDateEnd) {
+          const e = new Date(this.filterPaperCreatedDateEnd);
+          e.setHours(23, 59, 59, 999);
+          if (d.getTime() > e.getTime()) return false;
+        }
+
+        if (!this.filterPaperCreatedDateStart && !this.filterPaperCreatedDateEnd && this.filterPaperCreatedDate) {
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const iso = `${yyyy}-${mm}-${dd}`;
+          const dmy = `${dd}/${mm}/${yyyy}`;
+          return iso === this.filterPaperCreatedDate || dmy === this.filterPaperCreatedDate;
+        }
+
+        return true;
       });
     }
 
@@ -5170,7 +5295,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   loadCreatedQuestionPapersForDropdown(instituteId?: string): void {
     const inst = instituteId || this.institute;
-    let url = `${API_BASE}/get-exams-details?test_mode=paper&summary_only=true`;
+    let url = `${API_BASE}/get-exams-details?test_mode=paper&summary_only=true&is_draft=0`;
     if (inst) {
       url += `&institute_id=${encodeURIComponent(inst)}`;
     }
@@ -5183,7 +5308,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           list = list.filter((p: any) => !p.institute_id || String(p.institute_id) === String(inst));
         }
         this.availableQuestionPaperTemplates = (list || []).filter(
-          (p: any) => p && (p.title || p.name) && !p.template_id && !p.master_exam_id && !(/\s+-\s+\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(p.title || p.name || ''))
+          (p: any) => p && (p.title || p.name) && !p.template_id && !p.master_exam_id && !(/\s+-\s+\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(p.title || p.name || '')) && !this.isPaperDraft(p)
         );
         this.cdr.detectChanges();
 
