@@ -283,6 +283,165 @@ def get_paper_schedules(request, current_user=None):
 
         schedules = session.query(PaperSchedule).filter(*filter_conds).order_by(PaperSchedule.created_date.desc()).all()
 
+        # Fast summary path for listing Published Question Papers table
+        if args.get("summary_only", "").lower() in ("1", "true"):
+            try:
+                sched_ids = [str(s.schedule_id) for s in schedules if s.schedule_id]
+                exam_ids = list(set([str(s.exam_id) for s in schedules if s.exam_id]))
+
+                masters_by_id = {}
+                sec_counts_by_exam = {}
+                q_counts_by_exam = {}
+                marks_by_exam = {}
+                eval_counts = {}
+                sched_dept_map = {}
+                sched_team_map = {}
+                sched_user_map = {}
+
+                if exam_ids:
+                    # 1. Batch master exams
+                    m_rows = session.query(Exam).filter(Exam.exam_id.in_(exam_ids)).all()
+                    masters_by_id = {str(m.exam_id): m for m in m_rows}
+
+                    # 2. Batch section counts
+                    sec_rows = (
+                        session.query(ExamSection.exam_id, func.count(ExamSection.section_id))
+                        .filter(ExamSection.exam_id.in_(exam_ids))
+                        .group_by(ExamSection.exam_id)
+                        .all()
+                    )
+                    sec_counts_by_exam = {str(eid): (cnt or 0) for eid, cnt in sec_rows}
+
+                    # 3. Batch question counts and marks using Distinct Subquery
+                    distinct_questions = (
+                        session.query(
+                            ExamQuestionMapping.exam_id.label("exam_id"),
+                            ExamQuestionMapping.question_id.label("question_id")
+                        )
+                        .filter(ExamQuestionMapping.exam_id.in_(exam_ids))
+                        .distinct()
+                        .subquery()
+                    )
+                    q_rows = (
+                        session.query(
+                            distinct_questions.c.exam_id,
+                            func.count(distinct_questions.c.question_id),
+                            func.sum(func.coalesce(Question.marks, 1))
+                        )
+                        .join(
+                            Question,
+                            Question.question_id == distinct_questions.c.question_id
+                        )
+                        .group_by(distinct_questions.c.exam_id)
+                        .all()
+                    )
+                    for eid, q_cnt, m_sum in q_rows:
+                        q_counts_by_exam[str(eid)] = int(q_cnt or 0)
+                        marks_by_exam[str(eid)] = float(m_sum or 0.0)
+
+                if sched_ids:
+                    # 4. Batch evaluation counts (Exam_Attempt.status == 'evaluated')
+                    ev_rows = (
+                        session.query(
+                            Exam_Attempt.schedule_id,
+                            func.count(Exam_Attempt.attempt_id)
+                        )
+                        .filter(
+                            Exam_Attempt.schedule_id.in_(sched_ids),
+                            Exam_Attempt.status == "evaluated"
+                        )
+                        .group_by(Exam_Attempt.schedule_id)
+                        .all()
+                    )
+                    eval_counts = {str(sid): (cnt or 0) for sid, cnt in ev_rows}
+
+                    # 5. Batch PaperScheduleMappings (departments, teams, users)
+                    map_rows = (
+                        session.query(PaperScheduleMapping)
+                        .filter(PaperScheduleMapping.schedule_id.in_(sched_ids))
+                        .all()
+                    )
+                    for m in map_rows:
+                        sid = str(m.schedule_id)
+                        if m.department_id:
+                            sched_dept_map.setdefault(sid, []).append(str(m.department_id))
+                        if m.team_id:
+                            sched_team_map.setdefault(sid, []).append(str(m.team_id))
+                        if m.user_id:
+                            sched_user_map.setdefault(sid, []).append(str(m.user_id))
+
+                # 6. Batch Institute names
+                inst_ids = list(set([str(s.institute_id) for s in schedules if s.institute_id]))
+                inst_map = {}
+                if inst_ids:
+                    for inst in session.query(Institute).filter(Institute.institute_id.in_(inst_ids)).all():
+                        inst_map[str(inst.institute_id)] = {
+                            "institute_id": str(inst.institute_id),
+                            "name": inst.name,
+                            "short_name": inst.short_name
+                        }
+
+                summary_results = []
+                for s in schedules:
+                    eid_str = str(s.exam_id) if s.exam_id else ""
+                    sid_str = str(s.schedule_id) if s.schedule_id else ""
+                    m_obj = masters_by_id.get(eid_str)
+
+                    e_cnt = eval_counts.get(sid_str, 0)
+                    tot_q = s.total_questions if s.total_questions is not None else (m_obj.total_questions if m_obj else 0)
+                    tot_m = s.total_marks if s.total_marks is not None else (m_obj.total_marks if m_obj else 0)
+
+                    actual_q_added = q_counts_by_exam.get(eid_str, 0)
+                    actual_m_added = marks_by_exam.get(eid_str, 0.0)
+
+                    summary_results.append({
+                        "test_id": sid_str,
+                        "schedule_id": sid_str,
+                        "exam_id": eid_str,
+                        "master_exam_id": eid_str,
+                        "title": s.title,
+                        "scheduler_name": s.title,
+                        "schedule_name": s.title,
+                        "description": m_obj.description if m_obj else "",
+                        "subject_id": m_obj.subject_id if m_obj else None,
+                        "subject_name": m_obj.subject_name if m_obj else None,
+                        "institute_id": str(s.institute_id) if s.institute_id else None,
+                        "institute": inst_map.get(str(s.institute_id)),
+                        "duration_mins": s.duration_mins if s.duration_mins is not None else 60,
+                        "total_marks": tot_m,
+                        "marks_added": actual_m_added,
+                        "total_questions": tot_q,
+                        "questions_added": actual_q_added,
+                        "sections_count": sec_counts_by_exam.get(eid_str, 0),
+                        "departments": sched_dept_map.get(sid_str, []),
+                        "teams": sched_team_map.get(sid_str, []),
+                        "assigned_users": [],
+                        "assigned_user_ids": sched_user_map.get(sid_str, []),
+                        "published": 1,
+                        "is_published": True,
+                        "status": "published",
+                        "test_mode": "paper",
+                        "evaluated_count": e_cnt,
+                        "evaluation_status": "Evaluated" if e_cnt > 0 else "Pending",
+                        "created_date": (s.created_date.isoformat() + "Z") if s.created_date else None,
+                    })
+
+                session.close()
+                return {
+                    "status": True,
+                    "statusMessage": "Paper schedules summary retrieved successfully",
+                    "data": summary_results
+                }, 200
+
+            except Exception as e:
+                session.rollback()
+                session.close()
+                print(f"[get_paper_schedules summary] Database error during summary extraction: {e}", flush=True)
+                return {
+                    "status": False,
+                    "statusMessage": f"Failed to retrieve paper schedules summary: {str(e)}"
+                }, 500
+
         results = []
         for s in schedules:
             master = None

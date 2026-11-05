@@ -2164,59 +2164,202 @@ def get_exam_details(request):
         if exams is None or len(exams) == 0:
             return {"statusMessage": "No exams found", "status": False}, 404
 
-        # Fast path for dropdowns / lightweight lists: skips heavy N+1 questions, evaluations, attempts & marks queries
-        if args.get("summary_only", "").lower() in ("1", "true") or args.get("for_dropdown", "").lower() in ("1", "true"):
-            exam_ids = [exam.exam_id for exam in exams]
-            depts_by_exam = {}
+        # Fast path for Question Papers listing: activated only when summary_only=1
+        if args.get("summary_only", "").lower() in ("1", "true"):
             try:
-                dept_tuples = session.query(ExamsDepartments.exam_id, ExamsDepartments.department_id).filter(ExamsDepartments.exam_id.in_(exam_ids)).all()
-                for eid, did in dept_tuples:
-                    depts_by_exam.setdefault(eid, []).append(did)
-            except Exception:
-                pass
+                exam_ids = [str(exam.exam_id) for exam in exams if exam.exam_id]
+                depts_by_exam = {}
+                teams_by_exam = {}
+                sec_counts_by_exam = {}
+                q_counts_by_exam = {}
+                marks_by_exam = {}
+                assigned_uids_by_exam = {}
+                active_attended_exam_ids = set()
 
-            summary_list = []
-            for exam in exams:
-                inst_obj = institutes_by_id.get(exam.institute_id)
-                e_depts = depts_by_exam.get(exam.exam_id, [])
-                summary_list.append({
-                    "exam_id": exam.exam_id,
-                    "test_id": exam.exam_id,
-                    "id": exam.exam_id,
-                    "title": exam.title,
-                    "name": exam.title,
-                    "description": exam.description or "",
-                    "subject_id": getattr(exam, "subject_id", None),
-                    "subject_name": getattr(exam, "subject_name", None),
-                    "institute_id": exam.institute_id,
-                    "institute": {
+                if exam_ids:
+                    # 1. Batch Departments
+                    dept_tuples = (
+                        session.query(ExamsDepartments.exam_id, ExamsDepartments.department_id)
+                        .filter(ExamsDepartments.exam_id.in_(exam_ids))
+                        .all()
+                    )
+                    for eid, did in dept_tuples:
+                        depts_by_exam.setdefault(str(eid), []).append(did)
+
+                    # 2. Batch Teams
+                    team_tuples = (
+                        session.query(ExamsTeams.exam_id, ExamsTeams.team_id)
+                        .filter(ExamsTeams.exam_id.in_(exam_ids))
+                        .all()
+                    )
+                    for eid, tid in team_tuples:
+                        teams_by_exam.setdefault(str(eid), []).append(tid)
+
+                    # 3. Batch Section Counts
+                    sec_counts = (
+                        session.query(ExamSection.exam_id, func.count(ExamSection.section_id))
+                        .filter(ExamSection.exam_id.in_(exam_ids))
+                        .group_by(ExamSection.exam_id)
+                        .all()
+                    )
+                    sec_counts_by_exam = {str(eid): (cnt or 0) for eid, cnt in sec_counts}
+
+                    # 4. Batch Question Counts & Added Marks using Distinct Subquery
+                    distinct_questions = (
+                        session.query(
+                            ExamQuestionMapping.exam_id.label("exam_id"),
+                            ExamQuestionMapping.question_id.label("question_id")
+                        )
+                        .filter(ExamQuestionMapping.exam_id.in_(exam_ids))
+                        .distinct()
+                        .subquery()
+                    )
+                    q_stats = (
+                        session.query(
+                            distinct_questions.c.exam_id,
+                            func.count(distinct_questions.c.question_id),
+                            func.sum(func.coalesce(Question.marks, 1))
+                        )
+                        .join(
+                            Question,
+                            Question.question_id == distinct_questions.c.question_id
+                        )
+                        .group_by(distinct_questions.c.exam_id)
+                        .all()
+                    )
+                    for eid, q_cnt, m_sum in q_stats:
+                        q_counts_by_exam[str(eid)] = int(q_cnt or 0)
+                        marks_by_exam[str(eid)] = float(m_sum or 0.0)
+
+                    # 5. Batch Assigned User IDs (QuestionPaperUserAssignment.exam_id is uniqueidentifier in SQL Server)
+                    try:
+                        valid_uuid_exam_ids = []
+                        for eid in exam_ids:
+                            try:
+                                uuid.UUID(str(eid))
+                                valid_uuid_exam_ids.append(str(eid))
+                            except (ValueError, AttributeError, TypeError):
+                                pass
+
+                        if valid_uuid_exam_ids:
+                            ua_rows = (
+                                session.query(QuestionPaperUserAssignment.exam_id, QuestionPaperUserAssignment.user_id)
+                                .filter(QuestionPaperUserAssignment.exam_id.in_(valid_uuid_exam_ids))
+                                .all()
+                            )
+                            for eid, uid in ua_rows:
+                                assigned_uids_by_exam.setdefault(str(eid), []).append(str(uid))
+                    except Exception as ua_err:
+                        print(f"[get_exam_details summary] Warning: error querying QuestionPaperUserAssignment: {ua_err}", flush=True)
+
+                    # 6. Batch Editability: exact same logic as is_exam_active_or_attended
+                    sched_tuples = (
+                        session.query(ExamSchedule.exam_id, ExamSchedule.schedule_id)
+                        .filter(
+                            ExamSchedule.exam_id.in_(exam_ids),
+                            or_(
+                                ExamSchedule.is_deleted == False,
+                                ExamSchedule.is_deleted == None,
+                                ExamSchedule.is_deleted == 0,
+                            ),
+                        )
+                        .all()
+                    )
+                    if sched_tuples:
+                        sched_ids = [st[1] for st in sched_tuples if st[1]]
+                        attended_sched_ids = set(
+                            r[0] for r in session.query(Exam_Attempt.schedule_id)
+                            .filter(Exam_Attempt.schedule_id.in_(sched_ids))
+                            .distinct()
+                            .all()
+                        )
+                        for eid, sid in sched_tuples:
+                            if sid in attended_sched_ids:
+                                active_attended_exam_ids.add(str(eid))
+
+                summary_list = []
+                for exam in exams:
+                    eid_str = str(exam.exam_id)
+                    inst_obj = institutes_by_id.get(exam.institute_id)
+                    e_depts = depts_by_exam.get(eid_str, [])
+                    e_teams = teams_by_exam.get(eid_str, [])
+                    assigned_uids = assigned_uids_by_exam.get(eid_str, [])
+
+                    sec_count = sec_counts_by_exam.get(eid_str, 0)
+                    q_added = q_counts_by_exam.get(eid_str, 0)
+                    m_added = marks_by_exam.get(eid_str, 0.0)
+
+                    tot_q = int(exam.total_questions or 0)
+                    tot_m = float(exam.total_marks if exam.total_marks is not None else 0.0)
+
+                    # Strict status calculation
+                    is_q_complete = (q_added >= tot_q) if tot_q > 0 else (q_added > 0)
+                    is_m_complete = (m_added >= tot_m) if tot_m > 0 else (m_added > 0)
+
+                    if exam.published == 1:
+                        computed_status = "published"
+                    elif is_q_complete and is_m_complete:
+                        computed_status = "ready_to_publish"
+                    else:
+                        computed_status = "draft"
+
+                    is_editable = eid_str not in active_attended_exam_ids
+
+                    summary_list.append({
+                        "exam_id": exam.exam_id,
+                        "test_id": exam.exam_id,
+                        "id": exam.exam_id,
+                        "title": exam.title,
+                        "name": exam.title,
+                        "description": exam.description or "",
+                        "subject_id": getattr(exam, "subject_id", None),
+                        "subject_name": getattr(exam, "subject_name", None),
                         "institute_id": exam.institute_id,
-                        "institute_name": inst_obj.name if inst_obj else "",
-                    },
-                    "department_id": e_depts[0] if e_depts else getattr(exam, "department_id", None),
-                    "departments": e_depts,
-                    "template_id": getattr(exam, "template_id", None),
-                    "master_exam_id": getattr(exam, "master_exam_id", None),
-                    "duration_mins": exam.duration_mins,
-                    "duration": exam.duration_mins,
-                    "total_questions": exam.total_questions,
-                    "number_of_attempts": exam.number_of_attempts,
-                    "pass_mark": exam.pass_mark,
-                    "total_marks": getattr(exam, "total_marks", None),
-                    "published": True if exam.published == 1 else False,
-                    "is_published": True if exam.published == 1 else False,
-                    "status": "published" if exam.published == 1 else "draft",
-                    "created_date": safe_isoformat(exam.created_date),
-                    "created_at": safe_isoformat(exam.created_date),
-                    "updated_date": safe_isoformat(exam.updated_date),
-                    "test_mode": getattr(exam, "test_mode", None) or "online",
-                    "is_editable": True,
-                })
-            return {
-                "statusMessage": "Exams retrieved successfully",
-                "status": True,
-                "data": summary_list,
-            }, 200
+                        "institute": {
+                            "institute_id": exam.institute_id,
+                            "institute_name": inst_obj.name if inst_obj else "",
+                        },
+                        "department_id": e_depts[0] if e_depts else getattr(exam, "department_id", None),
+                        "departments": e_depts,
+                        "teams": e_teams,
+                        "assigned_users": [],
+                        "assigned_user_ids": assigned_uids,
+                        "template_id": getattr(exam, "template_id", None),
+                        "master_exam_id": getattr(exam, "master_exam_id", None),
+                        "duration_mins": exam.duration_mins if exam.duration_mins is not None else 60,
+                        "duration": exam.duration_mins if exam.duration_mins is not None else 60,
+                        "total_questions": tot_q,
+                        "sections_count": sec_count,
+                        "questions_added": q_added,
+                        "total_marks": exam.total_marks,
+                        "marks_added": m_added,
+                        "number_of_attempts": exam.number_of_attempts,
+                        "pass_mark": exam.pass_mark,
+                        "published": True if exam.published == 1 else False,
+                        "is_published": True if exam.published == 1 else False,
+                        "status": computed_status,
+                        "created_date": safe_isoformat(exam.created_date),
+                        "created_at": safe_isoformat(exam.created_date),
+                        "updated_date": safe_isoformat(exam.updated_date),
+                        "test_mode": getattr(exam, "test_mode", None) or "online",
+                        "is_editable": is_editable,
+                    })
+
+                session.close()
+                return {
+                    "statusMessage": "Exams retrieved successfully",
+                    "status": True,
+                    "data": summary_list,
+                }, 200
+
+            except Exception as e:
+                session.rollback()
+                session.close()
+                print(f"[get_exam_details summary] Database error during summary extraction: {e}", flush=True)
+                return {
+                    "statusMessage": f"Failed to retrieve question paper summaries: {str(e)}",
+                    "status": False,
+                }, 500
 
         exam_list = []
         for exam in exams:

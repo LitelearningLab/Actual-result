@@ -37,7 +37,8 @@ import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
 import { DirectivesModule } from 'src/app/shared/directives/directives.module';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
-import { Subscription, forkJoin } from 'rxjs';
+import { Subscription, forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import {
   getInstituteTerminology,
   InstituteTerminology,
@@ -2727,7 +2728,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     this.loadingQuestionPapers = true;
     const base = `${API_BASE}/get-exams-details`;
     // build query params based on filters
-    const params: string[] = ['test_mode=paper'];
+    const params: string[] = ['test_mode=paper', 'summary_only=1'];
     if (this.selectedInstitutes && this.selectedInstitutes.length) {
       params.push(`institute_id=${encodeURIComponent(this.selectedInstitutes.join(','))}`);
     } else if (id) {
@@ -2773,24 +2774,37 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     }
     const url = params.length ? `${base}?${params.join('&')}` : base;
 
-    this.http.get<any>(url).subscribe({
-      next: (res) => {
+    const schedInst = id || this.selectedInstitute || '';
+    const schedUrl = `${API_BASE}/get-paper-schedules?summary_only=1${schedInst ? '&institute_id=' + encodeURIComponent(schedInst) : ''}`;
+
+    forkJoin({
+      examsRes: this.http.get<any>(url).pipe(
+        catchError((err) => {
+          console.warn('[QuestionPaper] Failed loading question papers list', err);
+          return of({ status: false, data: [] });
+        })
+      ),
+      schedRes: this.http.get<any>(schedUrl).pipe(
+        catchError((err) => {
+          console.warn('[QuestionPaper] Failed loading paper schedules list', err);
+          return of({ status: false, data: [] });
+        })
+      )
+    }).subscribe({
+      next: ({ examsRes, schedRes }) => {
         if (requestSeq !== this.examLoadSeq) return;
-        const arr = Array.isArray(res?.data) ? res.data : [];
+
+        const arr = Array.isArray(examsRes?.data) ? examsRes.data : [];
         const baseExams = arr.map((x: any) => ({
           test_id: x.test_id || x.id || x.exam_id,
           template_id: x.template_id || null,
           title: x.title || x.name || '',
           scheduler_name: x.scheduler_name || x.schedule_name || x.schedulerName || '',
           description: x.description || x.desc || '',
-          categories: Array.isArray(x.categories)
-            ? x.categories
-            : Array.isArray(x.category_list)
-              ? x.category_list
-              : Array.isArray(x.categories_list)
-                ? x.categories_list
-                : [],
           sections: Array.isArray(x.sections) ? x.sections : [],
+          sections_count: x.sections_count ?? 0,
+          questions_added: x.questions_added ?? 0,
+          marks_added: x.marks_added ?? 0,
           departments: x.departments || [],
           teams: x.teams || [],
           assigned_users: Array.isArray(x.assigned_users) ? x.assigned_users : [],
@@ -2798,83 +2812,64 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           subject_id: x.subject_id,
           subject_name: x.subject_name,
           institute: {
-            institute_id: x.institute_id || '',
-            institute_name: x.institute_name || '',
+            institute_id: x.institute_id || x.institute?.institute_id || '',
+            institute_name: x.institute_name || x.institute?.institute_name || '',
           },
-          duration_mins: x.duration_mins || x.duration || 60,
-          total_questions: x.total_questions || x.questions_count || 0,
-          number_of_attempts: x.number_of_attempts || x.attempts || 1,
-          pass_mark: x.pass_mark || 0,
-          total_marks: x.total_marks ?? x.totalMarks ?? null,
+          duration_mins: x.duration_mins != null ? x.duration_mins : 60,
+          total_questions: x.total_questions != null ? x.total_questions : 0,
+          number_of_attempts: x.number_of_attempts != null ? x.number_of_attempts : 1,
+          pass_mark: x.pass_mark != null ? x.pass_mark : 0,
+          total_marks: x.total_marks ?? null,
           public_access: x.public_access || x.public || false,
           created_by: x.created_by || x.creator || '',
           created_date: x.created_date || x.created || '',
           updated_by: x.updated_by || x.modifier || '',
           updated_date: x.updated_date || x.updated || '',
           published: !!x.published,
-          status: x.published
-            ? 'published'
-            : (this.isMarksIncomplete(x) || this.isQuestionsIncomplete(x) ? 'draft' : 'ready_to_publish'),
+          status: x.status || (x.published ? 'published' : (this.isMarksIncomplete(x) || this.isQuestionsIncomplete(x) ? 'draft' : 'ready_to_publish')),
           is_editable: x.is_editable !== false,
         }));
 
-        // Also fetch published paper schedules from dedicated PaperSchedules table
-        const schedInst = id || this.selectedInstitute || '';
-        const schedUrl = `${API_BASE}/get-paper-schedules${schedInst ? '?institute_id=' + encodeURIComponent(schedInst) : ''}`;
-        this.http.get<any>(schedUrl).subscribe({
-          next: (schedRes) => {
-            if (requestSeq !== this.examLoadSeq) return;
-            const schedArr = Array.isArray(schedRes?.data) ? schedRes.data : [];
-            const schedExams = schedArr.map((s: any) => ({
-              ...s,
-              test_id: s.schedule_id || s.test_id,
-              scheduler_name: s.scheduler_name || s.title || '',
-              published: true,
-              status: 'published',
-            }));
-            // Helper to extract true chronological timestamp from title (DD/MM/YYYY HH:mm) or created_date
-            const getScheduleTimestamp = (e: any): number => {
-              const title = e?.scheduler_name || e?.schedule_name || e?.title || '';
-              const match = title.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
-              if (match) {
-                const [, dd, mm, yyyy, hh, min] = match;
-                return new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min)).getTime();
-              }
-              const raw = e?.created_date || e?.created_at || e?.start_time;
-              if (raw) {
-                const s = String(raw).endsWith('Z') || String(raw).includes('+') ? String(raw) : String(raw) + 'Z';
-                const t = new Date(s).getTime();
-                if (!isNaN(t)) return t;
-              }
-              return 0;
-            };
+        const schedArr = Array.isArray(schedRes?.data) ? schedRes.data : [];
+        const schedExams = schedArr.map((s: any) => ({
+          ...s,
+          test_id: s.schedule_id || s.test_id,
+          scheduler_name: s.scheduler_name || s.title || '',
+          published: true,
+          status: 'published',
+        }));
 
-            // Default newest first (Descending)
-            this.allExams = [...schedExams, ...baseExams].sort(
-              (a: any, b: any) => getScheduleTimestamp(b) - getScheduleTimestamp(a)
-            );
-            this.exams = this.allExams;
-            this.updateFilteredExams();
-            this.loadingQuestionPapers = false;
-          },
-          error: (err) => {
-            console.error('[get-paper-schedules] HTTP error:', err);
-            if (requestSeq !== this.examLoadSeq) return;
-            this.allExams = baseExams;
-            this.exams = this.allExams;
-            this.updateFilteredExams();
-            this.loadingQuestionPapers = false;
+        const getScheduleTimestamp = (e: any): number => {
+          const title = e?.scheduler_name || e?.schedule_name || e?.title || '';
+          const match = title.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+          if (match) {
+            const [, dd, mm, yyyy, hh, min] = match;
+            return new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min)).getTime();
           }
-        });
+          const raw = e?.created_date || e?.created_at || e?.start_time;
+          if (raw) {
+            const s = String(raw).endsWith('Z') || String(raw).includes('+') ? String(raw) : String(raw) + 'Z';
+            const t = new Date(s).getTime();
+            if (!isNaN(t)) return t;
+          }
+          return 0;
+        };
+
+        this.allExams = [...schedExams, ...baseExams].sort(
+          (a: any, b: any) => getScheduleTimestamp(b) - getScheduleTimestamp(a)
+        );
+        this.exams = this.allExams;
+        this.updateFilteredExams();
+        this.loadingQuestionPapers = false;
       },
       error: (err) => {
         if (requestSeq !== this.examLoadSeq) return;
-        console.warn('Failed loading exams', err);
+        console.warn('Unexpected error in forkJoin stream', err);
         this.allExams = [];
         this.exams = [];
         this.updateFilteredExams();
         this.loadingQuestionPapers = false;
-      },
+      }
     });
   }
 
