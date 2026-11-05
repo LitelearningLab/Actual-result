@@ -1815,7 +1815,22 @@ def get_exam_details(request):
                 filter.append(Exam.created_by == created_by)
         has_specific_exam_id = bool(args.get("exam_id", None))
         if has_specific_exam_id:
-            filter.append(Exam.exam_id == args["exam_id"])
+            req_exam_id = str(args["exam_id"]).strip()
+            # If a schedule_id was passed, look up its master exam_id in PaperSchedules
+            try:
+                from db.models import PaperSchedule
+                ps = session.query(PaperSchedule).filter(
+                    or_(
+                        PaperSchedule.schedule_id == req_exam_id,
+                        func.cast(PaperSchedule.schedule_id, String) == req_exam_id,
+                    )
+                ).first()
+                if ps and ps.exam_id:
+                    req_exam_id = str(ps.exam_id).strip()
+            except Exception as e:
+                print(f"[get_exam_details] PaperSchedule lookup error: {e}", flush=True)
+
+            filter.append(Exam.exam_id == req_exam_id)
 
         test_mode_arg = args.get("test_mode", None) or args.get("exam_type_mode", None)
         if test_mode_arg:
@@ -2148,6 +2163,60 @@ def get_exam_details(request):
         institutes_by_id = {row[1].institute_id: row[1] for row in rows}
         if exams is None or len(exams) == 0:
             return {"statusMessage": "No exams found", "status": False}, 404
+
+        # Fast path for dropdowns / lightweight lists: skips heavy N+1 questions, evaluations, attempts & marks queries
+        if args.get("summary_only", "").lower() in ("1", "true") or args.get("for_dropdown", "").lower() in ("1", "true"):
+            exam_ids = [exam.exam_id for exam in exams]
+            depts_by_exam = {}
+            try:
+                dept_tuples = session.query(ExamsDepartments.exam_id, ExamsDepartments.department_id).filter(ExamsDepartments.exam_id.in_(exam_ids)).all()
+                for eid, did in dept_tuples:
+                    depts_by_exam.setdefault(eid, []).append(did)
+            except Exception:
+                pass
+
+            summary_list = []
+            for exam in exams:
+                inst_obj = institutes_by_id.get(exam.institute_id)
+                e_depts = depts_by_exam.get(exam.exam_id, [])
+                summary_list.append({
+                    "exam_id": exam.exam_id,
+                    "test_id": exam.exam_id,
+                    "id": exam.exam_id,
+                    "title": exam.title,
+                    "name": exam.title,
+                    "description": exam.description or "",
+                    "subject_id": getattr(exam, "subject_id", None),
+                    "subject_name": getattr(exam, "subject_name", None),
+                    "institute_id": exam.institute_id,
+                    "institute": {
+                        "institute_id": exam.institute_id,
+                        "institute_name": inst_obj.name if inst_obj else "",
+                    },
+                    "department_id": e_depts[0] if e_depts else getattr(exam, "department_id", None),
+                    "departments": e_depts,
+                    "template_id": getattr(exam, "template_id", None),
+                    "master_exam_id": getattr(exam, "master_exam_id", None),
+                    "duration_mins": exam.duration_mins,
+                    "duration": exam.duration_mins,
+                    "total_questions": exam.total_questions,
+                    "number_of_attempts": exam.number_of_attempts,
+                    "pass_mark": exam.pass_mark,
+                    "total_marks": getattr(exam, "total_marks", None),
+                    "published": True if exam.published == 1 else False,
+                    "is_published": True if exam.published == 1 else False,
+                    "status": "published" if exam.published == 1 else "draft",
+                    "created_date": safe_isoformat(exam.created_date),
+                    "created_at": safe_isoformat(exam.created_date),
+                    "updated_date": safe_isoformat(exam.updated_date),
+                    "test_mode": getattr(exam, "test_mode", None) or "online",
+                    "is_editable": True,
+                })
+            return {
+                "statusMessage": "Exams retrieved successfully",
+                "status": True,
+                "data": summary_list,
+            }, 200
 
         exam_list = []
         for exam in exams:
@@ -4074,8 +4143,13 @@ def get_student_evaluation_details(request, current_user=None):
                 .first()
             )
 
-        # Resolve Exam
+        # Resolve Exam (supports Exam table and dedicated PaperSchedules table)
         exam = session.query(Exam).filter(Exam.exam_id == exam_id).first()
+        if not exam and exam_id:
+            from db.models import PaperSchedule
+            ps = session.query(PaperSchedule).filter(PaperSchedule.schedule_id == str(exam_id)).first()
+            if ps:
+                exam = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
         if not exam:
             session.close()
             return {"statusMessage": "Exam not found", "status": False}, 404
@@ -4664,6 +4738,11 @@ def finalize_student_evaluation(request, current_user=None):
             if exam_id
             else None
         )
+        if not exam and exam_id:
+            from db.models import PaperSchedule
+            ps = session.query(PaperSchedule).filter(PaperSchedule.schedule_id == str(exam_id)).first()
+            if ps:
+                exam = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
         total_possible = float(exam.total_marks or 0) if exam else 0.0
         if total_possible <= 0:
             total_possible = sum(float(a.marks_awarded or 0.0) for a in answers) or 1.0
@@ -4936,6 +5015,11 @@ def process_single_student_answer_sheet(
 
         try:
             exam_obj = session.query(Exam).filter(Exam.exam_id == exam_id).first()
+            if not exam_obj and exam_id:
+                from db.models import PaperSchedule
+                ps = session.query(PaperSchedule).filter(PaperSchedule.schedule_id == str(exam_id)).first()
+                if ps:
+                    exam_obj = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
             is_math_exam = _is_math_subject(
                 getattr(exam_obj, "subject_name", None),
                 getattr(exam_obj, "title", None),

@@ -564,6 +564,30 @@ def get_exams():
     response_data, status_code = get_exam_details(request)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/publish-paper-schedule', methods=['POST'])
+@admin_required
+def publish_paper_schedule_route():
+    from others.paper_schedules import publish_paper_schedule
+    current_user = get_current_user_from_request()
+    response_data, status_code = publish_paper_schedule(request, current_user)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/get-paper-schedules', methods=['GET'])
+@admin_required
+def get_paper_schedules_route():
+    from others.paper_schedules import get_paper_schedules
+    current_user = get_current_user_from_request()
+    response_data, status_code = get_paper_schedules(request, current_user)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/delete-paper-schedule', methods=['POST'])
+@admin_required
+def delete_paper_schedule_route():
+    from others.paper_schedules import delete_paper_schedule
+    current_user = get_current_user_from_request()
+    response_data, status_code = delete_paper_schedule(request, current_user)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/test-evaluation/student-evaluation-details', methods=['GET'])
 @admin_required
 def get_student_evaluation_details_route():

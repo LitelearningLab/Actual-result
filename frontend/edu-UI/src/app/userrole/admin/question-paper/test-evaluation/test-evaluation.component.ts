@@ -866,21 +866,61 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   loadPublishedExams(instituteId: string): void {
     this.isLoadingExams = true;
-    const url = `${API_BASE}/get-exams-details?test_mode=paper&published=1&institute_id=${encodeURIComponent(instituteId)}`;
-    this.http.get<any>(url).subscribe({
+    const schedUrl = API_BASE + '/get-paper-schedules?institute_id=' + encodeURIComponent(instituteId);
+    this.http.get<any>(schedUrl).subscribe({
       next: (res) => {
-        this.isLoadingExams = false;
         const raw = res?.data || res || [];
-        this.allPublishedExams = (Array.isArray(raw) ? raw : []).filter(
-          (e: any) => e.published === 1 || e.published === true
-        );
-        this.applyExamFilters();
+        const paperSchedules = (Array.isArray(raw) ? raw : []).map((s: any) => ({
+          ...s,
+          test_id: s.schedule_id || s.test_id,
+          exam_id: s.schedule_id || s.exam_id,
+          title: s.title || s.scheduler_name || '',
+          published: 1,
+        }));
+        const legacyUrl = API_BASE + '/get-exams-details?test_mode=paper&published=1&summary_only=true&institute_id=' + encodeURIComponent(instituteId);
+        this.http.get<any>(legacyUrl).subscribe({
+          next: (legacyRes) => {
+            this.isLoadingExams = false;
+            const legacyRaw = legacyRes?.data || legacyRes || [];
+            const legacyExams = (Array.isArray(legacyRaw) ? legacyRaw : []).filter(
+              (e: any) => e.published === 1 || e.published === true
+            );
+            const combined = [...paperSchedules];
+            const seen = new Set(paperSchedules.map((s: any) => String(s.schedule_id || s.test_id)));
+            for (const leg of legacyExams) {
+              const lid = String(leg.exam_id || leg.test_id || leg.id);
+              if (!seen.has(lid)) {
+                seen.add(lid);
+                combined.push(leg);
+              }
+            }
+            this.allPublishedExams = combined;
+            this.applyExamFilters();
+          },
+          error: () => {
+            this.isLoadingExams = false;
+            this.allPublishedExams = paperSchedules;
+            this.applyExamFilters();
+          }
+        });
       },
       error: (err) => {
-        this.isLoadingExams = false;
-        console.error('Failed to load published paper exams:', err);
-        this.allPublishedExams = [];
-        this.applyExamFilters();
+        const legacyUrl = API_BASE + '/get-exams-details?test_mode=paper&published=1&summary_only=true&institute_id=' + encodeURIComponent(instituteId);
+        this.http.get<any>(legacyUrl).subscribe({
+          next: (legacyRes) => {
+            this.isLoadingExams = false;
+            const legacyRaw = legacyRes?.data || legacyRes || [];
+            this.allPublishedExams = (Array.isArray(legacyRaw) ? legacyRaw : []).filter(
+              (e: any) => e.published === 1 || e.published === true
+            );
+            this.applyExamFilters();
+          },
+          error: () => {
+            this.isLoadingExams = false;
+            this.allPublishedExams = [];
+            this.applyExamFilters();
+          }
+        });
       }
     });
   }

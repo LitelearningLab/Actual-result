@@ -629,34 +629,53 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     return this.uniqueMasterQuestionPapers.length;
   }
 
-  // Ensures each master question paper is shown ONLY ONCE in the Question Papers tab (no duplicates)
+  // Ensures all master question papers remain visible in Question Papers tab without disappearing
   get uniqueMasterQuestionPapers(): any[] {
-    const groups = new Map<string, any[]>();
+    const seen = new Set<string>();
+    const list: any[] = [];
     for (const e of this.allExams || []) {
-      const key = `${(e.title || '').trim().toLowerCase()}_${e.institute?.institute_id || ''}`;
-      if (!groups.has(key)) {
-        groups.set(key, []);
+      // Exclude only schedule instances (which have a template_id or master_exam_id)
+      if (e.template_id || e.master_exam_id || (e.schedule_id && e.master_exam_id)) {
+        continue;
       }
-      groups.get(key)!.push(e);
+      // If title has a timestamp (e.g. " - 04/11/2026 15:47"), it is a published schedule copy
+      if (/\s+-\s+\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(e.title || '')) {
+        continue;
+      }
+      // Deduplicate master papers by clean title and institute
+      const key = `${(e.title || '').trim().toLowerCase()}_${e.institute?.institute_id || ''}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push(e);
+      }
     }
-
-    const result: any[] = [];
-    for (const [, items] of groups) {
-      // Pick the master question paper definition if available, otherwise the primary definition
-      const masterItem = items.find((x) => !this.isPublished(x));
-      result.push(masterItem || items[0]);
-    }
-    return result;
+    return list;
   }
 
   get publishedCount(): number {
-    return (this.allExams || []).filter((e) => this.isPublished(e)).length;
+    return (this.allExams || []).filter((e) => this.isPublishedSchedule(e)).length;
+  }
+
+  // Identifies schedule instances (for the Published tab)
+  isPublishedSchedule(e: any): boolean {
+    if (!e) return false;
+    // 1. New dedicated paper schedule instances
+    if (e.schedule_id) return true;
+    // 2. Legacy schedule copies linked to a master paper
+    if (e.template_id || e.master_exam_id) return true;
+    // 3. Legacy schedule copies containing timestamp in their title
+    if (/\s+-\s+\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(e.scheduler_name || e.schedule_name || e.title || '')) {
+      return true;
+    }
+    return false;
   }
 
   isPublished(e: any): boolean {
     return !!(
-      e?.published ||
-      e?.is_published ||
+      e?.published === 1 ||
+      e?.published === true ||
+      e?.is_published === 1 ||
+      e?.is_published === true ||
       e?.status === 'published' ||
       e?.status === 'active'
     );
@@ -761,7 +780,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   updateFilteredExams() {
     let list = this.activeTab === 'drafts'
       ? this.uniqueMasterQuestionPapers
-      : (this.allExams || []).filter((e) => this.isPublished(e));
+      : (this.allExams || []).filter((e) => this.isPublishedSchedule(e));
     const term = (this.filter || '').trim().toLowerCase();
     if (term) {
       list = list.filter((e) =>
@@ -908,7 +927,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   publishQuestionPaper(e: any): void {
-    const examId = e?.test_id || e?.exam_id || e?.id;
+    const examId = e?.master_exam_id || e?.exam_id || e?.test_id || e?.id;
     if (!examId) return;
 
     if (this.isMarksIncomplete(e)) {
@@ -953,7 +972,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       .subscribe((ok) => {
         if (!ok) return;
         this.loader.show();
-        const examId = e?.test_id || e?.exam_id || e?.id;
+        const examId = e?.master_exam_id || e?.exam_id || e?.test_id || e?.id;
         const doDuplicate = (details: any) => {
           const newPayload = {
             ...details,
@@ -1000,7 +1019,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   downloadQuestionPaper(e: any): void {
-    const examId = e?.test_id || e?.exam_id || e?.id;
+    const examId = e?.master_exam_id || e?.exam_id || e?.test_id || e?.id;
     const generateDoc = (item: any) => {
       this.loader.hide();
       const printWin = window.open('', '_blank', 'width=900,height=700');
@@ -1126,7 +1145,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   downloadEvaluationGuide(e: any): void {
-    const examId = e?.test_id || e?.exam_id || e?.id;
+    const examId = e?.master_exam_id || e?.exam_id || e?.test_id || e?.id;
     const generateGuide = (item: any) => {
       this.loader.hide();
       const printWin = window.open('', '_blank', 'width=900,height=700');
@@ -1775,6 +1794,23 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   ngAfterViewInit(): void {
+    this.dataSource.sortingDataAccessor = (item: any, property: string) => {
+      if (property === 'title' || property === 'scheduler_name' || property === 'name') {
+        const title = item?.scheduler_name || item?.schedule_name || item?.title || '';
+        const match = title.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+        if (match) {
+          const [, dd, mm, yyyy, hh, min] = match;
+          return new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min)).getTime();
+        }
+        const raw = item?.created_date || item?.created_at || item?.start_time;
+        if (raw) {
+          const s = String(raw).endsWith('Z') || String(raw).includes('+') ? String(raw) : String(raw) + 'Z';
+          return new Date(s).getTime();
+        }
+        return 0;
+      }
+      return item[property] || '';
+    };
     this.dataSource.sort = this.sort;
   }
 
@@ -2135,7 +2171,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   onEdit(e: any) {
     this.loader.show();
     // If we have an id for the exam, fetch the full exam details from the API
-    const examId = e?.test_id || e?.exam_id || e?.id;
+    const examId = e?.master_exam_id || e?.exam_id || e?.test_id || e?.id;
     if (examId) {
       const url = `${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}&test_mode=paper`;
       this.http.get<any>(url).subscribe({
@@ -2308,8 +2344,11 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           notify('Unable to delete: test ID not found', 'error');
           return;
         }
-        const url = `${API_BASE}/delete-exam?exam_id=${encodeURIComponent(id)}`;
-        this.http.delete<any>(url).subscribe({
+        const isPaperSched = !!(row.schedule_id && row.master_exam_id);
+        const req$ = isPaperSched
+          ? this.http.post<any>(`${API_BASE}/delete-paper-schedule`, { schedule_id: id })
+          : this.http.delete<any>(`${API_BASE}/delete-exam?exam_id=${encodeURIComponent(id)}`);
+        req$.subscribe({
           next: (res) => {
             try {
               notify('Scheduled test deleted successfully', 'success');
@@ -2329,7 +2368,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
   onView(e: any) {
     // fetch full exam details from API when available, then show modal
-    const examId = e?.test_id || e?.exam_id || e?.id;
+    const examId = e?.master_exam_id || e?.exam_id || e?.test_id || e?.id;
     if (examId) {
       const url = `${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}`;
       this.loader.show();
@@ -2738,8 +2777,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       next: (res) => {
         if (requestSeq !== this.examLoadSeq) return;
         const arr = Array.isArray(res?.data) ? res.data : [];
-        this.allExams = arr.map((x: any) => ({
+        const baseExams = arr.map((x: any) => ({
           test_id: x.test_id || x.id || x.exam_id,
+          template_id: x.template_id || null,
           title: x.title || x.name || '',
           scheduler_name: x.scheduler_name || x.schedule_name || x.schedulerName || '',
           description: x.description || x.desc || '',
@@ -2777,9 +2817,55 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
             : (this.isMarksIncomplete(x) || this.isQuestionsIncomplete(x) ? 'draft' : 'ready_to_publish'),
           is_editable: x.is_editable !== false,
         }));
-        this.exams = this.allExams;
-        this.updateFilteredExams();
-        this.loadingQuestionPapers = false;
+
+        // Also fetch published paper schedules from dedicated PaperSchedules table
+        const schedInst = id || this.selectedInstitute || '';
+        const schedUrl = `${API_BASE}/get-paper-schedules${schedInst ? '?institute_id=' + encodeURIComponent(schedInst) : ''}`;
+        this.http.get<any>(schedUrl).subscribe({
+          next: (schedRes) => {
+            if (requestSeq !== this.examLoadSeq) return;
+            const schedArr = Array.isArray(schedRes?.data) ? schedRes.data : [];
+            const schedExams = schedArr.map((s: any) => ({
+              ...s,
+              test_id: s.schedule_id || s.test_id,
+              scheduler_name: s.scheduler_name || s.title || '',
+              published: true,
+              status: 'published',
+            }));
+            // Helper to extract true chronological timestamp from title (DD/MM/YYYY HH:mm) or created_date
+            const getScheduleTimestamp = (e: any): number => {
+              const title = e?.scheduler_name || e?.schedule_name || e?.title || '';
+              const match = title.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+              if (match) {
+                const [, dd, mm, yyyy, hh, min] = match;
+                return new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min)).getTime();
+              }
+              const raw = e?.created_date || e?.created_at || e?.start_time;
+              if (raw) {
+                const s = String(raw).endsWith('Z') || String(raw).includes('+') ? String(raw) : String(raw) + 'Z';
+                const t = new Date(s).getTime();
+                if (!isNaN(t)) return t;
+              }
+              return 0;
+            };
+
+            // Default newest first (Descending)
+            this.allExams = [...schedExams, ...baseExams].sort(
+              (a: any, b: any) => getScheduleTimestamp(b) - getScheduleTimestamp(a)
+            );
+            this.exams = this.allExams;
+            this.updateFilteredExams();
+            this.loadingQuestionPapers = false;
+          },
+          error: (err) => {
+            console.error('[get-paper-schedules] HTTP error:', err);
+            if (requestSeq !== this.examLoadSeq) return;
+            this.allExams = baseExams;
+            this.exams = this.allExams;
+            this.updateFilteredExams();
+            this.loadingQuestionPapers = false;
+          }
+        });
       },
       error: (err) => {
         if (requestSeq !== this.examLoadSeq) return;

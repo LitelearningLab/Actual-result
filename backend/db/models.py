@@ -1,4 +1,4 @@
-﻿import uuid
+import uuid
 from sqlalchemy import (
      Column, Date, String, Integer, Boolean, DateTime, ForeignKey, Text, CheckConstraint, UniqueConstraint, Float
 )
@@ -332,6 +332,40 @@ class ExamScheduleMapping(Base):
     # ),
     # # -- prevent duplicate mappings for same schedule and target
     # UNIQUE(schedule_id, user_id, department_id, team_id, campus_id)
+
+
+class PaperSchedule(Base):
+    __tablename__ = 'PaperSchedules'
+    schedule_id = Column(String(64), primary_key=True, default=generate_uuid)
+    exam_id = Column(String(64), nullable=False)
+    title = Column(String(255), nullable=False)
+    institute_id = Column(String(64), nullable=True)
+    start_time = Column(DateTime, nullable=True)
+    end_time = Column(DateTime, nullable=True)
+    duration_mins = Column(Integer, default=10)
+    total_marks = Column(Integer, nullable=True)
+    pass_mark = Column(Integer, nullable=True)
+    total_questions = Column(Integer, default=0)
+    number_of_attempts = Column(Integer, default=1)
+    published = Column(Integer, default=1)
+    status = Column(String(32), default='published')
+    created_by = Column(String(255), nullable=True)
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_by = Column(String(255), nullable=True)
+    updated_date = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False)
+
+
+class PaperScheduleMapping(Base):
+    __tablename__ = 'PaperScheduleMapping'
+    mapping_id = Column(String(64), primary_key=True, default=generate_uuid)
+    schedule_id = Column(String(64), nullable=False)
+    user_id = Column(String(64), nullable=True)
+    department_id = Column(String(64), nullable=True)
+    team_id = Column(String(64), nullable=True)
+    campus_id = Column(String(64), nullable=True)
+    created_by = Column(String(255), nullable=True)
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
 
 
 class Question(Base):

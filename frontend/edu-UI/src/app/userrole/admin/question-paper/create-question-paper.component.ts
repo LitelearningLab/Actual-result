@@ -3920,6 +3920,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     // 1. Group by title and institute to separate created master papers from published schedules
     const groups = new Map<string, any[]>();
     for (const p of list) {
+      if (p.template_id || p.master_exam_id || (/\s+-\s+\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(p.title || p.name || ''))) {
+        continue;
+      }
       const key = `${(p.title || p.name || '').trim().toLowerCase()}_${p.institute_id || ''}`;
       if (!groups.has(key)) {
         groups.set(key, []);
@@ -3930,7 +3933,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     // 2. Prioritize master / draft question papers (created question papers)
     const masterPapers: any[] = [];
     for (const [, items] of groups) {
-      const masterItem = items.find((x) => !this.isPaperPublished(x));
+      const masterItem = items.find((x) => !this.isPaperPublished(x)) || items[0];
       if (masterItem) {
         masterPapers.push(masterItem);
       }
@@ -5101,7 +5104,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   loadCreatedQuestionPapersForDropdown(instituteId?: string): void {
     const inst = instituteId || this.institute;
-    let url = `${API_BASE}/get-exams-details?test_mode=paper&published=0`;
+    let url = `${API_BASE}/get-exams-details?test_mode=paper&summary_only=true`;
     if (inst) {
       url += `&institute_id=${encodeURIComponent(inst)}`;
     }
@@ -5114,7 +5117,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           list = list.filter((p: any) => !p.institute_id || String(p.institute_id) === String(inst));
         }
         this.availableQuestionPaperTemplates = (list || []).filter(
-          (p: any) => p && (p.title || p.name) && !this.isPaperPublished(p)
+          (p: any) => p && (p.title || p.name) && !p.template_id && !p.master_exam_id && !(/\s+-\s+\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(p.title || p.name || ''))
         );
         this.cdr.detectChanges();
 
@@ -5513,12 +5516,38 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       return;
     }
 
-    // In publish mode, register a fresh published instance (like Schedule Test)
+    // In publish mode, register a fresh published instance in PaperSchedules (separate table like Schedule Test)
     if (this.formMode === 'publish') {
-      payload.published = 1;
-      delete payload.exam_id;
-      delete payload.test_id;
-      delete payload.id;
+      const url = `${API_BASE}/publish-paper-schedule`;
+      this.loader.show();
+      this.http.post<any>(url, payload).subscribe({
+        next: (res) => {
+          try {
+            const msg = res?.statusMessage || res?.message || 'Question paper published successfully';
+            const ok = typeof res?.status === 'undefined' ? true : !!res.status;
+            notify(msg, ok ? 'success' : 'error');
+          } catch (e) {}
+          try {
+            sessionStorage.setItem('question_papers_return_state', 'true');
+            sessionStorage.removeItem('edit_exam');
+          } catch (e) {}
+          this.isSavedOrSubmitted = true;
+          this.router.navigate(['/question-papers'], {
+            queryParams: { tab: 'published' },
+          });
+        },
+        error: (err) => {
+          console.error('Failed to publish paper schedule', err);
+          try {
+            notify(this.getExamSaveErrorMessage(err, 'Failed to publish paper schedule'), 'error');
+          } catch (e) {}
+          this.loader.hide();
+        },
+        complete: () => {
+          this.loader.hide();
+        },
+      });
+      return;
     }
 
     const url = `${API_BASE}/register-exam`;
