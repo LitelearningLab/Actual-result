@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.3.0] - 2026-11-05
+
+### Features & Major Enhancements
+- **Paper Scheduling Management**:
+  - Implemented dedicated paper scheduling module in `paper_schedules.py` with full CRUD operations (`/get-paper-schedules`, `/get-paper-schedule-by-id`, `/save-paper-schedule`, `/delete-paper-schedule`).
+  - Added `PaperSchedule` database model and route integration in backend API gateway.
+- **Draft Question Paper Workflow**:
+  - Added `is_draft` database migration (`20261105_add_is_draft_to_exams.sql`) and model attribute in `Exam`.
+  - Added backend draft query filtering in `get_exam_details`.
+  - Added "Save as Draft" functionality, status indicators, and draft lifecycle management in question paper creation UI.
+- **Question Paper UI & Table Enhancements**:
+  - Split question paper management component into modular creation flow (`create-question-paper.component`).
+  - Dynamically hide "SECTIONS" and "MARKS" columns from the Published Papers view.
+  - Unified loading of base question papers and published schedules using reactive `forkJoin` with chronological sorting.
+- **Exam Processing & Evaluation Enhancements**:
+  - Multi-ID question mapping lookup across root and scheduled exam IDs (`target_exam_ids`).
+  - Math step LaTeX formatting and AI evaluation response parsing refinements.
+- **Version Tracking**: Updated project version to 2.3.0 across application configuration, lockfiles, and UI environment.
+
+---
+
 ## [2.2.1] - 2026-11-04
 
 ### Patch Fixes & Enhancements
