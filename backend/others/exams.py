@@ -4415,9 +4415,10 @@ def get_student_evaluation_details(request, current_user=None):
                 pdf_signed_url = None
 
         # Fetch Questions & Answer Keys in exact sequential section/question order
+        target_exam_ids = list({str(exam_id), str(exam.exam_id)}) if exam else [str(exam_id)]
         sec_rows = (
             session.query(ExamSection)
-            .filter(ExamSection.exam_id == exam_id)
+            .filter(ExamSection.exam_id.in_(target_exam_ids))
             .order_by(ExamSection.order_number.asc(), ExamSection.created_date.asc())
             .all()
         )
@@ -4435,7 +4436,7 @@ def get_student_evaluation_details(request, current_user=None):
                         Question.question_id == ExamQuestionMapping.question_id,
                     )
                     .filter(
-                        ExamQuestionMapping.exam_id == exam_id,
+                        ExamQuestionMapping.exam_id.in_(target_exam_ids),
                         or_(
                             ExamQuestionMapping.section_id == sec_id_str,
                             ExamQuestionMapping.section_id == sec.section_id,
@@ -4455,7 +4456,7 @@ def get_student_evaluation_details(request, current_user=None):
         rem_eqms = (
             session.query(ExamQuestionMapping, Question)
             .join(Question, Question.question_id == ExamQuestionMapping.question_id)
-            .filter(ExamQuestionMapping.exam_id == exam_id)
+            .filter(ExamQuestionMapping.exam_id.in_(target_exam_ids))
             .order_by(ExamQuestionMapping.order_number.asc())
             .all()
         )
@@ -5350,9 +5351,10 @@ def process_single_student_answer_sheet(
                 )
 
             # Build question blueprint & rubric for AI visual evaluation
+            target_exam_ids = list({str(exam_id), str(exam_obj.exam_id)}) if exam_obj else [str(exam_id)]
             sec_rows = (
                 session.query(ExamSection)
-                .filter(ExamSection.exam_id == exam_id)
+                .filter(ExamSection.exam_id.in_(target_exam_ids))
                 .order_by(
                     ExamSection.order_number.asc(), ExamSection.created_date.asc()
                 )
@@ -5371,7 +5373,7 @@ def process_single_student_answer_sheet(
                             Question.question_id == ExamQuestionMapping.question_id,
                         )
                         .filter(
-                            ExamQuestionMapping.exam_id == exam_id,
+                            ExamQuestionMapping.exam_id.in_(target_exam_ids),
                             or_(
                                 ExamQuestionMapping.section_id == sec_id_str,
                                 ExamQuestionMapping.section_id == sec.section_id,
@@ -5449,7 +5451,7 @@ def process_single_student_answer_sheet(
             rem_eqms = (
                 session.query(ExamQuestionMapping, Question)
                 .join(Question, Question.question_id == ExamQuestionMapping.question_id)
-                .filter(ExamQuestionMapping.exam_id == exam_id)
+                .filter(ExamQuestionMapping.exam_id.in_(target_exam_ids))
                 .order_by(ExamQuestionMapping.order_number.asc())
                 .all()
             )
