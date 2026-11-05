@@ -21,7 +21,7 @@
                     </div>
 
                     <!-- Filter Paper Button (Publish Mode Only) -->
-                    <button *ngIf="formMode === 'publish'" #filterPaperBtn class="btn-primary-blue" type="button"
+                    <button *ngIf="formMode === 'publish' && !editingScheduleId" #filterPaperBtn class="btn-primary-blue" type="button"
                         (click)="openFilterPaperOverlay(); $event.stopPropagation()"
                         [attr.aria-expanded]="filterPaperOpen" aria-haspopup="true"
                         style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer;">
@@ -29,8 +29,11 @@
                         <span>Filter Paper</span>
                     </button>
 
-                    <span *ngIf="formMode !== 'publish'" class="draft-badge" [class.published-badge]="isPublished">
-                        {{ isPublished ? 'Published' : 'Draft' }}
+                    <span *ngIf="formMode !== 'publish' && (isPublished || isDraft || (editMode && readOnly))"
+                        class="draft-badge" 
+                        [class.published-badge]="isPublished"
+                        [class.finalized-badge]="readOnly && !isDraft">
+                        {{ isPublished ? 'Published' : (isDraft ? 'Draft' : 'Finalized') }}
                     </span>
                 </div>
 
@@ -71,10 +74,11 @@
                             <label class="field-label">Selected Question Paper <span class="req">*</span></label>
                             <input class="qp-input" type="text" [value]="selectedQuestionPaperTitle || ''"
                                 placeholder="Choose a paper in Filter Paper" readonly
-                                style="background: #f8fafc; cursor: pointer;"
-                                (click)="openFilterPaperOverlay(); $event.stopPropagation()" />
+                                [style.background]="editingScheduleId ? '#f1f5f9' : '#f8fafc'"
+                                [style.cursor]="editingScheduleId ? 'not-allowed' : 'pointer'"
+                                (click)="!editingScheduleId && openFilterPaperOverlay(); $event.stopPropagation()" />
                             <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
-                                {{ selectedQuestionPaperTitle ? 'Selected from Filter Paper' : 'Click Filter Paper button above to choose' }}
+                                {{ editingScheduleId ? 'Question paper is locked for published schedule' : (selectedQuestionPaperTitle ? 'Selected from Filter Paper' : 'Click Filter Paper button above to choose') }}
                             </span>
                         </div>
                     </div>
@@ -114,7 +118,7 @@
                     <div class="fields-row" *ngIf="isSuperAdmin" style="grid-template-columns: 1fr;">
                         <div class="field-group">
                             <label class="field-label">Institute <span class="req">*</span></label>
-                            <mat-select class="qp-select" [(ngModel)]="institute"
+                            <mat-select class="qp-select" [(ngModel)]="institute" [disabled]="readOnly"
                                 panelClass="qp-select-dropdown-panel" disableOptionCentering
                                 (selectionChange)="onInstituteChange($event.value); markDirty()"
                                 placeholder="Select institute">
@@ -127,7 +131,7 @@
                     <div class="fields-row fields-row--2">
                         <div class="field-group">
                             <label class="field-label">{{ terminology.deptLabel || terminology.deptPlural }} <span class="req">*</span></label>
-                            <mat-select class="qp-select" [(ngModel)]="selectedDepartment"
+                            <mat-select class="qp-select" [(ngModel)]="selectedDepartment" [disabled]="readOnly"
                                 panelClass="qp-select-dropdown-panel" disableOptionCentering
                                 (selectionChange)="onDepartmentChange($event.value); markDirty()"
                                 [placeholder]="terminology.selectDeptPlaceholder">
@@ -136,7 +140,7 @@
                         </div>
                         <div class="field-group">
                             <label class="field-label">{{ terminology.teamLabel || terminology.teamPlural }} <span class="req">*</span></label>
-                            <mat-select class="qp-select" [(ngModel)]="selectedTeam"
+                            <mat-select class="qp-select" [(ngModel)]="selectedTeam" [disabled]="readOnly"
                                 panelClass="qp-select-dropdown-panel" disableOptionCentering
                                 (selectionChange)="onTeamChange($event.value); markDirty()"
                                 [placeholder]="terminology.selectTeamPlaceholder">
@@ -149,7 +153,7 @@
                     <div class="fields-row fields-row--2">
                         <div class="field-group">
                             <label class="field-label">Subject <span class="req">*</span></label>
-                            <mat-select class="qp-select" [(ngModel)]="subject_id"
+                            <mat-select class="qp-select" [(ngModel)]="subject_id" [disabled]="readOnly"
                                 panelClass="qp-select-dropdown-panel" disableOptionCentering
                                 (selectionChange)="onSubjectChange($event.value); markDirty()"
                                 placeholder="Select subject">
@@ -158,7 +162,7 @@
                         </div>
                         <div class="field-group">
                             <label class="field-label">Exam Type</label>
-                            <mat-select class="qp-select" [(ngModel)]="examTypeLabel"
+                            <mat-select class="qp-select" [(ngModel)]="examTypeLabel" [disabled]="readOnly"
                                 panelClass="qp-select-dropdown-panel" disableOptionCentering
                                 placeholder="Select type">
                                 <mat-option value="Unit Test">Unit Test</mat-option>
@@ -173,18 +177,24 @@
                     <div class="fields-row fields-row--2">
                         <div class="field-group">
                             <label class="field-label">Test Name <span class="req">*</span></label>
-                            <input class="qp-input" type="text" [(ngModel)]="title" (ngModelChange)="markDirty()" placeholder="Physics – Unit Test 1" />
+                            <input class="qp-input" type="text" [(ngModel)]="title" [disabled]="readOnly" (ngModelChange)="markDirty()" placeholder="Physics – Unit Test 1" />
                         </div>
                         <div class="field-group">
                             <label class="field-label">Total Marks</label>
-                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" (ngModelChange)="markDirty()" placeholder="50" min="0" />
+                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" [disabled]="readOnly" (ngModelChange)="markDirty()" placeholder="50" min="0" />
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- ── Assign Question Paper Card (Publish mode only) ── -->
-            <div class="qp-card" id="paper-assignment-card" *ngIf="formMode === 'publish'">
+            <!-- ── Select Users Card (Matches Schedule Test) ── -->
+            <div class="qp-card" id="paper-assignment-card" *ngIf="formMode === 'publish' || isPublished">
+                <div *ngIf="isPublished && readOnly" class="running-test-banner"
+                    style="margin-bottom: 1rem; border-radius: 0.5rem; border: 1px solid #fca5a5; background: #fff1f2; color: #991b1b; padding: 12px 16px; display: flex; align-items: center; gap: 8px;" role="status">
+                    <mat-icon style="color: #dc2626;">warning</mat-icon>
+                    <span>This question paper is published. User assignment is not editable.</span>
+                </div>
+
                 <div class="qp-card-header assignment-card-header">
                     <div class="assignment-heading-wrap">
                         <mat-icon class="assignment-heading-icon">people</mat-icon>
@@ -196,7 +206,7 @@
                     <button #userFiltersBtn class="btn-assignment-filter" type="button"
                         (click)="openUserFiltersOverlay(); $event.stopPropagation()"
                         [attr.aria-expanded]="userFilterOpen" aria-haspopup="true"
-                        [disabled]="readOnly || !institute">
+                        [disabled]="!institute">
                         <mat-icon>filter_list</mat-icon>
                         <span>Filter Users</span>
                     </button>
@@ -495,7 +505,7 @@
 
                 <div class="assignment-user-list" [class.assignment-user-list--disabled]="!institute">
                     <div class="assignment-empty assignment-filter-placeholder"
-                        *ngIf="institute && !hasAppliedUserFilters && paperUsers.length === 0">
+                        *ngIf="institute && !hasAppliedUserFilters">
                         <mat-icon>filter_alt</mat-icon>
                         <h3>Apply filter to select the users</h3>
                         <p>Filter users by country, city, {{ terminology.deptLabel.toLowerCase() }},
@@ -507,12 +517,12 @@
                         </button>
                     </div>
 
-                    <ng-container *ngIf="institute && (hasAppliedUserFilters || paperUsers.length > 0)">
+                    <ng-container *ngIf="institute && hasAppliedUserFilters">
                         <div class="assignment-user-list-header">
                             <mat-checkbox [checked]="areAllVisiblePaperUsersSelected"
                                 [indeterminate]="areSomeVisiblePaperUsersSelected"
                                 (change)="toggleAllVisiblePaperUsers($event.checked)"
-                                [disabled]="readOnly || loadingPaperUsers || filteredPaperUsers.length === 0">
+                                [disabled]="readOnly || isPublished || loadingPaperUsers || filteredPaperUsers.length === 0">
                                 Select all ({{ filteredPaperUsers.length }})
                             </mat-checkbox>
                             <div class="assignment-list-actions">
@@ -522,7 +532,7 @@
                                         [(ngModel)]="assignmentUserSearch" placeholder="Search users" />
                                 </div>
                                 <button class="assignment-refresh" type="button" (click)="loadUsers()"
-                                    [disabled]="readOnly || loadingPaperUsers">
+                                    [disabled]="loadingPaperUsers">
                                     <mat-icon>refresh</mat-icon>
                                     <span>{{ loadingPaperUsers ? 'Loading...' : 'Refresh' }}</span>
                                 </button>
@@ -558,7 +568,7 @@
                             *ngIf="!loadingPaperUsers && !paperUsersLoadError && filteredPaperUsers.length > 0">
                             <mat-list-item *ngFor="let user of filteredPaperUsers; trackBy: trackPaperUserById">
                                 <mat-checkbox [checked]="selectedPaperUsers.includes(user.id)"
-                                    [disabled]="readOnly" (change)="togglePaperUser(user.id, $event.checked)">
+                                    [disabled]="readOnly || (isPublished && !editingScheduleId)" (change)="togglePaperUser(user.id, $event.checked)">
                                     {{ user.name }}
                                     <span class="assignment-user-email" *ngIf="user.email">&nbsp;({{ user.email }})</span>
                                     <span class="assignment-user-meta"
@@ -583,13 +593,13 @@
             </div>
 
             <!-- ── Sections and Questions Card (Create mode only) ── -->
-            <div class="qp-card" id="sections-card" *ngIf="formMode === 'create'">
+            <div class="qp-card" id="sections-card" *ngIf="formMode === 'create' && !isPublished">
                 <div class="qp-card-header">
                     <div class="qp-card-title">
                         <h2>Sections and Questions</h2>
                         <p>Drag a section to reorder it. Marks are added up automatically.</p>
                     </div>
-                    <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()" [disabled]="readOnly || !subject_id">
+                    <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()" *ngIf="!readOnly" [disabled]="!subject_id">
                         <mat-icon>add</mat-icon>
                         <span>Add Section</span>
                     </button>
@@ -597,7 +607,7 @@
 
                 <div class="qp-card-body">
                     <!-- No subject warning -->
-                    <div class="no-subject-warn" *ngIf="!subject_id">
+                    <div class="no-subject-warn" *ngIf="!subject_id && !readOnly">
                         <mat-icon>info</mat-icon>
                         <span>Select a <strong>Subject</strong> above before adding sections.</span>
                     </div>
@@ -606,8 +616,8 @@
                     <div class="sections-empty" *ngIf="sections.length === 0 && subject_id">
                         <mat-icon>view_agenda</mat-icon>
                         <h3>No Sections Yet</h3>
-                        <p>Add your first section to start building the question paper.</p>
-                        <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()">
+                        <p>{{ readOnly ? 'No sections have been configured for this question paper.' : 'Add your first section to start building the question paper.' }}</p>
+                        <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()" *ngIf="!readOnly">
                             <mat-icon>add</mat-icon>
                             <span>Add Section</span>
                         </button>
@@ -619,7 +629,7 @@
 
                             <!-- Section header -->
                             <div class="sec-head">
-                                <div class="sec-drag-handle">
+                                <div class="sec-drag-handle" *ngIf="!readOnly">
                                     <mat-icon>drag_indicator</mat-icon>
                                 </div>
                                 <div class="sec-head-info">
@@ -633,11 +643,11 @@
                                         <span class="sec-meta-item">{{ getSectionMarks(sec) }} of {{ (sec.targetCount || 10) * (getSectionMarksPerQ(sec) || 1) }} marks</span>
                                     </div>
                                 </div>
-                                <div class="sec-head-actions">
-                                    <button class="btn-icon-action" type="button" (click)="openEditSectionModal(secIdx)" title="Edit section" [disabled]="readOnly">
+                                <div class="sec-head-actions" *ngIf="!readOnly">
+                                    <button class="btn-icon-action" type="button" (click)="openEditSectionModal(secIdx)" title="Edit section">
                                         <mat-icon>edit</mat-icon>
                                     </button>
-                                    <button class="btn-icon-action btn-del" type="button" (click)="removeSection(secIdx)" title="Delete section" [disabled]="readOnly">
+                                    <button class="btn-icon-action btn-del" type="button" (click)="removeSection(secIdx)" title="Delete section">
                                         <mat-icon>delete_outline</mat-icon>
                                     </button>
                                 </div>
@@ -665,16 +675,16 @@
                                             [ngModelOptions]="{standalone: true}" [disabled]="readOnly" />
                                         <span class="q-marks-label">marks</span>
                                     </div>
-                                    <button class="q-btn-del" type="button" (click)="removeQuestionFromSection(secIdx, qIdx)" title="Remove" [disabled]="readOnly">
+                                    <button class="q-btn-del" type="button" (click)="removeQuestionFromSection(secIdx, qIdx)" title="Remove" *ngIf="!readOnly">
                                         <mat-icon>close</mat-icon>
                                     </button>
                                 </div>
                             </div>
 
                             <!-- Add Question button -->
-                            <div class="sec-add-question-wrap">
+                            <div class="sec-add-question-wrap" *ngIf="!readOnly">
                                 <button class="btn-sec-add-q" type="button"
-                                    (click)="openAddQuestionModal(secIdx)" [disabled]="readOnly">
+                                    (click)="openAddQuestionModal(secIdx)">
                                     <mat-icon>add</mat-icon>
                                     <span>Add Question</span>
                                 </button>
@@ -727,8 +737,8 @@
                     </div>
                 </div>
 
-                <!-- Warning: marks mismatch -->
-                <div class="summary-alert alert-danger" *ngIf="totalMarksOverride && totalPaperMarks !== totalMarksOverride">
+                <!-- Warning: marks mismatch (Create mode only) -->
+                <div class="summary-alert alert-danger" *ngIf="formMode === 'create' && totalMarksOverride && totalPaperMarks !== totalMarksOverride">
                     <mat-icon class="alert-icon">warning</mat-icon>
                     <span class="alert-text">
                         <ng-container *ngIf="totalPaperMarks < totalMarksOverride">
@@ -753,18 +763,18 @@
 
                     <!-- Publish Question Paper (Publish mode only) -->
                     <button class="btn-sidebar-publish" type="button" (click)="save(true)" *ngIf="formMode === 'publish'" [disabled]="!canPublish" [class.disabled]="!canPublish" [matTooltip]="publishDisabledReason">
-                        <mat-icon>publish</mat-icon>
-                        <span>Publish Question Paper</span>
+                        <mat-icon>{{ editingScheduleId ? 'save' : 'publish' }}</mat-icon>
+                        <span>{{ editingScheduleId ? 'Update Assigned Students' : 'Publish Question Paper' }}</span>
                     </button>
 
-                    <!-- Create Question Paper (Create mode only) -->
-                    <button class="btn-sidebar-publish" type="button" (click)="save(false)" *ngIf="formMode === 'create' && !isPublished && !readOnly" [disabled]="!canCreatePaper" [class.disabled]="!canCreatePaper" [matTooltip]="createDisabledReason">
+                    <!-- Create Question Paper (Create mode only -> Finalized: isDraft = false) -->
+                    <button class="btn-sidebar-publish" type="button" (click)="save(false, false)" *ngIf="formMode === 'create' && !isPublished && !readOnly" [disabled]="!canCreatePaper" [class.disabled]="!canCreatePaper" [matTooltip]="createDisabledReason">
                         <mat-icon>add_circle_outline</mat-icon>
                         <span>Create Question Paper</span>
                     </button>
 
-                    <!-- Save Draft (Create mode only) -->
-                    <button class="btn-sidebar-save" type="button" (click)="save(false)" *ngIf="formMode === 'create' && !isPublished && !readOnly">
+                    <!-- Save Draft (Create mode only -> Draft: isDraft = true) -->
+                    <button class="btn-sidebar-save" type="button" (click)="save(false, true)" *ngIf="formMode === 'create' && !isPublished && !readOnly">
                         <mat-icon>save</mat-icon>
                         <span>{{ editMode ? 'Update Draft' : 'Save Draft' }}</span>
                     </button>
@@ -1181,7 +1191,7 @@
             </div>
             <h2 class="dialog-title">Unsaved Changes</h2>
             <p class="dialog-message">
-                You have unsaved changes on this question paper. If you leave without clicking <strong>Update Draft</strong>, your changes will be discarded.
+                You have unsaved changes on this question paper. If you leave without clicking <strong>{{ editingScheduleId ? 'Update Assigned Students' : 'Update Draft' }}</strong>, your changes will be discarded.
                 <br><br>
                 Do you want to discard your changes and leave?
             </p>

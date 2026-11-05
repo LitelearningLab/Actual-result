@@ -370,6 +370,42 @@ def get_paper_schedules(request, current_user=None):
                         if m.user_id:
                             sched_user_map.setdefault(sid, []).append(str(m.user_id))
 
+                    all_assigned_uids = list(set([uid for u_list in sched_user_map.values() for uid in u_list if uid]))
+                    users_by_id = {}
+                    if all_assigned_uids:
+                        all_users = session.query(User).filter(func.cast(User.user_id, String).in_(all_assigned_uids)).all()
+                        all_u_dept_ids = list(set([str(u.department_id) for u in all_users if getattr(u, 'department_id', None)]))
+                        all_u_team_ids = list(set([str(u.team_id) for u in all_users if getattr(u, 'team_id', None)]))
+                        d_map = {}
+                        if all_u_dept_ids:
+                            try:
+                                for d in session.query(InstituteDepartment).filter(InstituteDepartment.department_id.in_(all_u_dept_ids)).all():
+                                    d_map[str(d.department_id)] = d.name
+                            except Exception:
+                                pass
+                        t_map = {}
+                        if all_u_team_ids:
+                            try:
+                                for t in session.query(InstituteTeam).filter(InstituteTeam.team_id.in_(all_u_team_ids)).all():
+                                    t_map[str(t.team_id)] = t.name
+                            except Exception:
+                                pass
+
+                        for u in all_users:
+                            users_by_id[str(u.user_id)] = {
+                                "user_id": str(u.user_id),
+                                "id": str(u.user_id),
+                                "name": u.full_name or getattr(u, "user_name", "") or u.email,
+                                "full_name": u.full_name or getattr(u, "user_name", "") or u.email,
+                                "email": u.email or "",
+                                "user_name": getattr(u, "user_name", "") or "",
+                                "roll_no": getattr(u, "user_name", "") or "",
+                                "department_id": getattr(u, "department_id", "") or "",
+                                "department_name": d_map.get(str(getattr(u, "department_id", "")), ""),
+                                "team_id": getattr(u, "team_id", "") or "",
+                                "team_name": t_map.get(str(getattr(u, "team_id", "")), ""),
+                            }
+
                 # 6. Batch Institute names
                 inst_ids = list(set([str(s.institute_id) for s in schedules if s.institute_id]))
                 inst_map = {}
@@ -415,7 +451,7 @@ def get_paper_schedules(request, current_user=None):
                         "sections_count": sec_counts_by_exam.get(eid_str, 0),
                         "departments": sched_dept_map.get(sid_str, []),
                         "teams": sched_team_map.get(sid_str, []),
-                        "assigned_users": [],
+                        "assigned_users": [users_by_id[uid] for uid in sched_user_map.get(sid_str, []) if uid in users_by_id],
                         "assigned_user_ids": sched_user_map.get(sid_str, []),
                         "published": 1,
                         "is_published": True,
@@ -532,12 +568,35 @@ def get_paper_schedules(request, current_user=None):
             if assigned_uids:
                 try:
                     u_objs = session.query(User).filter(User.user_id.in_(assigned_uids)).all()
+                    all_u_dept_ids = list(set([str(u.department_id) for u in u_objs if getattr(u, 'department_id', None)]))
+                    all_u_team_ids = list(set([str(u.team_id) for u in u_objs if getattr(u, 'team_id', None)]))
+                    d_map = {}
+                    if all_u_dept_ids:
+                        try:
+                            for d in session.query(InstituteDepartment).filter(InstituteDepartment.department_id.in_(all_u_dept_ids)).all():
+                                d_map[str(d.department_id)] = d.name
+                        except Exception:
+                            pass
+                    t_map = {}
+                    if all_u_team_ids:
+                        try:
+                            for t in session.query(InstituteTeam).filter(InstituteTeam.team_id.in_(all_u_team_ids)).all():
+                                t_map[str(t.team_id)] = t.name
+                        except Exception:
+                            pass
+
                     for u in u_objs:
                         assigned_users.append({
                             "user_id": str(u.user_id),
-                            "name": f"{u.first_name or ''} {u.last_name or ''}".strip() or u.username or "Student",
-                            "roll_no": getattr(u, "roll_no", None) or "",
+                            "id": str(u.user_id),
+                            "name": u.full_name or getattr(u, "user_name", "") or u.email or "Student",
+                            "full_name": u.full_name or getattr(u, "user_name", "") or u.email or "Student",
+                            "roll_no": getattr(u, "roll_no", None) or getattr(u, "user_name", "") or "",
                             "email": u.email or "",
+                            "department_id": getattr(u, "department_id", "") or "",
+                            "department_name": d_map.get(str(getattr(u, "department_id", "")), ""),
+                            "team_id": getattr(u, "team_id", "") or "",
+                            "team_name": t_map.get(str(getattr(u, "team_id", "")), ""),
                         })
                 except Exception:
                     pass
@@ -636,6 +695,21 @@ def delete_paper_schedule(request, current_user=None):
             session.close()
             return {"statusMessage": "Schedule not found", "status": False}, 404
 
+        # Check if any user has already been evaluated
+        from db.models import Exam_Attempt
+        eval_count = session.query(func.count(func.distinct(Exam_Attempt.user_id))).filter(
+            func.cast(Exam_Attempt.schedule_id, String) == str(schedule_id).strip(),
+            Exam_Attempt.status.in_(["evaluated", "completed"])
+        ).scalar() or 0
+
+        if eval_count > 0:
+            session.close()
+            user_text = "1 user has" if eval_count == 1 else f"{eval_count} users have"
+            return {
+                "status": False,
+                "statusMessage": f"Cannot delete scheduled test because {user_text} already been evaluated."
+            }, 400
+
         sched.is_deleted = True
         sched.updated_date = datetime.datetime.utcnow()
         session.commit()
@@ -646,4 +720,72 @@ def delete_paper_schedule(request, current_user=None):
         session.rollback()
         session.close()
         return {"status": False, "statusMessage": f"Failed to delete schedule: {str(e)}"}, 500
+
+
+def update_paper_schedule(request, current_user=None):
+    """
+    Updates assigned students for an existing PaperSchedule while its evaluation is still Pending.
+    If evaluation has started, editing is blocked.
+    """
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    try:
+        data = request.get_json(silent=True) or {}
+        schedule_id = str(data.get("schedule_id") or "").strip()
+        if not schedule_id:
+            session.close()
+            return {"statusMessage": "schedule_id is required", "status": False}, 400
+
+        schedule = session.query(PaperSchedule).filter(
+            func.cast(PaperSchedule.schedule_id, String) == schedule_id,
+            PaperSchedule.is_deleted == False
+        ).first()
+
+        if not schedule:
+            session.close()
+            return {"statusMessage": "Schedule not found", "status": False}, 404
+
+        # Block if already evaluated
+        from db.models import Exam_Attempt
+        eval_count = session.query(Exam_Attempt).filter(
+            func.cast(Exam_Attempt.schedule_id, String) == schedule_id,
+            Exam_Attempt.status == "completed"
+        ).count()
+
+        if eval_count > 0:
+            session.close()
+            return {"statusMessage": "Cannot edit assigned students because evaluation has already started.", "status": False}, 400
+
+        # Replace assigned users
+        assigned_user_ids = data.get("assigned_user_ids") or []
+        session.query(PaperScheduleMapping).filter(
+            func.cast(PaperScheduleMapping.schedule_id, String) == schedule_id,
+            PaperScheduleMapping.user_id.isnot(None)
+        ).delete(synchronize_session=False)
+
+        created_by_user = str(current_user.user_id) if current_user and getattr(current_user, "user_id", None) else None
+        for uid in assigned_user_ids:
+            if uid:
+                session.add(
+                    PaperScheduleMapping(
+                        mapping_id=str(uuid.uuid4()),
+                        schedule_id=schedule_id,
+                        user_id=str(uid),
+                        created_by=created_by_user,
+                    )
+                )
+
+        schedule.updated_date = datetime.datetime.utcnow()
+        session.commit()
+        session.close()
+        return {"status": True, "statusMessage": "Assigned students updated successfully"}, 200
+
+    except Exception as e:
+        session.rollback()
+        session.close()
+        return {"status": False, "statusMessage": f"Failed to update assigned students: {str(e)}"}, 500
+
 

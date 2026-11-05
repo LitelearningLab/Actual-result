@@ -117,6 +117,12 @@
             color: #15803d;
             border-color: rgba(34, 197, 94, 0.3);
         }
+
+        &.finalized-badge {
+            background: #e0f2fe;
+            color: #0369a1;
+            border-color: rgba(14, 165, 233, 0.3);
+        }
     }
 }
 
@@ -523,6 +529,14 @@
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
     }
 
+    &:disabled,
+    &[disabled] {
+        background-color: #f1f5f9 !important;
+        border-color: #e2e8f0 !important;
+        color: #475569 !important;
+        cursor: not-allowed !important;
+    }
+
     &::placeholder {
         color: #94a3b8;
         font-weight: 400;
@@ -571,11 +585,20 @@
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
     }
 
-    &.mat-select-disabled {
-        background-color: #f8fafc !important;
+    &.mat-select-disabled,
+    &[aria-disabled="true"] {
+        background-color: #f1f5f9 !important;
         border-color: #e2e8f0 !important;
         cursor: not-allowed !important;
-        opacity: 0.7 !important;
+        opacity: 0.9 !important;
+
+        .mat-select-value {
+            color: #475569 !important;
+        }
+
+        .mat-select-arrow {
+            opacity: 0.4 !important;
+        }
     }
 
     .mat-select-trigger,
@@ -891,6 +914,12 @@
             color: #1e293b;
             outline: none;
             &:focus { border-color: #3b82f6; }
+            &:disabled,
+            &[disabled] {
+                background: #f1f5f9;
+                color: #64748b;
+                cursor: not-allowed;
+            }
         }
 
         .q-marks-label {
@@ -2596,5 +2625,120 @@
 
     .question-card {
         padding: 10px 6px;
+    }
+}
+
+/* ── Assigned Students in View Mode ── */
+.assigned-students-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.student-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+
+    .student-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #e0f2fe;
+        color: #0284c7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+
+        mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+        }
+    }
+
+    .student-details {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1 1 auto;
+
+        .student-name {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .student-sub {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    .student-meta-badges {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
+    .student-meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 11.5px;
+        font-weight: 500;
+        line-height: 1.2;
+        max-width: 140px;
+
+        mat-icon {
+            font-size: 13px;
+            width: 13px;
+            height: 13px;
+            line-height: 13px;
+        }
+
+        span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        &--dept {
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+
+            mat-icon {
+                color: #2563eb;
+            }
+        }
+
+        &--year {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+
+            mat-icon {
+                color: #059669;
+            }
+        }
     }
 }

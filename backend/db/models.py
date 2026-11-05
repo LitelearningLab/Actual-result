@@ -239,6 +239,7 @@ class Exam(Base):
      updated_date = Column(DateTime)
      test_mode = Column(String, default='online')
      total_marks = Column(Integer)
+     is_draft = Column(Integer, default=0)
 
      institute = relationship("Institute", back_populates="exams")
     #  questions = relationship("Question", back_populates="exam")

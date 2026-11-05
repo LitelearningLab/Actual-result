@@ -973,6 +973,10 @@ def ensure_exam_columns(session):
                 BEGIN
                     ALTER TABLE Exams ADD total_marks INT NULL;
                 END;
+                IF COL_LENGTH('Exams', 'is_draft') IS NULL
+                BEGIN
+                    ALTER TABLE Exams ADD is_draft INT NULL DEFAULT 0;
+                END;
             """))
             session.commit()
         except Exception as exam_columns_err:
@@ -1110,6 +1114,10 @@ def add_exam(request):
                 subject_name = subj_obj.subject_name
 
         published_val = 1 if data.get("published") in (True, 1, "1", "true") else 0
+        is_draft_val = 0
+        if test_mode == "paper":
+            is_draft_val = 1 if data.get("is_draft") in (True, 1, "1", "true") else 0
+
         add_exam = Exam(
             title=title,
             description=description,
@@ -1126,6 +1134,7 @@ def add_exam(request):
             test_mode=test_mode,
             total_marks=total_marks,
             published=published_val,
+            is_draft=is_draft_val,
         )
         session.add(add_exam)
         session.flush()
@@ -1352,6 +1361,20 @@ def update_exam(request):
                 "statusMessage": "This test cannot be edited because it is currently active or is being attended by users.",
                 "status": False,
             }, 400
+
+        # Protect finalized paper questions: allow editing only if is_draft == 1
+        if (
+            getattr(exam, "test_mode", None) == "paper"
+            and getattr(exam, "is_draft", 0) != 1
+        ):
+            return {
+                "statusMessage": "This question paper is finalized and cannot be edited.",
+                "status": False,
+            }, 400
+
+        # Allow updating draft status (e.g. when finalizing a draft to is_draft = 0)
+        if getattr(exam, "test_mode", None) == "paper" and "is_draft" in data:
+            exam.is_draft = 1 if data.get("is_draft") in (True, 1, "1", "true") else 0
 
         # update scalar fields
         exam.title = data.get("title", exam.title)
@@ -2298,12 +2321,20 @@ def get_exam_details(request):
 
                     if exam.published == 1:
                         computed_status = "published"
+                        is_editable = False
+                    elif getattr(exam, "test_mode", None) == "paper":
+                        if getattr(exam, "is_draft", 0) == 1:
+                            computed_status = "draft"
+                            is_editable = True
+                        else:
+                            computed_status = "ready_to_publish"
+                            is_editable = False
                     elif is_q_complete and is_m_complete:
                         computed_status = "ready_to_publish"
+                        is_editable = eid_str not in active_attended_exam_ids
                     else:
                         computed_status = "draft"
-
-                    is_editable = eid_str not in active_attended_exam_ids
+                        is_editable = eid_str not in active_attended_exam_ids
 
                     summary_list.append({
                         "exam_id": exam.exam_id,
@@ -2337,6 +2368,7 @@ def get_exam_details(request):
                         "pass_mark": exam.pass_mark,
                         "published": True if exam.published == 1 else False,
                         "is_published": True if exam.published == 1 else False,
+                        "is_draft": getattr(exam, "is_draft", 0),
                         "status": computed_status,
                         "created_date": safe_isoformat(exam.created_date),
                         "created_at": safe_isoformat(exam.created_date),
@@ -2498,6 +2530,23 @@ def get_exam_details(request):
 
                     conf_threshold = get_ai_confidence_threshold(session)
 
+                    all_u_dept_ids = list(set([str(u.department_id) for _, u in assignment_rows if getattr(u, 'department_id', None)]))
+                    all_u_team_ids = list(set([str(u.team_id) for _, u in assignment_rows if getattr(u, 'team_id', None)]))
+                    dept_name_map = {}
+                    if all_u_dept_ids:
+                        try:
+                            for d in session.query(InstituteDepartment).filter(InstituteDepartment.department_id.in_(all_u_dept_ids)).all():
+                                dept_name_map[str(d.department_id)] = d.name
+                        except Exception:
+                            pass
+                    team_name_map = {}
+                    if all_u_team_ids:
+                        try:
+                            for t in session.query(InstituteTeam).filter(InstituteTeam.team_id.in_(all_u_team_ids)).all():
+                                team_name_map[str(t.team_id)] = t.name
+                        except Exception:
+                            pass
+
                     for _, user in assignment_rows:
                         u_id = str(user.user_id)
                         # Resolve student attempt(s) for this paper exam
@@ -2634,13 +2683,17 @@ def get_exam_details(request):
                         assigned_users.append(
                             {
                                 "user_id": u_id,
+                                "id": u_id,
                                 "full_name": user.full_name,
+                                "name": user.full_name,
                                 "email": user.email,
                                 "user_name": getattr(user, "user_name", "") or "",
                                 "roll_no": getattr(user, "user_name", "") or "",
                                 "department_id": getattr(user, "department_id", "")
                                 or "",
+                                "department_name": dept_name_map.get(str(getattr(user, "department_id", "")), ""),
                                 "team_id": getattr(user, "team_id", "") or "",
+                                "team_name": team_name_map.get(str(getattr(user, "team_id", "")), ""),
                                 "pages_count": u_pages_count,
                                 "evaluation_status": u_status,
                                 "status": u_status,
@@ -2808,6 +2861,7 @@ def get_exam_details(request):
                     "created_date": exam.created_date,
                     "updated_by": updated_user_name,
                     "updated_date": exam.updated_date,
+                    "is_draft": getattr(exam, "is_draft", 0),
                     "is_editable": is_editable,
                     "test_mode": getattr(exam, "test_mode", None) or "online",
                 }

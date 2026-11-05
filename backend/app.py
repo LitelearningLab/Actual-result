@@ -588,6 +588,14 @@ def delete_paper_schedule_route():
     response_data, status_code = delete_paper_schedule(request, current_user)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/update-paper-schedule', methods=['POST'])
+@admin_required
+def update_paper_schedule_route():
+    from others.paper_schedules import update_paper_schedule
+    current_user = get_current_user_from_request()
+    response_data, status_code = update_paper_schedule(request, current_user)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/test-evaluation/student-evaluation-details', methods=['GET'])
 @admin_required
 def get_student_evaluation_details_route():

@@ -236,6 +236,24 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   filterPaperDept = '';
   filterPaperSubj = '';
   filterPaperCreatedDate = '';
+  editingScheduleId: string | null = null;
+  initialSelectedPaperUsers: string[] = [];
+
+  get hasAssignedUsersChanged(): boolean {
+    if (!this.editingScheduleId) {
+      return true;
+    }
+    if (this.selectedPaperUsers.length !== this.initialSelectedPaperUsers.length) {
+      return true;
+    }
+    const currentSorted = [...this.selectedPaperUsers].sort();
+    for (let i = 0; i < currentSorted.length; i++) {
+      if (currentSorted[i] !== this.initialSelectedPaperUsers[i]) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   appliedPaperFilterChips: Array<{ key: string; label: string }> = [];
   filterPaperIndustryTypes: string[] = ['Education', 'Higher Education', 'Corporate', 'Government'];
@@ -814,6 +832,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   editMode: boolean = false;
   editExamId: string | null = null;
   isPublished: boolean = false;
+  isDraft: boolean = false;
   private filtersOverlayRef: OverlayRef | null = null;
   private categoryLoadSeq = 0;
   private questionLoadSeq = 0;
@@ -957,8 +976,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
   ngOnInit(): void {
     const modeParam = this.route?.snapshot?.queryParams ? this.route.snapshot.queryParams['mode'] : null;
+    const scheduleIdParam = this.route?.snapshot?.queryParams ? this.route.snapshot.queryParams['schedule_id'] : null;
     if (modeParam === 'publish') {
       this.formMode = 'publish';
+      this.editingScheduleId = scheduleIdParam ? String(scheduleIdParam) : null;
     } else {
       this.formMode = 'create';
     }
@@ -969,16 +990,24 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.formMode === 'publish') {
       this.readOnly = false;
       this.isPublished = false;
-      this.pageMeta.setMeta(
-        'Publish Question Paper',
-        'Select a created question paper and assign candidates to publish.'
-      );
+      if (this.editingScheduleId) {
+        this.pageMeta.setMeta(
+          'Edit Assigned Students',
+          'Add or remove students assigned to this published written test.'
+        );
+      } else {
+        this.pageMeta.setMeta(
+          'Publish Question Paper',
+          'Select a created question paper and assign candidates to publish.'
+        );
+      }
       if (!this.publishedScheduleName) {
         this.publishedScheduleName = this.formatSchedulerDateTime();
       }
-    } else if (this.readOnly || this.isPublished) {
+    } else if (this.readOnly || this.isPublished || modeParam === 'view') {
+      this.readOnly = true;
       this.pageMeta.setMeta(
-        'View Test',
+        'View Question Paper',
         'Viewing question paper details in read-only mode.'
       );
     } else if (this.editMode) {
@@ -1066,8 +1095,18 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         e.status === 'published' ||
         e.status === 'active'
       );
-      if (this.isPublished || e.is_editable === false || e.editable === false) {
+      this.isDraft = e.is_draft === 1 || e.status === 'draft';
+      if (e.schedule_id) {
+        this.editingScheduleId = String(e.schedule_id);
+      }
+      if (e.template_id || e.master_exam_id) {
+        this.selectedQuestionPaperTemplateId = String(e.template_id || e.master_exam_id);
+      }
+      if (this.formMode !== 'publish' && (this.isPublished || e.is_editable === false || e.editable === false || e.readOnly === true || this.route?.snapshot?.queryParams?.['mode'] === 'view')) {
         this.readOnly = true;
+      }
+      if (this.formMode === 'publish') {
+        this.readOnly = false;
       }
       this.title = e.title || e.name || '';
       this.publishedScheduleName = e.title || e.schedulerName || e.name || '';
@@ -1132,8 +1171,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           department:
             user.department_name ||
             (user.department && (user.department.name || user.department.department_name)) ||
+            (typeof user.department === 'string' ? user.department : '') ||
             '',
-          team: user.team_name || (user.team && (user.team.name || user.team.team_name)) || '',
+          team:
+            user.team_name ||
+            (user.team && (user.team.name || user.team.team_name)) ||
+            (typeof user.team === 'string' ? user.team : '') ||
+            '',
           campus:
             (user.campus && (user.campus.campus_name || user.campus.name)) ||
             user.campus_name ||
@@ -1143,21 +1187,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         }))
         .filter((user: any) => !!user.id);
 
-      if (this.selectedPaperUsers.length > 0) {
-        this.userFiltersApplied = true;
-        if (this.paperUsers.length === 0) {
-          this.paperUsers = this.selectedPaperUsers.map((uid) => ({
-            id: uid,
-            name: `User (${uid.slice(0, 8)}...)`,
-            email: '',
-            department: '',
-            team: '',
-            campus: '',
-            departmentId: '',
-            teamId: '',
-          }));
-        }
-      }
+      this.initialSelectedPaperUsers = [...this.selectedPaperUsers].sort();
+      this.userFiltersApplied = false;
+      this.paperUsers = [];
 
       // normalize categories if present in the payload
       const srcCats = Array.isArray(e.categories)
@@ -2726,6 +2758,36 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   getTotalTargetQuestions(): number {
     return this.sections.reduce((sum, s) => sum + ((s as any).targetCount || 0), 0);
+  }
+
+  getStudentDepartment(u: any): string {
+    if (u?.department) return u.department;
+    if (u?.department_name) return u.department_name;
+    const deptId = u?.departmentId || u?.department_id;
+    if (deptId && this.departments?.length) {
+      const match = this.departments.find((d) => String(d.id) === String(deptId));
+      if (match?.name) return match.name;
+    }
+    if (this.selectedDepartment && this.departments?.length) {
+      const match = this.departments.find((d) => String(d.id) === String(this.selectedDepartment));
+      if (match?.name) return match.name;
+    }
+    return '';
+  }
+
+  getStudentYear(u: any): string {
+    if (u?.team) return u.team;
+    if (u?.team_name) return u.team_name;
+    const teamId = u?.teamId || u?.team_id;
+    if (teamId && this.teams?.length) {
+      const match = this.teams.find((t) => String(t.id) === String(teamId));
+      if (match?.name) return match.name;
+    }
+    if (this.selectedTeam && this.teams?.length) {
+      const match = this.teams.find((t) => String(t.id) === String(this.selectedTeam));
+      if (match?.name) return match.name;
+    }
+    return '';
   }
 
   getMarksProgressPct(): number {
@@ -4451,11 +4513,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   get hasAppliedUserFilters(): boolean {
-    return (
-      (this.userFiltersApplied && this.hasUserFilterValues) ||
-      this.paperUsers.length > 0 ||
-      this.selectedPaperUsers.length > 0
-    );
+    return this.userFiltersApplied && this.hasUserFilterValues;
   }
 
   get appliedUserFilterChips(): Array<{ key: string; label: string }> {
@@ -4666,7 +4724,15 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           }))
           .filter((u: any) => !!u.id);
 
-        this.paperUsers = fetched;
+        const combined: CreateQuestionPaperComponent['paperUsers'] = [...fetched];
+        if (this.selectedPaperUsers.length > 0) {
+          for (const u of this.paperUsers) {
+            if (this.selectedPaperUsers.includes(u.id) && !combined.some((x) => x.id === u.id)) {
+              combined.unshift(u);
+            }
+          }
+        }
+        this.paperUsers = combined;
         if (this.assignableUserCount === null && fetched.length > 0) {
           this.assignableUserCount = fetched.length;
         }
@@ -5297,7 +5363,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   get canPublish(): boolean {
-    if (this.readOnly || this.isPublished) return false;
+    if (this.readOnly) return false;
+    if (this.editingScheduleId) {
+      if (!this.selectedPaperUsers.length) return false;
+      if (!this.hasAssignedUsersChanged) return false;
+      return true;
+    }
+    if (this.isPublished) return false;
     if (this.formMode === 'publish') {
       if (!this.selectedQuestionPaperTemplateId) return false;
       if (!this.publishedScheduleName || !this.publishedScheduleName.trim()) return false;
@@ -5329,7 +5401,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   get publishDisabledReason(): string {
-    if (this.readOnly || this.isPublished) return 'Question paper is in read-only mode';
+    if (this.readOnly) return 'Question paper is in read-only mode';
+    if (this.editingScheduleId) {
+      if (!this.selectedPaperUsers.length) return 'Assign at least one user';
+      if (!this.hasAssignedUsersChanged) return 'No changes made to assigned students';
+      return '';
+    }
+    if (this.isPublished) return 'Question paper is in read-only mode';
     if (this.formMode === 'publish') {
       if (!this.selectedQuestionPaperTemplateId) return 'Please select a question paper to publish';
       if (!this.publishedScheduleName || !this.publishedScheduleName.trim()) return 'Schedule name is required to publish';
@@ -5357,9 +5435,14 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     return '';
   }
 
-  save(publish: boolean = false) {
+  save(publish: boolean = false, isDraft: boolean = false) {
     if (publish && !this.canPublish) {
       notify(this.publishDisabledReason || 'Cannot publish: section marks do not tally or required details are missing.', 'error');
+      return;
+    }
+
+    if (!isDraft && this.formMode === 'create' && !publish && !this.canCreatePaper) {
+      notify(this.createDisabledReason || 'Cannot create question paper: section marks do not tally or required details are missing.', 'error');
       return;
     }
 
@@ -5432,6 +5515,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     const payload: any = {
       test_mode: 'paper',
       title: finalTitle,
+      is_draft: isDraft ? 1 : 0,
       scheduler_name: this.formMode === 'publish' ? (this.publishedScheduleName || '').trim() : undefined,
       template_id: this.selectedQuestionPaperTemplateId || null,
       total_marks: finalTotalMarks,
@@ -5486,9 +5570,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
           try {
-            const defaultMsg = this.isPublished || this.canCreatePaper
-              ? 'Question paper updated successfully'
-              : 'Question paper draft updated successfully';
+            const defaultMsg = isDraft
+              ? 'Question paper draft updated successfully'
+              : 'Question paper updated successfully';
             const msg = res?.statusMessage || res?.message || defaultMsg;
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
             notify(msg, ok ? 'success' : 'error');
@@ -5516,14 +5600,23 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       return;
     }
 
-    // In publish mode, register a fresh published instance in PaperSchedules (separate table like Schedule Test)
+    // In publish mode, register a fresh published instance in PaperSchedules or update existing
     if (this.formMode === 'publish') {
-      const url = `${API_BASE}/publish-paper-schedule`;
+      const isEditing = !!this.editingScheduleId;
+      const url = isEditing
+        ? `${API_BASE}/update-paper-schedule`
+        : `${API_BASE}/publish-paper-schedule`;
+      if (isEditing) {
+        payload.schedule_id = this.editingScheduleId;
+      }
       this.loader.show();
       this.http.post<any>(url, payload).subscribe({
         next: (res) => {
           try {
-            const msg = res?.statusMessage || res?.message || 'Question paper published successfully';
+            const defaultMsg = isEditing
+              ? 'Assigned students updated successfully'
+              : 'Question paper published successfully';
+            const msg = res?.statusMessage || res?.message || defaultMsg;
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
             notify(msg, ok ? 'success' : 'error');
           } catch (e) {}
@@ -5537,9 +5630,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           });
         },
         error: (err) => {
-          console.error('Failed to publish paper schedule', err);
+          console.error('Failed to save paper schedule', err);
           try {
-            notify(this.getExamSaveErrorMessage(err, 'Failed to publish paper schedule'), 'error');
+            const fallbackErr = isEditing
+              ? 'Failed to update assigned students'
+              : 'Failed to publish paper schedule';
+            notify(this.getExamSaveErrorMessage(err, fallbackErr), 'error');
           } catch (e) {}
           this.loader.hide();
         },
@@ -5557,9 +5653,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         try {
           const defaultMsg = publish
             ? 'Question paper published successfully'
-            : (this.formMode === 'create'
-                ? 'Question paper created successfully'
-                : 'Question paper draft saved successfully');
+            : (isDraft
+                ? 'Question paper draft saved successfully'
+                : 'Question paper created successfully');
           const msg = res?.statusMessage || res?.message || defaultMsg;
           const ok = typeof res?.status === 'undefined' ? true : !!res.status;
           notify(msg, ok ? 'success' : 'error');
@@ -5614,6 +5710,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   hasUnsavedChanges(): boolean {
     if (this.readOnly || this.isSavedOrSubmitted) return false;
+    // When editing assigned students on a published paper, unsaved changes exist ONLY if students were added or removed
+    if (this.editingScheduleId) {
+      return this.hasAssignedUsersChanged;
+    }
     return this.isDirty;
   }
 

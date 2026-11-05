@@ -686,12 +686,12 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     if (this.isPublished(e)) {
       return false;
     }
-    return this.getPaperStatus(e) === 'draft';
+    return e?.is_draft === 1 || e?.is_draft === true || e?.status === 'draft';
   }
 
   // Determines whether a question paper is Draft or Ready to Publish
   getPaperStatus(e: any): 'ready_to_publish' | 'draft' {
-    if (this.isMarksIncomplete(e) || this.isQuestionsIncomplete(e)) {
+    if (this.isDraft(e)) {
       return 'draft';
     }
     return 'ready_to_publish';
@@ -2330,7 +2330,176 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     this.router.navigate(['/create-question-paper']);
   }
 
+  viewQuestionPaper(e: any) {
+    this.loader.show();
+    const examId = e?.master_exam_id || e?.exam_id || e?.test_id || e?.id;
+    if (examId) {
+      const url = `${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}&test_mode=paper`;
+      this.http.get<any>(url).subscribe({
+        next: (res) => {
+          let item =
+            Array.isArray(res?.data) && res.data.length
+              ? res.data[0]
+              : res?.data && !Array.isArray(res.data)
+                ? res.data
+                : res?.item || e;
+          if (Array.isArray(item) && item.length === 0) {
+            item = e;
+          }
+          const srcCats = Array.isArray(item.categories)
+            ? item.categories
+            : Array.isArray(item.category_list)
+              ? item.category_list
+              : [];
+          const mapped = srcCats.map((c: any) => {
+            const catObj = c.category || {};
+            const category_id = catObj.category_id || c.category_id || c.id || c._id || '';
+            const category_name =
+              catObj.category_name || catObj.name || c.category_name || c.name || '';
+            const description = catObj.description || c.description || c.desc || '';
+            const questionArray = Array.isArray(c.questions)
+              ? c.questions
+              : Array.isArray(c.question_list)
+                ? c.question_list
+                : [];
+            const question_ids = questionArray
+              .map((q: any) => q.question_id || q.id || q._id || null)
+              .filter(Boolean);
+            const questionsCount = this.getQuestionCount(c, questionArray);
+            const marksPerQuestion =
+              this.getMarksPerQuestion(c) ?? this.deriveMarksFromQuestions(questionArray);
+            const randomize =
+              typeof c.randomize_questions === 'boolean'
+                ? c.randomize_questions
+                : typeof c.randomize === 'boolean'
+                  ? c.randomize
+                  : false;
+            return {
+              category_id,
+              category_name,
+              description,
+              questions: Number(questionsCount) || 0,
+              question_ids,
+              randomize_questions: !!randomize,
+              question_type:
+                c.question_type ||
+                catObj.question_type ||
+                c.type ||
+                catObj.type ||
+                c.category_type ||
+                catObj.category_type ||
+                '',
+              marks_per_question: marksPerQuestion,
+              total_marks:
+                this.getTotalMarks(c) ?? this.calculateTotalMarks(questionsCount, marksPerQuestion),
+            };
+          });
+          const viewPayload = {
+            ...e,
+            ...item,
+            departments: item.departments || e.departments || [],
+            teams: item.teams || e.teams || [],
+            sections: Array.isArray(item.sections) && item.sections.length ? item.sections : e.sections || [],
+            assigned_users: Array.isArray(item.assigned_users) && item.assigned_users.length ? item.assigned_users : e.assigned_users || [],
+            assigned_user_ids: Array.isArray(item.assigned_user_ids) && item.assigned_user_ids.length ? item.assigned_user_ids : e.assigned_user_ids || [],
+            categories: mapped,
+            readOnly: true,
+            is_editable: false,
+          };
+          try {
+            sessionStorage.setItem('edit_exam', JSON.stringify(viewPayload));
+          } catch (_) {}
+          this.loader.hide();
+          this.saveTestsReturnState();
+          this.router.navigate(['/create-question-paper'], { queryParams: { mode: 'view' } });
+        },
+        error: () => {
+          this.loader.hide();
+          const fallbackPayload = {
+            ...e,
+            readOnly: true,
+            is_editable: false,
+          };
+          try {
+            sessionStorage.setItem('edit_exam', JSON.stringify(fallbackPayload));
+          } catch (_) {}
+          this.saveTestsReturnState();
+          this.router.navigate(['/create-question-paper'], { queryParams: { mode: 'view' } });
+        },
+      });
+      return;
+    }
+    const directPayload = {
+      ...e,
+      readOnly: true,
+      is_editable: false,
+    };
+    try {
+      sessionStorage.setItem('edit_exam', JSON.stringify(directPayload));
+    } catch (_) {}
+    this.loader.hide();
+    this.saveTestsReturnState();
+    this.router.navigate(['/create-question-paper'], { queryParams: { mode: 'view' } });
+  }
+
+  canEditPublished(e: any): boolean {
+    const status = String(e?.evaluation_status || '').trim().toLowerCase();
+    const evalCount = Number(e?.evaluated_count || 0);
+    return (status === 'pending' || status === '') && evalCount === 0;
+  }
+
+  editPublishedSchedule(e: any) {
+    const scheduleId = e?.schedule_id || e?.test_id || e?.id;
+    const templateId = e?.master_exam_id || e?.template_id || e?.exam_id;
+
+    const editPayload = {
+      ...e,
+      schedule_id: scheduleId,
+      template_id: templateId,
+      schedulerName: e?.scheduler_name || e?.schedule_name || e?.title || '',
+      assigned_users: e?.assigned_users || [],
+      assigned_user_ids: Array.isArray(e?.assigned_user_ids) && e.assigned_user_ids.length
+        ? e.assigned_user_ids
+        : (e?.assigned_users || []).map((u: any) => u.user_id || u.id),
+      readOnly: false,
+      isPublished: true,
+      formMode: 'publish',
+    };
+
+    try {
+      sessionStorage.setItem('edit_exam', JSON.stringify(editPayload));
+    } catch (_) {}
+    this.saveTestsReturnState();
+    this.router.navigate(['/create-question-paper'], {
+      queryParams: { mode: 'publish', schedule_id: scheduleId, template_id: templateId }
+    });
+  }
+
   deleteSchedule(row: any) {
+    const evalCount = Number(
+      row?.evaluated_count ??
+      row?.evaluated_sheets_count ??
+      row?.evaluated_students_count ??
+      row?.evaluations_count ??
+      0
+    );
+    if (evalCount > 0) {
+      const userText = evalCount === 1 ? '1 user has' : `${evalCount} users have`;
+      const message = `Cannot delete scheduled test because ${userText} already been evaluated.`;
+      this.confirmService
+        .confirm({
+          title: 'Cannot Delete Scheduled Test',
+          message: message,
+          confirmText: 'OK',
+          cancelText: '',
+        })
+        .subscribe();
+      try {
+        notify(message, 'error');
+      } catch (e) {}
+      return;
+    }
+
     this.confirmService
       .confirm({
         title: 'Delete Scheduled Test',
@@ -2359,8 +2528,17 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           },
           error: (err) => {
             console.warn('Failed to delete scheduled test', err);
+            const errMsg = err?.error?.statusMessage || 'Failed to delete scheduled test. Please try again later.';
+            this.confirmService
+              .confirm({
+                title: 'Cannot Delete Scheduled Test',
+                message: errMsg,
+                confirmText: 'OK',
+                cancelText: '',
+              })
+              .subscribe();
             try {
-              notify('Failed to delete scheduled test. Please try again later.', 'error');
+              notify(errMsg, 'error');
             } catch (e) {}
           },
         });
@@ -2826,7 +3004,8 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
           updated_by: x.updated_by || x.modifier || '',
           updated_date: x.updated_date || x.updated || '',
           published: !!x.published,
-          status: x.status || (x.published ? 'published' : (this.isMarksIncomplete(x) || this.isQuestionsIncomplete(x) ? 'draft' : 'ready_to_publish')),
+          is_draft: x.is_draft,
+          status: x.status || (x.published ? 'published' : (x.is_draft === 1 ? 'draft' : 'ready_to_publish')),
           is_editable: x.is_editable !== false,
         }));
 

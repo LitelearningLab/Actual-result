@@ -412,7 +412,10 @@
                                     <button type="button" class="action-btn action-btn-success" *ngIf="getPaperStatus(e) === 'ready_to_publish'" (click)="publishQuestionPaper(e)" matTooltip="Publish Question Paper" aria-label="Publish Question Paper">
                                         <mat-icon>publish</mat-icon>
                                     </button>
-                                    <button type="button" class="action-btn" (click)="onEdit(e)" matTooltip="Edit" aria-label="Edit test">
+                                    <button type="button" class="action-btn action-btn-blue" (click)="viewQuestionPaper(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
+                                        <mat-icon>visibility</mat-icon>
+                                    </button>
+                                    <button type="button" class="action-btn" *ngIf="isDraft(e)" (click)="onEdit(e)" matTooltip="Edit Draft" aria-label="Edit test">
                                         <mat-icon>edit</mat-icon>
                                     </button>
                                     <button type="button" class="action-btn action-btn-blue" (click)="downloadQuestionPaper(e)" matTooltip="Download Question Paper" aria-label="Download Question Paper">
@@ -428,7 +431,10 @@
 
                                 <!-- ── Tab 2: Published Actions ── -->
                                 <ng-container *ngIf="activeTab === 'published'">
-                                    <button type="button" class="action-btn" (click)="onEdit(e)" matTooltip="Edit" aria-label="Edit test">
+                                    <button type="button" class="action-btn action-btn-blue" (click)="viewQuestionPaper(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
+                                        <mat-icon>visibility</mat-icon>
+                                    </button>
+                                    <button type="button" class="action-btn" *ngIf="canEditPublished(e)" (click)="editPublishedSchedule(e)" matTooltip="Edit Assigned Students" aria-label="Edit assigned students">
                                         <mat-icon>edit</mat-icon>
                                     </button>
                                     <button type="button" class="action-btn action-btn-blue" (click)="downloadQuestionPaper(e)" matTooltip="Download Question Paper" aria-label="Download Question Paper">
