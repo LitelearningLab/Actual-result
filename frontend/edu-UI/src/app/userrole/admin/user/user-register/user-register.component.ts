@@ -657,6 +657,14 @@ export class AdminUserRegisterComponent implements OnInit {
         this.form.patchValue({ campus: campusId, country: countryId, state: stateId, city: cityId });
       } catch (e) { }
       try {
+        const userTeam = u.team?.team_id || u.team_id || u.team || '';
+        if (userTeam) {
+          const teamCtrl = this.form.get('team');
+          teamCtrl?.enable({ emitEvent: false });
+          teamCtrl?.setValue(userTeam, { emitEvent: false });
+        }
+      } catch (e) { }
+      try {
         this.showUserManagement = (['admin', 'super_admin'].includes(this.form.get('role')?.value));
         if (this.showUserManagement) {
           if (!this.pagesList || this.pagesList.length === 0) {
@@ -1405,7 +1413,7 @@ export class AdminUserRegisterComponent implements OnInit {
     }
 
     this.loader.show();
-    const v = this.form.value;
+    const v = this.form.getRawValue();
     const currentUserRaw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
     let current_user: any = null;
     try { current_user = currentUserRaw ? JSON.parse(currentUserRaw) : null; } catch (e) { current_user = currentUserRaw || null; }
@@ -1469,6 +1477,7 @@ export class AdminUserRegisterComponent implements OnInit {
           this.submitting = false;
           this.loader.hide();
           sessionStorage.removeItem('edit_user');
+          sessionStorage.removeItem('users_return_state');
           this.notify.success(res?.statusMessage || 'User updated successfully');
           this.router.navigate(['/view-users']);
         },

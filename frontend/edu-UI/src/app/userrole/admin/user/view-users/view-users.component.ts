@@ -3122,6 +3122,9 @@ export class ViewUsersComponent implements OnDestroy, OnInit {
       this.totalCount = Number(state?.totalCount || this.users.length || 0);
       this.dataSource.data = this.users;
       this.applyFilter(this.filter || '');
+      if (this.hasAppliedFilters) {
+        this.loadUsers(this.selectedInstitute || activeInstituteId);
+      }
     } catch (e) {
       try {
         sessionStorage.removeItem('users_return_state');
