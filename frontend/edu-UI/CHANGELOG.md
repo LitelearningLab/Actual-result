@@ -1,4 +1,11 @@
 # Changelog
+## [2.3.1] - 2026-11-06
+
+### Features / Fixes
+- **Feature Name**: Brief description of changes.
+- **Bug Fixes**: Summary of resolved issues.
+
+---
 
 ## [2.3.0] - 2026-11-05
 
