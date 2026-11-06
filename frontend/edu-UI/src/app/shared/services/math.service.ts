@@ -59,7 +59,7 @@ export class MathService {
     if (text.includes('$$')) return text;
 
     const lines = text.split(/\r?\n/);
-    const prefixRe = /^(\s*(?:\d+[\)\.]|Sol(?:ution)?\s*[:\.\-]?|Ans(?:wer)?\s*[:\.\-]?|Given\s*[:\.\-]?|Step\s*\d+\s*[:\.\-]?)\s*)/i;
+    const prefixRe = /^(\s*(?:\(?[a-zA-Z0-9][\.\)\:\-]\s*|Sol(?:ution)?\s*[:\.\-]?|Ans(?:wer)?\s*[:\.\-]?|Given\s*[:\.\-]?|Step\s*\d+\s*[:\.\-]?)\s*)/i;
 
     const formattedLines: string[] = [];
 
@@ -176,9 +176,10 @@ export class MathService {
       s = s.replace(/\s*=\s*/g, ' = ');
 
       if (prefix) {
-        formattedLines.push(prefix);
+        formattedLines.push(`${prefix} $${s.trim()}$`);
+      } else {
+        formattedLines.push(`$$\\displaystyle ${s.trim()}$$`);
       }
-      formattedLines.push(`$$\\displaystyle ${s.trim()}$$`);
     }
 
     return formattedLines.join('\n\n');

@@ -3198,6 +3198,22 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               color: #111;
               word-break: break-word;
             }
+            .paper-q-option .katex-display,
+            .ans-value .katex-display {
+              display: inline !important;
+              margin: 0 !important;
+              text-align: left !important;
+              text-align: -webkit-left !important;
+            }
+            .paper-q-option .katex-display > .katex,
+            .ans-value .katex-display > .katex,
+            .paper-q-option .katex-display > .katex > .katex-html,
+            .ans-value .katex-display > .katex > .katex-html {
+              display: inline !important;
+              text-align: left !important;
+              text-align: -webkit-left !important;
+              white-space: normal !important;
+            }
             .paper-q-answer {
               display: flex;
               align-items: baseline;

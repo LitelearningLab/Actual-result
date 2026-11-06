@@ -1718,6 +1718,26 @@
             .paper-q-option {
                 color: #111;
                 word-break: break-word;
+
+                ::ng-deep .katex-display {
+                    display: inline !important;
+                    margin: 0 !important;
+                    text-align: left !important;
+                    text-align: -webkit-left !important;
+
+                    > .katex {
+                        display: inline !important;
+                        text-align: left !important;
+                        text-align: -webkit-left !important;
+                        white-space: normal !important;
+
+                        > .katex-html {
+                            display: inline !important;
+                            text-align: left !important;
+                            text-align: -webkit-left !important;
+                        }
+                    }
+                }
             }
         }
 
@@ -1740,6 +1760,26 @@
                 font-weight: 600;
                 color: #000;
                 word-break: break-word;
+
+                ::ng-deep .katex-display {
+                    display: inline !important;
+                    margin: 0 !important;
+                    text-align: left !important;
+                    text-align: -webkit-left !important;
+
+                    > .katex {
+                        display: inline !important;
+                        text-align: left !important;
+                        text-align: -webkit-left !important;
+                        white-space: normal !important;
+
+                        > .katex-html {
+                            display: inline !important;
+                            text-align: left !important;
+                            text-align: -webkit-left !important;
+                        }
+                    }
+                }
             }
 
             .no-answer {

@@ -1335,6 +1335,19 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
                 color: #111;
                 word-break: break-word;
               }
+              .paper-q-option .katex-display {
+                display: inline !important;
+                margin: 0 !important;
+                text-align: left !important;
+                text-align: -webkit-left !important;
+              }
+              .paper-q-option .katex-display > .katex,
+              .paper-q-option .katex-display > .katex > .katex-html {
+                display: inline !important;
+                text-align: left !important;
+                text-align: -webkit-left !important;
+                white-space: normal !important;
+              }
               @media print {
                 body {
                   padding: 0 !important;
