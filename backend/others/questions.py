@@ -1,4 +1,4 @@
-﻿from db.models import (
+from db.models import (
     Question,
     Option,
     QuestionMapping,
@@ -1616,6 +1616,7 @@ def create_question_using_llm(request):
     - Question Mark: {question_mark}
     - STRICT CHARACTER LIMIT: The generated question text and answer text combined must NOT exceed {character_count} characters.
     - Recommended Answer Length: approximately {recommended_words_count} (Maximum {character_count} characters),
+    - IMPORTANT: Do NOT include mark annotations (such as "(5 marks)", "[5 Marks]", "(5 pts)") inside "question_text". Marks belong ONLY in the "mark" field.
     Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
     [
         {{
@@ -1675,6 +1676,11 @@ def create_question_using_llm(request):
 
         questions_list = parsed if isinstance(parsed, list) else [parsed]
         num_questions = len(questions_list)
+
+        # Strip trailing mark annotations like (5 marks), [5 Marks], (5 pts) from question_text
+        for q_item in questions_list:
+            if isinstance(q_item, dict) and "question_text" in q_item and isinstance(q_item["question_text"], str):
+                q_item["question_text"] = re.sub(r'\s*[\(\[]\s*\d+\s*(?:marks?|pts?|points?)\s*[\)\]]\s*$', '', q_item["question_text"], flags=re.IGNORECASE).strip()
         avg_tokens_per_q = (completion_tokens / num_questions) if num_questions else completion_tokens
 
         # ============================================

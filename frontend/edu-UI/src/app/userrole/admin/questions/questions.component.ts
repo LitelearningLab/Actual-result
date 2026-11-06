@@ -1158,7 +1158,9 @@ export class AdminQuestionsComponent {
                   : [];
               return {
                 type: normType,
-                text: r.question_text || r.questionText || r.question || r.text || '',
+                text: (r.question_text || r.questionText || r.question || r.text || '')
+                  .replace(/\s*[\(\[]\s*\d+\s*(?:marks?|pts?|points?)\s*[\)\]]\s*$/i, '')
+                  .trim(),
                 marks: this.getCategoryQuestionMark() || r.mark || r.marks || 1,
                 options: cleanOpts,
                                 correct:
