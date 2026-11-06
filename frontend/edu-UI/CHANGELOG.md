@@ -1,4 +1,12 @@
 # Changelog
+## [2.3.3] - 2026-11-06
+
+### Features & Enhancements
+- **User Management & Registration**:
+  - Enhanced admin user registration (`user-register.component.ts`) with form state handling and validation.
+  - Updated admin view users component (`view-users.component.ts`) for improved user administration.
+
+---
 ## [2.3.2] - 2026-11-06
 
 ### Features & Enhancements
